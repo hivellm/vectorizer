@@ -10,16 +10,16 @@ mod server_client;
 mod shard_router;
 mod state_sync;
 
+use std::sync::Arc;
+
 pub use grpc_service::ClusterGrpcService;
 pub use manager::ClusterManager;
 pub use node::{ClusterNode, NodeId, NodeStatus};
+use parking_lot::RwLock;
 pub use server_client::{ClusterClient, ClusterClientPool};
 pub use shard_router::DistributedShardRouter;
 pub use state_sync::ClusterStateSynchronizer;
-
-use std::sync::Arc;
-use parking_lot::RwLock;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Cluster configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -88,4 +88,3 @@ impl Default for ClusterConfig {
         }
     }
 }
-

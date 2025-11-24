@@ -9,7 +9,7 @@ import { useToastContext } from '@/providers/ToastProvider';
 
 interface Vector {
   id: string;
-  payload?: any;
+  payload?: Record<string, unknown>;
   metadata?: {
     source?: string;
     file_type?: string;
@@ -41,7 +41,7 @@ export default function VectorDetailsModal({
 
   if (!vector) return null;
 
-  const formatJSON = (obj: any): string => {
+  const formatJSON = (obj: unknown): string => {
     try {
       return JSON.stringify(obj, null, 2);
     } catch {
@@ -53,7 +53,7 @@ export default function VectorDetailsModal({
     try {
       await navigator.clipboard.writeText(vector.id);
       toast.success('Vector ID copied to clipboard');
-    } catch (err) {
+    } catch {
       toast.error('Failed to copy Vector ID');
     }
   };

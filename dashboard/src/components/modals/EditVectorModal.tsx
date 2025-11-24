@@ -11,7 +11,7 @@ import { useToastContext } from '@/providers/ToastProvider';
 
 interface Vector {
   id: string;
-  payload?: any;
+  payload?: Record<string, unknown>;
   metadata?: {
     source?: string;
     file_type?: string;
@@ -50,7 +50,7 @@ export default function EditVectorModal({
       try {
         setPayloadJson(JSON.stringify(vector.payload || {}, null, 2));
         setError(null);
-      } catch (err) {
+      } catch {
         setError('Failed to parse payload');
         setPayloadJson('');
       }
@@ -61,10 +61,10 @@ export default function EditVectorModal({
     if (!vector || !collectionName) return;
 
     // Validate JSON
-    let parsedPayload: any;
+    let parsedPayload: Record<string, unknown>;
     try {
-      parsedPayload = JSON.parse(payloadJson);
-    } catch (err) {
+      parsedPayload = JSON.parse(payloadJson) as Record<string, unknown>;
+    } catch {
       setError('Invalid JSON format');
       return;
     }

@@ -1,6 +1,7 @@
 //! gRPC client for inter-server cluster communication
 
 use std::time::Duration;
+
 use tonic::transport::Channel;
 use tracing::{debug, error, info, warn};
 
@@ -27,13 +28,12 @@ pub struct ClusterClient {
 
 impl ClusterClient {
     /// Create a new cluster client
-    pub async fn new(
-        address: &str,
-        node_id: NodeId,
-        timeout: Duration,
-    ) -> Result<Self> {
-        info!("Creating cluster client for node {} at {}", node_id, address);
-        
+    pub async fn new(address: &str, node_id: NodeId, timeout: Duration) -> Result<Self> {
+        info!(
+            "Creating cluster client for node {} at {}",
+            node_id, address
+        );
+
         let client = ClusterServiceClient::connect(format!("http://{}", address))
             .await
             .map_err(|e| VectorizerError::InvalidConfiguration {
@@ -140,7 +140,7 @@ impl ClusterClient {
         payload: Option<&serde_json::Value>,
     ) -> Result<()> {
         let mut client = self.client.clone();
-        
+
         let payload_json = payload
             .map(|p| serde_json::to_string(p))
             .transpose()
@@ -179,11 +179,7 @@ impl ClusterClient {
     }
 
     /// Delete a vector on the remote server
-    pub async fn delete_vector(
-        &self,
-        collection_name: &str,
-        vector_id: &str,
-    ) -> Result<()> {
+    pub async fn delete_vector(&self, collection_name: &str, vector_id: &str) -> Result<()> {
         let mut client = self.client.clone();
 
         let request = tonic::Request::new(cluster_proto::RemoteDeleteVectorRequest {
@@ -250,22 +246,25 @@ impl ClusterClient {
                             .results
                             .into_iter()
                             .map(|r| {
-                                let payload = r.payload_json
+                                let payload = r
+                                    .payload_json
                                     .as_ref()
                                     .and_then(|json| serde_json::from_str(json).ok());
 
-                            crate::models::SearchResult {
-                                id: r.id,
-                                score: r.score,
-                                vector: Some(r.vector),
-                                payload,
-                            }
+                                crate::models::SearchResult {
+                                    id: r.id,
+                                    score: r.score,
+                                    vector: Some(r.vector),
+                                    payload,
+                                }
                             })
                             .collect();
 
                         debug!(
                             "Successfully searched collection {} on node {}, got {} results",
-                            collection_name, self.node_id, results.len()
+                            collection_name,
+                            self.node_id,
+                            results.len()
                         );
                         return Ok(results);
                     } else {
@@ -292,9 +291,7 @@ impl ClusterClient {
     }
 
     /// Get cluster state from remote server
-    pub async fn get_cluster_state(
-        &self,
-    ) -> Result<cluster_proto::GetClusterStateResponse> {
+    pub async fn get_cluster_state(&self) -> Result<cluster_proto::GetClusterStateResponse> {
         let mut client = self.client.clone();
 
         let request = tonic::Request::new(cluster_proto::GetClusterStateRequest {
@@ -302,11 +299,12 @@ impl ClusterClient {
         });
 
         match client.get_cluster_state(request).await {
-            Ok(response) => {
-                Ok(response.into_inner())
-            }
+            Ok(response) => Ok(response.into_inner()),
             Err(e) => {
-                error!("Failed to get cluster state from node {}: {}", self.node_id, e);
+                error!(
+                    "Failed to get cluster state from node {}: {}",
+                    self.node_id, e
+                );
                 Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
             }
         }
@@ -329,12 +327,18 @@ impl ClusterClient {
                 if resp.success {
                     Ok(resp.info)
                 } else {
-                    warn!("Failed to get collection info from node {}: {}", self.node_id, resp.message);
+                    warn!(
+                        "Failed to get collection info from node {}: {}",
+                        self.node_id, resp.message
+                    );
                     Ok(None)
                 }
             }
             Err(e) => {
-                error!("Failed to get collection info from node {}: {}", self.node_id, e);
+                error!(
+                    "Failed to get collection info from node {}: {}",
+                    self.node_id, e
+                );
                 Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
             }
         }
@@ -354,19 +358,15 @@ impl ClusterClientPool {
     /// Create a new client pool
     pub fn new(timeout: Duration) -> Self {
         Self {
-            clients: std::sync::Arc::new(parking_lot::RwLock::new(
-                std::collections::HashMap::new(),
-            )),
+            clients: std::sync::Arc::new(
+                parking_lot::RwLock::new(std::collections::HashMap::new()),
+            ),
             timeout,
         }
     }
 
     /// Get or create a client for a node
-    pub async fn get_client(
-        &self,
-        node_id: &NodeId,
-        address: &str,
-    ) -> Result<ClusterClient> {
+    pub async fn get_client(&self, node_id: &NodeId, address: &str) -> Result<ClusterClient> {
         // Check if client already exists
         {
             let client_opt = {
@@ -383,7 +383,7 @@ impl ClusterClientPool {
 
         // Create new client
         let client = ClusterClient::new(address, node_id.clone(), self.timeout).await?;
-        
+
         // Store in pool
         {
             let mut clients = self.clients.write();

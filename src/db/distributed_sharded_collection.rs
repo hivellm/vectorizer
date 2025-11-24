@@ -6,12 +6,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
 use parking_lot::RwLock;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
 use super::sharding::ShardId;
-use crate::cluster::{ClusterManager, ClusterClientPool, DistributedShardRouter, NodeId};
+use crate::cluster::{ClusterClientPool, ClusterManager, DistributedShardRouter, NodeId};
 use crate::error::{Result, VectorizerError};
 use crate::models::{CollectionConfig, SearchResult, Vector};
 
@@ -50,12 +51,13 @@ impl DistributedShardedCollection {
         cluster_manager: Arc<ClusterManager>,
         client_pool: Arc<ClusterClientPool>,
     ) -> Result<Self> {
-        let sharding_config = config
-            .sharding
-            .as_ref()
-            .ok_or_else(|| VectorizerError::InvalidConfiguration {
-                message: "Collection config must have sharding enabled".to_string(),
-            })?;
+        let sharding_config =
+            config
+                .sharding
+                .as_ref()
+                .ok_or_else(|| VectorizerError::InvalidConfiguration {
+                    message: "Collection config must have sharding enabled".to_string(),
+                })?;
 
         // Create distributed shard router
         let shard_router = Arc::new(DistributedShardRouter::new(
@@ -128,10 +130,10 @@ impl DistributedShardedCollection {
     /// Insert a vector into the appropriate shard (local or remote)
     pub async fn insert(&self, vector: Vector) -> Result<()> {
         let shard_id = self.shard_router.get_shard_for_vector(&vector.id);
-        
+
         if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
             let local_node_id = self.cluster_manager.local_node_id();
-            
+
             if node_id == *local_node_id {
                 // Local shard
                 let vector_id = vector.id.clone();
@@ -148,27 +150,31 @@ impl DistributedShardedCollection {
             } else {
                 // Remote shard - use gRPC client
                 if let Some(node) = self.cluster_manager.get_node(&node_id) {
-                    let client = self.client_pool
+                    let client = self
+                        .client_pool
                         .get_client(&node_id, &node.grpc_address())
                         .await
-                        .map_err(|e| VectorizerError::Storage(format!(
-                            "Failed to get client for node {}: {}",
-                            node_id, e
-                        )))?;
+                        .map_err(|e| {
+                            VectorizerError::Storage(format!(
+                                "Failed to get client for node {}: {}",
+                                node_id, e
+                            ))
+                        })?;
 
-                    let payload_json = vector.payload.as_ref()
+                    let payload_json = vector
+                        .payload
+                        .as_ref()
                         .map(|p| serde_json::to_value(p).unwrap_or_default());
 
-                    client.insert_vector(
-                        &self.name,
-                        &vector.id,
-                        &vector.data,
-                        payload_json.as_ref(),
-                    ).await
-                    .map_err(|e| VectorizerError::Storage(format!(
-                        "Failed to insert vector on remote node {}: {}",
-                        node_id, e
-                    )))?;
+                    client
+                        .insert_vector(&self.name, &vector.id, &vector.data, payload_json.as_ref())
+                        .await
+                        .map_err(|e| {
+                            VectorizerError::Storage(format!(
+                                "Failed to insert vector on remote node {}: {}",
+                                node_id, e
+                            ))
+                        })?;
 
                     debug!(
                         "Inserted vector '{}' into remote shard {} on node {} of collection '{}'",
@@ -188,10 +194,10 @@ impl DistributedShardedCollection {
     /// Update a vector in the appropriate shard (local or remote)
     pub async fn update(&self, vector: Vector) -> Result<()> {
         let shard_id = self.shard_router.get_shard_for_vector(&vector.id);
-        
+
         if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
             let local_node_id = self.cluster_manager.local_node_id();
-            
+
             if node_id == *local_node_id {
                 // Local shard
                 let vector_id = vector.id.clone();
@@ -208,27 +214,31 @@ impl DistributedShardedCollection {
             } else {
                 // Remote shard - use gRPC client
                 if let Some(node) = self.cluster_manager.get_node(&node_id) {
-                    let client = self.client_pool
+                    let client = self
+                        .client_pool
                         .get_client(&node_id, &node.grpc_address())
                         .await
-                        .map_err(|e| VectorizerError::Storage(format!(
-                            "Failed to get client for node {}: {}",
-                            node_id, e
-                        )))?;
+                        .map_err(|e| {
+                            VectorizerError::Storage(format!(
+                                "Failed to get client for node {}: {}",
+                                node_id, e
+                            ))
+                        })?;
 
-                    let payload_json = vector.payload.as_ref()
+                    let payload_json = vector
+                        .payload
+                        .as_ref()
                         .map(|p| serde_json::to_value(p).unwrap_or_default());
 
-                    client.update_vector(
-                        &self.name,
-                        &vector.id,
-                        &vector.data,
-                        payload_json.as_ref(),
-                    ).await
-                    .map_err(|e| VectorizerError::Storage(format!(
-                        "Failed to update vector on remote node {}: {}",
-                        node_id, e
-                    )))?;
+                    client
+                        .update_vector(&self.name, &vector.id, &vector.data, payload_json.as_ref())
+                        .await
+                        .map_err(|e| {
+                            VectorizerError::Storage(format!(
+                                "Failed to update vector on remote node {}: {}",
+                                node_id, e
+                            ))
+                        })?;
 
                     debug!(
                         "Updated vector '{}' in remote shard {} on node {} of collection '{}'",
@@ -248,10 +258,10 @@ impl DistributedShardedCollection {
     /// Delete a vector from the appropriate shard (local or remote)
     pub async fn delete(&self, vector_id: &str) -> Result<()> {
         let shard_id = self.shard_router.get_shard_for_vector(vector_id);
-        
+
         if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
             let local_node_id = self.cluster_manager.local_node_id();
-            
+
             if node_id == *local_node_id {
                 // Local shard
                 let local_shards = self.local_shards.read();
@@ -267,22 +277,26 @@ impl DistributedShardedCollection {
             } else {
                 // Remote shard - use gRPC client
                 if let Some(node) = self.cluster_manager.get_node(&node_id) {
-                    let client = self.client_pool
+                    let client = self
+                        .client_pool
                         .get_client(&node_id, &node.grpc_address())
                         .await
-                        .map_err(|e| VectorizerError::Storage(format!(
-                            "Failed to get client for node {}: {}",
-                            node_id, e
-                        )))?;
+                        .map_err(|e| {
+                            VectorizerError::Storage(format!(
+                                "Failed to get client for node {}: {}",
+                                node_id, e
+                            ))
+                        })?;
 
-                    client.delete_vector(
-                        &self.name,
-                        vector_id,
-                    ).await
-                    .map_err(|e| VectorizerError::Storage(format!(
-                        "Failed to delete vector on remote node {}: {}",
-                        node_id, e
-                    )))?;
+                    client
+                        .delete_vector(&self.name, vector_id)
+                        .await
+                        .map_err(|e| {
+                            VectorizerError::Storage(format!(
+                                "Failed to delete vector on remote node {}: {}",
+                                node_id, e
+                            ))
+                        })?;
 
                     self.invalidate_vector_count_cache(); // Invalidate cache after delete
                     debug!(
@@ -332,7 +346,10 @@ impl DistributedShardedCollection {
         let mut node_shards: HashMap<NodeId, Vec<ShardId>> = HashMap::new();
         for shard_id in &shard_ids {
             if let Some(node_id) = self.shard_router.get_node_for_shard(shard_id) {
-                node_shards.entry(node_id).or_insert_with(Vec::new).push(*shard_id);
+                node_shards
+                    .entry(node_id)
+                    .or_insert_with(Vec::new)
+                    .push(*shard_id);
             }
         }
 
@@ -361,15 +378,22 @@ impl DistributedShardedCollection {
             }
 
             if let Some(node) = self.cluster_manager.get_node(&node_id) {
-                match self.client_pool.get_client(&node_id, &node.grpc_address()).await {
+                match self
+                    .client_pool
+                    .get_client(&node_id, &node.grpc_address())
+                    .await
+                {
                     Ok(client) => {
-                        match client.search_vectors(
-                            &self.name,
-                            query_vector,
-                            k,
-                            threshold,
-                            Some(&remote_shard_ids),
-                        ).await {
+                        match client
+                            .search_vectors(
+                                &self.name,
+                                query_vector,
+                                k,
+                                threshold,
+                                Some(&remote_shard_ids),
+                            )
+                            .await
+                        {
                             Ok(results) => {
                                 all_results.extend(results);
                             }
@@ -446,7 +470,7 @@ impl DistributedShardedCollection {
         // Count remote shards via gRPC
         let local_node_id = self.cluster_manager.local_node_id();
         let all_nodes = self.cluster_manager.get_active_nodes();
-        
+
         for node in all_nodes {
             if node.id == *local_node_id {
                 continue; // Already counted
@@ -460,13 +484,17 @@ impl DistributedShardedCollection {
 
             // Get collection info from remote node
             if let Some(node) = self.cluster_manager.get_node(&node.id) {
-                match self.client_pool.get_client(&node.id, &node.grpc_address()).await {
+                match self
+                    .client_pool
+                    .get_client(&node.id, &node.grpc_address())
+                    .await
+                {
                     Ok(client) => {
                         // Get collection info for each shard on this node
                         // Since shards are separate collections, we need to query each shard
                         for shard_id in &node_shards {
                             let shard_collection_name = format!("{}_{}", self.name, shard_id);
-                            
+
                             match client.get_collection_info(&shard_collection_name).await {
                                 Ok(Some(info)) => {
                                     total += info.vector_count as usize;
@@ -476,7 +504,10 @@ impl DistributedShardedCollection {
                                     );
                                 }
                                 Ok(None) => {
-                                    debug!("No collection info returned for shard {} on node {}", shard_id, node.id);
+                                    debug!(
+                                        "No collection info returned for shard {} on node {}",
+                                        shard_id, node.id
+                                    );
                                 }
                                 Err(e) => {
                                     warn!(
@@ -488,7 +519,10 @@ impl DistributedShardedCollection {
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to get client for node {} to count vectors: {}", node.id, e);
+                        warn!(
+                            "Failed to get client for node {} to count vectors: {}",
+                            node.id, e
+                        );
                     }
                 }
             }
@@ -509,4 +543,3 @@ impl DistributedShardedCollection {
         *cache = None;
     }
 }
-

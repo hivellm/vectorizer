@@ -4,10 +4,11 @@
 //! relationships between documents based on semantic similarity, metadata,
 //! and payload information.
 
+use tracing::{debug, info, warn};
+
 use crate::db::graph::{Edge, Graph, Node, RelationshipType};
 use crate::error::{Result, VectorizerError};
 use crate::models::{AutoRelationshipConfig, Vector};
-use tracing::{debug, info, warn};
 
 /// Discover and create relationships for a newly inserted vector
 pub fn discover_relationships(
@@ -118,7 +119,10 @@ pub fn discover_reference_relationships(
                             1.0, // References have weight 1.0
                         );
                         graph.add_edge(edge)?;
-                        debug!("Created REFERENCES relationship from '{}' to '{}'", source_id, ref_path);
+                        debug!(
+                            "Created REFERENCES relationship from '{}' to '{}'",
+                            source_id, ref_path
+                        );
                     }
                 }
             }
@@ -147,7 +151,10 @@ pub fn discover_contains_relationships(
                             1.0,
                         );
                         graph.add_edge(edge)?;
-                        debug!("Created CONTAINS relationship from '{}' to '{}'", source_id, contained_path);
+                        debug!(
+                            "Created CONTAINS relationship from '{}' to '{}'",
+                            source_id, contained_path
+                        );
                     }
                 }
             }
@@ -174,7 +181,10 @@ pub fn discover_derived_from_relationships(
                     1.0,
                 );
                 graph.add_edge(edge)?;
-                debug!("Created DERIVED_FROM relationship from '{}' to '{}'", source_id, derived_path);
+                debug!(
+                    "Created DERIVED_FROM relationship from '{}' to '{}'",
+                    source_id, derived_path
+                );
             }
         }
     }
@@ -197,7 +207,10 @@ fn find_or_create_node_by_file_path(graph: &Graph, file_path: &str) -> Result<St
 
     // If not found, create a new node with file_path as ID
     let mut node = Node::new(file_path.to_string(), "document".to_string());
-    node.metadata.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
+    node.metadata.insert(
+        "file_path".to_string(),
+        serde_json::Value::String(file_path.to_string()),
+    );
     graph.add_node(node.clone())?;
     Ok(node.id)
 }
@@ -210,9 +223,12 @@ pub fn is_relationship_type_enabled(rel_type: &str, config: &AutoRelationshipCon
 /// Trait for collections to provide graph relationship discovery helpers
 pub trait GraphRelationshipHelper {
     /// Search for similar vectors and return (id, similarity_score) pairs
-    fn search_similar_vectors(&self, query_vector: &[f32], limit: usize) -> Result<Vec<(String, f32)>>;
+    fn search_similar_vectors(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+    ) -> Result<Vec<(String, f32)>>;
 
     /// Get a vector by ID
     fn get_vector(&self, vector_id: &str) -> Result<Vector>;
 }
-

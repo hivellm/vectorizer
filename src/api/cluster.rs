@@ -1,19 +1,18 @@
 //! REST API endpoints for cluster management
 
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::Json,
-    routing::{delete, get, post},
-    Router,
-};
+use std::sync::Arc;
+
+use axum::Router;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::response::Json;
+use axum::routing::{delete, get, post};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 
 use crate::cluster::{ClusterManager, NodeId};
 use crate::db::VectorStore;
 use crate::error::VectorizerError;
-use std::sync::Arc;
 
 /// Cluster API state
 #[derive(Clone)]
@@ -101,7 +100,10 @@ pub fn create_cluster_router() -> Router<ClusterApiState> {
         .route("/api/v1/cluster/nodes/:node_id", get(get_node))
         .route("/api/v1/cluster/nodes", post(add_node))
         .route("/api/v1/cluster/nodes/:node_id", delete(remove_node))
-        .route("/api/v1/cluster/shard-distribution", get(get_shard_distribution))
+        .route(
+            "/api/v1/cluster/shard-distribution",
+            get(get_shard_distribution),
+        )
         .route("/api/v1/cluster/rebalance", post(trigger_rebalance))
 }
 
@@ -286,4 +288,3 @@ async fn trigger_rebalance(
         shards_moved: None,
     }))
 }
-

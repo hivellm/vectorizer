@@ -595,22 +595,20 @@ pub async fn create_collection(
     );
 
     // Parse graph configuration if provided
-    let graph_config = payload
-        .get("graph")
-        .and_then(|g| {
-            if let Some(enabled) = g.get("enabled").and_then(|e| e.as_bool()) {
-                if enabled {
-                    Some(crate::models::GraphConfig {
-                        enabled: true,
-                        auto_relationship: crate::models::AutoRelationshipConfig::default(),
-                    })
-                } else {
-                    None
-                }
+    let graph_config = payload.get("graph").and_then(|g| {
+        if let Some(enabled) = g.get("enabled").and_then(|e| e.as_bool()) {
+            if enabled {
+                Some(crate::models::GraphConfig {
+                    enabled: true,
+                    auto_relationship: crate::models::AutoRelationshipConfig::default(),
+                })
             } else {
                 None
             }
-        });
+        } else {
+            None
+        }
+    });
 
     // Create collection configuration
     let config = crate::models::CollectionConfig {
@@ -2873,10 +2871,10 @@ pub async fn restore_backup(
                 quantization: QuantizationConfig::default(),
                 compression: CompressionConfig::default(),
                 normalization: None,
-        storage_type: Some(crate::models::StorageType::Memory),
-        sharding: None,
-        graph: None,
-    };
+                storage_type: Some(crate::models::StorageType::Memory),
+                sharding: None,
+                graph: None,
+            };
 
             state
                 .store

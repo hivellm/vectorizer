@@ -1112,8 +1112,9 @@ impl AdvancedApiServer {
             Ok(route.clone())
         } else {
             Err(VectorizerError::InvalidConfiguration {
-            message: "Route not found".to_string(),
-        }.into())
+                message: "Route not found".to_string(),
+            }
+            .into())
         }
     }
 

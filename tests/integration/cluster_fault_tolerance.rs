@@ -11,9 +11,9 @@ use vectorizer::cluster::{
 };
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::error::VectorizerError;
-use vectorizer::models::SearchResult;
 use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, ShardingConfig, Vector,
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, SearchResult, ShardingConfig,
+    Vector,
 };
 
 fn create_test_cluster_config() -> ClusterConfig {
@@ -54,7 +54,7 @@ async fn test_quorum_operations() {
     // Create cluster with 5 nodes (quorum = 3)
     for i in 2..=5 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -87,7 +87,7 @@ async fn test_eventual_consistency() {
     // Add nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -111,7 +111,7 @@ async fn test_eventual_consistency() {
     // Insert vectors
     for i in 0..20 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -162,7 +162,7 @@ async fn test_data_durability() {
     // Insert vectors
     let mut inserted_ids = Vec::new();
     for i in 0..10 {
-        let id = format!("vec-{}", i);
+        let id = format!("vec-{i}");
         let vector = Vector {
             id: id.clone(),
             data: vec![0.1; 128],
@@ -179,7 +179,8 @@ async fn test_data_durability() {
 
     // Data on local node should still be accessible
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 10, None, None).await;
 
     // Search should still work (may return fewer results if remote node is down)
     if let Ok(ref results) = result {
@@ -198,7 +199,7 @@ async fn test_automatic_failover() {
     // Add multiple nodes
     for i in 2..=4 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -207,7 +208,7 @@ async fn test_automatic_failover() {
     }
 
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<_> = (0..6).map(|i| vectorizer::db::sharding::ShardId::new(i)).collect();
+    let shard_ids: Vec<_> = (0..6).map(vectorizer::db::sharding::ShardId::new).collect();
     let initial_node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
         .iter()
@@ -224,7 +225,10 @@ async fn test_automatic_failover() {
     if let Some(primary_node_id) = primary_node {
         let primary_node_id = primary_node_id.clone();
         // Simulate primary node failure
-        cluster_manager.update_node_status(&primary_node_id, vectorizer::cluster::NodeStatus::Unavailable);
+        cluster_manager.update_node_status(
+            &primary_node_id,
+            vectorizer::cluster::NodeStatus::Unavailable,
+        );
 
         // Rebalance should reassign shard
         let remaining_node_ids: Vec<NodeId> = cluster_manager
@@ -247,14 +251,14 @@ async fn test_split_brain_prevention() {
     // Test that split-brain scenarios are handled
     // Note: Full split-brain prevention requires consensus algorithm
     // This test verifies basic behavior
-    
+
     let cluster_config = create_test_cluster_config();
     let cluster_manager = Arc::new(ClusterManager::new(cluster_config).unwrap());
 
     // Create cluster with 5 nodes
     for i in 2..=5 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -265,7 +269,7 @@ async fn test_split_brain_prevention() {
     // Simulate network partition - split into two groups
     // Group 1: nodes 1, 2, 3
     // Group 2: nodes 4, 5 (isolated)
-    
+
     let node_id_4 = NodeId::new("test-node-4".to_string());
     let node_id_5 = NodeId::new("test-node-5".to_string());
 
@@ -281,4 +285,3 @@ async fn test_split_brain_prevention() {
     assert!(!active_nodes.iter().any(|n| n.id == node_id_4));
     assert!(!active_nodes.iter().any(|n| n.id == node_id_5));
 }
-

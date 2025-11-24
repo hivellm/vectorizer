@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation } from 'react-router';
 import { RefreshCw01 } from '@untitledui/icons';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
@@ -33,7 +33,7 @@ interface Vector {
 }
 
 function VectorsPage() {
-  const navigate = useNavigate();
+  // navigate imported but not used - navigation handled via onClick handlers
   const location = useLocation();
   const { listCollections } = useCollections();
   const { collections } = useCollectionsStore();
@@ -113,10 +113,7 @@ function VectorsPage() {
     }
   };
 
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.slice(0, maxLength) + '...';
-  };
+  // truncateText defined but not used - removed
 
   const formatJSON = (obj: any): string => {
     try {

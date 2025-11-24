@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useWorkspace, WorkspaceConfig, WorkspaceProject } from '@/hooks/useWorkspace';
+import { useWorkspace, WorkspaceConfig } from '@/hooks/useWorkspace';
 import { useCollections } from '@/hooks/useCollections';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';

@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
+
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 
@@ -151,4 +152,3 @@ impl ClusterNode {
         self.shards.contains(shard_id)
     }
 }
-

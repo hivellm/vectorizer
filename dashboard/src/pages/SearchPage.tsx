@@ -7,7 +7,7 @@ import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
-import LoadingState from '@/components/LoadingState';
+// LoadingState imported but not used - using inline loading instead
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';

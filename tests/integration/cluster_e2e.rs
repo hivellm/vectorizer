@@ -4,16 +4,15 @@
 
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::debug;
 
 use vectorizer::cluster::{
     ClusterClientPool, ClusterConfig, ClusterManager, DiscoveryMethod, NodeId,
 };
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::error::VectorizerError;
-use vectorizer::models::SearchResult;
 use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, ShardingConfig, Vector,
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, SearchResult, ShardingConfig,
+    Vector,
 };
 
 fn create_test_cluster_config() -> ClusterConfig {
@@ -54,7 +53,7 @@ async fn test_e2e_distributed_workflow() {
     // Add remote nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -82,10 +81,12 @@ async fn test_e2e_distributed_workflow() {
     let mut successful_inserts = 0;
     for i in 0..20 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
-            payload: Some(vectorizer::models::Payload { data: serde_json::json!({"index": i}) }),
+            payload: Some(vectorizer::models::Payload {
+                data: serde_json::json!({"index": i}),
+            }),
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
         if insert_result.is_ok() {
@@ -93,11 +94,15 @@ async fn test_e2e_distributed_workflow() {
         }
     }
     // At least some inserts should succeed (those routed to local node)
-    assert!(successful_inserts > 0, "At least some inserts should succeed");
+    assert!(
+        successful_inserts > 0,
+        "At least some inserts should succeed"
+    );
 
     // 3. Search
     let query_vector = vec![0.1; 128];
-    let search_result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, None).await;
+    let search_result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 10, None, None).await;
     assert!(search_result.is_ok());
     if let Ok(results) = &search_result {
         let results_len: usize = results.len();
@@ -110,14 +115,19 @@ async fn test_e2e_distributed_workflow() {
         id: "vec-0".to_string(),
         data: vec![0.2; 128],
         sparse: None,
-        payload: Some(vectorizer::models::Payload { data: serde_json::json!({"index": 0, "updated": true}) }),
+        payload: Some(vectorizer::models::Payload {
+            data: serde_json::json!({"index": 0, "updated": true}),
+        }),
     };
     let update_result: Result<(), VectorizerError> = collection.update(updated_vector).await;
     // Accept both success and failure (failure is expected if vector is on remote node)
     if update_result.is_err() {
         // If update fails, it's likely because the vector is on a remote node
         // This is acceptable in test environment without real servers
-        tracing::debug!("Update failed (expected if vector is on remote node): {:?}", update_result);
+        tracing::debug!(
+            "Update failed (expected if vector is on remote node): {:?}",
+            update_result
+        );
     }
 
     // 5. Delete vector
@@ -127,11 +137,15 @@ async fn test_e2e_distributed_workflow() {
     if delete_result.is_err() {
         // If delete fails, it's likely because the vector is on a remote node
         // This is acceptable in test environment without real servers
-        tracing::debug!("Delete failed (expected if vector is on remote node): {:?}", delete_result);
+        tracing::debug!(
+            "Delete failed (expected if vector is on remote node): {:?}",
+            delete_result
+        );
     }
 
     // 6. Verify deletion
-    let search_after_delete: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, None).await;
+    let search_after_delete: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 10, None, None).await;
     if let Ok(results) = &search_after_delete {
         // Should have fewer results or vec-1 should not be in results
         let results_len: usize = results.len();
@@ -148,7 +162,7 @@ async fn test_e2e_multi_collection_cluster() {
     // Add remote nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -183,13 +197,13 @@ async fn test_e2e_multi_collection_cluster() {
     // Insert into both collections
     for i in 0..10 {
         let vector1 = Vector {
-            id: format!("vec1-{}", i),
+            id: format!("vec1-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
         };
         let vector2 = Vector {
-            id: format!("vec2-{}", i),
+            id: format!("vec2-{i}"),
             data: vec![0.2; 128],
             sparse: None,
             payload: None,
@@ -200,14 +214,15 @@ async fn test_e2e_multi_collection_cluster() {
         // This is expected in test environment - at least some should succeed
         if insert1_result.is_err() && insert2_result.is_err() {
             // If both fail, skip this test iteration
-            continue;
         }
     }
 
     // Search both collections
     let query_vector = vec![0.1; 128];
-    let result1: Result<Vec<SearchResult>, VectorizerError> = collection1.search(&query_vector, 5, None, None).await;
-    let result2: Result<Vec<SearchResult>, VectorizerError> = collection2.search(&query_vector, 5, None, None).await;
+    let result1: Result<Vec<SearchResult>, VectorizerError> =
+        collection1.search(&query_vector, 5, None, None).await;
+    let result2: Result<Vec<SearchResult>, VectorizerError> =
+        collection2.search(&query_vector, 5, None, None).await;
 
     assert!(result1.is_ok() || result1.is_err());
     assert!(result2.is_ok() || result2.is_err());
@@ -244,7 +259,7 @@ async fn test_e2e_cluster_scaling() {
     // Insert some vectors
     for i in 0..10 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -255,7 +270,7 @@ async fn test_e2e_cluster_scaling() {
     // Scale up: Add 3 more nodes
     for i in 3..=5 {
         let mut new_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -270,7 +285,7 @@ async fn test_e2e_cluster_scaling() {
     // Continue operations after scaling
     for i in 10..20 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -280,7 +295,8 @@ async fn test_e2e_cluster_scaling() {
 
     // Search should still work
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 10, None, None).await;
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -293,7 +309,7 @@ async fn test_e2e_cluster_maintenance() {
     // Start with 3 nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -317,7 +333,7 @@ async fn test_e2e_cluster_maintenance() {
     // Insert vectors
     for i in 0..10 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -348,7 +364,7 @@ async fn test_e2e_cluster_maintenance() {
 
     // Operations should still work
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 10, None, None).await;
     let _ = result.is_ok() || result.is_err();
 }
-

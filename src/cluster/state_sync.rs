@@ -2,9 +2,10 @@
 
 use std::sync::Arc;
 use std::time::Duration;
+
 use parking_lot::RwLock;
 use tokio::time::interval;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 use super::manager::ClusterManager;
 use super::node::{ClusterNode, NodeId, NodeStatus};
@@ -53,7 +54,10 @@ impl ClusterStateSynchronizer {
         *running = true;
         drop(running);
 
-        info!("Starting cluster state synchronizer with interval: {:?}", self.sync_interval);
+        info!(
+            "Starting cluster state synchronizer with interval: {:?}",
+            self.sync_interval
+        );
 
         let sync = self.clone();
         let sync_interval = self.sync_interval;
@@ -98,7 +102,7 @@ impl ClusterStateSynchronizer {
         // Get all nodes
         let nodes = self.manager.get_nodes();
         let local_node_id = self.manager.local_node_id().clone();
-        
+
         // Exchange cluster state with other nodes
         for node in &nodes {
             if node.id == local_node_id {
@@ -106,24 +110,28 @@ impl ClusterStateSynchronizer {
             }
 
             // Try to get cluster state from remote node
-            match self.client_pool.get_client(&node.id, &node.grpc_address()).await {
+            match self
+                .client_pool
+                .get_client(&node.id, &node.grpc_address())
+                .await
+            {
                 Ok(client) => {
                     match client.get_cluster_state().await {
                         Ok(remote_state) => {
                             debug!("Received cluster state from node {}", node.id);
-                            
+
                             // Update heartbeat - node is reachable
                             self.manager.update_node_heartbeat(&node.id);
-                            
+
                             // Merge remote nodes into local cluster state
                             for proto_node in &remote_state.nodes {
                                 let node_id = NodeId::new(proto_node.id.clone());
-                                
+
                                 // Skip if it's the local node
                                 if node_id == local_node_id {
                                     continue;
                                 }
-                                
+
                                 // Convert proto node to ClusterNode
                                 let status = match proto_node.status {
                                     x if x == cluster_proto::NodeStatus::Active as i32 => {
@@ -137,13 +145,13 @@ impl ClusterStateSynchronizer {
                                     }
                                     _ => NodeStatus::Unavailable,
                                 };
-                                
+
                                 let mut cluster_node = ClusterNode::new(
                                     node_id.clone(),
                                     proto_node.address.clone(),
                                     proto_node.grpc_port as u16,
                                 );
-                                
+
                                 match status {
                                     NodeStatus::Active => cluster_node.mark_active(),
                                     NodeStatus::Joining => {
@@ -154,24 +162,27 @@ impl ClusterStateSynchronizer {
                                     }
                                     NodeStatus::Unavailable => cluster_node.mark_unavailable(),
                                 }
-                                
+
                                 // Add shards
                                 for shard_id in &proto_node.shards {
-                                    cluster_node.add_shard(crate::db::sharding::ShardId::new(*shard_id));
+                                    cluster_node
+                                        .add_shard(crate::db::sharding::ShardId::new(*shard_id));
                                 }
-                                
+
                                 // Add or update node in cluster
                                 self.manager.add_node(cluster_node);
                             }
-                            
+
                             // Update shard assignments from remote state
                             let shard_router = self.manager.shard_router();
                             for (shard_id_u32, node_id_str) in &remote_state.shard_to_node {
                                 let shard_id = crate::db::sharding::ShardId::new(*shard_id_u32);
                                 let assigned_node_id = NodeId::new(node_id_str.clone());
-                                
+
                                 // Update router if shard assignment is different
-                                if let Some(current_node) = shard_router.get_node_for_shard(&shard_id) {
+                                if let Some(current_node) =
+                                    shard_router.get_node_for_shard(&shard_id)
+                                {
                                     if current_node != assigned_node_id {
                                         debug!(
                                             "Shard {} assignment differs: local={}, remote={}",
@@ -209,11 +220,11 @@ impl ClusterStateSynchronizer {
     /// Broadcast cluster state to all nodes
     pub async fn broadcast_state(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         debug!("Broadcasting cluster state to all nodes");
-        
+
         let nodes = self.manager.get_nodes();
         let local_node_id = self.manager.local_node_id().clone();
         let shard_router = self.manager.shard_router();
-        
+
         // Build local cluster state
         let mut shard_to_node = std::collections::HashMap::new();
         for node in &nodes {
@@ -222,19 +233,19 @@ impl ClusterStateSynchronizer {
                 shard_to_node.insert(shard_id.as_u32(), node.id.as_str().to_string());
             }
         }
-        
+
         // Convert local nodes to proto format
         let mut proto_nodes = Vec::new();
         for node in &nodes {
             use cluster_proto::{ClusterNode as ProtoClusterNode, NodeMetadata};
-            
+
             let status = match node.status {
                 NodeStatus::Active => cluster_proto::NodeStatus::Active as i32,
                 NodeStatus::Joining => cluster_proto::NodeStatus::Joining as i32,
                 NodeStatus::Leaving => cluster_proto::NodeStatus::Leaving as i32,
                 NodeStatus::Unavailable => cluster_proto::NodeStatus::Unavailable as i32,
             };
-            
+
             proto_nodes.push(ProtoClusterNode {
                 id: node.id.as_str().to_string(),
                 address: node.address.clone(),
@@ -250,18 +261,22 @@ impl ClusterStateSynchronizer {
                 }),
             });
         }
-        
+
         // Broadcast to all remote nodes
         for node in &nodes {
             if node.id == local_node_id {
                 continue; // Skip local node
             }
-            
-            match self.client_pool.get_client(&node.id, &node.grpc_address()).await {
+
+            match self
+                .client_pool
+                .get_client(&node.id, &node.grpc_address())
+                .await
+            {
                 Ok(client) => {
                     // Use update_cluster_state to broadcast
-                    use cluster_proto::{UpdateClusterStateRequest, ShardAssignment};
-                    
+                    use cluster_proto::{ShardAssignment, UpdateClusterStateRequest};
+
                     let shard_assignments: Vec<ShardAssignment> = shard_to_node
                         .iter()
                         .map(|(shard_id, node_id)| ShardAssignment {
@@ -269,27 +284,31 @@ impl ClusterStateSynchronizer {
                             node_id: node_id.clone(),
                         })
                         .collect();
-                    
+
                     // Get local node as proto
-                    let local_proto_node = proto_nodes.iter()
+                    let local_proto_node = proto_nodes
+                        .iter()
                         .find(|n| n.id == local_node_id.as_str())
                         .cloned();
-                    
+
                     let request = tonic::Request::new(UpdateClusterStateRequest {
                         node: local_proto_node,
                         shard_assignments,
                     });
-                    
+
                     // Note: We need to add update_cluster_state to ClusterClient
                     // For now, we'll just log that we would broadcast
                     debug!("Would broadcast cluster state to node {}", node.id);
                 }
                 Err(e) => {
-                    warn!("Failed to get client for broadcasting to node {}: {}", node.id, e);
+                    warn!(
+                        "Failed to get client for broadcasting to node {}: {}",
+                        node.id, e
+                    );
                 }
             }
         }
-        
+
         debug!("Cluster state broadcast complete");
         Ok(())
     }
@@ -300,13 +319,19 @@ impl ClusterStateSynchronizer {
         node_id: &NodeId,
     ) -> Result<ClusterNode, Box<dyn std::error::Error + Send + Sync>> {
         debug!("Requesting cluster state from node {}", node_id);
-        
+
         // Get node info to find address
-        let node = self.manager.get_node(node_id)
+        let node = self
+            .manager
+            .get_node(node_id)
             .ok_or_else(|| format!("Node {} not found locally", node_id))?;
-        
+
         // Get client and request cluster state
-        match self.client_pool.get_client(node_id, &node.grpc_address()).await {
+        match self
+            .client_pool
+            .get_client(node_id, &node.grpc_address())
+            .await
+        {
             Ok(client) => {
                 match client.get_cluster_state().await {
                     Ok(state) => {
@@ -326,13 +351,13 @@ impl ClusterStateSynchronizer {
                                     }
                                     _ => NodeStatus::Unavailable,
                                 };
-                                
+
                                 let mut cluster_node = ClusterNode::new(
                                     NodeId::new(proto_node.id.clone()),
                                     proto_node.address.clone(),
                                     proto_node.grpc_port as u16,
                                 );
-                                
+
                                 match status {
                                     NodeStatus::Active => cluster_node.mark_active(),
                                     NodeStatus::Joining => {
@@ -343,18 +368,23 @@ impl ClusterStateSynchronizer {
                                     }
                                     NodeStatus::Unavailable => cluster_node.mark_unavailable(),
                                 }
-                                
+
                                 // Add shards
                                 for shard_id in &proto_node.shards {
-                                    cluster_node.add_shard(crate::db::sharding::ShardId::new(*shard_id));
+                                    cluster_node
+                                        .add_shard(crate::db::sharding::ShardId::new(*shard_id));
                                 }
-                                
+
                                 return Ok(cluster_node);
                             }
                         }
                     }
                     Err(e) => {
-                        return Err(format!("Failed to get cluster state from node {}: {}", node_id, e).into());
+                        return Err(format!(
+                            "Failed to get cluster state from node {}: {}",
+                            node_id, e
+                        )
+                        .into());
                     }
                 }
             }
@@ -362,8 +392,7 @@ impl ClusterStateSynchronizer {
                 return Err(format!("Failed to get client for node {}: {}", node_id, e).into());
             }
         }
-        
+
         Err(format!("Node {} not found in cluster state", node_id).into())
     }
 }
-

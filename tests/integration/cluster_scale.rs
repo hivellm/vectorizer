@@ -52,7 +52,7 @@ async fn test_cluster_3_nodes_load_distribution() {
     // Add 2 remote nodes (total 3 nodes)
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -81,7 +81,7 @@ async fn test_cluster_3_nodes_load_distribution() {
     // Insert vectors - should be distributed across nodes
     for i in 0..30 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -92,8 +92,8 @@ async fn test_cluster_3_nodes_load_distribution() {
     // Verify load is distributed (each node should have some shards)
     // First, ensure shards are assigned to nodes
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<ShardId> = (0..6).map(|i| ShardId::new(i)).collect();
-    
+    let shard_ids: Vec<ShardId> = (0..6).map(ShardId::new).collect();
+
     // Rebalance to ensure shards are assigned
     let node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
@@ -101,7 +101,7 @@ async fn test_cluster_3_nodes_load_distribution() {
         .map(|n| n.id.clone())
         .collect();
     shard_router.rebalance(&shard_ids, &node_ids);
-    
+
     let mut node_shard_counts = std::collections::HashMap::new();
     for shard_id in &shard_ids {
         if let Some(node_id) = shard_router.get_node_for_shard(shard_id) {
@@ -111,7 +111,11 @@ async fn test_cluster_3_nodes_load_distribution() {
 
     // With 3 nodes and 6 shards, at least 2 nodes should have shards
     // (round-robin distribution should give 2 shards per node)
-    assert!(node_shard_counts.len() >= 2, "Expected at least 2 nodes to have shards, got {}", node_shard_counts.len());
+    assert!(
+        node_shard_counts.len() >= 2,
+        "Expected at least 2 nodes to have shards, got {}",
+        node_shard_counts.len()
+    );
 }
 
 #[tokio::test]
@@ -122,7 +126,7 @@ async fn test_cluster_5_nodes_shard_distribution() {
     // Add 4 remote nodes (total 5 nodes)
     for i in 2..=5 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -136,7 +140,7 @@ async fn test_cluster_5_nodes_shard_distribution() {
 
     // Create shard router and assign shards
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<ShardId> = (0..10).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..10).map(ShardId::new).collect();
     let node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
         .iter()
@@ -173,7 +177,7 @@ async fn test_cluster_add_node_dynamically() {
     cluster_manager.add_node(remote_node);
 
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<ShardId> = (0..4).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..4).map(ShardId::new).collect();
     let initial_node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
         .iter()
@@ -210,13 +214,11 @@ async fn test_cluster_add_node_dynamically() {
 
     // Verify new node may have received some shards
     let new_node_id = NodeId::new("test-node-3".to_string());
-    let mut new_node_has_shards = false;
     for shard_id in &shard_ids {
-        if let Some(node_id) = shard_router.get_node_for_shard(shard_id) {
-            if node_id == new_node_id {
-                new_node_has_shards = true;
-                break;
-            }
+        if let Some(node_id) = shard_router.get_node_for_shard(shard_id)
+            && node_id == new_node_id
+        {
+            break;
         }
     }
 
@@ -233,7 +235,7 @@ async fn test_cluster_remove_node_dynamically() {
     // Start with 3 nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -242,7 +244,7 @@ async fn test_cluster_remove_node_dynamically() {
     }
 
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<ShardId> = (0..6).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..6).map(ShardId::new).collect();
     let initial_node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
         .iter()
@@ -283,7 +285,7 @@ async fn test_cluster_rebalance_trigger() {
     // Add nodes
     for i in 2..=4 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -292,7 +294,7 @@ async fn test_cluster_rebalance_trigger() {
     }
 
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<ShardId> = (0..8).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..8).map(ShardId::new).collect();
     let node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
         .iter()
@@ -327,7 +329,7 @@ async fn test_cluster_consistent_hashing() {
     // Add nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -336,7 +338,7 @@ async fn test_cluster_consistent_hashing() {
     }
 
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<ShardId> = (0..10).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..10).map(ShardId::new).collect();
     let node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
         .iter()
@@ -355,12 +357,11 @@ async fn test_cluster_consistent_hashing() {
     // Rebalance again with same nodes - assignments should be consistent
     shard_router.rebalance(&shard_ids, &node_ids);
     for shard_id in &shard_ids {
-        if let Some(node_id) = shard_router.get_node_for_shard(shard_id) {
-            if let Some(initial_node) = initial_assignments.get(shard_id) {
-                // Consistent hashing should assign same shard to same node
-                assert_eq!(node_id, *initial_node);
-            }
+        if let Some(node_id) = shard_router.get_node_for_shard(shard_id)
+            && let Some(initial_node) = initial_assignments.get(shard_id)
+        {
+            // Consistent hashing should assign same shard to same node
+            assert_eq!(node_id, *initial_node);
         }
     }
 }
-

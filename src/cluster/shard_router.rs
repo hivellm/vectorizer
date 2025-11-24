@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
@@ -92,11 +93,7 @@ impl DistributedShardRouter {
             ring.insert(hash, (shard_id, node_id.clone()));
         }
 
-        info!(
-            "Assigned shard {} to node {}",
-            shard_id.as_u32(),
-            node_id
-        );
+        info!("Assigned shard {} to node {}", shard_id.as_u32(), node_id);
     }
 
     /// Remove shard assignment
@@ -226,10 +223,8 @@ impl DistributedShardRouter {
         let mut migrations = Vec::new();
 
         // Count current shards per node
-        let mut node_shard_counts: std::collections::HashMap<NodeId, usize> = node_ids
-            .iter()
-            .map(|n| (n.clone(), 0))
-            .collect();
+        let mut node_shard_counts: std::collections::HashMap<NodeId, usize> =
+            node_ids.iter().map(|n| (n.clone(), 0)).collect();
 
         let shard_to_node = self.shard_to_node.read();
         for shard_id in shard_ids {
@@ -299,4 +294,3 @@ impl DistributedShardRouter {
         hasher.finish()
     }
 }
-

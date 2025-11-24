@@ -11,10 +11,9 @@ use vectorizer::cluster::{
 };
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::error::VectorizerError;
-use vectorizer::models::SearchResult;
 use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
-    ShardingConfig, Vector,
+    SearchResult, ShardingConfig, Vector,
 };
 
 fn create_test_cluster_config() -> ClusterConfig {
@@ -72,7 +71,7 @@ async fn test_distributed_sharding_with_quantization() {
     // Insert vectors
     for i in 0..10 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -87,7 +86,8 @@ async fn test_distributed_sharding_with_quantization() {
 
     // Search should work with quantized vectors
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 5, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 5, None, None).await;
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -134,7 +134,7 @@ async fn test_distributed_sharding_with_compression() {
     // Insert vectors
     for i in 0..10 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -149,7 +149,8 @@ async fn test_distributed_sharding_with_compression() {
 
     // Search should work with compressed vectors
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 5, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 5, None, None).await;
     assert!(result.is_ok() || result.is_err());
 }
 
@@ -196,14 +197,14 @@ async fn test_distributed_sharding_with_payload() {
     // Insert vectors with payloads
     for i in 0..10 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
-            payload: Some(vectorizer::models::Payload { 
+            payload: Some(vectorizer::models::Payload {
                 data: serde_json::json!({
                     "category": format!("cat-{}", i % 3),
                     "value": i,
-                })
+                }),
             }),
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
@@ -216,7 +217,8 @@ async fn test_distributed_sharding_with_payload() {
 
     // Search should return results with payloads
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 5, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 5, None, None).await;
 
     if let Ok(results) = result {
         // Results should have payloads
@@ -269,12 +271,11 @@ async fn test_distributed_sharding_with_sparse() {
     // Insert vectors with sparse components
     for i in 0..10 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
-            sparse: Some(vectorizer::models::SparseVector::new(
-                vec![i as usize],
-                vec![1.0],
-            ).unwrap()),
+            sparse: Some(
+                vectorizer::models::SparseVector::new(vec![i as usize], vec![1.0]).unwrap(),
+            ),
             payload: None,
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
@@ -287,7 +288,7 @@ async fn test_distributed_sharding_with_sparse() {
 
     // Search should work with sparse vectors
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 5, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 5, None, None).await;
     assert!(result.is_ok() || result.is_err());
 }
-

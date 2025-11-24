@@ -28,8 +28,8 @@ export function useSearchHistory() {
         const parsed = JSON.parse(stored) as SearchHistoryItem[];
         setHistory(Array.isArray(parsed) ? parsed : []);
       }
-    } catch (error) {
-      console.error('Error loading search history:', error);
+    } catch (_error) {
+      // Ignore localStorage errors (e.g., in private browsing mode)
     }
   }, []);
 

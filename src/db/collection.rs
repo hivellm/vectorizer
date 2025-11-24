@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
-use super::graph_relationship_discovery::{discover_relationships, GraphRelationshipHelper};
+use super::graph_relationship_discovery::{GraphRelationshipHelper, discover_relationships};
 use super::hybrid_search::{
     DenseSearchResult, HybridScoringAlgorithm, HybridSearchConfig, SparseSearchResult,
     hybrid_search,
@@ -58,7 +58,11 @@ pub struct Collection {
 }
 
 impl GraphRelationshipHelper for Collection {
-    fn search_similar_vectors(&self, query_vector: &[f32], limit: usize) -> Result<Vec<(String, f32)>> {
+    fn search_similar_vectors(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+    ) -> Result<Vec<(String, f32)>> {
         let results = self.search(query_vector, limit)?;
         Ok(results.into_iter().map(|r| (r.id, r.score)).collect())
     }
@@ -97,22 +101,26 @@ impl Collection {
         }
 
         info!("Enabling graph for collection '{}'", self.name);
-        
+
         // Create new graph
         let graph = Arc::new(super::graph::Graph::new(self.name.clone()));
-        
+
         // Set graph field immediately
         self.graph = Some(graph.clone());
-        
+
         // Create nodes for existing vectors (limit to avoid blocking)
         let vector_ids: Vec<String> = {
             let vector_order = self.vector_order.read();
             vector_order.iter().cloned().take(100).collect() // Limit to 100 to avoid blocking
         };
-        
+
         if !vector_ids.is_empty() {
-            info!("Creating graph nodes for {} existing vectors in collection '{}'", vector_ids.len(), self.name);
-            
+            info!(
+                "Creating graph nodes for {} existing vectors in collection '{}'",
+                vector_ids.len(),
+                self.name
+            );
+
             for vector_id in &vector_ids {
                 if let Ok(vector) = self.get_vector(vector_id) {
                     let node = Node::from_vector(&vector.id, vector.payload.as_ref());
@@ -121,10 +129,14 @@ impl Collection {
                     }
                 }
             }
-            
-            info!("Created {} graph nodes for collection '{}'", vector_ids.len(), self.name);
+
+            info!(
+                "Created {} graph nodes for collection '{}'",
+                vector_ids.len(),
+                self.name
+            );
         }
-        
+
         info!("Graph enabled for collection '{}'", self.name);
         Ok(())
     }
@@ -337,11 +349,12 @@ impl Collection {
                     if graph_config.enabled {
                         // Only create node, skip expensive similarity search during insertion
                         // Similarity relationships can be created later via explicit edge creation
-                        let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
+                        let node =
+                            crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
                         if let Err(e) = graph.add_node(node) {
                             warn!("Failed to add graph node for vector '{}': {}", id, e);
                         }
-                        
+
                         // Optionally discover relationships if auto_relationship is enabled
                         // Note: Similarity-based relationships are skipped during insertion
                         // to avoid timeout. Only metadata-based relationships are created.
@@ -350,30 +363,45 @@ impl Collection {
                             // Ensure the source node exists before creating relationships
                             // (it should already exist from line 321-324, but double-check)
                             if graph.get_node(&id).is_none() {
-                                let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
+                                let node = crate::db::graph::Node::from_vector(
+                                    &id,
+                                    vector.payload.as_ref(),
+                                );
                                 let _ = graph.add_node(node);
                             }
-                            
+
                             // Only do fast metadata-based relationships during insertion
                             // Skip SIMILAR_TO to avoid timeout during insertion
                             if let Some(payload) = &vector.payload {
-                                use super::graph_relationship_discovery::{discover_reference_relationships, discover_contains_relationships, discover_derived_from_relationships};
-                                use super::graph_relationship_discovery::is_relationship_type_enabled;
-                                
+                                use super::graph_relationship_discovery::{
+                                    discover_contains_relationships,
+                                    discover_derived_from_relationships,
+                                    discover_reference_relationships, is_relationship_type_enabled,
+                                };
+
                                 // Create metadata-based relationships (fast)
                                 if is_relationship_type_enabled("REFERENCES", auto_config) {
-                                    if let Err(e) = discover_reference_relationships(graph, &id, payload) {
+                                    if let Err(e) =
+                                        discover_reference_relationships(graph, &id, payload)
+                                    {
                                         debug!("Failed to discover REFERENCES for '{}': {}", id, e);
                                     }
                                 }
                                 if is_relationship_type_enabled("CONTAINS", auto_config) {
-                                    if let Err(e) = discover_contains_relationships(graph, &id, payload) {
+                                    if let Err(e) =
+                                        discover_contains_relationships(graph, &id, payload)
+                                    {
                                         debug!("Failed to discover CONTAINS for '{}': {}", id, e);
                                     }
                                 }
                                 if is_relationship_type_enabled("DERIVED_FROM", auto_config) {
-                                    if let Err(e) = discover_derived_from_relationships(graph, &id, payload) {
-                                        debug!("Failed to discover DERIVED_FROM for '{}': {}", id, e);
+                                    if let Err(e) =
+                                        discover_derived_from_relationships(graph, &id, payload)
+                                    {
+                                        debug!(
+                                            "Failed to discover DERIVED_FROM for '{}': {}",
+                                            id, e
+                                        );
                                     }
                                 }
                                 // SIMILAR_TO relationships are skipped during insertion to avoid timeout

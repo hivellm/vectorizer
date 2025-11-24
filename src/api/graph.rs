@@ -7,21 +7,20 @@
 //! - Finding paths between nodes
 //! - Creating and deleting edges
 
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::Json,
-    routing::{delete, get, post},
-    Router,
-};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use axum::Router;
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::response::Json;
+use axum::routing::{delete, get, post};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
 use crate::db::graph::{Edge, Graph, Node, RelationshipType};
-use crate::error::VectorizerError;
 use crate::db::{CollectionType, VectorStore};
-use std::collections::HashMap;
-use std::sync::Arc;
+use crate::error::VectorizerError;
 
 /// API state for graph endpoints
 #[derive(Clone)]
@@ -44,7 +43,10 @@ pub fn create_graph_router() -> Router<GraphApiState> {
         .route("/api/v1/graph/path", post(find_path))
         .route("/api/v1/graph/edges", post(create_edge))
         .route("/api/v1/graph/edges/{edge_id}", delete(delete_edge))
-        .route("/api/v1/graph/collections/{collection}/edges", get(list_edges))
+        .route(
+            "/api/v1/graph/collections/{collection}/edges",
+            get(list_edges),
+        )
 }
 
 /// Request/Response types
@@ -144,30 +146,26 @@ pub async fn list_nodes(
 ) -> Result<Json<ListNodesResponse>, (StatusCode, Json<serde_json::Value>)> {
     debug!("GET /api/v1/graph/nodes/{}", collection_name);
 
-    let collection = state
-        .store
-        .get_collection(&collection_name)
-        .map_err(|e| {
-            error!("Collection '{}' not found: {}", collection_name, e);
-            (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({
-                    "error": format!("Collection '{}' not found", collection_name)
-                })),
-            )
-        })?;
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
 
     // Get graph from collection (only works for CPU collections for now)
-    let graph = get_collection_graph_from_type(&collection)
-        .ok_or_else(|| {
-            error!("Graph not enabled for collection '{}'", collection_name);
-            (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": format!("Graph not enabled for collection '{}'", collection_name)
-                })),
-            )
-        })?;
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", collection_name);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", collection_name)
+            })),
+        )
+    })?;
 
     let nodes = graph.get_all_nodes();
     let count = nodes.len();
@@ -181,34 +179,27 @@ pub async fn get_neighbors(
     State(state): State<GraphApiState>,
     axum::extract::Path((collection_name, node_id)): axum::extract::Path<(String, String)>,
 ) -> Result<Json<GetNeighborsResponse>, (StatusCode, Json<serde_json::Value>)> {
-    debug!(
-        "GET /api/v1/graph/nodes/{}/neighbors",
-        collection_name
-    );
+    debug!("GET /api/v1/graph/nodes/{}/neighbors", collection_name);
 
-    let collection = state
-        .store
-        .get_collection(&collection_name)
-        .map_err(|e| {
-            error!("Collection '{}' not found: {}", collection_name, e);
-            (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({
-                    "error": format!("Collection '{}' not found", collection_name)
-                })),
-            )
-        })?;
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
 
-    let graph = get_collection_graph_from_type(&collection)
-        .ok_or_else(|| {
-            error!("Graph not enabled for collection '{}'", collection_name);
-            (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": format!("Graph not enabled for collection '{}'", collection_name)
-                })),
-            )
-        })?;
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", collection_name);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", collection_name)
+            })),
+        )
+    })?;
 
     let neighbors = graph.get_neighbors(&node_id, None).map_err(|e| {
         error!("Failed to get neighbors for node '{}': {}", node_id, e);
@@ -237,34 +228,27 @@ pub async fn find_related(
     Path((collection_name, node_id)): Path<(String, String)>,
     Json(request): Json<FindRelatedRequest>,
 ) -> Result<Json<FindRelatedResponse>, (StatusCode, Json<serde_json::Value>)> {
-    debug!(
-        "POST /api/v1/graph/nodes/{}/related",
-        collection_name
-    );
+    debug!("POST /api/v1/graph/nodes/{}/related", collection_name);
 
-    let collection = state
-        .store
-        .get_collection(&collection_name)
-        .map_err(|e| {
-            error!("Collection '{}' not found: {}", collection_name, e);
-            (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({
-                    "error": format!("Collection '{}' not found", collection_name)
-                })),
-            )
-        })?;
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
 
-    let graph = get_collection_graph_from_type(&collection)
-        .ok_or_else(|| {
-            error!("Graph not enabled for collection '{}'", collection_name);
-            (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": format!("Graph not enabled for collection '{}'", collection_name)
-                })),
-            )
-        })?;
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", collection_name);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", collection_name)
+            })),
+        )
+    })?;
 
     let max_hops = request.max_hops.unwrap_or(2);
     let relationship_type = request
@@ -322,22 +306,18 @@ pub async fn find_path(
             )
         })?;
 
-    let graph = get_collection_graph_from_type(&collection)
-        .ok_or_else(|| {
-            error!("Graph not enabled for collection '{}'", request.collection);
-            (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": format!("Graph not enabled for collection '{}'", request.collection)
-                })),
-            )
-        })?;
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", request.collection);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", request.collection)
+            })),
+        )
+    })?;
 
     match graph.find_path(&request.source, &request.target) {
-        Ok(path) => Ok(Json(FindPathResponse {
-            path,
-            found: true,
-        })),
+        Ok(path) => Ok(Json(FindPathResponse { path, found: true })),
         Err(VectorizerError::NotFound(_)) => Ok(Json(FindPathResponse {
             path: Vec::new(),
             found: false,
@@ -378,19 +358,18 @@ pub async fn create_edge(
             )
         })?;
 
-    let graph = get_collection_graph_from_type(&collection)
-        .ok_or_else(|| {
-            error!("Graph not enabled for collection '{}'", request.collection);
-            (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": format!("Graph not enabled for collection '{}'", request.collection)
-                })),
-            )
-        })?;
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", request.collection);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", request.collection)
+            })),
+        )
+    })?;
 
-    let relationship_type = parse_relationship_type(&request.relationship_type)
-        .ok_or_else(|| {
+    let relationship_type =
+        parse_relationship_type(&request.relationship_type).ok_or_else(|| {
             error!("Invalid relationship type: {}", request.relationship_type);
             (
                 StatusCode::BAD_REQUEST,
@@ -444,32 +423,28 @@ pub async fn list_edges(
 ) -> Result<Json<ListEdgesResponse>, (StatusCode, Json<serde_json::Value>)> {
     debug!("GET /api/v1/graph/collections/{}/edges", collection_name);
 
-    let collection = state
-        .store
-        .get_collection(&collection_name)
-        .map_err(|e| {
-            error!("Collection '{}' not found: {}", collection_name, e);
-            (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({
-                    "error": format!("Collection '{}' not found", collection_name)
-                })),
-            )
-        })?;
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
 
-    let graph = get_collection_graph_from_type(&collection)
-        .ok_or_else(|| {
-            error!("Graph not enabled for collection '{}'", collection_name);
-            (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": format!("Graph not enabled for collection '{}'", collection_name)
-                })),
-            )
-        })?;
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", collection_name);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", collection_name)
+            })),
+        )
+    })?;
 
     let edges = graph.get_all_edges();
-    
+
     let edge_infos: Vec<EdgeInfo> = edges
         .into_iter()
         .map(|edge| EdgeInfo {
@@ -514,7 +489,10 @@ pub async fn delete_edge(
             if let Some(graph) = get_collection_graph_from_type(&collection) {
                 if graph.remove_edge(&edge_id).is_ok() {
                     found = true;
-                    info!("Deleted edge '{}' from collection '{}'", edge_id, collection_name);
+                    info!(
+                        "Deleted edge '{}' from collection '{}'",
+                        edge_id, collection_name
+                    );
                     break;
                 }
             }
@@ -556,4 +534,3 @@ fn parse_relationship_type(s: &str) -> Option<RelationshipType> {
         _ => None,
     }
 }
-

@@ -360,7 +360,7 @@ impl Default for CollectionConfig {
             normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
             storage_type: Some(StorageType::Memory),
             sharding: None, // Sharding disabled by default
-            graph: None, // Graph disabled by default
+            graph: None,    // Graph disabled by default
         }
     }
 }
@@ -431,7 +431,7 @@ impl Default for AutoRelationshipConfig {
     fn default() -> Self {
         Self {
             similarity_threshold: 0.7, // 70% similarity threshold
-            max_per_node: 10, // Maximum 10 relationships per node
+            max_per_node: 10,          // Maximum 10 relationships per node
             enabled_types: vec![
                 "SIMILAR_TO".to_string(),
                 "REFERENCES".to_string(),
@@ -741,7 +741,7 @@ pub mod sparse_vector;
 /// SIMD-accelerated vector utilities
 pub mod vector_utils_simd;
 
+pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};
+
 /// Graph models (re-exported from db::graph)
 pub use crate::db::graph::{Edge, Node, RelationshipType};
-
-pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};

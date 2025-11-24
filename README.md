@@ -24,7 +24,8 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔄 Qdrant Migration**: Complete migration tools for seamless transition from Qdrant
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
-- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management
+- **🖥️ Web Dashboard**: Modern React + TypeScript dashboard for visual database management
+- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management (legacy)
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
 - **🧠 Multiple Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
 - **🔒 Security**: JWT + API Key authentication with RBAC
@@ -99,6 +100,7 @@ cargo build --release --features full
 
 ### Access Points
 
+- **Web Dashboard**: http://localhost:15002/dashboard/ - Modern React dashboard for visual management
 - **REST API**: http://localhost:15002
 - **MCP Server**: http://localhost:15002/mcp
 - **UMICP Discovery**: http://localhost:15002/umicp/discover
@@ -214,6 +216,7 @@ See [Qdrant Migration Guide](./docs/specs/QDRANT_MIGRATION.md) for detailed inst
 
 - **[User Documentation](./docs/users/)** - Installation guides and user tutorials
 - **[API Reference](./docs/specs/API_REFERENCE.md)** - Complete REST API documentation
+- **[Dashboard Integration](./docs/DASHBOARD_INTEGRATION.md)** - Web dashboard setup and integration guide
 - **[Qdrant Compatibility](./docs/users/qdrant/)** - Qdrant API compatibility and migration guide
 - **[Technical Specifications](./docs/specs/)** - Architecture, performance, and implementation guides
 - **[MCP Integration](./docs/specs/MCP.md)** - Model Context Protocol guide

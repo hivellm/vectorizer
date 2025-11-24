@@ -42,7 +42,7 @@ export default function CreateCollectionModal({
       await createCollection({
         name: formData.name.trim(),
         dimension: formData.dimension,
-        metric: formData.metric.toLowerCase(),
+        metric: formData.metric, // Already typed correctly
       });
       
       // Refresh collections

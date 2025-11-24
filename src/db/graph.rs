@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
@@ -64,15 +65,13 @@ impl Node {
 
     /// Create a node from vector ID and payload
     pub fn from_vector(vector_id: &str, payload: Option<&crate::models::Payload>) -> Self {
-        let mut node = Self::new(
-            vector_id.to_string(),
-            "document".to_string(),
-        );
+        let mut node = Self::new(vector_id.to_string(), "document".to_string());
 
         if let Some(payload) = payload {
             // Extract file_path if available
             if let Some(file_path) = payload.data.get("file_path") {
-                node.metadata.insert("file_path".to_string(), file_path.clone());
+                node.metadata
+                    .insert("file_path".to_string(), file_path.clone());
             }
 
             // Copy other relevant metadata
@@ -129,12 +128,13 @@ impl Edge {
     }
 
     /// Create an edge with similarity weight
-    pub fn with_similarity(
-        source: String,
-        target: String,
-        similarity_score: f32,
-    ) -> Self {
-        let id = format!("{}:{}:{}", source, target, RelationshipType::SimilarTo as u8);
+    pub fn with_similarity(source: String, target: String, similarity_score: f32) -> Self {
+        let id = format!(
+            "{}:{}:{}",
+            source,
+            target,
+            RelationshipType::SimilarTo as u8
+        );
         Self::new(
             id,
             source,
@@ -184,7 +184,10 @@ impl Graph {
             // Update existing node
             debug!("Updating existing node '{}' in graph", node.id);
         } else {
-            info!("Adding node '{}' to graph '{}'", node.id, self.collection_name);
+            info!(
+                "Adding node '{}' to graph '{}'",
+                node.id, self.collection_name
+            );
         }
         nodes.insert(node.id.clone(), node);
         Ok(())
@@ -204,7 +207,10 @@ impl Graph {
         let mut reverse_adjacency = self.reverse_adjacency_list.write();
 
         if !nodes.contains_key(node_id) {
-            return Err(VectorizerError::NotFound(format!("Node '{}' not found", node_id)));
+            return Err(VectorizerError::NotFound(format!(
+                "Node '{}' not found",
+                node_id
+            )));
         }
 
         // Remove all edges connected to this node
@@ -234,7 +240,11 @@ impl Graph {
         // Remove node
         nodes.remove(node_id);
 
-        info!("Removed node '{}' and {} edges from graph", node_id, edge_ids_to_remove.len());
+        info!(
+            "Removed node '{}' and {} edges from graph",
+            node_id,
+            edge_ids_to_remove.len()
+        );
         Ok(())
     }
 
@@ -292,7 +302,8 @@ impl Graph {
         let mut adjacency = self.adjacency_list.write();
         let mut reverse_adjacency = self.reverse_adjacency_list.write();
 
-        let edge = edges.get(edge_id)
+        let edge = edges
+            .get(edge_id)
             .ok_or_else(|| VectorizerError::NotFound(format!("Edge '{}' not found", edge_id)))?;
 
         // Remove from adjacency lists
@@ -319,7 +330,10 @@ impl Graph {
         let adjacency = self.adjacency_list.read();
 
         if !nodes.contains_key(node_id) {
-            return Err(VectorizerError::NotFound(format!("Node '{}' not found", node_id)));
+            return Err(VectorizerError::NotFound(format!(
+                "Node '{}' not found",
+                node_id
+            )));
         }
 
         let edge_ids = adjacency.get(node_id).cloned().unwrap_or_default();
@@ -489,4 +503,3 @@ impl Graph {
         components
     }
 }
-

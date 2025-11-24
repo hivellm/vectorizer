@@ -4,11 +4,16 @@
 //! which distributes vectors across multiple server instances.
 
 use std::sync::Arc;
-use vectorizer::cluster::{ClusterConfig, ClusterManager, DiscoveryMethod, NodeId};
-use vectorizer::cluster::{ClusterClientPool, DistributedShardRouter};
+
+use vectorizer::cluster::{
+    ClusterClientPool, ClusterConfig, ClusterManager, DiscoveryMethod, DistributedShardRouter,
+    NodeId,
+};
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::db::sharding::ShardId;
-use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, ShardingConfig, Vector};
+use vectorizer::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, ShardingConfig,
+};
 
 fn create_test_cluster_config() -> ClusterConfig {
     ClusterConfig {
@@ -57,9 +62,8 @@ async fn test_distributed_sharded_collection_creation() {
     // (cluster manager only has local node, but DistributedShardedCollection requires at least 1 active node)
     // Note: Actually, it only needs 1 active node (the local node), so it might succeed
     // Let's check if it fails or succeeds - both are acceptable
-    if result.is_ok() {
+    if let Ok(collection) = result {
         // If it succeeds, that's fine - local node is active
-        let collection = result.unwrap();
         assert_eq!(collection.name(), "test-distributed");
     } else {
         // If it fails, that's also fine - might require multiple nodes
@@ -71,10 +75,10 @@ async fn test_distributed_sharded_collection_creation() {
 async fn test_distributed_sharded_collection_with_nodes() {
     let cluster_config = create_test_cluster_config();
     let cluster_manager = Arc::new(ClusterManager::new(cluster_config).unwrap());
-    
+
     // Add a remote node to make cluster valid
     // Note: ClusterManager already has local node, so we need at least one more
-    let mut remote_node = vectorizer::cluster::ClusterNode::new(
+    let remote_node = vectorizer::cluster::ClusterNode::new(
         NodeId::new("test-node-2".to_string()),
         "127.0.0.1".to_string(),
         15003,
@@ -83,18 +87,19 @@ async fn test_distributed_sharded_collection_with_nodes() {
 
     // Verify we have active nodes (local + remote = 2)
     let active_nodes = cluster_manager.get_active_nodes();
-    assert!(active_nodes.len() >= 1); // At least local node
+    assert!(!active_nodes.is_empty()); // At least local node
 
     let client_pool = Arc::new(ClusterClientPool::new(std::time::Duration::from_secs(5)));
     let collection_config = create_test_collection_config();
 
     use vectorizer::error::VectorizerError;
-    let result: Result<DistributedShardedCollection, VectorizerError> = DistributedShardedCollection::new(
-        "test-distributed".to_string(),
-        collection_config,
-        cluster_manager.clone(),
-        client_pool,
-    );
+    let result: Result<DistributedShardedCollection, VectorizerError> =
+        DistributedShardedCollection::new(
+            "test-distributed".to_string(),
+            collection_config,
+            cluster_manager.clone(),
+            client_pool,
+        );
 
     // Should succeed now that we have active nodes
     match result {
@@ -106,9 +111,8 @@ async fn test_distributed_sharded_collection_with_nodes() {
         Err(e) => {
             // If it fails, it's because get_active_nodes() might not return the local node
             // This is expected behavior - the test verifies the error handling
-            let error_msg = format!("{}", e);
-            assert!(error_msg.contains("No active cluster nodes") || 
-                    error_msg.contains("active"));
+            let error_msg = format!("{e}");
+            assert!(error_msg.contains("No active cluster nodes") || error_msg.contains("active"));
         }
     }
 }
@@ -119,7 +123,7 @@ async fn test_distributed_shard_router_get_node_for_vector() {
 
     let shard_id = ShardId::new(0);
     let node1 = NodeId::new("node-1".to_string());
-    let node2 = NodeId::new("node-2".to_string());
+    let _node2 = NodeId::new("node-2".to_string());
 
     // Assign shard to node1
     router.assign_shard(shard_id, node1.clone());
@@ -127,7 +131,7 @@ async fn test_distributed_shard_router_get_node_for_vector() {
     // Test vector routing
     let vector_id = "test-vector-1";
     let shard_for_vector = router.get_shard_for_vector(vector_id);
-    
+
     // If vector routes to assigned shard, node should be node1
     if shard_for_vector == shard_id {
         let node_for_vector = router.get_node_for_vector(vector_id);
@@ -143,7 +147,7 @@ async fn test_distributed_shard_router_get_node_for_vector() {
 async fn test_distributed_shard_router_consistent_routing() {
     let router = DistributedShardRouter::new(100);
 
-    let shard_ids: Vec<ShardId> = (0..4).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..4).map(ShardId::new).collect();
     let node1 = NodeId::new("node-1".to_string());
     let node2 = NodeId::new("node-2".to_string());
 
@@ -170,7 +174,7 @@ async fn test_distributed_shard_router_rebalance_distribution() {
     let router = DistributedShardRouter::new(100);
 
     // Create 8 shards and 3 nodes
-    let shard_ids: Vec<ShardId> = (0..8).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..8).map(ShardId::new).collect();
     let node_ids = vec![
         NodeId::new("node-1".to_string()),
         NodeId::new("node-2".to_string()),
@@ -205,8 +209,8 @@ async fn test_distributed_shard_router_rebalance_distribution() {
 async fn test_distributed_shard_router_get_all_nodes() {
     let router = DistributedShardRouter::new(100);
 
-    let shard_ids: Vec<ShardId> = (0..4).map(|i| ShardId::new(i)).collect();
-    let node_ids = vec![
+    let shard_ids: Vec<ShardId> = (0..4).map(ShardId::new).collect();
+    let node_ids = [
         NodeId::new("node-1".to_string()),
         NodeId::new("node-2".to_string()),
     ];
@@ -237,4 +241,3 @@ async fn test_distributed_shard_router_empty_nodes() {
     let shards = router.get_shards_for_node(&node_id);
     assert!(shards.is_empty());
 }
-

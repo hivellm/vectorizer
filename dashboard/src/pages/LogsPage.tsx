@@ -62,7 +62,7 @@ function LogsPage() {
       } else if (typeof logsData === 'string') {
         // Parse log lines if they come as a string
         const lines = logsData.split('\n').filter(line => line.trim());
-        parsedLogs = lines.map((line, index) => {
+        parsedLogs = lines.map((line) => {
           // Try to parse structured log
           try {
             const parsed = JSON.parse(line);
@@ -264,9 +264,9 @@ function LogsPage() {
             </div>
           ) : (
             <div className="space-y-1">
-              {filteredLogs.map((log, index) => (
+              {filteredLogs.map((log, idx) => (
                 <div
-                  key={index}
+                  key={idx}
                   className={`p-2 rounded ${getLogLevelBg(log.level)} border-l-4 ${
                     log.level.toLowerCase() === 'error'
                       ? 'border-red-500'

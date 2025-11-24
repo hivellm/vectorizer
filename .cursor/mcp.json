@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "rulebook": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@hivellm/rulebook@latest",
+        "mcp-server"
+      ]
+    }
+  }
+}

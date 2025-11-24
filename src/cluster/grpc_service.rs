@@ -1,6 +1,7 @@
 //! gRPC service implementation for cluster inter-server communication
 
 use std::sync::Arc;
+
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info, warn};
 
@@ -38,7 +39,10 @@ impl ClusterServiceTrait for ClusterGrpcService {
         &self,
         request: Request<GetClusterStateRequest>,
     ) -> Result<Response<GetClusterStateResponse>, Status> {
-        debug!("gRPC: GetClusterState request from node {:?}", request.get_ref().node_id);
+        debug!(
+            "gRPC: GetClusterState request from node {:?}",
+            request.get_ref().node_id
+        );
 
         let nodes = self.cluster_manager.get_nodes();
         let shard_router = self.cluster_manager.shard_router();
@@ -63,7 +67,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
                         version: Some(env!("CARGO_PKG_VERSION").to_string()),
                         capabilities: vec!["vector_search".to_string(), "sharding".to_string()],
                         vector_count: 0, // Would need to query each node for actual count
-                        memory_usage: 0,  // Would need to query each node for actual usage
+                        memory_usage: 0, // Would need to query each node for actual usage
                         cpu_usage: 0.0,  // Would need system monitoring
                     })
                 },
@@ -107,10 +111,12 @@ impl ClusterServiceTrait for ClusterGrpcService {
                 proto_node.address.clone(),
                 proto_node.grpc_port as u16,
             );
-            
+
             // Update status
             match proto_node.status {
-                x if x == crate::grpc::cluster::NodeStatus::Active as i32 => local_node.mark_active(),
+                x if x == crate::grpc::cluster::NodeStatus::Active as i32 => {
+                    local_node.mark_active()
+                }
                 x if x == crate::grpc::cluster::NodeStatus::Joining as i32 => {
                     local_node.status = NodeStatus::Joining;
                 }
@@ -156,7 +162,8 @@ impl ClusterServiceTrait for ClusterGrpcService {
             .get_collection(&req.collection_name)
             .map_err(|e| Status::not_found(e.to_string()))?;
 
-        let payload_obj = req.payload_json
+        let payload_obj = req
+            .payload_json
             .as_ref()
             .map(|json_str| {
                 serde_json::from_str(json_str)
@@ -172,10 +179,12 @@ impl ClusterServiceTrait for ClusterGrpcService {
         };
 
         {
-            let mut collection = self.store
+            let mut collection = self
+                .store
                 .get_collection_mut(&req.collection_name)
                 .map_err(|e: crate::error::VectorizerError| Status::not_found(e.to_string()))?;
-            collection.add_vector(req.vector_id.clone(), vector_obj)
+            collection
+                .add_vector(req.vector_id.clone(), vector_obj)
                 .map_err(|e: crate::error::VectorizerError| Status::internal(e.to_string()))?;
         }
 
@@ -203,7 +212,8 @@ impl ClusterServiceTrait for ClusterGrpcService {
             .get_collection(&req.collection_name)
             .map_err(|e| Status::not_found(e.to_string()))?;
 
-        let payload_obj = req.payload_json
+        let payload_obj = req
+            .payload_json
             .as_ref()
             .map(|json_str| {
                 serde_json::from_str(json_str)
@@ -218,10 +228,12 @@ impl ClusterServiceTrait for ClusterGrpcService {
             payload: payload_obj,
         };
 
-        let mut collection = self.store
+        let mut collection = self
+            .store
             .get_collection_mut(&req.collection_name)
             .map_err(|e: crate::error::VectorizerError| Status::not_found(e.to_string()))?;
-        collection.update_vector(vector_obj)
+        collection
+            .update_vector(vector_obj)
             .map_err(|e: crate::error::VectorizerError| Status::internal(e.to_string()))?;
 
         let response = RemoteUpdateVectorResponse {
@@ -249,10 +261,12 @@ impl ClusterServiceTrait for ClusterGrpcService {
             .map_err(|e| Status::not_found(e.to_string()))?;
 
         {
-            let mut collection = self.store
+            let mut collection = self
+                .store
                 .get_collection_mut(&req.collection_name)
                 .map_err(|e: crate::error::VectorizerError| Status::not_found(e.to_string()))?;
-            collection.delete_vector(&req.vector_id)
+            collection
+                .delete_vector(&req.vector_id)
                 .map_err(|e: crate::error::VectorizerError| Status::internal(e.to_string()))?;
         }
 
@@ -292,10 +306,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
         };
 
         let results = collection
-            .search(
-                &req.query_vector,
-                req.limit as usize,
-            )
+            .search(&req.query_vector, req.limit as usize)
             .map_err(|e| Status::internal(e.to_string()))?;
 
         // Convert SearchResult to proto SearchResult
@@ -305,7 +316,10 @@ impl ClusterServiceTrait for ClusterGrpcService {
                 id: r.id,
                 score: r.score,
                 vector: r.vector.unwrap_or_default(),
-                payload_json: r.payload.as_ref().map(|p| serde_json::to_string(p).unwrap_or_default()),
+                payload_json: r
+                    .payload
+                    .as_ref()
+                    .map(|p| serde_json::to_string(p).unwrap_or_default()),
             })
             .collect();
 
@@ -418,13 +432,17 @@ impl ClusterServiceTrait for ClusterGrpcService {
         let stats = self.store.stats();
         let vector_count = stats.total_vectors as u64;
         let memory_usage = stats.total_memory_bytes as u64;
-        
+
         // CPU usage would require system monitoring, skip for now
         let cpu_usage = 0.0;
 
         let metadata = NodeMetadata {
             version: Some(env!("CARGO_PKG_VERSION").to_string()),
-            capabilities: vec!["vector_search".to_string(), "sharding".to_string(), "cluster".to_string()],
+            capabilities: vec![
+                "vector_search".to_string(),
+                "sharding".to_string(),
+                "cluster".to_string(),
+            ],
             vector_count,
             memory_usage,
             cpu_usage,

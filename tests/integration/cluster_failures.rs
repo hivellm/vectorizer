@@ -12,9 +12,9 @@ use vectorizer::cluster::{
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::db::sharding::ShardId;
 use vectorizer::error::VectorizerError;
-use vectorizer::models::SearchResult;
 use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, ShardingConfig, Vector,
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, SearchResult, ShardingConfig,
+    Vector,
 };
 
 fn create_test_cluster_config() -> ClusterConfig {
@@ -139,7 +139,7 @@ async fn test_node_failure_during_search() {
     // Insert some vectors first
     for i in 0..10 {
         let vector = Vector {
-            id: format!("test-vec-{}", i),
+            id: format!("test-vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -153,7 +153,8 @@ async fn test_node_failure_during_search() {
 
     // Search should continue working with remaining nodes
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 5, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 5, None, None).await;
 
     // Search should either succeed (with results from remaining nodes) or fail gracefully
     let _ = result.is_ok() || result.is_err();
@@ -206,7 +207,7 @@ async fn test_partial_cluster_failure() {
     // Add multiple remote nodes
     for i in 2..=4 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -228,7 +229,11 @@ async fn test_partial_cluster_failure() {
     // Verify graceful degradation - remaining nodes should still be active
     let active_nodes = cluster_manager.get_active_nodes();
     assert!(active_nodes.len() >= 2); // At least local node + 1 remote node
-    assert!(active_nodes.iter().all(|n| n.status == vectorizer::cluster::NodeStatus::Active));
+    assert!(
+        active_nodes
+            .iter()
+            .all(|n| n.status == vectorizer::cluster::NodeStatus::Active)
+    );
 }
 
 #[tokio::test]
@@ -240,7 +245,7 @@ async fn test_network_partition() {
     // Add remote nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -277,7 +282,7 @@ async fn test_shard_reassignment_on_failure() {
     cluster_manager.add_node(remote_node);
 
     let shard_router = cluster_manager.shard_router();
-    let shard_ids: Vec<ShardId> = (0..4).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..4).map(ShardId::new).collect();
     let node_ids: Vec<NodeId> = cluster_manager
         .get_active_nodes()
         .iter()
@@ -297,7 +302,10 @@ async fn test_shard_reassignment_on_failure() {
 
     // Simulate node failure
     let failed_node_id = NodeId::new("test-node-2".to_string());
-    cluster_manager.update_node_status(&failed_node_id, vectorizer::cluster::NodeStatus::Unavailable);
+    cluster_manager.update_node_status(
+        &failed_node_id,
+        vectorizer::cluster::NodeStatus::Unavailable,
+    );
 
     // Rebalance shards after failure
     let remaining_node_ids: Vec<NodeId> = cluster_manager
@@ -317,4 +325,3 @@ async fn test_shard_reassignment_on_failure() {
         }
     }
 }
-

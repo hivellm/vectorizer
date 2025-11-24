@@ -667,7 +667,7 @@ impl VectorizerServer {
                         let manager_arc = Arc::new(manager);
                         let timeout = std::time::Duration::from_millis(cluster_config.timeout_ms);
                         let client_pool = Arc::new(crate::cluster::ClusterClientPool::new(timeout));
-                        
+
                         info!("✅ Cluster manager initialized");
                         (Some(manager_arc), Some(client_pool))
                     }
@@ -716,7 +716,10 @@ impl VectorizerServer {
         let grpc_store = self.store.clone();
         let grpc_cluster_manager = self.cluster_manager.clone();
         let grpc_handle = tokio::spawn(async move {
-            if let Err(e) = Self::start_grpc_server(&grpc_host, grpc_port, grpc_store, grpc_cluster_manager).await {
+            if let Err(e) =
+                Self::start_grpc_server(&grpc_host, grpc_port, grpc_store, grpc_cluster_manager)
+                    .await
+            {
                 error!("❌ gRPC server failed: {}", e);
             }
         });
@@ -1038,8 +1041,8 @@ impl VectorizerServer {
                 cluster_manager: cluster_mgr.clone(),
                 store: self.store.clone(),
             };
-            let cluster_router = crate::api::cluster::create_cluster_router()
-                .with_state(cluster_state);
+            let cluster_router =
+                crate::api::cluster::create_cluster_router().with_state(cluster_state);
             rest_routes.merge(cluster_router)
         } else {
             rest_routes
@@ -1049,8 +1052,7 @@ impl VectorizerServer {
         let graph_state = crate::api::graph::GraphApiState {
             store: self.store.clone(),
         };
-        let graph_router = crate::api::graph::create_graph_router()
-            .with_state(graph_state);
+        let graph_router = crate::api::graph::create_graph_router().with_state(graph_state);
         let rest_routes = rest_routes.merge(graph_router);
 
         // Create UMICP state
@@ -1069,28 +1071,58 @@ impl VectorizerServer {
             )
             .with_state(umicp_state);
 
-        // Create fallback handler for SPA routing (serve index.html for non-API routes)
-        async fn dashboard_fallback() -> impl axum::response::IntoResponse {
-            use axum::response::Response;
-            use axum::http::{StatusCode, header};
+        // Create fallback handler for SPA routing (serve index.html for dashboard routes)
+        // This handles client-side routing for React Router
+        async fn dashboard_fallback(
+            uri: axum::extract::Request<axum::body::Body>,
+        ) -> impl axum::response::IntoResponse {
             use std::path::PathBuf;
-            
+
+            use axum::http::{StatusCode, Uri, header};
+            use axum::response::Response;
+
+            let path = uri.uri().path();
+
+            // Only handle dashboard routes
+            if !path.starts_with("/dashboard/") {
+                return Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(axum::body::Body::from("Not found"))
+                    .unwrap();
+            }
+
+            // Don't serve index.html for static assets (they should be handled by ServeDir)
+            if path.starts_with("/dashboard/assets/") {
+                return Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(axum::body::Body::from("Asset not found"))
+                    .unwrap();
+            }
+
+            // Serve index.html for all other dashboard routes (SPA routing)
             let index_path = PathBuf::from("dashboard/dist/index.html");
             match tokio::fs::read_to_string(&index_path).await {
                 Ok(content) => Response::builder()
                     .status(StatusCode::OK)
-                    .header(header::CONTENT_TYPE, "text/html")
+                    .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
                     .body(axum::body::Body::from(content))
                     .unwrap(),
                 Err(_) => Response::builder()
                     .status(StatusCode::NOT_FOUND)
-                    .body(axum::body::Body::from("Dashboard not found. Please build the dashboard first."))
+                    .body(axum::body::Body::from(
+                        "Dashboard not found. Please build the dashboard first: cd dashboard && npm run build",
+                    ))
                     .unwrap(),
             }
         }
 
-        // Merge all routes - UMICP first so it doesn't get masked
-        // Dashboard fallback should only catch non-API routes
+        // Merge all routes - order matters!
+        // 1. UMICP routes (most specific)
+        // 2. MCP routes
+        // 3. REST API routes (including /api/*)
+        // 4. Metrics routes
+        // 5. Dashboard static files (ServeDir handles /dashboard/assets/*)
+        // 6. Dashboard SPA fallback (handles /dashboard/* routes for React Router)
         let app = Router::new()
             .merge(umicp_routes)
             .merge(mcp_router)
@@ -1133,62 +1165,95 @@ impl VectorizerServer {
             info!("🛑 Graceful shutdown signal received, stopping HTTP server...");
         });
 
-        // Wait for server to complete
-        if let Err(e) = server_handle.await {
-            error!("❌ Server error: {}", e);
-        } else {
-            info!("✅ HTTP server stopped");
-        }
+        // Spawn server task so we can abort background tasks immediately
+        let server_task = tokio::spawn(async move {
+            if let Err(e) = server_handle.await {
+                error!("❌ Server error: {}", e);
+            } else {
+                info!("✅ HTTP server stopped");
+            }
+        });
 
-        // Abort all background tasks immediately (no waiting)
+        // Get abort handle before moving server_task
+        let server_task_abort = server_task.abort_handle();
+
+        // Abort all background tasks IMMEDIATELY (before waiting for HTTP server)
+        // This ensures tasks are killed even if HTTP server is stuck
         info!("🛑 Stopping all background tasks...");
-        
-        // Background collection loading task
-        if let Some((handle, cancel_tx)) = self.background_task.lock().await.take() {
-            let _ = cancel_tx.send(true);
-            handle.abort();
-            info!("✅ Background task aborted");
+
+        // Background collection loading task (non-blocking)
+        if let Ok(mut bg_task) = self.background_task.try_lock() {
+            if let Some((handle, cancel_tx)) = bg_task.take() {
+                let _ = cancel_tx.send(true);
+                handle.abort();
+                info!("✅ Background task aborted");
+            }
         }
 
-        // File watcher cancellation
-        if let Some(cancel_tx) = self.file_watcher_cancel.lock().await.take() {
-            let _ = cancel_tx.send(true);
+        // File watcher cancellation (non-blocking)
+        if let Ok(mut cancel) = self.file_watcher_cancel.try_lock() {
+            if let Some(cancel_tx) = cancel.take() {
+                let _ = cancel_tx.send(true);
+            }
         }
-        
-        // File watcher task
-        if let Some(handle) = self.file_watcher_task.lock().await.take() {
-            handle.abort();
-            info!("✅ File watcher task aborted");
+
+        // File watcher task (non-blocking)
+        if let Ok(mut fw_task) = self.file_watcher_task.try_lock() {
+            if let Some(handle) = fw_task.take() {
+                handle.abort();
+                info!("✅ File watcher task aborted");
+            }
         }
 
         // File watcher system (non-blocking)
-        if let Some(watcher_system) = self.file_watcher_system.lock().await.take() {
-            // Don't wait for stop - just drop it
-            drop(watcher_system);
+        if let Ok(mut fw_system) = self.file_watcher_system.try_lock() {
+            fw_system.take(); // Just drop it
             info!("✅ File watcher system dropped");
         }
 
-        // gRPC server task
-        if let Some(handle) = self.grpc_task.lock().await.take() {
-            handle.abort();
-            info!("✅ gRPC server task aborted");
+        // gRPC server task (non-blocking)
+        if let Ok(mut grpc_task) = self.grpc_task.try_lock() {
+            if let Some(handle) = grpc_task.take() {
+                handle.abort();
+                info!("✅ gRPC server task aborted");
+            }
         }
 
-        // System collector task
-        if let Some(handle) = self.system_collector_task.lock().await.take() {
-            handle.abort();
-            info!("✅ System collector task aborted");
+        // System collector task (non-blocking)
+        if let Ok(mut sys_task) = self.system_collector_task.try_lock() {
+            if let Some(handle) = sys_task.take() {
+                handle.abort();
+                info!("✅ System collector task aborted");
+            }
         }
 
-        // Auto save task
-        if let Some(handle) = self.auto_save_task.lock().await.take() {
-            handle.abort();
-            info!("✅ Auto save task aborted");
+        // Auto save task (non-blocking)
+        if let Ok(mut auto_task) = self.auto_save_task.try_lock() {
+            if let Some(handle) = auto_task.take() {
+                handle.abort();
+                info!("✅ Auto save task aborted");
+            }
         }
 
-        // Auto save manager shutdown (non-blocking)
+        // Auto save manager shutdown (non-blocking, no await)
         if let Some(auto_save) = &self.auto_save_manager {
             auto_save.shutdown();
+        }
+
+        // Wait for HTTP server with timeout (5 seconds max)
+        // If server is stuck, we force exit anyway
+        match tokio::time::timeout(tokio::time::Duration::from_secs(5), server_task).await {
+            Ok(Ok(_)) => {
+                info!("✅ HTTP server stopped gracefully");
+            }
+            Ok(Err(e)) => {
+                error!("❌ HTTP server task error: {}", e);
+            }
+            Err(_) => {
+                warn!("⚠️  HTTP server shutdown timeout (5s), forcing exit...");
+                // Force abort the server task
+                server_task_abort.abort();
+            }
         }
 
         info!("✅ Server stopped");
@@ -1258,19 +1323,17 @@ impl VectorizerServer {
 
         info!("🚀 Starting gRPC server on {}", addr);
 
-        let mut server_builder = Server::builder()
-            .add_service(VectorizerServiceServer::new(service));
+        let mut server_builder =
+            Server::builder().add_service(VectorizerServiceServer::new(service));
 
         // Add ClusterService if cluster is enabled
         if let Some(cluster_mgr) = cluster_manager {
             use crate::cluster::ClusterGrpcService;
             use crate::grpc::cluster::cluster_service_server::ClusterServiceServer;
-            
+
             info!("🔗 Adding Cluster gRPC service");
             let cluster_service = ClusterGrpcService::new(store.clone(), cluster_mgr);
-            server_builder = server_builder.add_service(
-                ClusterServiceServer::new(cluster_service)
-            );
+            server_builder = server_builder.add_service(ClusterServiceServer::new(cluster_service));
         }
 
         server_builder.serve(addr).await?;
@@ -1564,7 +1627,9 @@ pub async fn load_workspace_collections(
                                     // Try to deserialize as PersistedVectorStore first (correct format)
                                     let persisted = match serde_json::from_slice::<
                                         crate::persistence::PersistedVectorStore,
-                                    >(&data) {
+                                    >(
+                                        &data
+                                    ) {
                                         Ok(persisted_store) => {
                                             // Extract the first collection from the store
                                             persisted_store.collections.into_iter().next()
@@ -1572,101 +1637,69 @@ pub async fn load_workspace_collections(
                                         Err(_) => {
                                             // Fallback: try deserializing as PersistedCollection directly (legacy format)
                                             serde_json::from_slice::<
-                                        crate::persistence::PersistedCollection,
-                                            >(&data).ok()
+                                                crate::persistence::PersistedCollection,
+                                            >(&data)
+                                            .ok()
                                         }
                                     };
-                                    
+
                                     if let Some(mut persisted) = persisted {
                                         // BACKWARD COMPATIBILITY: If name is empty, infer from filename
                                         if persisted.name.is_empty() {
                                             persisted.name = collection.name.clone();
                                         }
-                                        
-                                            // Use EXACT config from .vecdb (not workspace config!)
-                                            let config = persisted.config.clone().unwrap_or_else(|| {
+
+                                        // Use EXACT config from .vecdb (not workspace config!)
+                                        let config = persisted.config.clone().unwrap_or_else(|| {
                                                 warn!("⚠️  Collection '{}' has no config in .vecdb, using default", collection.name);
                                                 crate::models::CollectionConfig::default()
                                             });
-                                            let vector_count = persisted.vectors.len();
+                                        let vector_count = persisted.vectors.len();
 
-                                            info!(
-                                                "📥 Loading collection '{}' from .vecdb with {} vectors...",
-                                                collection.name, vector_count
-                                            );
+                                        info!(
+                                            "📥 Loading collection '{}' from .vecdb with {} vectors...",
+                                            collection.name, vector_count
+                                        );
 
-                                            // Convert vectors FIRST (before creating collection)
-                                            info!(
-                                                "🔄 Converting {} persisted vectors to runtime format...",
-                                                persisted.vectors.len()
-                                            );
-                                            let vectors: Vec<crate::models::Vector> = persisted.vectors
-                                                .into_iter()
-                                                .filter_map(|pv| {
-                                                    match pv.into_runtime() {
-                                                        Ok(v) => Some(v),
-                                                        Err(e) => {
-                                                            warn!("Failed to convert persisted vector: {}", e);
-                                                            None
-                                                        }
-                                                    }
-                                                })
-                                                .collect();
-
-                                            info!(
-                                                "🔄 Converted {} vectors successfully",
-                                                vectors.len()
-                                            );
-
-                                            // Create collection with config FROM .vecdb
-                                            if let Err(e) =
-                                                store.create_collection(&collection.name, config)
-                                            {
-                                                // Collection might already exist from lazy loading - just load vectors with HNSW
-                                                warn!(
-                                                    "Collection '{}' already exists (maybe from lazy loading), loading vectors with HNSW anyway: {}",
-                                                    collection.name, e
-                                                );
-                                                if let Ok(mut collection_ref) =
-                                                    store.get_collection_mut(&collection.name)
-                                                {
-                                                    info!(
-                                                        "🔄 Loading {} vectors with HNSW index into existing collection '{}'...",
-                                                        vectors.len(),
-                                                        collection.name
+                                        // Convert vectors FIRST (before creating collection)
+                                        info!(
+                                            "🔄 Converting {} persisted vectors to runtime format...",
+                                            persisted.vectors.len()
+                                        );
+                                        let vectors: Vec<crate::models::Vector> = persisted
+                                            .vectors
+                                            .into_iter()
+                                            .filter_map(|pv| match pv.into_runtime() {
+                                                Ok(v) => Some(v),
+                                                Err(e) => {
+                                                    warn!(
+                                                        "Failed to convert persisted vector: {}",
+                                                        e
                                                     );
-                                                    // Use fast_load_vectors() to build HNSW index properly
-                                                    if let Err(e) =
-                                                        collection_ref.fast_load_vectors(vectors)
-                                                    {
-                                                        warn!(
-                                                            "❌ FAILED to load vectors with HNSW into collection '{}': {}",
-                                                            collection.name, e
-                                                        );
-                                                    } else {
-                                                        // Enable graph for this collection automatically
-                                                        if let Err(e) = store.enable_graph_for_collection(&collection.name) {
-                                                            warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection.name, e);
-                                                        } else {
-                                                            info!("✅ Graph enabled for collection '{}'", collection.name);
-                                                        }
-                                                        
-                                                        info!(
-                                                            "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
-                                                            collection.name, vector_count
-                                                        );
-                                                        indexed_count += 1;
-                                                    }
+                                                    None
                                                 }
-                                                continue;
-                                            }
+                                            })
+                                            .collect();
 
-                                            // Collection created successfully - now load vectors with HNSW index
+                                        info!(
+                                            "🔄 Converted {} vectors successfully",
+                                            vectors.len()
+                                        );
+
+                                        // Create collection with config FROM .vecdb
+                                        if let Err(e) =
+                                            store.create_collection(&collection.name, config)
+                                        {
+                                            // Collection might already exist from lazy loading - just load vectors with HNSW
+                                            warn!(
+                                                "Collection '{}' already exists (maybe from lazy loading), loading vectors with HNSW anyway: {}",
+                                                collection.name, e
+                                            );
                                             if let Ok(mut collection_ref) =
                                                 store.get_collection_mut(&collection.name)
                                             {
                                                 info!(
-                                                    "🔄 Loading {} vectors with HNSW index into collection '{}'...",
+                                                    "🔄 Loading {} vectors with HNSW index into existing collection '{}'...",
                                                     vectors.len(),
                                                     collection.name
                                                 );
@@ -1680,29 +1713,82 @@ pub async fn load_workspace_collections(
                                                     );
                                                 } else {
                                                     // Enable graph for this collection automatically
-                                                    if let Err(e) = store.enable_graph_for_collection(&collection.name) {
-                                                        warn!("⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)", collection.name, e);
+                                                    if let Err(e) = store
+                                                        .enable_graph_for_collection(
+                                                            &collection.name,
+                                                        )
+                                                    {
+                                                        warn!(
+                                                            "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
+                                                            collection.name, e
+                                                        );
                                                     } else {
-                                                        info!("✅ Graph enabled for collection '{}'", collection.name);
+                                                        info!(
+                                                            "✅ Graph enabled for collection '{}'",
+                                                            collection.name
+                                                        );
                                                     }
-                                                    
+
                                                     info!(
                                                         "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
                                                         collection.name, vector_count
                                                     );
                                                     indexed_count += 1;
                                                 }
-                                            } else {
-                                                warn!(
-                                                    "❌ FAILED to get collection '{}' after creation!",
-                                                    collection.name
-                                                );
                                             }
+                                            continue;
+                                        }
+
+                                        // Collection created successfully - now load vectors with HNSW index
+                                        if let Ok(mut collection_ref) =
+                                            store.get_collection_mut(&collection.name)
+                                        {
+                                            info!(
+                                                "🔄 Loading {} vectors with HNSW index into collection '{}'...",
+                                                vectors.len(),
+                                                collection.name
+                                            );
+                                            // Use fast_load_vectors() to build HNSW index properly
+                                            if let Err(e) =
+                                                collection_ref.fast_load_vectors(vectors)
+                                            {
+                                                warn!(
+                                                    "❌ FAILED to load vectors with HNSW into collection '{}': {}",
+                                                    collection.name, e
+                                                );
+                                            } else {
+                                                // Enable graph for this collection automatically
+                                                if let Err(e) = store
+                                                    .enable_graph_for_collection(&collection.name)
+                                                {
+                                                    warn!(
+                                                        "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
+                                                        collection.name, e
+                                                    );
+                                                } else {
+                                                    info!(
+                                                        "✅ Graph enabled for collection '{}'",
+                                                        collection.name
+                                                    );
+                                                }
+
+                                                info!(
+                                                    "✅ Collection '{}' loaded from .vecdb with {} vectors + HNSW index",
+                                                    collection.name, vector_count
+                                                );
+                                                indexed_count += 1;
+                                            }
+                                        } else {
+                                            warn!(
+                                                "❌ FAILED to get collection '{}' after creation!",
+                                                collection.name
+                                            );
+                                        }
                                     } else {
                                         debug!(
                                             "Failed to deserialize collection '{}' from .vecdb: no collection found",
                                             collection.name
-                                            );
+                                        );
                                     }
                                 }
                                 Err(e) => {

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Modern Web Dashboard**: Complete refactor to Vite + React + TypeScript
+  - Built with Vite for fast development and optimized production builds
+  - React 19 with TypeScript for type safety
+  - Tailwind CSS with Untitled UI design system
+  - Code splitting and lazy loading for optimal performance
+  - Responsive design for mobile, tablet, and desktop
+  - Pages: Overview, Collections, Search, Vectors, File Watcher, Connections, Workspace, Configuration, Logs, Backups
+  - Real-time updates and auto-refresh functionality
+  - Dark mode support
+  - See [Dashboard Integration Guide](docs/DASHBOARD_INTEGRATION.md) for details
+
 - **Distributed Horizontal Sharding**: Support for distributing collections and vectors across multiple server instances
   - Cluster management with automatic membership and server discovery
   - Distributed shard routing using consistent hashing

@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/Select';
 import { useToastContext } from '@/providers/ToastProvider';
 import LoadingState from '@/components/LoadingState';
 import { formatNumber, formatDate } from '@/utils/formatters';
-import { Plus, RefreshCw01, Trash01, AlertCircle, CheckCircle } from '@untitledui/icons';
+import { Plus, RefreshCw01, AlertCircle, CheckCircle } from '@untitledui/icons';
 
 interface Backup {
   id: string;

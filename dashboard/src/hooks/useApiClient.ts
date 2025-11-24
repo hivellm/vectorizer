@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 import { ApiClient } from '@/lib/api-client';
-import { getApiUrl } from '@/config/env';
+// getApiUrl imported but not used - API client uses baseUrl parameter instead
 
 /**
  * Get API client instance

@@ -29,6 +29,7 @@ pub fn create_test_config() -> CollectionConfig {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     }
 }
 

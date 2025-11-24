@@ -6,11 +6,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use vectorizer::cluster::{ClusterClientPool, ClusterConfig, ClusterManager, DiscoveryMethod, NodeId};
+use vectorizer::cluster::{
+    ClusterClientPool, ClusterConfig, ClusterManager, DiscoveryMethod, NodeId,
+};
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::error::VectorizerError;
 use vectorizer::models::{
-    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, SearchResult, ShardingConfig, Vector,
+    CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, SearchResult, ShardingConfig,
+    Vector,
 };
 
 fn create_test_cluster_config() -> ClusterConfig {
@@ -50,7 +53,7 @@ async fn test_distributed_search_merges_results() {
     // Add remote nodes
     for i in 2..=3 {
         let mut remote_node = vectorizer::cluster::ClusterNode::new(
-            NodeId::new(format!("test-node-{}", i)),
+            NodeId::new(format!("test-node-{i}")),
             "127.0.0.1".to_string(),
             15000 + i as u16,
         );
@@ -76,7 +79,7 @@ async fn test_distributed_search_merges_results() {
         let mut data = vec![0.1; 128];
         data[0] = i as f32 / 10.0; // Make vectors slightly different
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data,
             sparse: None,
             payload: None,
@@ -86,7 +89,8 @@ async fn test_distributed_search_merges_results() {
 
     // Search should return merged results from all shards
     let query_vector = vec![0.1; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 10, None, None).await;
 
     match result {
         Ok(ref results) => {
@@ -134,7 +138,7 @@ async fn test_distributed_search_ordering() {
     // Insert vectors
     for i in 0..5 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![i as f32 / 10.0; 128],
             sparse: None,
             payload: None,
@@ -144,7 +148,8 @@ async fn test_distributed_search_ordering() {
 
     // Search
     let query_vector = vec![0.5; 128];
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 5, None, None).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> =
+        collection.search(&query_vector, 5, None, None).await;
 
     if let Ok(ref results) = result {
         // Verify results are ordered by score (descending)
@@ -188,7 +193,7 @@ async fn test_distributed_search_with_threshold() {
     // Insert vectors
     for i in 0..5 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -198,17 +203,19 @@ async fn test_distributed_search_with_threshold() {
 
     // Search with threshold
     let query_vector = vec![0.1; 128];
-    let threshold = Some(0.5);
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, threshold, None).await;
+    let threshold = 0.5;
+    let result: Result<Vec<SearchResult>, VectorizerError> = collection
+        .search(&query_vector, 10, Some(threshold), None)
+        .await;
 
     if let Ok(results) = result {
         // All results should meet the threshold
         for result in &results {
             assert!(
-                result.score >= threshold.unwrap(),
+                result.score >= threshold,
                 "Result score {} below threshold {}",
                 result.score,
-                threshold.unwrap()
+                threshold
             );
         }
     }
@@ -243,7 +250,7 @@ async fn test_distributed_search_shard_filtering() {
     // Insert vectors
     for i in 0..5 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -254,7 +261,9 @@ async fn test_distributed_search_shard_filtering() {
     // Search with shard filtering - only search in first shard
     let query_vector = vec![0.1; 128];
     let shard_ids = Some(vec![vectorizer::db::sharding::ShardId::new(0)]);
-    let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, shard_ids.as_deref()).await;
+    let result: Result<Vec<SearchResult>, VectorizerError> = collection
+        .search(&query_vector, 10, None, shard_ids.as_deref())
+        .await;
 
     // Search should complete (may return empty if shard is remote and unreachable)
     assert!(result.is_ok() || result.is_err());
@@ -289,7 +298,7 @@ async fn test_distributed_search_performance() {
     // Insert vectors
     for i in 0..20 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -304,7 +313,7 @@ async fn test_distributed_search_performance() {
     let duration = start.elapsed();
 
     // Search should complete in reasonable time (< 5 seconds for test)
-    assert!(duration.as_secs() < 5, "Search took too long: {:?}", duration);
+    assert!(duration.as_secs() < 5, "Search took too long: {duration:?}");
 }
 
 #[tokio::test]
@@ -336,7 +345,7 @@ async fn test_distributed_search_consistency() {
     // Insert vectors
     for i in 0..10 {
         let vector = Vector {
-            id: format!("vec-{}", i),
+            id: format!("vec-{i}"),
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
@@ -348,7 +357,8 @@ async fn test_distributed_search_consistency() {
     let query_vector = vec![0.1; 128];
     let mut previous_len: Option<usize> = None;
     for _ in 0..3 {
-        let result: Result<Vec<SearchResult>, VectorizerError> = collection.search(&query_vector, 10, None, None).await;
+        let result: Result<Vec<SearchResult>, VectorizerError> =
+            collection.search(&query_vector, 10, None, None).await;
         if let Ok(results) = result {
             if let Some(prev_len) = previous_len {
                 // Results should be consistent (same length)
@@ -360,4 +370,3 @@ async fn test_distributed_search_consistency() {
         }
     }
 }
-

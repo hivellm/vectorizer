@@ -197,7 +197,7 @@ mod integration_tests {
                     compression: Default::default(),
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
-            graph: None,
+                    graph: None,
                 },
             ),
             (
@@ -220,7 +220,7 @@ mod integration_tests {
                     },
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
-            graph: None,
+                    graph: None,
                 },
             ),
         ];

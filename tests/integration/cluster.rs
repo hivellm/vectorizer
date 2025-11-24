@@ -64,14 +64,14 @@ async fn test_distributed_shard_router() {
     let router = vectorizer::cluster::DistributedShardRouter::new(100);
 
     // Create test shards and nodes
-    let shard_ids = vec![
+    let shard_ids = [
         ShardId::new(0),
         ShardId::new(1),
         ShardId::new(2),
         ShardId::new(3),
     ];
 
-    let node_ids = vec![
+    let node_ids = [
         NodeId::new("node-1".to_string()),
         NodeId::new("node-2".to_string()),
     ];
@@ -105,7 +105,7 @@ async fn test_distributed_shard_router_rebalance() {
     let router = vectorizer::cluster::DistributedShardRouter::new(100);
 
     // Create test shards and nodes
-    let shard_ids: Vec<ShardId> = (0..8).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..8).map(ShardId::new).collect();
     let node_ids = vec![
         NodeId::new("node-1".to_string()),
         NodeId::new("node-2".to_string()),
@@ -129,12 +129,9 @@ async fn test_distributed_shard_router_vector_routing() {
     let router = vectorizer::cluster::DistributedShardRouter::new(100);
 
     // Create test shards and nodes
-    let shard_ids = vec![
-        ShardId::new(0),
-        ShardId::new(1),
-    ];
+    let shard_ids = [ShardId::new(0), ShardId::new(1)];
 
-    let node_ids = vec![
+    let node_ids = [
         NodeId::new("node-1".to_string()),
         NodeId::new("node-2".to_string()),
     ];
@@ -145,7 +142,7 @@ async fn test_distributed_shard_router_vector_routing() {
     // Test vector routing
     let vector_id_1 = "vector-1";
     let shard_for_vector = router.get_shard_for_vector(vector_id_1);
-    
+
     // Should route to one of the assigned shards
     assert!(shard_ids.contains(&shard_for_vector));
 
@@ -157,12 +154,12 @@ async fn test_distributed_shard_router_vector_routing() {
 #[tokio::test]
 async fn test_cluster_client_pool() {
     let timeout = Duration::from_secs(5);
-    let pool = ClusterClientPool::new(timeout);
+    let _pool = ClusterClientPool::new(timeout);
 
     // Test that pool is created
     // Note: Actual connection tests would require a running server
     // This just verifies the pool structure
-    assert!(true); // Placeholder - pool creation doesn't fail
+    // Placeholder - pool creation doesn't fail
 }
 
 #[tokio::test]
@@ -301,7 +298,7 @@ async fn test_calculate_migration_plan() {
     let router = vectorizer::cluster::DistributedShardRouter::new(100);
 
     // Create 6 shards
-    let shard_ids: Vec<ShardId> = (0..6).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..6).map(ShardId::new).collect();
     let node1 = NodeId::new("node-1".to_string());
     let node2 = NodeId::new("node-2".to_string());
 
@@ -333,7 +330,7 @@ async fn test_calculate_migration_plan() {
 async fn test_calculate_migration_plan_empty_nodes() {
     let router = vectorizer::cluster::DistributedShardRouter::new(100);
 
-    let shard_ids: Vec<ShardId> = (0..6).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..6).map(ShardId::new).collect();
 
     // Calculate migration plan with no nodes (should return empty)
     let migrations = router.calculate_migration_plan(&shard_ids, &[]);
@@ -345,7 +342,7 @@ async fn test_calculate_migration_plan_already_balanced() {
     let router = vectorizer::cluster::DistributedShardRouter::new(100);
 
     // Create 4 shards
-    let shard_ids: Vec<ShardId> = (0..4).map(|i| ShardId::new(i)).collect();
+    let shard_ids: Vec<ShardId> = (0..4).map(ShardId::new).collect();
     let node1 = NodeId::new("node-1".to_string());
     let node2 = NodeId::new("node-2".to_string());
 
@@ -361,4 +358,3 @@ async fn test_calculate_migration_plan_already_balanced() {
     // Should have minimal or no migrations (already balanced)
     assert!(migrations.len() <= 1); // Allow for minor adjustments
 }
-

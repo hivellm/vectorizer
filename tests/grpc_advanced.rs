@@ -331,6 +331,7 @@ async fn test_empty_collection_operations() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("empty_collection", config).unwrap();
 
@@ -380,6 +381,7 @@ async fn test_large_payloads() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("large_payload", config).unwrap();
 
@@ -433,6 +435,7 @@ async fn test_search_with_threshold() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("threshold_test", config).unwrap();
 
@@ -494,6 +497,7 @@ async fn test_multiple_collections_simultaneously() {
             normalization: None,
             storage_type: None,
             sharding: None,
+            graph: None, // Graph disabled for tests
         };
         store
             .create_collection(&format!("collection_{i}"), config)
@@ -557,6 +561,7 @@ async fn test_concurrent_operations() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("concurrent_test", config).unwrap();
 
@@ -659,6 +664,7 @@ async fn test_batch_operations_stress() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("batch_stress", config).unwrap();
 
@@ -708,6 +714,7 @@ async fn test_search_with_filters() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("filter_test", config).unwrap();
 
@@ -769,6 +776,7 @@ async fn test_update_nonexistent_vector() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("update_test", config).unwrap();
 
@@ -806,6 +814,7 @@ async fn test_delete_nonexistent_vector() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("delete_test", config).unwrap();
 
@@ -842,6 +851,7 @@ async fn test_very_large_vectors() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store.create_collection("large_vectors", config).unwrap();
 
@@ -894,6 +904,7 @@ async fn test_multiple_batch_searches() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        graph: None, // Graph disabled for tests
     };
     store
         .create_collection("batch_search_test", config)

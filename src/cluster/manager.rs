@@ -3,8 +3,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
 use parking_lot::RwLock;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 use super::node::{ClusterNode, NodeId, NodeStatus};
 use super::shard_router::DistributedShardRouter;
@@ -61,13 +62,13 @@ impl ClusterManager {
     /// Add local node to cluster
     fn add_local_node(&self) -> Result<()> {
         let mut nodes = self.nodes.write();
-        
+
         // For now, we'll need the server address from config or environment
         // This is a placeholder - will be properly initialized when server starts
         let mut local_node = ClusterNode::new(
             self.local_node_id.clone(),
             "127.0.0.1".to_string(), // Will be set properly during server initialization
-            0, // Will be set properly during server initialization
+            0,                       // Will be set properly during server initialization
         );
         local_node.mark_active();
 
@@ -218,4 +219,3 @@ impl ClusterManager {
         self.config.enabled
     }
 }
-
