@@ -8,6 +8,10 @@ use std::collections::HashMap;
 pub mod hybrid_search;
 pub use hybrid_search::*;
 
+// Re-export graph models
+pub mod graph;
+pub use graph::*;
+
 /// Vector similarity metrics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

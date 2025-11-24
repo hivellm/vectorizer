@@ -295,6 +295,124 @@ public partial class VectorizerClient : IDisposable
         }
     }
 
+    // ========== Graph Operations ==========
+
+    /// <summary>
+    /// Lists all nodes in a collection's graph
+    /// </summary>
+    public async Task<ListNodesResponse> ListGraphNodesAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<ListNodesResponse>(
+            "GET", $"/graph/nodes/{Uri.EscapeDataString(collection)}", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets neighbors of a specific node
+    /// </summary>
+    public async Task<GetNeighborsResponse> GetGraphNeighborsAsync(
+        string collection,
+        string nodeId,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<GetNeighborsResponse>(
+            "GET", $"/graph/nodes/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(nodeId)}/neighbors",
+            null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Finds related nodes within N hops
+    /// </summary>
+    public async Task<FindRelatedResponse> FindRelatedNodesAsync(
+        string collection,
+        string nodeId,
+        FindRelatedRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<FindRelatedResponse>(
+            "POST", $"/graph/nodes/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(nodeId)}/related",
+            request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Finds shortest path between two nodes
+    /// </summary>
+    public async Task<FindPathResponse> FindGraphPathAsync(
+        FindPathRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<FindPathResponse>("POST", "/graph/path", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates an explicit edge between two nodes
+    /// </summary>
+    public async Task<CreateEdgeResponse> CreateGraphEdgeAsync(
+        CreateEdgeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<CreateEdgeResponse>("POST", "/graph/edges", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Deletes an edge by ID
+    /// </summary>
+    public async Task DeleteGraphEdgeAsync(
+        string edgeId,
+        CancellationToken cancellationToken = default)
+    {
+        await RequestAsync<object>("DELETE", $"/graph/edges/{Uri.EscapeDataString(edgeId)}", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists all edges in a collection
+    /// </summary>
+    public async Task<ListEdgesResponse> ListGraphEdgesAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<ListEdgesResponse>(
+            "GET", $"/graph/collections/{Uri.EscapeDataString(collection)}/edges", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Discovers SIMILAR_TO edges for entire collection
+    /// </summary>
+    public async Task<DiscoverEdgesResponse> DiscoverGraphEdgesAsync(
+        string collection,
+        DiscoverEdgesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<DiscoverEdgesResponse>(
+            "POST", $"/graph/discover/{Uri.EscapeDataString(collection)}", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Discovers SIMILAR_TO edges for a specific node
+    /// </summary>
+    public async Task<DiscoverEdgesResponse> DiscoverGraphEdgesForNodeAsync(
+        string collection,
+        string nodeId,
+        DiscoverEdgesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<DiscoverEdgesResponse>(
+            "POST", $"/graph/discover/{Uri.EscapeDataString(collection)}/{Uri.EscapeDataString(nodeId)}",
+            request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets discovery status for a collection
+    /// </summary>
+    public async Task<DiscoveryStatusResponse> GetGraphDiscoveryStatusAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<DiscoveryStatusResponse>(
+            "GET", $"/graph/discover/{Uri.EscapeDataString(collection)}/status", null, cancellationToken);
+    }
+
     public void Dispose()
     {
         if (!_disposed)

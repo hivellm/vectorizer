@@ -12,7 +12,9 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 use crate::VectorStore;
-use crate::file_watcher::{EmbeddingManager, FileWatcherConfig, VectorOperations};
+use crate::file_watcher::{
+    EmbeddingManager, FileWatcherConfig, VectorOperations, normalize_wsl_path,
+};
 
 /// File discovery system for initial scanning
 pub struct FileDiscovery {
@@ -416,9 +418,19 @@ impl FileDiscovery {
                     if let Some(paths_array) = paths.as_sequence() {
                         for path in paths_array {
                             if let Some(path_str) = path.as_str() {
-                                let path_buf = std::env::current_dir()
-                                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                                    .join(path_str);
+                                // Normalize WSL path first
+                                let normalized_path = normalize_wsl_path(path_str);
+
+                                // If it's an absolute path (already normalized), use it directly
+                                // Otherwise, join with current_dir
+                                let path_buf = if normalized_path.is_absolute() {
+                                    normalized_path
+                                } else {
+                                    std::env::current_dir()
+                                        .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                                        .join(normalized_path)
+                                };
+
                                 if path_buf.exists() {
                                     watch_paths.push(path_buf);
                                 }
@@ -435,9 +447,19 @@ impl FileDiscovery {
                 for project in projects_array {
                     if let Some(path) = project.get("path") {
                         if let Some(path_str) = path.as_str() {
-                            let project_path = std::env::current_dir()
-                                .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                                .join(path_str);
+                            // Normalize WSL path first
+                            let normalized_path = normalize_wsl_path(path_str);
+
+                            // If it's an absolute path (already normalized), use it directly
+                            // Otherwise, join with current_dir
+                            let project_path = if normalized_path.is_absolute() {
+                                normalized_path
+                            } else {
+                                std::env::current_dir()
+                                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                                    .join(normalized_path)
+                            };
+
                             if project_path.exists() {
                                 watch_paths.push(project_path);
                             }

@@ -156,9 +156,24 @@ export const httpRequestMiddleware: Middleware = async (context, next) => {
     };
   } catch (error) {
     console.error('[httpRequestMiddleware] Fetch error:', error);
+    
+    // Create a proper ApiClientError for network/CORS errors
+    let errorMessage = 'Network error';
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      errorMessage = 'Failed to fetch. This may be a CORS issue or the server is not reachable.';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
     return {
       ...context,
-      error: error instanceof Error ? error : new Error(String(error)),
+      error: new ApiClientError(
+        errorMessage,
+        0, // Status 0 indicates network error
+        'NETWORK_ERROR',
+        { originalError: String(error) }
+      ),
+      response: undefined, // Explicitly set to undefined
     };
   }
 };
@@ -176,7 +191,24 @@ export const responseTransformMiddleware: Middleware = async (context, next) => 
     hasResponse: !!result.response,
     status: result.response?.status,
     ok: result.response?.ok,
+    hasError: !!result.error,
   });
+
+  // If there's an error and no response (e.g., CORS or network error), return early with error
+  if (result.error && !result.response) {
+    console.log('[responseTransformMiddleware] Error without response, returning error:', result.error);
+    return result;
+  }
+
+  // If no response and no error, this is unexpected - create an error
+  if (!result.response && !result.error) {
+    console.warn('[responseTransformMiddleware] No response and no error - this is unexpected');
+    result.error = new ApiClientError(
+      'No response received from server. This may be a CORS or network issue.',
+      0
+    );
+    return result;
+  }
 
   if (result.response) {
     const contentType = result.response.headers.get('content-type');
@@ -250,7 +282,14 @@ export const responseTransformMiddleware: Middleware = async (context, next) => 
           console.log('[responseTransformMiddleware] Using data as-is:', data);
           result.data = data;
         }
+        console.log('[responseTransformMiddleware] Final result.data:', result.data);
         console.log('[responseTransformMiddleware] Final result.data type:', typeof result.data, 'isArray:', Array.isArray(result.data));
+        
+        // Ensure data is always set (even if null/undefined)
+        if (result.data === undefined || result.data === null) {
+          console.warn('[responseTransformMiddleware] Warning: result.data is undefined/null after processing, setting to empty object');
+          result.data = data || {};
+        }
       } catch (error) {
         console.warn('[responseTransformMiddleware] Failed to parse JSON response', error);
         result.error = error instanceof Error ? error : new Error('Failed to parse JSON response');

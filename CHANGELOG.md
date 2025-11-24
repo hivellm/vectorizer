@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Graph Relationships**: Complete graph support for document relationships and traversal
+  - Graph data structure with nodes and edges (SIMILAR_TO, REFERENCES, CONTAINS, DERIVED_FROM)
+  - Automatic relationship discovery based on semantic similarity
+  - REST API endpoints for graph operations:
+    - `GET /api/v1/graph/nodes/{collection}` - List all nodes
+    - `GET /api/v1/graph/nodes/{collection}/{node_id}/neighbors` - Get neighbors
+    - `POST /api/v1/graph/nodes/{collection}/{node_id}/related` - Find related nodes
+    - `POST /api/v1/graph/path` - Find shortest path
+    - `POST /api/v1/graph/edges` - Create edge
+    - `DELETE /api/v1/graph/edges/{edge_id}` - Delete edge
+    - `GET /api/v1/graph/collections/{collection}/edges` - List edges
+    - `POST /api/v1/graph/discover/{collection}` - Discover edges for collection
+    - `POST /api/v1/graph/discover/{collection}/{node_id}` - Discover edges for node
+    - `GET /api/v1/graph/discover/{collection}/status` - Get discovery status
+  - MCP tools: `graph_list_nodes`, `graph_get_neighbors`, `graph_find_related`, `graph_find_path`, `graph_create_edge`, `graph_delete_edge`, `graph_discover_edges`, `graph_discover_status`
+  - SDK support: Graph models and methods added to Rust, Python, TypeScript, and JavaScript SDKs
+  - Configurable similarity threshold and max edges per node
+  - Batch discovery for entire collections with progress tracking
+
 - **Modern Web Dashboard**: Complete refactor to Vite + React + TypeScript
   - Built with Vite for fast development and optimized production builds
   - React 19 with TypeScript for type safety
@@ -15,6 +34,16 @@ All notable changes to this project will be documented in this file.
   - Real-time updates and auto-refresh functionality
   - Dark mode support
   - See [Dashboard Integration Guide](docs/DASHBOARD_INTEGRATION.md) for details
+
+- **Graph Dashboard Functions**: Enhanced Graph Relationships page with complete graph management interface
+  - Edge management: Create and delete edges manually with relationship type and weight selection
+  - Node exploration: View neighbors and find related nodes with configurable max hops and filters
+  - Path finding: Discover and visualize shortest paths between two nodes
+  - Node-specific discovery: Discover edges for individual nodes with custom similarity thresholds
+  - Discovery status: Real-time display of discovery progress and statistics
+  - Enhanced interactions: Context menus for nodes and edges, detailed information panels
+  - Visual feedback: Highlight paths, neighbors, and related nodes in graph visualization
+  - Complete integration with all graph API endpoints from `useGraph` hook
 
 - **Distributed Horizontal Sharding**: Support for distributing collections and vectors across multiple server instances
   - Cluster management with automatic membership and server discovery

@@ -5,7 +5,7 @@ pub mod auto_save;
 mod collection;
 pub mod collection_normalization;
 pub mod graph;
-mod graph_relationship_discovery;
+pub mod graph_relationship_discovery;
 pub mod hybrid_search;
 pub mod payload_index;
 pub mod storage_backend;
@@ -33,6 +33,10 @@ pub use distributed_sharded_collection::DistributedShardedCollection;
 #[cfg(feature = "hive-gpu")]
 pub use gpu_detection::{GpuBackendType, GpuDetector, GpuInfo};
 pub use graph::{Edge, Graph, Node, RelationshipType};
+pub use graph_relationship_discovery::{
+    DiscoveryStats, GraphRelationshipHelper, discover_edges_for_collection,
+    discover_edges_for_node, discover_similarity_relationships,
+};
 pub use hybrid_search::{HybridScoringAlgorithm, HybridSearchConfig, HybridSearchResult};
 pub use multi_tenancy::{
     MultiTenancyManager, TenantId, TenantMetadata, TenantOperation, TenantQuotas, TenantUsage,

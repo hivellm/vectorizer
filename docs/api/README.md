@@ -2,9 +2,9 @@
 
 This directory contains the complete API documentation for Vectorizer, including the OpenAPI 3.0.3 schema.
 
-**Version:** 0.3.1  
+**Version:** 1.4.0  
 **Status:** ✅ Production Ready  
-**Last Updated:** 2025-01-06
+**Last Updated:** 2025-01-24
 
 ## 📁 Files
 
@@ -127,6 +127,20 @@ swagger-cli bundle vectorizer/docs/api/openapi.yaml -o vectorizer/docs/api/opena
 - `GET /summaries` - List summaries
 - `GET /summaries/{id}` - Get specific summary
 
+### 🕸️ Graph Operations
+- `GET /graph/nodes/{collection}` - List all nodes in a collection
+- `GET /graph/nodes/{collection}/{node_id}/neighbors` - Get neighbors of a node
+- `POST /graph/nodes/{collection}/{node_id}/related` - Find related nodes
+- `POST /graph/path` - Find shortest path between nodes
+- `POST /graph/edges` - Create an edge
+- `DELETE /graph/edges/{edge_id}` - Delete an edge
+- `GET /graph/collections/{collection}/edges` - List all edges in a collection
+- `POST /graph/discover/{collection}` - Discover SIMILAR_TO edges for entire collection
+- `POST /graph/discover/{collection}/{node_id}` - Discover SIMILAR_TO edges for a specific node
+- `GET /graph/discover/{collection}/status` - Get discovery status and statistics
+
+**📖 See [Graph API Documentation](./GRAPH.md) for detailed documentation and examples.**
+
 ## 🎯 Usage Examples
 
 ### Create Collection
@@ -219,6 +233,28 @@ curl -X POST "http://localhost:15002/contextual_search" \
   }'
 ```
 
+### Graph Edge Discovery
+```bash
+# Discover edges for entire collection
+curl -X POST "http://localhost:15002/graph/discover/my-collection" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "similarity_threshold": 0.7,
+    "max_per_node": 10
+  }'
+
+# Discover edges for a specific node
+curl -X POST "http://localhost:15002/graph/discover/my-collection/node1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "similarity_threshold": 0.7,
+    "max_per_node": 10
+  }'
+
+# Get discovery status
+curl "http://localhost:15002/graph/discover/my-collection/status"
+```
+
 ### Health Check
 ```bash
 curl "http://localhost:15002/health"
@@ -229,7 +265,7 @@ curl "http://localhost:15002/health"
 ### Local Server
 - **Base URL**: `http://localhost:15002`
 - **Port**: 15002
-- **Version**: 0.3.1
+- **Version**: 1.4.0
 
 ### Authentication
 Currently no authentication is implemented. For production, consider implementing:
@@ -300,4 +336,4 @@ To contribute with documentation improvements, see [CONTRIBUTING.md](../../CONTR
 
 ## 📄 License
 
-This project is licensed under the [MIT License](../../LICENSE).
+This project is licensed under the [Apache-2.0 License](../../LICENSE).

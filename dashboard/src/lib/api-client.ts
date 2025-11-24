@@ -131,20 +131,55 @@ export class ApiClient {
     console.log('[ApiClient] Middleware result:', { 
       hasError: !!result.error, 
       hasData: result.data !== undefined,
+      dataType: typeof result.data,
       responseStatus: result.response?.status,
       error: result.error?.message 
     });
 
+    // Check for errors first
     if (result.error) {
       console.error('[ApiClient] Error from middleware:', result.error);
       throw result.error;
     }
 
-    if (result.data === undefined) {
-      console.warn('[ApiClient] No data received, response status:', result.response?.status);
+    // If no response and no error, it's likely a CORS or network issue
+    if (!result.response) {
+      throw new ApiClientError(
+        'No response received from server. This may be a CORS or network issue.',
+        0
+      );
     }
 
-    return (result.data !== undefined ? result.data : undefined) as T;
+    // If response is not ok, create error
+    if (!result.response.ok) {
+      const status = result.response.status;
+      const statusText = result.response.statusText;
+      throw new ApiClientError(
+        `HTTP ${status}: ${statusText || 'Unknown error'}`,
+        status
+      );
+    }
+
+    // If data is undefined but response is ok, it's likely a middleware issue
+    if (result.data === undefined) {
+      console.warn('[ApiClient] Response is OK but data is undefined, this may indicate a middleware issue');
+      // Try to read response body as fallback
+      try {
+        const contentType = result.response.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const data = await result.response.clone().json();
+          return data as T;
+        }
+      } catch (e) {
+        console.error('[ApiClient] Failed to read response body:', e);
+      }
+      throw new ApiClientError(
+        'Response received but no data was parsed. This may indicate a middleware issue.',
+        result.response.status
+      );
+    }
+
+    return result.data as T;
   }
 
   /**

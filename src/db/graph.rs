@@ -502,4 +502,166 @@ impl Graph {
 
         components
     }
+
+    /// Save graph to JSON file
+    ///
+    /// Graph is saved to `{collection_name}_graph.json` in the data directory.
+    /// Uses atomic write (writes to temp file then renames) for consistency.
+    pub fn save_to_file(&self, data_dir: &std::path::Path) -> Result<()> {
+        use std::fs;
+        use std::io::Write;
+
+        // Ensure data directory exists
+        if !data_dir.exists() {
+            fs::create_dir_all(data_dir).map_err(|e| {
+                VectorizerError::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("Failed to create data directory: {}", e),
+                ))
+            })?;
+        }
+
+        // Collect all nodes and edges
+        let nodes = self.get_all_nodes();
+        let edges = self.get_all_edges();
+
+        // Create persisted graph structure
+        #[derive(Serialize)]
+        struct PersistedGraph {
+            version: u32,
+            collection_name: String,
+            nodes: Vec<Node>,
+            edges: Vec<Edge>,
+        }
+
+        let persisted = PersistedGraph {
+            version: 1,
+            collection_name: self.collection_name.clone(),
+            nodes,
+            edges,
+        };
+
+        // Write to temporary file first (atomic operation)
+        let graph_path = data_dir.join(format!("{}_graph.json", self.collection_name));
+        let temp_path = data_dir.join(format!("{}_graph.json.tmp", self.collection_name));
+
+        let json_data = serde_json::to_string_pretty(&persisted).map_err(|e| {
+            VectorizerError::Serialization(format!("Failed to serialize graph: {}", e))
+        })?;
+
+        // Write to temp file
+        let mut file = fs::File::create(&temp_path).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to create temp graph file: {}", e),
+            ))
+        })?;
+
+        file.write_all(json_data.as_bytes()).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to write graph data: {}", e),
+            ))
+        })?;
+
+        file.sync_all().map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to sync graph file: {}", e),
+            ))
+        })?;
+
+        // Atomically rename temp file to final file
+        fs::rename(&temp_path, &graph_path).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to rename graph file: {}", e),
+            ))
+        })?;
+
+        info!(
+            "Saved graph '{}' with {} nodes and {} edges to {}",
+            self.collection_name,
+            persisted.nodes.len(),
+            persisted.edges.len(),
+            graph_path.display()
+        );
+
+        Ok(())
+    }
+
+    /// Load graph from JSON file
+    ///
+    /// Returns an empty graph if file doesn't exist (normal for new collections).
+    /// Returns error if file exists but is corrupted.
+    pub fn load_from_file(collection_name: &str, data_dir: &std::path::Path) -> Result<Self> {
+        use std::fs;
+
+        let graph_path = data_dir.join(format!("{}_graph.json", collection_name));
+
+        // If file doesn't exist, return empty graph (normal for new collections)
+        if !graph_path.exists() {
+            debug!(
+                "Graph file not found for '{}', creating empty graph",
+                collection_name
+            );
+            return Ok(Self::new(collection_name.to_string()));
+        }
+
+        // Read and parse JSON file
+        let json_data = fs::read_to_string(&graph_path).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to read graph file: {}", e),
+            ))
+        })?;
+
+        #[derive(Deserialize)]
+        struct PersistedGraph {
+            version: u32,
+            collection_name: String,
+            nodes: Vec<Node>,
+            edges: Vec<Edge>,
+        }
+
+        let persisted: PersistedGraph = match serde_json::from_str(&json_data) {
+            Ok(p) => p,
+            Err(e) => {
+                warn!(
+                    "Failed to parse graph file '{}': {}. Creating empty graph.",
+                    graph_path.display(),
+                    e
+                );
+                // Return empty graph instead of error (graceful degradation)
+                return Ok(Self::new(collection_name.to_string()));
+            }
+        };
+
+        // Create new graph
+        let graph = Self::new(collection_name.to_string());
+
+        // Add all nodes
+        for node in persisted.nodes {
+            if let Err(e) = graph.add_node(node) {
+                warn!("Failed to add node during graph load: {}", e);
+            }
+        }
+
+        // Add all edges (this will rebuild adjacency lists)
+        for edge in persisted.edges {
+            if let Err(e) = graph.add_edge(edge) {
+                warn!("Failed to add edge during graph load: {}", e);
+            }
+        }
+
+        info!(
+            "Loaded graph '{}' with {} nodes and {} edges from {}",
+            collection_name,
+            graph.node_count(),
+            graph.edge_count(),
+            graph_path.display()
+        );
+
+        Ok(graph)
+    }
 }

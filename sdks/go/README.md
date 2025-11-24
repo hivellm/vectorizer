@@ -6,7 +6,7 @@
 High-performance Go SDK for Vectorizer vector database.
 
 **Package**: `github.com/hivellm/vectorizer-sdk-go`  
-**Version**: 1.3.0
+**Version**: 1.4.0
 
 ## Features
 
@@ -28,7 +28,7 @@ High-performance Go SDK for Vectorizer vector database.
 go get github.com/hivellm/vectorizer-sdk-go
 
 # Or specific version
-go get github.com/hivellm/vectorizer-sdk-go@v1.3.0
+go get github.com/hivellm/vectorizer-sdk-go@v1.4.0
 ```
 
 ## Quick Start
@@ -98,6 +98,57 @@ func main() {
         log.Fatalf("Failed intelligent search: %v", err)
     }
     fmt.Printf("✓ Intelligent search found %d results\n", len(intelligentResults))
+
+    // Graph Operations (requires graph enabled in collection config)
+    // List all graph nodes
+    nodes, err := client.ListGraphNodes("documents")
+    if err != nil {
+        log.Fatalf("Failed to list graph nodes: %v", err)
+    }
+    fmt.Printf("✓ Graph has %d nodes\n", nodes.Count)
+
+    // Get neighbors of a node
+    neighbors, err := client.GetGraphNeighbors("documents", "document1")
+    if err != nil {
+        log.Fatalf("Failed to get neighbors: %v", err)
+    }
+    fmt.Printf("✓ Node has %d neighbors\n", len(neighbors.Neighbors))
+
+    // Find related nodes within 2 hops
+    related, err := client.FindRelatedNodes("documents", "document1", &vectorizer.FindRelatedRequest{
+        MaxHops:          2,
+        RelationshipType: "SIMILAR_TO",
+    })
+    if err != nil {
+        log.Fatalf("Failed to find related nodes: %v", err)
+    }
+    fmt.Printf("✓ Found %d related nodes\n", len(related.Related))
+
+    // Find shortest path between two nodes
+    path, err := client.FindGraphPath(&vectorizer.FindPathRequest{
+        Collection: "documents",
+        Source:     "document1",
+        Target:     "document2",
+    })
+    if err != nil {
+        log.Fatalf("Failed to find path: %v", err)
+    }
+    if path.Found {
+        fmt.Printf("✓ Path found: %v\n", path.Path)
+    }
+
+    // Create explicit relationship
+    edge, err := client.CreateGraphEdge(&vectorizer.CreateEdgeRequest{
+        Collection:       "documents",
+        Source:           "document1",
+        Target:           "document2",
+        RelationshipType: "REFERENCES",
+        Weight:           0.9,
+    })
+    if err != nil {
+        log.Fatalf("Failed to create edge: %v", err)
+    }
+    fmt.Printf("✓ Created edge: %s\n", edge.EdgeID)
 
     // Semantic search
     semanticResults, err := client.SemanticSearch(&vectorizer.SemanticSearchRequest{

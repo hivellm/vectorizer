@@ -31,21 +31,30 @@ pub struct GraphApiState {
 /// Create the graph API router
 pub fn create_graph_router() -> Router<GraphApiState> {
     Router::new()
-        .route("/api/v1/graph/nodes/{collection}", get(list_nodes))
+        .route("/graph/nodes/{collection}", get(list_nodes))
         .route(
-            "/api/v1/graph/nodes/{collection}/{node_id}/neighbors",
+            "/graph/nodes/{collection}/{node_id}/neighbors",
             get(get_neighbors),
         )
         .route(
-            "/api/v1/graph/nodes/{collection}/{node_id}/related",
+            "/graph/nodes/{collection}/{node_id}/related",
             post(find_related),
         )
-        .route("/api/v1/graph/path", post(find_path))
-        .route("/api/v1/graph/edges", post(create_edge))
-        .route("/api/v1/graph/edges/{edge_id}", delete(delete_edge))
+        .route("/graph/path", post(find_path))
+        .route("/graph/edges", post(create_edge))
+        .route("/graph/edges/{edge_id}", delete(delete_edge))
+        .route("/graph/collections/{collection}/edges", get(list_edges))
         .route(
-            "/api/v1/graph/collections/{collection}/edges",
-            get(list_edges),
+            "/graph/discover/{collection}",
+            post(discover_edges_collection),
+        )
+        .route(
+            "/graph/discover/{collection}/{node_id}",
+            post(discover_edges_node),
+        )
+        .route(
+            "/graph/discover/{collection}/status",
+            get(get_discovery_status),
         )
 }
 
@@ -138,13 +147,34 @@ pub struct DeleteEdgeResponse {
     pub message: String,
 }
 
-/// GET /api/v1/graph/nodes/:collection
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiscoverEdgesRequest {
+    pub similarity_threshold: Option<f32>,
+    pub max_per_node: Option<usize>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiscoverEdgesResponse {
+    pub success: bool,
+    pub edges_created: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiscoveryStatusResponse {
+    pub total_nodes: usize,
+    pub nodes_with_edges: usize,
+    pub total_edges: usize,
+    pub progress_percentage: f64,
+}
+
+/// GET /graph/nodes/{collection}
 /// List all nodes in a collection
 pub async fn list_nodes(
     State(state): State<GraphApiState>,
     axum::extract::Path(collection_name): axum::extract::Path<String>,
 ) -> Result<Json<ListNodesResponse>, (StatusCode, Json<serde_json::Value>)> {
-    debug!("GET /api/v1/graph/nodes/{}", collection_name);
+    debug!("GET /graph/nodes/{}", collection_name);
 
     let collection = state.store.get_collection(&collection_name).map_err(|e| {
         error!("Collection '{}' not found: {}", collection_name, e);
@@ -173,13 +203,13 @@ pub async fn list_nodes(
     Ok(Json(ListNodesResponse { nodes, count }))
 }
 
-/// GET /api/v1/graph/nodes/:collection/:node_id/neighbors
+/// GET /graph/nodes/{collection}/{node_id}/neighbors
 /// Get neighbors of a node
 pub async fn get_neighbors(
     State(state): State<GraphApiState>,
     axum::extract::Path((collection_name, node_id)): axum::extract::Path<(String, String)>,
 ) -> Result<Json<GetNeighborsResponse>, (StatusCode, Json<serde_json::Value>)> {
-    debug!("GET /api/v1/graph/nodes/{}/neighbors", collection_name);
+    debug!("GET /graph/nodes/{}/neighbors", collection_name);
 
     let collection = state.store.get_collection(&collection_name).map_err(|e| {
         error!("Collection '{}' not found: {}", collection_name, e);
@@ -221,14 +251,14 @@ pub async fn get_neighbors(
     }))
 }
 
-/// POST /api/v1/graph/nodes/:collection/:node_id/related
+/// POST /graph/nodes/{collection}/{node_id}/related
 /// Find related nodes within N hops
 pub async fn find_related(
     State(state): State<GraphApiState>,
     Path((collection_name, node_id)): Path<(String, String)>,
     Json(request): Json<FindRelatedRequest>,
 ) -> Result<Json<FindRelatedResponse>, (StatusCode, Json<serde_json::Value>)> {
-    debug!("POST /api/v1/graph/nodes/{}/related", collection_name);
+    debug!("POST /graph/nodes/{}/related", collection_name);
 
     let collection = state.store.get_collection(&collection_name).map_err(|e| {
         error!("Collection '{}' not found: {}", collection_name, e);
@@ -282,14 +312,14 @@ pub async fn find_related(
     }))
 }
 
-/// POST /api/v1/graph/path
+/// POST /graph/path
 /// Find shortest path between two nodes
 pub async fn find_path(
     State(state): State<GraphApiState>,
     Json(request): Json<FindPathRequest>,
 ) -> Result<Json<FindPathResponse>, (StatusCode, Json<serde_json::Value>)> {
     debug!(
-        "POST /api/v1/graph/path: {} -> {} in collection '{}'",
+        "POST /graph/path: {} -> {} in collection '{}'",
         request.source, request.target, request.collection
     );
 
@@ -334,14 +364,14 @@ pub async fn find_path(
     }
 }
 
-/// POST /api/v1/graph/edges
+/// POST /graph/edges
 /// Create an explicit edge
 pub async fn create_edge(
     State(state): State<GraphApiState>,
     Json(request): Json<CreateEdgeRequest>,
 ) -> Result<Json<CreateEdgeResponse>, (StatusCode, Json<serde_json::Value>)> {
     debug!(
-        "POST /api/v1/graph/edges: {} -> {} ({})",
+        "POST /graph/edges: {} -> {} ({})",
         request.source, request.target, request.relationship_type
     );
 
@@ -415,13 +445,14 @@ pub async fn create_edge(
     }))
 }
 
-/// GET /api/v1/graph/edges/:collection
+/// GET /graph/collections/{collection}/edges
 /// List all edges in a collection
 pub async fn list_edges(
     State(state): State<GraphApiState>,
     Path(collection_name): Path<String>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<ListEdgesResponse>, (StatusCode, Json<serde_json::Value>)> {
-    debug!("GET /api/v1/graph/collections/{}/edges", collection_name);
+    debug!("GET /graph/collections/{}/edges", collection_name);
 
     let collection = state.store.get_collection(&collection_name).map_err(|e| {
         error!("Collection '{}' not found: {}", collection_name, e);
@@ -443,25 +474,76 @@ pub async fn list_edges(
         )
     })?;
 
-    let edges = graph.get_all_edges();
+    // Get filter parameters
+    let relationship_type_filter = params.get("relationship_type").and_then(|s| {
+        match s.as_str() {
+            "SIMILAR_TO" => Some(RelationshipType::SimilarTo),
+            "REFERENCES" => Some(RelationshipType::References),
+            "CONTAINS" => Some(RelationshipType::Contains),
+            "DERIVED_FROM" => Some(RelationshipType::DerivedFrom),
+            _ => None,
+        }
+    });
+    
+    // No limit by default - return all edges (can be limited via query param if needed)
+    let limit = params
+        .get("limit")
+        .and_then(|s| s.parse::<usize>().ok());
 
-    let edge_infos: Vec<EdgeInfo> = edges
+    info!(
+        "Listing edges for collection '{}': relationship_type={:?}, limit={:?}, current_edge_count={}",
+        collection_name,
+        relationship_type_filter,
+        limit,
+        graph.edge_count()
+    );
+
+    let edges = graph.get_all_edges();
+    
+    info!(
+        "Retrieved {} edges from graph for collection '{}'",
+        edges.len(),
+        collection_name
+    );
+
+    let mut edge_infos: Vec<EdgeInfo> = edges
         .into_iter()
-        .map(|edge| EdgeInfo {
-            id: edge.id.clone(),
-            source: edge.source.clone(),
-            target: edge.target.clone(),
-            relationship_type: match edge.relationship_type {
-                RelationshipType::SimilarTo => "SIMILAR_TO".to_string(),
-                RelationshipType::References => "REFERENCES".to_string(),
-                RelationshipType::Contains => "CONTAINS".to_string(),
-                RelationshipType::DerivedFrom => "DERIVED_FROM".to_string(),
-            },
-            weight: edge.weight,
-            metadata: edge.metadata.clone(),
-            created_at: edge.created_at,
+        .filter_map(|edge| {
+            // Filter by relationship type if specified
+            if let Some(filter_type) = relationship_type_filter {
+                if edge.relationship_type != filter_type {
+                    return None;
+                }
+            }
+            
+            Some(EdgeInfo {
+                id: edge.id.clone(),
+                source: edge.source.clone(),
+                target: edge.target.clone(),
+                relationship_type: match edge.relationship_type {
+                    RelationshipType::SimilarTo => "SIMILAR_TO".to_string(),
+                    RelationshipType::References => "REFERENCES".to_string(),
+                    RelationshipType::Contains => "CONTAINS".to_string(),
+                    RelationshipType::DerivedFrom => "DERIVED_FROM".to_string(),
+                },
+                weight: edge.weight,
+                metadata: edge.metadata.clone(),
+                created_at: edge.created_at,
+            })
         })
         .collect();
+    
+    // Apply limit only if specified
+    if let Some(limit_value) = limit {
+        edge_infos.truncate(limit_value);
+    }
+
+    info!(
+        "Returning {} edges (after filtering{} limit) for collection '{}'",
+        edge_infos.len(),
+        if limit.is_some() { " and " } else { " - no " },
+        collection_name
+    );
 
     Ok(Json(ListEdgesResponse {
         count: edge_infos.len(),
@@ -469,13 +551,13 @@ pub async fn list_edges(
     }))
 }
 
-/// DELETE /api/v1/graph/edges/:edge_id
+/// DELETE /graph/edges/{edge_id}
 /// Delete an edge
 pub async fn delete_edge(
     State(state): State<GraphApiState>,
     Path(edge_id): Path<String>,
 ) -> Result<Json<DeleteEdgeResponse>, (StatusCode, Json<serde_json::Value>)> {
-    debug!("DELETE /api/v1/graph/edges/{}", edge_id);
+    debug!("DELETE /graph/edges/{}", edge_id);
 
     // Edge ID format: "source:target:RELATIONSHIP_TYPE" or "collection:source:target:RELATIONSHIP_TYPE"
     // For now, we need to search all collections to find the edge
@@ -522,6 +604,219 @@ fn get_collection_graph_from_type(collection: &CollectionType) -> Option<&Graph>
         crate::db::CollectionType::Cpu(c) => c.get_graph().map(|arc| arc.as_ref()),
         _ => None, // Graph only supported for CPU collections for now
     }
+}
+
+/// POST /graph/discover/{collection}
+/// Discover and create SIMILAR_TO edges for all nodes in a collection
+pub async fn discover_edges_collection(
+    State(state): State<GraphApiState>,
+    Path(collection_name): Path<String>,
+    Json(request): Json<DiscoverEdgesRequest>,
+) -> Result<Json<DiscoverEdgesResponse>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("POST /graph/discover/{}", collection_name);
+
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
+
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", collection_name);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", collection_name)
+            })),
+        )
+    })?;
+
+    // Create config from request parameters
+    let config = crate::models::AutoRelationshipConfig {
+        similarity_threshold: request.similarity_threshold.unwrap_or(0.7),
+        max_per_node: request.max_per_node.unwrap_or(10),
+        enabled_types: vec!["SIMILAR_TO".to_string()],
+    };
+
+    // Get CPU collection for discovery
+    let cpu_collection = match &*collection {
+        CollectionType::Cpu(c) => c,
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": "Graph discovery only supported for CPU collections"
+                })),
+            ));
+        }
+    };
+
+    let stats = crate::db::graph_relationship_discovery::discover_edges_for_collection(
+        graph,
+        cpu_collection,
+        &config,
+    )
+    .map_err(|e| {
+        error!("Failed to discover edges: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "error": format!("Failed to discover edges: {}", e)
+            })),
+        )
+    })?;
+
+    info!(
+        "Discovered {} edges for {} nodes in collection '{}'",
+        stats.total_edges_created, stats.nodes_with_edges, collection_name
+    );
+
+    Ok(Json(DiscoverEdgesResponse {
+        success: true,
+        edges_created: stats.total_edges_created,
+        message: format!(
+            "Created {} edges for {} nodes",
+            stats.total_edges_created, stats.nodes_with_edges
+        ),
+    }))
+}
+
+/// POST /graph/discover/{collection}/{node_id}
+/// Discover and create SIMILAR_TO edges for a specific node
+pub async fn discover_edges_node(
+    State(state): State<GraphApiState>,
+    Path((collection_name, node_id)): Path<(String, String)>,
+    Json(request): Json<DiscoverEdgesRequest>,
+) -> Result<Json<DiscoverEdgesResponse>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("POST /graph/discover/{}/{}", collection_name, node_id);
+
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
+
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", collection_name);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", collection_name)
+            })),
+        )
+    })?;
+
+    // Create config from request parameters
+    let config = crate::models::AutoRelationshipConfig {
+        similarity_threshold: request.similarity_threshold.unwrap_or(0.7),
+        max_per_node: request.max_per_node.unwrap_or(10),
+        enabled_types: vec!["SIMILAR_TO".to_string()],
+    };
+
+    // Get CPU collection for discovery
+    let cpu_collection = match &*collection {
+        CollectionType::Cpu(c) => c,
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": "Graph discovery only supported for CPU collections"
+                })),
+            ));
+        }
+    };
+
+    let edges_created = crate::db::graph_relationship_discovery::discover_edges_for_node(
+        graph,
+        &node_id,
+        cpu_collection,
+        &config,
+    )
+    .map_err(|e| {
+        error!("Failed to discover edges for node '{}': {}", node_id, e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "error": format!("Failed to discover edges: {}", e)
+            })),
+        )
+    })?;
+
+    info!(
+        "Discovered {} edges for node '{}' in collection '{}'",
+        edges_created, node_id, collection_name
+    );
+
+    Ok(Json(DiscoverEdgesResponse {
+        success: true,
+        edges_created,
+        message: format!("Created {} edges for node '{}'", edges_created, node_id),
+    }))
+}
+
+/// GET /graph/discover/{collection}/status
+/// Get discovery status for a collection
+pub async fn get_discovery_status(
+    State(state): State<GraphApiState>,
+    Path(collection_name): Path<String>,
+) -> Result<Json<DiscoveryStatusResponse>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("GET /graph/discover/{}/status", collection_name);
+
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
+
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        error!("Graph not enabled for collection '{}'", collection_name);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!("Graph not enabled for collection '{}'", collection_name)
+            })),
+        )
+    })?;
+
+    let total_nodes = graph.node_count();
+    let total_edges = graph.edge_count();
+
+    // Count nodes that have at least one outgoing edge
+    let nodes = graph.get_all_nodes();
+    let nodes_with_edges = nodes
+        .iter()
+        .filter(|node| {
+            graph
+                .get_neighbors(&node.id, None)
+                .map(|n| !n.is_empty())
+                .unwrap_or(false)
+        })
+        .count();
+
+    let progress_percentage = if total_nodes > 0 {
+        (nodes_with_edges as f64 / total_nodes as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    Ok(Json(DiscoveryStatusResponse {
+        total_nodes,
+        nodes_with_edges,
+        total_edges,
+        progress_percentage,
+    }))
 }
 
 /// Parse relationship type from string

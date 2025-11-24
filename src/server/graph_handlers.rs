@@ -406,6 +406,182 @@ pub async fn handle_graph_delete_edge(
     )]))
 }
 
+/// Handle graph_discover_edges tool
+pub async fn handle_graph_discover_edges(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args: serde_json::Value = serde_json::from_str(
+        request
+            .arguments
+            .as_ref()
+            .map(|m| serde_json::to_string(m).unwrap_or_default())
+            .unwrap_or_default()
+            .as_str(),
+    )
+    .map_err(|e| ErrorData::invalid_params(format!("Invalid arguments: {}", e), None))?;
+
+    let collection_name = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing required parameter: collection", None))?;
+
+    let node_id = args.get("node_id").and_then(|v| v.as_str());
+
+    let similarity_threshold = args
+        .get("similarity_threshold")
+        .and_then(|v| v.as_f64())
+        .map(|v| v as f32)
+        .unwrap_or(0.7);
+
+    let max_per_node = args
+        .get("max_per_node")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as usize)
+        .unwrap_or(10);
+
+    let collection = store.get_collection(collection_name).map_err(|e| {
+        ErrorData::internal_error(
+            format!("Collection '{}' not found: {}", collection_name, e),
+            None,
+        )
+    })?;
+
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        ErrorData::invalid_params(
+            format!("Graph not enabled for collection '{}'", collection_name),
+            None,
+        )
+    })?;
+
+    // Get CPU collection for discovery
+    let cpu_collection = match &*collection {
+        crate::db::CollectionType::Cpu(c) => c,
+        _ => {
+            return Err(ErrorData::invalid_params(
+                "Graph discovery only supported for CPU collections".to_string(),
+                None,
+            ));
+        }
+    };
+
+    let config = crate::models::AutoRelationshipConfig {
+        similarity_threshold,
+        max_per_node,
+        enabled_types: vec!["SIMILAR_TO".to_string()],
+    };
+
+    if let Some(node_id) = node_id {
+        // Discover edges for specific node
+        let edges_created = crate::db::graph_relationship_discovery::discover_edges_for_node(
+            graph,
+            node_id,
+            cpu_collection,
+            &config,
+        )
+        .map_err(|e| ErrorData::internal_error(format!("Failed to discover edges: {}", e), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            json!({
+                "success": true,
+                "edges_created": edges_created,
+                "node_id": node_id,
+                "message": format!("Created {} edges for node '{}'", edges_created, node_id)
+            })
+            .to_string(),
+        )]))
+    } else {
+        // Discover edges for entire collection
+        let stats = crate::db::graph_relationship_discovery::discover_edges_for_collection(
+            graph,
+            cpu_collection,
+            &config,
+        )
+        .map_err(|e| ErrorData::internal_error(format!("Failed to discover edges: {}", e), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(
+            json!({
+                "success": true,
+                "total_nodes": stats.total_nodes,
+                "nodes_processed": stats.nodes_processed,
+                "nodes_with_edges": stats.nodes_with_edges,
+                "total_edges_created": stats.total_edges_created,
+                "message": format!(
+                    "Created {} edges for {} nodes",
+                    stats.total_edges_created, stats.nodes_with_edges
+                )
+            })
+            .to_string(),
+        )]))
+    }
+}
+
+/// Handle graph_discover_status tool
+pub async fn handle_graph_discover_status(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args: serde_json::Value = serde_json::from_str(
+        request
+            .arguments
+            .as_ref()
+            .map(|m| serde_json::to_string(m).unwrap_or_default())
+            .unwrap_or_default()
+            .as_str(),
+    )
+    .map_err(|e| ErrorData::invalid_params(format!("Invalid arguments: {}", e), None))?;
+
+    let collection_name = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing required parameter: collection", None))?;
+
+    let collection = store.get_collection(collection_name).map_err(|e| {
+        ErrorData::internal_error(
+            format!("Collection '{}' not found: {}", collection_name, e),
+            None,
+        )
+    })?;
+
+    let graph = get_collection_graph_from_type(&collection).ok_or_else(|| {
+        ErrorData::invalid_params(
+            format!("Graph not enabled for collection '{}'", collection_name),
+            None,
+        )
+    })?;
+
+    let total_nodes = graph.node_count();
+    let total_edges = graph.edge_count();
+
+    // Count nodes that have at least one outgoing edge
+    let nodes = graph.get_all_nodes();
+    let nodes_with_edges = nodes
+        .iter()
+        .filter(|node| {
+            graph
+                .get_neighbors(&node.id, None)
+                .map(|n| !n.is_empty())
+                .unwrap_or(false)
+        })
+        .count();
+
+    let progress_percentage = if total_nodes > 0 {
+        (nodes_with_edges as f64 / total_nodes as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    Ok(CallToolResult::success(vec![Content::text(
+        json!({
+            "total_nodes": total_nodes,
+            "nodes_with_edges": nodes_with_edges,
+            "total_edges": total_edges,
+            "progress_percentage": progress_percentage
+        })
+        .to_string(),
+    )]))
+}
+
 /// Parse relationship type from string
 fn parse_relationship_type(s: &str) -> Option<RelationshipType> {
     match s.to_uppercase().as_str() {

@@ -88,18 +88,20 @@ function FileWatcherPage() {
     }
   };
 
-  const formatUptime = (seconds: number): string => {
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
+  const formatUptime = (seconds: number | null | undefined): string => {
+    const sec = seconds ?? 0;
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+    const hours = Math.floor(sec / 3600);
+    const minutes = Math.floor((sec % 3600) / 60);
     return `${hours}h ${minutes}m`;
   };
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  const formatBytes = (bytes: number | null | undefined): string => {
+    const b = bytes ?? 0;
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(2)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(2)} MB`;
   };
 
   if (loading && !status) {
@@ -313,25 +315,25 @@ function FileWatcherPage() {
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Avg Processing Time</span>
                 <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {metrics.timing.avg_file_processing_ms.toFixed(2)}ms
+                  {(metrics.timing.avg_file_processing_ms ?? 0).toFixed(2)}ms
                 </p>
               </div>
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Avg Discovery Time</span>
                 <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {metrics.timing.avg_discovery_ms.toFixed(2)}ms
+                  {(metrics.timing.avg_discovery_ms ?? 0).toFixed(2)}ms
                 </p>
               </div>
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Avg Sync Time</span>
                 <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {metrics.timing.avg_sync_ms.toFixed(2)}ms
+                  {(metrics.timing.avg_sync_ms ?? 0).toFixed(2)}ms
                 </p>
               </div>
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Peak Processing Time</span>
                 <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {metrics.timing.peak_processing_ms}ms
+                  {metrics.timing.peak_processing_ms ?? 0}ms
                 </p>
               </div>
               {metrics.timing.last_activity && (
@@ -352,13 +354,13 @@ function FileWatcherPage() {
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Memory Usage</span>
                 <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatBytes(metrics.system.memory_usage_bytes)}
+                  {formatBytes(metrics.system.memory_usage_bytes ?? 0)}
                 </p>
               </div>
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">CPU Usage</span>
                 <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {metrics.system.cpu_usage_percent.toFixed(2)}%
+                  {(metrics.system.cpu_usage_percent ?? 0).toFixed(2)}%
                 </p>
               </div>
               <div>
@@ -382,7 +384,7 @@ function FileWatcherPage() {
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Network I/O</span>
                 <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatBytes(metrics.system.network_io_bytes_per_sec)}/s
+                  {formatBytes(metrics.system.network_io_bytes_per_sec ?? 0)}/s
                 </p>
               </div>
             </div>
@@ -394,20 +396,20 @@ function FileWatcherPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Status</span>
-                <p className={`text-lg font-semibold mt-1 ${metrics.status.is_healthy ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {metrics.status.is_healthy ? 'Healthy' : 'Unhealthy'}
+                <p className={`text-lg font-semibold mt-1 ${metrics.status.is_healthy !== false ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {metrics.status.is_healthy !== false ? 'Healthy' : 'Unhealthy'}
                 </p>
               </div>
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Total Errors</span>
                 <p className="text-lg font-semibold text-red-600 dark:text-red-400 mt-1">
-                  {formatNumber(metrics.status.total_errors)}
+                  {formatNumber(metrics.status.total_errors ?? 0)}
                 </p>
               </div>
               <div>
                 <span className="text-sm text-neutral-500 dark:text-neutral-400">Total Warnings</span>
                 <p className="text-lg font-semibold text-yellow-600 dark:text-yellow-400 mt-1">
-                  {formatNumber(metrics.status.total_warnings)}
+                  {formatNumber(metrics.status.total_warnings ?? 0)}
                 </p>
               </div>
               {metrics.status.last_error && (

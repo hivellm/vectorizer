@@ -7,7 +7,7 @@
 High-performance Rust SDK for Vectorizer vector database.
 
 **Package**: `vectorizer-sdk`  
-**Version**: 1.3.0
+**Version**: 1.4.0
 
 ## ✅ Status: Ready for Crate Publication
 
@@ -97,6 +97,80 @@ async fn main() -> Result<()> {
     };
     let semantic_results = client.semantic_search(semantic_request).await?;
     println!("Semantic search found {} results", semantic_results.results.len());
+
+    // Graph Operations (requires graph enabled in collection config)
+    // List all graph nodes
+    let nodes = client.list_graph_nodes("documents").await?;
+    println!("Graph has {} nodes", nodes.count);
+
+    // Get neighbors of a node
+    let neighbors = client.get_graph_neighbors("documents", "document1").await?;
+    println!("Node has {} neighbors", neighbors.neighbors.len());
+
+    // Find related nodes within 2 hops
+    use vectorizer_sdk::models::FindRelatedRequest;
+    let related = client.find_related_nodes(
+        "documents",
+        "document1",
+        FindRelatedRequest {
+            max_hops: Some(2),
+            relationship_type: Some("SIMILAR_TO".to_string()),
+        },
+    ).await?;
+    println!("Found {} related nodes", related.related.len());
+
+    // Find shortest path between two nodes
+    use vectorizer_sdk::models::FindPathRequest;
+    let path = client.find_graph_path(FindPathRequest {
+        collection: "documents".to_string(),
+        source: "document1".to_string(),
+        target: "document2".to_string(),
+    }).await?;
+    if path.found {
+        println!("Path found: {:?}", path.path.iter().map(|n| &n.id).collect::<Vec<_>>());
+    }
+
+    // Create explicit relationship
+    use vectorizer_sdk::models::CreateEdgeRequest;
+    let edge = client.create_graph_edge(CreateEdgeRequest {
+        collection: "documents".to_string(),
+        source: "document1".to_string(),
+        target: "document2".to_string(),
+        relationship_type: "REFERENCES".to_string(),
+        weight: Some(0.9),
+    }).await?;
+    println!("Created edge: {}", edge.edge_id);
+
+    // Discover SIMILAR_TO edges for entire collection
+    use vectorizer_sdk::models::DiscoverEdgesRequest;
+    let discovery_result = client.discover_graph_edges(
+        "documents",
+        DiscoverEdgesRequest {
+            similarity_threshold: Some(0.7),
+            max_per_node: Some(10),
+        },
+    ).await?;
+    println!("Discovered {} edges", discovery_result.edges_created);
+
+    // Discover edges for a specific node
+    let node_discovery = client.discover_graph_edges_for_node(
+        "documents",
+        "document1",
+        DiscoverEdgesRequest {
+            similarity_threshold: Some(0.7),
+            max_per_node: Some(10),
+        },
+    ).await?;
+    println!("Discovered {} edges for node", node_discovery.edges_created);
+
+    // Get discovery status
+    let status = client.get_graph_discovery_status("documents").await?;
+    println!(
+        "Discovery status: {} nodes, {} edges, {:.1}% complete",
+        status.total_nodes,
+        status.total_edges,
+        status.progress_percentage
+    );
 
     // Contextual search with metadata filtering
     let mut context_filters = std::collections::HashMap::new();

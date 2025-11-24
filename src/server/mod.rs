@@ -22,7 +22,7 @@ use axum::routing::{delete, get, post, put};
 pub use mcp_handlers::handle_mcp_tool;
 pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tracing::{debug, error, info, warn};
 
@@ -1003,7 +1003,6 @@ impl VectorizerServer {
             )
             // Dashboard - serve static files from dist directory (production build)
             .nest_service("/dashboard", ServeDir::new("dashboard/dist"))
-            .layer(CorsLayer::permissive())
             .layer(axum::middleware::from_fn(
                 crate::monitoring::correlation_middleware,
             ))
@@ -1128,7 +1127,11 @@ impl VectorizerServer {
             .merge(mcp_router)
             .merge(rest_routes)
             .merge(metrics_router)
-            .fallback(dashboard_fallback);
+            .fallback(dashboard_fallback)
+            // Apply CORS to all routes (must be after merging all routes)
+            // Use permissive() which allows all origins, methods, and headers
+            // This is safe for development and internal APIs
+            .layer(CorsLayer::permissive());
 
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
@@ -1165,7 +1168,7 @@ impl VectorizerServer {
             info!("🛑 Graceful shutdown signal received, stopping HTTP server...");
         });
 
-        // Spawn server task so we can abort background tasks immediately
+        // Spawn server task
         let server_task = tokio::spawn(async move {
             if let Err(e) = server_handle.await {
                 error!("❌ Server error: {}", e);
@@ -1174,11 +1177,24 @@ impl VectorizerServer {
             }
         });
 
-        // Get abort handle before moving server_task
+        // Get abort handle before moving server_task (for emergency shutdown)
         let server_task_abort = server_task.abort_handle();
 
-        // Abort all background tasks IMMEDIATELY (before waiting for HTTP server)
-        // This ensures tasks are killed even if HTTP server is stuck
+        // Wait for HTTP server to stop (this will block until Ctrl+C is pressed)
+        // When shutdown signal is received, the server will stop gracefully
+        // No timeout here - server should run indefinitely until Ctrl+C
+        match server_task.await {
+            Ok(_) => {
+                info!("✅ HTTP server stopped gracefully");
+            }
+            Err(e) => {
+                error!("❌ HTTP server task join error: {}", e);
+                // Force abort as fallback
+                server_task_abort.abort();
+            }
+        }
+
+        // Now shutdown all background tasks AFTER HTTP server has stopped
         info!("🛑 Stopping all background tasks...");
 
         // Background collection loading task (non-blocking)
@@ -1238,22 +1254,6 @@ impl VectorizerServer {
         // Auto save manager shutdown (non-blocking, no await)
         if let Some(auto_save) = &self.auto_save_manager {
             auto_save.shutdown();
-        }
-
-        // Wait for HTTP server with timeout (5 seconds max)
-        // If server is stuck, we force exit anyway
-        match tokio::time::timeout(tokio::time::Duration::from_secs(5), server_task).await {
-            Ok(Ok(_)) => {
-                info!("✅ HTTP server stopped gracefully");
-            }
-            Ok(Err(e)) => {
-                error!("❌ HTTP server task error: {}", e);
-            }
-            Err(_) => {
-                warn!("⚠️  HTTP server shutdown timeout (5s), forcing exit...");
-                // Force abort the server task
-                server_task_abort.abort();
-            }
         }
 
         info!("✅ Server stopped");

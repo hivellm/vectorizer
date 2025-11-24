@@ -692,14 +692,25 @@ export class VectorizerClient {
    */
   setApiKey(apiKey) {
     this.config.apiKey = apiKey;
-    // Reinitialize HTTP client with new API key
-    const httpConfig = {
-      baseURL: this.config.baseURL,
-      timeout: this.config.timeout,
-      apiKey: this.config.apiKey,
-      headers: this.config.headers,
-    };
-    this.httpClient = new HttpClient(httpConfig);
+    // Reinitialize transport with new API key
+    if (this.protocol === 'http') {
+      const httpConfig = {
+        baseURL: this.config.baseURL,
+        ...(this.config.timeout && { timeout: this.config.timeout }),
+        ...(this.config.headers && { headers: this.config.headers }),
+        ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+      };
+      this.transport = TransportFactory.create({ protocol: 'http', http: httpConfig });
+    } else if (this.protocol === 'umicp' && this.config.umicp) {
+      const umicpConfig = {
+        host: this.config.umicp.host || 'localhost',
+        port: this.config.umicp.port || 15003,
+        ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+        ...(this.config.timeout && { timeout: this.config.timeout }),
+        ...this.config.umicp,
+      };
+      this.transport = TransportFactory.create({ protocol: 'umicp', umicp: umicpConfig });
+    }
 
     this.logger.info('API key updated');
   }
@@ -1257,5 +1268,113 @@ export class VectorizerClient {
   async getBackupDirectory() {
     this.logger.debug('Getting backup directory');
     return this.transport.get('/api/backups/directory');
+  }
+
+  // ========== Graph Operations ==========
+
+  /**
+   * List all nodes in a collection's graph.
+   * @param {string} collection - Collection name
+   * @returns {Promise<ListNodesResponse>} List of nodes
+   */
+  async listGraphNodes(collection) {
+    this.logger.debug('Listing graph nodes', { collection });
+    return this.transport.get(`/graph/nodes/${collection}`);
+  }
+
+  /**
+   * Get neighbors of a specific node.
+   * @param {string} collection - Collection name
+   * @param {string} nodeId - Node ID
+   * @returns {Promise<GetNeighborsResponse>} List of neighbors
+   */
+  async getGraphNeighbors(collection, nodeId) {
+    this.logger.debug('Getting graph neighbors', { collection, nodeId });
+    return this.transport.get(`/graph/nodes/${collection}/${nodeId}/neighbors`);
+  }
+
+  /**
+   * Find related nodes within N hops.
+   * @param {string} collection - Collection name
+   * @param {string} nodeId - Node ID
+   * @param {FindRelatedRequest} request - Find related request
+   * @returns {Promise<FindRelatedResponse>} List of related nodes
+   */
+  async findRelatedNodes(collection, nodeId, request) {
+    this.logger.debug('Finding related nodes', { collection, nodeId, request });
+    return this.transport.post(`/graph/nodes/${collection}/${nodeId}/related`, request);
+  }
+
+  /**
+   * Find shortest path between two nodes.
+   * @param {FindPathRequest} request - Find path request
+   * @returns {Promise<FindPathResponse>} Path between nodes
+   */
+  async findGraphPath(request) {
+    this.logger.debug('Finding graph path', { request });
+    return this.transport.post('/graph/path', request);
+  }
+
+  /**
+   * Create an explicit edge between two nodes.
+   * @param {CreateEdgeRequest} request - Create edge request
+   * @returns {Promise<CreateEdgeResponse>} Created edge response
+   */
+  async createGraphEdge(request) {
+    this.logger.debug('Creating graph edge', { request });
+    return this.transport.post('/graph/edges', request);
+  }
+
+  /**
+   * Delete an edge by ID.
+   * @param {string} edgeId - Edge ID
+   * @returns {Promise<void>}
+   */
+  async deleteGraphEdge(edgeId) {
+    this.logger.debug('Deleting graph edge', { edgeId });
+    return this.transport.delete(`/graph/edges/${edgeId}`);
+  }
+
+  /**
+   * List all edges in a collection.
+   * @param {string} collection - Collection name
+   * @returns {Promise<ListEdgesResponse>} List of edges
+   */
+  async listGraphEdges(collection) {
+    this.logger.debug('Listing graph edges', { collection });
+    return this.transport.get(`/graph/collections/${collection}/edges`);
+  }
+
+  /**
+   * Discover SIMILAR_TO edges for entire collection.
+   * @param {string} collection - Collection name
+   * @param {DiscoverEdgesRequest} request - Discover edges request
+   * @returns {Promise<DiscoverEdgesResponse>} Discovery response
+   */
+  async discoverGraphEdges(collection, request) {
+    this.logger.debug('Discovering graph edges', { collection, request });
+    return this.transport.post(`/graph/discover/${collection}`, request);
+  }
+
+  /**
+   * Discover SIMILAR_TO edges for a specific node.
+   * @param {string} collection - Collection name
+   * @param {string} nodeId - Node ID
+   * @param {DiscoverEdgesRequest} request - Discover edges request
+   * @returns {Promise<DiscoverEdgesResponse>} Discovery response
+   */
+  async discoverGraphEdgesForNode(collection, nodeId, request) {
+    this.logger.debug('Discovering graph edges for node', { collection, nodeId, request });
+    return this.transport.post(`/graph/discover/${collection}/${nodeId}`, request);
+  }
+
+  /**
+   * Get discovery status for a collection.
+   * @param {string} collection - Collection name
+   * @returns {Promise<DiscoveryStatusResponse>} Discovery status
+   */
+  async getGraphDiscoveryStatus(collection) {
+    this.logger.debug('Getting graph discovery status', { collection });
+    return this.transport.get(`/graph/discover/${collection}/status`);
   }
 }

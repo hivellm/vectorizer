@@ -134,6 +134,8 @@ pub async fn handle_mcp_tool(
         "graph_find_path" => handle_graph_find_path(request, store).await,
         "graph_create_edge" => handle_graph_create_edge(request, store).await,
         "graph_delete_edge" => handle_graph_delete_edge(request, store).await,
+        "graph_discover_edges" => handle_graph_discover_edges(request, store).await,
+        "graph_discover_status" => handle_graph_discover_status(request, store).await,
 
         // Cluster Operations
         "cluster_list_nodes" => handle_cluster_list_nodes(store, cluster_manager).await,

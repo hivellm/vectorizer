@@ -1082,5 +1082,63 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             annotations: Some(ToolAnnotations::new().read_only(false)),
         },
 
+        // Graph Discover Edges
+        Tool {
+            name: Cow::Borrowed("graph_discover_edges"),
+            title: Some("Discover Graph Edges".to_string()),
+            description: Some(Cow::Borrowed(
+                "Automatically discover and create SIMILAR_TO edges between nodes based on semantic similarity. Can discover for a specific node or entire collection."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "node_id": {
+                        "type": "string",
+                        "description": "Optional: specific node ID to discover edges for. If omitted, discovers for entire collection."
+                    },
+                    "similarity_threshold": {
+                        "type": "number",
+                        "description": "Similarity threshold (0.0 to 1.0) for creating edges. Default: 0.7",
+                        "default": 0.7
+                    },
+                    "max_per_node": {
+                        "type": "integer",
+                        "description": "Maximum number of edges to create per node. Default: 10",
+                        "default": 10
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+        },
+
+        // Graph Discover Status
+        Tool {
+            name: Cow::Borrowed("graph_discover_status"),
+            title: Some("Get Graph Discovery Status".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get discovery status for a collection, showing how many nodes have edges and overall progress."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true)),
+        },
+
     ]
 }

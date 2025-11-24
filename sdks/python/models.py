@@ -703,9 +703,9 @@ class HybridSearchResponse:
     
     results: List[HybridSearchResult]
     query: str
-    query_sparse: Optional[Dict[str, List]] = None
     alpha: float
     algorithm: str
+    query_sparse: Optional[Dict[str, List]] = None
     duration_ms: Optional[int] = None
 
 
@@ -813,3 +813,146 @@ class ReplicaListResponse:
             raise ValueError("Count cannot be negative")
         if self.count != len(self.replicas):
             raise ValueError("Count must match number of replicas")
+
+
+# ========== Graph Models ==========
+
+@dataclass
+class GraphNode:
+    """Graph node representing a document/file."""
+    
+    id: str
+    node_type: str
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class GraphEdge:
+    """Graph edge representing a relationship between nodes."""
+    
+    id: str
+    source: str
+    target: str
+    relationship_type: str
+    weight: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: str = ""
+
+
+@dataclass
+class NeighborInfo:
+    """Neighbor information."""
+    
+    node: GraphNode
+    edge: GraphEdge
+
+
+@dataclass
+class RelatedNodeInfo:
+    """Related node information."""
+    
+    node: GraphNode
+    distance: int
+    weight: float
+
+
+@dataclass
+class FindRelatedRequest:
+    """Request to find related nodes."""
+    
+    max_hops: Optional[int] = None
+    relationship_type: Optional[str] = None
+
+
+@dataclass
+class FindRelatedResponse:
+    """Response for finding related nodes."""
+    
+    related: List[RelatedNodeInfo]
+
+
+@dataclass
+class FindPathRequest:
+    """Request to find path between nodes."""
+    
+    collection: str
+    source: str
+    target: str
+
+
+@dataclass
+class FindPathResponse:
+    """Response for finding path."""
+    
+    path: List[GraphNode]
+    found: bool
+
+
+@dataclass
+class CreateEdgeRequest:
+    """Request to create an edge."""
+    
+    collection: str
+    source: str
+    target: str
+    relationship_type: str
+    weight: Optional[float] = None
+
+
+@dataclass
+class CreateEdgeResponse:
+    """Response for creating an edge."""
+    
+    edge_id: str
+    success: bool
+    message: str
+
+
+@dataclass
+class ListNodesResponse:
+    """Response for listing nodes."""
+    
+    nodes: List[GraphNode]
+    count: int
+
+
+@dataclass
+class GetNeighborsResponse:
+    """Response for getting neighbors."""
+    
+    neighbors: List[NeighborInfo]
+
+
+@dataclass
+class ListEdgesResponse:
+    """Response for listing edges."""
+    
+    edges: List[GraphEdge]
+    count: int
+
+
+@dataclass
+class DiscoverEdgesRequest:
+    """Request to discover edges."""
+    
+    similarity_threshold: Optional[float] = None
+    max_per_node: Optional[int] = None
+
+
+@dataclass
+class DiscoverEdgesResponse:
+    """Response for discovering edges."""
+    
+    success: bool
+    edges_created: int
+    message: str
+
+
+@dataclass
+class DiscoveryStatusResponse:
+    """Response for discovery status."""
+    
+    total_nodes: int
+    nodes_with_edges: int
+    total_edges: int
+    progress_percentage: float

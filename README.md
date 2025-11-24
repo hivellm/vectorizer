@@ -24,10 +24,11 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔄 Qdrant Migration**: Complete migration tools for seamless transition from Qdrant
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
-- **🖥️ Web Dashboard**: Modern React + TypeScript dashboard for visual database management
+- **🖥️ Web Dashboard**: Modern React + TypeScript dashboard with complete graph management interface
 - **🖥️ Desktop GUI**: Electron-based desktop application for visual database management (legacy)
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
 - **🧠 Multiple Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
+- **🕸️ Graph Relationships**: Automatic relationship discovery and graph traversal with full GUI support for edge management, node exploration, and path finding
 - **🔒 Security**: JWT + API Key authentication with RBAC
 
 ## 🚀 Quick Start
@@ -100,7 +101,7 @@ cargo build --release --features full
 
 ### Access Points
 
-- **Web Dashboard**: http://localhost:15002/dashboard/ - Modern React dashboard for visual management
+- **Web Dashboard**: http://localhost:15002/dashboard/ - Modern React dashboard with complete graph management interface (create/delete edges, explore neighbors, find paths, discover relationships)
 - **REST API**: http://localhost:15002
 - **MCP Server**: http://localhost:15002/mcp
 - **UMICP Discovery**: http://localhost:15002/umicp/discover

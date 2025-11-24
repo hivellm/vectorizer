@@ -32,6 +32,8 @@
     "react-router": "^7.9.6",
     "tailwind-merge": "^2.5.0",
     "tailwindcss-animate": "^1.0.7",
+    "vis-data": "^8.0.3",
+    "vis-network": "^10.0.2",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

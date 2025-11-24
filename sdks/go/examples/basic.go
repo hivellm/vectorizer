@@ -114,7 +114,7 @@ func main() {
 		if err != nil {
 			fmt.Printf("⚠️ Insert text failed for %s: %v\n", text.id, err)
 		} else {
-			fmt.Printf("✅ Inserted text: %s (ID: %s)\n", text.id, result.ID)
+			fmt.Printf("✅ Inserted text: %s (ID: %s)\n", text.id, result.VectorID)
 			inserted++
 		}
 	}

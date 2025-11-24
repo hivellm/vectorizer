@@ -7,8 +7,10 @@ import { useApiClient } from './useApiClient';
 export interface WorkspaceProject {
   name: string;
   path: string;
+  description?: string;
   collections?: Array<{
     name: string;
+    description?: string;
     include_patterns?: string[];
     exclude_patterns?: string[];
   }>;

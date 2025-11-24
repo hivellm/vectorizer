@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
         // Ensure single React instance
         'react': resolve(__dirname, './node_modules/react'),
         'react-dom': resolve(__dirname, './node_modules/react-dom'),
+        // Resolve vis-data peer dependency (vis-network expects .js but vis-data provides .mjs)
+        'vis-data/peer/esm/vis-data.js': resolve(__dirname, './node_modules/vis-data/peer/esm/vis-data.mjs'),
       },
       dedupe: ['react', 'react-dom'],
     },
@@ -64,7 +66,7 @@ export default defineConfig(({ mode }) => {
     // In dev mode, Vite dev server uses '/'
     base: isProduction ? '/dashboard/' : '/',
     optimizeDeps: {
-      include: ['react', 'react-dom'],
+      include: ['react', 'react-dom', 'vis-network', 'vis-data'],
       // Exclude large dependencies from pre-bundling
       exclude: ['@visx/visx'],
     },

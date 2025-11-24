@@ -5,18 +5,18 @@ info:
     High-performance vector database engine with semantic search capabilities.
     Supports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and
     provides real-time indexing with HNSW optimization.
-  version: 0.3.1
+  version: 1.4.0
   contact:
     name: Vectorizer Team
     url: https://github.com/hivellm/vectorizer
   license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
+    name: Apache-2.0
+    url: https://opensource.org/licenses/Apache-2.0
 
 servers:
-  - url: http://localhost:15001/api/v1
+  - url: http://localhost:15002
     description: Local development server
-  - url: http://127.0.0.1:15001/api/v1
+  - url: http://127.0.0.1:15002
     description: Local server alternative
 
 paths:
@@ -28,12 +28,12 @@ paths:
       tags:
         - System
       responses:
-        '200':
+        "200":
           description: Service is healthy
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: "#/components/schemas/HealthResponse"
 
   /stats:
     get:
@@ -43,12 +43,12 @@ paths:
       tags:
         - System
       responses:
-        '200':
+        "200":
           description: System statistics
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StatsResponse'
+                $ref: "#/components/schemas/StatsResponse"
 
   /collections:
     get:
@@ -58,12 +58,12 @@ paths:
       tags:
         - Collections
       responses:
-        '200':
+        "200":
           description: List of collections
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListCollectionsResponse'
+                $ref: "#/components/schemas/ListCollectionsResponse"
 
     post:
       summary: Create Collection
@@ -76,20 +76,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateCollectionRequest'
+              $ref: "#/components/schemas/CreateCollectionRequest"
       responses:
-        '201':
+        "201":
           description: Collection created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateCollectionResponse'
-        '400':
+                $ref: "#/components/schemas/CreateCollectionResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /collections/{collection_name}:
     get:
@@ -106,18 +106,18 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Collection information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CollectionInfo'
-        '404':
+                $ref: "#/components/schemas/CollectionInfo"
+        "404":
           description: Collection not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
     delete:
       summary: Delete Collection
@@ -133,18 +133,18 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Collection deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeleteCollectionResponse'
-        '404':
+                $ref: "#/components/schemas/DeleteCollectionResponse"
+        "404":
           description: Collection not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /collections/{collection_name}/vectors:
     get:
@@ -176,18 +176,18 @@ paths:
             default: 0
             minimum: 0
       responses:
-        '200':
+        "200":
           description: List of vectors
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListVectorsResponse'
-        '404':
+                $ref: "#/components/schemas/ListVectorsResponse"
+        "404":
           description: Collection not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
     post:
       summary: Insert Texts
@@ -207,26 +207,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InsertTextsRequest'
+              $ref: "#/components/schemas/InsertTextsRequest"
       responses:
-        '200':
+        "200":
           description: Texts inserted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InsertTextsResponse'
-        '400':
+                $ref: "#/components/schemas/InsertTextsResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Collection not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /collections/{collection_name}/vectors/{vector_id}:
     get:
@@ -249,18 +249,18 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Vector information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VectorInfo'
-        '404':
+                $ref: "#/components/schemas/VectorInfo"
+        "404":
           description: Vector not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
     delete:
       summary: Delete Vector
@@ -282,18 +282,18 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Vector deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeleteVectorResponse'
-        '404':
+                $ref: "#/components/schemas/DeleteVectorResponse"
+        "404":
           description: Vector not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /collections/{collection_name}/search:
     post:
@@ -314,26 +314,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SearchUnifiedRequest'
+              $ref: "#/components/schemas/SearchUnifiedRequest"
       responses:
-        '200':
+        "200":
           description: Search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SearchResponse'
-        '400':
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: Collection not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /collections/{collection_name}/search/text:
     post:
@@ -354,20 +354,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SearchTextRequest'
+              $ref: "#/components/schemas/SearchTextRequest"
       responses:
-        '200':
+        "200":
           description: Search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SearchResponse'
-        '400':
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /collections/{collection_name}/batch/insert:
     post:
@@ -388,20 +388,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BatchInsertRequest'
+              $ref: "#/components/schemas/BatchInsertRequest"
       responses:
-        '200':
+        "200":
           description: Batch operation completed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BatchResponse'
-        '400':
+                $ref: "#/components/schemas/BatchResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /embedding/providers:
     get:
@@ -411,12 +411,12 @@ paths:
       tags:
         - Embedding
       responses:
-        '200':
+        "200":
           description: List of embedding providers
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EmbeddingProvidersResponse'
+                $ref: "#/components/schemas/EmbeddingProvidersResponse"
 
   /embedding/providers/set:
     post:
@@ -430,14 +430,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetEmbeddingProviderRequest'
+              $ref: "#/components/schemas/SetEmbeddingProviderRequest"
       responses:
-        '200':
+        "200":
           description: Embedding provider set successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SetEmbeddingProviderResponse'
+                $ref: "#/components/schemas/SetEmbeddingProviderResponse"
 
   /indexing/progress:
     get:
@@ -447,12 +447,12 @@ paths:
       tags:
         - Indexing
       responses:
-        '200':
+        "200":
           description: Indexing progress information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IndexingProgressResponse'
+                $ref: "#/components/schemas/IndexingProgressResponse"
 
   /summarize/text:
     post:
@@ -466,20 +466,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SummarizeTextRequest'
+              $ref: "#/components/schemas/SummarizeTextRequest"
       responses:
-        '200':
+        "200":
           description: Text summarized successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SummarizeResponse'
-        '400':
+                $ref: "#/components/schemas/SummarizeResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /summaries:
     get:
@@ -516,12 +516,12 @@ paths:
             default: 0
             minimum: 0
       responses:
-        '200':
+        "200":
           description: List of summaries
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListSummariesResponse'
+                $ref: "#/components/schemas/ListSummariesResponse"
 
   /summaries/{summary_id}:
     get:
@@ -538,18 +538,18 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Summary information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SummaryInfo'
-        '404':
+                $ref: "#/components/schemas/SummaryInfo"
+        "404":
           description: Summary not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /intelligent_search:
     post:
@@ -567,20 +567,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/IntelligentSearchRequest'
+              $ref: "#/components/schemas/IntelligentSearchRequest"
       responses:
-        '200':
+        "200":
           description: Intelligent search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IntelligentSearchResponse'
-        '400':
+                $ref: "#/components/schemas/IntelligentSearchResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /multi_collection_search:
     post:
@@ -598,20 +598,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MultiCollectionSearchRequest'
+              $ref: "#/components/schemas/MultiCollectionSearchRequest"
       responses:
-        '200':
+        "200":
           description: Multi-collection search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MultiCollectionSearchResponse'
-        '400':
+                $ref: "#/components/schemas/MultiCollectionSearchResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /semantic_search:
     post:
@@ -629,20 +629,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SemanticSearchRequest'
+              $ref: "#/components/schemas/SemanticSearchRequest"
       responses:
-        '200':
+        "200":
           description: Semantic search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SemanticSearchResponse'
-        '400':
+                $ref: "#/components/schemas/SemanticSearchResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /contextual_search:
     post:
@@ -660,20 +660,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ContextualSearchRequest'
+              $ref: "#/components/schemas/ContextualSearchRequest"
       responses:
-        '200':
+        "200":
           description: Contextual search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ContextualSearchResponse'
-        '400':
+                $ref: "#/components/schemas/ContextualSearchResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /discover:
     post:
@@ -687,20 +687,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DiscoverRequest'
+              $ref: "#/components/schemas/DiscoverRequest"
       responses:
-        '200':
+        "200":
           description: Discovery results with LLM-ready prompt
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DiscoverResponse'
-        '400':
+                $ref: "#/components/schemas/DiscoverResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /discovery/filter_collections:
     post:
@@ -732,7 +732,7 @@ paths:
                     type: string
                   description: Exclude patterns (e.g., ['*-test'])
       responses:
-        '200':
+        "200":
           description: Filtered collections
           content:
             application/json:
@@ -767,7 +767,7 @@ paths:
                   type: number
                   default: 0.3
       responses:
-        '200':
+        "200":
           description: Scored collections
           content:
             application/json:
@@ -805,7 +805,7 @@ paths:
                   type: boolean
                   default: true
       responses:
-        '200':
+        "200":
           description: Expanded queries
           content:
             application/json:
@@ -836,7 +836,7 @@ paths:
                   type: integer
                   default: 50
       responses:
-        '200':
+        "200":
           description: Broad discovery results
           content:
             application/json:
@@ -870,7 +870,7 @@ paths:
                   type: integer
                   default: 15
       responses:
-        '200':
+        "200":
           description: Semantic focus results
           content:
             application/json:
@@ -898,7 +898,7 @@ paths:
                   items:
                     type: object
       responses:
-        '200':
+        "200":
           description: Promoted chunks
           content:
             application/json:
@@ -932,7 +932,7 @@ paths:
                   type: integer
                   default: 3
       responses:
-        '200':
+        "200":
           description: Compressed evidence bullets
           content:
             application/json:
@@ -960,7 +960,7 @@ paths:
                   items:
                     type: object
       responses:
-        '200':
+        "200":
           description: Structured answer plan
           content:
             application/json:
@@ -986,7 +986,7 @@ paths:
                 plan:
                   type: object
       responses:
-        '200':
+        "200":
           description: LLM-ready prompt
           content:
             application/json:
@@ -1005,14 +1005,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetFileContentRequest'
+              $ref: "#/components/schemas/GetFileContentRequest"
       responses:
-        '200':
+        "200":
           description: File content
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileContentResponse'
+                $ref: "#/components/schemas/FileContentResponse"
 
   /file/list:
     post:
@@ -1026,14 +1026,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ListFilesRequest'
+              $ref: "#/components/schemas/ListFilesRequest"
       responses:
-        '200':
+        "200":
           description: List of files
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListFilesResponse'
+                $ref: "#/components/schemas/ListFilesResponse"
 
   /file/summary:
     post:
@@ -1047,14 +1047,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetFileSummaryRequest'
+              $ref: "#/components/schemas/GetFileSummaryRequest"
       responses:
-        '200':
+        "200":
           description: File summary
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileSummaryResponse'
+                $ref: "#/components/schemas/FileSummaryResponse"
 
   /file/chunks:
     post:
@@ -1068,14 +1068,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetFileChunksRequest'
+              $ref: "#/components/schemas/GetFileChunksRequest"
       responses:
-        '200':
+        "200":
           description: File chunks
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileChunksResponse'
+                $ref: "#/components/schemas/FileChunksResponse"
 
   /file/outline:
     post:
@@ -1089,14 +1089,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetProjectOutlineRequest'
+              $ref: "#/components/schemas/GetProjectOutlineRequest"
       responses:
-        '200':
+        "200":
           description: Project outline
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProjectOutlineResponse'
+                $ref: "#/components/schemas/ProjectOutlineResponse"
 
   /file/related:
     post:
@@ -1110,14 +1110,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetRelatedFilesRequest'
+              $ref: "#/components/schemas/GetRelatedFilesRequest"
       responses:
-        '200':
+        "200":
           description: Related files
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RelatedFilesResponse'
+                $ref: "#/components/schemas/RelatedFilesResponse"
 
   /file/search_by_type:
     post:
@@ -1131,14 +1131,354 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SearchByFileTypeRequest'
+              $ref: "#/components/schemas/SearchByFileTypeRequest"
       responses:
-        '200':
+        "200":
           description: Search results
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SearchByFileTypeResponse'
+                $ref: "#/components/schemas/SearchByFileTypeResponse"
+
+  /graph/nodes/{collection}:
+    get:
+      summary: List Graph Nodes
+      description: List all nodes (vectors) in a collection's graph
+      operationId: listGraphNodes
+      tags:
+        - Graph Operations
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          description: Collection name
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of nodes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListGraphNodesResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/nodes/{collection}/{node_id}/neighbors:
+    get:
+      summary: Get Graph Neighbors
+      description: Get all neighbors (connected nodes) of a specific node
+      operationId: getGraphNeighbors
+      tags:
+        - Graph Operations
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          description: Collection name
+          schema:
+            type: string
+        - name: node_id
+          in: path
+          required: true
+          description: Node ID (vector ID)
+          schema:
+            type: string
+        - name: relationship_type
+          in: query
+          description: Filter by relationship type
+          schema:
+            type: string
+            enum: [SIMILAR_TO, REFERENCES, CONTAINS, DERIVED_FROM]
+      responses:
+        "200":
+          description: List of neighbors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GraphNeighborsResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/nodes/{collection}/{node_id}/related:
+    post:
+      summary: Find Related Nodes
+      description: Find all nodes related to a specific node within a specified number of hops
+      operationId: findRelatedNodes
+      tags:
+        - Graph Operations
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          description: Collection name
+          schema:
+            type: string
+        - name: node_id
+          in: path
+          required: true
+          description: Node ID (vector ID)
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FindRelatedRequest"
+      responses:
+        "200":
+          description: List of related nodes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindRelatedResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/path:
+    post:
+      summary: Find Graph Path
+      description: Find the shortest path between two nodes
+      operationId: findGraphPath
+      tags:
+        - Graph Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FindPathRequest"
+      responses:
+        "200":
+          description: Path information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindPathResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/edges:
+    post:
+      summary: Create Graph Edge
+      description: Create an explicit relationship (edge) between two nodes
+      operationId: createGraphEdge
+      tags:
+        - Graph Operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEdgeRequest"
+      responses:
+        "200":
+          description: Edge created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateEdgeResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Edge already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/edges/{edge_id}:
+    delete:
+      summary: Delete Graph Edge
+      description: Delete a specific edge by its ID
+      operationId: deleteGraphEdge
+      tags:
+        - Graph Operations
+      parameters:
+        - name: edge_id
+          in: path
+          required: true
+          description: Edge ID
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Edge deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteEdgeResponse"
+        "404":
+          description: Edge not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/collections/{collection}/edges:
+    get:
+      summary: List Graph Edges
+      description: List all edges in a collection's graph
+      operationId: listGraphEdges
+      tags:
+        - Graph Operations
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          description: Collection name
+          schema:
+            type: string
+        - name: relationship_type
+          in: query
+          description: Filter by relationship type
+          schema:
+            type: string
+            enum: [SIMILAR_TO, REFERENCES, CONTAINS, DERIVED_FROM]
+        - name: limit
+          in: query
+          description: Maximum number of edges to return
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+      responses:
+        "200":
+          description: List of edges
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListGraphEdgesResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/discover/{collection}:
+    post:
+      summary: Discover Graph Edges (Collection)
+      description: Discover SIMILAR_TO relationships for all nodes in a collection
+      operationId: discoverGraphEdgesCollection
+      tags:
+        - Graph Operations
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          description: Collection name
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscoverEdgesRequest"
+      responses:
+        "200":
+          description: Discovery results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverEdgesResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/discover/{collection}/{node_id}:
+    post:
+      summary: Discover Graph Edges (Node)
+      description: Discover SIMILAR_TO relationships for a specific node
+      operationId: discoverGraphEdgesNode
+      tags:
+        - Graph Operations
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          description: Collection name
+          schema:
+            type: string
+        - name: node_id
+          in: path
+          required: true
+          description: Node ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscoverEdgesRequest"
+      responses:
+        "200":
+          description: Discovery results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverEdgesNodeResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /graph/discover/{collection}/status:
+    get:
+      summary: Get Discovery Status
+      description: Get discovery status and statistics for a collection
+      operationId: getDiscoveryStatus
+      tags:
+        - Graph Operations
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          description: Collection name
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Discovery status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryStatusResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -1210,16 +1550,16 @@ components:
         name:
           type: string
           description: Collection name
-          pattern: '^[a-zA-Z0-9_-]+$'
+          pattern: "^[a-zA-Z0-9_-]+$"
         dimension:
           type: integer
           minimum: 1
           maximum: 4096
           description: Vector dimension
         metric:
-          $ref: '#/components/schemas/DistanceMetric'
+          $ref: "#/components/schemas/DistanceMetric"
         hnsw_config:
-          $ref: '#/components/schemas/HnswConfig'
+          $ref: "#/components/schemas/HnswConfig"
 
     CreateCollectionResponse:
       type: object
@@ -1254,7 +1594,7 @@ components:
           type: integer
           description: Vector dimension
         metric:
-          $ref: '#/components/schemas/DistanceMetric'
+          $ref: "#/components/schemas/DistanceMetric"
         embedding_provider:
           type: string
           description: Embedding provider used
@@ -1271,7 +1611,7 @@ components:
           type: string
           format: date-time
         indexing_status:
-          $ref: '#/components/schemas/IndexingStatus'
+          $ref: "#/components/schemas/IndexingStatus"
 
     ListCollectionsResponse:
       type: object
@@ -1281,7 +1621,7 @@ components:
         collections:
           type: array
           items:
-            $ref: '#/components/schemas/CollectionInfo'
+            $ref: "#/components/schemas/CollectionInfo"
 
     DistanceMetric:
       type: string
@@ -1352,7 +1692,7 @@ components:
         texts:
           type: array
           items:
-            $ref: '#/components/schemas/TextData'
+            $ref: "#/components/schemas/TextData"
           description: Array of texts to insert
 
     TextData:
@@ -1438,8 +1778,8 @@ components:
 
     SearchUnifiedRequest:
       oneOf:
-        - $ref: '#/components/schemas/SearchRequest'
-        - $ref: '#/components/schemas/SearchTextRequest'
+        - $ref: "#/components/schemas/SearchRequest"
+        - $ref: "#/components/schemas/SearchTextRequest"
 
     SearchResult:
       type: object
@@ -1473,7 +1813,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/SearchResult'
+            $ref: "#/components/schemas/SearchResult"
         query_time_ms:
           type: number
           description: Query execution time in milliseconds
@@ -1492,7 +1832,7 @@ components:
         vectors:
           type: array
           items:
-            $ref: '#/components/schemas/VectorResponse'
+            $ref: "#/components/schemas/VectorResponse"
         total:
           type: integer
           description: Total number of vectors
@@ -1551,7 +1891,7 @@ components:
         texts:
           type: array
           items:
-            $ref: '#/components/schemas/TextData'
+            $ref: "#/components/schemas/TextData"
           description: Array of texts to insert
         provider:
           type: string
@@ -1606,7 +1946,7 @@ components:
         providers:
           type: array
           items:
-            $ref: '#/components/schemas/EmbeddingProvider'
+            $ref: "#/components/schemas/EmbeddingProvider"
 
     EmbeddingProvider:
       type: object
@@ -1663,7 +2003,7 @@ components:
         collections:
           type: array
           items:
-            $ref: '#/components/schemas/IndexingStatus'
+            $ref: "#/components/schemas/IndexingStatus"
         started_at:
           type: string
           format: date-time
@@ -1737,7 +2077,7 @@ components:
         summaries:
           type: array
           items:
-            $ref: '#/components/schemas/SummaryInfo'
+            $ref: "#/components/schemas/SummaryInfo"
         total_count:
           type: integer
           description: Total number of summaries
@@ -1877,7 +2217,7 @@ components:
           additionalProperties:
             type: array
             items:
-              $ref: '#/components/schemas/IntelligentSearchResult'
+              $ref: "#/components/schemas/IntelligentSearchResult"
         metadata:
           type: object
           required:
@@ -1934,7 +2274,8 @@ components:
           items:
             type: string
           description: List of collection names to search across
-          example: ["cmmv-core-docs", "cmmv-admin-docs", "cmmv-formbuilder-docs"]
+          example:
+            ["cmmv-core-docs", "cmmv-admin-docs", "cmmv-formbuilder-docs"]
         max_per_collection:
           type: integer
           minimum: 1
@@ -1971,7 +2312,7 @@ components:
           additionalProperties:
             type: array
             items:
-              $ref: '#/components/schemas/IntelligentSearchResult'
+              $ref: "#/components/schemas/IntelligentSearchResult"
         metadata:
           type: object
           required:
@@ -2067,7 +2408,7 @@ components:
           additionalProperties:
             type: array
             items:
-              $ref: '#/components/schemas/IntelligentSearchResult'
+              $ref: "#/components/schemas/IntelligentSearchResult"
         metadata:
           type: object
           required:
@@ -2166,7 +2507,7 @@ components:
           additionalProperties:
             type: array
             items:
-              $ref: '#/components/schemas/IntelligentSearchResult'
+              $ref: "#/components/schemas/IntelligentSearchResult"
         metadata:
           type: object
           required:
@@ -2590,6 +2931,341 @@ components:
               content:
                 type: string
 
+    # Graph Operations Schemas
+    GraphNode:
+      type: object
+      required:
+        - id
+        - node_type
+      properties:
+        id:
+          type: string
+          description: Node ID (vector ID)
+        node_type:
+          type: string
+          description: Node type (usually "document" or "vector")
+        metadata:
+          type: object
+          description: Node metadata
+
+    ListGraphNodesResponse:
+      type: object
+      required:
+        - nodes
+        - count
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        count:
+          type: integer
+          description: Total number of nodes
+
+    GraphNeighbor:
+      type: object
+      required:
+        - edge_id
+        - target
+        - relationship_type
+        - weight
+      properties:
+        edge_id:
+          type: string
+          description: Edge ID
+        target:
+          $ref: "#/components/schemas/GraphNode"
+        relationship_type:
+          $ref: "#/components/schemas/RelationshipType"
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Edge weight
+        metadata:
+          type: object
+          description: Edge metadata
+
+    GraphNeighborsResponse:
+      type: object
+      required:
+        - neighbors
+        - count
+      properties:
+        neighbors:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNeighbor"
+        count:
+          type: integer
+          description: Number of neighbors
+
+    FindRelatedRequest:
+      type: object
+      required:
+        - max_hops
+      properties:
+        max_hops:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Maximum number of hops to traverse
+        relationship_type:
+          $ref: "#/components/schemas/RelationshipType"
+          description: Filter by relationship type
+
+    RelatedNode:
+      type: object
+      required:
+        - node
+        - hops
+        - path
+      properties:
+        node:
+          $ref: "#/components/schemas/GraphNode"
+        hops:
+          type: integer
+          description: Number of hops to reach this node
+        path:
+          type: array
+          items:
+            type: string
+          description: Path from source to this node
+
+    FindRelatedResponse:
+      type: object
+      required:
+        - related
+        - count
+      properties:
+        related:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelatedNode"
+        count:
+          type: integer
+          description: Number of related nodes
+
+    FindPathRequest:
+      type: object
+      required:
+        - collection
+        - source
+        - target
+      properties:
+        collection:
+          type: string
+          description: Collection name
+        source:
+          type: string
+          description: Source node ID
+        target:
+          type: string
+          description: Target node ID
+
+    FindPathResponse:
+      type: object
+      required:
+        - found
+        - path
+      properties:
+        found:
+          type: boolean
+          description: Whether a path was found
+        path:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+          description: Path from source to target (empty if not found)
+        length:
+          type: integer
+          description: Path length (number of edges)
+
+    CreateEdgeRequest:
+      type: object
+      required:
+        - collection
+        - source
+        - target
+        - relationship_type
+      properties:
+        collection:
+          type: string
+          description: Collection name
+        source:
+          type: string
+          description: Source node ID
+        target:
+          type: string
+          description: Target node ID
+        relationship_type:
+          $ref: "#/components/schemas/RelationshipType"
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 1.0
+          description: Edge weight
+        metadata:
+          type: object
+          description: Additional edge metadata
+
+    CreateEdgeResponse:
+      type: object
+      required:
+        - success
+        - edge_id
+        - edge
+      properties:
+        success:
+          type: boolean
+          description: Whether the edge was created
+        edge_id:
+          type: string
+          description: Created edge ID
+        edge:
+          $ref: "#/components/schemas/GraphEdge"
+
+    GraphEdge:
+      type: object
+      required:
+        - id
+        - source
+        - target
+        - relationship_type
+        - weight
+      properties:
+        id:
+          type: string
+          description: Edge ID
+        source:
+          type: string
+          description: Source node ID
+        target:
+          type: string
+          description: Target node ID
+        relationship_type:
+          $ref: "#/components/schemas/RelationshipType"
+        weight:
+          type: number
+          description: Edge weight
+        metadata:
+          type: object
+          description: Edge metadata
+
+    DeleteEdgeResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the edge was deleted
+        message:
+          type: string
+          description: Success message
+
+    ListGraphEdgesResponse:
+      type: object
+      required:
+        - edges
+        - count
+      properties:
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+        count:
+          type: integer
+          description: Total number of edges
+
+    DiscoverEdgesRequest:
+      type: object
+      properties:
+        similarity_threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.7
+          description: Minimum similarity score
+        max_per_node:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+          description: Maximum edges per node
+        enabled_types:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelationshipType"
+          default: [SIMILAR_TO]
+          description: Relationship types to discover
+
+    DiscoverEdgesResponse:
+      type: object
+      required:
+        - success
+        - stats
+      properties:
+        success:
+          type: boolean
+          description: Whether discovery completed successfully
+        stats:
+          $ref: "#/components/schemas/DiscoveryStats"
+
+    DiscoverEdgesNodeResponse:
+      type: object
+      required:
+        - success
+        - edges_created
+      properties:
+        success:
+          type: boolean
+          description: Whether discovery completed successfully
+        edges_created:
+          type: integer
+          description: Number of edges created
+
+    DiscoveryStats:
+      type: object
+      required:
+        - total_nodes
+        - nodes_processed
+        - total_edges_created
+        - nodes_with_edges
+      properties:
+        total_nodes:
+          type: integer
+          description: Total number of nodes in collection
+        nodes_processed:
+          type: integer
+          description: Number of nodes processed
+        total_edges_created:
+          type: integer
+          description: Total edges created
+        nodes_with_edges:
+          type: integer
+          description: Number of nodes that have edges
+
+    DiscoveryStatusResponse:
+      type: object
+      required:
+        - status
+        - stats
+      properties:
+        status:
+          type: string
+          enum: [completed, in_progress, pending]
+          description: Discovery status
+        stats:
+          $ref: "#/components/schemas/DiscoveryStats"
+
+    RelationshipType:
+      type: string
+      enum: [SIMILAR_TO, REFERENCES, CONTAINS, DERIVED_FROM]
+      description: Type of relationship between nodes
+
   securitySchemes:
     apiKey:
       type: apiKey
@@ -2620,6 +3296,8 @@ tags:
     description: Discovery pipeline and components for intelligent information extraction
   - name: File Operations
     description: File content retrieval and analysis operations
+  - name: Graph Operations
+    description: Graph relationship discovery and querying operations
 
 externalDocs:
   description: Vectorizer Documentation

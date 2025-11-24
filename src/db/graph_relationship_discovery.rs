@@ -43,12 +43,15 @@ pub fn discover_relationships(
 }
 
 /// Discover SIMILAR_TO relationships based on semantic similarity
-fn discover_similarity_relationships(
+///
+/// This function is public to allow discovery of similarity relationships
+/// after vector insertion, avoiding timeout during insertion.
+pub fn discover_similarity_relationships(
     graph: &Graph,
     vector: &Vector,
     collection: &impl GraphRelationshipHelper,
     config: &AutoRelationshipConfig,
-) -> Result<()> {
+) -> Result<usize> {
     // Search for similar vectors (limit to max_per_node + some buffer for filtering)
     // Limit search to small number to avoid timeout during insertion
     let search_limit = (config.max_per_node * 2).min(20); // Cap at 20 for fast insertion
@@ -95,7 +98,86 @@ fn discover_similarity_relationships(
         );
     }
 
-    Ok(())
+    Ok(relationships_created)
+}
+
+/// Discover SIMILAR_TO relationships for a specific node
+///
+/// This function discovers and creates SIMILAR_TO edges for a given node ID
+/// by searching for similar vectors in the collection.
+pub fn discover_edges_for_node(
+    graph: &Graph,
+    node_id: &str,
+    collection: &impl GraphRelationshipHelper,
+    config: &AutoRelationshipConfig,
+) -> Result<usize> {
+    // Get vector for the node
+    let vector = collection.get_vector(node_id)?;
+
+    // Discover similarity relationships
+    discover_similarity_relationships(graph, &vector, collection, config)
+}
+
+/// Discover SIMILAR_TO relationships for all nodes in a collection
+///
+/// This function discovers and creates SIMILAR_TO edges for all nodes
+/// in the graph by searching for similar vectors.
+pub fn discover_edges_for_collection(
+    graph: &Graph,
+    collection: &impl GraphRelationshipHelper,
+    config: &AutoRelationshipConfig,
+) -> Result<DiscoveryStats> {
+    let nodes = graph.get_all_nodes();
+    let total_nodes = nodes.len();
+    let mut total_edges_created = 0;
+    let mut nodes_processed = 0;
+    let mut nodes_with_edges = 0;
+
+    info!(
+        "Starting edge discovery for {} nodes in collection",
+        total_nodes
+    );
+
+    for node in nodes {
+        match discover_edges_for_node(graph, &node.id, collection, config) {
+            Ok(edges_created) => {
+                nodes_processed += 1;
+                if edges_created > 0 {
+                    nodes_with_edges += 1;
+                    total_edges_created += edges_created;
+                }
+            }
+            Err(e) => {
+                warn!("Failed to discover edges for node '{}': {}", node.id, e);
+                // Continue with other nodes
+            }
+        }
+    }
+
+    info!(
+        "Edge discovery completed: {} edges created for {} nodes ({} nodes processed)",
+        total_edges_created, nodes_with_edges, nodes_processed
+    );
+
+    Ok(DiscoveryStats {
+        total_nodes,
+        nodes_processed,
+        nodes_with_edges,
+        total_edges_created,
+    })
+}
+
+/// Statistics about edge discovery operation
+#[derive(Debug, Clone)]
+pub struct DiscoveryStats {
+    /// Total number of nodes in the graph
+    pub total_nodes: usize,
+    /// Number of nodes processed
+    pub nodes_processed: usize,
+    /// Number of nodes that got edges created
+    pub nodes_with_edges: usize,
+    /// Total number of edges created
+    pub total_edges_created: usize,
 }
 
 /// Discover REFERENCES relationships from payload metadata

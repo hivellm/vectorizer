@@ -135,8 +135,11 @@ Before publishing, the scripts run:
 
 - **TypeScript SDK**: 150+ tests
 - **JavaScript SDK**: 140+ tests
-- **Python SDK**: 184+ tests (✅ Published v1.3.0)
-- **Rust SDK**: 88+ tests (✅ Published v1.3.0)
+- **Python SDK**: 184+ tests (✅ Published v1.4.0)
+- **Rust SDK**: 88+ tests (✅ Published v1.4.0)
+- **TypeScript SDK**: 256+ tests (✅ Published v1.4.0)
+- **JavaScript SDK**: 236+ tests (✅ Published v1.4.0)
+- **C# SDK**: Tests included (✅ Published v1.4.0)
 
 ## Manual Publishing (Alternative)
 
@@ -185,7 +188,7 @@ Before publishing, update version numbers in:
 ```json
 // package.json
 {
-  "version": "1.3.0"
+  "version": "1.4.0"
 }
 ```
 
@@ -194,7 +197,7 @@ Before publishing, update version numbers in:
 ```python
 # pyproject.toml
 [project]
-version = "1.3.0"
+version = "1.4.0"
 ```
 
 #### Rust SDK
@@ -202,7 +205,7 @@ version = "1.3.0"
 ```toml
 # Cargo.toml
 [package]
-version = "1.3.0"
+version = "1.4.0"
 ```
 
 ### Version Guidelines

@@ -190,3 +190,45 @@ Given multiple vectors are inserted in a batch operation
 When batch insertion completes
 Then relationships between all inserted vectors and existing vectors are created in batch for efficiency
 
+### Requirement: Graph Persistence
+The system SHALL persist graph data to disk in JSON format, allowing graph relationships to survive server restarts and be loaded efficiently.
+
+#### Scenario: Save graph to disk
+Given a collection has graph enabled with nodes and edges
+When the collection is saved to disk
+Then the graph structure is saved to a JSON file named `{collection_name}_graph.json` in the data directory
+And the file contains version, collection_name, nodes array, and edges array
+
+#### Scenario: Load graph from disk
+Given a collection has a persisted graph file on disk
+When the collection is loaded from disk
+Then the graph structure is loaded from the JSON file
+And all nodes and edges are restored with their metadata
+And adjacency lists are rebuilt correctly
+
+#### Scenario: Handle missing graph file
+Given a collection is loaded from disk
+When no graph file exists for the collection
+Then an empty graph is created (normal for new collections)
+And no error is raised
+
+#### Scenario: Handle corrupted graph file
+Given a collection has a corrupted graph file on disk
+When the collection is loaded from disk
+Then a warning is logged
+And an empty graph is created instead of failing
+And the collection load continues successfully
+
+#### Scenario: Atomic graph save operation
+Given a graph save operation is in progress
+When the save completes
+Then the graph is written to a temporary file first
+And then atomically renamed to the final file
+And the graph file is never in a corrupted state during save
+
+#### Scenario: Graph persistence integration
+Given a collection with graph enabled is saved
+When save_collection_to_file is called
+Then the graph is automatically saved alongside collection data
+And graph file is saved to the same data directory as collection files
+

@@ -62,6 +62,23 @@ from models import (
     HybridSearchResponse,
     HybridSearchResult,
     SparseVector,
+    # Graph models
+    GraphNode,
+    GraphEdge,
+    NeighborInfo,
+    RelatedNodeInfo,
+    FindRelatedRequest,
+    FindRelatedResponse,
+    FindPathRequest,
+    FindPathResponse,
+    CreateEdgeRequest,
+    CreateEdgeResponse,
+    ListNodesResponse,
+    GetNeighborsResponse,
+    ListEdgesResponse,
+    DiscoverEdgesRequest,
+    DiscoverEdgesResponse,
+    DiscoveryStatusResponse,
 )
 from utils.transport import TransportFactory, TransportProtocol, parse_connection_string
 from utils.http_client import HTTPClient
@@ -1887,3 +1904,160 @@ class VectorizerClient:
                     raise ServerError(f"Failed to search by file type: {response.status}")
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to search by file type: {e}")
+
+    # ========== Graph Operations ==========
+
+    async def list_graph_nodes(self, collection: str) -> ListNodesResponse:
+        """List all nodes in a collection's graph."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/graph/nodes/{collection}"
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return ListNodesResponse(**data)
+                else:
+                    raise ServerError(f"Failed to list graph nodes: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list graph nodes: {e}")
+
+    async def get_graph_neighbors(self, collection: str, node_id: str) -> GetNeighborsResponse:
+        """Get neighbors of a specific node."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/graph/nodes/{collection}/{node_id}/neighbors"
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return GetNeighborsResponse(**data)
+                else:
+                    raise ServerError(f"Failed to get graph neighbors: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get graph neighbors: {e}")
+
+    async def find_related_nodes(
+        self,
+        collection: str,
+        node_id: str,
+        request: FindRelatedRequest
+    ) -> FindRelatedResponse:
+        """Find related nodes within N hops."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/graph/nodes/{collection}/{node_id}/related",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return FindRelatedResponse(**data)
+                else:
+                    raise ServerError(f"Failed to find related nodes: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to find related nodes: {e}")
+
+    async def find_graph_path(self, request: FindPathRequest) -> FindPathResponse:
+        """Find shortest path between two nodes."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/graph/path",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return FindPathResponse(**data)
+                else:
+                    raise ServerError(f"Failed to find graph path: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to find graph path: {e}")
+
+    async def create_graph_edge(self, request: CreateEdgeRequest) -> CreateEdgeResponse:
+        """Create an explicit edge between two nodes."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/graph/edges",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return CreateEdgeResponse(**data)
+                else:
+                    raise ServerError(f"Failed to create graph edge: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to create graph edge: {e}")
+
+    async def delete_graph_edge(self, edge_id: str) -> bool:
+        """Delete an edge by ID."""
+        try:
+            async with self._transport.delete(
+                f"{self.base_url}/graph/edges/{edge_id}"
+            ) as response:
+                return response.status == 200
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to delete graph edge: {e}")
+
+    async def list_graph_edges(self, collection: str) -> ListEdgesResponse:
+        """List all edges in a collection."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/graph/collections/{collection}/edges"
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return ListEdgesResponse(**data)
+                else:
+                    raise ServerError(f"Failed to list graph edges: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list graph edges: {e}")
+
+    async def discover_graph_edges(
+        self,
+        collection: str,
+        request: DiscoverEdgesRequest
+    ) -> DiscoverEdgesResponse:
+        """Discover SIMILAR_TO edges for entire collection."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/graph/discover/{collection}",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return DiscoverEdgesResponse(**data)
+                else:
+                    raise ServerError(f"Failed to discover graph edges: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to discover graph edges: {e}")
+
+    async def discover_graph_edges_for_node(
+        self,
+        collection: str,
+        node_id: str,
+        request: DiscoverEdgesRequest
+    ) -> DiscoverEdgesResponse:
+        """Discover SIMILAR_TO edges for a specific node."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/graph/discover/{collection}/{node_id}",
+                json=asdict(request)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return DiscoverEdgesResponse(**data)
+                else:
+                    raise ServerError(f"Failed to discover graph edges: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to discover graph edges: {e}")
+
+    async def get_graph_discovery_status(self, collection: str) -> DiscoveryStatusResponse:
+        """Get discovery status for a collection."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/graph/discover/{collection}/status"
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return DiscoveryStatusResponse(**data)
+                else:
+                    raise ServerError(f"Failed to get discovery status: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get discovery status: {e}")

@@ -6,7 +6,7 @@
 High-performance TypeScript SDK for Vectorizer vector database.
 
 **Package**: `@hivellm/vectorizer-sdk`  
-**Version**: 1.3.0
+**Version**: 1.4.0
 
 ## Features
 
@@ -31,7 +31,7 @@ High-performance TypeScript SDK for Vectorizer vector database.
 npm install @hivellm/vectorizer-sdk
 
 # Or specific version
-npm install @hivellm/vectorizer-sdk@1.3.0
+npm install @hivellm/vectorizer-sdk@1.4.0
 ```
 
 ## Quick Start
@@ -97,6 +97,68 @@ const hybridResults = await client.hybridSearch({
   sparse_k: 20,
   final_k: 10,
 });
+
+// Graph Operations (requires graph enabled in collection config)
+// List all graph nodes
+const nodes = await client.listGraphNodes("documents");
+console.log(`Graph has ${nodes.count} nodes`);
+
+// Get neighbors of a node
+const neighbors = await client.getGraphNeighbors("documents", "document1");
+console.log(`Node has ${neighbors.neighbors.length} neighbors`);
+
+// Find related nodes within 2 hops
+const related = await client.findRelatedNodes("documents", "document1", {
+  max_hops: 2,
+  relationship_type: "SIMILAR_TO",
+});
+console.log(`Found ${related.related.length} related nodes`);
+
+// Find shortest path between two nodes
+const path = await client.findGraphPath({
+  collection: "documents",
+  source: "document1",
+  target: "document2",
+});
+if (path.found) {
+  console.log(`Path found: ${path.path.map(n => n.id).join(" -> ")}`);
+}
+
+// Create explicit relationship
+const edge = await client.createGraphEdge({
+  collection: "documents",
+  source: "document1",
+  target: "document2",
+  relationship_type: "REFERENCES",
+  weight: 0.9,
+});
+console.log(`Created edge: ${edge.edge_id}`);
+
+// Discover SIMILAR_TO edges for entire collection
+const discoveryResult = await client.discoverGraphEdges("documents", {
+  similarity_threshold: 0.7,
+  max_per_node: 10,
+});
+console.log(`Discovered ${discoveryResult.edges_created} edges`);
+
+// Discover edges for a specific node
+const nodeDiscovery = await client.discoverGraphEdgesForNode(
+  "documents",
+  "document1",
+  {
+    similarity_threshold: 0.7,
+    max_per_node: 10,
+  }
+);
+console.log(`Discovered ${nodeDiscovery.edges_created} edges for node`);
+
+// Get discovery status
+const status = await client.getGraphDiscoveryStatus("documents");
+console.log(
+  `Discovery status: ${status.total_nodes} nodes, ` +
+    `${status.total_edges} edges, ` +
+    `${status.progress_percentage.toFixed(1)}% complete`
+);
 
 // Qdrant-compatible API usage
 const qdrantCollections = await client.qdrantListCollections();

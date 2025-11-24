@@ -7,6 +7,7 @@ use std::path::Path;
 
 use tracing::{debug, error, info, warn};
 
+use crate::file_watcher::normalize_wsl_path;
 use crate::workspace::config::*;
 
 /// Validation result
@@ -187,7 +188,21 @@ fn validate_project_config(
     }
 
     // Validate project path
-    let project_path = workspace_root.join(&project.path);
+    // Normalize WSL paths before validation (convert /mnt/X/path to X:\path on Windows)
+    let project_path_str = project.path.to_string_lossy();
+    let normalized_project_path = normalize_wsl_path(&project_path_str);
+
+    // If path is absolute (starts with /mnt/ or drive letter), use it directly
+    // Otherwise, join with workspace_root
+    let project_path = if normalized_project_path.is_absolute() {
+        normalized_project_path
+    } else {
+        // Also normalize workspace_root if it's a WSL path
+        let workspace_root_str = workspace_root.to_string_lossy();
+        let normalized_workspace_root = normalize_wsl_path(&workspace_root_str);
+        normalized_workspace_root.join(&normalized_project_path)
+    };
+
     if !project_path.exists() {
         result.add_error(format!(
             "{}: Project path does not exist: {}",

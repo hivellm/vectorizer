@@ -36,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
             .unwrap_or_else(|| "unknown".to_string());
 
         let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-            s.to_string()
+            (*s).to_string()
         } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
             s.clone()
         } else {

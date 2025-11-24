@@ -1060,12 +1060,33 @@ impl VectorStore {
         );
 
         // Create collection if it doesn't exist
-        if !self.has_collection_in_memory(name) {
+        let config = if !self.has_collection_in_memory(name) {
             let config = persisted.config.clone().unwrap_or_else(|| {
                 debug!("⚠️  Collection '{}' has no config, using default", name);
                 crate::models::CollectionConfig::default()
             });
-            self.create_collection(name, config)?;
+            self.create_collection(name, config.clone())?;
+            config
+        } else {
+            // Get existing config
+            let collection = self
+                .collections
+                .get(name)
+                .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))?;
+            collection.config().clone()
+        };
+
+        // Enable graph BEFORE loading vectors if graph is enabled in config
+        // This ensures nodes are created automatically during vector loading
+        if config.graph.as_ref().map(|g| g.enabled).unwrap_or(false) {
+            if let Err(e) = self.enable_graph_for_collection(name) {
+                warn!(
+                    "⚠️  Failed to enable graph for collection '{}' before loading vectors: {} (continuing anyway)",
+                    name, e
+                );
+            } else {
+                info!("✅ Graph enabled for collection '{}' before loading vectors", name);
+            }
         }
 
         // Convert persisted vectors to runtime vectors
@@ -1087,6 +1108,7 @@ impl VectorStore {
             .ok_or_else(|| VectorizerError::CollectionNotFound(name.to_string()))?;
 
         // Load vectors into memory - HNSW index is built automatically during insertion
+        // Graph nodes are created automatically if graph is enabled (see load_vectors_into_memory)
         info!(
             "🔨 Loading {} vectors and building HNSW index for collection '{}'...",
             vectors.len(),
@@ -1106,16 +1128,6 @@ impl VectorStore {
                 );
                 return Err(e);
             }
-        }
-
-        // Enable graph for this collection automatically after loading vectors
-        if let Err(e) = self.enable_graph_for_collection(name) {
-            warn!(
-                "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
-                name, e
-            );
-        } else {
-            debug!("✅ Graph enabled for collection '{}'", name);
         }
 
         Ok(())
@@ -1159,7 +1171,89 @@ impl VectorStore {
         let mut collection_ref = self.get_collection_mut(canonical_ref)?;
 
         match &mut *collection_ref {
-            CollectionType::Cpu(collection) => collection.enable_graph(),
+            CollectionType::Cpu(collection) => {
+                // Try to load graph from disk first
+                let data_dir = Self::get_data_dir();
+                if let Ok(graph) = crate::db::graph::Graph::load_from_file(canonical_ref, &data_dir)
+                {
+                    // Graph loaded from disk, check if it has nodes and edges
+                    let node_count = graph.node_count();
+                    let edge_count = graph.edge_count();
+                    
+                    // Set graph first
+                    collection.set_graph(Arc::new(graph.clone()));
+                    
+                    // If graph is empty (no nodes), populate it with existing vectors
+                    if node_count == 0 {
+                        info!(
+                            "Graph loaded from disk for '{}' but is empty ({} nodes), populating with existing vectors",
+                            canonical_ref, node_count
+                        );
+                        
+                        // Populate graph with nodes from existing vectors
+                        collection.populate_graph_if_empty()?;
+                        
+                        info!(
+                            "Populated graph for '{}' with nodes from existing vectors",
+                            canonical_ref
+                        );
+                    } else {
+                        info!(
+                            "Loaded graph for collection '{}' from disk with {} nodes and {} edges",
+                            canonical_ref, node_count, edge_count
+                        );
+                        
+                        // If graph has nodes but no edges, discover edges automatically
+                        if edge_count == 0 && node_count > 0 {
+                            info!(
+                                "Graph for '{}' has {} nodes but no edges, discovering edges automatically",
+                                canonical_ref, node_count
+                            );
+                            
+                            // Use default config for auto-discovery
+                            let config = crate::models::AutoRelationshipConfig {
+                                similarity_threshold: 0.7,
+                                max_per_node: 10,
+                                enabled_types: vec!["SIMILAR_TO".to_string()],
+                            };
+                            
+                            // Get nodes from graph and limit to first 100 to avoid blocking
+                            let nodes = graph.get_all_nodes();
+                            let nodes_to_process: Vec<String> = nodes
+                                .iter()
+                                .take(100)
+                                .map(|n| n.id.clone())
+                                .collect();
+                            
+                            let mut edges_created = 0;
+                            for node_id in &nodes_to_process {
+                                if let Ok(_edges) = crate::db::graph_relationship_discovery::discover_edges_for_node(
+                                    &graph,
+                                    node_id,
+                                    collection,
+                                    &config,
+                                ) {
+                                    edges_created += _edges;
+                                }
+                            }
+                            
+                            info!(
+                                "Auto-discovery created {} edges for {} nodes in collection '{}' (use API endpoint /graph/discover/{} for full discovery)",
+                                edges_created,
+                                nodes_to_process.len().min(node_count),
+                                canonical_ref,
+                                canonical_ref
+                            );
+                        }
+                    }
+                    
+                    Ok(())
+                } else {
+                    // No graph file exists or load failed, enable graph normally
+                    // This will create nodes for all existing vectors
+                    collection.enable_graph()
+                }
+            }
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(_) => Err(VectorizerError::Storage(
                 "Graph not yet supported for GPU collections".to_string(),
@@ -2018,9 +2112,23 @@ impl VectorStore {
             });
             config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
 
-            match self.create_collection_with_quantization(collection_name, config) {
+            match self.create_collection_with_quantization(collection_name, config.clone()) {
                 Ok(_) => {
+                    // Enable graph BEFORE loading vectors if graph is enabled in config
+                    // This ensures nodes are created automatically during vector loading
+                    if config.graph.as_ref().map(|g| g.enabled).unwrap_or(false) {
+                        if let Err(e) = self.enable_graph_for_collection(collection_name) {
+                            warn!(
+                                "⚠️  Failed to enable graph for collection '{}' before loading vectors: {} (continuing anyway)",
+                                collection_name, e
+                            );
+                        } else {
+                            info!("✅ Graph enabled for collection '{}' before loading vectors", collection_name);
+                        }
+                    }
+
                     // Load vectors (we already checked they exist above)
+                    // Graph nodes are created automatically if graph is enabled (see load_collection_from_cache -> load_vectors_into_memory)
                     debug!(
                         "Loading {} vectors into collection '{}'",
                         persisted_collection.vectors.len(),
@@ -2032,14 +2140,20 @@ impl VectorStore {
                         persisted_collection.vectors.clone(),
                     ) {
                         Ok(_) => {
-                            // Enable graph for this collection automatically
-                            if let Err(e) = self.enable_graph_for_collection(collection_name) {
-                                warn!(
-                                    "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
-                                    collection_name, e
-                                );
+                            // If graph wasn't enabled before (config didn't have it), enable it now
+                            // This handles collections that don't have graph in config but should have it enabled
+                            if config.graph.as_ref().map(|g| g.enabled).unwrap_or(false) {
+                                // Graph already enabled, nodes should be created
                             } else {
-                                info!("✅ Graph enabled for collection '{}'", collection_name);
+                                // Enable graph for all collections from workspace automatically
+                                if let Err(e) = self.enable_graph_for_collection(collection_name) {
+                                    warn!(
+                                        "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
+                                        collection_name, e
+                                    );
+                                } else {
+                                    info!("✅ Graph enabled for collection '{}' (auto-enabled for workspace)", collection_name);
+                                }
                             }
 
                             collections_loaded += 1;
@@ -2416,9 +2530,23 @@ impl VectorStore {
         });
         config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
 
-        self.create_collection_with_quantization(collection_name, config)?;
+        self.create_collection_with_quantization(collection_name, config.clone())?;
+
+        // Enable graph BEFORE loading vectors if graph is enabled in config
+        // This ensures nodes are created automatically during vector loading
+        if config.graph.as_ref().map(|g| g.enabled).unwrap_or(false) {
+            if let Err(e) = self.enable_graph_for_collection(collection_name) {
+                warn!(
+                    "⚠️  Failed to enable graph for collection '{}' before loading vectors: {} (continuing anyway)",
+                    collection_name, e
+                );
+            } else {
+                info!("✅ Graph enabled for collection '{}' before loading vectors", collection_name);
+            }
+        }
 
         // Load vectors if any exist
+        // Graph nodes are created automatically if graph is enabled (see load_collection_from_cache -> load_vectors_into_memory)
         if !persisted_collection.vectors.is_empty() {
             debug!(
                 "Loading {} vectors into collection '{}'",
@@ -2428,14 +2556,17 @@ impl VectorStore {
             self.load_collection_from_cache(collection_name, persisted_collection.vectors.clone())?;
         }
 
-        // Enable graph for this collection automatically after loading vectors
-        if let Err(e) = self.enable_graph_for_collection(collection_name) {
-            warn!(
-                "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
-                collection_name, e
-            );
-        } else {
-            debug!("✅ Graph enabled for collection '{}'", collection_name);
+        // If graph wasn't enabled before (config didn't have it), enable it now
+        // This handles collections that don't have graph in config but should have it enabled for workspace
+        if !config.graph.as_ref().map(|g| g.enabled).unwrap_or(false) {
+            if let Err(e) = self.enable_graph_for_collection(collection_name) {
+                warn!(
+                    "⚠️  Failed to enable graph for collection '{}': {} (continuing anyway)",
+                    collection_name, e
+                );
+            } else {
+                info!("✅ Graph enabled for collection '{}' (auto-enabled for workspace)", collection_name);
+            }
         }
 
         // Note: Auto-migration removed to prevent memory duplication
@@ -2718,6 +2849,24 @@ impl VectorStore {
         let tokenizer_path = data_dir.join(format!("{}_tokenizer.json", collection_name));
         self.save_collection_tokenizer(collection_name, &tokenizer_path)?;
 
+        // Save graph if enabled
+        match &*collection {
+            CollectionType::Cpu(c) => {
+                if let Some(graph) = c.get_graph() {
+                    if let Err(e) = graph.save_to_file(&data_dir) {
+                        warn!(
+                            "Failed to save graph for collection '{}': {}",
+                            collection_name, e
+                        );
+                        // Don't fail collection save if graph save fails
+                    }
+                }
+            }
+            _ => {
+                // Graph not supported for other collection types
+            }
+        }
+
         info!(
             "Successfully saved collection '{}' to files",
             collection_name
@@ -2818,6 +2967,26 @@ impl VectorStore {
         info!("💾 Saving tokenizer to: {:?}", tokenizer_path);
         Self::save_collection_tokenizer_static(collection_name, &tokenizer_path)?;
         info!("💾 Tokenizer saved successfully");
+
+        // Save graph if enabled
+        match collection {
+            CollectionType::Cpu(c) => {
+                if let Some(graph) = c.get_graph() {
+                    if let Err(e) = graph.save_to_file(&data_dir) {
+                        warn!(
+                            "Failed to save graph for collection '{}': {}",
+                            collection_name, e
+                        );
+                        // Don't fail collection save if graph save fails
+                    } else {
+                        info!("💾 Graph saved successfully");
+                    }
+                }
+            }
+            _ => {
+                // Graph not supported for other collection types
+            }
+        }
 
         info!(
             "✅ Successfully saved collection '{}' to files",

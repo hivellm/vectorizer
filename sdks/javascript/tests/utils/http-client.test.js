@@ -2,6 +2,7 @@
  * Tests for HttpClient utility.
  */
 
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { HttpClient } from '../../src/utils/http-client.js';
 import {
   NetworkError,
@@ -12,13 +13,14 @@ import {
 } from '../../src/exceptions/index.js';
 
 // Mock fetch
-const mockFetch = global.fetch;
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 describe('HttpClient', () => {
   let httpClient;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     httpClient = new HttpClient({
       baseURL: 'http://localhost:15002',
       apiKey: 'test-api-key',
