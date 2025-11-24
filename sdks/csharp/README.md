@@ -6,7 +6,7 @@
 High-performance C# SDK for Vectorizer vector database.
 
 **Package**: `Vectorizer.Sdk`  
-**Version**: 1.5.0  
+**Version**: 1.5.1  
 **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 
 ## Features
@@ -17,10 +17,19 @@ High-performance C# SDK for Vectorizer vector database.
 - ✅ **Collection Management**: CRUD operations for collections
 - ✅ **Vector Operations**: Insert, search, update, delete vectors
 - ✅ **Semantic Search**: Text and vector similarity search
-- ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
-- ✅ **Semantic Search**: High-precision semantic search with reranking
+- ✅ **Intelligent Search**: AI-powered search with query expansion, MMR diversification, and domain expansion
+- ✅ **Semantic Search**: Advanced semantic search with reranking and similarity thresholds
+- ✅ **Contextual Search**: Context-aware search with metadata filtering
+- ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - ✅ **Hybrid Search**: Combine dense and sparse vectors for improved search quality
-- ✅ **Batch Operations**: Efficient bulk operations
+- ✅ **Discovery Operations**: Collection filtering, query expansion, and intelligent discovery
+- ✅ **File Operations**: File content retrieval, chunking, project outlines, and related files
+- ✅ **Graph Relationships**: Automatic relationship discovery, path finding, and edge management
+- ✅ **Summarization**: Text and context summarization with multiple methods
+- ✅ **Workspace Management**: Multi-workspace support for project organization
+- ✅ **Backup & Restore**: Collection backup and restore operations
+- ✅ **Batch Operations**: Efficient bulk insert, update, delete, and search
+- ✅ **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
 - ✅ **Error Handling**: Comprehensive exception handling
 - ✅ **IDisposable**: Proper resource management
 
@@ -33,7 +42,7 @@ dotnet add package Vectorizer.Sdk
 Install-Package Vectorizer.Sdk
 
 # Or specific version
-dotnet add package Vectorizer.Sdk --version 1.5.0
+dotnet add package Vectorizer.Sdk --version 1.5.1
 ```
 
 ## Quick Start
@@ -275,6 +284,137 @@ var results = await client.SemanticSearchAsync(
     semanticReranking: true,
     similarityThreshold: 0.6
 );
+```
+
+### Contextual Search
+
+```csharp
+// Context-aware search with metadata filtering
+var results = await client.ContextualSearchAsync(new ContextualSearchRequest
+{
+    Collection = "docs",
+    Query = "API documentation",
+    ContextFilters = new Dictionary<string, object>
+    {
+        ["category"] = "backend",
+        ["language"] = "csharp"
+    },
+    MaxResults = 10
+});
+```
+
+### Multi-Collection Search
+
+```csharp
+// Cross-collection search with intelligent aggregation
+var results = await client.MultiCollectionSearchAsync(new MultiCollectionSearchRequest
+{
+    Query = "authentication",
+    Collections = new List<string> { "docs", "code", "tickets" },
+    MaxTotalResults = 20,
+    MaxPerCollection = 5,
+    CrossCollectionReranking = true
+});
+```
+
+### Discovery Operations
+
+```csharp
+// Filter collections based on query relevance
+var filtered = await client.FilterCollectionsAsync(new FilterCollectionsRequest
+{
+    Query = "machine learning",
+    MinScore = 0.5
+});
+
+// Expand queries with related terms
+var expanded = await client.ExpandQueriesAsync(new ExpandQueriesRequest
+{
+    Query = "neural networks",
+    MaxExpansions = 5
+});
+
+// Intelligent discovery across collections
+var discovery = await client.DiscoverAsync(new DiscoverRequest
+{
+    Query = "authentication methods",
+    MaxResults = 10
+});
+```
+
+### File Operations
+
+```csharp
+// Get file content from collection
+var content = await client.GetFileContentAsync("docs", "src/Client.cs");
+
+// List all files in a collection
+var files = await client.ListFilesInCollectionAsync("docs");
+
+// Get ordered chunks of a file
+var chunks = await client.GetFileChunksOrderedAsync("docs", "README.md", 1000);
+
+// Get project structure outline
+var outline = await client.GetProjectOutlineAsync("codebase");
+
+// Find files related to a specific file
+var related = await client.GetRelatedFilesAsync("codebase", "src/Client.cs", 5);
+```
+
+### Summarization Operations
+
+```csharp
+// Summarize text using various methods
+var summary = await client.SummarizeTextAsync(new SummarizeTextRequest
+{
+    Text = "Long document text...",
+    Method = "extractive", // "extractive", "abstractive", "hybrid"
+    MaxLength = 200
+});
+
+// Summarize context with metadata
+var summary = await client.SummarizeContextAsync(new SummarizeContextRequest
+{
+    Context = "Document context...",
+    Method = "abstractive",
+    Focus = "key_points"
+});
+```
+
+### Workspace Management
+
+```csharp
+// Add a new workspace
+await client.AddWorkspaceAsync(new AddWorkspaceRequest
+{
+    Name = "my-project",
+    Path = "/path/to/project"
+});
+
+// List all workspaces
+var workspaces = await client.ListWorkspacesAsync();
+
+// Remove a workspace
+await client.RemoveWorkspaceAsync("my-project");
+```
+
+### Backup Operations
+
+```csharp
+// Create a backup of collections
+var backup = await client.CreateBackupAsync(new CreateBackupRequest
+{
+    Name = "backup-2024-11-24"
+});
+
+// List all available backups
+var backups = await client.ListBackupsAsync();
+
+// Restore from a backup
+await client.RestoreBackupAsync(new RestoreBackupRequest
+{
+    Filename = "backup-2024-11-24.vecdb"
+});
 ```
 
 ### Batch Operations

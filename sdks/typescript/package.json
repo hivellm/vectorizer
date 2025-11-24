@@ -1,6 +1,6 @@
 {
   "name": "@hivellm/vectorizer-sdk",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "TypeScript SDK for Vectorizer - High-performance vector database",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

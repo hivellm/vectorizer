@@ -6,7 +6,7 @@
 High-performance JavaScript SDK for Vectorizer vector database.
 
 **Package**: `@hivellm/vectorizer-sdk-js`  
-**Version**: 1.5.0
+**Version**: 1.5.1
 
 ## Features
 
@@ -20,10 +20,18 @@ High-performance JavaScript SDK for Vectorizer vector database.
 - ✅ **Collection Management**: CRUD operations for collections
 - ✅ **Vector Operations**: Insert, search, update, delete vectors
 - ✅ **Semantic Search**: Text and vector similarity search
-- ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
+- ✅ **Intelligent Search**: AI-powered search with query expansion, MMR diversification, and domain expansion
+- ✅ **Semantic Search**: Advanced semantic search with reranking and similarity thresholds
 - ✅ **Contextual Search**: Context-aware search with metadata filtering
 - ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - ✅ **Hybrid Search**: Combine dense and sparse vectors for improved search quality
+- ✅ **Discovery Operations**: Collection filtering, query expansion, and intelligent discovery
+- ✅ **File Operations**: File content retrieval, chunking, project outlines, and related files
+- ✅ **Graph Relationships**: Automatic relationship discovery, path finding, and edge management
+- ✅ **Summarization**: Text and context summarization with multiple methods
+- ✅ **Workspace Management**: Multi-workspace support for project organization
+- ✅ **Backup & Restore**: Collection backup and restore operations
+- ✅ **Batch Operations**: Efficient bulk insert, update, delete, and search
 - ✅ **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
 - ✅ **Embedding Generation**: Text embedding support
 - ✅ **Multiple Build Formats**: CommonJS, ES Modules, UMD

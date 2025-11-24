@@ -6,7 +6,7 @@
 High-performance Go SDK for Vectorizer vector database.
 
 **Package**: `github.com/hivellm/vectorizer-sdk-go`  
-**Version**: 1.5.0
+**Version**: 1.5.1
 
 ## Features
 
@@ -15,10 +15,19 @@ High-performance Go SDK for Vectorizer vector database.
 - ✅ **Collection Management**: CRUD operations for collections
 - ✅ **Vector Operations**: Insert, search, update, delete vectors
 - ✅ **Semantic Search**: Text and vector similarity search
-- ✅ **Intelligent Search**: Advanced multi-query search with domain expansion
-- ✅ **Semantic Search**: High-precision semantic search with reranking
+- ✅ **Intelligent Search**: AI-powered search with query expansion, MMR diversification, and domain expansion
+- ✅ **Semantic Search**: Advanced semantic search with reranking and similarity thresholds
+- ✅ **Contextual Search**: Context-aware search with metadata filtering
+- ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - ✅ **Hybrid Search**: Combine dense and sparse vectors for improved search quality
-- ✅ **Batch Operations**: Efficient bulk operations
+- ✅ **Discovery Operations**: Collection filtering, query expansion, and intelligent discovery
+- ✅ **File Operations**: File content retrieval, chunking, project outlines, and related files
+- ✅ **Graph Relationships**: Automatic relationship discovery, path finding, and edge management
+- ✅ **Summarization**: Text and context summarization with multiple methods
+- ✅ **Workspace Management**: Multi-workspace support for project organization
+- ✅ **Backup & Restore**: Collection backup and restore operations
+- ✅ **Batch Operations**: Efficient bulk insert, update, delete, and search
+- ✅ **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
 - ✅ **Error Handling**: Comprehensive error handling with typed errors
 - ✅ **Type Safety**: Strong typing with Go's type system
 
@@ -28,7 +37,7 @@ High-performance Go SDK for Vectorizer vector database.
 go get github.com/hivellm/vectorizer-sdk-go
 
 # Or specific version
-go get github.com/hivellm/vectorizer-sdk-go@v1.5.0
+go get github.com/hivellm/vectorizer-sdk-go@v1.5.1
 ```
 
 ## Quick Start
@@ -280,6 +289,126 @@ results, err := client.SemanticSearch(&vectorizer.SemanticSearchRequest{
     MaxResults:         10,
     SemanticReranking:  true,
     SimilarityThreshold: 0.6,
+})
+```
+
+### Contextual Search
+
+```go
+// Context-aware search with metadata filtering
+results, err := client.ContextualSearch(&vectorizer.ContextualSearchRequest{
+    Collection: "docs",
+    Query:      "API documentation",
+    ContextFilters: map[string]interface{}{
+        "category": "backend",
+        "language": "go",
+    },
+    MaxResults: 10,
+})
+```
+
+### Multi-Collection Search
+
+```go
+// Cross-collection search with intelligent aggregation
+results, err := client.MultiCollectionSearch(&vectorizer.MultiCollectionSearchRequest{
+    Query:              "authentication",
+    Collections:        []string{"docs", "code", "tickets"},
+    MaxTotalResults:    20,
+    MaxPerCollection:   5,
+    CrossCollectionReranking: true,
+})
+```
+
+### Discovery Operations
+
+```go
+// Filter collections based on query relevance
+filtered, err := client.FilterCollections(&vectorizer.FilterCollectionsRequest{
+    Query:    "machine learning",
+    MinScore: 0.5,
+})
+
+// Expand queries with related terms
+expanded, err := client.ExpandQueries(&vectorizer.ExpandQueriesRequest{
+    Query:         "neural networks",
+    MaxExpansions: 5,
+})
+
+// Intelligent discovery across collections
+discovery, err := client.Discover(&vectorizer.DiscoverRequest{
+    Query:      "authentication methods",
+    MaxResults: 10,
+})
+```
+
+### File Operations
+
+```go
+// Get file content from collection
+content, err := client.GetFileContent("docs", "src/client.go")
+
+// List all files in a collection
+files, err := client.ListFilesInCollection("docs")
+
+// Get ordered chunks of a file
+chunks, err := client.GetFileChunksOrdered("docs", "README.md", 1000)
+
+// Get project structure outline
+outline, err := client.GetProjectOutline("codebase")
+
+// Find files related to a specific file
+related, err := client.GetRelatedFiles("codebase", "src/client.go", 5)
+```
+
+### Summarization Operations
+
+```go
+// Summarize text using various methods
+summary, err := client.SummarizeText(&vectorizer.SummarizeTextRequest{
+    Text:      "Long document text...",
+    Method:    "extractive", // "extractive", "abstractive", "hybrid"
+    MaxLength: 200,
+})
+
+// Summarize context with metadata
+summary, err := client.SummarizeContext(&vectorizer.SummarizeContextRequest{
+    Context: "Document context...",
+    Method: "abstractive",
+    Focus:  "key_points",
+})
+```
+
+### Workspace Management
+
+```go
+// Add a new workspace
+err := client.AddWorkspace(&vectorizer.AddWorkspaceRequest{
+    Name: "my-project",
+    Path: "/path/to/project",
+})
+
+// List all workspaces
+workspaces, err := client.ListWorkspaces()
+
+// Remove a workspace
+err := client.RemoveWorkspace("my-project")
+```
+
+### Backup Operations
+
+```go
+// Create a backup of collections
+backup, err := client.CreateBackup(&vectorizer.CreateBackupRequest{
+    Name: "backup-2024-11-24",
+})
+
+// List all available backups
+backups, err := client.ListBackups()
+
+// Restore from a backup
+err := client.RestoreBackup(&vectorizer.RestoreBackupRequest{
+    Filename: "backup-2024-11-24.vecdb",
 })
 ```
 

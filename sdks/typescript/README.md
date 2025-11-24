@@ -6,7 +6,7 @@
 High-performance TypeScript SDK for Vectorizer vector database.
 
 **Package**: `@hivellm/vectorizer-sdk`  
-**Version**: 1.5.0
+**Version**: 1.5.1
 
 ## Features
 
@@ -21,7 +21,18 @@ High-performance TypeScript SDK for Vectorizer vector database.
 - ✅ **Collection Management**: CRUD operations for collections
 - ✅ **Vector Operations**: Insert, search, update, delete vectors
 - ✅ **Semantic Search**: Text and vector similarity search
+- ✅ **Intelligent Search**: AI-powered search with query expansion, MMR diversification, and domain expansion
+- ✅ **Semantic Search**: Advanced semantic search with reranking and similarity thresholds
+- ✅ **Contextual Search**: Context-aware search with metadata filtering
+- ✅ **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - ✅ **Hybrid Search**: Combine dense and sparse vectors for improved search quality
+- ✅ **Discovery Operations**: Collection filtering, query expansion, and intelligent discovery
+- ✅ **File Operations**: File content retrieval, chunking, project outlines, and related files
+- ✅ **Graph Relationships**: Automatic relationship discovery, path finding, and edge management
+- ✅ **Summarization**: Text and context summarization with multiple methods
+- ✅ **Workspace Management**: Multi-workspace support for project organization
+- ✅ **Backup & Restore**: Collection backup and restore operations
+- ✅ **Batch Operations**: Efficient bulk insert, update, delete, and search
 - ✅ **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
 - ✅ **Embedding Generation**: Text embedding support
 
@@ -31,7 +42,7 @@ High-performance TypeScript SDK for Vectorizer vector database.
 npm install @hivellm/vectorizer-sdk
 
 # Or specific version
-npm install @hivellm/vectorizer-sdk@1.5.0
+npm install @hivellm/vectorizer-sdk@1.5.1
 ```
 
 ## Quick Start
@@ -322,6 +333,227 @@ const textResults = await client.searchText("documents", {
   threshold: 0.8,
   include_metadata: true,
   model: "bert-base",
+});
+```
+
+### Advanced Search Operations
+
+#### Intelligent Search
+AI-powered search with query expansion, MMR diversification, and domain expansion:
+
+```typescript
+const results = await client.intelligentSearch({
+  query: "machine learning algorithms",
+  collections: ["documents", "research"],
+  max_results: 15,
+  domain_expansion: true,
+  technical_focus: true,
+  mmr_enabled: true,
+  mmr_lambda: 0.7,
+});
+```
+
+#### Semantic Search
+Advanced semantic search with reranking and similarity thresholds:
+
+```typescript
+const results = await client.semanticSearch({
+  query: "neural networks",
+  collection: "documents",
+  max_results: 10,
+  semantic_reranking: true,
+  similarity_threshold: 0.6,
+});
+```
+
+#### Contextual Search
+Context-aware search with metadata filtering:
+
+```typescript
+const results = await client.contextualSearch({
+  query: "API documentation",
+  collection: "docs",
+  context_filters: {
+    category: "backend",
+    language: "typescript",
+  },
+  max_results: 10,
+});
+```
+
+#### Multi-Collection Search
+Cross-collection search with intelligent aggregation:
+
+```typescript
+const results = await client.multiCollectionSearch({
+  query: "authentication",
+  collections: ["docs", "code", "tickets"],
+  max_total_results: 20,
+  max_per_collection: 5,
+  cross_collection_reranking: true,
+});
+```
+
+### Discovery Operations
+
+#### Filter Collections
+Filter collections based on query relevance:
+
+```typescript
+const filtered = await client.filterCollections({
+  query: "machine learning",
+  min_score: 0.5,
+});
+```
+
+#### Expand Queries
+Expand queries with related terms:
+
+```typescript
+const expanded = await client.expandQueries({
+  query: "neural networks",
+  max_expansions: 5,
+});
+```
+
+#### Discover
+Intelligent discovery across collections:
+
+```typescript
+const discovery = await client.discover({
+  query: "authentication methods",
+  max_results: 10,
+});
+```
+
+### File Operations
+
+#### Get File Content
+Retrieve file content from collection:
+
+```typescript
+const content = await client.getFileContent({
+  collection: "docs",
+  file_path: "src/client.ts",
+});
+```
+
+#### List Files
+List all files in a collection:
+
+```typescript
+const files = await client.listFilesInCollection({
+  collection: "docs",
+});
+```
+
+#### Get File Chunks
+Get ordered chunks of a file:
+
+```typescript
+const chunks = await client.getFileChunksOrdered({
+  collection: "docs",
+  file_path: "README.md",
+  chunk_size: 1000,
+});
+```
+
+#### Get Project Outline
+Get project structure outline:
+
+```typescript
+const outline = await client.getProjectOutline({
+  collection: "codebase",
+});
+```
+
+#### Get Related Files
+Find files related to a specific file:
+
+```typescript
+const related = await client.getRelatedFiles({
+  collection: "codebase",
+  file_path: "src/client.ts",
+  max_results: 5,
+});
+```
+
+### Summarization Operations
+
+#### Summarize Text
+Summarize text using various methods:
+
+```typescript
+const summary = await client.summarizeText({
+  text: "Long document text...",
+  method: "extractive", // 'extractive', 'abstractive', 'hybrid'
+  max_length: 200,
+});
+```
+
+#### Summarize Context
+Summarize context with metadata:
+
+```typescript
+const summary = await client.summarizeContext({
+  context: "Document context...",
+  method: "abstractive",
+  focus: "key_points",
+});
+```
+
+### Workspace Management
+
+#### Add Workspace
+Add a new workspace:
+
+```typescript
+await client.addWorkspace({
+  name: "my-project",
+  path: "/path/to/project",
+});
+```
+
+#### List Workspaces
+List all workspaces:
+
+```typescript
+const workspaces = await client.listWorkspaces();
+```
+
+#### Remove Workspace
+Remove a workspace:
+
+```typescript
+await client.removeWorkspace({
+  name: "my-project",
+});
+```
+
+### Backup Operations
+
+#### Create Backup
+Create a backup of collections:
+
+```typescript
+const backup = await client.createBackup({
+  name: "backup-2024-11-24",
+});
+```
+
+#### List Backups
+List all available backups:
+
+```typescript
+const backups = await client.listBackups();
+```
+
+#### Restore Backup
+Restore from a backup:
+
+```typescript
+await client.restoreBackup({
+  filename: "backup-2024-11-24.vecdb",
 });
 ```
 

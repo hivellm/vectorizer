@@ -7,22 +7,29 @@
 A comprehensive Python SDK for the Vectorizer semantic search service.
 
 **Package**: `vectorizer_sdk` (PEP 625 compliant)  
-**Version**: 1.5.0  
+**Version**: 1.5.1  
 **PyPI**: https://pypi.org/project/vectorizer-sdk/
 
 ## Features
 
 - **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
 - **UMICP Protocol**: High-performance protocol using umicp-sdk package (v0.3.2+)
-- **Vector Operations**: Insert, search, and manage vectors
+- **Vector Operations**: Insert, search, update, delete vectors
 - **Collection Management**: Create, delete, and monitor collections
 - **Semantic Search**: Find similar content using embeddings
-- **Intelligent Search**: Advanced multi-query search with domain expansion
+- **Intelligent Search**: AI-powered search with query expansion, MMR diversification, and domain expansion
+- **Semantic Search**: Advanced semantic search with reranking and similarity thresholds
 - **Contextual Search**: Context-aware search with metadata filtering
 - **Multi-Collection Search**: Cross-collection search with intelligent aggregation
 - **Hybrid Search**: Combine dense and sparse vectors for improved search quality
+- **Discovery Operations**: Collection filtering, query expansion, and intelligent discovery
+- **File Operations**: File content retrieval, chunking, project outlines, and related files
+- **Graph Relationships**: Automatic relationship discovery, path finding, and edge management
+- **Summarization**: Text and context summarization with multiple methods
+- **Workspace Management**: Multi-workspace support for project organization
+- **Backup & Restore**: Collection backup and restore operations
+- **Batch Operations**: Efficient bulk insert, update, delete, and search
 - **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
-- **Batch Operations**: Efficient bulk operations
 - **Error Handling**: Comprehensive exception handling
 - **Async Support**: Full async/await support for high performance
 - **Type Safety**: Full type hints and validation
@@ -34,7 +41,7 @@ A comprehensive Python SDK for the Vectorizer semantic search service.
 pip install vectorizer-sdk
 
 # Or specific version
-pip install vectorizer-sdk==1.5.0
+pip install vectorizer-sdk==1.5.1
 ```
 
 ## Quick Start
@@ -233,6 +240,179 @@ async def main():
         print(f"Qdrant search results: {qdrant_results}")
 
 asyncio.run(main())
+```
+
+## Advanced Features
+
+### Discovery Operations
+
+#### Filter Collections
+Filter collections based on query relevance:
+
+```python
+filtered = await client.filter_collections(
+    query="machine learning",
+    min_score=0.5
+)
+```
+
+#### Expand Queries
+Expand queries with related terms:
+
+```python
+expanded = await client.expand_queries(
+    query="neural networks",
+    max_expansions=5
+)
+```
+
+#### Discover
+Intelligent discovery across collections:
+
+```python
+discovery = await client.discover(
+    query="authentication methods",
+    max_results=10
+)
+```
+
+### File Operations
+
+#### Get File Content
+Retrieve file content from collection:
+
+```python
+content = await client.get_file_content(
+    collection="docs",
+    file_path="src/client.py"
+)
+```
+
+#### List Files
+List all files in a collection:
+
+```python
+files = await client.list_files_in_collection(
+    collection="docs"
+)
+```
+
+#### Get File Chunks
+Get ordered chunks of a file:
+
+```python
+chunks = await client.get_file_chunks_ordered(
+    collection="docs",
+    file_path="README.md",
+    chunk_size=1000
+)
+```
+
+#### Get Project Outline
+Get project structure outline:
+
+```python
+outline = await client.get_project_outline(
+    collection="codebase"
+)
+```
+
+#### Get Related Files
+Find files related to a specific file:
+
+```python
+related = await client.get_related_files(
+    collection="codebase",
+    file_path="src/client.py",
+    max_results=5
+)
+```
+
+### Summarization Operations
+
+#### Summarize Text
+Summarize text using various methods:
+
+```python
+from models import SummarizeTextRequest
+
+summary = await client.summarize_text(
+    SummarizeTextRequest(
+        text="Long document text...",
+        method="extractive",  # 'extractive', 'abstractive', 'hybrid'
+        max_length=200
+    )
+)
+```
+
+#### Summarize Context
+Summarize context with metadata:
+
+```python
+from models import SummarizeContextRequest
+
+summary = await client.summarize_context(
+    SummarizeContextRequest(
+        context="Document context...",
+        method="abstractive",
+        focus="key_points"
+    )
+)
+```
+
+### Workspace Management
+
+#### Add Workspace
+Add a new workspace:
+
+```python
+await client.add_workspace(
+    name="my-project",
+    path="/path/to/project"
+)
+```
+
+#### List Workspaces
+List all workspaces:
+
+```python
+workspaces = await client.list_workspaces()
+```
+
+#### Remove Workspace
+Remove a workspace:
+
+```python
+await client.remove_workspace(
+    name="my-project"
+)
+```
+
+### Backup Operations
+
+#### Create Backup
+Create a backup of collections:
+
+```python
+backup = await client.create_backup(
+    name="backup-2024-11-24"
+)
+```
+
+#### List Backups
+List all available backups:
+
+```python
+backups = await client.list_backups()
+```
+
+#### Restore Backup
+Restore from a backup:
+
+```python
+await client.restore_backup(
+    filename="backup-2024-11-24.vecdb"
+)
 ```
 
 ## Configuration
