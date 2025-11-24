@@ -9,7 +9,7 @@
 #[cfg(test)]
 mod intelligent_search_tests {
     use std::env;
-use tracing::{info, error, warn, debug};
+    use tracing::{debug, error, info, warn};
     use vectorizer_sdk::*;
 
     fn get_test_client() -> VectorizerClient {
@@ -32,7 +32,9 @@ use tracing::{info, error, warn, debug};
                 }
                 Err(e) => {
                     tracing::info!("WARNING: {} failed: {:?}", $test_name, e);
-                    tracing::info!("This may be due to missing collections or endpoint configuration");
+                    tracing::info!(
+                        "This may be due to missing collections or endpoint configuration"
+                    );
                     None
                 }
             }

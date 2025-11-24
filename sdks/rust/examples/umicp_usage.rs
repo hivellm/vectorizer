@@ -5,8 +5,8 @@
 //! - Efficient transport layer
 //! - Built on umicp-core crate
 
+use tracing::{debug, error, info, warn};
 use vectorizer_rust_sdk::{ClientConfig, VectorizerClient};
-use tracing::{info, error, warn, debug};
 
 #[cfg(feature = "umicp")]
 use vectorizer_rust_sdk::{Protocol, UmicpConfig};

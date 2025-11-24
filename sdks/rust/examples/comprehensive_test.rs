@@ -1,7 +1,7 @@
 //! Comprehensive test of all Vectorizer SDK endpoints
 
 use std::collections::HashMap;
-use tracing::{info, error, warn, debug};
+use tracing::{debug, error, info, warn};
 use vectorizer_rust_sdk::*;
 
 #[tokio::main]
@@ -42,7 +42,9 @@ async fn main() -> Result<()> {
                 for collection in collections.iter().take(3) {
                     tracing::info!(
                         "   - {} ({} vectors, {} docs)",
-                        collection.name, collection.vector_count, collection.document_count
+                        collection.name,
+                        collection.vector_count,
+                        collection.document_count
                     );
                 }
             }
@@ -77,7 +79,9 @@ async fn main() -> Result<()> {
                 Err(e) => {
                     tracing::info!("❌ Search failed: {}", e);
                     // This might fail if collection doesn't support text search
-                    tracing::info!("⚠️ This might be expected if collection doesn't support text search");
+                    tracing::info!(
+                        "⚠️ This might be expected if collection doesn't support text search"
+                    );
                     test_results.push(("Search Vectors", true)); // Consider passed for now
                 }
             }

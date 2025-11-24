@@ -2,7 +2,7 @@
 //! This example demonstrates all core operations available in the SDK.
 
 use std::collections::HashMap;
-use tracing::{info, error, warn, debug};
+use tracing::{debug, error, info, warn};
 use vectorizer_sdk::*;
 
 #[tokio::main]
@@ -42,7 +42,8 @@ async fn main() -> Result<()> {
             for collection in collections.iter().take(5) {
                 tracing::info!(
                     "   - {} ({} vectors)",
-                    collection.name, collection.vector_count
+                    collection.name,
+                    collection.vector_count
                 );
             }
         }

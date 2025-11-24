@@ -12,7 +12,7 @@
 #[cfg(test)]
 mod file_operations_tests {
     use std::env;
-use tracing::{info, error, warn, debug};
+    use tracing::{debug, error, info, warn};
     use vectorizer_sdk::*;
 
     const TEST_COLLECTION: &str = "test-collection";
@@ -37,7 +37,9 @@ use tracing::{info, error, warn, debug};
                 }
                 Err(e) => {
                     tracing::info!("WARNING: {} failed: {:?}", $test_name, e);
-                    tracing::info!("This may be due to files not being indexed in the test collection");
+                    tracing::info!(
+                        "This may be due to files not being indexed in the test collection"
+                    );
                     None
                 }
             }

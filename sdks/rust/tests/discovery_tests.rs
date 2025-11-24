@@ -9,7 +9,7 @@
 #[cfg(test)]
 mod discovery_tests {
     use std::env;
-use tracing::{info, error, warn, debug};
+    use tracing::{debug, error, info, warn};
     use vectorizer_sdk::*;
 
     fn get_test_client() -> VectorizerClient {

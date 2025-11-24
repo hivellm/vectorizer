@@ -1,7 +1,7 @@
 //! Simple and functional test example
 
 use std::collections::HashMap;
-use tracing::{info, error, warn, debug};
+use tracing::{debug, error, info, warn};
 use vectorizer_rust_sdk::*;
 
 #[tokio::main]
@@ -35,7 +35,8 @@ async fn main() -> vectorizer_rust_sdk::Result<()> {
             for collection in collections.iter().take(3) {
                 tracing::info!(
                     "   - {} ({} vectors)",
-                    collection.name, collection.vector_count
+                    collection.name,
+                    collection.vector_count
                 );
             }
         }
