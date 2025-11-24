@@ -8,7 +8,7 @@
  * - expandQueries() - Query variation generation
  */
 
-const { VectorizerClient } = require('../src/client');
+import { VectorizerClient } from '../src/client.js';
 
 describe('Discovery Operations', () => {
   let client;

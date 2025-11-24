@@ -34,7 +34,7 @@ export class UMICPClient {
 
     try {
       const url = `http://${this.config.host}:${this.config.port}`;
-      
+
       this.client = new StreamableHTTPClient(url, {
         timeout: this.config.timeout,
       });
@@ -71,15 +71,6 @@ export class UMICPClient {
       await this.connect();
     }
 
-    const payload = {
-      method,
-      path,
-      ...(data && { body: data }),
-      ...(requestConfig.params && { params: requestConfig.params }),
-      ...(requestConfig.headers && { headers: requestConfig.headers }),
-      ...(this.config.apiKey && { authorization: `Bearer ${this.config.apiKey}` }),
-    };
-
     try {
       // Use StreamableHTTPClient's request method
       const response = await this.client.request(path, {
@@ -97,11 +88,11 @@ export class UMICPClient {
       if (error instanceof ServerError || error instanceof AuthenticationError) {
         throw error;
       }
-      
+
       if (error instanceof Error) {
         throw new NetworkError(`UMICP request failed: ${error.message}`);
       }
-      
+
       throw new NetworkError('Unknown UMICP error');
     }
   }
@@ -141,7 +132,7 @@ export class UMICPClient {
     const message = response.message || `UMICP Error ${response.statusCode || 'Unknown'}`;
 
     const statusCode = response.statusCode || 500;
-    
+
     switch (statusCode) {
       case 401:
         return new AuthenticationError(message);

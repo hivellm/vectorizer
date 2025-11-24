@@ -46,12 +46,7 @@ import {
   BatchSearchResponse,
 } from './models/batch.js';
 
-import {
-  SummarizeTextResponse,
-  SummarizeContextResponse,
-  GetSummaryResponse,
-  ListSummariesResponse,
-} from './models/summarization.js';
+// Summarization models are used internally but not directly exported
 
 // Removed unused exception imports - exceptions are handled in http-client
 
@@ -1206,7 +1201,7 @@ export class VectorizerClient {
    * Get server configuration (GUI endpoint).
    * @returns {Promise<Object>} Server configuration
    */
-  async getConfig() {
+  async getServerConfig() {
     this.logger.debug('Getting server configuration');
     return this.transport.get('/api/config');
   }

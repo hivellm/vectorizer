@@ -11,7 +11,7 @@
  * - searchByFileType() - Search filtered by file type
  */
 
-const { VectorizerClient } = require('../src/client');
+import { VectorizerClient } from '../src/client.js';
 
 describe.skip('File Operations', () => {
   // Skipped: These tests require real indexed files in the server
@@ -19,7 +19,7 @@ describe.skip('File Operations', () => {
   // 1. Have a running Vectorizer server
   // 2. Have files indexed in the test-collection
   // 3. Run: npm test -- --grep "File Operations"
-  
+
   let client;
   const baseURL = process.env.VECTORIZER_URL || 'http://localhost:15002';
   const testCollection = 'test-collection';
@@ -151,7 +151,7 @@ describe.skip('File Operations', () => {
 
       expect(response).toBeDefined();
       expect(response.files).toBeInstanceOf(Array);
-      
+
       if (response.files.length > 0) {
         response.files.forEach((file) => {
           expect(['ts', 'js'].some(ext => file.file_path.endsWith(`.${ext}`))).toBe(true);
@@ -171,7 +171,7 @@ describe.skip('File Operations', () => {
 
       expect(response).toBeDefined();
       expect(response.files).toBeInstanceOf(Array);
-      
+
       if (response.files.length > 0) {
         response.files.forEach((file) => {
           expect(file.chunk_count).toBeGreaterThanOrEqual(5);
@@ -204,7 +204,7 @@ describe.skip('File Operations', () => {
       const response = await client.listFilesInCollection(params);
 
       expect(response).toBeDefined();
-      
+
       // Verify sorting
       if (response.files.length > 1) {
         for (let i = 0; i < response.files.length - 1; i++) {
@@ -225,7 +225,7 @@ describe.skip('File Operations', () => {
       const response = await client.listFilesInCollection(params);
 
       expect(response).toBeDefined();
-      
+
       // Verify sorting
       if (response.files.length > 1) {
         for (let i = 0; i < response.files.length - 1; i++) {
@@ -245,7 +245,7 @@ describe.skip('File Operations', () => {
       const response = await client.listFilesInCollection(params);
 
       expect(response).toBeDefined();
-      
+
       // Verify sorting
       if (response.files.length > 1) {
         for (let i = 0; i < response.files.length - 1; i++) {
@@ -356,7 +356,7 @@ describe.skip('File Operations', () => {
 
       expect(response).toBeDefined();
       expect(response.chunks).toBeInstanceOf(Array);
-      
+
       if (response.chunks.length > 0) {
         response.chunks.forEach((chunk) => {
           expect(chunk.has_prev).toBeDefined();
@@ -434,7 +434,7 @@ describe.skip('File Operations', () => {
 
       expect(response).toBeDefined();
       expect(response.structure).toBeDefined();
-      
+
       // Check if summaries are included
       const hasSummaries = JSON.stringify(response.structure).includes('summary');
       expect(hasSummaries).toBe(true);
@@ -498,7 +498,7 @@ describe.skip('File Operations', () => {
       const response = await client.getRelatedFiles(params);
 
       expect(response).toBeDefined();
-      
+
       if (response.related_files.length > 0) {
         response.related_files.forEach((file) => {
           expect(file.similarity_score).toBeGreaterThanOrEqual(0.7);
@@ -518,7 +518,7 @@ describe.skip('File Operations', () => {
       const response = await client.getRelatedFiles(params);
 
       expect(response).toBeDefined();
-      
+
       if (response.related_files.length > 0) {
         response.related_files.forEach((file) => {
           expect(file.reason).toBeDefined();
@@ -602,12 +602,12 @@ describe.skip('File Operations', () => {
       if (!serverAvailable) return expect(true).toBe(true);
 
       const startTime = Date.now();
-      
+
       await client.listFilesInCollection({
         collection: testCollection,
         max_results: 100,
       });
-      
+
       const duration = Date.now() - startTime;
       expect(duration).toBeLessThan(5000);
     });
@@ -616,12 +616,12 @@ describe.skip('File Operations', () => {
       if (!serverAvailable) return expect(true).toBe(true);
 
       const startTime = Date.now();
-      
+
       await client.getFileContent({
         collection: testCollection,
         file_path: 'README.md',
       });
-      
+
       const duration = Date.now() - startTime;
       expect(duration).toBeLessThan(3000);
     });

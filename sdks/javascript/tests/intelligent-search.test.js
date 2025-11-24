@@ -8,7 +8,7 @@
  * - multiCollectionSearch() - Cross-collection search
  */
 
-const { VectorizerClient } = require('../src/client');
+import { VectorizerClient } from '../src/client.js';
 
 describe('Intelligent Search Operations', () => {
   let client;
