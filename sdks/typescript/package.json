@@ -42,9 +42,7 @@
     "url": "https://github.com/hivellm/vectorizer/issues"
   },
   "homepage": "https://github.com/hivellm/vectorizer#readme",
-  "dependencies": {
-    "@hivellm/umicp": "^0.1.5"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20.14.10",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
