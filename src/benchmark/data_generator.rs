@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 use crate::benchmark::BenchmarkConfig;
 
@@ -173,7 +174,7 @@ impl TestDataGenerator {
     ) -> Result<TestData, Box<dyn std::error::Error>> {
         // This would integrate with actual data loading
         // For now, fall back to synthetic generation
-        println!("Real data loading not implemented, using synthetic data");
+        info!("Real data loading not implemented, using synthetic data");
         self.generate_vectors(max_count, dimension)
     }
 

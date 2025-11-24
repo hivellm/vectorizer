@@ -18,6 +18,8 @@ use serde_json;
 #[cfg(feature = "candle-models")]
 use tokenizers::Tokenizer;
 
+use tracing::info;
+
 use super::EmbeddingProvider;
 use crate::error::{Result, VectorizerError};
 
@@ -116,7 +118,7 @@ impl RealModelEmbedder {
         let device = Device::Cpu; // Use CPU for now, can be extended to GPU
         let model_id = model_type.model_id();
 
-        println!(
+        info!(
             "Loading model: {} (cache: {})",
             model_id,
             cache_dir.display()
@@ -171,7 +173,7 @@ impl RealModelEmbedder {
         let model = BertModel::load(vb, &config)
             .map_err(|e| VectorizerError::Other(format!("Failed to load BERT model: {}", e)))?;
 
-        println!(
+        info!(
             "Successfully loaded model: {} (cached in {})",
             model_id,
             cache_dir.display()
@@ -263,7 +265,7 @@ impl EmbeddingProvider for RealModelEmbedder {
 #[cfg(not(feature = "candle-models"))]
 impl RealModelEmbedder {
     pub fn new(model_type: RealModelType) -> Result<Self> {
-        println!(
+        tracing::warn!(
             "⚠️  Candle models feature not enabled. Using placeholder implementation for {}",
             model_type.model_id()
         );
