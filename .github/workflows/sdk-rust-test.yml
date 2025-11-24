@@ -28,7 +28,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
@@ -68,7 +68,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
