@@ -75,7 +75,6 @@
       "output": "dist-release",
       "buildResources": "build"
     },
-    "includeSubNodeModules": true,
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
