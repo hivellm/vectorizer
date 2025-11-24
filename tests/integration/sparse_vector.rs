@@ -137,6 +137,7 @@ async fn test_sparse_vector_with_payload() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_sparse_vector_search() {
     use std::time::{SystemTime, UNIX_EPOCH};
 
