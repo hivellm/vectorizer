@@ -228,9 +228,19 @@ jobs:
         working-directory: gui
         run: pnpm install --frozen-lockfile
 
-      - name: Build GUI
+      - name: Build GUI with MSI (includes Rust binaries via extraResources)
         working-directory: gui
-        run: pnpm electron:build:win
+        run: pnpm electron:build:win --config.win.target=msi
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload GUI MSI installer
+        uses: softprops/action-gh-release@v2
+        with:
+          files: gui/dist-release/*.msi
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
 
       - name: Create combined package directory
         shell: pwsh
@@ -262,60 +272,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: vectorizer-windows-x64-complete-*.zip
-          tag_name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-
-      - name: Install WiX Toolset
-        run: |
-          dotnet tool install --global wix --version 5.0.2
-          wix extension add -g WixToolset.UI.wixext
-          wix extension list
-          wix --version
-
-      - name: Generate GUI components with Heat
-        shell: pwsh
-        run: |
-          # Find Heat.exe in WiX installation
-          $heatPath = (Get-Command heat -ErrorAction SilentlyContinue).Source
-          if (-not $heatPath) {
-            $heatPath = "$env:USERPROFILE\.dotnet\tools\heat.exe"
-          }
-
-          # Generate WiX fragment for GUI files using Heat
-          & $heatPath dir "gui\dist-release\win-unpacked" `
-            -cg GuiFilesComponentGroup `
-            -gg `
-            -sfrag `
-            -srd `
-            -scom `
-            -dr GuiDir `
-            -var var.GuiDistDir `
-            -out gui-files.wxs
-
-          # Replace the variable reference in the generated file to use the correct path
-          (Get-Content gui-files.wxs -Raw) -replace 'Source="SourceDir\\([^"]+)"', 'Source="$(var.GuiDistDir)\$1"' | Set-Content gui-files.wxs -NoNewline
-
-          # Also need to fix DirectoryRef if needed
-          (Get-Content gui-files.wxs -Raw) -replace '<DirectoryRef Id="SourceDir">', '<DirectoryRef Id="GuiDir">' | Set-Content gui-files.wxs -NoNewline
-
-      - name: Build MSI installer
-        shell: pwsh
-        env:
-          CargoTargetBinDir: ${{ github.workspace }}\target\release
-          GuiDistDir: ${{ github.workspace }}\gui\dist-release\win-unpacked
-        run: |
-          $version = "${{ github.ref_name }}"
-          if ($version -match "^v(.+)") {
-            $version = $matches[1]
-          }
-          # Build MSI with both main.wxs and generated gui-files.wxs
-          wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs gui-files.wxs -o vectorizer-complete-$version.msi
-
-      - name: Upload MSI installer
-        uses: softprops/action-gh-release@v2
-        with:
-          files: vectorizer-complete-*.msi
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false

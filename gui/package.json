@@ -91,6 +91,20 @@
       {
         "from": "../config.yml",
         "to": "config.yml"
+      },
+      {
+        "from": "../target/release/vectorizer.exe",
+        "to": "bin/vectorizer.exe",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../target/release/vectorizer-cli.exe",
+        "to": "bin/vectorizer-cli.exe",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../config.example.yml",
+        "to": "config.example.yml"
       }
     ],
     "win": {
