@@ -340,7 +340,7 @@ fn test_collection_info_integration() {
         document_count: 50,
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
-        indexing_status,
+        indexing_status: Some(indexing_status),
     };
 
     // Validate collection info
@@ -349,8 +349,10 @@ fn test_collection_info_integration() {
     assert_eq!(collection_info.metric, "cosine");
     assert_eq!(collection_info.vector_count, 100);
     assert_eq!(collection_info.document_count, 50);
-    assert_eq!(collection_info.indexing_status.status, "ready");
-    assert_eq!(collection_info.indexing_status.progress, 100.0);
+    if let Some(ref status) = collection_info.indexing_status {
+        assert_eq!(status.status, "ready");
+        assert_eq!(status.progress, 100.0);
+    }
 
     // Test serialization
     let json = serde_json::to_string(&collection_info).unwrap();

@@ -48,9 +48,7 @@ async fn test_list_collections() {
             for collection in collections {
                 assert!(!collection.name.is_empty());
                 assert!(collection.dimension > 0);
-                assert_eq!(collection.metric, "cosine");
-                // Collection status can be "ready", "pending-0", "created", etc.
-                assert!(!collection.indexing_status.status.is_empty());
+                assert_eq!(collection.similarity_metric, SimilarityMetric::Cosine);
             }
         }
         Err(e) => {
@@ -76,7 +74,9 @@ async fn test_create_collection() {
             assert_eq!(info.dimension, 384);
             assert_eq!(info.metric, "cosine");
             // Collection status can be "ready", "created", "pending-0", etc.
-            assert!(!info.indexing_status.status.is_empty());
+            if let Some(ref status) = info.indexing_status {
+                assert!(!status.status.is_empty());
+            }
         }
         Err(e) => {
             panic!("Create collection failed: {}", e);
@@ -264,7 +264,9 @@ async fn test_get_collection_info() {
             assert_eq!(info.name, collection_name);
             assert_eq!(info.dimension, 384);
             assert_eq!(info.metric, "cosine");
-            assert!(!info.indexing_status.status.is_empty());
+            if let Some(ref status) = info.indexing_status {
+                assert!(!status.status.is_empty());
+            }
         }
         Err(e) => {
             panic!("Get collection info failed: {}", e);

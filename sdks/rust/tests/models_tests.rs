@@ -100,7 +100,7 @@ fn test_collection_info_creation() {
         document_count: 50,
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
-        indexing_status,
+        indexing_status: Some(indexing_status),
     };
 
     assert_eq!(collection_info.name, "test_collection_info");

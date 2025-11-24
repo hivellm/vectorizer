@@ -63,15 +63,18 @@ pub struct CollectionInfo {
     /// Similarity metric used for search
     pub metric: String,
     /// Number of vectors in the collection
+    #[serde(default)]
     pub vector_count: usize,
     /// Number of documents in the collection
+    #[serde(default)]
     pub document_count: usize,
     /// Creation timestamp
     pub created_at: String,
     /// Last update timestamp
     pub updated_at: String,
     /// Indexing status
-    pub indexing_status: IndexingStatus,
+    #[serde(default)]
+    pub indexing_status: Option<IndexingStatus>,
 }
 
 /// Indexing status
@@ -173,7 +176,7 @@ pub struct HealthStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionsResponse {
     /// List of collections
-    pub collections: Vec<CollectionInfo>,
+    pub collections: Vec<Collection>,
 }
 
 /// Create collection response

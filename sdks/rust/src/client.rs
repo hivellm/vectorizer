@@ -191,13 +191,13 @@ impl VectorizerClient {
     }
 
     /// List collections
-    pub async fn list_collections(&self) -> Result<Vec<CollectionInfo>> {
+    pub async fn list_collections(&self) -> Result<Vec<Collection>> {
         let response = self.make_request("GET", "/collections", None).await?;
-        let collections_response: CollectionsResponse =
+        let collections: Vec<Collection> =
             serde_json::from_str(&response).map_err(|e| {
                 VectorizerError::server(format!("Failed to parse collections response: {e}"))
             })?;
-        Ok(collections_response.collections)
+        Ok(collections)
     }
 
     /// Search vectors
@@ -568,7 +568,7 @@ impl VectorizerClient {
             document_count: 0,
             created_at: "".to_string(),
             updated_at: "".to_string(),
-            indexing_status: crate::models::IndexingStatus {
+            indexing_status: Some(crate::models::IndexingStatus {
                 status: "created".to_string(),
                 progress: 0.0,
                 total_documents: 0,
@@ -576,7 +576,7 @@ impl VectorizerClient {
                 vector_count: 0,
                 estimated_time_remaining: None,
                 last_updated: "".to_string(),
-            },
+            }),
         };
         Ok(info)
     }
