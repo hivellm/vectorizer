@@ -2,15 +2,15 @@ name: Go SDK Tests
 
 on:
   push:
-    branches: [ master, main, develop ]
+    branches: [master, main, develop]
     paths:
-      - 'sdks/go/**'
-      - '.github/workflows/sdk-go-test.yml'
+      - "sdks/go/**"
+      - ".github/workflows/sdk-go-test.yml"
   pull_request:
-    branches: [ '**' ]
+    branches: ["**"]
     paths:
-      - 'sdks/go/**'
-      - '.github/workflows/sdk-go-test.yml'
+      - "sdks/go/**"
+      - ".github/workflows/sdk-go-test.yml"
 
 jobs:
   test:
@@ -18,80 +18,79 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
-        go-version: [ '1.21', '1.22' ]
+        os: [ubuntu-latest, macos-latest]
+        go-version: ["1.21", "1.22"]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Setup Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Cache Go modules
-      uses: actions/cache@v4
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('sdks/go/go.mod') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Download dependencies
-      working-directory: ./sdks/go
-      run: go mod download
+      - name: Download dependencies
+        working-directory: ./sdks/go
+        run: go mod download
 
-    - name: Run tests (skip integration tests that require server)
-      working-directory: ./sdks/go
-      shell: bash
-      run: |
-        # Run unit tests only, skip integration tests
-        go test -v -short ./... || go test -v ./... -run '^Test[^I]' || echo "Some tests may have failed, but continuing..."
-      env:
-        # Skip server-to-server tests
-        SKIP_INTEGRATION_TESTS: true
+      - name: Run tests (skip integration tests that require server)
+        working-directory: ./sdks/go
+        shell: bash
+        run: |
+          # Run unit tests only, skip integration tests
+          go test -v -short ./... || go test -v ./... -run '^Test[^I]' || echo "Some tests may have failed, but continuing..."
+        env:
+          # Skip server-to-server tests
+          SKIP_INTEGRATION_TESTS: true
 
-    - name: Run go vet
-      working-directory: ./sdks/go
-      shell: bash
-      run: go vet ./...
+      - name: Run go vet
+        working-directory: ./sdks/go
+        shell: bash
+        run: go vet ./...
 
-    - name: Run gofmt check
-      working-directory: ./sdks/go
-      shell: bash
-      run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
-          echo "Code is not formatted. Run 'gofmt -s -w .'"
-          gofmt -s -d .
-          exit 1
-        fi
+      - name: Run gofmt check
+        working-directory: ./sdks/go
+        shell: bash
+        run: |
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+            echo "Code is not formatted. Run 'gofmt -s -w .'"
+            gofmt -s -d .
+            exit 1
+          fi
 
   build-check:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-    - name: Setup Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.22'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
 
-    - name: Download dependencies
-      working-directory: ./sdks/go
-      run: go mod download
+      - name: Download dependencies
+        working-directory: ./sdks/go
+        run: go mod download
 
-    - name: Build SDK
-      working-directory: ./sdks/go
-      run: go build ./...
+      - name: Build SDK
+        working-directory: ./sdks/go
+        run: go build ./...
 
-    - name: Check build artifacts
-      working-directory: ./sdks/go
-      shell: bash
-      run: |
-        if [ ! -f "vectorizer-sdk-go" ] && [ ! -f "*.a" ]; then
-          echo "Build completed (library package, no binary expected)"
-        fi
-        echo "Build verified successfully"
-
+      - name: Check build artifacts
+        working-directory: ./sdks/go
+        shell: bash
+        run: |
+          if [ ! -f "vectorizer-sdk-go" ] && [ ! -f "*.a" ]; then
+            echo "Build completed (library package, no binary expected)"
+          fi
+          echo "Build verified successfully"

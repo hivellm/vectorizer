@@ -826,9 +826,8 @@ impl VectorizerClient {
                 Some(serde_json::Value::Object(payload)),
             )
             .await?;
-        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
-            VectorizerError::server(format!("Failed to parse score response: {e}"))
-        })?;
+        let result: serde_json::Value = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse score response: {e}")))?;
         Ok(result)
     }
 
@@ -1284,9 +1283,8 @@ impl VectorizerClient {
         let response = self
             .make_request("POST", "/graph/path", Some(payload))
             .await?;
-        let result: FindPathResponse = serde_json::from_str(&response).map_err(|e| {
-            VectorizerError::server(format!("Failed to parse path response: {e}"))
-        })?;
+        let result: FindPathResponse = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse path response: {e}")))?;
         Ok(result)
     }
 
