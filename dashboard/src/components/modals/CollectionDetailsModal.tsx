@@ -5,7 +5,7 @@
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { formatNumber, formatDate } from '@/utils/formatters';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 interface Collection {
   name: string;

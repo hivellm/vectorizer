@@ -5,22 +5,42 @@ import { resolve } from 'path';
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
-  
+
   return {
+    test: {
+      globals: true,
+      environment: 'happy-dom',
+      setupFiles: './src/test/setup.ts',
+      css: true,
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'json', 'html'],
+        exclude: [
+          'node_modules/',
+          'src/test/',
+          '**/*.d.ts',
+          '**/*.config.*',
+          '**/dist/',
+        ],
+      },
+    },
     plugins: [
-      react(),
+      react({
+        jsxRuntime: 'automatic',
+        jsxImportSource: 'react',
+        babel: {
+          plugins: [],
+        },
+      }),
       tailwindcss(),
     ],
     resolve: {
       alias: {
         '@': resolve(__dirname, './src'),
-        // Ensure single React instance
-        'react': resolve(__dirname, './node_modules/react'),
-        'react-dom': resolve(__dirname, './node_modules/react-dom'),
         // Resolve vis-data peer dependency (vis-network expects .js but vis-data provides .mjs)
         'vis-data/peer/esm/vis-data.js': resolve(__dirname, './node_modules/vis-data/peer/esm/vis-data.mjs'),
       },
-      dedupe: ['react', 'react-dom'],
+      dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],
     },
     build: {
       outDir: 'dist',
@@ -35,10 +55,6 @@ export default defineConfig(({ mode }) => {
           manualChunks: (id) => {
             // Vendor chunks
             if (id.includes('node_modules')) {
-              // React and React DOM in separate chunk
-              if (id.includes('react') || id.includes('react-dom')) {
-                return 'react-vendor';
-              }
               // Monaco Editor is large - separate chunk
               if (id.includes('monaco-editor')) {
                 return 'monaco-editor';
@@ -47,6 +63,8 @@ export default defineConfig(({ mode }) => {
               if (id.includes('@visx')) {
                 return 'visx-vendor';
               }
+              // React and React DOM should NOT be in separate chunk to avoid initialization issues
+              // They will be included in the main vendor chunk
               // Other node_modules
               return 'vendor';
             }

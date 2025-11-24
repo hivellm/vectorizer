@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { Outlet } from 'react-router';
+import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { ToastProvider } from '@/providers/ToastProvider';

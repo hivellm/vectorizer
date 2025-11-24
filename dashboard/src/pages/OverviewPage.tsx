@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';

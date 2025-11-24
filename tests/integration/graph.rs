@@ -323,9 +323,8 @@ fn test_discover_edges_for_node() {
         .unwrap();
 
     let collection = store.get_collection("test_discover").unwrap();
-    let cpu_collection = match &*collection {
-        CollectionType::Cpu(c) => c,
-        _ => panic!("Expected CPU collection"),
+    let CollectionType::Cpu(cpu_collection) = &*collection else {
+        panic!("Expected CPU collection")
     };
 
     let graph = cpu_collection.get_graph().unwrap();
@@ -335,7 +334,7 @@ fn test_discover_edges_for_node() {
     vec1[0] = 0.9;
     let mut vec2 = vec![1.0; 128];
     vec2[0] = 0.95; // Very similar to vec1
-    let mut vec3 = vec![0.0; 128]; // Very different
+    let vec3 = vec![0.0; 128]; // Very different
 
     cpu_collection
         .insert(vectorizer::models::Vector {
@@ -394,9 +393,8 @@ fn test_discover_edges_for_collection() {
         .unwrap();
 
     let collection = store.get_collection("test_discover_collection").unwrap();
-    let cpu_collection = match &*collection {
-        CollectionType::Cpu(c) => c,
-        _ => panic!("Expected CPU collection"),
+    let CollectionType::Cpu(cpu_collection) = &*collection else {
+        panic!("Expected CPU collection")
     };
 
     let graph = cpu_collection.get_graph().unwrap();
@@ -408,7 +406,7 @@ fn test_discover_edges_for_collection() {
 
         cpu_collection
             .insert(vectorizer::models::Vector {
-                id: format!("vec{}", i),
+                id: format!("vec{i}"),
                 data: vec_data,
                 sparse: None,
                 payload: None,
@@ -440,7 +438,6 @@ fn test_discover_edges_for_collection() {
 
 #[test]
 fn test_graph_persistence_save_and_load() {
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     // Create temporary directory for test
@@ -485,7 +482,6 @@ fn test_graph_persistence_save_and_load() {
 
 #[test]
 fn test_graph_persistence_missing_file() {
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     // Create temporary directory (empty, no graph file)
@@ -504,7 +500,6 @@ fn test_graph_persistence_missing_file() {
 fn test_graph_persistence_corrupted_file() {
     use std::fs;
     use std::io::Write;
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     // Create temporary directory
@@ -548,7 +543,7 @@ fn test_graph_discovery_performance_large_collection() {
             "batch": i / 100
         });
         vectors.push(vectorizer::models::Vector {
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             data: vec![(i as f32) / 1000.0; 128], // Varying vectors
             sparse: None,
             payload: Some(vectorizer::models::Payload::new(payload_data)),
@@ -581,14 +576,13 @@ fn test_graph_discovery_performance_large_collection() {
     let start = Instant::now();
 
     // Discover edges for a subset of nodes (first 100) to keep test reasonable
-    let cpu_collection = match &*collection {
-        CollectionType::Cpu(c) => c,
-        _ => panic!("Expected CPU collection"),
+    let CollectionType::Cpu(cpu_collection) = &*collection else {
+        panic!("Expected CPU collection")
     };
 
     let mut total_edges = 0;
     for i in 0..100.min(num_vectors) {
-        let node_id = format!("vec_{}", i);
+        let node_id = format!("vec_{i}");
         if let Ok(edges_created) =
             vectorizer::db::graph_relationship_discovery::discover_edges_for_node(
                 graph.as_ref(),
@@ -607,28 +601,21 @@ fn test_graph_discovery_performance_large_collection() {
     // Should complete in reasonable time (less than 30 seconds for 100 nodes)
     assert!(
         duration.as_secs() < 30,
-        "Discovery took too long: {:?} for 100 nodes",
-        duration
+        "Discovery took too long: {duration:?} for 100 nodes"
     );
 
     // Should have created some edges
     assert!(
         total_edges > 0,
-        "Should have created at least some edges, got {}",
-        total_edges
+        "Should have created at least some edges, got {total_edges}"
     );
 
     // Verify edges were actually added to graph
     let final_edge_count = graph.edge_count();
     assert!(
         final_edge_count >= total_edges,
-        "Graph should have at least {} edges, got {}",
-        total_edges,
-        final_edge_count
+        "Graph should have at least {total_edges} edges, got {final_edge_count}"
     );
 
-    println!(
-        "Performance test: Discovered {} edges for 100 nodes in {:?}",
-        total_edges, duration
-    );
+    println!("Performance test: Discovered {total_edges} edges for 100 nodes in {duration:?}");
 }

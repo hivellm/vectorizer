@@ -130,6 +130,24 @@ WORKDIR /vectorizer
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
+# Dashboard builder stage
+FROM node:20-bookworm AS dashboard-builder
+WORKDIR /dashboard
+
+# Install pnpm
+RUN npm install -g pnpm@latest
+
+# Copy dashboard files
+COPY dashboard/package.json dashboard/pnpm-lock.yaml dashboard/pnpm-workspace.yaml ./
+COPY dashboard/tsconfig.json dashboard/vite.config.ts dashboard/eslint.config.js ./
+COPY dashboard/index.html ./
+COPY dashboard/src ./src
+COPY dashboard/public ./public
+
+# Install dependencies and build dashboard
+RUN pnpm install --frozen-lockfile && \
+    pnpm run build
+
 FROM chef AS builder
 WORKDIR /vectorizer
 
@@ -228,12 +246,15 @@ COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/tools/entrypoint.sh "$
 
 WORKDIR "$APP"
 
-# Create data directories with proper permissions
+# Create data directories with proper permissions (including dashboard directory)
 RUN mkdir -p data storage snapshots dashboard .logs && \
     chown -R $USER_ID:$USER_ID data storage snapshots dashboard .logs
 
-# Volumes for persistent data
-VOLUME ["$APP/data", "$APP/storage", "$APP/snapshots", "$APP/dashboard"]
+# Copy built dashboard from dashboard-builder stage (after creating directory)
+COPY --from=dashboard-builder --chown=$USER_ID:$USER_ID /dashboard/dist "$APP"/dashboard/dist
+
+# Volumes for persistent data (dashboard is now part of image, not a volume)
+VOLUME ["$APP/data", "$APP/storage", "$APP/snapshots"]
 
 USER "$USER_ID:$USER_ID"
 

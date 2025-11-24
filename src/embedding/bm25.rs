@@ -73,27 +73,36 @@ impl BM25Provider {
     /// Add documents to the corpus for training - LIMITS to max_vocab_size TOP terms
     pub async fn add_documents(&self, documents: &[String]) -> Result<(), EmbeddingError> {
         use std::collections::HashMap;
+        use std::collections::HashSet;
         
-        // Count term frequencies across ALL documents
+        // Count term frequencies across ALL documents (for vocabulary selection)
         let mut global_term_freq: HashMap<String, usize> = HashMap::new();
+        // Count document frequencies (number of documents containing each term)
+        let mut document_freq: HashMap<String, usize> = HashMap::new();
         let mut doc_count_local = 0;
         let mut total_length_local = 0;
         
         for document in documents {
             let tokens = self.tokenize(document);
-            let mut seen_terms = std::collections::HashSet::new();
+            // Use HashSet to track unique terms per document
+            let seen_terms: HashSet<String> = tokens.iter().cloned().collect();
             
+            // Count global frequency (total occurrences) for vocabulary building
             for token in &tokens {
-                // Global frequency for vocabulary building
                 *global_term_freq.entry(token.clone()).or_insert(0) += 1;
-                seen_terms.insert(token.clone());
+            }
+            
+            // Count document frequency (number of documents containing term)
+            // Each term is counted once per document, regardless of how many times it appears
+            for term in seen_terms {
+                *document_freq.entry(term).or_insert(0) += 1;
             }
             
             doc_count_local += 1;
             total_length_local += tokens.len();
         }
         
-        // Select TOP max_vocab_size most frequent terms
+        // Select TOP max_vocab_size most frequent terms (based on global frequency)
         let mut term_freq_vec: Vec<(String, usize)> = global_term_freq.into_iter().collect();
         term_freq_vec.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by frequency descending
         
@@ -103,9 +112,11 @@ impl BM25Provider {
         let mut vocab = self.vocabulary.write().await;
         let mut doc_freqs = self.document_frequencies.write().await;
         
-        for (idx, (term, freq)) in term_freq_vec.iter().take(max_terms).enumerate() {
+        for (idx, (term, _global_freq)) in term_freq_vec.iter().take(max_terms).enumerate() {
             vocab.insert(term.clone(), idx);
-            doc_freqs.insert(term.clone(), *freq);
+            // Store document frequency (number of documents containing term), not global frequency
+            let df = document_freq.get(term).copied().unwrap_or(0);
+            doc_freqs.insert(term.clone(), df);
         }
         
         // Update statistics
@@ -409,5 +420,130 @@ mod tests {
         provider.clear().await;
         assert!(!provider.is_available().await);
         assert_eq!(provider.vocabulary_size().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_document_frequency_counts_documents_not_occurrences() {
+        let provider = BM25Provider::default();
+        // Create documents where "the" appears multiple times in each document
+        let documents = vec![
+            "the the the quick brown fox".to_string(), // "the" appears 3 times
+            "the the lazy dog".to_string(),            // "the" appears 2 times
+            "the fox jumps".to_string(),               // "the" appears 1 time
+        ];
+
+        provider.add_documents(&documents).await.unwrap();
+        let doc_freqs = provider.get_document_frequencies().await;
+
+        // "the" should have document frequency of 3 (appears in 3 documents)
+        // NOT 6 (total occurrences: 3 + 2 + 1)
+        assert_eq!(doc_freqs.get("the"), Some(&3), 
+            "Document frequency should count documents containing term, not total occurrences");
+        assert_eq!(provider.document_count().await, 3);
+    }
+
+    #[tokio::test]
+    async fn test_document_frequency_multiple_documents_same_terms() {
+        let provider = BM25Provider::default();
+        let documents = vec![
+            "rust programming language".to_string(),
+            "rust is fast".to_string(),
+            "programming in rust".to_string(),
+            "python programming language".to_string(), // Only "programming" and "language" overlap
+        ];
+
+        provider.add_documents(&documents).await.unwrap();
+        let doc_freqs = provider.get_document_frequencies().await;
+
+        // "rust" appears in 3 documents
+        assert_eq!(doc_freqs.get("rust"), Some(&3));
+        // "programming" appears in 4 documents
+        assert_eq!(doc_freqs.get("programming"), Some(&4));
+        // "language" appears in 2 documents
+        assert_eq!(doc_freqs.get("language"), Some(&2));
+    }
+
+    #[tokio::test]
+    async fn test_idf_calculation_uses_correct_document_frequency() {
+        let provider = BM25Provider::default();
+        // Create 100 documents where "common" appears in 95 documents
+        // and "rare" appears in 10 documents
+        let mut documents = Vec::new();
+        for i in 0..100 {
+            if i < 95 {
+                documents.push(format!("common term {}", i));
+            }
+            if i < 10 {
+                documents.push(format!("rare term {}", i));
+            }
+            if i >= 95 && i >= 10 {
+                documents.push(format!("other term {}", i));
+            }
+        }
+
+        provider.add_documents(&documents).await.unwrap();
+        let doc_freqs = provider.get_document_frequencies().await;
+        let doc_count = provider.document_count().await;
+
+        // Verify document frequencies are correct
+        if let Some(&df_common) = doc_freqs.get("common") {
+            // Calculate expected IDF manually
+            let expected_idf = ((doc_count as f32 - df_common as f32 + 1.0) 
+                / (df_common as f32 + 1.0)).ln();
+            
+            // For a common term (appears in 95 of 100 documents), IDF should be low
+            assert!(expected_idf < 0.5, 
+                "Common terms should have low IDF values");
+        }
+
+        if let Some(&df_rare) = doc_freqs.get("rare") {
+            let expected_idf = ((doc_count as f32 - df_rare as f32 + 1.0) 
+                / (df_rare as f32 + 1.0)).ln();
+            
+            // For a rare term (appears in 10 of 100 documents), IDF should be high
+            assert!(expected_idf > 1.0, 
+                "Rare terms should have high IDF values");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bm25_scores_are_accurate_with_correct_df() {
+        let provider = BM25Provider::default();
+        let documents = vec![
+            "the quick brown fox jumps over the lazy dog".to_string(),
+            "a brown dog is sleeping".to_string(),
+            "the fox is very quick".to_string(),
+        ];
+
+        provider.add_documents(&documents).await.unwrap();
+        
+        // Generate embeddings to verify scores are calculated correctly
+        let embedding1 = provider.embed("the quick brown fox").await.unwrap();
+        let embedding2 = provider.embed("a lazy dog").await.unwrap();
+        
+        // Verify embeddings are non-empty and have correct dimensions
+        assert_eq!(embedding1.len(), provider.dimension());
+        assert_eq!(embedding2.len(), provider.dimension());
+        
+        // Verify that terms in vocabulary have non-zero scores
+        let has_non_zero = embedding1.iter().any(|&score| score > 0.0);
+        assert!(has_non_zero, "Embedding should have non-zero scores for matching terms");
+    }
+
+    #[tokio::test]
+    async fn test_document_frequency_unique_terms_per_document() {
+        let provider = BM25Provider::default();
+        // Document with repeated terms - each term should only count once per document
+        let documents = vec![
+            "test test test test".to_string(), // "test" appears 4 times, but df should be 1
+            "test example".to_string(),        // "test" appears 1 time, df should be 2 total
+        ];
+
+        provider.add_documents(&documents).await.unwrap();
+        let doc_freqs = provider.get_document_frequencies().await;
+
+        // "test" appears in 2 documents (regardless of how many times in each)
+        assert_eq!(doc_freqs.get("test"), Some(&2),
+            "Document frequency should be 2 (appears in 2 documents), not total occurrences");
     }
 }

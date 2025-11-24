@@ -14,7 +14,9 @@ devops/
 debian/
 gui/
 qdrant/
-dashboard/
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vite/
 scripts/
 docs/
 sample/

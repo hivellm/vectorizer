@@ -1082,8 +1082,8 @@ impl VectorizerServer {
 
             let path = uri.uri().path();
 
-            // Only handle dashboard routes
-            if !path.starts_with("/dashboard/") {
+            // Only handle dashboard routes (with or without trailing slash)
+            if !path.starts_with("/dashboard/") && path != "/dashboard" {
                 return Response::builder()
                     .status(StatusCode::NOT_FOUND)
                     .body(axum::body::Body::from("Not found"))

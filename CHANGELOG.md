@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **BM25 Document Frequency Calculation**: Fixed incorrect document frequency calculation in BM25 embedding provider
+  - Document frequency now correctly counts number of documents containing each term (not total occurrences)
+  - Separated document frequency tracking from global term frequency during vocabulary building
+  - Uses HashSet per document to count unique terms once per document
+  - Results in correct IDF (Inverse Document Frequency) values and improved BM25 scores
+  - Better search relevance with proper weighting of rare vs common terms
+  - Tested with collections up to 4667 documents showing improved score accuracy
+  - **BENEFIT**: Higher and more accurate BM25 scores, better search quality and relevance ranking
+
 ### Added
 - **Graph Relationships**: Complete graph support for document relationships and traversal
   - Graph data structure with nodes and edges (SIMILAR_TO, REFERENCES, CONTAINS, DERIVED_FROM)
@@ -57,6 +68,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.5.0] - 2025-11-24
+
+### Added
+
+- **Docker Dashboard Integration**: Dashboard is now built and included in Docker images
+  - Multi-stage build includes Node.js stage for dashboard compilation
+  - Dashboard is automatically built during Docker image creation
+  - Built dashboard files are included in the final image at `/vectorizer/dashboard/dist`
+  - Dashboard is always available at `/dashboard/` endpoint without requiring separate build step
+  - Both `Dockerfile` and `Dockerfile.test` now include dashboard build stage
+
+### Fixed
+
+- **Dashboard UI Improvements**:
+  - Replaced emojis with UI icons from @untitledui/icons library in Configuration page
+  - Fixed checkbox layout: each checkbox now appears on its own line for better readability
+  - Fixed FileWatcherPage: handle undefined/null/NaN values in metrics display
+  - Updated formatNumber utility to gracefully handle null/undefined/NaN values
+  - Fixed status health check logic to properly handle undefined values
+
+### Changed
+
+- **Docker Build Process**:
+  - Added dashboard builder stage using Node.js 20 with pnpm
+  - Dashboard dependencies are installed and dashboard is built during image creation
+  - Dashboard build artifacts are copied to final image
+  - Removed dashboard from Docker volumes (now part of image)
 
 ## [1.4.0] - 2025-11-21
 

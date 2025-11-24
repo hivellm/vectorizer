@@ -383,10 +383,7 @@ async fn test_graph_discover_edges_mcp_tool_creates_edges() {
     // Edges should have been created
     assert!(
         final_edge_count > initial_edge_count || edges_created > 0,
-        "Edges should have been created. Initial: {}, Final: {}, Response: {}",
-        initial_edge_count,
-        final_edge_count,
-        edges_created
+        "Edges should have been created. Initial: {initial_edge_count}, Final: {final_edge_count}, Response: {edges_created}"
     );
 
     // Verify specific edges exist (vec1 and vec2 should be similar)
@@ -503,10 +500,7 @@ async fn test_graph_discover_edges_mcp_tool_node_specific() {
 
     assert!(
         final_neighbors > initial_neighbors || edges_created > 0,
-        "Edges should have been created for node1. Initial neighbors: {}, Final: {}, Response: {}",
-        initial_neighbors,
-        final_neighbors,
-        edges_created
+        "Edges should have been created for node1. Initial neighbors: {initial_neighbors}, Final: {final_neighbors}, Response: {edges_created}"
     );
 
     // Verify node1 has node2 as neighbor (they are similar)

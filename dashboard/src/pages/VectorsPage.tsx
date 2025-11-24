@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation } from 'react-router-dom';
 import { RefreshCw01 } from '@untitledui/icons';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';

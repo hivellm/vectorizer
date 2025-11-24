@@ -2,7 +2,7 @@
  * Header component - Untitled UI style
  */
 
-import { useLocation } from 'react-router';
+import { useLocation } from 'react-router-dom';
 
 interface HeaderProps {
   onMenuClick?: () => void;

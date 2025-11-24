@@ -475,20 +475,18 @@ pub async fn list_edges(
     })?;
 
     // Get filter parameters
-    let relationship_type_filter = params.get("relationship_type").and_then(|s| {
-        match s.as_str() {
+    let relationship_type_filter = params
+        .get("relationship_type")
+        .and_then(|s| match s.as_str() {
             "SIMILAR_TO" => Some(RelationshipType::SimilarTo),
             "REFERENCES" => Some(RelationshipType::References),
             "CONTAINS" => Some(RelationshipType::Contains),
             "DERIVED_FROM" => Some(RelationshipType::DerivedFrom),
             _ => None,
-        }
-    });
-    
+        });
+
     // No limit by default - return all edges (can be limited via query param if needed)
-    let limit = params
-        .get("limit")
-        .and_then(|s| s.parse::<usize>().ok());
+    let limit = params.get("limit").and_then(|s| s.parse::<usize>().ok());
 
     info!(
         "Listing edges for collection '{}': relationship_type={:?}, limit={:?}, current_edge_count={}",
@@ -499,7 +497,7 @@ pub async fn list_edges(
     );
 
     let edges = graph.get_all_edges();
-    
+
     info!(
         "Retrieved {} edges from graph for collection '{}'",
         edges.len(),
@@ -515,7 +513,7 @@ pub async fn list_edges(
                     return None;
                 }
             }
-            
+
             Some(EdgeInfo {
                 id: edge.id.clone(),
                 source: edge.source.clone(),
@@ -532,7 +530,7 @@ pub async fn list_edges(
             })
         })
         .collect();
-    
+
     // Apply limit only if specified
     if let Some(limit_value) = limit {
         edge_infos.truncate(limit_value);

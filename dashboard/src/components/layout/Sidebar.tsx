@@ -2,7 +2,7 @@
  * Sidebar navigation component - Untitled UI style
  */
 
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '@/providers/ThemeProvider';
 import { Moon01, Sun } from '@untitledui/icons';
 

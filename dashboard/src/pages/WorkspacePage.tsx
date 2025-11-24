@@ -43,7 +43,7 @@ function WorkspacePage() {
     try {
       const configData = await getConfig();
       setConfig(configData);
-      
+
       // Convert arrays to strings for textarea editing
       if (configData?.projects) {
         configData.projects.forEach((project) => {
@@ -53,7 +53,7 @@ function WorkspacePage() {
           });
         });
       }
-      
+
       setHasUnsavedChanges(false);
     } catch (err) {
       console.error('Error loading workspace data:', err);
@@ -90,7 +90,7 @@ function WorkspacePage() {
 
   const addProject = () => {
     if (!config) return;
-    
+
     const timestamp = Date.now();
     const newProject: WorkspaceProject = {
       name: `new-project-${timestamp}`,
@@ -98,42 +98,42 @@ function WorkspacePage() {
       description: 'New Project Description',
       collections: [],
     };
-    
+
     setConfig({
       ...config,
       projects: [...(config.projects || []), newProject],
     });
-    
+
     setHasUnsavedChanges(true);
     setSearchFilter(`new-project-${timestamp}`);
   };
 
   const removeProject = async (projectName: string) => {
     if (!config) return;
-    
+
     if (!window.confirm(`Are you sure you want to remove project "${projectName}"?`)) {
       return;
     }
-    
+
     setConfig({
       ...config,
       projects: config.projects?.filter((p) => p.name !== projectName) || [],
     });
-    
+
     setHasUnsavedChanges(true);
     setSearchFilter('');
   };
 
   const addCollection = (projectName: string) => {
     if (!config) return;
-    
+
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
-    
+
     if (!project.collections) {
       project.collections = [];
     }
-    
+
     const timestamp = Date.now();
     const newCollection: Collection = {
       name: `new-collection-${timestamp}`,
@@ -143,7 +143,7 @@ function WorkspacePage() {
       include_patterns_str: '',
       exclude_patterns_str: '',
     };
-    
+
     project.collections.push(newCollection);
     setConfig({ ...config });
     setHasUnsavedChanges(true);
@@ -151,15 +151,15 @@ function WorkspacePage() {
 
   const removeCollection = async (projectName: string, collectionIndex: number) => {
     if (!config) return;
-    
+
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
-    
+
     const collectionName = project.collections?.[collectionIndex]?.name;
     if (!window.confirm(`Remove collection "${collectionName}"?`)) {
       return;
     }
-    
+
     project.collections?.splice(collectionIndex, 1);
     setConfig({ ...config });
     setHasUnsavedChanges(true);
@@ -167,13 +167,13 @@ function WorkspacePage() {
 
   const updateIncludePatterns = (projectName: string, collectionIndex: number, value: string) => {
     if (!config) return;
-    
+
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
-    
+
     const collection = project.collections?.[collectionIndex] as any;
     if (!collection) return;
-    
+
     collection.include_patterns_str = value;
     collection.include_patterns = value.split('\n').filter((p: string) => p.trim());
     setConfig({ ...config });
@@ -182,13 +182,13 @@ function WorkspacePage() {
 
   const updateExcludePatterns = (projectName: string, collectionIndex: number, value: string) => {
     if (!config) return;
-    
+
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
-    
+
     const collection = project.collections?.[collectionIndex] as any;
     if (!collection) return;
-    
+
     collection.exclude_patterns_str = value;
     collection.exclude_patterns = value.split('\n').filter((p: string) => p.trim());
     setConfig({ ...config });
@@ -197,10 +197,10 @@ function WorkspacePage() {
 
   const handleProjectFieldChange = (projectName: string, field: string, value: string) => {
     if (!config) return;
-    
+
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
-    
+
     (project as any)[field] = value;
     setConfig({ ...config });
     setHasUnsavedChanges(true);
@@ -213,13 +213,13 @@ function WorkspacePage() {
     value: string
   ) => {
     if (!config) return;
-    
+
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
-    
+
     const collection = project.collections?.[collectionIndex] as any;
     if (!collection) return;
-    
+
     collection[field] = value;
     setConfig({ ...config });
     setHasUnsavedChanges(true);
@@ -227,7 +227,7 @@ function WorkspacePage() {
 
   const saveWorkspaceConfig = async () => {
     if (!config) return;
-    
+
     setSaving(true);
     try {
       // Clean up temporary string fields before saving
@@ -238,7 +238,7 @@ function WorkspacePage() {
           delete collection.exclude_patterns_str;
         });
       });
-      
+
       await updateConfig(configToSave);
       toast.success('Workspace configuration saved successfully!');
       setHasUnsavedChanges(false);
@@ -336,7 +336,7 @@ function WorkspacePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredProjects.map((project, projectIndex) => (
+            {filteredProjects.map((project) => (
               <div
                 key={project.name}
                 className="bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4"
@@ -422,9 +422,8 @@ function WorkspacePage() {
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <svg
-                                className={`w-4 h-4 text-neutral-400 transition-transform ${
-                                  isCollectionExpanded(project.name, collectionIndex) ? 'rotate-90' : ''
-                                }`}
+                                className={`w-4 h-4 text-neutral-400 transition-transform ${isCollectionExpanded(project.name, collectionIndex) ? 'rotate-90' : ''
+                                  }`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"

@@ -118,7 +118,7 @@ cargo build --release --features full
 | **MCP Tools**         | 20 focused individual tools    |
 | **Document Formats**  | 14 formats supported           |
 
-## 🔧 Recent Improvements (v1.4.0)
+## 🔧 Recent Improvements (v1.5.0)
 
 ### Test Suite Enhancements
 
@@ -134,6 +134,7 @@ cargo build --release --features full
 - **✅ Better error handling**: Improved dimension validation and error messages
 - **✅ Storage reliability**: MMap storage now properly persists vector counts
 - **✅ Test stability**: Timeout protection prevents hanging tests
+- **✅ BM25 search quality**: Fixed document frequency calculation for correct IDF values and improved BM25 scores
 
 ## 🎯 Use Cases
 
@@ -180,12 +181,12 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-All SDKs are synchronized with server version **1.4.0**:
+All SDKs are synchronized with server version **1.5.0**:
 
-- **Python**: `pip install vectorizer-sdk` (v1.4.0)
-- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.4.0)
-- **Rust**: `cargo add vectorizer-sdk` (v1.4.0)
-- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.4.0)
+- **Python**: `pip install vectorizer-sdk` (v1.5.0)
+- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.5.0)
+- **Rust**: `cargo add vectorizer-sdk` (v1.5.0)
+- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.5.0)
 
 ## 🔄 Qdrant Migration
 

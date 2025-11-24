@@ -138,7 +138,9 @@ impl Collection {
 
         info!(
             "Populated graph for collection '{}' with {} nodes (out of {} vectors)",
-            self.name, nodes_created, vector_ids.len()
+            self.name,
+            nodes_created,
+            vector_ids.len()
         );
 
         // Preserve edges from original graph (if any)
@@ -148,8 +150,7 @@ impl Collection {
             }
             info!(
                 "Preserved {} edges from previous graph for collection '{}'",
-                edge_count,
-                self.name
+                edge_count, self.name
             );
         } else {
             // If no edges exist, discover edges automatically
@@ -173,35 +174,31 @@ impl Collection {
                     enabled_types: vec!["SIMILAR_TO".to_string()],
                 })
             };
-            
+
             // Limit to first 100 nodes to avoid blocking
             if let Some(config) = discovery_config {
                 let nodes = graph.get_all_nodes();
-                let nodes_to_process: Vec<String> = nodes
-                    .iter()
-                    .take(100)
-                    .map(|n| n.id.clone())
-                    .collect();
-                
+                let nodes_to_process: Vec<String> =
+                    nodes.iter().take(100).map(|n| n.id.clone()).collect();
+
                 if !nodes_to_process.is_empty() {
                     info!(
                         "Auto-discovering edges for collection '{}' (limited to first {} nodes)",
                         self.name,
                         nodes_to_process.len()
                     );
-                    
+
                     let mut edges_created = 0;
                     for node_id in &nodes_to_process {
-                        if let Ok(_edges) = crate::db::graph_relationship_discovery::discover_edges_for_node(
-                            graph,
-                            node_id,
-                            self,
-                            &config,
-                        ) {
+                        if let Ok(_edges) =
+                            crate::db::graph_relationship_discovery::discover_edges_for_node(
+                                graph, node_id, self, &config,
+                            )
+                        {
                             edges_created += _edges;
                         }
                     }
-                    
+
                     info!(
                         "Auto-discovery created {} edges for {} nodes in collection '{}'",
                         edges_created,
@@ -225,14 +222,14 @@ impl Collection {
         if let Some(existing_graph) = &self.graph {
             let edge_count = existing_graph.edge_count();
             let node_count = existing_graph.node_count();
-            
+
             // If graph has nodes but no edges, discover edges automatically
             if edge_count == 0 && node_count > 0 {
                 info!(
                     "Graph for collection '{}' already enabled with {} nodes but no edges, discovering edges automatically",
                     self.name, node_count
                 );
-                
+
                 // Use default config for auto-discovery
                 let discovery_config = if let Some(graph_config) = &self.config.graph {
                     if !graph_config.auto_relationship.enabled_types.is_empty() {
@@ -251,27 +248,26 @@ impl Collection {
                         enabled_types: vec!["SIMILAR_TO".to_string()],
                     }
                 };
-                
+
                 // Limit to first 100 nodes to avoid blocking
                 let nodes = existing_graph.get_all_nodes();
-                let nodes_to_process: Vec<String> = nodes
-                    .iter()
-                    .take(100)
-                    .map(|n| n.id.clone())
-                    .collect();
-                
+                let nodes_to_process: Vec<String> =
+                    nodes.iter().take(100).map(|n| n.id.clone()).collect();
+
                 let mut edges_created = 0;
                 for node_id in &nodes_to_process {
-                    if let Ok(_edges) = crate::db::graph_relationship_discovery::discover_edges_for_node(
-                        existing_graph,
-                        node_id,
-                        self,
-                        &discovery_config,
-                    ) {
+                    if let Ok(_edges) =
+                        crate::db::graph_relationship_discovery::discover_edges_for_node(
+                            existing_graph,
+                            node_id,
+                            self,
+                            &discovery_config,
+                        )
+                    {
                         edges_created += _edges;
                     }
                 }
-                
+
                 info!(
                     "Auto-discovery created {} edges for {} nodes in collection '{}' (use API endpoint /graph/discover/{} for full discovery)",
                     edges_created,
@@ -280,7 +276,10 @@ impl Collection {
                     self.name
                 );
             } else {
-                info!("Graph already enabled for collection '{}' with {} nodes and {} edges", self.name, node_count, edge_count);
+                info!(
+                    "Graph already enabled for collection '{}' with {} nodes and {} edges",
+                    self.name, node_count, edge_count
+                );
             }
             return Ok(());
         }
@@ -327,7 +326,7 @@ impl Collection {
         }
 
         info!("Graph enabled for collection '{}'", self.name);
-        
+
         // Discover edges automatically for existing collections
         // Use default config if graph config doesn't have auto_relationship enabled
         let discovery_config = if let Some(graph_config) = &self.config.graph {
@@ -349,7 +348,7 @@ impl Collection {
                 enabled_types: vec!["SIMILAR_TO".to_string()],
             })
         };
-        
+
         // Limit to first 100 nodes to avoid blocking (full discovery can be done via API)
         if let Some(config) = discovery_config {
             let node_count = graph.node_count();
@@ -358,25 +357,24 @@ impl Collection {
                     "Auto-discovering edges for collection '{}' (limited to first 100 nodes to avoid blocking)",
                     self.name
                 );
-                
+
                 // Limit to first 100 nodes for auto-discovery
                 let nodes_to_process: Vec<String> = {
                     let vector_order = self.vector_order.read();
                     vector_order.iter().cloned().take(100).collect()
                 };
-                
+
                 let mut edges_created = 0;
                 for node_id in &nodes_to_process {
-                    if let Ok(_edges) = crate::db::graph_relationship_discovery::discover_edges_for_node(
-                        &graph,
-                        node_id,
-                        self,
-                        &config,
-                    ) {
+                    if let Ok(_edges) =
+                        crate::db::graph_relationship_discovery::discover_edges_for_node(
+                            &graph, node_id, self, &config,
+                        )
+                    {
                         edges_created += _edges;
                     }
                 }
-                
+
                 info!(
                     "Auto-discovery created {} edges for {} nodes in collection '{}' (use API endpoint /graph/discover/{} for full discovery)",
                     edges_created,
@@ -386,7 +384,7 @@ impl Collection {
                 );
             }
         }
-        
+
         Ok(())
     }
 
@@ -1354,7 +1352,10 @@ impl Collection {
                 if let Some(graph) = &self.graph {
                     let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
                     if let Err(e) = graph.add_node(node) {
-                        debug!("Failed to add graph node for vector '{}' during load: {}", id, e);
+                        debug!(
+                            "Failed to add graph node for vector '{}' during load: {}",
+                            id, e
+                        );
                     }
                 }
             }
@@ -1446,7 +1447,10 @@ impl Collection {
                 if let Some(graph) = &self.graph {
                     let node = crate::db::graph::Node::from_vector(&id, vector.payload.as_ref());
                     if let Err(e) = graph.add_node(node) {
-                        debug!("Failed to add graph node for vector '{}' during fast load: {}", id, e);
+                        debug!(
+                            "Failed to add graph node for vector '{}' during fast load: {}",
+                            id, e
+                        );
                     }
                 }
             }

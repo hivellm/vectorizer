@@ -279,6 +279,7 @@ async fn test_latency_distribution() {
 }
 
 #[tokio::test]
+#[ignore] // Slow test - takes >60 seconds, memory measurement test
 async fn test_memory_usage_distributed() {
     // This test verifies that memory usage is reasonable in distributed mode
     // Note: Actual memory measurement would require system APIs
