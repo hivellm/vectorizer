@@ -33,7 +33,7 @@ from models import (
     SparseVector,
 )
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"
 __author__ = "HiveLLM Team"
 __email__ = "team@hivellm.org"
 

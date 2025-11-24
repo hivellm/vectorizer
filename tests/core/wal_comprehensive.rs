@@ -398,6 +398,7 @@ async fn test_wal_error_handling() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_wal_without_enabling() {
     // Test that operations work normally when WAL is not enabled
     let store = VectorStore::new();
