@@ -35,7 +35,7 @@ jobs:
 
     - name: Build SDK
       working-directory: ./sdks/csharp
-      run: dotnet build --no-restore
+      run: dotnet build Vectorizer.csproj --no-restore
 
     - name: Run tests (skip integration tests that require server)
       working-directory: ./sdks/csharp
@@ -78,7 +78,7 @@ jobs:
 
     - name: Build SDK in Release mode
       working-directory: ./sdks/csharp
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build Vectorizer.csproj --configuration Release --no-restore
 
     - name: Check build artifacts
       working-directory: ./sdks/csharp

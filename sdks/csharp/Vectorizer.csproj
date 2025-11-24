@@ -49,4 +49,17 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Exclude test files from the main project -->
+    <Compile Remove="Vectorizer.Tests\**\*" />
+    <Content Remove="Vectorizer.Tests\**\*" />
+    <EmbeddedResource Remove="Vectorizer.Tests\**\*" />
+    <None Remove="Vectorizer.Tests\**\*" />
+  </ItemGroup>
+  
+  <PropertyGroup>
+    <!-- Exclude test directories from default includes -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Vectorizer.Tests\**\*</DefaultItemExcludes>
+  </PropertyGroup>
+
 </Project>

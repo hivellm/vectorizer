@@ -13,21 +13,16 @@ pub mod graph;
 pub use graph::*;
 
 /// Vector similarity metrics
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SimilarityMetric {
     /// Cosine similarity
+    #[default]
     Cosine,
     /// Euclidean distance
     Euclidean,
     /// Dot product
     DotProduct,
-}
-
-impl Default for SimilarityMetric {
-    fn default() -> Self {
-        Self::Cosine
-    }
 }
 
 /// Vector representation
@@ -339,10 +334,11 @@ pub struct BatchDeleteRequest {
 }
 
 /// Summarization methods
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SummarizationMethod {
     /// Extractive summarization
+    #[default]
     Extractive,
     /// Keyword summarization
     Keyword,
@@ -352,11 +348,6 @@ pub enum SummarizationMethod {
     Abstractive,
 }
 
-impl Default for SummarizationMethod {
-    fn default() -> Self {
-        Self::Extractive
-    }
-}
 
 /// Summarize text request
 #[derive(Debug, Clone, Serialize, Deserialize)]

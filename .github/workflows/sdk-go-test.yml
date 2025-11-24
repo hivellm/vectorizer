@@ -34,7 +34,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('sdks/go/go.sum') }}
+        key: ${{ runner.os }}-go-${{ hashFiles('sdks/go/go.mod') }}
         restore-keys: |
           ${{ runner.os }}-go-
 
@@ -44,6 +44,7 @@ jobs:
 
     - name: Run tests (skip integration tests that require server)
       working-directory: ./sdks/go
+      shell: bash
       run: |
         # Run unit tests only, skip integration tests
         go test -v -short ./... || go test -v ./... -run '^Test[^I]' || echo "Some tests may have failed, but continuing..."
@@ -53,10 +54,12 @@ jobs:
 
     - name: Run go vet
       working-directory: ./sdks/go
+      shell: bash
       run: go vet ./...
 
     - name: Run gofmt check
       working-directory: ./sdks/go
+      shell: bash
       run: |
         if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
           echo "Code is not formatted. Run 'gofmt -s -w .'"
@@ -85,6 +88,7 @@ jobs:
 
     - name: Check build artifacts
       working-directory: ./sdks/go
+      shell: bash
       run: |
         if [ ! -f "vectorizer-sdk-go" ] && [ ! -f "*.a" ]; then
           echo "Build completed (library package, no binary expected)"

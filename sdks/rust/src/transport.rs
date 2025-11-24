@@ -67,6 +67,7 @@ pub fn parse_connection_string(connection_string: &str) -> Result<(Protocol, Str
     let authority = parts[1];
 
     // Parse host and port
+    #[allow(unused_variables)]
     let (host, port) = if authority.contains(':') {
         let host_port: Vec<&str> = authority.split(':').collect();
         if host_port.len() != 2 {

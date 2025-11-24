@@ -118,6 +118,7 @@ mod metal_tests {
             normalization: None,
             storage_type: None,
             sharding: None,
+            graph: None,
         };
 
         let collection_name = "metal_test_collection";

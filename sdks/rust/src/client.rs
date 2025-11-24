@@ -73,7 +73,7 @@ impl VectorizerClient {
         let (transport, protocol, base_url): (Arc<dyn Transport>, Protocol, String) =
             if let Some(conn_str) = config.connection_string {
                 // Use connection string
-                let (proto, host, port) = crate::transport::parse_connection_string(&conn_str)?;
+                let (proto, _host, _port) = crate::transport::parse_connection_string(&conn_str)?;
 
                 match proto {
                     Protocol::Http => {
@@ -561,7 +561,7 @@ impl VectorizerClient {
         // Create a basic CollectionInfo from the response
         let info = CollectionInfo {
             name: create_response.collection,
-            dimension: dimension,
+            dimension,
             metric: format!("{:?}", metric.unwrap_or_default()).to_lowercase(),
             vector_count: 0,
             document_count: 0,
@@ -681,12 +681,12 @@ impl VectorizerClient {
         }
 
         // Validate max_bullets
-        if let Some(max) = max_bullets {
-            if max == 0 {
-                return Err(VectorizerError::validation(
-                    "max_bullets must be greater than 0",
-                ));
-            }
+        if let Some(max) = max_bullets
+            && max == 0
+        {
+            return Err(VectorizerError::validation(
+                "max_bullets must be greater than 0",
+            ));
         }
 
         let mut payload = serde_json::Map::new();
@@ -781,21 +781,21 @@ impl VectorizerClient {
     ) -> Result<serde_json::Value> {
         // Validate weights (must be between 0.0 and 1.0)
         if let Some(w) = name_match_weight {
-            if w < 0.0 || w > 1.0 {
+            if !(0.0..=1.0).contains(&w) {
                 return Err(VectorizerError::validation(
                     "name_match_weight must be between 0.0 and 1.0",
                 ));
             }
         }
         if let Some(w) = term_boost_weight {
-            if w < 0.0 || w > 1.0 {
+            if !(0.0..=1.0).contains(&w) {
                 return Err(VectorizerError::validation(
                     "term_boost_weight must be between 0.0 and 1.0",
                 ));
             }
         }
         if let Some(w) = signal_boost_weight {
-            if w < 0.0 || w > 1.0 {
+            if !(0.0..=1.0).contains(&w) {
                 return Err(VectorizerError::validation(
                     "signal_boost_weight must be between 0.0 and 1.0",
                 ));
