@@ -25,7 +25,7 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
 - **🖥️ Web Dashboard**: Modern React + TypeScript dashboard with complete graph management interface
-- **🖥️ Desktop GUI**: Electron-based desktop application for visual database management (legacy)
+- **🖥️ Desktop GUI**: Electron-based desktop application with vis-network graph visualization for visual database management
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
 - **🧠 Multiple Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
 - **🕸️ Graph Relationships**: Automatic relationship discovery and graph traversal with full GUI support for edge management, node exploration, and path finding

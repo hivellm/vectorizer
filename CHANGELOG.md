@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Graph Integration Tests**: Fixed graph integration tests to use `create_collection_cpu_only` for deterministic test behavior
+  - Tests now explicitly create CPU collections regardless of GPU availability
+  - Prevents test failures when GPU is available and `create_collection` defaults to GPU collection
+  - Ensures consistent test execution across different hardware configurations
+
 - **BM25 Document Frequency Calculation**: Fixed incorrect document frequency calculation in BM25 embedding provider
   - Document frequency now correctly counts number of documents containing each term (not total occurrences)
   - Separated document frequency tracking from global term frequency during vocabulary building
@@ -16,6 +21,14 @@ All notable changes to this project will be documented in this file.
   - **BENEFIT**: Higher and more accurate BM25 scores, better search quality and relevance ranking
 
 ### Added
+- **Windows Complete Package Build**: Automated Windows release package with Vectorizer, CLI, and GUI
+  - New GitHub Actions job `build-windows-complete` builds all components together
+  - Creates ZIP archive containing Rust binaries, GUI with all DLLs, and config files
+  - Generates MSI installer using WiX Toolset with automatic GUI file inclusion via Heat.exe
+  - GUI files are automatically packaged from `dist-release/win-unpacked` with all dependencies
+  - Start Menu shortcut for Vectorizer GUI included in MSI installer
+  - Single unified package for easy Windows deployment
+
 - **Graph Relationships**: Complete graph support for document relationships and traversal
   - Graph data structure with nodes and edges (SIMILAR_TO, REFERENCES, CONTAINS, DERIVED_FROM)
   - Automatic relationship discovery based on semantic similarity
@@ -55,6 +68,29 @@ All notable changes to this project will be documented in this file.
   - Enhanced interactions: Context menus for nodes and edges, detailed information panels
   - Visual feedback: Highlight paths, neighbors, and related nodes in graph visualization
   - Complete integration with all graph API endpoints from `useGraph` hook
+
+- **GUI Graph Visualization**: Replaced custom SVG graph visualization with vis-network library
+  - Consistent graph visualization between dashboard and desktop GUI
+  - Interactive node dragging, zooming, and panning
+  - Better performance with large graphs
+  - Improved visual styling and layout algorithms
+  - Full integration with vis-network physics engine for automatic layout
+
+### Changed
+
+- **GitHub Actions**: Updated to latest stable versions
+  - Updated `actions/checkout` to v6 (already at v6)
+  - Updated `actions/setup-node` to v4 (latest stable)
+  - Updated `pnpm/action-setup` to v4 (latest stable)
+  - Standardized release upload actions to use `softprops/action-gh-release@v2` for Windows complete package
+  - Added `releases: write` permission for release uploads
+
+- **GUI Dependencies**: Updated to latest versions
+  - Updated Electron, Vue, Vite, and related dependencies to latest stable versions
+  - Migrated to ESM (ES Modules) with `"type": "module"` in package.json
+  - Renamed `vite.config.js` to `vite.config.mjs` for explicit ESM support
+  - Updated PostCSS config to ESM format
+  - Removed deprecated `includeSubNodeModules` from electron-builder configuration
 
 - **Distributed Horizontal Sharding**: Support for distributing collections and vectors across multiple server instances
   - Cluster management with automatic membership and server discovery
