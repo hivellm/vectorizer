@@ -47,14 +47,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tracing::info!("\n1. Health Check");
         match client2.health_check().await {
             Ok(health) => tracing::info!("Server status: {:?}", health.status),
-            Err(e) => etracing::info!("Health check failed: {}", e),
+            Err(e) => tracing::info!("Health check failed: {}", e),
         }
 
         // List collections
         tracing::info!("\n2. List Collections");
         match client2.list_collections().await {
             Ok(collections) => tracing::info!("Found {} collection(s)", collections.len()),
-            Err(e) => etracing::info!("Failed to list collections: {}", e),
+            Err(e) => tracing::info!("Failed to list collections: {}", e),
         }
 
         // Search example
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             tracing::info!("  {}. Score: {:.4}", i + 1, result.score);
                         }
                     }
-                    Err(e) => etracing::info!("Search failed: {}", e),
+                    Err(e) => tracing::info!("Search failed: {}", e),
                 }
             }
         }
@@ -90,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match client.health_check().await {
             Ok(health) => tracing::info!("Server status: {:?}", health.status),
-            Err(e) => etracing::info!("Health check failed: {}", e),
+            Err(e) => tracing::info!("Health check failed: {}", e),
         }
     }
 
