@@ -1,0 +1,150 @@
+warning: vectorizer@1.5.0: Skipping winres resource generation on MSVC to avoid duplicate resource errors
+    Finished `bench` profile [optimized] target(s) in 0.48s
+     Running benchmark\filter\filter_benchmark.rs (target\release\deps\filter_benchmark-2c66f139df258cbe.exe)
+Gnuplot not found, using plotters backend
+Benchmarking keyword_filter_10k
+Benchmarking keyword_filter_10k: Warming up for 3.0000 s
+Benchmarking keyword_filter_10k: Collecting 100 samples in estimated 5.6861 s (40k iterations)
+Benchmarking keyword_filter_10k: Analyzing
+keyword_filter_10k      time:   [149.55 ┬Ás 160.02 ┬Ás 170.15 ┬Ás]
+                        change: [-36.200% -34.129% -31.807%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  1 (1.00%) high mild
+  10 (10.00%) high severe
+
+Benchmarking integer_range_filter_10k
+Benchmarking integer_range_filter_10k: Warming up for 3.0000 s
+Benchmarking integer_range_filter_10k: Collecting 100 samples in estimated 5.6915 s (30k iterations)
+Benchmarking integer_range_filter_10k: Analyzing
+integer_range_filter_10k
+                        time:   [165.81 ┬Ás 166.61 ┬Ás 167.54 ┬Ás]
+                        change: [-3.1556% -2.5156% -1.8511%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+Benchmarking float_range_filter_10k
+Benchmarking float_range_filter_10k: Warming up for 3.0000 s
+Benchmarking float_range_filter_10k: Collecting 100 samples in estimated 5.0151 s (429k iterations)
+Benchmarking float_range_filter_10k: Analyzing
+float_range_filter_10k  time:   [11.539 ┬Ás 11.632 ┬Ás 11.738 ┬Ás]
+                        change: [-9.3344% -6.1739% -3.0272%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+
+Benchmarking text_filter_10k
+Benchmarking text_filter_10k: Warming up for 3.0000 s
+Benchmarking text_filter_10k: Collecting 100 samples in estimated 5.8528 s (20k iterations)
+Benchmarking text_filter_10k: Analyzing
+text_filter_10k         time:   [283.50 ┬Ás 284.74 ┬Ás 286.06 ┬Ás]
+                        change: [-36.722% -35.972% -35.210%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+
+Benchmarking geo_bounding_box_filter_10k
+Benchmarking geo_bounding_box_filter_10k: Warming up for 3.0000 s
+Benchmarking geo_bounding_box_filter_10k: Collecting 100 samples in estimated 5.0499 s (490k iterations)
+Benchmarking geo_bounding_box_filter_10k: Analyzing
+geo_bounding_box_filter_10k
+                        time:   [10.380 ┬Ás 10.431 ┬Ás 10.483 ┬Ás]
+                        change: [-2.3267% -1.3203% -0.4382%] (p = 0.01 < 0.05)
+                        Change within noise threshold.
+Found 8 outliers among 100 measurements (8.00%)
+  6 (6.00%) high mild
+  2 (2.00%) high severe
+
+Benchmarking geo_radius_filter_10k
+Benchmarking geo_radius_filter_10k: Warming up for 3.0000 s
+Benchmarking geo_radius_filter_10k: Collecting 100 samples in estimated 5.6258 s (25k iterations)
+Benchmarking geo_radius_filter_10k: Analyzing
+geo_radius_filter_10k   time:   [223.46 ┬Ás 224.24 ┬Ás 225.09 ┬Ás]
+                        change: [+0.9676% +1.5050% +1.9983%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+
+Benchmarking nested_field_filter_10k
+Benchmarking nested_field_filter_10k: Warming up for 3.0000 s
+Benchmarking nested_field_filter_10k: Collecting 100 samples in estimated 5.6012 s (35k iterations)
+Benchmarking nested_field_filter_10k: Analyzing
+nested_field_filter_10k time:   [157.55 ┬Ás 158.21 ┬Ás 158.96 ┬Ás]
+                        change: [-2.9614% -2.4709% -1.9018%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+Benchmarking filter_scaling/keyword_filter/1000
+Benchmarking filter_scaling/keyword_filter/1000: Warming up for 3.0000 s
+Benchmarking filter_scaling/keyword_filter/1000: Collecting 100 samples in estimated 5.0154 s (374k iterations)
+Benchmarking filter_scaling/keyword_filter/1000: Analyzing
+filter_scaling/keyword_filter/1000
+                        time:   [13.475 ┬Ás 13.593 ┬Ás 13.748 ┬Ás]
+                        change: [+1.9378% +2.8231% +3.7959%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 10 outliers among 100 measurements (10.00%)
+  4 (4.00%) high mild
+  6 (6.00%) high severe
+Benchmarking filter_scaling/range_filter/1000
+Benchmarking filter_scaling/range_filter/1000: Warming up for 3.0000 s
+Benchmarking filter_scaling/range_filter/1000: Collecting 100 samples in estimated 5.0113 s (384k iterations)
+Benchmarking filter_scaling/range_filter/1000: Analyzing
+filter_scaling/range_filter/1000
+                        time:   [12.930 ┬Ás 13.004 ┬Ás 13.088 ┬Ás]
+                        change: [+1.1611% +1.7537% +2.4290%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  4 (4.00%) high mild
+  3 (3.00%) high severe
+Benchmarking filter_scaling/keyword_filter/10000
+Benchmarking filter_scaling/keyword_filter/10000: Warming up for 3.0000 s
+Benchmarking filter_scaling/keyword_filter/10000: Collecting 100 samples in estimated 5.0515 s (35k iterations)
+Benchmarking filter_scaling/keyword_filter/10000: Analyzing
+filter_scaling/keyword_filter/10000
+                        time:   [138.41 ┬Ás 139.14 ┬Ás 140.03 ┬Ás]
+                        change: [-2.4683% -1.8458% -1.2031%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high severe
+Benchmarking filter_scaling/range_filter/10000
+Benchmarking filter_scaling/range_filter/10000: Warming up for 3.0000 s
+Benchmarking filter_scaling/range_filter/10000: Collecting 100 samples in estimated 5.1007 s (30k iterations)
+Benchmarking filter_scaling/range_filter/10000: Analyzing
+filter_scaling/range_filter/10000
+                        time:   [167.75 ┬Ás 168.72 ┬Ás 169.84 ┬Ás]
+                        change: [-0.5629% +0.1760% +0.8678%] (p = 0.63 > 0.05)
+                        No change in performance detected.
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+Benchmarking filter_scaling/keyword_filter/100000
+Benchmarking filter_scaling/keyword_filter/100000: Warming up for 3.0000 s
+Benchmarking filter_scaling/keyword_filter/100000: Collecting 100 samples in estimated 5.0369 s (1900 iterations)
+Benchmarking filter_scaling/keyword_filter/100000: Analyzing
+filter_scaling/keyword_filter/100000
+                        time:   [2.4688 ms 2.5389 ms 2.6214 ms]
+                        change: [-32.999% -28.281% -23.184%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+Benchmarking filter_scaling/range_filter/100000
+Benchmarking filter_scaling/range_filter/100000: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 9.7s, enable flat sampling, or reduce sample count to 50.
+Benchmarking filter_scaling/range_filter/100000: Collecting 100 samples in estimated 9.7287 s (5050 iterations)
+Benchmarking filter_scaling/range_filter/100000: Analyzing
+filter_scaling/range_filter/100000
+                        time:   [1.8870 ms 1.9757 ms 2.0942 ms]
+                        change: [-10.672% -8.2177% -5.4388%] (p = 0.00 < 0.05)
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  2 (2.00%) high mild
+  4 (4.00%) high severe
+

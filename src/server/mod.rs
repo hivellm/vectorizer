@@ -221,7 +221,6 @@ impl VectorizerServer {
         let embedding_manager_for_loading = Arc::new(embedding_manager);
         let watcher_system_for_loading = watcher_system_arc.clone();
         let background_handle = tokio::task::spawn(async move {
-            println!("📦 Background task started - loading collections and checking workspace...");
             info!("📦 Background task started - loading collections and checking workspace...");
 
             // Check for cancellation before starting
@@ -262,10 +261,6 @@ impl VectorizerServer {
                 match store_for_loading.load_all_persisted_collections() {
                     Ok(count) => {
                         if count > 0 {
-                            println!(
-                                "✅ Background loading completed - {} collections loaded",
-                                count
-                            );
                             info!(
                                 "✅ COLLECTION_LOAD_STEP_2: Background loading completed - {} collections loaded",
                                 count
@@ -333,9 +328,6 @@ impl VectorizerServer {
 
                             count
                         } else {
-                            println!(
-                                "ℹ️  Background loading completed - no persisted collections found"
-                            );
                             info!(
                                 "✅ COLLECTION_LOAD_STEP_2: Background loading completed - no persisted collections found"
                             );
@@ -432,10 +424,6 @@ impl VectorizerServer {
                         }
                     }
                     Err(e) => {
-                        println!(
-                            "⚠️  Failed to load persisted collections in background: {}",
-                            e
-                        );
                         warn!(
                             "⚠️  Failed to load persisted collections in background: {}",
                             e
@@ -444,9 +432,6 @@ impl VectorizerServer {
                     }
                 }
             } else {
-                println!(
-                    "⏭️  Auto-load DISABLED - collections will be loaded on first access (lazy loading)"
-                );
                 info!(
                     "⏭️  Auto-load DISABLED - collections will be loaded on first access (lazy loading)"
                 );
@@ -471,10 +456,6 @@ impl VectorizerServer {
             {
                 Ok(workspace_count) => {
                     if workspace_count > 0 {
-                        println!(
-                            "✅ Workspace loading completed - {} collections indexed/loaded",
-                            workspace_count
-                        );
                         info!(
                             "✅ Workspace loading completed - {} collections indexed/loaded",
                             workspace_count
@@ -498,10 +479,6 @@ impl VectorizerServer {
                             .unwrap_or(0);
 
                         if bin_count > 0 {
-                            println!(
-                                "📦 Found {} .bin files - compacting to vectorizer.vecdb from memory...",
-                                bin_count
-                            );
                             info!(
                                 "📦 Found {} .bin files - compacting to vectorizer.vecdb from memory...",
                                 bin_count
@@ -517,17 +494,6 @@ impl VectorizerServer {
                             // Compact directly FROM MEMORY (no raw files needed)
                             match compactor.compact_from_memory(&store_for_loading) {
                                 Ok(index) => {
-                                    println!("✅ Compaction complete:");
-                                    println!("   Collections: {}", index.collection_count());
-                                    println!("   Total vectors: {}", index.total_vectors());
-                                    println!(
-                                        "   Compressed size: {} MB",
-                                        index.compressed_size / 1_048_576
-                                    );
-                                    println!(
-                                        "   🗑️  vectorizer.vecdb created from memory - no raw files needed"
-                                    );
-
                                     info!(
                                         "✅ First compaction complete - created vectorizer.vecdb from memory"
                                     );
@@ -541,10 +507,6 @@ impl VectorizerServer {
                                     // Verify the file was created
                                     if vecdb_path.exists() {
                                         let metadata = std::fs::metadata(&vecdb_path).unwrap();
-                                        println!(
-                                            "   📊 vectorizer.vecdb size: {} MB",
-                                            metadata.len() / 1_048_576
-                                        );
                                         info!(
                                             "   📊 vectorizer.vecdb size: {} bytes",
                                             metadata.len()
@@ -556,10 +518,6 @@ impl VectorizerServer {
                                     // Remove any temporary .bin files that might have been created during indexing
                                     match compactor.remove_raw_files() {
                                         Ok(count) if count > 0 => {
-                                            println!(
-                                                "   🗑️  Removed {} temporary raw files",
-                                                count
-                                            );
                                             info!("🗑️  Removed {} temporary raw files", count);
                                         }
                                         Ok(_) => {
@@ -571,7 +529,6 @@ impl VectorizerServer {
                                     }
                                 }
                                 Err(e) => {
-                                    println!("❌ Compaction failed: {}", e);
                                     error!("❌ Compaction from memory failed: {}", e);
                                     error!("   Error details: {:?}", e);
                                     error!("   Will retry on next startup");
@@ -579,22 +536,18 @@ impl VectorizerServer {
                             }
                         } else {
                             // No .bin files - either loaded from .vecdb or nothing to compact
-                            println!("ℹ️  No .bin files found - skipping compaction");
                             info!("ℹ️  No .bin files found - vectorizer.vecdb is up to date");
                         }
                     } else {
-                        println!("ℹ️  All collections already exist - no indexing needed");
                         info!("ℹ️  All collections already exist - no indexing needed");
                     }
                 }
                 Err(e) => {
-                    println!("⚠️  Failed to process workspace: {}", e);
                     warn!("⚠️  Failed to process workspace: {}", e);
                 }
             }
 
             // NOW enable auto-save after all collections are loaded
-            println!("🔄 Enabling auto-save after successful initialization");
             info!("🔄 Enabling auto-save after successful initialization");
             store_for_loading.enable_auto_save();
             info!("✅ Auto-save enabled - collections will be saved every 5 minutes when modified");

@@ -3,6 +3,7 @@
 //! This module demonstrates how to use the intelligent search tools
 
 use serde_json::json;
+use tracing::info;
 
 use crate::intelligent_search::mcp_server_integration::*;
 use crate::intelligent_search::mcp_tools::*;
@@ -35,25 +36,25 @@ impl ExampleUsage {
 
         let response = handler.handle_intelligent_search(tool).await?;
 
-        println!("Intelligent Search Results:");
-        println!(
+        info!("Intelligent Search Results:");
+        info!(
             "- Total queries generated: {}",
             response.metadata.total_queries
         );
-        println!(
+        info!(
             "- Collections searched: {}",
             response.metadata.collections_searched
         );
-        println!("- Results found: {}", response.results.len());
+        info!("- Results found: {}", response.results.len());
 
         for (i, result) in response.results.iter().enumerate() {
-            println!(
+            info!(
                 "  {}. [{}] Score: {:.3}",
                 i + 1,
                 result.collection,
                 result.score
             );
-            println!("     {}", result.content);
+            info!("     {}", result.content);
         }
 
         Ok(())
@@ -79,25 +80,25 @@ impl ExampleUsage {
 
         let response = handler.handle_multi_collection_search(tool).await?;
 
-        println!("Multi Collection Search Results:");
-        println!(
+        info!("Multi Collection Search Results:");
+        info!(
             "- Collections searched: {}",
             response.metadata.collections_searched
         );
-        println!(
+        info!(
             "- Total results found: {}",
             response.metadata.total_results_found
         );
-        println!("- Final results: {}", response.results.len());
+        info!("- Final results: {}", response.results.len());
 
         for (i, result) in response.results.iter().enumerate() {
-            println!(
+            info!(
                 "  {}. [{}] Score: {:.3}",
                 i + 1,
                 result.collection,
                 result.score
             );
-            println!("     {}", result.content);
+            info!("     {}", result.content);
         }
 
         Ok(())
@@ -124,15 +125,15 @@ impl ExampleUsage {
 
         let response = handler.handle_semantic_search(tool).await?;
 
-        println!("Semantic Search Results:");
-        println!("- Collection: {}", collection);
-        println!("- Semantic reranking: {}", semantic_reranking);
-        println!("- Similarity threshold: {}", similarity_threshold);
-        println!("- Results found: {}", response.results.len());
+        info!("Semantic Search Results:");
+        info!("- Collection: {}", collection);
+        info!("- Semantic reranking: {}", semantic_reranking);
+        info!("- Similarity threshold: {}", similarity_threshold);
+        info!("- Results found: {}", response.results.len());
 
         for (i, result) in response.results.iter().enumerate() {
-            println!("  {}. Score: {:.3}", i + 1, result.score);
-            println!("     {}", result.content);
+            info!("  {}. Score: {:.3}", i + 1, result.score);
+            info!("     {}", result.content);
         }
 
         Ok(())
@@ -169,15 +170,15 @@ impl ExampleUsage {
 
         let response = handler.handle_contextual_search(tool).await?;
 
-        println!("Contextual Search Results:");
-        println!("- Collection: {}", collection);
-        println!("- Context reranking: {}", context_reranking);
-        println!("- Context weight: {}", context_weight);
-        println!("- Results found: {}", response.results.len());
+        info!("Contextual Search Results:");
+        info!("- Collection: {}", collection);
+        info!("- Context reranking: {}", context_reranking);
+        info!("- Context weight: {}", context_weight);
+        info!("- Results found: {}", response.results.len());
 
         for (i, result) in response.results.iter().enumerate() {
-            println!("  {}. Score: {:.3}", i + 1, result.score);
-            println!("     {}", result.content);
+            info!("  {}. Score: {:.3}", i + 1, result.score);
+            info!("     {}", result.content);
         }
 
         Ok(())
@@ -202,19 +203,19 @@ impl ExampleUsage {
             .await
             .map_err(|e| e.error)?;
 
-        println!("REST API Response:");
-        println!("- API Version: {}", response.api_version);
-        println!("- Timestamp: {}", response.timestamp);
-        println!("- Results: {}", response.results.len());
+        info!("REST API Response:");
+        info!("- API Version: {}", response.api_version);
+        info!("- Timestamp: {}", response.timestamp);
+        info!("- Results: {}", response.results.len());
 
         for (i, result) in response.results.iter().enumerate() {
-            println!(
+            info!(
                 "  {}. [{}] Score: {:.3}",
                 i + 1,
                 result.collection,
                 result.score
             );
-            println!("     {}", result.content);
+            info!("     {}", result.content);
         }
 
         Ok(())
@@ -226,9 +227,9 @@ impl ExampleUsage {
 
         // Get available tools
         let tools = integration.get_available_tools();
-        println!("Available MCP Tools:");
+        info!("Available MCP Tools:");
         for tool in &tools {
-            println!(
+            info!(
                 "- {}: {}",
                 tool["name"].as_str().unwrap(),
                 tool["description"].as_str().unwrap()
@@ -237,9 +238,9 @@ impl ExampleUsage {
 
         // Get REST endpoints
         let endpoints = integration.get_rest_endpoints();
-        println!("\nAvailable REST Endpoints:");
+        info!("\nAvailable REST Endpoints:");
         for endpoint in &endpoints {
-            println!(
+            info!(
                 "- {} {}: {}",
                 endpoint["method"].as_str().unwrap(),
                 endpoint["path"].as_str().unwrap(),
@@ -261,8 +262,8 @@ impl ExampleUsage {
         let response = integration
             .handle_mcp_tool_call("intelligent_search", tool_call)
             .await?;
-        println!("\nMCP Tool Call Response:");
-        println!(
+        info!("\nMCP Tool Call Response:");
+        info!(
             "- Results: {}",
             response["results"].as_array().unwrap().len()
         );
@@ -272,33 +273,33 @@ impl ExampleUsage {
 
     /// Run all examples
     pub async fn run_all_examples() -> Result<(), String> {
-        println!("=== Intelligent Search Examples ===\n");
+        info!("=== Intelligent Search Examples ===\n");
 
-        println!("1. Intelligent Search Example:");
+        info!("1. Intelligent Search Example:");
         Self::example_intelligent_search().await?;
         println!();
 
-        println!("2. Multi Collection Search Example:");
+        info!("2. Multi Collection Search Example:");
         Self::example_multi_collection_search().await?;
         println!();
 
-        println!("3. Semantic Search Example:");
+        info!("3. Semantic Search Example:");
         Self::example_semantic_search().await?;
         println!();
 
-        println!("4. Contextual Search Example:");
+        info!("4. Contextual Search Example:");
         Self::example_contextual_search().await?;
         println!();
 
-        println!("5. REST API Example:");
+        info!("5. REST API Example:");
         Self::example_rest_api().await?;
         println!();
 
-        println!("6. MCP Server Integration Example:");
+        info!("6. MCP Server Integration Example:");
         Self::example_mcp_server_integration().await?;
         println!();
 
-        println!("=== All Examples Completed Successfully ===");
+        info!("=== All Examples Completed Successfully ===");
         Ok(())
     }
 }

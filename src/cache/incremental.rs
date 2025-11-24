@@ -236,7 +236,7 @@ impl IncrementalProcessor {
 
             if let Some(task) = task {
                 if let Err(e) = processor.process_task(task).await {
-                    eprintln!("Worker {} failed to process task: {}", worker_id, e);
+                    tracing::error!("Worker {} failed to process task: {}", worker_id, e);
                 }
             } else {
                 // No tasks available, wait a bit

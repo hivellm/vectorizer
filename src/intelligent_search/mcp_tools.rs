@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use tracing::error;
 
 use crate::intelligent_search::*;
 
@@ -229,7 +230,7 @@ impl MCPToolHandler {
                 match self.create_embedding_manager_for_collection(collection) {
                     Ok(manager) => manager,
                     Err(e) => {
-                        eprintln!(
+                        error!(
                             "Error creating embedding manager for collection {}: {}",
                             collection, e
                         );
@@ -286,11 +287,11 @@ impl MCPToolHandler {
                             }
                         }
                         Err(e) => {
-                            eprintln!("Error searching collection {}: {}", collection, e);
+                            error!("Error searching collection {}: {}", collection, e);
                         }
                     },
                     Err(e) => {
-                        eprintln!("Error embedding query '{}': {}", query, e);
+                        error!("Error embedding query '{}': {}", query, e);
                     }
                 }
             }
@@ -418,13 +419,13 @@ impl MCPToolHandler {
                             collection_results.insert(collection.clone(), collection_count);
                         }
                         Err(e) => {
-                            eprintln!("Error searching collection {}: {}", collection, e);
+                            error!("Error searching collection {}: {}", collection, e);
                             collection_results.insert(collection.clone(), 0);
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error embedding query: {}", e);
+                    error!("Error embedding query: {}", e);
                     collection_results.insert(collection.clone(), 0);
                 }
             }
@@ -533,12 +534,12 @@ impl MCPToolHandler {
                             }
                         }
                         Err(e) => {
-                            eprintln!("Error searching collection {}: {}", tool.collection, e);
+                            error!("Error searching collection {}: {}", tool.collection, e);
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error embedding query '{}': {}", query, e);
+                    error!("Error embedding query '{}': {}", query, e);
                 }
             }
         }
@@ -652,12 +653,12 @@ impl MCPToolHandler {
                             }
                         }
                         Err(e) => {
-                            eprintln!("Error searching collection {}: {}", tool.collection, e);
+                            error!("Error searching collection {}: {}", tool.collection, e);
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error embedding query '{}': {}", query, e);
+                    error!("Error embedding query '{}': {}", query, e);
                 }
             }
         }

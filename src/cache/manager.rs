@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use tokio::fs;
 use tokio::sync::RwLock as AsyncRwLock;
-use tracing::info;
+use tracing::{error, info};
 
 use super::*;
 
@@ -376,7 +376,7 @@ impl CacheManager {
                 interval.tick().await;
 
                 if let Err(e) = manager.cleanup().await {
-                    eprintln!("Cache cleanup error: {}", e);
+                    error!("Cache cleanup error: {}", e);
                 }
             }
         });

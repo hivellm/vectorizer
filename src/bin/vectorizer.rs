@@ -6,7 +6,7 @@
 #![allow(clippy::uninlined_format_args)]
 
 use clap::Parser;
-use tracing::error;
+use tracing::{error, info};
 use vectorizer::server::VectorizerServer;
 
 #[derive(Parser)]
@@ -69,8 +69,8 @@ async fn main() -> anyhow::Result<()> {
     let log_level = if cli.verbose { "debug" } else { "warn" };
     let _ = vectorizer::logging::init_logging_with_level("vectorizer", log_level);
 
-    println!("🚀 Starting Vectorizer Server");
-    println!("🌐 Server: {}:{}", cli.host, cli.port);
+    info!("🚀 Starting Vectorizer Server");
+    info!("🌐 Server: {}:{}", cli.host, cli.port);
 
     // Create and start the server
     let server = VectorizerServer::new().await?;
@@ -82,7 +82,7 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    println!("✅ Server completed successfully");
+    info!("✅ Server completed successfully");
 
     // Force exit to ensure process terminates
     // This prevents hanging if any background tasks are still running

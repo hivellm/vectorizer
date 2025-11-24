@@ -1,0 +1,61 @@
+warning: vectorizer@1.5.0: Skipping winres resource generation on MSVC to avoid duplicate resource errors
+    Finished `release` profile [optimized] target(s) in 0.48s
+     Running `target\release\benchmark_grpc_vs_rest.exe`
+­ƒÜÇ gRPC vs REST API Benchmark
+=============================
+
+­ƒôè Configuration:
+  Vector count: 500
+  Dimension: 128
+  Search queries: 50
+
+­ƒöº Generating test data...
+  Ô£à Generated 500 vectors
+  Ô£à Generated 50 queries
+
+­ƒÅâ Running benchmarks...
+
+­ƒôØ Benchmarking Insert Operations...
+
+­ƒôè Insert - REST Results:
+  Throughput: 785792.87 ops/sec
+  Avg Latency: 0.00 ms
+  P50 Latency: 0.00 ms
+  P95 Latency: 0.00 ms
+  P99 Latency: 0.00 ms
+  Total Time: 0.64 ms
+
+­ƒôè Insert - gRPC Results:
+  Throughput: 395163.20 ops/sec
+  Avg Latency: 0.00 ms
+  P50 Latency: 0.00 ms
+  P95 Latency: 0.00 ms
+  P99 Latency: 0.00 ms
+  Total Time: 1.27 ms
+
+­ƒôê Insert Comparison:
+  gRPC is 0.50x slower than REST
+
+­ƒöì Benchmarking Search Operations...
+
+­ƒôè Search - REST Results:
+  Throughput: 1478.98 ops/sec
+  Avg Latency: 0.68 ms
+  P50 Latency: 0.05 ms
+  P95 Latency: 0.06 ms
+  P99 Latency: 31.20 ms
+  Total Time: 33.81 ms
+
+­ƒôè Search - gRPC Results:
+  Throughput: 1202.09 ops/sec
+  Avg Latency: 0.83 ms
+  P50 Latency: 0.20 ms
+  P95 Latency: 0.23 ms
+  P99 Latency: 31.82 ms
+  Total Time: 41.59 ms
+
+­ƒôê Search Comparison:
+  gRPC latency is 1.23x higher than REST
+  gRPC throughput is 0.81x lower than REST
+
+Ô£à Benchmark completed!

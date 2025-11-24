@@ -607,7 +607,6 @@ impl VectorStore {
     /// Create a new vector store with automatic GPU detection
     /// Priority: Hive-GPU (Metal/CUDA/WebGPU) > CPU
     pub fn new_auto() -> Self {
-        eprintln!("🔍 VectorStore::new_auto() called - starting GPU detection...");
         info!("🔍 VectorStore::new_auto() called - starting GPU detection...");
 
         // Create store without loading collections (will be loaded in background task)
@@ -619,14 +618,13 @@ impl VectorStore {
             "⏸️  Auto-save disabled during initialization - will be enabled after load completes"
         );
 
-        eprintln!("✅ VectorStore created (collections will be loaded in background)");
+        info!("✅ VectorStore created (collections will be loaded in background)");
 
         // Detect best available GPU backend
         #[cfg(feature = "hive-gpu")]
         {
             use crate::db::gpu_detection::{GpuBackendType, GpuDetector};
 
-            eprintln!("🚀 Detecting GPU capabilities...");
             info!("🚀 Detecting GPU capabilities...");
 
             let backend = GpuDetector::detect_best_backend();

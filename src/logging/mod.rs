@@ -74,6 +74,7 @@ pub fn init_logging_with_level(
         .try_init();
 
     if let Err(e) = result {
+        // Use eprintln here since tracing is not yet initialized
         eprintln!("Failed to initialize tracing: {}", e);
         return Err(format!("Failed to initialize tracing: {}", e).into());
     }

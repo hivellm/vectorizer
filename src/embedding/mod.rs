@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::error::{Result, VectorizerError};
+use tracing::warn;
 
 /// Trait for embedding providers
 pub trait EmbeddingProvider: Send + Sync {
@@ -987,14 +988,14 @@ impl EmbeddingProvider for BagOfWordsEmbedding {
         // Check if embedding is all zeros
         let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
         if non_zero_count == 0 {
-            eprintln!(
+            warn!(
                 "WARNING: BagOfWordsEmbedding produced all-zero embedding for '{}'",
                 text
             );
-            eprintln!("Vocabulary size: {}", self.vocabulary.len());
+            warn!("Vocabulary size: {}", self.vocabulary.len());
 
             // Fallback: Generate a simple hash-based embedding to ensure non-zero vector
-            eprintln!("Using fallback hash-based embedding");
+            warn!("Using fallback hash-based embedding");
             return Ok(self.fallback_hash_embedding(text));
         }
 
@@ -1178,14 +1179,14 @@ impl EmbeddingProvider for CharNGramEmbedding {
         // Check if embedding is all zeros
         let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
         if non_zero_count == 0 {
-            eprintln!(
+            warn!(
                 "WARNING: CharNGramEmbedding produced all-zero embedding for '{}'",
                 text
             );
-            eprintln!("N-gram map size: {}", self.ngram_map.len());
+            warn!("N-gram map size: {}", self.ngram_map.len());
 
             // Fallback: Generate a simple hash-based embedding to ensure non-zero vector
-            eprintln!("Using fallback hash-based embedding");
+            warn!("Using fallback hash-based embedding");
             return Ok(self.fallback_hash_embedding(text));
         }
 

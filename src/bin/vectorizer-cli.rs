@@ -13,6 +13,7 @@ use clap::{Parser, Subcommand};
 #[cfg(target_os = "linux")]
 use libc::setsid;
 use tokio::process::Command as TokioCommand;
+use tracing::{error, info, warn};
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]
@@ -93,7 +94,7 @@ async fn main() {
         Commands::Cli => {
             // Run legacy CLI
             if let Err(e) = vectorizer::cli::run().await {
-                eprintln!("Error: {e}");
+                error!("Error: {e}");
                 std::process::exit(1);
             }
         }
@@ -103,21 +104,21 @@ async fn main() {
 async fn run_servers(project: PathBuf, daemon: bool, host: String, port: u16, mcp_port: u16) {
     // Validate project directory
     if !project.exists() || !project.is_dir() {
-        eprintln!(
+        error!(
             "Error: Project directory '{}' does not exist",
             project.display()
         );
         std::process::exit(1);
     }
 
-    println!("🚀 Starting Vectorizer Servers...");
-    println!("==================================");
-    println!("📁 Project Directory: {}", project.display());
-    println!("🌐 REST API: {}:{}", host, port);
-    println!("🔧 MCP Server: 127.0.0.1:{}", mcp_port);
+    info!("🚀 Starting Vectorizer Servers...");
+    info!("==================================");
+    info!("📁 Project Directory: {}", project.display());
+    info!("🌐 REST API: {}:{}", host, port);
+    info!("🔧 MCP Server: 127.0.0.1:{}", mcp_port);
 
     if daemon {
-        println!("👻 Running as daemon...");
+        info!("👻 Running as daemon...");
         run_as_daemon(project, host, port, mcp_port).await;
     } else {
         run_interactive(project, host, port, mcp_port).await;
@@ -127,7 +128,7 @@ async fn run_servers(project: PathBuf, daemon: bool, host: String, port: u16, mc
 async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u16) {
     use tokio::signal;
 
-    println!("Starting MCP server...");
+    info!("Starting MCP server...");
     let mut mcp_child = TokioCommand::new("cargo")
         .args(&[
             "run",
@@ -141,7 +142,7 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
         .spawn()
         .expect("Failed to start MCP server");
 
-    println!(
+    info!(
         "✅ MCP server started (PID: {})",
         mcp_child.id().unwrap_or(0)
     );
@@ -149,7 +150,7 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
     // Wait a moment for MCP server to initialize
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    println!("Starting REST API server...");
+    info!("Starting REST API server...");
     let mut rest_child = TokioCommand::new("cargo")
         .args(&[
             "run",
@@ -168,26 +169,26 @@ async fn run_interactive(project: PathBuf, host: String, port: u16, mcp_port: u1
         .spawn()
         .expect("Failed to start REST API server");
 
-    println!(
+    info!(
         "✅ REST API server started (PID: {})",
         rest_child.id().unwrap_or(0)
     );
 
-    println!("\n🎉 Both servers are running!");
-    println!("==================================");
-    println!("📡 REST API: http://{}:{}", host, port);
-    println!("🔧 MCP Server: http://127.0.0.1:{}/sse", mcp_port);
-    println!("\n⚡ Press Ctrl+C to stop both servers\n");
+    info!("\n🎉 Both servers are running!");
+    info!("==================================");
+    info!("📡 REST API: http://{}:{}", host, port);
+    info!("🔧 MCP Server: http://127.0.0.1:{}/sse", mcp_port);
+    info!("\n⚡ Press Ctrl+C to stop both servers\n");
 
     // Wait for shutdown signal
     signal::ctrl_c()
         .await
         .expect("Failed to listen for shutdown signal");
 
-    println!("\n🛑 Shutting down servers...");
+    info!("\n🛑 Shutting down servers...");
     let _ = mcp_child.kill().await;
     let _ = rest_child.kill().await;
-    println!("✅ Servers stopped.");
+    info!("✅ Servers stopped.");
 }
 
 async fn run_as_daemon(
@@ -200,7 +201,7 @@ async fn run_as_daemon(
     {
         use std::os::unix::process::CommandExt;
 
-        println!("🐧 Setting up Linux daemon...");
+        info!("🐧 Setting up Linux daemon...");
 
         // Daemonize the process
         let result = unsafe {
@@ -226,11 +227,11 @@ async fn run_as_daemon(
 
         match result {
             Ok(mut child) => {
-                println!("✅ MCP daemon started (PID: {})", child.id());
+                info!("✅ MCP daemon started (PID: {})", child.id());
                 let _ = child.wait();
             }
             Err(e) => {
-                eprintln!("❌ Failed to start daemon: {}", e);
+                error!("❌ Failed to start daemon: {}", e);
                 std::process::exit(1);
             }
         }
@@ -238,50 +239,50 @@ async fn run_as_daemon(
 
     #[cfg(target_os = "windows")]
     {
-        println!("🪟 Setting up Windows service...");
+        info!("🪟 Setting up Windows service...");
         // Windows service implementation would go here
-        eprintln!("❌ Windows daemon mode not yet implemented");
+        error!("❌ Windows daemon mode not yet implemented");
         std::process::exit(1);
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
-        eprintln!("❌ Daemon mode not supported on this platform");
+        error!("❌ Daemon mode not supported on this platform");
         std::process::exit(1);
     }
 }
 
 async fn stop_servers() {
-    println!("🛑 Stopping Vectorizer Servers...");
+    info!("🛑 Stopping Vectorizer Servers...");
 
     let mcp_pids = find_processes("vectorizer-mcp-server");
     let rest_pids = find_processes("vectorizer-server");
 
     for pid in &mcp_pids {
-        println!("Stopping MCP server (PID: {})", pid);
+        info!("Stopping MCP server (PID: {})", pid);
         let _ = Command::new("kill").arg(&pid.to_string()).status();
     }
 
     for pid in &rest_pids {
-        println!("Stopping REST server (PID: {})", pid);
+        info!("Stopping REST server (PID: {})", pid);
         let _ = Command::new("kill").arg(&pid.to_string()).status();
     }
 
     if mcp_pids.is_empty() && rest_pids.is_empty() {
-        println!("ℹ️  No running servers found");
+        info!("ℹ️  No running servers found");
     } else {
-        println!("✅ Servers stopped");
+        info!("✅ Servers stopped");
     }
 }
 
 async fn check_status() {
-    println!("📊 Vectorizer Servers Status");
-    println!("============================");
+    info!("📊 Vectorizer Servers Status");
+    info!("============================");
 
     let mcp_running = !find_processes("vectorizer-mcp-server").is_empty();
     let rest_running = !find_processes("vectorizer-server").is_empty();
 
-    println!(
+    info!(
         "MCP Server: {}",
         if mcp_running {
             "✅ RUNNING"
@@ -289,7 +290,7 @@ async fn check_status() {
             "❌ NOT RUNNING"
         }
     );
-    println!(
+    info!(
         "REST API Server: {}",
         if rest_running {
             "✅ RUNNING"
@@ -301,16 +302,16 @@ async fn check_status() {
     if rest_running {
         // Try to check REST API health
         match reqwest::get("http://127.0.0.1:15002/health").await {
-            Ok(resp) if resp.status().is_success() => println!("REST API Health: 🟢 OK"),
-            _ => println!("REST API Health: 🟡 UNREACHABLE"),
+            Ok(resp) if resp.status().is_success() => info!("REST API Health: 🟢 OK"),
+            _ => warn!("REST API Health: 🟡 UNREACHABLE"),
         }
     }
 
     if mcp_running {
         // Try to check MCP server
         match reqwest::get("http://127.0.0.1:15002/sse").await {
-            Ok(resp) if resp.status().is_success() => println!("MCP Server Health: 🟢 OK"),
-            _ => println!("MCP Server Health: 🟡 UNREACHABLE"),
+            Ok(resp) if resp.status().is_success() => info!("MCP Server Health: 🟢 OK"),
+            _ => warn!("MCP Server Health: 🟡 UNREACHABLE"),
         }
     }
 }
@@ -348,13 +349,13 @@ WantedBy=multi-user.target
         let service_path = "/etc/systemd/system/vectorizer.service";
         match std::fs::write(service_path, service_content) {
             Ok(_) => {
-                println!("✅ Service file created: {}", service_path);
-                println!("📋 To enable: sudo systemctl enable vectorizer");
-                println!("🚀 To start: sudo systemctl start vectorizer");
-                println!("📊 To check status: sudo systemctl status vectorizer");
+                info!("✅ Service file created: {}", service_path);
+                info!("📋 To enable: sudo systemctl enable vectorizer");
+                info!("🚀 To start: sudo systemctl start vectorizer");
+                info!("📊 To check status: sudo systemctl status vectorizer");
             }
             Err(e) => {
-                eprintln!("❌ Failed to create service file: {}", e);
+                error!("❌ Failed to create service file: {}", e);
                 std::process::exit(1);
             }
         }
@@ -370,7 +371,7 @@ WantedBy=multi-user.target
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
-        eprintln!("❌ Service installation not supported on this platform");
+        error!("❌ Service installation not supported on this platform");
         std::process::exit(1);
     }
 }
@@ -378,7 +379,7 @@ WantedBy=multi-user.target
 async fn uninstall_service() {
     #[cfg(target_os = "linux")]
     {
-        println!("🐧 Uninstalling Linux systemd service...");
+        info!("🐧 Uninstalling Linux systemd service...");
 
         let service_path = "/etc/systemd/system/vectorizer.service";
 
@@ -392,10 +393,10 @@ async fn uninstall_service() {
 
         match std::fs::remove_file(service_path) {
             Ok(_) => {
-                println!("✅ Service uninstalled successfully");
+                info!("✅ Service uninstalled successfully");
             }
             Err(e) => {
-                eprintln!("❌ Failed to remove service file: {}", e);
+                error!("❌ Failed to remove service file: {}", e);
                 std::process::exit(1);
             }
         }
@@ -403,15 +404,15 @@ async fn uninstall_service() {
 
     #[cfg(target_os = "windows")]
     {
-        println!("🪟 Uninstalling Windows service...");
+        info!("🪟 Uninstalling Windows service...");
         // Windows service uninstallation would go here
-        eprintln!("❌ Windows service uninstallation not yet implemented");
+        error!("❌ Windows service uninstallation not yet implemented");
         std::process::exit(1);
     }
 
     #[cfg(not(any(target_os = "linux", target_os = "windows")))]
     {
-        eprintln!("❌ Service uninstallation not supported on this platform");
+        error!("❌ Service uninstallation not supported on this platform");
         std::process::exit(1);
     }
 }
