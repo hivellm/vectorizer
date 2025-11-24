@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.5.0"
+version = "1.5.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -236,6 +236,15 @@ path = "src/bin/vectorizer.rs"
 name = "benchmark_grpc_vs_rest"
 path = "benchmark/grpc/benchmark_grpc_vs_rest.rs"
 required-features = ["benchmarks"]
+
+[[bin]]
+name = "qdrant_comparison_benchmark"
+path = "benchmark/comparison/qdrant_comparison_benchmark.rs"
+required-features = ["benchmarks"]
+
+[[bin]]
+name = "test_routes"
+path = "scripts/test_routes.rs"
 
 # [[bin]]
 # name = "test_basic_metal"

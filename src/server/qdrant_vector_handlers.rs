@@ -74,8 +74,55 @@ fn json_value_to_qdrant_value(value: serde_json::Value) -> QdrantValue {
 pub async fn upsert_points(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
-    Json(request): Json<QdrantPointUpsertRequest>,
+    req: axum::extract::Request,
 ) -> Result<Json<QdrantPointOperationResult>, ErrorResponse> {
+    // Read body with configurable limit
+    let max_size_bytes = state.max_request_size_mb * 1024 * 1024;
+    let body_bytes = axum::body::to_bytes(req.into_body(), max_size_bytes)
+        .await
+        .map_err(|e| {
+            error!("Failed to read request body: {}", e);
+            if e.to_string().contains("too large") || e.to_string().contains("limit") {
+                create_error_response(
+                    "payload_too_large",
+                    &format!("Request body exceeds {}MB limit", state.max_request_size_mb),
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                )
+            } else {
+                create_error_response(
+                    "bad_request",
+                    &format!("Failed to read request body: {}", e),
+                    StatusCode::BAD_REQUEST,
+                )
+            }
+        })?;
+
+    // Validate body size
+    if body_bytes.len() > max_size_bytes {
+        return Err(create_error_response(
+            "payload_too_large",
+            &format!(
+                "Request body exceeds {}MB limit (got {}MB)",
+                state.max_request_size_mb,
+                body_bytes.len() / 1024 / 1024
+            ),
+            StatusCode::PAYLOAD_TOO_LARGE,
+        ));
+    }
+
+    let request: QdrantPointUpsertRequest = serde_json::from_slice(&body_bytes).map_err(|e| {
+        error!("Failed to parse request JSON: {}", e);
+        create_error_response(
+            "bad_request",
+            &format!("Invalid JSON: {}", e),
+            StatusCode::BAD_REQUEST,
+        )
+    })?;
+    info!(
+        "🔵 [UPSERT] Received request to upsert {} points to collection: {}",
+        request.points.len(),
+        collection_name
+    );
     debug!(
         "Upserting {} points to collection: {}",
         request.points.len(),
@@ -89,43 +136,93 @@ pub async fn upsert_points(
         .map_err(|_| create_not_found_error("collection", &collection_name))?;
 
     let config = collection.config();
+    info!(
+        "Collection '{}' expects dimension: {}",
+        collection_name, config.dimension
+    );
+
     let mut vectors = Vec::new();
 
     let points_count = request.points.len();
-    for point in request.points {
+    for (idx, point) in request.points.into_iter().enumerate() {
+        // Log vector dimension before conversion
+        let vector_dim = match &point.vector {
+            QdrantVector::Dense(data) => data.len(),
+            QdrantVector::Named(_) => 0,
+        };
+        debug!(
+            "Point {}: vector dimension = {}, expected = {}",
+            idx, vector_dim, config.dimension
+        );
+
         // Convert Qdrant point to Vectorizer vector
-        let vector = convert_qdrant_point_to_vector(point, &config)?;
+        let vector = convert_qdrant_point_to_vector(point, &config).map_err(|e| {
+            error!(
+                "Failed to convert point {}: dimension mismatch or invalid format",
+                idx
+            );
+            e
+        })?;
         vectors.push(vector);
     }
 
-    // Insert vectors with timing
-    let start_time = std::time::Instant::now();
-    match state.store.insert(&collection_name, vectors) {
-        Ok(_) => {
-            let duration = start_time.elapsed();
-            info!(
-                "Successfully upserted {} points to collection: {} in {:.3}s",
-                points_count,
-                collection_name,
-                duration.as_secs_f64()
-            );
-            Ok(Json(QdrantPointOperationResult {
-                status: QdrantOperationStatus::Acknowledged,
-                operation_id: None,
-            }))
+    info!(
+        "Successfully converted {} points, ready to insert",
+        vectors.len()
+    );
+
+    // Fire-and-forget: Return response immediately and process in background
+    // This improves response time for large batches
+    let store_clone = state.store.clone();
+    let collection_name_for_bg = collection_name.clone();
+    let points_count_for_bg = points_count;
+
+    // Spawn background task for insertion (fire-and-forget)
+    tokio::spawn(async move {
+        let start_time = std::time::Instant::now();
+        let collection_name_bg = collection_name_for_bg.clone();
+
+        // Run the synchronous insert in a blocking task
+        let insert_result = tokio::task::spawn_blocking(move || {
+            store_clone.insert(&collection_name_for_bg, vectors)
+        })
+        .await;
+
+        match insert_result {
+            Ok(Ok(_)) => {
+                let duration = start_time.elapsed();
+                info!(
+                    "Successfully upserted {} points to collection: {} in {:.3}s (background)",
+                    points_count_for_bg,
+                    collection_name_bg,
+                    duration.as_secs_f64()
+                );
+            }
+            Ok(Err(e)) => {
+                error!(
+                    "Failed to upsert points to collection '{}' (background): {}",
+                    collection_name_bg, e
+                );
+            }
+            Err(e) => {
+                error!(
+                    "Insert task join error for collection '{}' (background): {}",
+                    collection_name_bg, e
+                );
+            }
         }
-        Err(e) => {
-            error!(
-                "Failed to upsert points to collection '{}': {}",
-                collection_name, e
-            );
-            Err(create_error_response(
-                "internal_error",
-                &format!("Failed to upsert points: {}", e),
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ))
-        }
-    }
+    });
+
+    // Return immediately - insertion happens in background
+    info!(
+        "Accepted {} points for insertion to collection: {} (processing in background)",
+        points_count, collection_name
+    );
+
+    Ok(Json(QdrantPointOperationResult {
+        status: QdrantOperationStatus::Acknowledged,
+        operation_id: None,
+    }))
 }
 
 /// Retrieve points from a collection

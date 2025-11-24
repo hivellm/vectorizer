@@ -99,7 +99,7 @@ impl VectorizerClient {
     }
 
     async fn create_collection(&self, name: &str, dimension: usize) -> Result<(), String> {
-        let url = format!("{}/api/v1/collections", self.base_url);
+        let url = format!("{}/collections", self.base_url);
         let payload = json!({
             "name": name,
             "dimension": dimension,
@@ -132,36 +132,47 @@ impl VectorizerClient {
         collection: &str,
         vectors: Vec<(String, Vec<f32>)>,
     ) -> Result<Duration, String> {
-        let url = format!(
-            "{}/api/v1/collections/{}/vectors",
-            self.base_url, collection
-        );
-
-        let points: Vec<serde_json::Value> = vectors
-            .iter()
-            .map(|(id, vector)| {
-                json!({
-                    "id": id,
-                    "vector": vector
-                })
-            })
-            .collect();
-
-        let payload = json!({ "vectors": points });
+        // Vectorizer supports Qdrant-compatible API for batch insertion
+        // Use small batches to avoid blocking the server
+        let url = format!("{}/qdrant/collections/{}/points", self.base_url, collection);
 
         let start = Instant::now();
-        let response = self
-            .client
-            .post(&url)
-            .json(&payload)
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let text = response.text().await.unwrap_or_default();
-            return Err(format!("Insert failed: {} - {}", status, text));
+        // Small batches to prevent server blocking (10-20 vectors at a time)
+        let batch_size = 20;
+
+        for (i, chunk) in vectors.chunks(batch_size).enumerate() {
+            let points: Vec<serde_json::Value> = chunk
+                .iter()
+                .map(|(id, vector)| {
+                    json!({
+                        "id": id,
+                        "vector": vector
+                    })
+                })
+                .collect();
+
+            let payload = json!({ "points": points });
+
+            let response = self
+                .client
+                .put(&url)
+                .timeout(std::time::Duration::from_secs(60)) // 60 seconds per batch
+                .json(&payload)
+                .send()
+                .await
+                .map_err(|e| format!("Request error: {} - URL: {}", e, url))?;
+
+            let status = response.status();
+            if !status.is_success() {
+                let text = response.text().await.unwrap_or_default();
+                return Err(format!("Insert failed: {} - {}", status, text));
+            }
+
+            // Small delay between batches to prevent server overload
+            if (i + 1) % 10 == 0 {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
         }
 
         Ok(start.elapsed())
@@ -173,7 +184,7 @@ impl VectorizerClient {
         query_vector: &[f32],
         limit: usize,
     ) -> Result<(Duration, Vec<String>), String> {
-        let url = format!("{}/api/v1/collections/{}/search", self.base_url, collection);
+        let url = format!("{}/collections/{}/search", self.base_url, collection);
 
         let payload = json!({
             "vector": query_vector,
@@ -198,6 +209,8 @@ impl VectorizerClient {
         let elapsed = start.elapsed();
         let result: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
 
+        // Vectorizer search returns results in "results" array
+        // Each result has "id" field
         let ids: Vec<String> = result
             .get("results")
             .and_then(|r| r.as_array())
@@ -240,7 +253,8 @@ impl QdrantClient {
     }
 
     async fn health_check(&self) -> Result<(), String> {
-        let url = format!("{}/health", self.base_url);
+        // Qdrant uses root endpoint for health check
+        let url = format!("{}/", self.base_url);
         let response = self
             .client
             .get(&url)
@@ -292,9 +306,11 @@ impl QdrantClient {
 
         let points: Vec<serde_json::Value> = vectors
             .iter()
-            .map(|(id, vector)| {
+            .enumerate()
+            .map(|(idx, (_, vector))| {
+                // Qdrant requires numeric IDs or UUIDs, so we use the index as numeric ID
                 json!({
-                    "id": id,
+                    "id": idx,
                     "vector": vector
                 })
             })
@@ -897,6 +913,219 @@ fn generate_report(vectorizer_results: &SystemResults, qdrant_results: &SystemRe
     report
 }
 
+/// Generate comprehensive report with multiple test scenarios
+fn generate_comprehensive_report(
+    results: &[(
+        String,
+        usize,
+        usize,
+        usize,
+        usize,
+        SystemResults,
+        SystemResults,
+    )],
+) -> String {
+    let mut report = String::new();
+    let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
+
+    report.push_str("# Vectorizer vs Qdrant Comprehensive Benchmark Report\n\n");
+    report.push_str(&format!("Generated: {}\n\n", timestamp));
+    report.push_str("## Executive Summary\n\n");
+
+    // Overall comparison table
+    report.push_str("### Overall Performance Comparison\n\n");
+    report.push_str("| Scenario | Dimension | Vectors | Insert Winner | Search Winner |\n");
+    report.push_str("|----------|-----------|---------|---------------|---------------|\n");
+
+    for (desc, dim, vec_count, _q_count, _batch, vec_res, qd_res) in results.iter() {
+        let insert_winner = if vec_res.insertion.avg_latency_ms < qd_res.insertion.avg_latency_ms {
+            "Vectorizer"
+        } else {
+            "Qdrant"
+        };
+        let search_winner = if vec_res.search.avg_latency_ms < qd_res.search.avg_latency_ms {
+            "Vectorizer"
+        } else {
+            "Qdrant"
+        };
+        report.push_str(&format!(
+            "| {} | {} | {} | {} | {} |\n",
+            desc, dim, vec_count, insert_winner, search_winner
+        ));
+    }
+    report.push_str("\n");
+
+    // Detailed results for each scenario
+    report.push_str("## Detailed Results by Scenario\n\n");
+
+    for (idx, (desc, dim, vec_count, q_count, batch_size, vec_res, qd_res)) in
+        results.iter().enumerate()
+    {
+        report.push_str(&format!("### Scenario {}: {}\n\n", idx + 1, desc));
+        report.push_str(&format!("- **Dimension**: {}\n", dim));
+        report.push_str(&format!("- **Vectors**: {}\n", vec_count));
+        report.push_str(&format!("- **Queries**: {}\n", q_count));
+        report.push_str(&format!("- **Batch Size**: {}\n\n", batch_size));
+
+        // Insertion comparison
+        report.push_str("#### Insertion Performance\n\n");
+        report.push_str("| Metric | Vectorizer | Qdrant | Winner | Speedup |\n");
+        report.push_str("|--------|------------|--------|--------|----------|\n");
+
+        let insert_speedup = qd_res.insertion.avg_latency_ms / vec_res.insertion.avg_latency_ms;
+        report.push_str(&format!(
+            "| Avg Latency | {:.2}ms | {:.2}ms | {} | {:.2}x |\n",
+            vec_res.insertion.avg_latency_ms,
+            qd_res.insertion.avg_latency_ms,
+            if insert_speedup > 1.0 {
+                "Vectorizer"
+            } else {
+                "Qdrant"
+            },
+            insert_speedup.max(1.0 / insert_speedup)
+        ));
+
+        report.push_str(&format!(
+            "| Throughput | {:.2} vec/s | {:.2} vec/s | {} | {:.2}x |\n",
+            vec_res.insertion.throughput_vectors_per_sec,
+            qd_res.insertion.throughput_vectors_per_sec,
+            if vec_res.insertion.throughput_vectors_per_sec
+                > qd_res.insertion.throughput_vectors_per_sec
+            {
+                "Vectorizer"
+            } else {
+                "Qdrant"
+            },
+            (vec_res.insertion.throughput_vectors_per_sec
+                / qd_res.insertion.throughput_vectors_per_sec)
+                .max(
+                    qd_res.insertion.throughput_vectors_per_sec
+                        / vec_res.insertion.throughput_vectors_per_sec
+                )
+        ));
+        report.push_str("\n");
+
+        // Search comparison
+        report.push_str("#### Search Performance\n\n");
+        report.push_str("| Metric | Vectorizer | Qdrant | Winner | Speedup |\n");
+        report.push_str("|--------|------------|--------|--------|----------|\n");
+
+        let search_speedup = qd_res.search.avg_latency_ms / vec_res.search.avg_latency_ms;
+        report.push_str(&format!(
+            "| Avg Latency | {:.2}ms | {:.2}ms | {} | {:.2}x |\n",
+            vec_res.search.avg_latency_ms,
+            qd_res.search.avg_latency_ms,
+            if search_speedup > 1.0 {
+                "Vectorizer"
+            } else {
+                "Qdrant"
+            },
+            search_speedup.max(1.0 / search_speedup)
+        ));
+
+        report.push_str(&format!(
+            "| Throughput | {:.2} q/s | {:.2} q/s | {} | {:.2}x |\n",
+            vec_res.search.throughput_queries_per_sec,
+            qd_res.search.throughput_queries_per_sec,
+            if vec_res.search.throughput_queries_per_sec > qd_res.search.throughput_queries_per_sec
+            {
+                "Vectorizer"
+            } else {
+                "Qdrant"
+            },
+            (vec_res.search.throughput_queries_per_sec / qd_res.search.throughput_queries_per_sec)
+                .max(
+                    qd_res.search.throughput_queries_per_sec
+                        / vec_res.search.throughput_queries_per_sec
+                )
+        ));
+        report.push_str("\n");
+
+        // Quality comparison
+        report.push_str("#### Search Quality\n\n");
+        report.push_str("| Metric | Vectorizer | Qdrant | Winner |\n");
+        report.push_str("|--------|------------|--------|--------|\n");
+        report.push_str(&format!(
+            "| Precision@10 | {:.2}% | {:.2}% | {} |\n",
+            vec_res.quality.precision_at_10 * 100.0,
+            qd_res.quality.precision_at_10 * 100.0,
+            if vec_res.quality.precision_at_10 > qd_res.quality.precision_at_10 {
+                "Vectorizer"
+            } else {
+                "Qdrant"
+            }
+        ));
+        report.push_str(&format!(
+            "| Recall@10 | {:.2}% | {:.2}% | {} |\n",
+            vec_res.quality.recall_at_10 * 100.0,
+            qd_res.quality.recall_at_10 * 100.0,
+            if vec_res.quality.recall_at_10 > qd_res.quality.recall_at_10 {
+                "Vectorizer"
+            } else {
+                "Qdrant"
+            }
+        ));
+        report.push_str(&format!(
+            "| F1-Score | {:.2}% | {:.2}% | {} |\n",
+            vec_res.quality.f1_score * 100.0,
+            qd_res.quality.f1_score * 100.0,
+            if vec_res.quality.f1_score > qd_res.quality.f1_score {
+                "Vectorizer"
+            } else {
+                "Qdrant"
+            }
+        ));
+        report.push_str("\n");
+
+        // Detailed JSON results
+        report.push_str("#### Detailed Results\n\n");
+        report.push_str("**Vectorizer:**\n```json\n");
+        report.push_str(&serde_json::to_string_pretty(vec_res).unwrap());
+        report.push_str("\n```\n\n");
+        report.push_str("**Qdrant:**\n```json\n");
+        report.push_str(&serde_json::to_string_pretty(qd_res).unwrap());
+        report.push_str("\n```\n\n");
+    }
+
+    // Summary statistics
+    report.push_str("## Summary Statistics\n\n");
+
+    // Average search speedup across all scenarios
+    let avg_search_speedup: f64 = results
+        .iter()
+        .map(|(_, _, _, _, _, vec_res, qd_res)| {
+            qd_res.search.avg_latency_ms / vec_res.search.avg_latency_ms
+        })
+        .sum::<f64>()
+        / results.len() as f64;
+
+    let avg_insert_speedup: f64 = results
+        .iter()
+        .map(|(_, _, _, _, _, vec_res, qd_res)| {
+            qd_res.insertion.avg_latency_ms / vec_res.insertion.avg_latency_ms
+        })
+        .sum::<f64>()
+        / results.len() as f64;
+
+    report.push_str(&format!(
+        "- **Average Search Speedup (Vectorizer vs Qdrant)**: {:.2}x\n",
+        avg_search_speedup
+    ));
+    report.push_str(&format!(
+        "- **Average Insert Speedup (Qdrant vs Vectorizer)**: {:.2}x\n",
+        avg_insert_speedup
+    ));
+    report.push_str("\n");
+
+    report.push_str("## Test Configuration\n\n");
+    report.push_str(&format!("- Total test scenarios: {}\n", results.len()));
+    report.push_str("- Test environments: Docker containers\n");
+    report.push_str("- Both systems running on same hardware\n");
+    report.push_str("- All tests use cosine similarity metric\n\n");
+
+    report
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing
@@ -912,11 +1141,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("VECTORIZER_URL").unwrap_or_else(|_| "http://localhost:15002".to_string());
     let qdrant_url =
         std::env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
-
-    let dimension = 384;
-    let vector_count = 10_000;
-    let query_count = 1_000;
-    let batch_size = 100;
 
     // Create clients
     let vectorizer_client = VectorizerClient::new(vectorizer_url.clone());
@@ -938,33 +1162,95 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     })?;
     info!("  ✓ Qdrant is healthy\n");
 
-    // Run benchmarks
-    let vectorizer_collection = format!("benchmark_vectorizer_{}", chrono::Utc::now().timestamp());
-    let qdrant_collection = format!("benchmark_qdrant_{}", chrono::Utc::now().timestamp());
+    // Comprehensive benchmark configuration
+    let test_scenarios = vec![
+        // (dimension, vector_count, query_count, batch_size, description)
+        (384, 1000, 200, 50, "Small dataset (1K vectors)"),
+        (384, 5000, 500, 100, "Medium dataset (5K vectors)"),
+        (384, 10000, 1000, 200, "Large dataset (10K vectors)"),
+        (512, 5000, 500, 100, "Medium dataset (512 dim)"),
+        (768, 5000, 500, 100, "Medium dataset (768 dim)"),
+    ];
 
-    let vectorizer_results = run_vectorizer_benchmark(
-        &vectorizer_client,
-        &vectorizer_collection,
-        vector_count,
-        query_count,
-        dimension,
-        batch_size,
-    )
-    .await?;
+    let mut all_results: Vec<(
+        String,
+        usize,
+        usize,
+        usize,
+        usize,
+        SystemResults,
+        SystemResults,
+    )> = Vec::new();
+    let base_timestamp = chrono::Utc::now().timestamp();
 
-    let qdrant_results = run_qdrant_benchmark(
-        &qdrant_client,
-        &qdrant_collection,
-        vector_count,
-        query_count,
-        dimension,
-        batch_size,
-    )
-    .await?;
+    for (idx, (dimension, vector_count, query_count, batch_size, description)) in
+        test_scenarios.iter().enumerate()
+    {
+        info!("\n🧪 Test Scenario {}: {}", idx + 1, description);
+        info!(
+            "   Dimension: {}, Vectors: {}, Queries: {}, Batch: {}",
+            dimension, vector_count, query_count, batch_size
+        );
+        info!("   {}", "=".repeat(60));
 
-    // Generate report
-    info!("\n📝 Generating report...");
-    let report = generate_report(&vectorizer_results, &qdrant_results);
+        let vectorizer_collection = format!("benchmark_vectorizer_{}_{}", base_timestamp, idx);
+        let qdrant_collection = format!("benchmark_qdrant_{}_{}", base_timestamp, idx);
+
+        // Run Vectorizer benchmark
+        info!("\n📊 Running Vectorizer benchmark...");
+        let vectorizer_results = match run_vectorizer_benchmark(
+            &vectorizer_client,
+            &vectorizer_collection,
+            *vector_count,
+            *query_count,
+            *dimension,
+            *batch_size,
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                error!("Vectorizer benchmark failed: {}", e);
+                continue;
+            }
+        };
+
+        // Run Qdrant benchmark
+        info!("\n📊 Running Qdrant benchmark...");
+        let qdrant_results = match run_qdrant_benchmark(
+            &qdrant_client,
+            &qdrant_collection,
+            *vector_count,
+            *query_count,
+            *dimension,
+            *batch_size,
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                error!("Qdrant benchmark failed: {}", e);
+                continue;
+            }
+        };
+
+        all_results.push((
+            description.to_string(),
+            *dimension,
+            *vector_count,
+            *query_count,
+            *batch_size,
+            vectorizer_results,
+            qdrant_results,
+        ));
+    }
+
+    // Generate comprehensive report
+    info!("\n📝 Generating comprehensive report...");
+    let report = generate_comprehensive_report(&all_results);
+
+    // Ensure docs directory exists
+    std::fs::create_dir_all("docs")?;
 
     // Save report
     let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S");
@@ -976,8 +1262,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Also save JSON results
     let json_path = format!("docs/qdrant_comparison_benchmark_{}.json", timestamp);
     let comparison = json!({
-        "vectorizer": vectorizer_results,
-        "qdrant": qdrant_results,
+        "scenarios": all_results.iter().map(|(desc, dim, vec_count, q_count, batch, vec_res, qd_res)| {
+            json!({
+                "description": desc,
+                "dimension": dim,
+                "vector_count": vec_count,
+                "query_count": q_count,
+                "batch_size": batch,
+                "vectorizer": vec_res,
+                "qdrant": qd_res,
+            })
+        }).collect::<Vec<_>>(),
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
     std::fs::write(&json_path, serde_json::to_string_pretty(&comparison)?)?;

@@ -6,7 +6,7 @@
 # ============================================================================
 # Local build examples:
 #   docker build -t vectorizer:local .
-#   docker build -t vectorizer:1.5.0 .
+#   docker build -t vectorizer:1.5.1 .
 #   docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:latest .
 #
 # Multi-platform build:

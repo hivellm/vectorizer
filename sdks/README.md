@@ -7,7 +7,7 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 ### 🟦 TypeScript SDK ✅
 
 - **Package**: `@hivellm/vectorizer-sdk`
-- **Status**: Published on npm (v1.4.0)
+- **Status**: Published on npm (v1.5.0)
 - **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search, UMICP support
 - **Installation**: `npm install @hivellm/vectorizer-sdk`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
@@ -15,7 +15,7 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 ### 🟨 JavaScript SDK ✅
 
 - **Package**: `@hivellm/vectorizer-sdk`
-- **Status**: Published on npm (v1.4.0)
+- **Status**: Published on npm (v1.5.0)
 - **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD), intelligent search, UMICP support
 - **Installation**: `npm install @hivellm/vectorizer-sdk`
 - **Documentation**: [JavaScript SDK README](./javascript/README.md)
@@ -23,15 +23,15 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 ### 🦀 Rust SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on crates.io (v1.4.0)
+- **Status**: Published on crates.io (v1.5.0)
 - **Features**: High performance, async/await, MCP support, type safety, intelligent search
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.4.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.5.0"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
 ### 🐍 Python SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on PyPI (v1.4.0)
+- **Status**: Published on PyPI (v1.5.0)
 - **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search
 - **Installation**: `pip install vectorizer-sdk`
 - **Documentation**: [Python SDK README](./python/README.md)
@@ -48,13 +48,13 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 ### 🔷 C# SDK ✅
 
 - **Package**: `Vectorizer.Sdk`
-- **Status**: Published on NuGet (v1.4.0)
+- **Status**: Published on NuGet (v1.5.0)
 - **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Code Analysis
 - **Installation**: `dotnet add package Vectorizer.Sdk`
 - **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 - **Documentation**: [C# SDK README](./csharp/README.md)
 
-## 🧠 Intelligent Search Features (v1.4.0+)
+## 🧠 Intelligent Search Features (v1.5.0+)
 
 All SDKs now support advanced intelligent search capabilities:
 
@@ -218,14 +218,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-vectorizer-sdk = "1.4.0"
+vectorizer-sdk = "1.5.0"
 ```
 
 ## SDK Comparison Table
 
 | Feature                     | TypeScript   | JavaScript   | Rust         | Python       | Go         | C#           |
 | --------------------------- | ------------ | ------------ | ------------ | ------------ | ---------- | ------------ |
-| **Version**                 | 1.4.0        | 1.4.0        | 1.4.0        | 1.4.0        | 1.4.0      | 1.4.0        |
+| **Version**                 | 1.5.0        | 1.5.0        | 1.5.0        | 1.5.0        | 1.5.0      | 1.5.0        |
 | **Status**                  | ✅ Published | ✅ Published | ✅ Published | ✅ Published | 🚧 Dev     | ✅ Published |
 | **Package Manager**         | npm          | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
 | **Collection Management**   | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
@@ -372,7 +372,7 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   TypeScript    │    │   JavaScript    │    │     Python      │    │      Rust        │
 │      SDK        │    │      SDK        │    │      SDK        │    │      SDK         │
-│     ✅ v1.4.0   │    │     ✅ v1.4.0   │    │   ✅ v1.4.0      │    │     ✅ v1.4.0    │
+│     ✅ v1.5.0   │    │     ✅ v1.5.0   │    │   ✅ v1.5.0      │    │     ✅ v1.5.0    │
 │                 │    │                 │    │                 │    │                  │
 │ • Type Safety   │    │ • REST-Only     │    │ • Async/Await   │    │ • High Performance│
 │ • IntelliSense  │    │ • 100% Tests    │    │ • CLI Interface │    │ • Memory Safety  │
@@ -380,7 +380,7 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 │ • UMICP Support │    │ • UMICP Support │    │ • Full Features │    │ • SourceLink     │
 │                 │    │                 │    │                 │    │                  │
 │      C# SDK     │    │      Go SDK     │    │                 │    │                  │
-│     ✅ v1.4.0   │    │   🚧 In Dev     │    │                 │    │                  │
+│     ✅ v1.5.0   │    │   🚧 In Dev     │    │                 │    │                  │
 │                 │    │                 │    │                 │    │                  │
 │ • .NET 8.0+     │    │ • High Perf     │    │                 │    │                  │
 │ • SourceLink    │    │ • Simple API    │    │                 │    │                  │

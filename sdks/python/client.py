@@ -234,12 +234,11 @@ class VectorizerClient:
             ServerError: If service reports unhealthy status
         """
         try:
-            async with self._transport.get(f"{self.base_url}/health") as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Health check failed: {response.status}")
-        except aiohttp.ClientError as e:
+            data = await self._transport.get("/health")
+            return data
+        except (NetworkError, ServerError):
+            raise
+        except Exception as e:
             raise NetworkError(f"Failed to connect to service: {e}")
             
     # Collection Management
@@ -256,13 +255,13 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._transport.get(f"{self.base_url}/collections") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return [CollectionInfo(**collection) for collection in data.get("collections", [])]
-                else:
-                    raise ServerError(f"Failed to list collections: {response.status}")
-        except aiohttp.ClientError as e:
+            data = await self._transport.get("/collections")
+            if isinstance(data, dict) and "collections" in data:
+                return [CollectionInfo(**collection) for collection in data.get("collections", [])]
+            return []
+        except (NetworkError, ServerError):
+            raise
+        except Exception as e:
             raise NetworkError(f"Failed to list collections: {e}")
             
     async def get_collection_info(self, name: str) -> CollectionInfo:
@@ -281,15 +280,15 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._transport.get(f"{self.base_url}/collections/{name}") as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return CollectionInfo(**data)
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{name}' not found")
-                else:
-                    raise ServerError(f"Failed to get collection info: {response.status}")
-        except aiohttp.ClientError as e:
+            data = await self._transport.get(f"/collections/{name}")
+            return CollectionInfo(**data)
+        except ServerError as e:
+            if "not found" in str(e).lower() or "404" in str(e):
+                raise CollectionNotFoundError(f"Collection '{name}' not found")
+            raise
+        except (NetworkError, ServerError):
+            raise
+        except Exception as e:
             raise NetworkError(f"Failed to get collection info: {e}")
             
     async def create_collection(
@@ -332,19 +331,15 @@ class VectorizerClient:
             payload["description"] = description
             
         try:
-            async with self._transport.post(
-                f"{self.base_url}/collections",
-                json=payload
-            ) as response:
-                if response.status == 201:
-                    data = await response.json()
-                    return CollectionInfo(**data)
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to create collection: {response.status}")
-        except aiohttp.ClientError as e:
+            data = await self._transport.post("/collections", payload)
+            return CollectionInfo(**data)
+        except ServerError as e:
+            if "400" in str(e) or "invalid" in str(e).lower():
+                raise ValidationError(f"Invalid request: {str(e)}")
+            raise
+        except (NetworkError, ValidationError):
+            raise
+        except Exception as e:
             raise NetworkError(f"Failed to create collection: {e}")
             
     async def delete_collection(self, name: str) -> bool:
@@ -363,14 +358,15 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
-            async with self._transport.delete(f"{self.base_url}/collections/{name}") as response:
-                if response.status == 200:
-                    return True
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{name}' not found")
-                else:
-                    raise ServerError(f"Failed to delete collection: {response.status}")
-        except aiohttp.ClientError as e:
+            await self._transport.delete(f"/collections/{name}")
+            return True
+        except ServerError as e:
+            if "not found" in str(e).lower() or "404" in str(e):
+                raise CollectionNotFoundError(f"Collection '{name}' not found")
+            raise
+        except (NetworkError, ServerError):
+            raise
+        except Exception as e:
             raise NetworkError(f"Failed to delete collection: {e}")
             
     # Vector Operations

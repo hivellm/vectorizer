@@ -68,6 +68,8 @@ pub struct VectorizerServer {
     pub cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
     /// Cluster client pool (optional, only if cluster is enabled)
     pub cluster_client_pool: Option<Arc<crate::cluster::ClusterClientPool>>,
+    /// Maximum request body size in MB (from config)
+    pub max_request_size_mb: usize,
 }
 
 impl VectorizerServer {
@@ -635,6 +637,25 @@ impl VectorizerServer {
             }
         };
 
+        // Load API config for max request size
+        let max_request_size_mb = std::fs::read_to_string("config.yml")
+            .ok()
+            .and_then(|content| {
+                serde_yaml::from_str::<serde_yaml::Value>(&content)
+                    .ok()
+                    .and_then(|config| {
+                        config
+                            .get("api")
+                            .and_then(|api| api.get("rest"))
+                            .and_then(|rest| rest.get("max_request_size_mb"))
+                            .and_then(|size| size.as_u64())
+                            .map(|size| size as usize)
+                    })
+            })
+            .unwrap_or(100); // Default to 100MB if not configured
+
+        info!("📦 API max request size: {}MB", max_request_size_mb);
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -656,6 +677,7 @@ impl VectorizerServer {
             auto_save_task: Arc::new(tokio::sync::Mutex::new(Some(auto_save_handle))),
             cluster_manager,
             cluster_client_pool,
+            max_request_size_mb,
         })
     }
 
@@ -962,7 +984,16 @@ impl VectorizerServer {
             .layer(axum::middleware::from_fn(
                 move |req: axum::extract::Request, next: axum::middleware::Next| {
                     let metrics = metrics_collector_2.clone();
+                    let method = req.method().clone();
+                    let uri = req.uri().clone();
                     async move {
+                        // Log all requests, especially PUT to /qdrant/collections/*/points
+                        if uri.path().contains("/qdrant/collections")
+                            && uri.path().contains("/points")
+                        {
+                            info!("🔵 [MIDDLEWARE] {} {}", method, uri);
+                        }
+
                         // Record connection opened
                         metrics.record_connection_opened();
 

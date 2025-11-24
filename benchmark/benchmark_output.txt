@@ -1,0 +1,167 @@
+2025-11-24T20:42:07.357513Z  INFO qdrant_comparison_benchmark: ­ƒÜÇ Starting Vectorizer vs Qdrant Benchmark
+2025-11-24T20:42:07.357602Z  INFO qdrant_comparison_benchmark: ==========================================
+
+2025-11-24T20:42:07.357877Z  INFO qdrant_comparison_benchmark: ­ƒöì Checking system health...
+2025-11-24T20:42:07.357891Z  INFO qdrant_comparison_benchmark:   Vectorizer: http://localhost:15002
+2025-11-24T20:42:07.664586Z  INFO qdrant_comparison_benchmark:   Ô£ô Vectorizer is healthy
+2025-11-24T20:42:07.664607Z  INFO qdrant_comparison_benchmark:   Qdrant: http://localhost:6333
+2025-11-24T20:42:07.666302Z  INFO qdrant_comparison_benchmark:   Ô£ô Qdrant is healthy
+
+2025-11-24T20:42:07.666336Z  INFO qdrant_comparison_benchmark: 
+­ƒôè Benchmarking Vectorizer...
+2025-11-24T20:42:07.666339Z  INFO qdrant_comparison_benchmark: ==========================================
+2025-11-24T20:42:07.666342Z  INFO qdrant_comparison_benchmark:   Creating collection 'benchmark_vectorizer_1764016927'...
+2025-11-24T20:42:07.668259Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Insertion Benchmark
+2025-11-24T20:42:07.668274Z  INFO qdrant_comparison_benchmark:   Inserting 500 vectors in batches of 20...
+2025-11-24T20:42:07.775063Z  INFO qdrant_comparison_benchmark:   Ô£ô Inserted 500 vectors in 106.01ms
+2025-11-24T20:42:07.775090Z  INFO qdrant_comparison_benchmark:   Ô£ô Average latency: 0.21ms
+2025-11-24T20:42:07.775092Z  INFO qdrant_comparison_benchmark:   Ô£ô Throughput: 4716.48 vectors/sec
+2025-11-24T20:42:09.776423Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Search Benchmark
+2025-11-24T20:42:09.776442Z  INFO qdrant_comparison_benchmark:   Running 100 search queries...
+2025-11-24T20:42:09.796191Z  INFO qdrant_comparison_benchmark:   Ô£ô Executed 100 queries in 16.83ms
+2025-11-24T20:42:09.796211Z  INFO qdrant_comparison_benchmark:   Ô£ô Average latency: 0.17ms
+2025-11-24T20:42:09.796214Z  INFO qdrant_comparison_benchmark:   Ô£ô Throughput: 5943.40 queries/sec
+2025-11-24T20:42:09.796216Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Quality Benchmark
+2025-11-24T20:42:09.796218Z  INFO qdrant_comparison_benchmark:   Evaluating search quality with 100 test queries...
+2025-11-24T20:42:09.815152Z  INFO qdrant_comparison_benchmark:   Ô£ô Precision@10: 0.00%
+2025-11-24T20:42:09.815184Z  INFO qdrant_comparison_benchmark:   Ô£ô Recall@10: 0.00%
+2025-11-24T20:42:09.815187Z  INFO qdrant_comparison_benchmark:   Ô£ô F1-Score: 0.00%
+2025-11-24T20:42:09.815197Z  INFO qdrant_comparison_benchmark: 
+­ƒôè Benchmarking Qdrant...
+2025-11-24T20:42:09.815202Z  INFO qdrant_comparison_benchmark: ==========================================
+2025-11-24T20:42:09.815204Z  INFO qdrant_comparison_benchmark:   Creating collection 'benchmark_qdrant_1764016927'...
+2025-11-24T20:42:09.975048Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Insertion Benchmark
+2025-11-24T20:42:09.975064Z  INFO qdrant_comparison_benchmark:   Inserting 500 vectors in batches of 20...
+2025-11-24T20:42:10.045070Z  INFO qdrant_comparison_benchmark:   Ô£ô Inserted 500 vectors in 65.10ms
+2025-11-24T20:42:10.045100Z  INFO qdrant_comparison_benchmark:   Ô£ô Average latency: 0.13ms
+2025-11-24T20:42:10.045103Z  INFO qdrant_comparison_benchmark:   Ô£ô Throughput: 7680.59 vectors/sec
+2025-11-24T20:42:12.046746Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Search Benchmark
+2025-11-24T20:42:12.046764Z  INFO qdrant_comparison_benchmark:   Running 100 search queries...
+2025-11-24T20:42:12.155488Z  INFO qdrant_comparison_benchmark:   Ô£ô Executed 100 queries in 106.02ms
+2025-11-24T20:42:12.155509Z  INFO qdrant_comparison_benchmark:   Ô£ô Average latency: 1.06ms
+2025-11-24T20:42:12.155513Z  INFO qdrant_comparison_benchmark:   Ô£ô Throughput: 943.23 queries/sec
+2025-11-24T20:42:12.155522Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Quality Benchmark
+2025-11-24T20:42:12.155525Z  INFO qdrant_comparison_benchmark:   Evaluating search quality with 100 test queries...
+2025-11-24T20:42:12.237987Z  INFO qdrant_comparison_benchmark:   Ô£ô Precision@10: 100.00%
+2025-11-24T20:42:12.238025Z  INFO qdrant_comparison_benchmark:   Ô£ô Recall@10: 100.00%
+2025-11-24T20:42:12.238029Z  INFO qdrant_comparison_benchmark:   Ô£ô F1-Score: 100.00%
+2025-11-24T20:42:12.238033Z  INFO qdrant_comparison_benchmark: 
+­ƒôØ Generating report...
+2025-11-24T20:42:12.238357Z  INFO qdrant_comparison_benchmark:   Ô£ô Report saved to: docs/qdrant_comparison_benchmark_2025-11-24_20-42-12.md
+2025-11-24T20:42:12.238516Z  INFO qdrant_comparison_benchmark:   Ô£ô JSON results saved to: docs/qdrant_comparison_benchmark_2025-11-24_20-42-12.json
+
+# Vectorizer vs Qdrant Benchmark Report
+
+Generated: 2025-11-24 20:42:12 UTC
+
+## Executive Summary
+
+### Insertion Performance
+
+| Metric | Vectorizer | Qdrant | Winner |
+|--------|------------|--------|--------|
+| Avg Latency | 0.21ms | 0.13ms | Qdrant |
+| P95 Latency | 0.24ms | 0.18ms | Qdrant |
+| Throughput | 4716.48 vec/s | 7680.59 vec/s | Qdrant |
+
+### Search Performance
+
+| Metric | Vectorizer | Qdrant | Winner |
+|--------|------------|--------|--------|
+| Avg Latency | 0.17ms | 1.06ms | Vectorizer |
+| P95 Latency | 0.21ms | 1.21ms | Vectorizer |
+| Throughput | 5943.40 q/s | 943.23 q/s | Vectorizer |
+
+### Search Quality
+
+| Metric | Vectorizer | Qdrant | Winner |
+|--------|------------|--------|--------|
+| Precision@10 | 0.00% | 100.00% | Qdrant |
+| Recall@10 | 0.00% | 100.00% | Qdrant |
+| F1-Score | 0.00% | 100.00% | Qdrant |
+
+## Detailed Results
+
+### Vectorizer Results
+
+```json
+{
+  "system_name": "Vectorizer",
+  "insertion": {
+    "total_vectors": 500,
+    "total_time_ms": 106.0112,
+    "avg_latency_ms": 0.2120224000000005,
+    "p50_latency_ms": 0.20875500000000002,
+    "p95_latency_ms": 0.23695,
+    "p99_latency_ms": 0.243255,
+    "throughput_vectors_per_sec": 4716.482786724421
+  },
+  "search": {
+    "total_queries": 100,
+    "total_time_ms": 16.825400000000002,
+    "avg_latency_ms": 0.16825400000000001,
+    "p50_latency_ms": 0.1634,
+    "p95_latency_ms": 0.2089,
+    "p99_latency_ms": 0.23399999999999999,
+    "throughput_queries_per_sec": 5943.395105019791
+  },
+  "memory": {
+    "memory_usage_mb": 0.0,
+    "memory_per_vector_bytes": 0.0
+  },
+  "quality": {
+    "precision_at_10": 0.0,
+    "recall_at_10": 0.0,
+    "f1_score": 0.0
+  }
+}
+```
+
+### Qdrant Results
+
+```json
+{
+  "system_name": "Qdrant",
+  "insertion": {
+    "total_vectors": 500,
+    "total_time_ms": 65.0992,
+    "avg_latency_ms": 0.13019839999999927,
+    "p50_latency_ms": 0.11689999999999998,
+    "p95_latency_ms": 0.177105,
+    "p99_latency_ms": 0.42906999999999995,
+    "throughput_vectors_per_sec": 7680.585936539927
+  },
+  "search": {
+    "total_queries": 100,
+    "total_time_ms": 106.01910000000001,
+    "avg_latency_ms": 1.0601909999999999,
+    "p50_latency_ms": 0.857,
+    "p95_latency_ms": 1.214,
+    "p99_latency_ms": 2.426,
+    "throughput_queries_per_sec": 943.2262677196844
+  },
+  "memory": {
+    "memory_usage_mb": 0.0,
+    "memory_per_vector_bytes": 0.0
+  },
+  "quality": {
+    "precision_at_10": 1.0,
+    "recall_at_10": 1.0,
+    "f1_score": 1.0
+  }
+}
+```
+
+## Test Configuration
+
+- Vector dimension: 384
+- Test vectors: 10,000
+- Test queries: 1,000
+- Batch size: 100
+

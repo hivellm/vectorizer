@@ -6,7 +6,7 @@
 
 - **Package**: `@hivellm/vectorizer-client-ts`
 - **Registry**: npm
-- **Version**: v1.4.0
+- **Version**: v1.5.0
 - **Status**: ✅ Published successfully
 - **Installation**: `npm install @hivellm/vectorizer-client-ts`
 
@@ -14,7 +14,7 @@
 
 - **Package**: `@hivellm/vectorizer-client-js`
 - **Registry**: npm
-- **Version**: v1.4.0
+- **Version**: v1.5.0
 - **Status**: ✅ Published successfully
 - **Installation**: `npm install @hivellm/vectorizer-client-js`
 
@@ -22,15 +22,15 @@
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: crates.io
-- **Version**: v1.4.0
+- **Version**: v1.5.0
 - **Status**: ✅ Published successfully
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.4.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.5.0"`
 
 ### Python SDK
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: PyPI
-- **Version**: v1.4.0
+- **Version**: v1.5.0
 - **Status**: ✅ Published successfully
 - **Installation**: `pip install vectorizer-sdk`
 
@@ -38,7 +38,7 @@
 
 - **Package**: `Vectorizer.Sdk`
 - **Registry**: NuGet
-- **Version**: v1.4.0
+- **Version**: v1.5.0
 - **Status**: ✅ Published successfully
 - **Installation**: `dotnet add package Vectorizer.Sdk`
 
@@ -46,12 +46,12 @@
 
 | SDK        | Registry  | Status       | Version | Package Name                  |
 | ---------- | --------- | ------------ | ------- | ----------------------------- |
-| TypeScript | npm       | ✅ Published | v1.4.0  | @hivellm/vectorizer-client-ts |
-| JavaScript | npm       | ✅ Published | v1.4.0  | @hivellm/vectorizer-client-js |
-| Rust       | crates.io | ✅ Published | v1.4.0  | vectorizer-sdk                |
-| Python     | PyPI      | ✅ Published | v1.4.0  | vectorizer-sdk                |
-| C#         | NuGet     | ✅ Published | v1.4.0  | Vectorizer.Sdk                |
-| Go         | Go Modules| 🚧 In Dev    | v1.4.0  | github.com/hivellm/vectorizer-sdk-go |
+| TypeScript | npm       | ✅ Published | v1.5.0  | @hivellm/vectorizer-client-ts |
+| JavaScript | npm       | ✅ Published | v1.5.0  | @hivellm/vectorizer-client-js |
+| Rust       | crates.io | ✅ Published | v1.5.0  | vectorizer-sdk                |
+| Python     | PyPI      | ✅ Published | v1.5.0  | vectorizer-sdk                |
+| C#         | NuGet     | ✅ Published | v1.5.0  | Vectorizer.Sdk                |
+| Go         | Go Modules| 🚧 In Dev    | v1.5.0  | github.com/hivellm/vectorizer-sdk-go |
 
 ## 🔧 **Publishing Infrastructure**
 

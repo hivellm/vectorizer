@@ -6,7 +6,7 @@
 High-performance Go SDK for Vectorizer vector database.
 
 **Package**: `github.com/hivellm/vectorizer-sdk-go`  
-**Version**: 1.4.0
+**Version**: 1.5.0
 
 ## Features
 
@@ -28,7 +28,7 @@ High-performance Go SDK for Vectorizer vector database.
 go get github.com/hivellm/vectorizer-sdk-go
 
 # Or specific version
-go get github.com/hivellm/vectorizer-sdk-go@v1.4.0
+go get github.com/hivellm/vectorizer-sdk-go@v1.5.0
 ```
 
 ## Quick Start

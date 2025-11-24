@@ -1,0 +1,21 @@
+   Compiling vectorizer v1.5.0 (F:\Node\hivellm\vectorizer)
+    Finished `release` profile [optimized] target(s) in 8.55s
+     Running `target\release\qdrant_comparison_benchmark.exe`
+2025-11-24T19:22:03.118160Z  INFO qdrant_comparison_benchmark: ­ƒÜÇ Starting Vectorizer vs Qdrant Benchmark
+2025-11-24T19:22:03.118224Z  INFO qdrant_comparison_benchmark: ==========================================
+
+2025-11-24T19:22:03.118430Z  INFO qdrant_comparison_benchmark: ­ƒöì Checking system health...
+2025-11-24T19:22:03.118448Z  INFO qdrant_comparison_benchmark:   Vectorizer: http://localhost:15002
+2025-11-24T19:22:03.124544Z  INFO qdrant_comparison_benchmark:   Ô£ô Vectorizer is healthy
+2025-11-24T19:22:03.124562Z  INFO qdrant_comparison_benchmark:   Qdrant: http://localhost:6333
+2025-11-24T19:22:03.126111Z  INFO qdrant_comparison_benchmark:   Ô£ô Qdrant is healthy
+
+2025-11-24T19:22:03.126151Z  INFO qdrant_comparison_benchmark: 
+­ƒôè Benchmarking Vectorizer...
+2025-11-24T19:22:03.126160Z  INFO qdrant_comparison_benchmark: ==========================================
+2025-11-24T19:22:03.126167Z  INFO qdrant_comparison_benchmark:   Creating collection 'benchmark_vectorizer_1764012123'...
+2025-11-24T19:22:03.127377Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Insertion Benchmark
+2025-11-24T19:22:03.127391Z  INFO qdrant_comparison_benchmark:   Inserting 10000 vectors in batches of 100...
+Error: "error sending request for url (http://localhost:15002/qdrant/collections/benchmark_vectorizer_1764012123/points)"
+error: process didn't exit successfully: `target\release\qdrant_comparison_benchmark.exe` (exit code: 1)

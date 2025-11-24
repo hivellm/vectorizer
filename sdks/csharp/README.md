@@ -6,7 +6,7 @@
 High-performance C# SDK for Vectorizer vector database.
 
 **Package**: `Vectorizer.Sdk`  
-**Version**: 1.4.0  
+**Version**: 1.5.0  
 **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 
 ## Features
@@ -33,7 +33,7 @@ dotnet add package Vectorizer.Sdk
 Install-Package Vectorizer.Sdk
 
 # Or specific version
-dotnet add package Vectorizer.Sdk --version 1.4.0
+dotnet add package Vectorizer.Sdk --version 1.5.0
 ```
 
 ## Quick Start

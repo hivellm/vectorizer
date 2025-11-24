@@ -1,0 +1,17 @@
+2025-11-24T20:04:10.186930Z  INFO qdrant_comparison_benchmark: ­ƒÜÇ Starting Vectorizer vs Qdrant Benchmark
+2025-11-24T20:04:10.187000Z  INFO qdrant_comparison_benchmark: ==========================================
+
+2025-11-24T20:04:10.187174Z  INFO qdrant_comparison_benchmark: ­ƒöì Checking system health...
+2025-11-24T20:04:10.187183Z  INFO qdrant_comparison_benchmark:   Vectorizer: http://localhost:15002
+2025-11-24T20:04:10.493252Z  INFO qdrant_comparison_benchmark:   Ô£ô Vectorizer is healthy
+2025-11-24T20:04:10.493270Z  INFO qdrant_comparison_benchmark:   Qdrant: http://localhost:6333
+2025-11-24T20:04:10.494851Z  INFO qdrant_comparison_benchmark:   Ô£ô Qdrant is healthy
+
+2025-11-24T20:04:10.494892Z  INFO qdrant_comparison_benchmark: 
+­ƒôè Benchmarking Vectorizer...
+2025-11-24T20:04:10.494898Z  INFO qdrant_comparison_benchmark: ==========================================
+2025-11-24T20:04:10.494901Z  INFO qdrant_comparison_benchmark:   Creating collection 'benchmark_vectorizer_1764014650'...
+2025-11-24T20:04:10.495305Z  INFO qdrant_comparison_benchmark: 
+­ƒö╣ Insertion Benchmark
+2025-11-24T20:04:10.495319Z  INFO qdrant_comparison_benchmark:   Inserting 500 vectors in batches of 20...
+Error: "error sending request for url (http://localhost:15002/qdrant/collections/benchmark_vectorizer_1764014650/points)"

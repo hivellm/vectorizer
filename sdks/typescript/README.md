@@ -6,7 +6,7 @@
 High-performance TypeScript SDK for Vectorizer vector database.
 
 **Package**: `@hivellm/vectorizer-sdk`  
-**Version**: 1.4.0
+**Version**: 1.5.0
 
 ## Features
 
@@ -31,7 +31,7 @@ High-performance TypeScript SDK for Vectorizer vector database.
 npm install @hivellm/vectorizer-sdk
 
 # Or specific version
-npm install @hivellm/vectorizer-sdk@1.4.0
+npm install @hivellm/vectorizer-sdk@1.5.0
 ```
 
 ## Quick Start

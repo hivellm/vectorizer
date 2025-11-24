@@ -1,0 +1,7 @@
+2025-11-24T19:34:43.944516Z  INFO qdrant_comparison_benchmark: ­ƒÜÇ Starting Vectorizer vs Qdrant Benchmark
+2025-11-24T19:34:43.944599Z  INFO qdrant_comparison_benchmark: ==========================================
+
+2025-11-24T19:34:43.944814Z  INFO qdrant_comparison_benchmark: ­ƒöì Checking system health...
+2025-11-24T19:34:43.944820Z  INFO qdrant_comparison_benchmark:   Vectorizer: http://localhost:15002
+2025-11-24T19:35:38.317153Z ERROR qdrant_comparison_benchmark: Vectorizer health check failed: error sending request for url (http://localhost:15002/health)
+Error: "error sending request for url (http://localhost:15002/health)"

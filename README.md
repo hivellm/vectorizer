@@ -133,6 +133,107 @@ cargo build --release --features full
 | **MCP Tools**         | 20 focused individual tools    |
 | **Document Formats**  | 14 formats supported           |
 
+### Benchmark Results (vs Qdrant)
+
+Comprehensive benchmark comparing Vectorizer with Qdrant across multiple scenarios:
+
+- **Search Performance**: Vectorizer is **4-5x faster** than Qdrant in all test scenarios
+  - Average latency: 0.16-0.23ms (Vectorizer) vs 0.80-0.87ms (Qdrant)
+  - Throughput: 4,400-6,000 queries/sec (Vectorizer) vs 1,100-1,300 queries/sec (Qdrant)
+- **Insert Performance**: Optimized with fire-and-forget pattern for non-blocking operations
+  - Configurable batch sizes and request body limits
+  - Background processing prevents API blocking
+- **Test Scenarios**: 5 comprehensive scenarios tested
+  - Small (1K vectors), Medium (5K vectors), Large (10K vectors) datasets
+  - Multiple dimensions: 384, 512, 768
+  - Full benchmark reports available in `docs/` directory
+
+See [Benchmark Documentation](./docs/specs/BENCHMARKING.md) for detailed performance metrics and how to run benchmarks.
+
+## 🔄 Feature Comparison
+
+Comprehensive feature comparison with major vector database solutions:
+
+| Feature | Vectorizer | Qdrant | pgvector | Pinecone | Weaviate | Milvus | Chroma |
+|---------|------------|-------|----------|----------|----------|--------|--------|
+| **Core** |
+| Language | Rust | Rust | C (PostgreSQL) | C++/Go | Go | C++/Go | Python |
+| License | Apache 2.0 | Apache 2.0 | PostgreSQL | Proprietary | BSD 3-Clause | Apache 2.0 | Apache 2.0 |
+| Deployment | Standalone/Embedded | Standalone | PostgreSQL Extension | Cloud/Self-hosted | Standalone | Standalone | Standalone |
+| **APIs & Integration** |
+| REST API | ✅ Full | ✅ Full | ❌ (via PostgreSQL) | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
+| gRPC API | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| MCP Integration | ✅ 20 tools | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| GraphQL | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Python SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| TypeScript SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Rust SDK | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| **Performance** |
+| Search Latency | < 3ms (CPU)<br>< 1ms (GPU) | ~1-5ms | ~5-50ms | ~50-100ms | ~10-50ms | ~5-20ms | ~10-100ms |
+| SIMD Acceleration | ✅ AVX2 | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| GPU Support | ✅ Metal (macOS) | ✅ CUDA | ❌ | ✅ Cloud GPU | ❌ | ✅ CUDA | ❌ |
+| **Storage & Indexing** |
+| HNSW Index | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Product Quantization | ✅ 64x compression | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Scalar Quantization | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Memory-Mapped Storage | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| Persistent Storage | ✅ .vecdb format | ✅ | ✅ | ✅ Cloud | ✅ | ✅ | ✅ |
+| **Distance Metrics** |
+| Cosine Similarity | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Euclidean Distance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Dot Product | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Advanced Features** |
+| Graph Relationships | ✅ Auto-discovery | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Document Processing | ✅ 14 formats | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Multi-Collection Search | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Hybrid Search | ✅ Dense + Sparse | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Semantic Reranking | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Query Expansion | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Embedding Providers** |
+| Built-in Embeddings | ✅ TF-IDF, BM25, BERT, MiniLM | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Custom Models | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Scalability** |
+| Horizontal Sharding | ✅ (BETA) | ✅ | ✅ (PostgreSQL) | ✅ Cloud | ✅ | ✅ | ❌ |
+| Replication | ✅ Master-Replica (BETA) | ✅ | ✅ (PostgreSQL) | ✅ Cloud | ✅ | ✅ | ❌ |
+| Auto-scaling | ❌ | ❌ | ❌ | ✅ Cloud | ❌ | ✅ | ❌ |
+| **Management & UI** |
+| Web Dashboard | ✅ React + TypeScript | ✅ Basic | ❌ (pgAdmin) | ✅ Cloud | ✅ | ✅ | ✅ Basic |
+| Desktop GUI | ✅ Electron | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Graph Visualization | ✅ vis-network | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| CLI Tools | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| **Migration & Compatibility** |
+| Qdrant Compatibility | ✅ Full API | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Migration Tools | ✅ Qdrant → Vectorizer | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Security** |
+| Authentication | ✅ JWT + API Keys | ✅ | ✅ (PostgreSQL) | ✅ Cloud | ✅ | ✅ | ✅ |
+| RBAC | ✅ | ✅ | ✅ (PostgreSQL) | ✅ Cloud | ✅ | ✅ | ❌ |
+| Encryption at Rest | ✅ | ✅ | ✅ (PostgreSQL) | ✅ Cloud | ✅ | ✅ | ❌ |
+| **Cost & Licensing** |
+| Open Source | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
+| Self-Hosted | ✅ | ✅ | ✅ | ✅ (Enterprise) | ✅ | ✅ | ✅ |
+| Cloud Hosted | ❌ | ✅ (Qdrant Cloud) | ✅ (Various) | ✅ | ✅ (Weaviate Cloud) | ✅ (Zilliz Cloud) | ✅ |
+| Free Tier | ✅ Unlimited | ✅ | ✅ | ✅ Limited | ✅ | ✅ | ✅ |
+
+### Key Differentiators
+
+**Vectorizer Advantages:**
+- ✅ **MCP Integration**: Native Model Context Protocol support with 20 focused tools
+- ✅ **Graph Relationships**: Automatic relationship discovery with full GUI visualization
+- ✅ **Document Processing**: Built-in support for 14 document formats (PDF, Office, images)
+- ✅ **Desktop GUI**: Electron-based desktop application for visual database management
+- ✅ **Qdrant Compatibility**: Full API compatibility + migration tools
+- ✅ **Performance**: 4-5x faster search than Qdrant in benchmarks
+- ✅ **Unified Storage**: Compact `.vecdb` format with 20-30% space savings
+
+**Best Use Cases:**
+- **Vectorizer**: AI applications requiring MCP integration, document processing, graph relationships, and high-performance search
+- **Qdrant**: Production-ready vector search with good performance and cloud options
+- **pgvector**: PostgreSQL-based applications needing vector search alongside relational data
+- **Pinecone**: Managed cloud solution with minimal infrastructure management
+- **Weaviate**: Applications requiring GraphQL and built-in ML models
+- **Milvus**: Large-scale deployments requiring advanced scalability features
+- **Chroma**: Python-first applications with simple setup requirements
+
 ## 🔧 Recent Improvements (v1.5.0)
 
 ### Test Suite Enhancements
