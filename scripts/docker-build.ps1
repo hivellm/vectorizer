@@ -52,10 +52,19 @@ if (-not $builderExists) {
     docker buildx inspect --bootstrap | Out-Null
 }
 
+# For local build with --load, we can only use a single platform
+# Extract first platform if multiple are specified
+$loadPlatform = $Platform
+if ($Platform.Contains(',')) {
+    $loadPlatform = $Platform.Split(',')[0]
+    Write-Host "⚠️  Multiple platforms specified, but --load only supports single platform" -ForegroundColor Yellow
+    Write-Host "   Building for: $loadPlatform (use manual push for multi-platform)" -ForegroundColor Yellow
+}
+
 # Build command with attestations (local build only)
 $buildArgs = @(
     "buildx", "build",
-    "--platform", $Platform,
+    "--platform", $loadPlatform,
     "--tag", $SourceTag,
     "--tag", $FullTag,
     "--build-arg", "GIT_COMMIT_ID=$GitCommitId",
@@ -68,7 +77,7 @@ $buildArgs = @(
 Write-Host "📦 Building locally (no push)" -ForegroundColor Yellow
 Write-Host "   To push manually, use:" -ForegroundColor Yellow
 Write-Host "   docker buildx build --platform linux/amd64,linux/arm64 --provenance=true --sbom=true --push -t hivellm/vectorizer:latest -t hivellm/vectorizer:$Tag ." -ForegroundColor White
-Write-Host ""
+    Write-Host ""
 
 Write-Host "🚀 Starting build..." -ForegroundColor Cyan
 docker @buildArgs .
@@ -82,7 +91,7 @@ Write-Host ""
 Write-Host "✅ Build completed successfully!" -ForegroundColor Green
 Write-Host "   Local tag: ${SourceTag}" -ForegroundColor Cyan
 Write-Host "   Full tag: ${FullTag}" -ForegroundColor Cyan
-Write-Host ""
+    Write-Host ""
 Write-Host "📤 To push manually (multi-platform):" -ForegroundColor Yellow
 Write-Host "   docker buildx build --platform linux/amd64,linux/arm64 --provenance=true --sbom=true --push -t hivellm/vectorizer:latest -t hivellm/vectorizer:$Tag ." -ForegroundColor White
 

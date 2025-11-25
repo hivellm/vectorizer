@@ -15,7 +15,7 @@ param(
     [string]$Repository = "vectorizer",
     
     [Parameter(Mandatory=$false)]
-    [string]$Organization = "hivehub"
+    [string]$Organization = "hivellm"
 )
 
 $ImageName = "vectorizer"
