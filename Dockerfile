@@ -6,7 +6,7 @@
 # ============================================================================
 # Local build examples:
 #   docker build -t vectorizer:local .
-#   docker build -t vectorizer:1.5.1 .
+#   docker build -t vectorizer:1.5.2 .
 #   docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:latest .
 #
 # Multi-platform build:
@@ -183,7 +183,8 @@ RUN case "$BUILDPLATFORM" in \
 ARG TARGETPLATFORM
 ENV TARGETPLATFORM=${TARGETPLATFORM:-linux/amd64}
 
-RUN xx-apt-get install -y pkg-config gcc g++ libc6-dev
+# Install cross-compilation dependencies including OpenSSL
+RUN xx-apt-get install -y pkg-config gcc g++ libc6-dev libssl-dev
 
 # Select Cargo profile (e.g., release, dev or ci)
 ARG PROFILE=release
