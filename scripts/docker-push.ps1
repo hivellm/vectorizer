@@ -15,7 +15,7 @@ param(
     [string]$Repository = "vectorizer",
     
     [Parameter(Mandatory=$false)]
-    [string]$Organization = "hivellm"
+    [string]$Organization = "hivehub"
 )
 
 $ImageName = "vectorizer"
@@ -37,28 +37,34 @@ Write-Host "   Tag: $Tag" -ForegroundColor Yellow
 Write-Host "   Full tag: $FullTag" -ForegroundColor Yellow
 Write-Host ""
 
-# Check if image exists
+# Check if image exists (check both possible tags)
 Write-Host "📦 Checking if image exists..." -ForegroundColor Cyan
-$imageExists = docker images -q "${ImageName}:${Tag}" 2>$null
-if (-not $imageExists) {
-    Write-Host "❌ Image ${SourceTag} not found!" -ForegroundColor Red
+$imageExists = docker images -q "${SourceTag}" 2>$null
+$fullTagExists = docker images -q "${FullTag}" 2>$null
+
+if ($fullTagExists) {
+    Write-Host "✅ Image found: ${FullTag}" -ForegroundColor Green
+    $tagToPush = $FullTag
+} elseif ($imageExists) {
+    Write-Host "✅ Image found: ${SourceTag}" -ForegroundColor Green
+    Write-Host ""
+    # Create tag with correct format for Docker Hub
+    Write-Host "🏷️  Creating tag for Docker Hub..." -ForegroundColor Cyan
+    docker tag "${SourceTag}" "${FullTag}"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Error creating tag!" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "✅ Tag created: ${FullTag}" -ForegroundColor Green
+    $tagToPush = $FullTag
+} else {
+    Write-Host "❌ Image not found!" -ForegroundColor Red
     Write-Host "   Build the image first with:" -ForegroundColor Yellow
-    Write-Host "   docker build -t ${SourceTag} ." -ForegroundColor Yellow
+    Write-Host "   .\scripts\docker-build.ps1 -Tag $Tag" -ForegroundColor White
+    Write-Host "   or:" -ForegroundColor Yellow
+    Write-Host "   docker build -t ${SourceTag} ." -ForegroundColor White
     exit 1
 }
-
-Write-Host "✅ Image found: ${SourceTag}" -ForegroundColor Green
-Write-Host ""
-
-# Create tag with correct format for Docker Hub
-Write-Host "🏷️  Creating tag for Docker Hub..." -ForegroundColor Cyan
-docker tag "${SourceTag}" "${FullTag}"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Error creating tag!" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "✅ Tag created: ${FullTag}" -ForegroundColor Green
 Write-Host ""
 
 # Check login
@@ -86,7 +92,7 @@ Write-Host ""
 
 # Push
 Write-Host "📤 Pushing to Docker Hub..." -ForegroundColor Cyan
-docker push "${FullTag}"
+docker push "${tagToPush}"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Error pushing image!" -ForegroundColor Red
     exit 1
