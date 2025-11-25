@@ -1,0 +1,27 @@
+# Cross.toml - Configuration for cross-rs
+# https://github.com/cross-rs/cross
+
+[build.env]
+passthrough = [
+    "RUST_BACKTRACE",
+    "CARGO_INCREMENTAL",
+]
+
+[target.x86_64-unknown-linux-musl]
+# Use pre-built image with OpenSSL and musl support
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:main"
+
+[target.x86_64-unknown-linux-musl.env]
+passthrough = [
+    "OPENSSL_STATIC=1",
+]
+
+[target.aarch64-unknown-linux-musl]
+# Use pre-built image with OpenSSL and musl support
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:main"
+
+[target.aarch64-unknown-linux-musl.env]
+passthrough = [
+    "OPENSSL_STATIC=1",
+]
+

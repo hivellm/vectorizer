@@ -40,16 +40,15 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler musl-tools
           rustup default stable
           rustup update
-      - name: Install cross-compilation tools
-        uses: taiki-e/setup-cross-toolchain-action@v1
-        with:
-          target: x86_64-unknown-linux-musl
-      - name: Build musl binaries
+          rustup target add x86_64-unknown-linux-musl
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Build musl binaries with cross
         run: |
-          cargo build --release --target x86_64-unknown-linux-musl --no-default-features
+          cross build --release --target x86_64-unknown-linux-musl --no-default-features
           mkdir -p dist
           cp target/x86_64-unknown-linux-musl/release/vectorizer dist/vectorizer-x86_64-unknown-linux-musl
           cp target/x86_64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-x86_64-unknown-linux-musl
@@ -64,7 +63,8 @@ jobs:
       - name: Build Debian Package
         run: |
           cargo install cargo-deb
-          cargo deb --no-strip --target x86_64-unknown-linux-musl --no-default-features
+          cross build --release --target x86_64-unknown-linux-musl --no-default-features
+          cargo deb --no-build --no-strip --target x86_64-unknown-linux-musl
       - name: Upload Debian package
         uses: svenstaro/upload-release-action@v2
         with:
@@ -84,13 +84,12 @@ jobs:
           sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
-      - name: Install cross-compilation tools
-        uses: taiki-e/setup-cross-toolchain-action@v1
-        with:
-          target: aarch64-unknown-linux-musl
-      - name: Build musl binaries
+          rustup target add aarch64-unknown-linux-musl
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Build musl binaries with cross
         run: |
-          cargo build --release --target aarch64-unknown-linux-musl --no-default-features
+          cross build --release --target aarch64-unknown-linux-musl --no-default-features
           mkdir -p dist
           cp target/aarch64-unknown-linux-musl/release/vectorizer dist/vectorizer-aarch64-unknown-linux-musl
           cp target/aarch64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-aarch64-unknown-linux-musl
