@@ -90,17 +90,37 @@ if (-not $loginCheck) {
 Write-Host "✅ Login verified" -ForegroundColor Green
 Write-Host ""
 
-# Push
+# Push - always push both the specific tag and latest
 Write-Host "📤 Pushing to Docker Hub..." -ForegroundColor Cyan
+
+# Push the specific tag
+Write-Host "   Pushing ${FullTag}..." -ForegroundColor Yellow
 docker push "${tagToPush}"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Error pushing image!" -ForegroundColor Red
     exit 1
 }
 
+# If tag is not "latest", also push as "latest"
+if ($Tag -ne "latest") {
+    $latestTag = "${Organization}/${Repository}:latest"
+    Write-Host "   Tagging as latest..." -ForegroundColor Yellow
+    docker tag "${tagToPush}" "${latestTag}"
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "   Pushing ${latestTag}..." -ForegroundColor Yellow
+        docker push "${latestTag}"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "⚠️  Warning: Failed to push latest tag" -ForegroundColor Yellow
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "✅ Push completed successfully!" -ForegroundColor Green
 Write-Host "   Image available at: docker.io/${FullTag}" -ForegroundColor Cyan
+if ($Tag -ne "latest") {
+    Write-Host "   Also tagged as: docker.io/${Organization}/${Repository}:latest" -ForegroundColor Cyan
+}
 Write-Host ""
 Write-Host "To use the image:" -ForegroundColor Yellow
 Write-Host "   docker pull ${FullTag}" -ForegroundColor White
