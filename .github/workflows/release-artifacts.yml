@@ -159,7 +159,7 @@ jobs:
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
-          features: hive-gpu-metal
+          features: hive-gpu
           archive: vectorizer-$target-metal
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build vectorizer-cli with Metal support
@@ -167,7 +167,7 @@ jobs:
         with:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
-          features: hive-gpu-metal
+          features: hive-gpu
           archive: vectorizer-cli-$target-metal
           token: ${{ secrets.GITHUB_TOKEN }}
 
