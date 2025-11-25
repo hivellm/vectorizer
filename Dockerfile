@@ -218,54 +218,25 @@ RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
 RUN xx-cargo install cargo-sbom && \
     cargo sbom > vectorizer.spdx.json
 
-# Runtime image - using specific Debian version for reproducibility
-FROM debian:bookworm-slim AS vectorizer
+# ============================================================================
+# RUNTIME IMAGE - Google Distroless (minimal attack surface, near-zero CVEs)
+# ============================================================================
+# Using distroless/cc for C/C++/Rust binaries with glibc
+FROM gcr.io/distroless/cc-debian12:nonroot AS vectorizer
 
 # Build metadata for supply chain attestation
 ARG BUILD_DATE
 ARG GIT_COMMIT_ID
 
-# Install additional packages
-ARG PACKAGES
+# Copy binary and assets (distroless has no shell, so direct copy)
+COPY --from=builder /vectorizer/vectorizer /vectorizer/vectorizer
+COPY --from=builder /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json
+COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
 
-# Update packages and install only necessary runtime dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        tzdata \
-        $PACKAGES \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /var/cache/debconf/* /var/lib/dpkg/status-old
+WORKDIR /vectorizer
 
-ARG APP=/vectorizer
-ARG USER_ID=1000
-
-# Create non-root user by default (improves security and Docker Scout score)
-RUN groupadd --gid "$USER_ID" vectorizer && \
-    useradd --uid "$USER_ID" --gid "$USER_ID" --shell /bin/bash --create-home vectorizer && \
-    mkdir -p "$APP"/storage "$APP"/snapshots && \
-    chown -R "$USER_ID:$USER_ID" "$APP"
-
-COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer "$APP"/vectorizer
-COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/vectorizer.spdx.json "$APP"/vectorizer.spdx.json
-COPY --from=builder --chown=$USER_ID:$USER_ID /vectorizer/tools/entrypoint.sh "$APP"/entrypoint.sh
-
-WORKDIR "$APP"
-
-# Set executable permissions on entrypoint script
-RUN chmod +x "$APP"/entrypoint.sh
-
-# Create data directories with proper permissions (including dashboard directory)
-RUN mkdir -p data storage snapshots dashboard .logs && \
-    chown -R $USER_ID:$USER_ID data storage snapshots dashboard .logs "$APP"
-
-# Copy built dashboard from dashboard-builder stage (after creating directory)
-COPY --from=dashboard-builder --chown=$USER_ID:$USER_ID /dashboard/dist "$APP"/dashboard/dist
-
-# Volumes for persistent data (dashboard is now part of image, not a volume)
-VOLUME ["$APP/data", "$APP/storage", "$APP/snapshots"]
-
-USER "$USER_ID:$USER_ID"
+# Distroless runs as nonroot (UID 65532) by default - no need to create user
+# This is more secure than custom UID as it's a well-known unprivileged user
 
 ENV TZ=Etc/UTC \
     RUN_MODE=production \
@@ -285,11 +256,13 @@ LABEL org.opencontainers.image.version="${GIT_COMMIT_ID:-latest}"
 LABEL org.opencontainers.image.revision="${GIT_COMMIT_ID:-unknown}"
 LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.base.name="gcr.io/distroless/cc-debian12:nonroot"
 
-# Security and best practices labels
+# Security labels
 LABEL security.scan.enabled="true"
-LABEL security.non-root-user="vectorizer"
-LABEL security.user-id="1000"
+LABEL security.non-root-user="nonroot"
+LABEL security.user-id="65532"
 
-CMD ["./entrypoint.sh"]
+# Direct binary execution (no shell in distroless)
+ENTRYPOINT ["/vectorizer/vectorizer"]
 
