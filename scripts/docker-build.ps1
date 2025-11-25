@@ -1,5 +1,6 @@
-# Script to build Docker image with supply chain attestations
-# Usage: .\scripts\docker-build.ps1 -Tag 1.5.0 -Push
+# Script to build Docker image with supply chain attestations (local build only)
+# Usage: .\scripts\docker-build.ps1 -Tag 1.5.2
+# Note: Push must be done manually using: docker buildx build --push ...
 
 param(
     [Parameter(Mandatory=$false)]
@@ -9,13 +10,10 @@ param(
     [string]$Repository = "vectorizer",
     
     [Parameter(Mandatory=$false)]
-    [string]$Organization = "hivehub",
+    [string]$Organization = "hivellm",
     
     [Parameter(Mandatory=$false)]
-    [switch]$Push = $false,
-    
-    [Parameter(Mandatory=$false)]
-    [string]$Platform = "linux/amd64,linux/arm64"
+    [string]$Platform = "linux/amd64"
 )
 
 $ImageName = "vectorizer"
@@ -54,7 +52,7 @@ if (-not $builderExists) {
     docker buildx inspect --bootstrap | Out-Null
 }
 
-# Build command with attestations
+# Build command with attestations (local build only)
 $buildArgs = @(
     "buildx", "build",
     "--platform", $Platform,
@@ -63,29 +61,14 @@ $buildArgs = @(
     "--build-arg", "GIT_COMMIT_ID=$GitCommitId",
     "--build-arg", "BUILD_DATE=$BuildDate",
     "--provenance", "mode=max",
-    "--sbom", "true"
+    "--sbom", "true",
+    "--load"
 )
 
-if ($Push) {
-    $buildArgs = $buildArgs | Where-Object { $_ -ne "--load" }
-    $buildArgs += "--push"
-    
-    Write-Host "📤 Will push to Docker Hub after build (multi-platform)" -ForegroundColor Yellow
-    Write-Host ""
-} else {
-    # For multi-platform builds without push, we need to load only the native platform
-    # Extract first platform for local load
-    $firstPlatform = $Platform.Split(',')[0]
-    $buildArgs = $buildArgs | Where-Object { $_ -ne "--platform" }
-    $buildArgs = $buildArgs | Where-Object { $_ -ne $Platform }
-    $buildArgs += "--platform"
-    $buildArgs += $firstPlatform
-    $buildArgs += "--load"
-    
-    Write-Host "⚠️  Multi-platform build without push: loading only $firstPlatform for local use" -ForegroundColor Yellow
-    Write-Host "   Use -Push to build and push all platforms" -ForegroundColor Yellow
-    Write-Host ""
-}
+Write-Host "📦 Building locally (no push)" -ForegroundColor Yellow
+Write-Host "   To push manually, use:" -ForegroundColor Yellow
+Write-Host "   docker buildx build --platform linux/amd64,linux/arm64 --provenance=true --sbom=true --push -t hivellm/vectorizer:latest -t hivellm/vectorizer:$Tag ." -ForegroundColor White
+Write-Host ""
 
 Write-Host "🚀 Starting build..." -ForegroundColor Cyan
 docker @buildArgs .
@@ -98,11 +81,8 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "✅ Build completed successfully!" -ForegroundColor Green
 Write-Host "   Local tag: ${SourceTag}" -ForegroundColor Cyan
-Write-Host "   Docker Hub tag: ${FullTag}" -ForegroundColor Cyan
-
-if (-not $Push) {
-    Write-Host ""
-    Write-Host "To push the image:" -ForegroundColor Yellow
-    Write-Host "   .\scripts\docker-push.ps1 -Tag $Tag" -ForegroundColor White
-}
+Write-Host "   Full tag: ${FullTag}" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "📤 To push manually (multi-platform):" -ForegroundColor Yellow
+Write-Host "   docker buildx build --platform linux/amd64,linux/arm64 --provenance=true --sbom=true --push -t hivellm/vectorizer:latest -t hivellm/vectorizer:$Tag ." -ForegroundColor White
 
