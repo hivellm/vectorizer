@@ -4,7 +4,7 @@ module: sdks
 id: sdks-index
 order: 0
 description: Client SDKs for Vectorizer in multiple programming languages
-tags: [sdks, client-libraries, python, typescript, javascript, rust]
+tags: [sdks, client-libraries, python, typescript, javascript, rust, csharp, go]
 ---
 
 # SDKs
@@ -48,14 +48,35 @@ Rust SDK with full type safety:
 - Async operations
 - Qdrant compatibility
 
+### [C# SDK](./CSHARP.md)
+
+C# SDK for .NET applications:
+
+- Installation: `dotnet add package Vectorizer.Sdk`
+- Full async/await support
+- Dependency injection ready
+- Qdrant compatibility
+
+### [Go SDK](./GO.md)
+
+Go SDK with idiomatic Go patterns:
+
+- Installation: `go get github.com/hivellm/vectorizer-sdk-go`
+- Context-based cancellation
+- Concurrent operations
+- Qdrant compatibility
+
 ## Quick Comparison
 
-| Feature       | Python | TypeScript | JavaScript | Rust |
-| ------------- | ------ | ---------- | ---------- | ---- |
-| Type Safety   | ✅     | ✅         | ❌         | ✅   |
-| Async/Await   | ✅     | ✅         | ✅         | ✅   |
-| Qdrant Compat | ✅     | ✅         | ✅         | ✅   |
-| Hybrid Search | ✅     | ✅         | ✅         | ✅   |
+| Feature       | Python | TypeScript | JavaScript | Rust | C#  | Go  |
+| ------------- | ------ | ---------- | ---------- | ---- | --- | --- |
+| Type Safety   | ✅     | ✅         | ❌         | ✅   | ✅  | ✅  |
+| Async/Await   | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
+| Qdrant Compat | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
+| Hybrid Search | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
+| Snapshots API | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
+| Sharding API  | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
+| Cluster API   | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
 
 ## Common Operations
 
@@ -66,6 +87,9 @@ All SDKs support the same core operations:
 - **Search**: Basic, intelligent, semantic, hybrid
 - **Batch**: Batch insert, update, delete
 - **Qdrant**: Full Qdrant API compatibility
+- **Snapshots**: Create, list, restore snapshots
+- **Sharding**: Shard key management
+- **Cluster**: Cluster status and management
 
 ## Related Topics
 

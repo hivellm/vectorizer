@@ -3,13 +3,13 @@ title: SDKs Guide
 module: sdks
 id: sdks-guide
 order: 1
-description: Using Vectorizer SDKs in Python, TypeScript, JavaScript, and Rust
-tags: [sdks, python, typescript, javascript, rust, client-libraries]
+description: Using Vectorizer SDKs in Python, TypeScript, JavaScript, Rust, C#, and Go
+tags: [sdks, python, typescript, javascript, rust, csharp, go, client-libraries]
 ---
 
 # SDKs Guide
 
-Vectorizer provides official SDKs for multiple programming languages.
+Vectorizer v1.6.0 provides official SDKs for multiple programming languages.
 
 ## Python SDK
 
@@ -93,7 +93,7 @@ const hybridResults = await client.hybridSearch({
 
 ```toml
 [dependencies]
-vectorizer-sdk = "1.3.0"
+vectorizer-sdk = "1.6.0"
 ```
 
 ### Basic Usage
@@ -149,24 +149,115 @@ await client.insertText("my_docs", "Hello, Vectorizer!");
 const results = await client.search("my_docs", "hello", { limit: 5 });
 ```
 
+## C# SDK
+
+### Installation
+
+```bash
+dotnet add package Vectorizer.Sdk
+```
+
+### Basic Usage
+
+```csharp
+using Vectorizer.Sdk;
+
+var client = new VectorizerClient("http://localhost:15002");
+
+// Create collection
+await client.CreateCollectionAsync("my_docs", new CreateCollectionRequest
+{
+    Dimension = 384
+});
+
+// Insert vectors
+await client.InsertVectorsAsync("my_docs", vectors);
+
+// Search
+var results = await client.SearchAsync("my_docs", new SearchRequest
+{
+    Vector = queryVector,
+    Limit = 5
+});
+```
+
+## Go SDK
+
+### Installation
+
+```bash
+go get github.com/hivellm/vectorizer-sdk-go
+```
+
+### Basic Usage
+
+```go
+package main
+
+import (
+    "context"
+    vectorizer "github.com/hivellm/vectorizer-sdk-go"
+)
+
+func main() {
+    client := vectorizer.NewClient("http://localhost:15002")
+    ctx := context.Background()
+
+    // Create collection
+    client.CreateCollection(ctx, "my_docs", &vectorizer.CreateCollectionRequest{
+        Dimension: 384,
+    })
+
+    // Insert vectors
+    client.InsertVectors(ctx, "my_docs", vectors)
+
+    // Search
+    results, _ := client.Search(ctx, "my_docs", &vectorizer.SearchRequest{
+        Vector: queryVector,
+        Limit:  5,
+    })
+}
+```
+
 ## Qdrant Compatibility
 
-All SDKs support Qdrant-compatible API methods:
+All SDKs support Qdrant-compatible API methods including Snapshots, Sharding, and Cluster APIs:
 
 ```python
-# Python
+# Python - Qdrant API
 collections = await client.qdrant_list_collections()
 results = await client.qdrant_search_points("my_collection", vector, limit=10)
+
+# Snapshots
+snapshots = await client.qdrant_list_snapshots("my_collection")
+await client.qdrant_create_snapshot("my_collection")
+
+# Sharding
+shard_keys = await client.qdrant_list_shard_keys("my_collection")
+
+# Cluster
+status = await client.qdrant_cluster_status()
 ```
 
 ```typescript
-// TypeScript
+// TypeScript - Qdrant API
 const collections = await client.qdrantListCollections();
 const results = await client.qdrantSearchPoints("my_collection", vector, 10);
+
+// Snapshots
+const snapshots = await client.qdrantListSnapshots("my_collection");
+await client.qdrantCreateSnapshot("my_collection");
+
+// Sharding
+const shardKeys = await client.qdrantListShardKeys("my_collection");
+
+// Cluster
+const status = await client.qdrantClusterStatus();
 ```
 
 ## Related Topics
 
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection operations
 - [Search Guide](../search/SEARCH.md) - Search operations
+- [Qdrant Compatibility](../qdrant/API_COMPATIBILITY.md) - Qdrant API reference
 - [API Reference](../../specs/API_REFERENCE.md) - Complete REST API

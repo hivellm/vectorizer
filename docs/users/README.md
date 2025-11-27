@@ -58,6 +58,8 @@ Client libraries and SDKs:
 - [TypeScript SDK](./sdks/TYPESCRIPT.md) - TypeScript/JavaScript SDK guide
 - [JavaScript SDK](./sdks/JAVASCRIPT.md) - JavaScript SDK guide
 - [Rust SDK](./sdks/RUST.md) - Complete Rust SDK guide
+- [C# SDK](./sdks/CSHARP.md) - .NET SDK guide
+- [Go SDK](./sdks/GO.md) - Go SDK guide
 - [SDKs Overview](./sdks/SDKS.md) - Quick comparison and overview
 
 ### 🔌 [API Reference](./api/)
@@ -120,6 +122,7 @@ Advanced features and optimizations:
 
 - [Sparse Vectors](./guides/SPARSE_VECTORS.md) - Sparse vector operations and hybrid search
 - [Quantization](./guides/QUANTIZATION.md) - Vector quantization for memory optimization
+- [Graph Operations](./guides/GRAPH.md) - Graph-based queries and relationships
 
 ## 🚀 Quick Start
 

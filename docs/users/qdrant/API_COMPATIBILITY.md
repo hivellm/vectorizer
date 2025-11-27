@@ -47,14 +47,58 @@ http://localhost:15002/qdrant
 | `/collections/{name}/aliases` | GET    | `/qdrant/collections/{name}/aliases` | ✅ Full | List collection aliases |
 | `/aliases`                    | GET    | `/qdrant/aliases`                    | ✅ Full | List all aliases        |
 
+### Snapshot Endpoints
+
+| Qdrant Endpoint                              | Method | Vectorizer Endpoint                                 | Status  | Notes                     |
+| -------------------------------------------- | ------ | --------------------------------------------------- | ------- | ------------------------- |
+| `/collections/{name}/snapshots`              | GET    | `/qdrant/collections/{name}/snapshots`              | ✅ Full | List collection snapshots |
+| `/collections/{name}/snapshots`              | POST   | `/qdrant/collections/{name}/snapshots`              | ✅ Full | Create snapshot           |
+| `/collections/{name}/snapshots/{snapshot}`   | DELETE | `/qdrant/collections/{name}/snapshots/{snapshot}`   | ✅ Full | Delete snapshot           |
+| `/collections/{name}/snapshots/recover`      | PUT    | `/qdrant/collections/{name}/snapshots/recover`      | ✅ Full | Recover from snapshot     |
+| `/snapshots`                                 | GET    | `/qdrant/snapshots`                                 | ✅ Full | List all snapshots        |
+| `/snapshots`                                 | POST   | `/qdrant/snapshots`                                 | ✅ Full | Create full snapshot      |
+
+### Sharding Endpoints
+
+| Qdrant Endpoint                                  | Method | Vectorizer Endpoint                                     | Status  | Notes            |
+| ------------------------------------------------ | ------ | ------------------------------------------------------- | ------- | ---------------- |
+| `/collections/{name}/shards`                     | GET    | `/qdrant/collections/{name}/shards`                     | ✅ Full | List shard keys  |
+| `/collections/{name}/shards/key`                 | PUT    | `/qdrant/collections/{name}/shards/key`                 | ✅ Full | Create shard key |
+| `/collections/{name}/shards/key`                 | DELETE | `/qdrant/collections/{name}/shards/key`                 | ✅ Full | Delete shard key |
+
+### Cluster Management Endpoints
+
+| Qdrant Endpoint              | Method | Vectorizer Endpoint                 | Status  | Notes              |
+| ---------------------------- | ------ | ----------------------------------- | ------- | ------------------ |
+| `/cluster`                   | GET    | `/qdrant/cluster`                   | ✅ Full | Cluster status     |
+| `/cluster/recover`           | POST   | `/qdrant/cluster/recover`           | ✅ Full | Recover peer       |
+| `/cluster/peer/{peer_id}`    | DELETE | `/qdrant/cluster/peer/{peer_id}`    | ✅ Full | Remove peer        |
+| `/cluster/metadata-keys`     | GET    | `/qdrant/cluster/metadata-keys`     | ✅ Full | List metadata keys |
+| `/cluster/metadata/{key}`    | GET    | `/qdrant/cluster/metadata/{key}`    | ✅ Full | Get metadata       |
+| `/cluster/metadata/{key}`    | PUT    | `/qdrant/cluster/metadata/{key}`    | ✅ Full | Set metadata       |
+
+### Query API Endpoints
+
+| Qdrant Endpoint                             | Method | Vectorizer Endpoint                                | Status  | Notes               |
+| ------------------------------------------- | ------ | -------------------------------------------------- | ------- | ------------------- |
+| `/collections/{name}/points/query`          | POST   | `/qdrant/collections/{name}/points/query`          | ✅ Full | Universal query     |
+| `/collections/{name}/points/query/batch`    | POST   | `/qdrant/collections/{name}/points/query/batch`    | ✅ Full | Batch query         |
+| `/collections/{name}/points/query/groups`   | POST   | `/qdrant/collections/{name}/points/query/groups`   | ✅ Full | Grouped query       |
+
+### Search Groups & Matrix Endpoints
+
+| Qdrant Endpoint                                    | Method | Vectorizer Endpoint                                       | Status  | Notes             |
+| -------------------------------------------------- | ------ | --------------------------------------------------------- | ------- | ----------------- |
+| `/collections/{name}/points/search/groups`         | POST   | `/qdrant/collections/{name}/points/search/groups`         | ✅ Full | Search groups     |
+| `/collections/{name}/points/search/matrix/pairs`   | POST   | `/qdrant/collections/{name}/points/search/matrix/pairs`   | ✅ Full | Similarity matrix |
+| `/collections/{name}/points/search/matrix/offsets` | POST   | `/qdrant/collections/{name}/points/search/matrix/offsets` | ✅ Full | Matrix offsets    |
+
 ### Unsupported Endpoints
 
-| Qdrant Endpoint                 | Status | Reason                             |
-| ------------------------------- | ------ | ---------------------------------- |
-| `/collections/{name}/snapshots` | ❌     | Snapshots available via native API |
-| `/collections/{name}/shards`    | ❌     | Sharding not supported             |
-| `/cluster`                      | ❌     | Clustering not supported           |
-| `/telemetry`                    | ❌     | Use native monitoring              |
+| Qdrant Endpoint | Status | Reason                |
+| --------------- | ------ | --------------------- |
+| `/telemetry`    | ❌     | Use native monitoring |
+| gRPC endpoints  | ❌     | REST API only         |
 
 ## Parameter Compatibility
 
@@ -68,7 +112,7 @@ http://localhost:15002/qdrant
 | `hnsw_config.ef_construct` | ✅     | `hnsw_config.ef_construction` | ⚠️ Renamed    | Parameter name differs     |
 | `hnsw_config.ef`           | ✅     | `hnsw_config.ef_search`       | ⚠️ Renamed    | Parameter name differs     |
 | `optimizers_config`        | ✅     | Partial                       | ⚠️ Basic      | Limited optimizer support  |
-| `quantization_config`      | ✅     | Partial                       | ⚠️ SQ8 only   | Scalar quantization only   |
+| `quantization_config`      | ✅     | ✅                            | ✅ Compatible | SQ, PQ, Binary supported   |
 | `replication_factor`       | ✅     | ❌                            | ❌            | Replication via native API |
 
 ### Search Parameters
@@ -82,8 +126,8 @@ http://localhost:15002/qdrant
 | `with_payload`    | ✅     | ✅         | ✅ Compatible | Include payload             |
 | `with_vector`     | ✅     | ✅         | ✅ Compatible | Include vector              |
 | `score_threshold` | ✅     | ✅         | ✅ Compatible | Minimum score               |
-| `using`           | ✅     | ❌         | ❌            | Named vectors not supported |
-| `prefetch`        | ✅     | ❌         | ❌            | Prefetch not supported      |
+| `using`           | ✅     | ⚠️         | ⚠️ Partial    | Single vector extracted     |
+| `prefetch`        | ✅     | ✅         | ✅ Compatible | Recursive prefetch support  |
 
 ### Filter Parameters
 
@@ -157,10 +201,10 @@ http://localhost:15002/qdrant
 
 | Qdrant Version | Vectorizer Version | Compatibility | Notes                     |
 | -------------- | ------------------ | ------------- | ------------------------- |
-| v1.14.x        | v1.3.0+            | ✅ Full       | REST API fully compatible |
-| v1.13.x        | v1.3.0+            | ✅ Full       | Backward compatible       |
-| v1.12.x        | v1.3.0+            | ⚠️ Partial    | Some features may differ  |
-| v1.11.x        | v1.3.0+            | ⚠️ Partial    | Older API versions        |
+| v1.14.x        | v1.6.0+            | ✅ Full       | REST API fully compatible |
+| v1.13.x        | v1.6.0+            | ✅ Full       | Backward compatible       |
+| v1.12.x        | v1.6.0+            | ⚠️ Partial    | Some features may differ  |
+| v1.11.x        | v1.6.0+            | ⚠️ Partial    | Older API versions        |
 
 ## HTTP Status Codes
 
@@ -218,15 +262,11 @@ All responses use Qdrant-compatible format:
 
 - ⚠️ HNSW configuration (parameter names differ)
 - ⚠️ Optimizer configuration (basic support)
-- ⚠️ Quantization (SQ8 only)
+- ⚠️ Named vectors (single vector extracted)
 
 ### Not Compatible
 
-- ❌ gRPC protocol
-- ❌ Sharding endpoints
-- ❌ Cluster management
-- ❌ Named vectors (`using` parameter)
-- ❌ Prefetch operations
+- ❌ gRPC protocol (use REST API)
 
 ## Migration Notes
 
