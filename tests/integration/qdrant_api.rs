@@ -5,9 +5,10 @@
 //! - Cluster Models
 //! - Point ID Handling
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 
 // ============================================================================
 // Common Types for Qdrant API Testing
@@ -214,6 +215,7 @@ mod quantization_model_tests {
 #[cfg(test)]
 mod cluster_model_tests {
     use std::collections::HashMap;
+
     use vectorizer::models::qdrant::cluster::{
         QdrantClusterStatus, QdrantPeerInfo, QdrantPeerState, QdrantRaftInfo,
     };
@@ -672,6 +674,7 @@ mod sharding_model_tests {
 #[cfg(test)]
 mod search_model_tests {
     use std::collections::HashMap;
+
     use vectorizer::models::qdrant::point::QdrantPointId;
     use vectorizer::models::qdrant::search::{
         QdrantDirection, QdrantFusionMethod, QdrantPrefetch, QdrantQuery, QdrantRecommendStrategy,
@@ -1212,8 +1215,9 @@ mod quantization_api_tests {
 
 #[cfg(test)]
 mod cluster_api_tests {
-    use serde_json::json;
     use std::collections::HashMap;
+
+    use serde_json::json;
     use vectorizer::models::qdrant::cluster::{
         QdrantClusterRecoverResponse, QdrantClusterStatus, QdrantClusterStatusResponse,
         QdrantGetMetadataKeyResponse, QdrantListMetadataKeysResponse, QdrantPeerInfo,

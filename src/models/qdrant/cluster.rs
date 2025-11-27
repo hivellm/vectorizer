@@ -2,8 +2,9 @@
 //!
 //! This module contains the request/response types for the Qdrant Cluster API.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Peer state in the cluster
 #[derive(Debug, Clone, Serialize, Deserialize)]

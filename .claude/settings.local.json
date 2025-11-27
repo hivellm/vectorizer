@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo test:*)",
+      "Bash(cargo build:*)",
+      "Bash(Start-Process -FilePath \"target/release/vectorizer.exe\" -ArgumentList \"--port\", \"7777\" -NoNewWindow -PassThru)",
+      "Bash(Select-Object -Property Id)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(RUST_LOG=info ./target/release/vectorizer.exe:*)",
+      "Bash(echo \"=== Criando coleção sharded via Qdrant API ===\" curl -s -X PUT \"http://localhost:9000/qdrant/collections/shard_test\"  -H \"Content-Type: application/json\"  -d '{ \"\"vectors\"\": { \"\"size\"\": 128, \"\"distance\"\": \"\"Euclid\"\" }, \"\"shard_count\"\": 4 }' echo \"\" echo \"=== Verificando ===\" curl -s \"http://localhost:9000/collections\")",
+      "Bash(python3:*)",
+      "Bash(__NEW_LINE__ echo \"\")",
+      "Bash(powershell -Command:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

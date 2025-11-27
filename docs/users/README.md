@@ -67,6 +67,7 @@ Client libraries and SDKs:
 REST API and integration:
 
 - [REST API Reference](./api/API_REFERENCE.md) - Complete API endpoint reference
+- [Authentication](./api/AUTHENTICATION.md) - JWT, API Keys, RBAC, Rate Limiting
 - [Discovery API](./api/DISCOVERY.md) - Intelligent content exploration
 - [File Operations API](./api/FILE_OPERATIONS.md) - File-level operations
 - [Replication API](./api/REPLICATION.md) - Master-replica replication
@@ -123,6 +124,8 @@ Advanced features and optimizations:
 - [Sparse Vectors](./guides/SPARSE_VECTORS.md) - Sparse vector operations and hybrid search
 - [Quantization](./guides/QUANTIZATION.md) - Vector quantization for memory optimization
 - [Graph Operations](./guides/GRAPH.md) - Graph-based queries and relationships
+- [Summarization](./guides/SUMMARIZATION.md) - Text summarization features
+- [Multi-Tenancy](./guides/MULTI_TENANCY.md) - Tenant isolation and resource quotas
 
 ## 🚀 Quick Start
 
