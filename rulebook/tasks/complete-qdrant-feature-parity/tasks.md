@@ -15,7 +15,7 @@
 - [x] 2.3 Implement DELETE `/qdrant/collections/{name}/snapshots/{snapshot_name}` (delete snapshot)
 - [x] 2.4 Implement GET `/qdrant/snapshots` (list all snapshots)
 - [x] 2.5 Implement POST `/qdrant/snapshots` (create full snapshot)
-- [ ] 2.6 Implement POST `/qdrant/collections/{name}/snapshots/upload` (upload snapshot)
+- [x] 2.6 Implement POST `/qdrant/collections/{name}/snapshots/upload` (upload snapshot)
 - [x] 2.7 Implement POST `/qdrant/collections/{name}/snapshots/recover` (recover from snapshot)
 - [x] 2.8 Add tests for Qdrant snapshot API compatibility
 
@@ -81,7 +81,7 @@
 - [ ] 11.3 Add API documentation for new endpoints
 - [ ] 11.4 Add examples for gRPC usage
 - [ ] 11.5 Add examples for query API, search groups, matrix
-- [ ] 11.6 Update CHANGELOG.md
+- [x] 11.6 Update CHANGELOG.md
 
 ## 12. SDK Implementation Phase
 - [x] 12.1 Add snapshot models to Rust SDK (`sdks/rust/src/models/mod.rs`)

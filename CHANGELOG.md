@@ -40,6 +40,30 @@ All notable changes to this project will be documented in this file.
   - **BENEFIT**: Higher and more accurate BM25 scores, better search quality and relevance ranking
 
 ### Added
+- **Qdrant gRPC Protocol Support**: Full Qdrant-compatible gRPC API implementation
+  - **Collections Service** (`qdrant.Collections`):
+    - `Get`, `List`, `Create`, `Update`, `Delete` - Collection CRUD operations
+    - `CollectionExists` - Check if collection exists
+    - `CollectionClusterInfo` - Get collection cluster info
+    - `CreateShardKey`, `DeleteShardKey` - Shard key management
+    - `UpdateAliases`, `ListCollectionAliases`, `ListAliases` - Alias management
+  - **Points Service** (`qdrant.Points`):
+    - `Upsert`, `Delete`, `Get` - Point CRUD operations
+    - `UpdateVectors`, `DeleteVectors` - Vector management
+    - `SetPayload`, `OverwritePayload`, `DeletePayload`, `ClearPayload` - Payload operations
+    - `Search`, `SearchBatch`, `SearchGroups` - Search operations
+    - `Scroll`, `Count` - Iteration and counting
+    - `Recommend`, `RecommendBatch`, `RecommendGroups` - Recommendation
+    - `Discover`, `DiscoverBatch` - Discovery operations
+    - `Query`, `QueryBatch`, `QueryGroups` - Advanced query API
+    - `Facet`, `SearchMatrixPairs`, `SearchMatrixOffsets` - Advanced search
+  - **Snapshots Service** (`qdrant.Snapshots`):
+    - `Create`, `List`, `Delete` - Collection snapshot management
+    - `CreateFull`, `ListFull`, `DeleteFull` - Full snapshot management
+  - gRPC server runs on `REST_PORT + 1` (e.g., if REST is on 7777, gRPC is on 7778)
+  - Compatible with official Qdrant clients (Python, Rust, etc.) using gRPC protocol
+  - **BENEFIT**: High-performance gRPC API for production workloads, drop-in replacement for Qdrant
+
 - **Qdrant Feature Parity - Advanced APIs**: Complete implementation of Qdrant 1.14.x advanced features
   - **Snapshots API**: Full snapshot management via Qdrant-compatible endpoints
     - `GET /qdrant/collections/{name}/snapshots` - List collection snapshots
@@ -48,6 +72,7 @@ All notable changes to this project will be documented in this file.
     - `GET /qdrant/snapshots` - List all snapshots
     - `POST /qdrant/snapshots` - Create full snapshot
     - `POST /qdrant/collections/{name}/snapshots/recover` - Recover from snapshot
+    - `POST /qdrant/collections/{name}/snapshots/upload` - Upload snapshot file
   - **Sharding API**: Distributed sharding support via Qdrant API
     - `PUT /qdrant/collections/{name}/shards` - Create shard key
     - `POST /qdrant/collections/{name}/shards/delete` - Delete shard key

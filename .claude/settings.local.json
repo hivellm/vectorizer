@@ -16,7 +16,9 @@
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)"
     ],
     "deny": [],
     "ask": []

@@ -1042,6 +1042,10 @@ impl VectorizerServer {
                 post(qdrant_snapshot_handlers::recover_collection_snapshot),
             )
             .route(
+                "/qdrant/collections/{name}/snapshots/upload",
+                post(qdrant_snapshot_handlers::upload_collection_snapshot),
+            )
+            .route(
                 "/qdrant/snapshots",
                 get(qdrant_snapshot_handlers::list_all_snapshots),
             )

@@ -330,6 +330,97 @@ impl SnapshotManager {
         Ok(true)
     }
 
+    /// Import a snapshot from uploaded data
+    /// The data should be a .vecdb file or a tar archive containing snapshot files
+    pub fn import_snapshot(&self, data: &[u8]) -> Result<SnapshotInfo> {
+        // Ensure snapshots directory exists
+        fs::create_dir_all(&self.snapshots_dir).map_err(VectorizerError::Io)?;
+
+        let timestamp = Utc::now();
+        let snapshot_id = format!("uploaded_{}", timestamp.format("%Y%m%d_%H%M%S"));
+        let snapshot_dir = self.snapshots_dir.join(&snapshot_id);
+
+        info!(
+            "📤 Importing uploaded snapshot: {} ({} bytes)",
+            snapshot_id,
+            data.len()
+        );
+
+        fs::create_dir_all(&snapshot_dir).map_err(VectorizerError::Io)?;
+
+        // Check if data is a tar archive (starts with tar magic bytes) or raw vecdb
+        let is_tar = data.len() > 262 && &data[257..262] == b"ustar";
+
+        if is_tar {
+            // Extract tar archive
+            use std::io::Cursor;
+            let cursor = Cursor::new(data);
+            let mut archive = tar::Archive::new(cursor);
+
+            archive.unpack(&snapshot_dir).map_err(|e| {
+                VectorizerError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Failed to extract tar archive: {}", e),
+                ))
+            })?;
+        } else {
+            // Assume it's a raw .vecdb file
+            let vecdb_dst = snapshot_dir.join(crate::storage::VECDB_FILE);
+            let mut file = File::create(&vecdb_dst).map_err(VectorizerError::Io)?;
+            file.write_all(data).map_err(VectorizerError::Io)?;
+        }
+
+        // Calculate size by summing up all files in the directory
+        let size_bytes = Self::calculate_snapshot_size(&snapshot_dir);
+
+        // Create simple metadata JSON
+        let metadata_json = serde_json::json!({
+            "created_at": timestamp.to_rfc3339(),
+            "version": env!("CARGO_PKG_VERSION"),
+            "collections": [],
+            "total_vectors": 0,
+            "imported": true
+        });
+
+        // Save metadata
+        let metadata_path = snapshot_dir.join("metadata.json");
+        let metadata_str = serde_json::to_string_pretty(&metadata_json).map_err(|e| {
+            VectorizerError::Serialization(format!("Failed to serialize snapshot metadata: {}", e))
+        })?;
+        fs::write(&metadata_path, metadata_str).map_err(VectorizerError::Io)?;
+
+        info!(
+            "✅ Imported snapshot {} ({} bytes)",
+            snapshot_id, size_bytes
+        );
+
+        Ok(SnapshotInfo {
+            id: snapshot_id,
+            path: snapshot_dir,
+            created_at: timestamp,
+            size_bytes,
+            index_version: env!("CARGO_PKG_VERSION").to_string(),
+        })
+    }
+
+    /// Calculate the total size of a snapshot directory
+    fn calculate_snapshot_size(dir: &Path) -> u64 {
+        let mut total_size = 0u64;
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Ok(metadata) = fs::metadata(&path) {
+                        total_size += metadata.len();
+                    }
+                } else if path.is_dir() {
+                    total_size += Self::calculate_snapshot_size(&path);
+                }
+            }
+        }
+        total_size
+    }
+
     /// Clean up old snapshots based on retention policy
     /// Simple approach: parse date from directory name (format: %Y%m%d_%H%M%S) and remove if older than retention period
     pub fn cleanup_old_snapshots(&self) -> Result<usize> {

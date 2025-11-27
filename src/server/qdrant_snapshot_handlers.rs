@@ -4,6 +4,7 @@
 
 use std::time::Instant;
 
+use axum::body::Bytes;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
@@ -13,7 +14,7 @@ use super::VectorizerServer;
 use super::error_middleware::{ErrorResponse, create_error_response, create_not_found_error};
 use crate::models::qdrant::snapshot::{
     QdrantCreateSnapshotResponse, QdrantDeleteSnapshotResponse, QdrantListSnapshotsResponse,
-    QdrantSnapshotDescription,
+    QdrantSnapshotDescription, QdrantUploadSnapshotResponse,
 };
 
 /// List snapshots for a specific collection
@@ -344,4 +345,73 @@ pub async fn recover_collection_snapshot(
             time: elapsed,
         },
     ))
+}
+
+/// Upload a snapshot for a specific collection
+/// POST /qdrant/collections/{name}/snapshots/upload
+pub async fn upload_collection_snapshot(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    body: Bytes,
+) -> Result<Json<QdrantUploadSnapshotResponse>, ErrorResponse> {
+    let start = Instant::now();
+    info!(
+        collection = %collection_name,
+        size_bytes = body.len(),
+        "Qdrant Snapshots API: Uploading collection snapshot"
+    );
+
+    // Verify collection exists
+    state
+        .store
+        .get_collection(&collection_name)
+        .map_err(|_| create_not_found_error("collection", &collection_name))?;
+
+    // Get snapshot manager from server state
+    let snapshot_manager = state.snapshot_manager.as_ref().ok_or_else(|| {
+        create_error_response(
+            "Snapshot manager not initialized",
+            "Snapshots not available",
+            StatusCode::SERVICE_UNAVAILABLE,
+        )
+    })?;
+
+    // Validate data size
+    if body.is_empty() {
+        return Err(create_error_response(
+            "Empty snapshot data",
+            "No data provided",
+            StatusCode::BAD_REQUEST,
+        ));
+    }
+
+    // Import the snapshot
+    let snapshot = snapshot_manager.import_snapshot(&body).map_err(|e| {
+        error!("Failed to import snapshot: {}", e);
+        create_error_response(
+            &format!("Failed to import snapshot: {}", e),
+            "Snapshot import failed",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+    })?;
+
+    let elapsed = start.elapsed().as_secs_f64();
+    info!(
+        collection = %collection_name,
+        snapshot_id = %snapshot.id,
+        size_bytes = snapshot.size_bytes,
+        elapsed_ms = elapsed * 1000.0,
+        "Qdrant Snapshots API: Uploaded collection snapshot"
+    );
+
+    Ok(Json(QdrantUploadSnapshotResponse {
+        result: QdrantSnapshotDescription {
+            name: snapshot.id,
+            creation_time: Some(snapshot.created_at.to_rfc3339()),
+            size: snapshot.size_bytes,
+            checksum: None,
+        },
+        status: "ok".to_string(),
+        time: elapsed,
+    }))
 }

@@ -70,3 +70,11 @@ pub struct QdrantRecoverSnapshotResponse {
     pub status: String,
     pub time: f64,
 }
+
+/// Response for upload snapshot
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QdrantUploadSnapshotResponse {
+    pub result: QdrantSnapshotDescription,
+    pub status: String,
+    pub time: f64,
+}
