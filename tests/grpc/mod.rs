@@ -4,6 +4,7 @@
 //! - helpers: Shared test utilities
 //! - collections: Collection management operations
 //! - vectors: Vector CRUD operations
+//! - qdrant: Qdrant-compatible gRPC API tests
 //! - search: Search operations (basic, batch, hybrid)
 //! - configurations: Different configs (metrics, storage, quantization, HNSW)
 //! - edge_cases: Boundary conditions and error handling
@@ -13,6 +14,7 @@
 pub mod helpers;
 
 pub mod collections;
+pub mod qdrant;
 pub mod vectors;
 // TODO: Create remaining modules
 // pub mod search;

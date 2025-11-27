@@ -16,5 +16,14 @@ pub mod cluster {
     include!("vectorizer.cluster.rs");
 }
 
+// Include generated Qdrant-compatible protobuf code
+pub mod qdrant_proto {
+    include!("qdrant/qdrant.rs");
+}
+
+// Qdrant gRPC service implementations
+pub mod qdrant_grpc;
+
 // Re-export service types
+pub use qdrant_grpc::QdrantGrpcService;
 pub use server::VectorizerGrpcService;

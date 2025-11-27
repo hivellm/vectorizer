@@ -14,6 +14,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &["proto"],
         )?;
 
+    // Compile Qdrant-compatible gRPC proto definitions
+    println!("cargo:rerun-if-changed=proto/qdrant/");
+    std::fs::create_dir_all("src/grpc/qdrant")?;
+    tonic_build::configure()
+        .build_server(true)
+        .build_client(true)
+        .out_dir("src/grpc/qdrant")
+        .compile_protos(
+            &[
+                "proto/qdrant/collections_service.proto",
+                "proto/qdrant/points_service.proto",
+                "proto/qdrant/snapshots_service.proto",
+            ],
+            &["proto/qdrant"],
+        )?;
+
     // Embed Windows icon resource
     #[cfg(all(target_os = "windows", not(target_env = "msvc")))]
     {

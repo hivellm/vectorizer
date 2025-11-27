@@ -1,13 +1,13 @@
 ## 1. Qdrant gRPC Protocol Support
-- [ ] 1.1 Find/download Qdrant proto files (collections.proto, points.proto, snapshots.proto, query.proto)
-- [ ] 1.2 Generate Rust code from Qdrant proto definitions using tonic-build
-- [ ] 1.3 Implement Qdrant Collections gRPC service (list, get, create, update, delete, aliases)
-- [ ] 1.4 Implement Qdrant Points gRPC service (upsert, delete, get, update_vectors, delete_vectors, set_payload, search, scroll, recommend, count, query, facet)
-- [ ] 1.5 Implement Qdrant Snapshots gRPC service (create, list, delete)
-- [ ] 1.6 Implement Qdrant Query gRPC service (query, query_batch, query_groups)
-- [ ] 1.7 Add Qdrant gRPC server endpoint (separate port or path from Vectorizer gRPC)
-- [ ] 1.8 Add gRPC integration tests for Qdrant compatibility
-- [ ] 1.9 Update documentation with Qdrant gRPC usage
+- [x] 1.1 Find/download Qdrant proto files (collections.proto, points.proto, snapshots.proto, query.proto)
+- [x] 1.2 Generate Rust code from Qdrant proto definitions using tonic-build
+- [x] 1.3 Implement Qdrant Collections gRPC service (list, get, create, update, delete, aliases)
+- [x] 1.4 Implement Qdrant Points gRPC service (upsert, delete, get, update_vectors, delete_vectors, set_payload, search, scroll, recommend, count, query, facet)
+- [x] 1.5 Implement Qdrant Snapshots gRPC service (create, list, delete)
+- [x] 1.6 Implement Qdrant Query gRPC service (query, query_batch, query_groups)
+- [x] 1.7 Add Qdrant gRPC server endpoint (separate port or path from Vectorizer gRPC)
+- [x] 1.8 Add gRPC integration tests for Qdrant compatibility
+- [x] 1.9 Update documentation with Qdrant gRPC usage
 
 ## 2. Snapshots via Qdrant API
 - [x] 2.1 Implement GET `/qdrant/collections/{name}/snapshots` (list snapshots)

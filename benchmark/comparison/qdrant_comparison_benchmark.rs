@@ -1165,7 +1165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("  ✓ Qdrant is healthy\n");
 
     // Comprehensive benchmark configuration
-    let test_scenarios = vec![
+    let test_scenarios = [
         // (dimension, vector_count, query_count, batch_size, description)
         (384, 1000, 200, 50, "Small dataset (1K vectors)"),
         (384, 5000, 500, 100, "Medium dataset (5K vectors)"),

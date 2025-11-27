@@ -706,10 +706,16 @@ impl VectorizerServer {
         let grpc_host = host.to_string();
         let grpc_store = self.store.clone();
         let grpc_cluster_manager = self.cluster_manager.clone();
+        let grpc_snapshot_manager = self.snapshot_manager.clone();
         let grpc_handle = tokio::spawn(async move {
-            if let Err(e) =
-                Self::start_grpc_server(&grpc_host, grpc_port, grpc_store, grpc_cluster_manager)
-                    .await
+            if let Err(e) = Self::start_grpc_server(
+                &grpc_host,
+                grpc_port,
+                grpc_store,
+                grpc_cluster_manager,
+                grpc_snapshot_manager,
+            )
+            .await
             {
                 error!("❌ gRPC server failed: {}", e);
             }
@@ -1401,6 +1407,7 @@ impl VectorizerServer {
         port: u16,
         store: Arc<VectorStore>,
         cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
+        snapshot_manager: Option<Arc<crate::storage::SnapshotManager>>,
     ) -> anyhow::Result<()> {
         use tonic::transport::Server;
 
@@ -1423,6 +1430,27 @@ impl VectorizerServer {
             info!("🔗 Adding Cluster gRPC service");
             let cluster_service = ClusterGrpcService::new(store.clone(), cluster_mgr);
             server_builder = server_builder.add_service(ClusterServiceServer::new(cluster_service));
+        }
+
+        // Add Qdrant-compatible gRPC services
+        {
+            use crate::grpc::QdrantGrpcService;
+            use crate::grpc::qdrant_proto::collections_server::CollectionsServer;
+            use crate::grpc::qdrant_proto::points_server::PointsServer;
+            use crate::grpc::qdrant_proto::snapshots_server::SnapshotsServer;
+
+            info!("🔗 Adding Qdrant-compatible gRPC services (Collections, Points, Snapshots)");
+            let qdrant_service = if let Some(sm) = snapshot_manager {
+                QdrantGrpcService::with_snapshot_manager(store.clone(), sm)
+            } else {
+                QdrantGrpcService::new(store.clone())
+            };
+
+            // Add all Qdrant services using the same service instance (it implements all traits)
+            server_builder = server_builder
+                .add_service(CollectionsServer::new(qdrant_service.clone()))
+                .add_service(PointsServer::new(qdrant_service.clone()))
+                .add_service(SnapshotsServer::new(qdrant_service));
         }
 
         server_builder.serve(addr).await?;

@@ -2,13 +2,14 @@
 
 ## Overview
 
-Vectorizer provides **limited Qdrant REST API compatibility** for users migrating from Qdrant. However, **we strongly recommend using Vectorizer's native APIs** for better performance, features, and long-term support.
+Vectorizer provides **Qdrant API compatibility** for users migrating from Qdrant. Both REST and gRPC protocols are supported. However, **we strongly recommend using Vectorizer's native APIs** for better performance, features, and long-term support.
 
 ## ⚠️ Important Notice
 
-**Qdrant compatibility is ONLY available via REST API.**
+**Qdrant compatibility is available via REST API and gRPC.**
 
 - ✅ **REST API**: Available at `/qdrant/*` endpoints
+- ✅ **gRPC API**: Available on port `<REST_PORT + 1>` (e.g., if REST is on 7777, gRPC is on 7778)
 - ❌ **MCP Protocol**: Qdrant tools removed (use native Vectorizer MCP tools instead)
 - ⚠️ **Compatibility Layer**: Provided for migration purposes only
 - 🎯 **Recommendation**: Migrate to native Vectorizer APIs
@@ -243,34 +244,166 @@ await mcp.call_tool('search_intelligent', {
 
 ## Feature Comparison
 
-| Feature | Qdrant API | Native Vectorizer | Native MCP |
-|---------|------------|-------------------|------------|
-| Collection CRUD | ✅ | ✅ | ✅ |
-| Vector CRUD | ✅ | ✅ | ✅ |
-| Basic Search | ✅ | ✅ | ✅ |
-| Query API | ✅ | ✅ | ✅ |
-| Search Groups | ✅ | ✅ | ✅ |
-| Search Matrix | ✅ | ✅ | ✅ |
-| Snapshots | ✅ | ✅ | ✅ |
-| Sharding API | ✅ | ✅ | ✅ |
-| Cluster API | ✅ | ✅ | ✅ |
-| Quantization | ✅ | ✅ | ✅ |
-| Intelligent Search | ❌ | ✅ | ✅ |
-| Semantic Search | ❌ | ✅ | ✅ |
-| Multi-Collection | ❌ | ✅ | ✅ |
-| Text Embedding | ❌ | ✅ | ✅ |
-| File Indexing | ❌ | ✅ | ✅ |
-| Query Caching | ❌ | ✅ | ✅ |
-| Reranking | ❌ | ✅ | ✅ |
-| Hybrid Search | ❌ | ✅ | ✅ |
-| Workspace Management | ❌ | ✅ | ✅ |
-| Performance | ⚠️ Slower | ✅ Optimized | ✅ Best |
+| Feature | Qdrant REST | Qdrant gRPC | Native Vectorizer | Native MCP |
+|---------|-------------|-------------|-------------------|------------|
+| Collection CRUD | ✅ | ✅ | ✅ | ✅ |
+| Vector CRUD | ✅ | ✅ | ✅ | ✅ |
+| Basic Search | ✅ | ✅ | ✅ | ✅ |
+| Query API | ✅ | ✅ | ✅ | ✅ |
+| Search Groups | ✅ | ✅ | ✅ | ✅ |
+| Search Matrix | ✅ | ✅ | ✅ | ✅ |
+| Snapshots | ✅ | ✅ | ✅ | ✅ |
+| Sharding API | ✅ | ✅ | ✅ | ✅ |
+| Cluster API | ✅ | ⚠️ | ✅ | ✅ |
+| Quantization | ✅ | ✅ | ✅ | ✅ |
+| Intelligent Search | ❌ | ❌ | ✅ | ✅ |
+| Semantic Search | ❌ | ❌ | ✅ | ✅ |
+| Multi-Collection | ❌ | ❌ | ✅ | ✅ |
+| Text Embedding | ❌ | ❌ | ✅ | ✅ |
+| File Indexing | ❌ | ❌ | ✅ | ✅ |
+| Query Caching | ❌ | ❌ | ✅ | ✅ |
+| Reranking | ❌ | ❌ | ✅ | ✅ |
+| Hybrid Search | ❌ | ❌ | ✅ | ✅ |
+| Workspace Management | ❌ | ❌ | ✅ | ✅ |
+| Performance | ⚠️ Slower | ⚠️ Better | ✅ Optimized | ✅ Best |
+
+## Qdrant gRPC API Compatibility
+
+Vectorizer now supports Qdrant-compatible gRPC API on port `REST_PORT + 1`. This enables migration from Qdrant clients using gRPC protocol.
+
+### Available gRPC Services
+
+#### Collections Service (`qdrant.Collections`)
+```protobuf
+rpc Get(GetCollectionInfoRequest) returns (GetCollectionInfoResponse)
+rpc List(ListCollectionsRequest) returns (ListCollectionsResponse)
+rpc Create(CreateCollection) returns (CollectionOperationResponse)
+rpc Update(UpdateCollection) returns (CollectionOperationResponse)
+rpc Delete(DeleteCollection) returns (CollectionOperationResponse)
+rpc UpdateAliases(ChangeAliases) returns (CollectionOperationResponse)
+rpc ListCollectionAliases(ListCollectionAliasesRequest) returns (ListAliasesResponse)
+rpc ListAliases(ListAliasesRequest) returns (ListAliasesResponse)
+rpc CollectionClusterInfo(CollectionClusterInfoRequest) returns (CollectionClusterInfoResponse)
+rpc CollectionExists(CollectionExistsRequest) returns (CollectionExistsResponse)
+rpc UpdateCollectionClusterSetup(UpdateCollectionClusterSetupRequest) returns (UpdateCollectionClusterSetupResponse)
+rpc CreateShardKey(CreateShardKeyRequest) returns (CreateShardKeyResponse)
+rpc DeleteShardKey(DeleteShardKeyRequest) returns (DeleteShardKeyResponse)
+```
+
+#### Points Service (`qdrant.Points`)
+```protobuf
+rpc Upsert(UpsertPoints) returns (PointsOperationResponse)
+rpc Delete(DeletePoints) returns (PointsOperationResponse)
+rpc Get(GetPoints) returns (GetResponse)
+rpc UpdateVectors(UpdatePointVectors) returns (PointsOperationResponse)
+rpc DeleteVectors(DeletePointVectors) returns (PointsOperationResponse)
+rpc SetPayload(SetPayloadPoints) returns (PointsOperationResponse)
+rpc OverwritePayload(SetPayloadPoints) returns (PointsOperationResponse)
+rpc DeletePayload(DeletePayloadPoints) returns (PointsOperationResponse)
+rpc ClearPayload(ClearPayloadPoints) returns (PointsOperationResponse)
+rpc CreateFieldIndex(CreateFieldIndexCollection) returns (PointsOperationResponse)
+rpc DeleteFieldIndex(DeleteFieldIndexCollection) returns (PointsOperationResponse)
+rpc Search(SearchPoints) returns (SearchResponse)
+rpc SearchBatch(SearchBatchPoints) returns (SearchBatchResponse)
+rpc SearchGroups(SearchPointGroups) returns (SearchGroupsResponse)
+rpc Scroll(ScrollPoints) returns (ScrollResponse)
+rpc Recommend(RecommendPoints) returns (RecommendResponse)
+rpc RecommendBatch(RecommendBatchPoints) returns (RecommendBatchResponse)
+rpc RecommendGroups(RecommendPointGroups) returns (RecommendGroupsResponse)
+rpc Discover(DiscoverPoints) returns (DiscoverResponse)
+rpc DiscoverBatch(DiscoverBatchPoints) returns (DiscoverBatchResponse)
+rpc Count(CountPoints) returns (CountResponse)
+rpc UpdateBatch(UpdateBatchPoints) returns (UpdateBatchResponse)
+rpc Query(QueryPoints) returns (QueryResponse)
+rpc QueryBatch(QueryBatchPoints) returns (QueryBatchResponse)
+rpc QueryGroups(QueryPointGroups) returns (QueryGroupsResponse)
+rpc Facet(FacetCounts) returns (FacetResponse)
+rpc SearchMatrixPairs(SearchMatrixPoints) returns (SearchMatrixPairsResponse)
+rpc SearchMatrixOffsets(SearchMatrixPoints) returns (SearchMatrixOffsetsResponse)
+```
+
+#### Snapshots Service (`qdrant.Snapshots`)
+```protobuf
+rpc Create(CreateSnapshotRequest) returns (CreateSnapshotResponse)
+rpc List(ListSnapshotsRequest) returns (ListSnapshotsResponse)
+rpc Delete(DeleteSnapshotRequest) returns (DeleteSnapshotResponse)
+rpc CreateFull(CreateFullSnapshotRequest) returns (CreateSnapshotResponse)
+rpc ListFull(ListFullSnapshotsRequest) returns (ListSnapshotsResponse)
+rpc DeleteFull(DeleteFullSnapshotRequest) returns (DeleteSnapshotResponse)
+```
+
+### Example gRPC Usage
+
+#### Python (qdrant-client)
+```python
+from qdrant_client import QdrantClient
+
+# Connect to Vectorizer's Qdrant-compatible gRPC
+client = QdrantClient(host="localhost", port=7778, prefer_grpc=True)
+
+# Create collection
+client.create_collection(
+    collection_name="my_collection",
+    vectors_config={"size": 128, "distance": "Cosine"}
+)
+
+# Insert points
+client.upsert(
+    collection_name="my_collection",
+    points=[
+        {"id": 1, "vector": [0.1] * 128, "payload": {"text": "hello"}},
+        {"id": 2, "vector": [0.2] * 128, "payload": {"text": "world"}}
+    ]
+)
+
+# Search
+results = client.search(
+    collection_name="my_collection",
+    query_vector=[0.1] * 128,
+    limit=10
+)
+```
+
+#### Rust (qdrant-client)
+```rust
+use qdrant_client::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to Vectorizer's Qdrant-compatible gRPC
+    let client = QdrantClient::new(Some(QdrantClientConfig::from_url(
+        "http://localhost:7778"
+    )))?;
+
+    // Create collection
+    client.create_collection(&CreateCollection {
+        collection_name: "my_collection".into(),
+        vectors_config: Some(VectorsConfig {
+            config: Some(vectors_config::Config::Params(VectorParams {
+                size: 128,
+                distance: Distance::Cosine.into(),
+                ..Default::default()
+            })),
+        }),
+        ..Default::default()
+    }).await?;
+
+    // Search
+    let results = client.search_points(&SearchPoints {
+        collection_name: "my_collection".into(),
+        vector: vec![0.1; 128],
+        limit: 10,
+        ..Default::default()
+    }).await?;
+
+    Ok(())
+}
+```
 
 ## Compatibility Limitations
 
 ### Not Supported
-- ❌ gRPC protocol (only REST)
-- ❌ Collection aliases
+- ❌ Collection aliases (API exists but not implemented)
 - ❌ Named vectors storage (API accepts but stores single vector)
 - ❌ Snapshot upload (download and recover supported)
 
@@ -284,17 +417,17 @@ await mcp.call_tool('search_intelligent', {
 - ⚠️ Sharding (API compatible, logical sharding)
 
 ### Fully Supported
-- ✅ Collection management (create, read, update, delete)
-- ✅ Vector operations (upsert, retrieve, delete, count)
-- ✅ Basic vector search
-- ✅ Scroll operations
-- ✅ Batch operations
-- ✅ Query API (query, batch, groups with prefetch)
-- ✅ Search groups (group results by payload field)
-- ✅ Search matrix (pairs and offsets format)
-- ✅ Snapshots (list, create, delete, recover)
-- ✅ Sharding API (create, delete, list shard keys)
-- ✅ Cluster management API (status, recover, metadata)
+- ✅ Collection management (create, read, update, delete) - REST + gRPC
+- ✅ Vector operations (upsert, retrieve, delete, count) - REST + gRPC
+- ✅ Basic vector search - REST + gRPC
+- ✅ Scroll operations - REST + gRPC
+- ✅ Batch operations - REST + gRPC
+- ✅ Query API (query, batch, groups with prefetch) - REST + gRPC
+- ✅ Search groups (group results by payload field) - REST + gRPC
+- ✅ Search matrix (pairs and offsets format) - REST + gRPC
+- ✅ Snapshots (list, create, delete, recover) - REST + gRPC
+- ✅ Sharding API (create, delete, list shard keys) - REST + gRPC
+- ✅ Cluster management API (status, recover, metadata) - REST only
 
 ## Migration Tools
 
