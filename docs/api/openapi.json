@@ -3,7 +3,7 @@
   "info": {
     "title": "Vectorizer API",
     "description": "High-performance vector database engine with semantic search capabilities.\nSupports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and\nprovides real-time indexing with HNSW optimization.\n",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "contact": {
       "name": "Vectorizer Team",
       "url": "https://github.com/hivellm/vectorizer"
@@ -4691,6 +4691,10 @@
     },
     {
       "name": "Graph Operations",
+      "description": "Graph relationship operations (nodes, edges, paths, discovery)"
+    },
+    {
+      "name": "Qdrant Compatibility",
       "description": "Graph relationship discovery and querying operations"
     }
   ],

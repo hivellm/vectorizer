@@ -36,7 +36,7 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 | HNSW index | ✅ | ✅ | ✅ | ✅ Full | Configurable |
 | Payload indexing | ✅ | ✅ | ✅ | ✅ Full | Keyword, integer, float, text, geo |
 | Sparse vectors | ✅ | ✅ | ✅ | ✅ Full | Sparse vector support |
-| Quantization | ✅ | ⚠️ SQ8 only | ✅ Full | Scalar, product, binary |
+| Quantization | ✅ | ✅ | ✅ | ✅ Full | Scalar, product, binary |
 | **Advanced Features** |
 | Hybrid search | ❌ | ❌ | ✅ | ❌ | Native only |
 | Intelligent search | ❌ | ❌ | ✅ | ❌ | Native only |
@@ -50,13 +50,23 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 | Delete alias | ✅ | ✅ | ✅ | ✅ Full | Alias removal |
 | List aliases | ✅ | ✅ | ✅ | ✅ Full | All aliases |
 | **Snapshots** |
-| Create snapshot | ✅ | ❌ | ✅ | ⚠️ Native API | Via native API |
-| List snapshots | ✅ | ❌ | ✅ | ⚠️ Native API | Via native API |
-| Restore snapshot | ✅ | ❌ | ✅ | ⚠️ Native API | Via native API |
+| Create snapshot | ✅ | ✅ | ✅ | ✅ Full | Full Qdrant API support |
+| List snapshots | ✅ | ✅ | ✅ | ✅ Full | Full Qdrant API support |
+| Restore snapshot | ✅ | ✅ | ✅ | ✅ Full | Full Qdrant API support |
+| Full snapshot | ✅ | ✅ | ✅ | ✅ Full | Cross-collection snapshot |
 | **Clustering** |
-| Sharding | ✅ | ❌ | ❌ | ❌ | Not supported |
-| Replication | ✅ | ❌ | ✅ | ⚠️ Native API | Via native API |
-| Cluster management | ✅ | ❌ | ❌ | ❌ | Not supported |
+| Sharding API | ✅ | ✅ | ✅ | ✅ Full | API compatible (logical) |
+| Replication | ✅ | ⚠️ | ✅ | ⚠️ Partial | Via native API |
+| Cluster management | ✅ | ✅ | ✅ | ✅ Full | Status, recover, metadata |
+| **Query API** |
+| Query points | ✅ | ✅ | ✅ | ✅ Full | Universal search |
+| Batch query | ✅ | ✅ | ✅ | ✅ Full | Multiple queries |
+| Query groups | ✅ | ✅ | ✅ | ✅ Full | Grouped results |
+| Prefetch | ✅ | ✅ | ✅ | ✅ Full | Recursive prefetch |
+| **Search Groups & Matrix** |
+| Search groups | ✅ | ✅ | ✅ | ✅ Full | Group by payload |
+| Matrix pairs | ✅ | ✅ | ✅ | ✅ Full | Similarity pairs |
+| Matrix offsets | ✅ | ✅ | ✅ | ✅ Full | Compact format |
 | **Protocols** |
 | REST API | ✅ | ✅ | ✅ | ✅ Full | Full compatibility |
 | gRPC | ✅ | ❌ | ❌ | ❌ | Not supported |
@@ -106,13 +116,6 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 
 ### Partially Supported Features
 
-#### Quantization (Partial)
-- ⚠️ **Scalar Quantization (SQ8)**: ✅ Supported
-- ⚠️ **Product Quantization (PQ)**: ❌ Not supported
-- ⚠️ **Binary Quantization**: ❌ Not supported
-
-**Workaround**: Use native API for advanced quantization.
-
 #### Optimizer Configuration (Partial)
 - ⚠️ Basic optimizer settings supported
 - ⚠️ Advanced tuning options limited
@@ -125,6 +128,50 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 
 **Migration**: Update parameter names in configs.
 
+#### Named Vectors (Partial)
+- ⚠️ API accepts `using` parameter in search/query operations
+- ⚠️ Single vector extracted from named vector upserts
+- ❌ Multi-vector storage not supported
+
+**Migration**: Use single vector per point or native API.
+
+### Fully Supported New Features
+
+#### Quantization (Full)
+- ✅ **Scalar Quantization (SQ8)**: Supported
+- ✅ **Product Quantization (PQ)**: x4, x8, x16, x32, x64 compression
+- ✅ **Binary Quantization**: Supported
+
+#### Query API (Full)
+- ✅ Query points (universal search)
+- ✅ Batch query (multiple queries)
+- ✅ Query groups (grouped results)
+- ✅ Prefetch operations (recursive)
+
+#### Search Groups & Matrix (Full)
+- ✅ Search groups (group by payload field)
+- ✅ Matrix pairs (similarity pairs)
+- ✅ Matrix offsets (compact format)
+
+#### Snapshots (Full)
+- ✅ List collection snapshots
+- ✅ Create collection snapshot
+- ✅ Delete collection snapshot
+- ✅ Recover from snapshot
+- ✅ List all snapshots
+- ✅ Create full snapshot
+
+#### Sharding API (Full)
+- ✅ List shard keys
+- ✅ Create shard key
+- ✅ Delete shard key
+
+#### Cluster Management (Full)
+- ✅ Get cluster status
+- ✅ Recover current peer
+- ✅ Remove peer
+- ✅ Metadata keys (list, get, update)
+
 ### Not Supported Features
 
 #### gRPC Protocol
@@ -133,19 +180,11 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 
 **Migration**: Use REST API or migrate to native APIs.
 
-#### Clustering & Distribution
-- ❌ Sharding not supported
-- ❌ Cluster management not available
-- ⚠️ Replication via native API only
+#### Named Vectors Storage
+- ❌ Multi-vector named vectors storage not supported
+- ⚠️ API accepts format but stores single vector
 
-**Migration**: Use native replication API or single-node deployment.
-
-#### Advanced Qdrant Features
-- ❌ Named vectors (`using` parameter)
-- ❌ Prefetch operations
-- ❌ Custom sharding keys
-
-**Migration**: Use native Vectorizer features as alternatives.
+**Migration**: Use single vector per point or native API.
 
 ## Limitations
 

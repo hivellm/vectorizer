@@ -523,6 +523,335 @@ impl VectorizerClient {
         Ok(result)
     }
 
+    // ===== QDRANT ADVANCED FEATURES (1.14.x) =====
+
+    /// List snapshots for a collection (Qdrant-compatible API)
+    pub async fn qdrant_list_collection_snapshots(
+        &self,
+        collection: &str,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/snapshots");
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant list snapshots response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Create snapshot for a collection (Qdrant-compatible API)
+    pub async fn qdrant_create_collection_snapshot(
+        &self,
+        collection: &str,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/snapshots");
+        let response = self.make_request("POST", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant create snapshot response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Delete snapshot (Qdrant-compatible API)
+    pub async fn qdrant_delete_collection_snapshot(
+        &self,
+        collection: &str,
+        snapshot_name: &str,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/snapshots/{snapshot_name}");
+        let response = self.make_request("DELETE", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant delete snapshot response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Recover collection from snapshot (Qdrant-compatible API)
+    pub async fn qdrant_recover_collection_snapshot(
+        &self,
+        collection: &str,
+        location: &str,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/snapshots/recover");
+        let payload = serde_json::json!({ "location": location });
+        let response = self.make_request("POST", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant recover snapshot response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// List all snapshots (Qdrant-compatible API)
+    pub async fn qdrant_list_all_snapshots(&self) -> Result<serde_json::Value> {
+        let url = "/qdrant/snapshots";
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant list all snapshots response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Create full snapshot (Qdrant-compatible API)
+    pub async fn qdrant_create_full_snapshot(&self) -> Result<serde_json::Value> {
+        let url = "/qdrant/snapshots";
+        let response = self.make_request("POST", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant create full snapshot response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// List shard keys for a collection (Qdrant-compatible API)
+    pub async fn qdrant_list_shard_keys(&self, collection: &str) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/shards");
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant list shard keys response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Create shard key (Qdrant-compatible API)
+    pub async fn qdrant_create_shard_key(
+        &self,
+        collection: &str,
+        shard_key: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/shards");
+        let payload = serde_json::json!({ "shard_key": shard_key });
+        let response = self.make_request("PUT", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant create shard key response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Delete shard key (Qdrant-compatible API)
+    pub async fn qdrant_delete_shard_key(
+        &self,
+        collection: &str,
+        shard_key: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/shards/delete");
+        let payload = serde_json::json!({ "shard_key": shard_key });
+        let response = self.make_request("POST", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant delete shard key response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Get cluster status (Qdrant-compatible API)
+    pub async fn qdrant_get_cluster_status(&self) -> Result<serde_json::Value> {
+        let url = "/qdrant/cluster";
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant cluster status response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Recover current peer (Qdrant-compatible API)
+    pub async fn qdrant_cluster_recover(&self) -> Result<serde_json::Value> {
+        let url = "/qdrant/cluster/recover";
+        let response = self.make_request("POST", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant cluster recover response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Remove peer from cluster (Qdrant-compatible API)
+    pub async fn qdrant_remove_peer(&self, peer_id: &str) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/cluster/peer/{peer_id}");
+        let response = self.make_request("DELETE", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant remove peer response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// List metadata keys (Qdrant-compatible API)
+    pub async fn qdrant_list_metadata_keys(&self) -> Result<serde_json::Value> {
+        let url = "/qdrant/cluster/metadata/keys";
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant list metadata keys response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Get metadata key (Qdrant-compatible API)
+    pub async fn qdrant_get_metadata_key(&self, key: &str) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/cluster/metadata/keys/{key}");
+        let response = self.make_request("GET", &url, None).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant get metadata key response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Update metadata key (Qdrant-compatible API)
+    pub async fn qdrant_update_metadata_key(
+        &self,
+        key: &str,
+        value: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/cluster/metadata/keys/{key}");
+        let payload = serde_json::json!({ "value": value });
+        let response = self.make_request("PUT", &url, Some(payload)).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant update metadata key response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Query points (Qdrant 1.7+ Query API)
+    pub async fn qdrant_query_points(
+        &self,
+        collection: &str,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/query");
+        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant query points response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Batch query points (Qdrant 1.7+ Query API)
+    pub async fn qdrant_batch_query_points(
+        &self,
+        collection: &str,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/query/batch");
+        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant batch query points response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Query points with groups (Qdrant 1.7+ Query API)
+    pub async fn qdrant_query_points_groups(
+        &self,
+        collection: &str,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/query/groups");
+        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant query points groups response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Search points with groups (Qdrant Search Groups API)
+    pub async fn qdrant_search_points_groups(
+        &self,
+        collection: &str,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/search/groups");
+        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant search points groups response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Search matrix pairs (Qdrant Search Matrix API)
+    pub async fn qdrant_search_matrix_pairs(
+        &self,
+        collection: &str,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/search/matrix/pairs");
+        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant search matrix pairs response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
+    /// Search matrix offsets (Qdrant Search Matrix API)
+    pub async fn qdrant_search_matrix_offsets(
+        &self,
+        collection: &str,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let url = format!("/qdrant/collections/{collection}/points/search/matrix/offsets");
+        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse Qdrant search matrix offsets response: {}",
+                e
+            ))
+        })?;
+        Ok(result)
+    }
+
     /// Create collection
     pub async fn create_collection(
         &self,

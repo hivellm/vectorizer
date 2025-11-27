@@ -22,6 +22,7 @@ pub mod hybrid_search;
 pub mod multi_tenancy;
 pub mod multi_tenancy_comprehensive;
 pub mod payload_index;
+pub mod qdrant_api;
 pub mod query_cache;
 pub mod raft;
 pub mod raft_comprehensive;

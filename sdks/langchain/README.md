@@ -1,6 +1,8 @@
-# LangChain Integration for Vectorizer v0.3.4
+# LangChain Integration for Vectorizer
 
 This integration provides a complete implementation of LangChain's VectorStore interface using Vectorizer as the backend for vector storage and similarity search.
+
+**Updated**: Now uses modern Vectorizer Python SDK with async support and full feature parity.
 
 ## 🚀 Features
 
@@ -31,6 +33,10 @@ This integration provides a complete implementation of LangChain's VectorStore i
 - ✅ **Flexible Configuration**: Customizable configuration for different environments
 - ✅ **Error Handling**: Robust error handling and exceptions
 - ✅ **Comprehensive Tests**: Complete test suite with mocks and integration tests
+- ✅ **Modern SDK Integration**: Uses Vectorizer Python SDK with async/await support
+- ✅ **Qdrant Compatibility**: Full Qdrant 1.14.x API support via underlying SDK
+- ✅ **Graph Operations**: Graph relationship discovery and traversal
+- ✅ **Hybrid Search**: Dense + sparse vector search support
 
 ## 📦 Installation
 

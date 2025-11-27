@@ -1861,6 +1861,343 @@ class VectorizerClient:
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to count points: {e}")
     
+    # ===== QDRANT ADVANCED FEATURES (1.14.x) =====
+    
+    async def qdrant_list_collection_snapshots(self, collection: str) -> Dict[str, Any]:
+        """List snapshots for a collection (Qdrant-compatible API)."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/collections/{collection}/snapshots"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to list snapshots: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list snapshots: {e}")
+    
+    async def qdrant_create_collection_snapshot(self, collection: str) -> Dict[str, Any]:
+        """Create snapshot for a collection (Qdrant-compatible API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/snapshots"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to create snapshot: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to create snapshot: {e}")
+    
+    async def qdrant_delete_collection_snapshot(
+        self, collection: str, snapshot_name: str
+    ) -> Dict[str, Any]:
+        """Delete snapshot (Qdrant-compatible API)."""
+        try:
+            async with self._transport.delete(
+                f"{self.base_url}/qdrant/collections/{collection}/snapshots/{snapshot_name}"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Snapshot '{snapshot_name}' not found")
+                else:
+                    raise ServerError(f"Failed to delete snapshot: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to delete snapshot: {e}")
+    
+    async def qdrant_recover_collection_snapshot(
+        self, collection: str, location: str
+    ) -> Dict[str, Any]:
+        """Recover collection from snapshot (Qdrant-compatible API)."""
+        try:
+            payload = {"location": location}
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/snapshots/recover",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to recover snapshot: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to recover snapshot: {e}")
+    
+    async def qdrant_list_all_snapshots(self) -> Dict[str, Any]:
+        """List all snapshots (Qdrant-compatible API)."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/snapshots"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to list snapshots: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list snapshots: {e}")
+    
+    async def qdrant_create_full_snapshot(self) -> Dict[str, Any]:
+        """Create full snapshot (Qdrant-compatible API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/snapshots"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to create full snapshot: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to create full snapshot: {e}")
+    
+    async def qdrant_list_shard_keys(self, collection: str) -> Dict[str, Any]:
+        """List shard keys for a collection (Qdrant-compatible API)."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/collections/{collection}/shards"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to list shard keys: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list shard keys: {e}")
+    
+    async def qdrant_create_shard_key(
+        self, collection: str, shard_key: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Create shard key (Qdrant-compatible API)."""
+        try:
+            payload = {"shard_key": shard_key}
+            async with self._transport.put(
+                f"{self.base_url}/qdrant/collections/{collection}/shards",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to create shard key: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to create shard key: {e}")
+    
+    async def qdrant_delete_shard_key(
+        self, collection: str, shard_key: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Delete shard key (Qdrant-compatible API)."""
+        try:
+            payload = {"shard_key": shard_key}
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/shards/delete",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to delete shard key: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to delete shard key: {e}")
+    
+    async def qdrant_get_cluster_status(self) -> Dict[str, Any]:
+        """Get cluster status (Qdrant-compatible API)."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/cluster"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to get cluster status: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get cluster status: {e}")
+    
+    async def qdrant_cluster_recover(self) -> Dict[str, Any]:
+        """Recover current peer (Qdrant-compatible API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/cluster/recover"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to recover cluster: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to recover cluster: {e}")
+    
+    async def qdrant_remove_peer(self, peer_id: str) -> Dict[str, Any]:
+        """Remove peer from cluster (Qdrant-compatible API)."""
+        try:
+            async with self._transport.delete(
+                f"{self.base_url}/qdrant/cluster/peer/{peer_id}"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to remove peer: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to remove peer: {e}")
+    
+    async def qdrant_list_metadata_keys(self) -> Dict[str, Any]:
+        """List metadata keys (Qdrant-compatible API)."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/cluster/metadata/keys"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to list metadata keys: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to list metadata keys: {e}")
+    
+    async def qdrant_get_metadata_key(self, key: str) -> Dict[str, Any]:
+        """Get metadata key (Qdrant-compatible API)."""
+        try:
+            async with self._transport.get(
+                f"{self.base_url}/qdrant/cluster/metadata/keys/{key}"
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to get metadata key: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to get metadata key: {e}")
+    
+    async def qdrant_update_metadata_key(
+        self, key: str, value: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Update metadata key (Qdrant-compatible API)."""
+        try:
+            payload = {"value": value}
+            async with self._transport.put(
+                f"{self.base_url}/qdrant/cluster/metadata/keys/{key}",
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    raise ServerError(f"Failed to update metadata key: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to update metadata key: {e}")
+    
+    async def qdrant_query_points(
+        self, collection: str, request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Query points (Qdrant 1.7+ Query API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/query",
+                json=request
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to query points: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to query points: {e}")
+    
+    async def qdrant_batch_query_points(
+        self, collection: str, request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Batch query points (Qdrant 1.7+ Query API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/query/batch",
+                json=request
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to batch query points: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to batch query points: {e}")
+    
+    async def qdrant_query_points_groups(
+        self, collection: str, request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Query points with groups (Qdrant 1.7+ Query API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/query/groups",
+                json=request
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to query points groups: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to query points groups: {e}")
+    
+    async def qdrant_search_points_groups(
+        self, collection: str, request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Search points with groups (Qdrant Search Groups API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/search/groups",
+                json=request
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to search points groups: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to search points groups: {e}")
+    
+    async def qdrant_search_matrix_pairs(
+        self, collection: str, request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Search matrix pairs (Qdrant Search Matrix API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/search/matrix/pairs",
+                json=request
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to search matrix pairs: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to search matrix pairs: {e}")
+    
+    async def qdrant_search_matrix_offsets(
+        self, collection: str, request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Search matrix offsets (Qdrant Search Matrix API)."""
+        try:
+            async with self._transport.post(
+                f"{self.base_url}/qdrant/collections/{collection}/points/search/matrix/offsets",
+                json=request
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                elif response.status == 404:
+                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
+                else:
+                    raise ServerError(f"Failed to search matrix offsets: {response.status}")
+        except aiohttp.ClientError as e:
+            raise NetworkError(f"Failed to search matrix offsets: {e}")
+    
     async def search_by_file_type(
         self,
         collection: str,

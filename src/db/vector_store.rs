@@ -1782,6 +1782,7 @@ impl VectorStore {
 
     /// Log delete operation to WAL (synchronous wrapper)
     /// Note: This is fire-and-forget to avoid blocking. WAL errors are logged but don't fail the operation.
+    /// If no tokio runtime is available, WAL logging is skipped to avoid deadlocks.
     fn log_wal_delete(&self, collection_name: &str, vector_id: &str) -> Result<()> {
         let wal_guard = self.wal.lock().unwrap();
         if let Some(wal) = wal_guard.as_ref() {
@@ -1797,16 +1798,12 @@ impl VectorStore {
                         }
                     });
                 } else {
-                    let rt = tokio::runtime::Runtime::new().map_err(|e| {
-                        error!("Failed to create tokio runtime for WAL: {}", e);
-                        VectorizerError::Storage(format!("Failed to create runtime for WAL: {}", e))
-                    })?;
-
-                    if let Err(e) =
-                        rt.block_on(async { wal.log_delete(collection_name, vector_id).await })
-                    {
-                        error!("Failed to log delete to WAL: {}", e);
-                    }
+                    // Skip WAL logging when no tokio runtime is available
+                    // Creating a new runtime here would cause deadlocks when called from async context
+                    debug!(
+                        "Skipping WAL delete log for {}/{} - no tokio runtime available",
+                        collection_name, vector_id
+                    );
                 }
             }
         }

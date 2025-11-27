@@ -504,6 +504,380 @@ public partial class VectorizerClient : IDisposable
             "GET", $"/graph/discover/{Uri.EscapeDataString(collection)}/status", null, cancellationToken);
     }
 
+    // ===== QDRANT ADVANCED FEATURES (1.14.x) =====
+
+    /// <summary>
+    /// Lists snapshots for a collection (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantListCollectionSnapshotsAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "GET", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/snapshots", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates snapshot for a collection (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantCreateCollectionSnapshotAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/snapshots", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Deletes snapshot (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantDeleteCollectionSnapshotAsync(
+        string collection,
+        string snapshotName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (string.IsNullOrWhiteSpace(snapshotName))
+        {
+            throw new ArgumentException("SnapshotName must be a non-empty string", nameof(snapshotName));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "DELETE", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/snapshots/{Uri.EscapeDataString(snapshotName)}",
+            null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Recovers collection from snapshot (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantRecoverCollectionSnapshotAsync(
+        string collection,
+        string location,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (string.IsNullOrWhiteSpace(location))
+        {
+            throw new ArgumentException("Location must be a non-empty string", nameof(location));
+        }
+
+        var request = new Dictionary<string, object> { { "location", location } };
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/snapshots/recover", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists all snapshots (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantListAllSnapshotsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<Dictionary<string, object>>("GET", "/qdrant/snapshots", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates full snapshot (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantCreateFullSnapshotAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<Dictionary<string, object>>("POST", "/qdrant/snapshots", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists shard keys for a collection (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantListShardKeysAsync(
+        string collection,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "GET", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/shards", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates shard key (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantCreateShardKeyAsync(
+        string collection,
+        Dictionary<string, object> shardKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (shardKey == null)
+        {
+            throw new ArgumentNullException(nameof(shardKey));
+        }
+
+        var request = new Dictionary<string, object> { { "shard_key", shardKey } };
+        return await RequestAsync<Dictionary<string, object>>(
+            "PUT", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/shards", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Deletes shard key (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantDeleteShardKeyAsync(
+        string collection,
+        Dictionary<string, object> shardKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (shardKey == null)
+        {
+            throw new ArgumentNullException(nameof(shardKey));
+        }
+
+        var request = new Dictionary<string, object> { { "shard_key", shardKey } };
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/shards/delete", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets cluster status (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantGetClusterStatusAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<Dictionary<string, object>>("GET", "/qdrant/cluster", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Recovers current peer (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantClusterRecoverAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<Dictionary<string, object>>("POST", "/qdrant/cluster/recover", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Removes peer from cluster (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantRemovePeerAsync(
+        string peerId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(peerId))
+        {
+            throw new ArgumentException("PeerId must be a non-empty string", nameof(peerId));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "DELETE", $"/qdrant/cluster/peer/{Uri.EscapeDataString(peerId)}", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists metadata keys (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantListMetadataKeysAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<Dictionary<string, object>>("GET", "/qdrant/cluster/metadata/keys", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets metadata key (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantGetMetadataKeyAsync(
+        string key,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentException("Key must be a non-empty string", nameof(key));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "GET", $"/qdrant/cluster/metadata/keys/{Uri.EscapeDataString(key)}", null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Updates metadata key (Qdrant-compatible API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantUpdateMetadataKeyAsync(
+        string key,
+        Dictionary<string, object> value,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new ArgumentException("Key must be a non-empty string", nameof(key));
+        }
+
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        var request = new Dictionary<string, object> { { "value", value } };
+        return await RequestAsync<Dictionary<string, object>>(
+            "PUT", $"/qdrant/cluster/metadata/keys/{Uri.EscapeDataString(key)}", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Queries points (Qdrant 1.7+ Query API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantQueryPointsAsync(
+        string collection,
+        Dictionary<string, object> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/points/query", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Batch queries points (Qdrant 1.7+ Query API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantBatchQueryPointsAsync(
+        string collection,
+        Dictionary<string, object> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/points/query/batch", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Queries points with groups (Qdrant 1.7+ Query API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantQueryPointsGroupsAsync(
+        string collection,
+        Dictionary<string, object> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/points/query/groups", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Searches points with groups (Qdrant Search Groups API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantSearchPointsGroupsAsync(
+        string collection,
+        Dictionary<string, object> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/points/search/groups", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Searches matrix pairs (Qdrant Search Matrix API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantSearchMatrixPairsAsync(
+        string collection,
+        Dictionary<string, object> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/points/search/matrix/pairs", request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Searches matrix offsets (Qdrant Search Matrix API)
+    /// </summary>
+    public async Task<Dictionary<string, object>> QdrantSearchMatrixOffsetsAsync(
+        string collection,
+        Dictionary<string, object> request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(collection))
+        {
+            throw new ArgumentException("Collection must be a non-empty string", nameof(collection));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return await RequestAsync<Dictionary<string, object>>(
+            "POST", $"/qdrant/collections/{Uri.EscapeDataString(collection)}/points/search/matrix/offsets", request, cancellationToken);
+    }
+
     public void Dispose()
     {
         if (!_disposed)

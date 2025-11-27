@@ -134,31 +134,97 @@ pub struct QdrantWalConfig {
     pub wal_segments_ahead: u32,
 }
 
-/// Quantization configuration
+/// Quantization configuration (supports Scalar, Product, and Binary quantization)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QdrantQuantizationConfig {
-    /// Quantization type
-    pub quantization: QdrantQuantizationType,
-    /// Scalar quantization
-    pub scalar: Option<QdrantScalarQuantization>,
+#[serde(untagged)]
+pub enum QdrantQuantizationConfig {
+    /// Scalar quantization configuration
+    Scalar(QdrantScalarQuantizationConfig),
+    /// Product quantization configuration
+    Product(QdrantProductQuantizationConfig),
+    /// Binary quantization configuration
+    Binary(QdrantBinaryQuantizationConfig),
 }
 
-/// Quantization type
+/// Wrapper for scalar quantization
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum QdrantQuantizationType {
-    /// Scalar quantization
-    #[serde(rename = "int8")]
+pub struct QdrantScalarQuantizationConfig {
+    /// Scalar quantization parameters
+    pub scalar: QdrantScalarQuantization,
+}
+
+/// Wrapper for product quantization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QdrantProductQuantizationConfig {
+    /// Product quantization parameters
+    pub product: QdrantProductQuantization,
+}
+
+/// Wrapper for binary quantization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QdrantBinaryQuantizationConfig {
+    /// Binary quantization parameters
+    pub binary: QdrantBinaryQuantization,
+}
+
+/// Quantization type for scalar quantization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum QdrantScalarQuantizationType {
+    /// 8-bit integer quantization
     Int8,
 }
 
-/// Scalar quantization
+/// Scalar quantization parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QdrantScalarQuantization {
-    /// Quantization type
-    pub r#type: QdrantQuantizationType,
-    /// Quantile
+    /// Quantization type (int8)
+    pub r#type: QdrantScalarQuantizationType,
+    /// Quantile for quantization (0.0-1.0, typically 0.99)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub quantile: Option<f32>,
-    /// Always ram
+    /// Always keep quantized vectors in RAM
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub always_ram: Option<bool>,
+}
+
+/// Product quantization parameters (PQ)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QdrantProductQuantization {
+    /// Compression ratio (e.g., x4, x8, x16, x32, x64)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compression: Option<QdrantPQCompression>,
+    /// Always keep quantized vectors in RAM
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub always_ram: Option<bool>,
+}
+
+/// PQ compression ratio
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum QdrantPQCompression {
+    /// 4x compression
+    #[serde(rename = "x4")]
+    X4,
+    /// 8x compression
+    #[serde(rename = "x8")]
+    X8,
+    /// 16x compression
+    #[serde(rename = "x16")]
+    X16,
+    /// 32x compression
+    #[serde(rename = "x32")]
+    X32,
+    /// 64x compression
+    #[serde(rename = "x64")]
+    X64,
+}
+
+/// Binary quantization parameters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QdrantBinaryQuantization {
+    /// Always keep quantized vectors in RAM
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub always_ram: Option<bool>,
 }
 

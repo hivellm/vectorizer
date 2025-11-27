@@ -5,7 +5,7 @@ info:
     High-performance vector database engine with semantic search capabilities.
     Supports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and
     provides real-time indexing with HNSW optimization.
-  version: 1.4.0
+  version: 1.5.0
   contact:
     name: Vectorizer Team
     url: https://github.com/hivellm/vectorizer
@@ -3297,7 +3297,9 @@ tags:
   - name: File Operations
     description: File content retrieval and analysis operations
   - name: Graph Operations
-    description: Graph relationship discovery and querying operations
+    description: Graph relationship operations (nodes, edges, paths, discovery)
+  - name: Qdrant Compatibility
+    description: Qdrant 1.14.x compatible API endpoints for seamless migration. Includes Snapshots API, Sharding API, Cluster Management, Query API, Search Groups/Matrix, Named Vectors, and Quantization configuration. All endpoints are available under `/qdrant/*` prefix.
 
 externalDocs:
   description: Vectorizer Documentation

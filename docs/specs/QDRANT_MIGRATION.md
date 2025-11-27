@@ -41,6 +41,43 @@ POST   /qdrant/collections/{name}/points/search            - Search points
 POST   /qdrant/collections/{name}/points/recommend         - Recommend points
 POST   /qdrant/collections/{name}/points/search/batch      - Batch search
 POST   /qdrant/collections/{name}/points/recommend/batch   - Batch recommend
+POST   /qdrant/collections/{name}/points/search/groups     - Search with grouping
+POST   /qdrant/collections/{name}/points/search/matrix/pairs   - Similarity matrix (pairs)
+POST   /qdrant/collections/{name}/points/search/matrix/offsets - Similarity matrix (offsets)
+```
+
+#### Query API
+```
+POST   /qdrant/collections/{name}/points/query        - Query points (universal search)
+POST   /qdrant/collections/{name}/points/query/batch  - Batch query
+POST   /qdrant/collections/{name}/points/query/groups - Query with grouping
+```
+
+#### Snapshots
+```
+GET    /qdrant/collections/{name}/snapshots           - List collection snapshots
+POST   /qdrant/collections/{name}/snapshots           - Create collection snapshot
+DELETE /qdrant/collections/{name}/snapshots/{snap}    - Delete collection snapshot
+POST   /qdrant/collections/{name}/snapshots/recover   - Recover from snapshot
+GET    /qdrant/snapshots                              - List all snapshots
+POST   /qdrant/snapshots                              - Create full snapshot
+```
+
+#### Sharding
+```
+GET    /qdrant/collections/{name}/shards              - List shard keys
+PUT    /qdrant/collections/{name}/shards              - Create shard key
+POST   /qdrant/collections/{name}/shards/delete       - Delete shard key
+```
+
+#### Cluster Management
+```
+GET    /qdrant/cluster                        - Get cluster status
+POST   /qdrant/cluster/recover                - Recover current peer
+DELETE /qdrant/cluster/peer/{peer_id}         - Remove peer from cluster
+GET    /qdrant/cluster/metadata/keys          - List metadata keys
+GET    /qdrant/cluster/metadata/keys/{key}    - Get metadata key value
+PUT    /qdrant/cluster/metadata/keys/{key}    - Update metadata key value
 ```
 
 ### Example Usage
@@ -211,6 +248,13 @@ await mcp.call_tool('search_intelligent', {
 | Collection CRUD | ✅ | ✅ | ✅ |
 | Vector CRUD | ✅ | ✅ | ✅ |
 | Basic Search | ✅ | ✅ | ✅ |
+| Query API | ✅ | ✅ | ✅ |
+| Search Groups | ✅ | ✅ | ✅ |
+| Search Matrix | ✅ | ✅ | ✅ |
+| Snapshots | ✅ | ✅ | ✅ |
+| Sharding API | ✅ | ✅ | ✅ |
+| Cluster API | ✅ | ✅ | ✅ |
+| Quantization | ✅ | ✅ | ✅ |
 | Intelligent Search | ❌ | ✅ | ✅ |
 | Semantic Search | ❌ | ✅ | ✅ |
 | Multi-Collection | ❌ | ✅ | ✅ |
@@ -226,19 +270,18 @@ await mcp.call_tool('search_intelligent', {
 
 ### Not Supported
 - ❌ gRPC protocol (only REST)
-- ❌ Filtering by payload conditions
-- ❌ Snapshots and backups via Qdrant API
-- ❌ Cluster operations
-- ❌ Sharding
-- ❌ Full-text search via Qdrant format
 - ❌ Collection aliases
-- ❌ Custom sharding keys
+- ❌ Named vectors storage (API accepts but stores single vector)
+- ❌ Snapshot upload (download and recover supported)
 
 ### Partial Support
 - ⚠️ HNSW configuration (mapped to Vectorizer's HNSW)
 - ⚠️ Optimizer configuration (basic support)
-- ⚠️ Quantization (SQ8 only)
+- ⚠️ Quantization (Scalar int8, Product, Binary supported)
 - ⚠️ Recommend API (basic strategies only)
+- ⚠️ Filtering by payload conditions (basic support)
+- ⚠️ Cluster operations (simulated for single-node)
+- ⚠️ Sharding (API compatible, logical sharding)
 
 ### Fully Supported
 - ✅ Collection management (create, read, update, delete)
@@ -246,6 +289,12 @@ await mcp.call_tool('search_intelligent', {
 - ✅ Basic vector search
 - ✅ Scroll operations
 - ✅ Batch operations
+- ✅ Query API (query, batch, groups with prefetch)
+- ✅ Search groups (group results by payload field)
+- ✅ Search matrix (pairs and offsets format)
+- ✅ Snapshots (list, create, delete, recover)
+- ✅ Sharding API (create, delete, list shard keys)
+- ✅ Cluster management API (status, recover, metadata)
 
 ## Migration Tools
 

@@ -14,12 +14,15 @@ use super::error_middleware::{
 };
 use crate::error::VectorizerError;
 use crate::models::qdrant::{
-    PointOperationStatus as QdrantOperationStatus, QdrantCollectionConfig, QdrantCollectionInfo,
+    PointOperationStatus as QdrantOperationStatus, QdrantBinaryQuantization,
+    QdrantBinaryQuantizationConfig, QdrantCollectionConfig, QdrantCollectionInfo,
     QdrantCollectionInfoResponse, QdrantCollectionListResponse, QdrantCollectionResponse,
     QdrantCollectionStats, QdrantCollectionStatus, QdrantCreateCollectionRequest, QdrantDistance,
-    QdrantHnswConfig, QdrantOptimizerConfig, QdrantOptimizerStatus, QdrantPayloadDataType,
-    QdrantPayloadSchema, QdrantQuantizationConfig, QdrantQuantizationType,
-    QdrantScalarQuantization, QdrantUpdateCollectionRequest, QdrantVectorsConfig, QdrantWalConfig,
+    QdrantHnswConfig, QdrantOptimizerConfig, QdrantOptimizerStatus, QdrantPQCompression,
+    QdrantPayloadDataType, QdrantPayloadSchema, QdrantProductQuantization,
+    QdrantProductQuantizationConfig, QdrantQuantizationConfig, QdrantScalarQuantization,
+    QdrantScalarQuantizationConfig, QdrantScalarQuantizationType, QdrantUpdateCollectionRequest,
+    QdrantVectorsConfig, QdrantWalConfig,
 };
 use crate::models::{Payload, Vector};
 
@@ -339,21 +342,35 @@ pub async fn update_collection(
         request.config.wal_config.wal_capacity_mb, request.config.wal_config.wal_segments_ahead
     );
 
-    if let Some(quantization_config) = request.config.quantization_config {
+    if let Some(quantization_config) = &request.config.quantization_config {
         debug!(
             "Updating quantization config for collection: {}",
             collection_name
         );
-        // Update quantization configuration
-        if let Some(scalar) = quantization_config.scalar {
-            let bits = (scalar.quantile.unwrap_or(0.5) * 8.0) as usize;
-
-            // Note: Quantization changes require reindexing and rebuilding quantized vectors
-            // The config is logged but actual re-quantization is not performed automatically
-            info!(
-                "Quantization config updated: {:?} with {} bits (requires reindexing)",
-                quantization_config.quantization, bits
-            );
+        // Update quantization configuration - log based on type
+        // Note: Quantization changes require reindexing and rebuilding quantized vectors
+        // The config is logged but actual re-quantization is not performed automatically
+        match quantization_config {
+            QdrantQuantizationConfig::Scalar(scalar_config) => {
+                let bits = 8; // Int8 quantization
+                info!(
+                    "Scalar quantization config updated: Int8 with {} bits (requires reindexing)",
+                    bits
+                );
+            }
+            QdrantQuantizationConfig::Product(product_config) => {
+                let compression = match &product_config.product.compression {
+                    Some(c) => format!("{:?}", c),
+                    None => "default".to_string(),
+                };
+                info!(
+                    "Product quantization config updated: compression={} (requires reindexing)",
+                    compression
+                );
+            }
+            QdrantQuantizationConfig::Binary(_) => {
+                info!("Binary quantization config updated (requires reindexing)");
+            }
         }
     }
 
@@ -442,15 +459,43 @@ fn convert_to_qdrant_config(config: &crate::models::CollectionConfig) -> QdrantC
     };
 
     let quantization_config = match &config.quantization {
-        crate::models::QuantizationConfig::SQ { bits } => Some(QdrantQuantizationConfig {
-            quantization: QdrantQuantizationType::Int8,
-            scalar: Some(QdrantScalarQuantization {
-                r#type: QdrantQuantizationType::Int8,
-                quantile: None,
-                always_ram: None,
-            }),
-        }),
-        _ => None,
+        crate::models::QuantizationConfig::SQ { bits } => Some(QdrantQuantizationConfig::Scalar(
+            QdrantScalarQuantizationConfig {
+                scalar: QdrantScalarQuantization {
+                    r#type: QdrantScalarQuantizationType::Int8,
+                    quantile: None,
+                    always_ram: None,
+                },
+            },
+        )),
+        crate::models::QuantizationConfig::PQ {
+            n_centroids,
+            n_subquantizers,
+        } => {
+            // Map n_subquantizers to compression ratio
+            // Higher subquantizers = higher compression
+            let compression = match n_subquantizers {
+                1..=4 => Some(QdrantPQCompression::X4),
+                5..=8 => Some(QdrantPQCompression::X8),
+                9..=16 => Some(QdrantPQCompression::X16),
+                17..=32 => Some(QdrantPQCompression::X32),
+                _ => Some(QdrantPQCompression::X64),
+            };
+            Some(QdrantQuantizationConfig::Product(
+                QdrantProductQuantizationConfig {
+                    product: QdrantProductQuantization {
+                        compression,
+                        always_ram: None,
+                    },
+                },
+            ))
+        }
+        crate::models::QuantizationConfig::Binary => Some(QdrantQuantizationConfig::Binary(
+            QdrantBinaryQuantizationConfig {
+                binary: QdrantBinaryQuantization { always_ram: None },
+            },
+        )),
+        crate::models::QuantizationConfig::None => None,
     };
 
     QdrantCollectionConfig {
@@ -489,12 +534,26 @@ fn convert_from_qdrant_config(
 
     // Extract quantization configuration
     let quantization_config = if let Some(quantization) = &request.config.quantization_config {
-        if let Some(scalar) = &quantization.scalar {
-            match scalar.r#type {
-                QdrantQuantizationType::Int8 => crate::models::QuantizationConfig::SQ { bits: 8 },
+        match quantization {
+            QdrantQuantizationConfig::Scalar(scalar_config) => {
+                crate::models::QuantizationConfig::SQ { bits: 8 }
             }
-        } else {
-            crate::models::QuantizationConfig::SQ { bits: 8 } // Default to 8-bit quantization
+            QdrantQuantizationConfig::Product(product_config) => {
+                // Map compression ratio to n_subquantizers
+                let n_subquantizers = match &product_config.product.compression {
+                    Some(QdrantPQCompression::X4) => 4,
+                    Some(QdrantPQCompression::X8) => 8,
+                    Some(QdrantPQCompression::X16) => 16,
+                    Some(QdrantPQCompression::X32) => 32,
+                    Some(QdrantPQCompression::X64) => 64,
+                    None => 8, // Default compression
+                };
+                crate::models::QuantizationConfig::PQ {
+                    n_centroids: 256, // Standard PQ default
+                    n_subquantizers: n_subquantizers,
+                }
+            }
+            QdrantQuantizationConfig::Binary(_) => crate::models::QuantizationConfig::Binary,
         }
     } else {
         crate::models::QuantizationConfig::SQ { bits: 8 } // Default to 8-bit quantization

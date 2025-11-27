@@ -21,7 +21,14 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔄 Master-Replica Replication**: High availability with automatic failover (BETA)
 - **🔗 Distributed Sharding**: Horizontal scaling across multiple servers with automatic shard routing (BETA)
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images
-- **🔄 Qdrant Migration**: Complete migration tools for seamless transition from Qdrant
+- **🔄 Qdrant Migration**: Complete migration tools and full Qdrant 1.14.x API compatibility
+  - Snapshots API (create, list, delete, recover)
+  - Sharding API (create shard keys, distribute data)
+  - Cluster Management API (status, recovery, peer management, metadata)
+  - Query API (query, batch query, grouped queries with prefetch)
+  - Search Groups and Matrix API (grouped results, similarity matrices)
+  - Named Vectors support (partial)
+  - Quantization configuration (PQ and Binary)
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
 - **🖥️ Web Dashboard**: Modern React + TypeScript dashboard with complete graph management interface

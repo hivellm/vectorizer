@@ -231,48 +231,91 @@ pub async fn retrieve_points(
     Path(collection_name): Path<String>,
     Json(request): Json<QdrantPointRetrieveRequest>,
 ) -> Result<Json<QdrantPointRetrieveResponse>, ErrorResponse> {
-    debug!(
+    info!(
         "Retrieving {} points from collection: {}",
         request.ids.len(),
         collection_name
     );
 
-    // Validate collection exists
-    let collection = state
+    // Validate collection exists first
+    let _ = state
         .store
         .get_collection(&collection_name)
         .map_err(|_| create_not_found_error("collection", &collection_name))?;
 
-    let mut points = Vec::new();
-
     let with_payload = request.with_payload.unwrap_or(true);
     let with_vector = request.with_vector.unwrap_or(false);
 
-    let start_time = std::time::Instant::now();
-    for point_id in request.ids {
-        let id_str = match point_id {
+    // Convert point IDs to strings
+    let point_ids: Vec<String> = request
+        .ids
+        .into_iter()
+        .map(|point_id| match point_id {
             QdrantPointId::Numeric(n) => n.to_string(),
             QdrantPointId::Uuid(s) => s,
+        })
+        .collect();
+
+    // Clone store for use in blocking task
+    let store_clone = state.store.clone();
+    let collection_name_clone = collection_name.clone();
+
+    // Run retrieval in a blocking task to avoid blocking the async runtime
+    let retrieve_result = tokio::task::spawn_blocking(move || {
+        let mut points = Vec::new();
+        let start_time = std::time::Instant::now();
+
+        // Get collection inside the blocking task
+        let collection = match store_clone.get_collection(&collection_name_clone) {
+            Ok(c) => c,
+            Err(_) => return Err("Collection not found".to_string()),
         };
 
-        match collection.get_vector(&id_str) {
-            Ok(vector) => {
-                let qdrant_point =
-                    convert_vector_to_qdrant_point(vector, with_payload, with_vector);
-                points.push(qdrant_point);
-            }
-            Err(_) => {
-                // Point not found, skip it
-                debug!(
-                    "Point '{}' not found in collection '{}'",
-                    id_str, collection_name
-                );
+        for id_str in point_ids {
+            match collection.get_vector(&id_str) {
+                Ok(vector) => {
+                    let qdrant_point =
+                        convert_vector_to_qdrant_point(vector, with_payload, with_vector);
+                    points.push(qdrant_point);
+                }
+                Err(_) => {
+                    // Point not found, skip it
+                    debug!("Point '{}' not found in collection", id_str);
+                }
             }
         }
-    }
 
-    let duration = start_time.elapsed();
-    Ok(Json(QdrantPointRetrieveResponse { result: points }))
+        let duration = start_time.elapsed();
+        Ok((points, duration))
+    })
+    .await;
+
+    match retrieve_result {
+        Ok(Ok((points, duration))) => {
+            info!(
+                "Retrieved {} points in {:.3}s",
+                points.len(),
+                duration.as_secs_f64()
+            );
+            Ok(Json(QdrantPointRetrieveResponse { result: points }))
+        }
+        Ok(Err(e)) => {
+            error!("Retrieve failed: {}", e);
+            Err(create_error_response(
+                "internal_error",
+                &format!("Retrieve operation failed: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+        Err(e) => {
+            error!("Retrieve task failed: {}", e);
+            Err(create_error_response(
+                "internal_error",
+                &format!("Retrieve operation failed: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+    }
 }
 
 /// Delete points from a collection
@@ -281,52 +324,84 @@ pub async fn delete_points(
     Path(collection_name): Path<String>,
     Json(request): Json<QdrantPointDeleteRequest>,
 ) -> Result<Json<QdrantPointOperationResult>, ErrorResponse> {
-    debug!(
+    info!(
         "Deleting {} points from collection: {}",
         request.points.len(),
         collection_name
     );
 
     // Validate collection exists
-    let collection = state
+    let _ = state
         .store
         .get_collection(&collection_name)
         .map_err(|_| create_not_found_error("collection", &collection_name))?;
 
-    let mut deleted_count = 0;
-
-    let start_time = std::time::Instant::now();
-    for point_id in request.points {
-        let id_str = match point_id {
+    // Convert point IDs to strings
+    let point_ids: Vec<String> = request
+        .points
+        .into_iter()
+        .map(|point_id| match point_id {
             QdrantPointId::Numeric(n) => n.to_string(),
             QdrantPointId::Uuid(s) => s,
-        };
+        })
+        .collect();
 
-        match state.store.delete(&collection_name, &id_str) {
-            Ok(_) => {
-                deleted_count += 1;
-            }
-            Err(_) => {
-                // Point not found, skip it
-                debug!(
-                    "Point '{}' not found in collection '{}'",
-                    id_str, collection_name
-                );
+    // Clone store for use in blocking task
+    let store_clone = state.store.clone();
+    let collection_name_clone = collection_name.clone();
+
+    // Run delete operations in spawn_blocking to avoid blocking the async runtime
+    let delete_result = tokio::task::spawn_blocking(move || {
+        let start_time = std::time::Instant::now();
+        let mut deleted_count = 0;
+
+        for id_str in &point_ids {
+            match store_clone.delete(&collection_name_clone, id_str) {
+                Ok(_) => {
+                    deleted_count += 1;
+                }
+                Err(_) => {
+                    // Point not found, skip it
+                }
             }
         }
-    }
 
-    let duration = start_time.elapsed();
-    info!(
-        "Successfully deleted {} points from collection: {} in {:.3}s",
-        deleted_count,
-        collection_name,
-        duration.as_secs_f64()
-    );
-    Ok(Json(QdrantPointOperationResult {
-        status: QdrantOperationStatus::Acknowledged,
-        operation_id: None,
-    }))
+        let duration = start_time.elapsed();
+        Ok::<(usize, std::time::Duration), String>((deleted_count, duration))
+    })
+    .await;
+
+    match delete_result {
+        Ok(Ok((deleted_count, duration))) => {
+            info!(
+                "Successfully deleted {} points from collection: {} in {:.3}s",
+                deleted_count,
+                collection_name,
+                duration.as_secs_f64()
+            );
+
+            Ok(Json(QdrantPointOperationResult {
+                status: QdrantOperationStatus::Acknowledged,
+                operation_id: None,
+            }))
+        }
+        Ok(Err(e)) => {
+            error!("Delete failed: {}", e);
+            Err(create_error_response(
+                &format!("Delete failed: {}", e),
+                "delete_error",
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+        Err(e) => {
+            error!("Task join error: {}", e);
+            Err(create_error_response(
+                &format!("Task join error: {}", e),
+                "task_error",
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+    }
 }
 
 /// Scroll points from a collection
@@ -335,74 +410,116 @@ pub async fn scroll_points(
     Path(collection_name): Path<String>,
     Json(request): Json<QdrantPointScrollRequest>,
 ) -> Result<Json<QdrantPointScrollResponse>, ErrorResponse> {
-    debug!("Scrolling points from collection: {}", collection_name);
+    info!("Scrolling points from collection: {}", collection_name);
 
-    // Validate collection exists
-    let collection = state
+    // Validate collection exists first
+    let _ = state
         .store
         .get_collection(&collection_name)
         .map_err(|_| create_not_found_error("collection", &collection_name))?;
 
-    // Get all vectors from collection
-    let start_time = std::time::Instant::now();
-    let all_vectors = collection.get_all_vectors();
     let limit = request.limit.unwrap_or(10) as usize;
     let offset = request.offset.map(|id| match id {
         QdrantPointId::Numeric(n) => n.to_string(),
         QdrantPointId::Uuid(s) => s,
     });
 
-    // Apply offset if provided
-    let start_index = if let Some(offset_id) = offset {
-        all_vectors
-            .iter()
-            .position(|v| v.id == offset_id)
-            .unwrap_or(0)
-    } else {
-        0
-    };
+    // Clone store for use in blocking task
+    let store_clone = state.store.clone();
+    let collection_name_clone = collection_name.clone();
 
-    // Get limited results
-    let vectors = all_vectors
-        .clone()
-        .into_iter()
-        .skip(start_index)
-        .take(limit)
-        .collect::<Vec<_>>();
+    // Run get_all_vectors in a blocking task to avoid blocking the async runtime
+    let scroll_result = tokio::task::spawn_blocking(move || {
+        let start_time = std::time::Instant::now();
 
-    // Convert to Qdrant points
-    let points: Vec<_> = vectors
-        .into_iter()
-        .map(|vector| QdrantPointStruct {
-            id: QdrantPointId::Uuid(vector.id),
-            vector: QdrantVector::Dense(vector.data),
-            payload: vector.payload.map(|p| {
-                p.data
-                    .as_object()
-                    .unwrap()
-                    .iter()
-                    .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
-                    .collect()
-            }),
-        })
-        .collect();
+        // Get collection inside the blocking task
+        let collection = match store_clone.get_collection(&collection_name_clone) {
+            Ok(c) => c,
+            Err(_) => return Err("Collection not found".to_string()),
+        };
 
-    // Calculate next page offset
-    let next_page_offset = if start_index + limit < all_vectors.len() {
-        // There are more results, use the last point's ID as offset
-        points.last().map(|point| point.id.clone())
-    } else {
-        // No more results
-        None
-    };
+        let all_vectors = collection.get_all_vectors();
 
-    let duration = start_time.elapsed();
-    Ok(Json(QdrantPointScrollResponse {
-        result: QdrantScrollResult {
-            points,
-            next_page_offset,
-        },
-    }))
+        // Apply offset if provided
+        let start_index = if let Some(ref offset_id) = offset {
+            all_vectors
+                .iter()
+                .position(|v| v.id == *offset_id)
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
+        // Get limited results
+        let vectors: Vec<_> = all_vectors
+            .clone()
+            .into_iter()
+            .skip(start_index)
+            .take(limit)
+            .collect();
+
+        // Convert to Qdrant points
+        let points: Vec<_> = vectors
+            .into_iter()
+            .map(|vector| QdrantPointStruct {
+                id: QdrantPointId::Uuid(vector.id),
+                vector: QdrantVector::Dense(vector.data),
+                payload: vector.payload.map(|p| {
+                    p.data
+                        .as_object()
+                        .unwrap()
+                        .iter()
+                        .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
+                        .collect()
+                }),
+            })
+            .collect();
+
+        // Calculate next page offset
+        let next_page_offset = if start_index + limit < all_vectors.len() {
+            // There are more results, use the last point's ID as offset
+            points.last().map(|point| point.id.clone())
+        } else {
+            // No more results
+            None
+        };
+
+        let duration = start_time.elapsed();
+        Ok((points, next_page_offset, duration))
+    })
+    .await;
+
+    match scroll_result {
+        Ok(Ok((points, next_page_offset, duration))) => {
+            info!(
+                "Scrolled {} points from collection in {:.3}s",
+                points.len(),
+                duration.as_secs_f64()
+            );
+            Ok(Json(QdrantPointScrollResponse {
+                result: QdrantScrollResult {
+                    points,
+                    next_page_offset,
+                },
+            }))
+        }
+        Ok(Err(e)) => {
+            error!("Scroll failed: {}", e);
+            Err(create_error_response(
+                "internal_error",
+                &format!("Scroll operation failed: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+        Err(e) => {
+            error!("Scroll task failed: {}", e);
+            Err(create_error_response(
+                "internal_error",
+                &format!("Scroll operation failed: {}", e),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
+        }
+    }
 }
 
 /// Count points in a collection
@@ -433,15 +550,38 @@ fn convert_qdrant_point_to_vector(
     point: QdrantPointStruct,
     config: &crate::models::CollectionConfig,
 ) -> Result<Vector, ErrorResponse> {
-    // Extract vector data
+    // Extract vector data - support both Dense and Named formats
     let vector_data = match point.vector {
         QdrantVector::Dense(data) => data,
-        QdrantVector::Named(_) => {
-            return Err(create_error_response(
-                "bad_request",
-                "Named vectors not yet supported",
-                StatusCode::BAD_REQUEST,
-            ));
+        QdrantVector::Named(named_vectors) => {
+            // For single-vector collections, we accept named vectors with exactly one entry
+            // This provides API compatibility with Qdrant clients that use named vectors
+            if named_vectors.is_empty() {
+                return Err(create_error_response(
+                    "bad_request",
+                    "Named vectors map is empty - at least one vector required",
+                    StatusCode::BAD_REQUEST,
+                ));
+            }
+            if named_vectors.len() > 1 {
+                return Err(create_error_response(
+                    "bad_request",
+                    &format!(
+                        "Multiple named vectors ({}) not supported - Vectorizer collections use single vectors. \
+                        Provide exactly one named vector or use the dense vector format.",
+                        named_vectors.len()
+                    ),
+                    StatusCode::BAD_REQUEST,
+                ));
+            }
+            // Extract the single vector - get the first (and only) entry
+            let (vector_name, data) = named_vectors.into_iter().next().unwrap();
+            debug!(
+                "Converting named vector '{}' to single-vector format (dimension: {})",
+                vector_name,
+                data.len()
+            );
+            data
         }
     };
 

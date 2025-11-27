@@ -33,7 +33,14 @@ High-performance TypeScript SDK for Vectorizer vector database.
 - ✅ **Workspace Management**: Multi-workspace support for project organization
 - ✅ **Backup & Restore**: Collection backup and restore operations
 - ✅ **Batch Operations**: Efficient bulk insert, update, delete, and search
-- ✅ **Qdrant Compatibility**: Full Qdrant REST API compatibility for easy migration
+- ✅ **Qdrant Compatibility**: Full Qdrant 1.14.x REST API compatibility for easy migration
+  - Snapshots API (create, list, delete, recover)
+  - Sharding API (create shard keys, distribute data)
+  - Cluster Management API (status, recovery, peer management, metadata)
+  - Query API (query, batch query, grouped queries with prefetch)
+  - Search Groups and Matrix API (grouped results, similarity matrices)
+  - Named Vectors support (partial)
+  - Quantization configuration (PQ and Binary)
 - ✅ **Embedding Generation**: Text embedding support
 
 ## Installation

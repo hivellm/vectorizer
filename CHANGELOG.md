@@ -40,6 +40,53 @@ All notable changes to this project will be documented in this file.
   - **BENEFIT**: Higher and more accurate BM25 scores, better search quality and relevance ranking
 
 ### Added
+- **Qdrant Feature Parity - Advanced APIs**: Complete implementation of Qdrant 1.14.x advanced features
+  - **Snapshots API**: Full snapshot management via Qdrant-compatible endpoints
+    - `GET /qdrant/collections/{name}/snapshots` - List collection snapshots
+    - `POST /qdrant/collections/{name}/snapshots` - Create collection snapshot
+    - `DELETE /qdrant/collections/{name}/snapshots/{snapshot_name}` - Delete snapshot
+    - `GET /qdrant/snapshots` - List all snapshots
+    - `POST /qdrant/snapshots` - Create full snapshot
+    - `POST /qdrant/collections/{name}/snapshots/recover` - Recover from snapshot
+  - **Sharding API**: Distributed sharding support via Qdrant API
+    - `PUT /qdrant/collections/{name}/shards` - Create shard key
+    - `POST /qdrant/collections/{name}/shards/delete` - Delete shard key
+    - `GET /qdrant/collections/{name}/shards` - List shard keys
+  - **Cluster Management API**: Cluster operations via Qdrant endpoints
+    - `GET /qdrant/cluster` - Get cluster status
+    - `POST /qdrant/cluster/recover` - Recover current peer
+    - `DELETE /qdrant/cluster/peer/{peer_id}` - Remove peer
+    - `GET /qdrant/cluster/metadata/keys` - List metadata keys
+    - `GET /qdrant/cluster/metadata/keys/{key}` - Get metadata key
+    - `PUT /qdrant/cluster/metadata/keys/{key}` - Update metadata key
+  - **Query API**: Advanced query operations (Qdrant 1.7+)
+    - `POST /qdrant/collections/{name}/points/query` - Query points with filters
+    - `POST /qdrant/collections/{name}/points/query/batch` - Batch query operations
+    - `POST /qdrant/collections/{name}/points/query/groups` - Grouped query results
+    - Full prefetch support for nested queries and lookups
+  - **Search Groups and Matrix API**: Advanced search grouping and similarity matrix
+    - `POST /qdrant/collections/{name}/points/search/groups` - Group search results by payload field
+    - `POST /qdrant/collections/{name}/points/search/matrix/pairs` - Compute pairwise similarity matrix
+    - `POST /qdrant/collections/{name}/points/search/matrix/offsets` - Matrix with offset-based sampling
+  - **Named Vectors Support**: Partial support for named vectors in operations
+    - `using` parameter support in search operations
+    - `using` parameter support in query operations
+    - Single named vector support in upsert operations
+  - **Quantization API**: Product Quantization and Binary Quantization configuration
+    - PQ quantization configuration via Qdrant API
+    - Binary quantization configuration via Qdrant API
+    - Quantization config support in collection creation
+  - **BENEFIT**: Complete Qdrant 1.14.x API compatibility for seamless migration and tool compatibility
+
+- **SDK Qdrant Feature Parity**: All SDKs updated with comprehensive Qdrant compatibility methods
+  - **Rust SDK**: Full Qdrant feature parity methods for snapshots, sharding, cluster management, query API, search groups/matrix
+  - **Python SDK**: Complete Qdrant-compatible methods (`qdrant_*` prefix) for all advanced features
+  - **TypeScript SDK**: Full Qdrant feature parity with TypeScript types and async/await support
+  - **JavaScript SDK**: Complete Qdrant-compatible methods with JSDoc documentation
+  - **C# SDK**: Full Qdrant feature parity with async methods and comprehensive tests (`QdrantAdvancedTests.cs`)
+  - All SDKs include: snapshot management, shard key operations, cluster status/recovery, query/batch/groups API, search groups, matrix pairs/offsets
+  - **BENEFIT**: Multi-language SDK support for Qdrant-compatible applications, easy migration from Qdrant clients
+
 - **Comprehensive Qdrant Comparison Benchmark**: New benchmark suite comparing Vectorizer with Qdrant
   - Tests 5 different scenarios: Small (1K), Medium (5K), Large (10K) datasets with multiple dimensions (384, 512, 768)
   - Measures insertion latency/throughput, search latency/throughput, and search quality (Precision@10, Recall@10, F1-Score)

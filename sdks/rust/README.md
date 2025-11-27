@@ -19,6 +19,7 @@ High-performance Rust SDK for Vectorizer vector database.
 - ✅ Production-ready code
 - ✅ Hybrid search support (dense + sparse vectors)
 - ✅ Qdrant REST API compatibility
+- ✅ Qdrant 1.14.x advanced features (Snapshots, Sharding, Cluster Management, Query API, Search Groups/Matrix, Quantization)
 
 ## Quick Start
 

@@ -663,6 +663,197 @@ export class VectorizerClient {
     }
   }
 
+  // ===== QDRANT ADVANCED FEATURES (1.14.x) =====
+
+  async qdrantListCollectionSnapshots(collection) {
+    try {
+      return await this.transport.get(`/qdrant/collections/${collection}/snapshots`);
+    } catch (error) {
+      this.logger.error('Failed to list collection snapshots', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantCreateCollectionSnapshot(collection) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/snapshots`, {});
+    } catch (error) {
+      this.logger.error('Failed to create collection snapshot', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantDeleteCollectionSnapshot(collection, snapshotName) {
+    try {
+      return await this.transport.delete(`/qdrant/collections/${collection}/snapshots/${snapshotName}`);
+    } catch (error) {
+      this.logger.error('Failed to delete collection snapshot', { collection, snapshotName, error });
+      throw error;
+    }
+  }
+
+  async qdrantRecoverCollectionSnapshot(collection, location) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/snapshots/recover`, { location });
+    } catch (error) {
+      this.logger.error('Failed to recover collection snapshot', { collection, location, error });
+      throw error;
+    }
+  }
+
+  async qdrantListAllSnapshots() {
+    try {
+      return await this.transport.get('/qdrant/snapshots');
+    } catch (error) {
+      this.logger.error('Failed to list all snapshots', { error });
+      throw error;
+    }
+  }
+
+  async qdrantCreateFullSnapshot() {
+    try {
+      return await this.transport.post('/qdrant/snapshots', {});
+    } catch (error) {
+      this.logger.error('Failed to create full snapshot', { error });
+      throw error;
+    }
+  }
+
+  async qdrantListShardKeys(collection) {
+    try {
+      return await this.transport.get(`/qdrant/collections/${collection}/shards`);
+    } catch (error) {
+      this.logger.error('Failed to list shard keys', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantCreateShardKey(collection, shardKey) {
+    try {
+      return await this.transport.put(`/qdrant/collections/${collection}/shards`, { shard_key: shardKey });
+    } catch (error) {
+      this.logger.error('Failed to create shard key', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantDeleteShardKey(collection, shardKey) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/shards/delete`, { shard_key: shardKey });
+    } catch (error) {
+      this.logger.error('Failed to delete shard key', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantGetClusterStatus() {
+    try {
+      return await this.transport.get('/qdrant/cluster');
+    } catch (error) {
+      this.logger.error('Failed to get cluster status', { error });
+      throw error;
+    }
+  }
+
+  async qdrantClusterRecover() {
+    try {
+      return await this.transport.post('/qdrant/cluster/recover', {});
+    } catch (error) {
+      this.logger.error('Failed to recover cluster', { error });
+      throw error;
+    }
+  }
+
+  async qdrantRemovePeer(peerId) {
+    try {
+      return await this.transport.delete(`/qdrant/cluster/peer/${peerId}`);
+    } catch (error) {
+      this.logger.error('Failed to remove peer', { peerId, error });
+      throw error;
+    }
+  }
+
+  async qdrantListMetadataKeys() {
+    try {
+      return await this.transport.get('/qdrant/cluster/metadata/keys');
+    } catch (error) {
+      this.logger.error('Failed to list metadata keys', { error });
+      throw error;
+    }
+  }
+
+  async qdrantGetMetadataKey(key) {
+    try {
+      return await this.transport.get(`/qdrant/cluster/metadata/keys/${key}`);
+    } catch (error) {
+      this.logger.error('Failed to get metadata key', { key, error });
+      throw error;
+    }
+  }
+
+  async qdrantUpdateMetadataKey(key, value) {
+    try {
+      return await this.transport.put(`/qdrant/cluster/metadata/keys/${key}`, { value });
+    } catch (error) {
+      this.logger.error('Failed to update metadata key', { key, error });
+      throw error;
+    }
+  }
+
+  async qdrantQueryPoints(collection, request) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/query`, request);
+    } catch (error) {
+      this.logger.error('Failed to query points', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantBatchQueryPoints(collection, request) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/query/batch`, request);
+    } catch (error) {
+      this.logger.error('Failed to batch query points', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantQueryPointsGroups(collection, request) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/query/groups`, request);
+    } catch (error) {
+      this.logger.error('Failed to query points groups', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantSearchPointsGroups(collection, request) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/search/groups`, request);
+    } catch (error) {
+      this.logger.error('Failed to search points groups', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantSearchMatrixPairs(collection, request) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/search/matrix/pairs`, request);
+    } catch (error) {
+      this.logger.error('Failed to search matrix pairs', { collection, error });
+      throw error;
+    }
+  }
+
+  async qdrantSearchMatrixOffsets(collection, request) {
+    try {
+      return await this.transport.post(`/qdrant/collections/${collection}/points/search/matrix/offsets`, request);
+    } catch (error) {
+      this.logger.error('Failed to search matrix offsets', { collection, error });
+      throw error;
+    }
+  }
+
   // ===== EMBEDDING OPERATIONS =====
 
   /**

@@ -3,13 +3,13 @@ LangChain Integration for Vectorizer
 
 This module provides a LangChain VectorStore implementation that uses Vectorizer
 as the backend for vector storage and similarity search.
+
+Updated to use modern Vectorizer Python SDK with async support.
 """
 
 from typing import List, Dict, Any, Optional, Tuple
 import json
-import requests
 import asyncio
-import aiohttp
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
@@ -29,6 +29,24 @@ except ImportError:
             "Install with: pip install langchain"
         )
 
+# Try to import VectorizerClient from Python SDK
+try:
+    import sys
+    import os
+    # Add parent directory to path to import from Python SDK
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'python'))
+    from client import VectorizerClient as SDKClient
+    SDK_AVAILABLE = True
+except ImportError:
+    # Fallback to basic implementation if SDK not available
+    SDK_AVAILABLE = False
+    try:
+        import requests
+        import aiohttp
+    except ImportError:
+        requests = None
+        aiohttp = None
+
 
 @dataclass
 class VectorizerConfig:
@@ -41,6 +59,7 @@ class VectorizerConfig:
     auto_create_collection: bool = True
     batch_size: int = 100
     similarity_threshold: float = 0.7
+    use_sdk: bool = True  # Use modern SDK if available
 
 
 class VectorizerClient:
@@ -49,15 +68,34 @@ class VectorizerClient:
     def __init__(self, config: VectorizerConfig):
         self.config = config
         self.base_url = f"http://{config.host}:{config.port}"
-        self.session = requests.Session()
         
-        if config.api_key:
-            self.session.headers.update({"Authorization": f"Bearer {config.api_key}"})
+        # Use modern SDK if available and enabled
+        if SDK_AVAILABLE and config.use_sdk:
+            self._client = SDKClient(
+                base_url=self.base_url,
+                api_key=config.api_key,
+                timeout=config.timeout
+            )
+            self._use_sdk = True
+        else:
+            # Fallback to basic requests
+            if requests is None:
+                raise ImportError(
+                    "Vectorizer Python SDK not available. "
+                    "Install with: pip install vectorizer-sdk or ensure requests/aiohttp are installed"
+                )
+            self.session = requests.Session()
+            if config.api_key:
+                self.session.headers.update({"Authorization": f"Bearer {config.api_key}"})
+            self._use_sdk = False
     
     def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make HTTP request to Vectorizer API"""
-        url = f"{self.base_url}{endpoint}"
+        if self._use_sdk:
+            # Use SDK methods when available
+            raise NotImplementedError("Use async methods with SDK client")
         
+        url = f"{self.base_url}{endpoint}"
         try:
             response = self.session.request(
                 method, url, timeout=self.config.timeout, **kwargs
@@ -69,8 +107,11 @@ class VectorizerClient:
     
     async def _make_async_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make async HTTP request to Vectorizer API"""
-        url = f"{self.base_url}{endpoint}"
+        if self._use_sdk:
+            # Use SDK async methods
+            raise NotImplementedError("Use SDK client methods directly")
         
+        url = f"{self.base_url}{endpoint}"
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.request(method, url, **kwargs) as response:

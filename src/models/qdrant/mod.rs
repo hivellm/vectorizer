@@ -5,15 +5,19 @@
 
 pub mod alias;
 pub mod batch;
+pub mod cluster;
 pub mod collection;
 pub mod error;
 pub mod filter;
 pub mod filter_processor;
 pub mod point;
 pub mod search;
+pub mod sharding;
+pub mod snapshot;
 
 pub use alias::*;
 pub use batch::*;
+pub use cluster::*;
 pub use collection::*;
 pub use error::*;
 pub use filter::*;
@@ -27,3 +31,5 @@ pub use point::{
 pub use search::{
     QdrantCountResult as SearchCountResult, QdrantScrollResult as SearchScrollResult, *,
 };
+pub use sharding::*;
+pub use snapshot::*;

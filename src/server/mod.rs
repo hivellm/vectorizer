@@ -5,8 +5,12 @@ mod graph_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
 mod qdrant_alias_handlers;
+mod qdrant_cluster_handlers;
 mod qdrant_handlers;
+mod qdrant_query_handlers;
 mod qdrant_search_handlers;
+mod qdrant_sharding_handlers;
+mod qdrant_snapshot_handlers;
 mod qdrant_vector_handlers;
 pub mod replication_handlers;
 pub mod rest_handlers;
@@ -70,6 +74,8 @@ pub struct VectorizerServer {
     pub cluster_client_pool: Option<Arc<crate::cluster::ClusterClientPool>>,
     /// Maximum request body size in MB (from config)
     pub max_request_size_mb: usize,
+    /// Snapshot manager (optional, for Qdrant snapshot API)
+    pub snapshot_manager: Option<Arc<crate::storage::SnapshotManager>>,
 }
 
 impl VectorizerServer {
@@ -678,6 +684,16 @@ impl VectorizerServer {
             cluster_manager,
             cluster_client_pool,
             max_request_size_mb,
+            snapshot_manager: {
+                let data_dir = VectorStore::get_data_dir();
+                let snapshots_dir = data_dir.join("snapshots");
+                Some(Arc::new(crate::storage::SnapshotManager::new(
+                    &data_dir,
+                    &snapshots_dir,
+                    10,  // max_snapshots: keep up to 10 snapshots
+                    168, // retention_hours: 7 days
+                )))
+            },
         })
     }
 
@@ -933,7 +949,7 @@ impl VectorizerServer {
             )
             .route(
                 "/qdrant/collections/{name}/points",
-                get(qdrant_vector_handlers::retrieve_points),
+                post(qdrant_vector_handlers::retrieve_points),
             )
             .route(
                 "/qdrant/collections/{name}/points",
@@ -975,6 +991,95 @@ impl VectorizerServer {
             .route(
                 "/qdrant/collections/{name}/points/recommend/batch",
                 post(qdrant_search_handlers::batch_recommend_points),
+            )
+            // Query API endpoints (Qdrant 1.7+)
+            .route(
+                "/qdrant/collections/{name}/points/query",
+                post(qdrant_query_handlers::query_points),
+            )
+            .route(
+                "/qdrant/collections/{name}/points/query/batch",
+                post(qdrant_query_handlers::batch_query_points),
+            )
+            .route(
+                "/qdrant/collections/{name}/points/query/groups",
+                post(qdrant_query_handlers::query_points_groups),
+            )
+            // Search Groups and Matrix API endpoints
+            .route(
+                "/qdrant/collections/{name}/points/search/groups",
+                post(qdrant_search_handlers::search_points_groups),
+            )
+            .route(
+                "/qdrant/collections/{name}/points/search/matrix/pairs",
+                post(qdrant_search_handlers::search_matrix_pairs),
+            )
+            .route(
+                "/qdrant/collections/{name}/points/search/matrix/offsets",
+                post(qdrant_search_handlers::search_matrix_offsets),
+            )
+            // Snapshot API endpoints
+            .route(
+                "/qdrant/collections/{name}/snapshots",
+                get(qdrant_snapshot_handlers::list_collection_snapshots),
+            )
+            .route(
+                "/qdrant/collections/{name}/snapshots",
+                post(qdrant_snapshot_handlers::create_collection_snapshot),
+            )
+            .route(
+                "/qdrant/collections/{name}/snapshots/{snapshot_name}",
+                delete(qdrant_snapshot_handlers::delete_collection_snapshot),
+            )
+            .route(
+                "/qdrant/collections/{name}/snapshots/recover",
+                post(qdrant_snapshot_handlers::recover_collection_snapshot),
+            )
+            .route(
+                "/qdrant/snapshots",
+                get(qdrant_snapshot_handlers::list_all_snapshots),
+            )
+            .route(
+                "/qdrant/snapshots",
+                post(qdrant_snapshot_handlers::create_full_snapshot),
+            )
+            // Sharding API endpoints
+            .route(
+                "/qdrant/collections/{name}/shards",
+                get(qdrant_sharding_handlers::list_shard_keys),
+            )
+            .route(
+                "/qdrant/collections/{name}/shards",
+                put(qdrant_sharding_handlers::create_shard_key),
+            )
+            .route(
+                "/qdrant/collections/{name}/shards/delete",
+                post(qdrant_sharding_handlers::delete_shard_key),
+            )
+            // Cluster API endpoints
+            .route(
+                "/qdrant/cluster",
+                get(qdrant_cluster_handlers::get_cluster_status),
+            )
+            .route(
+                "/qdrant/cluster/recover",
+                post(qdrant_cluster_handlers::cluster_recover),
+            )
+            .route(
+                "/qdrant/cluster/peer/{peer_id}",
+                delete(qdrant_cluster_handlers::remove_peer),
+            )
+            .route(
+                "/qdrant/cluster/metadata/keys",
+                get(qdrant_cluster_handlers::list_metadata_keys),
+            )
+            .route(
+                "/qdrant/cluster/metadata/keys/{key}",
+                get(qdrant_cluster_handlers::get_metadata_key),
+            )
+            .route(
+                "/qdrant/cluster/metadata/keys/{key}",
+                put(qdrant_cluster_handlers::update_metadata_key),
             )
             // Dashboard - serve static files from dist directory (production build)
             .nest_service("/dashboard", ServeDir::new("dashboard/dist"))
