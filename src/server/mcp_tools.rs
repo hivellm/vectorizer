@@ -26,6 +26,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 2. Create Collection
@@ -68,6 +69,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // 3. Get Collection Info
@@ -90,6 +92,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 4. Insert Text
@@ -120,6 +123,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // 5. Get Vector
@@ -146,6 +150,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 6. Update Vector
@@ -180,6 +185,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // 7. Delete Vector
@@ -207,6 +213,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // 8. Multi-Collection Search
@@ -249,6 +256,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 9. Basic Search
@@ -287,6 +295,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // =============================================
@@ -333,6 +342,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 11. Semantic Search
@@ -369,6 +379,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 12. Extra Search (Combined)
@@ -413,6 +424,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 13. Hybrid Search (Dense + Sparse)
@@ -483,6 +495,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // =============================================
@@ -519,6 +532,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 14. Expand Queries
@@ -561,6 +575,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // =============================================
@@ -598,6 +613,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 16. List Files
@@ -639,6 +655,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 17. Get File Chunks
@@ -683,6 +700,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 18. Get Project Outline
@@ -722,6 +740,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // 19. Get Related Files
@@ -765,6 +784,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // =============================================
@@ -786,6 +806,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // Cluster Get Shard Distribution
@@ -803,6 +824,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // Cluster Rebalance
@@ -826,6 +848,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // Cluster Add Node
@@ -856,6 +879,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // Cluster Remove Node
@@ -878,6 +902,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // Cluster Get Node Info
@@ -900,6 +925,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // =============================================
@@ -926,6 +952,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // Graph Get Neighbors
@@ -952,6 +979,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // Graph Find Related
@@ -988,6 +1016,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // Graph Find Path
@@ -1018,6 +1047,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
         },
 
         // Graph Create Edge
@@ -1058,6 +1088,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // Graph Delete Edge
@@ -1080,6 +1111,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // Graph Discover Edges
@@ -1116,6 +1148,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
         },
 
         // Graph Discover Status
@@ -1138,6 +1171,7 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true)),
+            meta: None,
         },
 
     ]

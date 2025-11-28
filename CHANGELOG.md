@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Dependency Updates**: Updated key dependencies to latest versions
+  - `rmcp`: 0.8.1 → 0.9.1 (MCP SDK with new meta field support)
+  - `tower-http`: 0.6.6 → 0.6.7
+  - `arrow`: 56.2.0 → 57.1.0
+  - `parquet`: 56.2.0 → 57.1.0
+  - **BENEFIT**: Latest security patches, performance improvements, and MCP protocol compatibility
+
 ### Added
 
 - **Docker Authentication Configuration**: Built-in authentication support for Docker deployments
