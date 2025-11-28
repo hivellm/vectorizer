@@ -32,10 +32,17 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
 - **🖥️ Web Dashboard**: Modern React + TypeScript dashboard with complete graph management interface
+  - Create/delete edges with relationship types and weights
+  - Explore node neighbors and related nodes
+  - Find shortest paths between nodes
+  - Node-specific edge discovery with configurable parameters
+  - Real-time graph visualization with vis-network
 - **🖥️ Desktop GUI**: Electron-based desktop application with vis-network graph visualization for visual database management
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
 - **🧠 Multiple Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
 - **🕸️ Graph Relationships**: Automatic relationship discovery and graph traversal with full GUI support for edge management, node exploration, and path finding
+- **🔗 n8n Integration**: Official n8n community node for no-code workflow automation (400+ node integrations)
+- **🎨 Langflow Integration**: LangChain-compatible components for visual LLM app building
 - **🔒 Security**: JWT + API Key authentication with RBAC
 
 ## 🚀 Quick Start
@@ -241,17 +248,30 @@ Comprehensive feature comparison with major vector database solutions:
 - **Milvus**: Large-scale deployments requiring advanced scalability features
 - **Chroma**: Python-first applications with simple setup requirements
 
-## 🔧 Recent Improvements (v1.5.0)
+## 🔧 Recent Improvements (v1.6.0)
 
-### Test Suite Enhancements
+### New Features
 
-- **✅ Fixed**: SIMD vector operations - Improved precision handling for large vectors
-- **✅ Fixed**: Product Quantization - Corrected compression ratio calculations
-- **✅ Fixed**: MMap storage - Added header persistence for reliable data recovery
-- **✅ Fixed**: WAL tests - Improved test reliability with proper metric handling
-- **✅ Improved**: Test execution time - Slow tests marked as optional (run with `--ignored`)
+- **✅ Graph Dashboard Enhancements**: Complete graph management interface
+  - Create/delete edges with relationship types and weights
+  - View node neighbors and find related nodes
+  - Find shortest paths between nodes
+  - Node-specific edge discovery with configurable parameters
+  - Enhanced node details panel with inline actions
+- **✅ n8n Integration**: Official community node for workflow automation
+  - Collection, Vector, and Search resources
+  - 12 operations across all resources
+  - Visual workflow builder integration
+- **✅ Langflow Integration**: LangChain-compatible components
+  - VectorizerVectorStore for document storage
+  - VectorizerRetriever for RAG pipelines
+  - VectorizerLoader for existing vectors
+- **✅ GraphQL API**: Full GraphQL API with async-graphql
+  - Complete REST API parity with flexible queries
+  - GraphiQL playground for interactive exploration
+  - 37 unit and integration tests
 
-### Quality Improvements
+### Quality Improvements (v1.5.0)
 
 - **✅ All core tests passing**: 703+ tests with comprehensive coverage
 - **✅ Better error handling**: Improved dimension validation and error messages
@@ -304,12 +324,73 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-All SDKs are synchronized with server version **1.5.0**:
+All SDKs are synchronized with server version **1.6.0**:
 
-- **Python**: `pip install vectorizer-sdk` (v1.5.0)
-- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.5.0)
-- **Rust**: `cargo add vectorizer-sdk` (v1.5.0)
-- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.5.0)
+- **Python**: `pip install vectorizer-sdk` (v1.6.0)
+- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.6.0)
+- **Rust**: `cargo add vectorizer-sdk` (v1.6.0)
+- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.6.0)
+- **C#**: `dotnet add package Vectorizer.SDK` (v1.6.0)
+- **Go**: `go get github.com/hivellm/vectorizer/sdks/go` (v1.6.0)
+
+## 🔗 Workflow & LLM Integrations
+
+### n8n Integration
+
+Official n8n community node for no-code workflow automation.
+
+**Installation:**
+```bash
+npm install @vectorizer/n8n-nodes-vectorizer
+```
+
+**Features:**
+- Collection management (create, delete, get, list)
+- Vector operations (insert, batch insert, delete, get)
+- Search operations (vector, semantic, hybrid)
+- 400+ n8n node integrations available
+- Visual workflow builder
+
+**Example Workflow:**
+```
+Document Loader → Vectorizer (Insert) → Trigger → Vectorizer (Search) → Response
+```
+
+See [n8n Integration Guide](./sdks/n8n/README.md) for detailed usage.
+
+### Langflow Integration
+
+LangChain-compatible components for visual LLM application building.
+
+**Installation:**
+```bash
+pip install vectorizer-langflow
+```
+
+**Components:**
+- `VectorizerVectorStore` - Full LangChain VectorStore implementation
+- `VectorizerRetriever` - RAG pipeline retriever
+- `VectorizerLoader` - Document loader for existing vectors
+
+**Example:**
+```python
+from vectorizer_langflow import VectorizerVectorStore
+from langchain.embeddings import OpenAIEmbeddings
+
+vectorstore = VectorizerVectorStore(
+    host="http://localhost:15002",
+    collection_name="docs",
+    embedding=OpenAIEmbeddings()
+)
+
+# Add documents
+vectorstore.add_texts(["Document 1", "Document 2"])
+
+# Search
+results = vectorstore.similarity_search("query", k=5)
+```
+
+See [Langflow Integration Guide](./sdks/langflow/README.md) for detailed usage.
 
 ## 🔄 Qdrant Migration
 
