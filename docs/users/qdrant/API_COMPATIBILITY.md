@@ -93,12 +93,32 @@ http://localhost:15002/qdrant
 | `/collections/{name}/points/search/matrix/pairs`   | POST   | `/qdrant/collections/{name}/points/search/matrix/pairs`   | ✅ Full | Similarity matrix |
 | `/collections/{name}/points/search/matrix/offsets` | POST   | `/qdrant/collections/{name}/points/search/matrix/offsets` | ✅ Full | Matrix offsets    |
 
+### gRPC Endpoints
+
+| Qdrant gRPC Service | Method | Vectorizer Status | Notes |
+| ------------------- | ------ | ----------------- | ----- |
+| Collections.Get | gRPC | ✅ Full | Get collection info |
+| Collections.List | gRPC | ✅ Full | List all collections |
+| Collections.Create | gRPC | ✅ Full | Create collection |
+| Collections.Update | gRPC | ✅ Full | Update collection |
+| Collections.Delete | gRPC | ✅ Full | Delete collection |
+| Points.Upsert | gRPC | ✅ Full | Upsert points |
+| Points.Delete | gRPC | ✅ Full | Delete points |
+| Points.Get | gRPC | ✅ Full | Get points |
+| Points.Search | gRPC | ✅ Full | Vector search |
+| Points.SearchBatch | gRPC | ✅ Full | Batch search |
+| Points.Scroll | gRPC | ✅ Full | Scroll through points |
+| Points.Recommend | gRPC | ✅ Full | Recommend points |
+| Points.Count | gRPC | ✅ Full | Count points |
+| Snapshots.Create | gRPC | ✅ Full | Create snapshot |
+| Snapshots.List | gRPC | ✅ Full | List snapshots |
+| Snapshots.Delete | gRPC | ✅ Full | Delete snapshot |
+
 ### Unsupported Endpoints
 
 | Qdrant Endpoint | Status | Reason                |
 | --------------- | ------ | --------------------- |
 | `/telemetry`    | ❌     | Use native monitoring |
-| gRPC endpoints  | ❌     | REST API only         |
 
 ## Parameter Compatibility
 
@@ -252,29 +272,30 @@ All responses use Qdrant-compatible format:
 ### Fully Compatible
 
 - ✅ All REST endpoints
+- ✅ All gRPC endpoints (Collections, Points, Snapshots services)
 - ✅ Request/response formats
 - ✅ Error handling
 - ✅ Filter system (all types)
 - ✅ Batch operations
 - ✅ Alias management
+- ✅ Query API (query, batch, groups)
+- ✅ Search groups and matrix
+- ✅ Snapshots and sharding
+- ✅ Cluster management
 
 ### Partially Compatible
 
 - ⚠️ HNSW configuration (parameter names differ)
 - ⚠️ Optimizer configuration (basic support)
-- ⚠️ Named vectors (single vector extracted)
-
-### Not Compatible
-
-- ❌ gRPC protocol (use REST API)
+- ⚠️ Named vectors (single vector extracted, multi-vector storage not supported)
 
 ## Migration Notes
 
 When migrating from Qdrant:
 
 1. **Change base URL**: `http://qdrant:6333` → `http://vectorizer:15002/qdrant`
-2. **Update parameter names**: `ef_construct` → `ef_construction`, `ef` → `ef_search`
-3. **Remove unsupported features**: gRPC, sharding, clustering
-4. **Use native APIs**: For better performance and features
+2. **Change gRPC endpoint**: `qdrant:6334` → `vectorizer:15003` (gRPC port)
+3. **Update parameter names**: `ef_construct` → `ef_construction`, `ef` → `ef_search`
+4. **Use native APIs**: For better performance and advanced features (hybrid search, intelligent search)
 
-See [Migration Guide](../specs/QDRANT_MIGRATION.md) for detailed migration steps.
+See [Migration Guide](../../specs/QDRANT_MIGRATION.md) for detailed migration steps.

@@ -549,6 +549,118 @@ python3 -m unittest test_simple.TestBasicFunctionality
 4. **Edge Case Tests**: Unicode, large data, special scenarios
 5. **Syntax Tests**: Code compilation and import validation
 
+## Qdrant Feature Parity
+
+The SDK provides full compatibility with Qdrant 1.14.x REST API:
+
+### Snapshots API
+
+```python
+# List collection snapshots
+snapshots = await client.qdrant_list_collection_snapshots("my_collection")
+
+# Create snapshot
+snapshot = await client.qdrant_create_collection_snapshot("my_collection")
+
+# Delete snapshot
+await client.qdrant_delete_collection_snapshot("my_collection", "snapshot_name")
+
+# Recover from snapshot
+await client.qdrant_recover_collection_snapshot("my_collection", "snapshots/backup.snapshot")
+
+# Full snapshot (all collections)
+full_snapshot = await client.qdrant_create_full_snapshot()
+```
+
+### Sharding API
+
+```python
+# List shard keys
+shard_keys = await client.qdrant_list_shard_keys("my_collection")
+
+# Create shard key
+await client.qdrant_create_shard_key("my_collection", {"shard_key": "tenant_id"})
+
+# Delete shard key
+await client.qdrant_delete_shard_key("my_collection", {"shard_key": "tenant_id"})
+```
+
+### Cluster Management API
+
+```python
+# Get cluster status
+status = await client.qdrant_get_cluster_status()
+
+# Recover current peer
+await client.qdrant_cluster_recover()
+
+# Remove peer
+await client.qdrant_remove_peer("peer_123")
+
+# Metadata operations
+metadata_keys = await client.qdrant_list_metadata_keys()
+key_value = await client.qdrant_get_metadata_key("my_key")
+await client.qdrant_update_metadata_key("my_key", {"config": "value"})
+```
+
+### Query API
+
+```python
+# Basic query
+results = await client.qdrant_query_points("my_collection", {
+    "query": [0.1, 0.2, 0.3],
+    "limit": 10,
+    "with_payload": True
+})
+
+# Query with prefetch (multi-stage retrieval)
+results = await client.qdrant_query_points("my_collection", {
+    "prefetch": [{"query": [0.1, 0.2, 0.3], "limit": 100}],
+    "query": {"fusion": "rrf"},
+    "limit": 10
+})
+
+# Batch query
+results = await client.qdrant_batch_query_points("my_collection", {
+    "searches": [
+        {"query": [0.1, 0.2, 0.3], "limit": 5},
+        {"query": [0.3, 0.4, 0.5], "limit": 5}
+    ]
+})
+
+# Query groups
+results = await client.qdrant_query_points_groups("my_collection", {
+    "query": [0.1, 0.2, 0.3],
+    "group_by": "category",
+    "group_size": 3,
+    "limit": 10
+})
+```
+
+### Search Groups & Matrix API
+
+```python
+# Search groups
+groups = await client.qdrant_search_points_groups("my_collection", {
+    "vector": [0.1, 0.2, 0.3],
+    "group_by": "category",
+    "group_size": 3,
+    "limit": 5
+})
+
+# Search matrix pairs (pairwise similarity)
+pairs = await client.qdrant_search_matrix_pairs("my_collection", {
+    "sample": 100,
+    "limit": 500
+})
+
+# Search matrix offsets (compact format)
+offsets = await client.qdrant_search_matrix_offsets("my_collection", {
+    "sample": 100,
+    "limit": 500
+})
+```
+
 ## Documentation
 
 - [Full Documentation](https://docs.cmmv-hive.org/vectorizer)

@@ -433,6 +433,125 @@ match client.search_vectors("collection", "query", None, None).await {
 }
 ```
 
+## Qdrant Feature Parity
+
+The SDK provides full compatibility with Qdrant 1.14.x REST API:
+
+### Snapshots API
+
+```rust
+// List collection snapshots
+let snapshots = client.qdrant_list_collection_snapshots("my_collection").await?;
+
+// Create snapshot
+let snapshot = client.qdrant_create_collection_snapshot("my_collection").await?;
+
+// Delete snapshot
+client.qdrant_delete_collection_snapshot("my_collection", "snapshot_name").await?;
+
+// Recover from snapshot
+client.qdrant_recover_collection_snapshot("my_collection", "snapshots/backup.snapshot").await?;
+
+// Full snapshot (all collections)
+let full_snapshot = client.qdrant_create_full_snapshot().await?;
+```
+
+### Sharding API
+
+```rust
+// List shard keys
+let shard_keys = client.qdrant_list_shard_keys("my_collection").await?;
+
+// Create shard key
+let shard_config = serde_json::json!({"shard_key": "tenant_id"});
+client.qdrant_create_shard_key("my_collection", &shard_config).await?;
+
+// Delete shard key
+client.qdrant_delete_shard_key("my_collection", &shard_config).await?;
+```
+
+### Cluster Management API
+
+```rust
+// Get cluster status
+let status = client.qdrant_get_cluster_status().await?;
+
+// Recover current peer
+client.qdrant_cluster_recover().await?;
+
+// Remove peer
+client.qdrant_remove_peer("peer_123").await?;
+
+// Metadata operations
+let metadata_keys = client.qdrant_list_metadata_keys().await?;
+let key_value = client.qdrant_get_metadata_key("my_key").await?;
+let value = serde_json::json!({"config": "value"});
+client.qdrant_update_metadata_key("my_key", &value).await?;
+```
+
+### Query API
+
+```rust
+// Basic query
+let query_request = serde_json::json!({
+    "query": [0.1, 0.2, 0.3, ...],
+    "limit": 10,
+    "with_payload": true
+});
+let results = client.qdrant_query_points("my_collection", &query_request).await?;
+
+// Query with prefetch (multi-stage retrieval)
+let prefetch_request = serde_json::json!({
+    "prefetch": [
+        {"query": [0.1, 0.2, ...], "limit": 100}
+    ],
+    "query": {"fusion": "rrf"},
+    "limit": 10
+});
+let results = client.qdrant_query_points("my_collection", &prefetch_request).await?;
+
+// Batch query
+let batch_request = serde_json::json!({
+    "searches": [
+        {"query": [0.1, 0.2, ...], "limit": 5},
+        {"query": [0.3, 0.4, ...], "limit": 5}
+    ]
+});
+let results = client.qdrant_batch_query_points("my_collection", &batch_request).await?;
+
+// Query groups
+let groups_request = serde_json::json!({
+    "query": [0.1, 0.2, ...],
+    "group_by": "category",
+    "group_size": 3,
+    "limit": 10
+});
+let results = client.qdrant_query_points_groups("my_collection", &groups_request).await?;
+```
+
+### Search Groups & Matrix API
+
+```rust
+// Search groups
+let search_groups_request = serde_json::json!({
+    "vector": [0.1, 0.2, ...],
+    "group_by": "category",
+    "group_size": 3,
+    "limit": 5
+});
+let groups = client.qdrant_search_points_groups("my_collection", &search_groups_request).await?;
+
+// Search matrix pairs (pairwise similarity)
+let matrix_request = serde_json::json!({
+    "sample": 100,
+    "limit": 500
+});
+let pairs = client.qdrant_search_matrix_pairs("my_collection", &matrix_request).await?;
+
+// Search matrix offsets (compact format)
+let offsets = client.qdrant_search_matrix_offsets("my_collection", &matrix_request).await?;
+```
+
 ## Contributing
 
 This SDK is ready for production use. All endpoints have been tested and verified functional.

@@ -69,7 +69,7 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 | Matrix offsets | ✅ | ✅ | ✅ | ✅ Full | Compact format |
 | **Protocols** |
 | REST API | ✅ | ✅ | ✅ | ✅ Full | Full compatibility |
-| gRPC | ✅ | ❌ | ❌ | ❌ | Not supported |
+| gRPC | ✅ | ✅ | ✅ | ✅ Full | Collections, Points, Snapshots |
 | WebSocket | ❌ | ❌ | ✅ | ❌ | Native only |
 | MCP Protocol | ❌ | ❌ | ✅ | ❌ | Native only |
 | **Performance** |
@@ -174,12 +174,6 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 
 ### Not Supported Features
 
-#### gRPC Protocol
-- ❌ gRPC interface not available
-- ✅ REST API fully compatible
-
-**Migration**: Use REST API or migrate to native APIs.
-
 #### Named Vectors Storage
 - ❌ Multi-vector named vectors storage not supported
 - ⚠️ API accepts format but stores single vector
@@ -195,9 +189,8 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
    - Native APIs are 30-50% faster
 
 2. **Feature Gaps**
-   - No gRPC support
-   - Limited quantization options
-   - No sharding/clustering
+   - Named vectors multi-storage not supported
+   - Some advanced optimizer options limited
 
 3. **Configuration Differences**
    - Some parameter names differ
@@ -207,7 +200,7 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 
 1. **For Better Performance**: Use native Vectorizer APIs
 2. **For Advanced Features**: Use native Vectorizer APIs
-3. **For gRPC**: Use REST API or migrate to native APIs
+3. **For Named Vectors**: Use single vector per point or native API
 4. **For Clustering**: Use native replication or single-node
 
 ## Migration Recommendations

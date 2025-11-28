@@ -8,11 +8,14 @@ Code examples and tutorials for using Qdrant-compatible APIs with Vectorizer.
 2. [Collection Management](#collection-management)
 3. [Vector Operations](#vector-operations)
 4. [Search Operations](#search-operations)
-5. [Filter Examples](#filter-examples)
-6. [Batch Operations](#batch-operations)
-7. [Error Handling](#error-handling)
-8. [Best Practices](#best-practices)
-9. [Testing Scripts](#testing-scripts)
+5. [Query API](#query-api)
+6. [Search Groups & Matrix](#search-groups--matrix)
+7. [gRPC Examples](#grpc-examples)
+8. [Filter Examples](#filter-examples)
+9. [Batch Operations](#batch-operations)
+10. [Error Handling](#error-handling)
+11. [Best Practices](#best-practices)
+12. [Testing Scripts](#testing-scripts)
 
 ## Basic Operations
 
@@ -329,6 +332,565 @@ curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/reco
     "limit": 10
   }'
 ```
+
+## Query API
+
+The Query API provides a unified interface for search operations with support for prefetch, filtering, and complex queries.
+
+### Basic Query
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": [0.1, 0.2, 0.3, ...],
+    "limit": 10,
+    "with_payload": true
+  }'
+```
+
+### Query with Prefetch
+
+Multi-stage retrieval with prefetch for better results:
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prefetch": [
+      {
+        "query": [0.1, 0.2, 0.3, ...],
+        "limit": 100
+      }
+    ],
+    "query": {
+      "fusion": "rrf"
+    },
+    "limit": 10
+  }'
+```
+
+### Query with Nested Prefetch
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prefetch": [
+      {
+        "prefetch": [
+          {"query": [0.1, 0.2, ...], "limit": 200}
+        ],
+        "query": [0.3, 0.4, ...],
+        "limit": 50
+      }
+    ],
+    "query": [0.5, 0.6, ...],
+    "limit": 10,
+    "with_payload": true
+  }'
+```
+
+### Batch Query
+
+Execute multiple queries in a single request:
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "searches": [
+      {"query": [0.1, 0.2, ...], "limit": 5},
+      {"query": [0.3, 0.4, ...], "limit": 5},
+      {"query": [0.5, 0.6, ...], "limit": 5}
+    ]
+  }'
+```
+
+**Python Example**:
+```python
+import requests
+
+queries = [
+    {"query": vector1, "limit": 10, "with_payload": True},
+    {"query": vector2, "limit": 10, "with_payload": True},
+    {"query": vector3, "limit": 10, "with_payload": True}
+]
+
+response = requests.post(
+    "http://localhost:15002/qdrant/collections/my_collection/points/query/batch",
+    json={"searches": queries}
+)
+
+results = response.json()["result"]
+for i, result in enumerate(results):
+    print(f"Query {i}: {len(result['result'])} results")
+```
+
+### Query Groups
+
+Group results by a payload field:
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query/groups \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": [0.1, 0.2, 0.3, ...],
+    "group_by": "category",
+    "group_size": 3,
+    "limit": 5,
+    "with_payload": true
+  }'
+```
+
+**Python Example**:
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:15002/qdrant/collections/my_collection/points/query/groups",
+    json={
+        "query": query_vector,
+        "group_by": "category",
+        "group_size": 3,
+        "limit": 5,
+        "with_payload": True
+    }
+)
+
+groups = response.json()["result"]["groups"]
+for group in groups:
+    print(f"Category: {group['id']}")
+    for hit in group["hits"]:
+        print(f"  - {hit['id']}: {hit['score']:.4f}")
+```
+
+### Recommend Query
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": {
+      "recommend": {
+        "positive": ["point-id-1", "point-id-2"],
+        "negative": ["point-id-3"]
+      }
+    },
+    "limit": 10,
+    "with_payload": true
+  }'
+```
+
+### Discover Query
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": {
+      "discover": {
+        "target": [0.1, 0.2, ...],
+        "context": [
+          {"positive": [0.3, 0.4, ...], "negative": [0.5, 0.6, ...]}
+        ]
+      }
+    },
+    "limit": 10
+  }'
+```
+
+### Fusion Query
+
+Combine results from multiple prefetch stages using RRF or DBSF:
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prefetch": [
+      {"query": [0.1, 0.2, ...], "limit": 50},
+      {"query": [0.3, 0.4, ...], "limit": 50}
+    ],
+    "query": {
+      "fusion": "rrf"
+    },
+    "limit": 10
+  }'
+```
+
+## Search Groups & Matrix
+
+### Search Groups
+
+Group search results by a payload field:
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/search/groups \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vector": [0.1, 0.2, 0.3, ...],
+    "group_by": "category",
+    "group_size": 3,
+    "limit": 5,
+    "with_payload": true
+  }'
+```
+
+**Python Example**:
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:15002/qdrant/collections/my_collection/points/search/groups",
+    json={
+        "vector": query_vector,
+        "group_by": "category",
+        "group_size": 3,
+        "limit": 5,
+        "with_payload": True,
+        "score_threshold": 0.5
+    }
+)
+
+groups = response.json()["result"]["groups"]
+for group in groups:
+    print(f"Group: {group['id']}")
+    for hit in group["hits"]:
+        print(f"  ID: {hit['id']}, Score: {hit['score']:.4f}")
+```
+
+### Search Matrix Pairs
+
+Compute pairwise similarity between sampled points:
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/search/matrix/pairs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sample": 50,
+    "limit": 100
+  }'
+```
+
+**Response**:
+```json
+{
+  "result": {
+    "pairs": [
+      {"a": "point-1", "b": "point-2", "score": 0.95},
+      {"a": "point-1", "b": "point-3", "score": 0.87},
+      {"a": "point-2", "b": "point-3", "score": 0.82}
+    ]
+  }
+}
+```
+
+**Python Example**:
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:15002/qdrant/collections/my_collection/points/search/matrix/pairs",
+    json={
+        "sample": 100,
+        "limit": 500,
+        "filter": {
+            "must": [
+                {"type": "match", "key": "status", "match_value": "active"}
+            ]
+        }
+    }
+)
+
+pairs = response.json()["result"]["pairs"]
+print(f"Found {len(pairs)} similar pairs")
+for pair in pairs[:10]:
+    print(f"  {pair['a']} <-> {pair['b']}: {pair['score']:.4f}")
+```
+
+### Search Matrix Offsets
+
+Get similarity matrix in compact offset format (for larger computations):
+
+```bash
+curl -X POST http://localhost:15002/qdrant/collections/my_collection/points/search/matrix/offsets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sample": 100,
+    "limit": 1000
+  }'
+```
+
+**Response**:
+```json
+{
+  "result": {
+    "ids": ["point-1", "point-2", "point-3", ...],
+    "offsets": [0, 3, 6, ...],
+    "scores": [0.95, 0.87, 0.82, ...]
+  }
+}
+```
+
+**Python Example - Building a Similarity Graph**:
+```python
+import requests
+import networkx as nx
+
+# Get similarity matrix
+response = requests.post(
+    "http://localhost:15002/qdrant/collections/my_collection/points/search/matrix/pairs",
+    json={"sample": 100, "limit": 500}
+)
+
+pairs = response.json()["result"]["pairs"]
+
+# Build graph from similarity pairs
+G = nx.Graph()
+for pair in pairs:
+    if pair["score"] > 0.8:  # Threshold
+        G.add_edge(pair["a"], pair["b"], weight=pair["score"])
+
+print(f"Graph has {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+
+# Find clusters
+from networkx.algorithms import community
+communities = community.louvain_communities(G)
+print(f"Found {len(communities)} communities")
+```
+
+## gRPC Examples
+
+Vectorizer supports the Qdrant gRPC protocol on port 15003 (configurable).
+
+### Python gRPC Client
+
+First, install the Qdrant gRPC client:
+
+```bash
+pip install grpcio grpcio-tools qdrant-client
+```
+
+**Using qdrant-client with Vectorizer gRPC**:
+```python
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, PointStruct
+
+# Connect to Vectorizer gRPC endpoint
+client = QdrantClient(
+    host="localhost",
+    port=15003,  # Vectorizer gRPC port
+    prefer_grpc=True
+)
+
+# Create collection
+client.create_collection(
+    collection_name="my_collection",
+    vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+)
+
+# Upsert points
+client.upsert(
+    collection_name="my_collection",
+    points=[
+        PointStruct(
+            id=1,
+            vector=[0.1] * 384,
+            payload={"text": "First document", "category": "A"}
+        ),
+        PointStruct(
+            id=2,
+            vector=[0.2] * 384,
+            payload={"text": "Second document", "category": "B"}
+        )
+    ]
+)
+
+# Search
+results = client.search(
+    collection_name="my_collection",
+    query_vector=[0.15] * 384,
+    limit=10
+)
+
+for result in results:
+    print(f"ID: {result.id}, Score: {result.score:.4f}")
+    print(f"  Payload: {result.payload}")
+```
+
+### Raw gRPC with Python
+
+```python
+import grpc
+from qdrant_client.grpc import qdrant_pb2, qdrant_pb2_grpc
+
+# Create channel
+channel = grpc.insecure_channel('localhost:15003')
+
+# Collections service
+collections_stub = qdrant_pb2_grpc.CollectionsStub(channel)
+
+# List collections
+response = collections_stub.List(qdrant_pb2.ListCollectionsRequest())
+for collection in response.collections:
+    print(f"Collection: {collection.name}")
+
+# Points service
+points_stub = qdrant_pb2_grpc.PointsStub(channel)
+
+# Search
+search_request = qdrant_pb2.SearchPoints(
+    collection_name="my_collection",
+    vector=qdrant_pb2.Vector(data=[0.1] * 384),
+    limit=10,
+    with_payload=qdrant_pb2.WithPayloadSelector(enable=True)
+)
+search_response = points_stub.Search(search_request)
+
+for result in search_response.result:
+    print(f"ID: {result.id.num}, Score: {result.score}")
+```
+
+### Rust gRPC Client
+
+```rust
+use qdrant_client::prelude::*;
+use qdrant_client::qdrant::{
+    CreateCollection, Distance, SearchPoints, VectorParams, VectorsConfig,
+};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to Vectorizer gRPC
+    let client = QdrantClient::from_url("http://localhost:15003").build()?;
+
+    // Create collection
+    client
+        .create_collection(&CreateCollection {
+            collection_name: "my_collection".to_string(),
+            vectors_config: Some(VectorsConfig {
+                config: Some(vectors_config::Config::Params(VectorParams {
+                    size: 384,
+                    distance: Distance::Cosine.into(),
+                    ..Default::default()
+                })),
+            }),
+            ..Default::default()
+        })
+        .await?;
+
+    // Upsert points
+    client
+        .upsert_points_batch_blocking(
+            "my_collection",
+            None,
+            vec![
+                PointStruct::new(
+                    1,
+                    vec![0.1f32; 384],
+                    Payload::try_from(serde_json::json!({
+                        "text": "Document 1",
+                        "category": "A"
+                    }))?,
+                ),
+            ],
+            None,
+            100,
+        )
+        .await?;
+
+    // Search
+    let results = client
+        .search_points(&SearchPoints {
+            collection_name: "my_collection".to_string(),
+            vector: vec![0.15f32; 384],
+            limit: 10,
+            with_payload: Some(true.into()),
+            ..Default::default()
+        })
+        .await?;
+
+    for result in results.result {
+        println!("ID: {:?}, Score: {}", result.id, result.score);
+    }
+
+    Ok(())
+}
+```
+
+### Go gRPC Client
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/qdrant/go-client/qdrant"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/credentials/insecure"
+)
+
+func main() {
+    // Connect to Vectorizer gRPC
+    conn, err := grpc.Dial(
+        "localhost:15003",
+        grpc.WithTransportCredentials(insecure.NewCredentials()),
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
+
+    // Create client
+    client := qdrant.NewQdrantClient(conn)
+
+    // List collections
+    collections, err := client.ListCollections(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, c := range collections.GetCollections() {
+        fmt.Printf("Collection: %s\n", c.GetName())
+    }
+
+    // Search
+    results, err := client.Search(context.Background(), &qdrant.SearchPoints{
+        CollectionName: "my_collection",
+        Vector:         make([]float32, 384), // Your query vector
+        Limit:          10,
+        WithPayload:    &qdrant.WithPayloadSelector{Enable: true},
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, result := range results.GetResult() {
+        fmt.Printf("ID: %v, Score: %f\n", result.GetId(), result.GetScore())
+    }
+}
+```
+
+### gRPC Services Available
+
+| Service | Methods | Description |
+|---------|---------|-------------|
+| `Collections` | Get, List, Create, Update, Delete | Collection management |
+| `Points` | Upsert, Get, Delete, Search, SearchBatch, Scroll, Recommend, Count | Vector operations |
+| `Snapshots` | Create, List, Delete | Snapshot management |
+
+### gRPC vs REST Performance
+
+| Metric | gRPC | REST |
+|--------|------|------|
+| Latency | Lower (~20-30% faster) | Baseline |
+| Throughput | Higher (~40% more) | Baseline |
+| Binary efficiency | High (protobuf) | Medium (JSON) |
+| Streaming | Supported | Not supported |
 
 ## Filter Examples
 

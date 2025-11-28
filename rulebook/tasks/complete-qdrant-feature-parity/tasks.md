@@ -53,7 +53,7 @@
 - [x] 7.3 Add `using` parameter support in query operations (accepted in API models)
 - [x] 7.4 Add single named vector support in upsert operations (extracts single vector from named format)
 - [ ] 7.5 Update Qdrant handlers to support multi-vector named vectors (requires 7.1)
-- [ ] 7.6 Add tests for named vectors via Qdrant API
+- [x] 7.6 Add tests for named vectors via Qdrant API
 
 ## 8. Prefetch Operations
 - [x] 8.1 Implement prefetch support in query requests (query, query_batch, query_groups)
@@ -73,14 +73,14 @@
 - [x] 10.2 Add integration tests for all new endpoints
 - [x] 10.3 Validate against Qdrant 1.14.x API specification
 - [ ] 10.4 Run compatibility tests against real Qdrant server
-- [ ] 10.5 Update test coverage to 95%+ for new code
+- [x] 10.5 Update test coverage to 95%+ for new code (136+ Qdrant tests passing)
 
 ## 11. Documentation
 - [x] 11.1 Update QDRANT_MIGRATION.md with new features
 - [x] 11.2 Update FEATURE_PARITY.md with completion status
-- [ ] 11.3 Add API documentation for new endpoints
-- [ ] 11.4 Add examples for gRPC usage
-- [ ] 11.5 Add examples for query API, search groups, matrix
+- [x] 11.3 Add API documentation for new endpoints
+- [x] 11.4 Add examples for gRPC usage
+- [x] 11.5 Add examples for query API, search groups, matrix
 - [x] 11.6 Update CHANGELOG.md
 
 ## 12. SDK Implementation Phase
@@ -101,5 +101,5 @@
 - [x] 12.15 Add all Qdrant feature parity methods to Python SDK (`sdks/python/client.py`)
 - [x] 12.16 Add all Qdrant feature parity methods to TypeScript SDK (`sdks/typescript/src/client.ts`)
 - [x] 12.17 Add all Qdrant feature parity methods to JavaScript SDK (`sdks/javascript/src/client.js`)
-- [ ] 12.18 Add SDK tests for all Qdrant feature parity operations (Rust, Python, TypeScript, JavaScript)
-- [ ] 12.19 Update SDK documentation with Qdrant feature parity usage examples
+- [x] 12.18 Add SDK tests for all Qdrant feature parity operations (Rust, Python, TypeScript, JavaScript)
+- [x] 12.19 Update SDK documentation with Qdrant feature parity usage examples
