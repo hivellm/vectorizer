@@ -548,14 +548,28 @@ impl MutationRoot {
         }
 
         // Configure graph if requested
-        if input.enable_graph.unwrap_or(false) {
+        let enable_graph = input.enable_graph.unwrap_or(false);
+        if enable_graph {
             config.graph = Some(crate::models::GraphConfig::default());
         }
 
-        gql_ctx
-            .store
-            .create_collection(&input.name, config)
-            .map_err(|e| async_graphql::Error::new(format!("Failed to create collection: {e}")))?;
+        // Force CPU if requested or if graph is enabled (graphs not supported on GPU)
+        let force_cpu = input.force_cpu.unwrap_or(false) || enable_graph;
+        if force_cpu {
+            gql_ctx
+                .store
+                .create_collection_cpu_only(&input.name, config)
+                .map_err(|e| {
+                    async_graphql::Error::new(format!("Failed to create collection: {e}"))
+                })?;
+        } else {
+            gql_ctx
+                .store
+                .create_collection(&input.name, config)
+                .map_err(|e| {
+                    async_graphql::Error::new(format!("Failed to create collection: {e}"))
+                })?;
+        }
 
         info!("GraphQL: Created collection '{}'", input.name);
 

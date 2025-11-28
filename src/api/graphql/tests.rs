@@ -276,6 +276,7 @@ mod unit_tests {
             hnsw_ef_construction: None,
             shard_count: None,
             enable_graph: None,
+            force_cpu: None,
         };
 
         assert_eq!(input.name, "test");
@@ -637,12 +638,13 @@ mod schema_tests {
     async fn test_enable_graph_mutation() {
         let (schema, _temp_dir) = create_test_schema();
 
-        // Create collection
+        // Create collection (force CPU since graphs are not supported on GPU)
         let create_mutation = r#"
             mutation {
                 createCollection(input: {
                     name: "graph-enable-test"
                     dimension: 64
+                    forceCpu: true
                 }) {
                     name
                 }

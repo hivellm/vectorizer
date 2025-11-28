@@ -490,6 +490,9 @@ pub struct CreateCollectionInput {
     /// Enable graph relationships
     #[graphql(default)]
     pub enable_graph: Option<bool>,
+    /// Force CPU backend (disables GPU acceleration, useful for graph-enabled collections)
+    #[graphql(default)]
+    pub force_cpu: Option<bool>,
 }
 
 /// Input for upserting a single vector
