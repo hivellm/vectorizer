@@ -40,6 +40,35 @@ All notable changes to this project will be documented in this file.
   - **BENEFIT**: Higher and more accurate BM25 scores, better search quality and relevance ranking
 
 ### Added
+- **Graph Dashboard Enhancements**: Complete graph functionality in dashboard
+  - **Edge Management**:
+    - Create edges manually between nodes with relationship type and weight selection
+    - Delete edges with confirmation dialog
+    - View edge details (ID, source, target, relationship type, weight, metadata)
+  - **Node Exploration**:
+    - View neighbors of selected node with relationship information
+    - Find related nodes within N hops with distance and weight
+    - Display neighbors and related nodes in expandable panels
+  - **Path Finding**:
+    - Find shortest path between two nodes
+    - Display path nodes sequentially in modal
+    - Highlight path in graph visualization
+  - **Advanced Discovery**:
+    - Node-specific edge discovery (discover edges for single node)
+    - Configurable discovery parameters (similarity threshold, max per node)
+    - Collection-wide edge discovery with progress feedback
+  - **Enhanced Node Details Panel**:
+    - Action buttons for neighbors, related nodes, and edge discovery
+    - Display neighbors with relationship types
+    - Display related nodes with distance and weight metrics
+    - Inline metadata viewer
+  - **Modals and UI**:
+    - EdgeCreateModal with node selection and relationship configuration
+    - EdgeDetailsModal with edge information and delete action
+    - PathFinderModal with source/target selection and path display
+    - DiscoveryConfigModal with threshold and max edges configuration
+  - **BENEFIT**: Complete graph management interface, visual exploration, relationship discovery
+
 - **n8n Integration**: Official n8n node for no-code workflow automation
   - **Package**: `@vectorizer/n8n-nodes-vectorizer` (version 1.6.0)
   - **Resources**: Collection, Vector, Search

@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Network, Options } from 'vis-network';
-import { useGraph, GraphNode, GraphEdge } from '@/hooks/useGraph';
+import { useGraph, GraphNode, GraphEdge, NeighborInfo, RelatedNodeInfo } from '@/hooks/useGraph';
 import { useCollections } from '@/hooks/useCollections';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -14,6 +14,10 @@ import { Select, SelectOption } from '@/components/ui/Select';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToastContext } from '@/providers/ToastProvider';
 import { RefreshCw01 } from '@untitledui/icons';
+import EdgeCreateModal from '@/components/modals/EdgeCreateModal';
+import EdgeDetailsModal from '@/components/modals/EdgeDetailsModal';
+import PathFinderModal from '@/components/modals/PathFinderModal';
+import DiscoveryConfigModal from '@/components/modals/DiscoveryConfigModal';
 
 // Import vis-network CSS
 import 'vis-network/styles/vis-network.css';
@@ -36,19 +40,43 @@ const SearchIcon = ({ className }: { className?: string }) => (
 );
 
 function GraphPage() {
-  const { listNodes, listEdges, discoverEdges } = useGraph();
+  const {
+    listNodes,
+    listEdges,
+    discoverEdges,
+    discoverEdgesForNode,
+    createEdge,
+    deleteEdge,
+    getNeighbors,
+    findRelated,
+    findPath,
+    getDiscoveryStatus,
+  } = useGraph();
   const { listCollections } = useCollections();
   const toast = useToastContext();
 
   const [collections, setCollections] = useState<any[]>([]);
   const [selectedCollection, setSelectedCollection] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [rendering, setRendering] = useState(false); // Loading state for vis-network rendering
+  const [rendering, setRendering] = useState(false);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [relationshipFilter, setRelationshipFilter] = useState<string>('all');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<GraphEdge | null>(null);
+
+  // Modal states
+  const [showEdgeCreateModal, setShowEdgeCreateModal] = useState(false);
+  const [showEdgeDetailsModal, setShowEdgeDetailsModal] = useState(false);
+  const [showPathFinderModal, setShowPathFinderModal] = useState(false);
+  const [showDiscoveryModal, setShowDiscoveryModal] = useState(false);
+  const [discoveryNodeId, setDiscoveryNodeId] = useState<string | undefined>();
+
+  // Neighbors and related nodes
+  const [neighbors, setNeighbors] = useState<NeighborInfo[]>([]);
+  const [relatedNodes, setRelatedNodes] = useState<RelatedNodeInfo[]>([]);
+  const [pathNodes, setPathNodes] = useState<GraphNode[]>([]);
 
   const networkRef = useRef<HTMLDivElement>(null);
   const networkInstanceRef = useRef<Network | null>(null);
@@ -527,6 +555,124 @@ function GraphPage() {
     }
   }, [selectedCollection, discoverEdges, handleRefresh, toast]);
 
+  // Handle create edge
+  const handleCreateEdge = useCallback(
+    async (source: string, target: string, relationshipType: string, weight: number) => {
+      if (!selectedCollection) return;
+
+      await createEdge(selectedCollection, source, target, relationshipType, weight);
+      graphCache.delete(selectedCollection);
+      await handleRefresh();
+    },
+    [selectedCollection, createEdge, handleRefresh]
+  );
+
+  // Handle delete edge
+  const handleDeleteEdge = useCallback(
+    async (edgeId: string) => {
+      try {
+        await deleteEdge(edgeId);
+        toast.success('Edge deleted successfully');
+        graphCache.delete(selectedCollection);
+        await handleRefresh();
+      } catch (error) {
+        console.error('Error deleting edge:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to delete edge');
+      }
+    },
+    [deleteEdge, selectedCollection, handleRefresh, toast]
+  );
+
+  // Handle view neighbors
+  const handleViewNeighbors = useCallback(
+    async (nodeId: string) => {
+      if (!selectedCollection) return;
+
+      try {
+        const result = await getNeighbors(selectedCollection, nodeId);
+        setNeighbors(result);
+        toast.success(`Found ${result.length} neighbors`);
+      } catch (error) {
+        console.error('Error getting neighbors:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to get neighbors');
+      }
+    },
+    [selectedCollection, getNeighbors, toast]
+  );
+
+  // Handle find related
+  const handleFindRelated = useCallback(
+    async (nodeId: string, maxHops: number = 2) => {
+      if (!selectedCollection) return;
+
+      try {
+        const result = await findRelated(selectedCollection, nodeId, { max_hops: maxHops });
+        setRelatedNodes(result);
+        toast.success(`Found ${result.length} related nodes`);
+      } catch (error) {
+        console.error('Error finding related nodes:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to find related nodes');
+      }
+    },
+    [selectedCollection, findRelated, toast]
+  );
+
+  // Handle find path
+  const handleFindPath = useCallback(
+    async (source: string, target: string) => {
+      if (!selectedCollection) return [];
+
+      try {
+        const result = await findPath(selectedCollection, source, target);
+        if (result.found) {
+          setPathNodes(result.path);
+          return result.path;
+        } else {
+          return [];
+        }
+      } catch (error) {
+        console.error('Error finding path:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to find path');
+        return [];
+      }
+    },
+    [selectedCollection, findPath, toast]
+  );
+
+  // Handle discover edges with config
+  const handleDiscoverWithConfig = useCallback(
+    async (threshold: number, maxPerNode: number) => {
+      if (!selectedCollection) return;
+
+      setLoading(true);
+      try {
+        let response;
+        if (discoveryNodeId) {
+          response = await discoverEdgesForNode(selectedCollection, discoveryNodeId, {
+            similarity_threshold: threshold,
+            max_per_node: maxPerNode,
+          });
+        } else {
+          response = await discoverEdges(selectedCollection, {
+            similarity_threshold: threshold,
+            max_per_node: maxPerNode,
+          });
+        }
+
+        toast.success(`Discovery completed: ${response.edges_created} edges created`);
+        graphCache.delete(selectedCollection);
+        await handleRefresh();
+      } catch (error) {
+        console.error('Error discovering edges:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to discover edges');
+      } finally {
+        setLoading(false);
+        setDiscoveryNodeId(undefined);
+      }
+    },
+    [selectedCollection, discoveryNodeId, discoverEdges, discoverEdgesForNode, handleRefresh, toast]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -535,17 +681,34 @@ function GraphPage() {
           <p className="text-neutral-600 dark:text-neutral-400 mt-1">Visualize relationships between vectors</p>
         </div>
         <div className="flex items-center gap-2">
-          {edges.length === 0 && nodes.length > 0 && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleDiscoverEdges}
-              disabled={loading || !selectedCollection}
-            >
-              <RefreshCw01 className="w-4 h-4 mr-2" />
-              Discover Edges
-            </Button>
-          )}
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowEdgeCreateModal(true)}
+            disabled={loading || !selectedCollection || nodes.length < 2}
+          >
+            Create Edge
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowPathFinderModal(true)}
+            disabled={loading || !selectedCollection || nodes.length < 2}
+          >
+            Find Path
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDiscoveryNodeId(undefined);
+              setShowDiscoveryModal(true);
+            }}
+            disabled={loading || !selectedCollection}
+          >
+            <RefreshCw01 className="w-4 h-4 mr-2" />
+            Discover Edges
+          </Button>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading || !selectedCollection}>
             <RefreshCw01 className="w-4 h-4 mr-2" />
             Refresh
@@ -670,21 +833,96 @@ function GraphPage() {
                 const node = nodes.find((n) => n.id === selectedNode);
                 if (!node) return null;
                 return (
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="font-medium text-neutral-700 dark:text-neutral-300">ID:</span>{' '}
-                      <span className="text-neutral-600 dark:text-neutral-400">{node.id}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-neutral-700 dark:text-neutral-300">Type:</span>{' '}
-                      <span className="text-neutral-600 dark:text-neutral-400">{node.node_type}</span>
-                    </div>
-                    {Object.keys(node.metadata).length > 0 && (
+                  <div className="space-y-3">
+                    <div className="space-y-2 text-sm">
                       <div>
-                        <span className="font-medium text-neutral-700 dark:text-neutral-300">Metadata:</span>
-                        <pre className="mt-1 p-2 bg-white dark:bg-neutral-900 rounded text-xs overflow-auto">
-                          {JSON.stringify(node.metadata, null, 2)}
-                        </pre>
+                        <span className="font-medium text-neutral-700 dark:text-neutral-300">ID:</span>{' '}
+                        <span className="text-neutral-600 dark:text-neutral-400">{node.id}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-neutral-700 dark:text-neutral-300">Type:</span>{' '}
+                        <span className="text-neutral-600 dark:text-neutral-400">{node.node_type}</span>
+                      </div>
+                      {Object.keys(node.metadata).length > 0 && (
+                        <div>
+                          <span className="font-medium text-neutral-700 dark:text-neutral-300">Metadata:</span>
+                          <pre className="mt-1 p-2 bg-white dark:bg-neutral-900 rounded text-xs overflow-auto">
+                            {JSON.stringify(node.metadata, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Node actions */}
+                    <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
+                      <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-2">Actions</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewNeighbors(node.id)}
+                        >
+                          View Neighbors
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFindRelated(node.id)}
+                        >
+                          Find Related
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setDiscoveryNodeId(node.id);
+                            setShowDiscoveryModal(true);
+                          }}
+                        >
+                          Discover Edges
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Show neighbors if available */}
+                    {neighbors.length > 0 && (
+                      <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
+                        <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                          Neighbors ({neighbors.length})
+                        </p>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {neighbors.map((neighbor) => (
+                            <div
+                              key={neighbor.node.id}
+                              className="text-xs text-neutral-600 dark:text-neutral-400 p-2 bg-white dark:bg-neutral-900 rounded"
+                            >
+                              <span className="font-mono">{neighbor.node.id.substring(0, 30)}...</span>
+                              <span className="ml-2 text-neutral-500">via {neighbor.edge.relationship_type}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Show related nodes if available */}
+                    {relatedNodes.length > 0 && (
+                      <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
+                        <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+                          Related Nodes ({relatedNodes.length})
+                        </p>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                          {relatedNodes.map((related) => (
+                            <div
+                              key={related.node.id}
+                              className="text-xs text-neutral-600 dark:text-neutral-400 p-2 bg-white dark:bg-neutral-900 rounded"
+                            >
+                              <span className="font-mono">{related.node.id.substring(0, 30)}...</span>
+                              <span className="ml-2 text-neutral-500">
+                                (distance: {related.distance}, weight: {related.weight.toFixed(2)})
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -694,6 +932,42 @@ function GraphPage() {
           )}
         </div>
       </Card>
+
+      {/* Modals */}
+      <EdgeCreateModal
+        isOpen={showEdgeCreateModal}
+        onClose={() => setShowEdgeCreateModal(false)}
+        onCreateEdge={handleCreateEdge}
+        nodes={nodes}
+        preselectedSource={selectedNode || undefined}
+      />
+
+      <EdgeDetailsModal
+        isOpen={showEdgeDetailsModal}
+        onClose={() => {
+          setShowEdgeDetailsModal(false);
+          setSelectedEdge(null);
+        }}
+        edge={selectedEdge}
+        onDelete={handleDeleteEdge}
+      />
+
+      <PathFinderModal
+        isOpen={showPathFinderModal}
+        onClose={() => setShowPathFinderModal(false)}
+        onFindPath={handleFindPath}
+        nodes={nodes}
+      />
+
+      <DiscoveryConfigModal
+        isOpen={showDiscoveryModal}
+        onClose={() => {
+          setShowDiscoveryModal(false);
+          setDiscoveryNodeId(undefined);
+        }}
+        onDiscover={handleDiscoverWithConfig}
+        nodeId={discoveryNodeId}
+      />
     </div>
   );
 }
