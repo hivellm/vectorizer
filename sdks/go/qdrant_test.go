@@ -189,9 +189,9 @@ func TestQdrantQueryPointsGroups(t *testing.T) {
 		"query": map[string]interface{}{
 			"vector": make([]float32, 384),
 		},
-		"group_by": "category",
+		"group_by":   "category",
 		"group_size": 3,
-		"limit": 10,
+		"limit":      10,
 	}
 	_, err := client.QdrantQueryPointsGroups("test_collection", request)
 	if err != nil {
@@ -203,10 +203,10 @@ func TestQdrantQueryPointsGroups(t *testing.T) {
 func TestQdrantSearchPointsGroups(t *testing.T) {
 	client := NewClient(nil)
 	request := map[string]interface{}{
-		"vector": make([]float32, 384),
-		"group_by": "category",
+		"vector":     make([]float32, 384),
+		"group_by":   "category",
 		"group_size": 3,
-		"limit": 10,
+		"limit":      10,
 	}
 	_, err := client.QdrantSearchPointsGroups("test_collection", request)
 	if err != nil {
@@ -219,7 +219,7 @@ func TestQdrantSearchMatrixPairs(t *testing.T) {
 	client := NewClient(nil)
 	request := map[string]interface{}{
 		"sample": 10,
-		"limit": 5,
+		"limit":  5,
 	}
 	_, err := client.QdrantSearchMatrixPairs("test_collection", request)
 	if err != nil {
@@ -232,7 +232,7 @@ func TestQdrantSearchMatrixOffsets(t *testing.T) {
 	client := NewClient(nil)
 	request := map[string]interface{}{
 		"sample": 10,
-		"limit": 5,
+		"limit":  5,
 	}
 	_, err := client.QdrantSearchMatrixOffsets("test_collection", request)
 	if err != nil {
@@ -240,4 +240,3 @@ func TestQdrantSearchMatrixOffsets(t *testing.T) {
 		return
 	}
 }
-
