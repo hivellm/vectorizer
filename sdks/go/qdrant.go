@@ -202,4 +202,3 @@ func (c *Client) QdrantSearchMatrixOffsets(collection string, request map[string
 	}
 	return result, nil
 }
-
