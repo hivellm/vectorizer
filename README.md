@@ -159,6 +159,34 @@ cargo build --release --features full
 - **UMICP Discovery**: http://localhost:15002/umicp/discover
 - **Health Check**: http://localhost:15002/health
 
+### 🔒 Authentication (Docker)
+
+When using Docker, authentication is **enabled by default**:
+
+**Default Credentials** (⚠️ CHANGE IN PRODUCTION!):
+- **Username:** `admin`
+- **Password:** `admin`
+- **Login Endpoint:** `POST http://localhost:15002/auth/login`
+
+**Authentication Example:**
+```bash
+# Login to get JWT token
+curl -X POST http://localhost:15002/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}'
+
+# Use token in requests
+curl -X GET http://localhost:15002/collections \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+**Production Security:**
+- Change default credentials using environment variables
+- Use strong passwords (minimum 32 characters)
+- Generate secure JWT secret (minimum 48 characters)
+- See [Docker Authentication Guide](docs/users/getting-started/DOCKER_AUTHENTICATION.md) for details
+- Review [Security Policy](SECURITY.md) for best practices
+
 ## 📊 Performance
 
 | Metric                | Value                          |

@@ -299,12 +299,15 @@ security:
 
 - [ ] Enable TLS for all external communication
 - [ ] Use strong API keys (minimum 32 characters)
+- [ ] **Change Docker default credentials** (if using Docker)
+- [ ] **Generate strong JWT secret** (minimum 48 characters for Docker)
 - [ ] Enable rate limiting
 - [ ] Enable audit logging
 - [ ] Use RBAC with least-privilege principle
 - [ ] Rotate API keys regularly (every 90 days)
 - [ ] Monitor audit logs for suspicious activity
 - [ ] Keep dependencies updated (run `cargo audit`)
+- [ ] Never commit credentials to version control (.env, secrets)
 
 #### ✅ Recommended
 
@@ -323,10 +326,12 @@ security:
 
 - ❌ Exposing server directly to internet without TLS
 - ❌ Using default API keys in production
+- ❌ **Using default Docker credentials (admin/admin) in production**
+- ❌ **Committing .env files or credentials to version control**
 - ❌ Disabling authentication
 - ❌ Running as root user
 - ❌ Storing credentials in code or config files
-- ❌ Using weak passwords
+- ❌ Using weak passwords or JWT secrets
 - ❌ Disabling audit logging
 
 ### Network Security
@@ -405,6 +410,60 @@ export VECTORIZER_API_KEY="your-api-key-here"
 ./vectorizer
 ```
 
+#### Docker Authentication
+
+**⚠️ CRITICAL: Docker images include default credentials that MUST be changed in production!**
+
+**Default Credentials**:
+- Username: `admin`
+- Password: `admin`
+- JWT Secret: `change-this-secret-in-production`
+
+**Production Deployment**:
+
+```bash
+# Generate strong credentials
+ADMIN_PASSWORD=$(openssl rand -base64 32)
+JWT_SECRET=$(openssl rand -base64 48)
+
+# Run with secure credentials
+docker run -d \
+  --name vectorizer \
+  -p 15002:15002 \
+  -v $(pwd)/vectorizer-data:/vectorizer/data \
+  -e VECTORIZER_AUTH_ENABLED=true \
+  -e VECTORIZER_ADMIN_USERNAME=admin \
+  -e VECTORIZER_ADMIN_PASSWORD="${ADMIN_PASSWORD}" \
+  -e VECTORIZER_JWT_SECRET="${JWT_SECRET}" \
+  --restart unless-stopped \
+  hivehub/vectorizer:latest
+```
+
+**Docker Compose with .env**:
+
+```bash
+# Copy and customize .env file
+cp .env.example .env
+
+# Edit .env with your credentials
+# NEVER commit .env to version control!
+
+# Start with docker-compose
+docker-compose up -d
+```
+
+**Security Checklist for Docker**:
+- [ ] Change default admin password
+- [ ] Generate strong JWT secret (minimum 48 characters)
+- [ ] Use environment variables or Docker secrets
+- [ ] Never commit credentials to version control
+- [ ] Enable TLS with reverse proxy (nginx/Traefik)
+- [ ] Use Docker secrets for production
+- [ ] Regularly rotate credentials
+- [ ] Monitor authentication logs
+
+For detailed Docker authentication guide, see: [docs/users/getting-started/DOCKER_AUTHENTICATION.md](docs/users/getting-started/DOCKER_AUTHENTICATION.md)
+
 #### Docker Secrets
 
 ```yaml
@@ -413,16 +472,28 @@ services:
   vectorizer:
     image: vectorizer:latest
     secrets:
+      - admin_password
       - jwt_secret
       - api_key
     environment:
+      - VECTORIZER_AUTH_ENABLED=true
+      - VECTORIZER_ADMIN_USERNAME=admin
+      - VECTORIZER_ADMIN_PASSWORD_FILE=/run/secrets/admin_password
       - VECTORIZER_JWT_SECRET_FILE=/run/secrets/jwt_secret
 
 secrets:
+  admin_password:
+    external: true
   jwt_secret:
     external: true
   api_key:
     external: true
+```
+
+Create Docker secrets:
+```bash
+echo "your-secure-password" | docker secret create admin_password -
+echo "your-jwt-secret-key-minimum-48-chars" | docker secret create jwt_secret -
 ```
 
 ### Client SDK Security
@@ -546,6 +617,9 @@ const client = new VectorizerClient({
 ### Production
 
 - [ ] All staging checks
+- [ ] **Change Docker default credentials** (if using Docker)
+- [ ] **Verify .env file is in .gitignore**
+- [ ] **Test authentication with production credentials**
 - [ ] Enable mTLS for replication
 - [ ] Set up security monitoring
 - [ ] Configure alert rules
