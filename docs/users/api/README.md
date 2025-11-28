@@ -3,13 +3,13 @@ title: API Documentation
 module: api
 id: api-index
 order: 0
-description: REST API and integration documentation
-tags: [api, rest, endpoints, integration]
+description: REST API, GraphQL, and integration documentation
+tags: [api, rest, graphql, endpoints, integration]
 ---
 
 # API Documentation
 
-Complete REST API documentation and integration guides.
+Complete REST API, GraphQL, and integration guides.
 
 ## API Reference
 
@@ -26,6 +26,16 @@ Complete reference for all API endpoints:
 - Batch operations
 - File operations
 - Discovery endpoints
+
+### [GraphQL API](./GRAPHQL.md)
+
+Flexible GraphQL API for data querying and manipulation:
+
+- Collection queries and mutations
+- Vector operations (upsert, delete, search)
+- Graph operations (nodes, edges, relationships)
+- Pagination and filtering
+- GraphiQL playground at `/graphiql`
 
 **MCP (Model Context Protocol):**
 

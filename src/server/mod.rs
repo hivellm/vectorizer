@@ -1,7 +1,9 @@
+mod auth_handlers;
 mod discovery_handlers;
 mod error_middleware;
 pub mod file_operations_handlers;
 mod graph_handlers;
+mod graphql_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
 mod qdrant_alias_handlers;
@@ -14,6 +16,11 @@ mod qdrant_snapshot_handlers;
 mod qdrant_vector_handlers;
 pub mod replication_handlers;
 pub mod rest_handlers;
+
+pub use auth_handlers::{
+    AuthHandlerState, UserRecord, auth_middleware, require_admin_middleware,
+    require_auth_middleware,
+};
 
 // Re-export main server types from the original implementation
 use std::sync::Arc;
@@ -76,6 +83,8 @@ pub struct VectorizerServer {
     pub max_request_size_mb: usize,
     /// Snapshot manager (optional, for Qdrant snapshot API)
     pub snapshot_manager: Option<Arc<crate::storage::SnapshotManager>>,
+    /// Authentication handler state (optional, only if auth is enabled)
+    pub auth_handler_state: Option<AuthHandlerState>,
 }
 
 impl VectorizerServer {
@@ -662,6 +671,40 @@ impl VectorizerServer {
 
         info!("📦 API max request size: {}MB", max_request_size_mb);
 
+        // Initialize auth handler state if auth is enabled
+        let auth_handler_state = {
+            // Try to load auth config from config.yml
+            let auth_config = std::fs::read_to_string("config.yml")
+                .ok()
+                .and_then(|content| {
+                    serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                        .ok()
+                        .map(|config| config.auth)
+                })
+                .unwrap_or_default();
+
+            if auth_config.enabled {
+                info!("🔐 Initializing authentication system...");
+                match crate::auth::AuthManager::new(auth_config) {
+                    Ok(auth_manager) => {
+                        let auth_manager_arc = Arc::new(auth_manager);
+                        // Create auth handler state with default admin user
+                        let handler_state =
+                            AuthHandlerState::new_with_default_admin(auth_manager_arc).await;
+                        info!("✅ Authentication system initialized");
+                        Some(handler_state)
+                    }
+                    Err(e) => {
+                        warn!("⚠️  Failed to initialize authentication: {}", e);
+                        None
+                    }
+                }
+            } else {
+                info!("ℹ️  Authentication disabled");
+                None
+            }
+        };
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -694,12 +737,43 @@ impl VectorizerServer {
                     168, // retention_hours: 7 days
                 )))
             },
+            auth_handler_state,
         })
+    }
+
+    /// Check if authentication should be required based on host binding
+    /// Returns true if host is 0.0.0.0 (production mode) and auth is not enabled
+    fn should_require_auth(host: &str, auth_enabled: bool) -> bool {
+        let is_production_bind = host == "0.0.0.0";
+        is_production_bind && !auth_enabled
     }
 
     /// Start the server
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
+
+        // SECURITY CHECK: When binding to 0.0.0.0 (production), require authentication
+        let is_production_bind = host == "0.0.0.0";
+        if is_production_bind {
+            if self.auth_handler_state.is_none() {
+                error!("❌ SECURITY ERROR: Cannot bind to 0.0.0.0 without authentication enabled!");
+                error!(
+                    "   When exposing the server to all network interfaces, authentication is required."
+                );
+                error!("   Please enable authentication in config.yml:");
+                error!("   auth:");
+                error!("     enabled: true");
+                error!("     jwt_secret: \"your-secure-secret-key\"");
+                error!("");
+                error!("   Or use --host 127.0.0.1 for local development only.");
+                return Err(anyhow::anyhow!(
+                    "Security: Authentication required when binding to 0.0.0.0"
+                ));
+            }
+            warn!(
+                "🔐 Production mode detected (0.0.0.0) - Authentication is REQUIRED for all API requests"
+            );
+        }
 
         // Start gRPC server in background
         let grpc_port = port + 1; // gRPC on next port
@@ -731,7 +805,9 @@ impl VectorizerServer {
 
         // Create MCP router (main server) using StreamableHTTP transport
         info!("🔧 Creating MCP router with StreamableHTTP transport (rmcp 0.8.1)...");
-        let mcp_router = self.create_mcp_router().await;
+        let mcp_router = self
+            .create_mcp_router(is_production_bind, self.auth_handler_state.clone())
+            .await;
         info!("✅ MCP router created (StreamableHTTP)");
 
         // Create REST API router to add to MCP
@@ -763,15 +839,19 @@ impl VectorizerServer {
                 },
             ));
 
-        let metrics_collector_2 = self.metrics_collector.clone();
-        let rest_routes = Router::new()
-            // Health and stats
+        // Public routes that don't require authentication (even in production)
+        let public_routes = Router::new()
             .route("/health", get(rest_handlers::health_check))
-            .route("/stats", get(rest_handlers::get_stats))
             .route(
                 "/prometheus/metrics",
                 get(rest_handlers::get_prometheus_metrics),
             )
+            .with_state(self.clone());
+
+        let metrics_collector_2 = self.metrics_collector.clone();
+        let rest_routes = Router::new()
+            // Stats and monitoring (may require auth in production)
+            .route("/stats", get(rest_handlers::get_stats))
             .route(
                 "/indexing/progress",
                 get(rest_handlers::get_indexing_progress),
@@ -1153,6 +1233,59 @@ impl VectorizerServer {
         let graph_router = crate::api::graph::create_graph_router().with_state(graph_state);
         let rest_routes = rest_routes.merge(graph_router);
 
+        // Add GraphQL routes
+        let graphql_schema = crate::api::graphql::create_schema(
+            self.store.clone(),
+            self.embedding_manager.clone(),
+            self.start_time,
+        );
+        let graphql_state = graphql_handlers::GraphQLState {
+            schema: graphql_schema,
+        };
+        let graphql_router = Router::new()
+            .route("/graphql", post(graphql_handlers::graphql_handler))
+            .route("/graphql", get(graphql_handlers::graphql_playground))
+            .route("/graphiql", get(graphql_handlers::graphql_playground))
+            .with_state(graphql_state);
+        let rest_routes = rest_routes.merge(graphql_router);
+        info!("📊 GraphQL API available at /graphql (playground at /graphiql)");
+
+        // Add auth routes and apply auth middleware if auth is enabled
+        let rest_routes = if let Some(auth_state) = self.auth_handler_state.clone() {
+            info!("🔐 Adding authentication routes...");
+
+            // Public routes (no auth required) - login and health check
+            let public_auth_router = Router::new()
+                .route("/auth/login", post(auth_handlers::login))
+                .with_state(auth_state.clone());
+
+            // Protected auth routes (require authentication via handlers)
+            // Note: Each handler internally checks auth_state.authenticated
+            let protected_auth_router = Router::new()
+                .route("/auth/me", get(auth_handlers::get_me))
+                .route("/auth/keys", post(auth_handlers::create_api_key))
+                .route("/auth/keys", get(auth_handlers::list_api_keys))
+                .route("/auth/keys/{id}", delete(auth_handlers::revoke_api_key))
+                // User management routes (admin only)
+                .route("/auth/users", post(auth_handlers::create_user))
+                .route("/auth/users", get(auth_handlers::list_users))
+                .route("/auth/users/{username}", delete(auth_handlers::delete_user))
+                .route(
+                    "/auth/users/{username}/password",
+                    put(auth_handlers::change_password),
+                )
+                .with_state(auth_state.clone());
+
+            // Merge auth routes first
+            let rest_routes = rest_routes
+                .merge(public_auth_router)
+                .merge(protected_auth_router);
+
+            rest_routes
+        } else {
+            rest_routes
+        };
+
         // Create UMICP state
         let umicp_state = crate::umicp::UmicpState {
             store: self.store.clone(),
@@ -1160,6 +1293,7 @@ impl VectorizerServer {
         };
 
         // Create UMICP routes (needs custom state)
+        // Note: Auth is enforced via the require_production_auth helper for /umicp POST
         let umicp_routes = Router::new()
             .route("/umicp", post(crate::umicp::transport::umicp_handler))
             .route("/umicp/health", get(crate::umicp::health_check))
@@ -1215,22 +1349,72 @@ impl VectorizerServer {
         }
 
         // Merge all routes - order matters!
-        // 1. UMICP routes (most specific)
-        // 2. MCP routes
-        // 3. REST API routes (including /api/*)
-        // 4. Metrics routes
-        // 5. Dashboard static files (ServeDir handles /dashboard/assets/*)
-        // 6. Dashboard SPA fallback (handles /dashboard/* routes for React Router)
+        // 1. Public routes first (health check, prometheus metrics) - no auth required
+        // 2. UMICP routes (most specific)
+        // 3. MCP routes
+        // 4. REST API routes (including /api/*)
+        // 5. Metrics routes
+        // 6. Dashboard static files (ServeDir handles /dashboard/assets/*)
+        // 7. Dashboard SPA fallback (handles /dashboard/* routes for React Router)
         let app = Router::new()
+            .merge(public_routes) // Health check and prometheus - always public
             .merge(umicp_routes)
             .merge(mcp_router)
             .merge(rest_routes)
             .merge(metrics_router)
-            .fallback(dashboard_fallback)
-            // Apply CORS to all routes (must be after merging all routes)
-            // Use permissive() which allows all origins, methods, and headers
-            // This is safe for development and internal APIs
-            .layer(CorsLayer::permissive());
+            .fallback(dashboard_fallback);
+
+        // In production mode, apply global auth middleware BEFORE CORS
+        let app = if is_production_bind && self.auth_handler_state.is_some() {
+            let auth_mgr = self
+                .auth_handler_state
+                .as_ref()
+                .unwrap()
+                .auth_manager
+                .clone();
+            app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let auth_manager = auth_mgr.clone();
+                async move {
+                    let path = req.uri().path();
+
+                    // Public routes - no auth required
+                    if path == "/health"
+                        || path == "/prometheus/metrics"
+                        || path == "/auth/login"
+                        || path == "/umicp/health"
+                        || path == "/umicp/discover"
+                        || path.starts_with("/dashboard")
+                    {
+                        return next.run(req).await;
+                    }
+
+                    // Extract credentials from headers
+                    let (jwt_token, api_key) = extract_auth_credentials(&req);
+
+                    // Debug: Log what we found
+                    tracing::debug!("Auth check for {}: jwt={:?}, api_key={:?}", path, jwt_token.is_some(), api_key.is_some());
+
+                    // Validate credentials
+                    if !check_mcp_auth_with_credentials(jwt_token, api_key, &auth_manager).await {
+                        return axum::response::Response::builder()
+                            .status(axum::http::StatusCode::UNAUTHORIZED)
+                            .header("Content-Type", "application/json")
+                            .header("Access-Control-Allow-Origin", "*")
+                            .body(axum::body::Body::from(
+                                r#"{"error":"unauthorized","message":"Authentication required. Provide a valid JWT token or API key."}"#
+                            ))
+                            .unwrap();
+                    }
+
+                    next.run(req).await
+                }
+            }))
+            // Apply CORS after auth middleware
+            .layer(CorsLayer::permissive())
+        } else {
+            // Development mode: just apply CORS
+            app.layer(CorsLayer::permissive())
+        };
 
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
@@ -1241,7 +1425,15 @@ impl VectorizerServer {
             host, port
         );
         info!("   🎯 Qdrant API: http://{}:{}/qdrant", host, port);
+        info!("   📊 GraphQL API: http://{}:{}/graphql", host, port);
+        info!(
+            "   🎮 GraphQL Playground: http://{}:{}/graphiql",
+            host, port
+        );
         info!("   📊 Dashboard: http://{}:{}/dashboard/", host, port);
+        if self.auth_handler_state.is_some() {
+            info!("   🔐 Auth API: http://{}:{}/auth", host, port);
+        }
 
         // Bind and start the server
         let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
@@ -1360,7 +1552,12 @@ impl VectorizerServer {
     }
 
     /// Create MCP router with StreamableHTTP transport (rmcp 0.8.1)
-    async fn create_mcp_router(&self) -> Router {
+    /// In production mode (is_production=true), validates authentication before processing requests
+    async fn create_mcp_router(
+        &self,
+        is_production: bool,
+        auth_state: Option<auth_handlers::AuthHandlerState>,
+    ) -> Router {
         use std::sync::Arc;
 
         use hyper::service::Service;
@@ -1390,19 +1587,78 @@ impl VectorizerServer {
         let hyper_service = TowerToHyperService::new(streamable_service);
 
         // Create router with the MCP endpoint
-        Router::new().route(
-            "/mcp",
-            axum::routing::any(move |req: axum::extract::Request| {
-                let mut service = hyper_service.clone();
-                async move {
-                    // Forward request to hyper service
-                    match service.call(req).await {
-                        Ok(response) => Ok(response),
-                        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+        // In production mode, wrap with authentication check
+        if is_production && auth_state.is_some() {
+            let auth_state = auth_state.unwrap();
+            let auth_manager = auth_state.auth_manager.clone();
+
+            Router::new().route(
+                "/mcp",
+                axum::routing::any(
+                    move |req: axum::extract::Request| {
+                        let mut service = hyper_service.clone();
+                        let auth_mgr = auth_manager.clone();
+
+                        // Extract credentials synchronously before async block
+                        let (jwt_token, api_key) = extract_auth_credentials(&req);
+
+                        async move {
+                            // Check authentication in production mode
+                            if !check_mcp_auth_with_credentials(jwt_token, api_key, &auth_mgr).await
+                            {
+                                return axum::response::Response::builder()
+                                    .status(axum::http::StatusCode::UNAUTHORIZED)
+                                    .header("Content-Type", "application/json")
+                                    .body(axum::body::Body::from(
+                                        r#"{"error":"unauthorized","message":"Authentication required for MCP access in production mode."}"#
+                                    ))
+                                    .unwrap();
+                            }
+
+                            // Forward request to hyper service
+                            match service.call(req).await {
+                                Ok(response) => {
+                                    // Convert BoxBody to axum Body
+                                    let (parts, body) = response.into_parts();
+                                    axum::response::Response::from_parts(
+                                        parts,
+                                        axum::body::Body::new(body),
+                                    )
+                                }
+                                Err(_) => axum::response::Response::builder()
+                                    .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                                    .body(axum::body::Body::from("Internal server error"))
+                                    .unwrap(),
+                            }
+                        }
+                    },
+                ),
+            )
+        } else {
+            Router::new().route(
+                "/mcp",
+                axum::routing::any(move |req: axum::extract::Request| {
+                    let mut service = hyper_service.clone();
+                    async move {
+                        // Forward request to hyper service
+                        match service.call(req).await {
+                            Ok(response) => {
+                                // Convert BoxBody to axum Body
+                                let (parts, body) = response.into_parts();
+                                axum::response::Response::from_parts(
+                                    parts,
+                                    axum::body::Body::new(body),
+                                )
+                            }
+                            Err(_) => axum::response::Response::builder()
+                                .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                                .body(axum::body::Body::from("Internal server error"))
+                                .unwrap(),
+                        }
                     }
-                }
-            }),
-        )
+                }),
+            )
+        }
     }
 
     /// Start gRPC server
@@ -1461,6 +1717,75 @@ impl VectorizerServer {
 
         Ok(())
     }
+}
+
+/// Extract auth credentials from request headers (sync part)
+/// Returns (Option<jwt_token>, Option<api_key>)
+fn extract_auth_credentials(req: &axum::extract::Request) -> (Option<String>, Option<String>) {
+    use axum::http::header::AUTHORIZATION;
+
+    let mut jwt_token: Option<String> = None;
+    let mut api_key: Option<String> = None;
+
+    // Try to get authorization header
+    if let Some(auth_header) = req.headers().get(AUTHORIZATION) {
+        if let Ok(auth_str) = auth_header.to_str() {
+            // Check for Bearer token (JWT)
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                jwt_token = Some(token.to_string());
+            } else {
+                // Try as direct API key
+                api_key = Some(auth_str.to_string());
+            }
+        }
+    }
+
+    // Check for X-API-Key header (if no API key found yet)
+    if api_key.is_none() {
+        if let Some(api_key_header) = req.headers().get("X-API-Key") {
+            if let Ok(key) = api_key_header.to_str() {
+                api_key = Some(key.to_string());
+            }
+        }
+    }
+
+    // Check for API key in query parameters (if no API key found yet)
+    if api_key.is_none() {
+        if let Some(query) = req.uri().query() {
+            for param in query.split('&') {
+                if let Some(key) = param.strip_prefix("api_key=") {
+                    api_key = Some(key.to_string());
+                    break;
+                }
+            }
+        }
+    }
+
+    (jwt_token, api_key)
+}
+
+/// Check authentication for MCP/UMICP requests in production mode
+/// Returns true if authentication is valid, false otherwise
+async fn check_mcp_auth_with_credentials(
+    jwt_token: Option<String>,
+    api_key: Option<String>,
+    auth_manager: &std::sync::Arc<crate::auth::AuthManager>,
+) -> bool {
+    // Try JWT first
+    if let Some(token) = jwt_token {
+        if auth_manager.validate_jwt(&token).is_ok() {
+            return true;
+        }
+    }
+
+    // Try API key
+    if let Some(key) = api_key {
+        if auth_manager.validate_api_key(&key).await.is_ok() {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Get File Watcher metrics endpoint

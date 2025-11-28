@@ -285,6 +285,18 @@ impl CollectionType {
         }
     }
 
+    /// Get graph for this collection (if enabled)
+    pub fn get_graph(&self) -> Option<&std::sync::Arc<super::graph::Graph>> {
+        match self {
+            CollectionType::Cpu(c) => c.get_graph(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => None, // GPU collections don't support graph yet
+            CollectionType::Sharded(_) => None, // Sharded collections don't support graph yet
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(_) => None, // Distributed collections don't support graph yet
+        }
+    }
+
     /// Requantize existing vectors if quantization is enabled
     pub fn requantize_existing_vectors(&self) -> Result<()> {
         match self {

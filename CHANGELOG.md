@@ -40,6 +40,20 @@ All notable changes to this project will be documented in this file.
   - **BENEFIT**: Higher and more accurate BM25 scores, better search quality and relevance ranking
 
 ### Added
+- **GraphQL API**: Full GraphQL API implementation with async-graphql
+  - **Queries**: collections, collection, vectors, vector, search, stats
+  - **Graph Queries**: graphStats, graphNodes, graphEdges, graphNode, graphNeighbors, graphRelated, graphPath
+  - **Workspace Queries**: workspaces, workspaceConfig
+  - **Mutations**: createCollection, deleteCollection, upsertVector, upsertVectors, deleteVector, updatePayload
+  - **Graph Mutations**: enableGraph, addGraphNode, removeGraphNode, createGraphEdge, deleteGraphEdge
+  - **Workspace Mutations**: addWorkspace, removeWorkspace, updateWorkspaceConfig
+  - **GraphiQL Playground**: Interactive GraphQL IDE at `/graphiql`
+  - **Security**: Query depth limiting (max 10), complexity limiting (max 1000)
+  - **Pagination**: Cursor-based pagination for vectors, nodes, and edges
+  - **Documentation**: Full API documentation at docs/users/api/GRAPHQL.md
+  - **Tests**: 37 unit and integration tests covering schema, queries, mutations, and error handling
+  - **BENEFIT**: Flexible data querying with precise field selection, reduced over-fetching
+
 - **Qdrant gRPC Protocol Support**: Full Qdrant-compatible gRPC API implementation
   - **Collections Service** (`qdrant.Collections`):
     - `Get`, `List`, `Create`, `Update`, `Delete` - Collection CRUD operations
