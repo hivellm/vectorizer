@@ -176,12 +176,17 @@ Comprehensive feature comparison with major vector database solutions:
 | Deployment | Standalone/Embedded | Standalone | PostgreSQL Extension | Cloud/Self-hosted | Standalone | Standalone | Standalone |
 | **APIs & Integration** |
 | REST API | ✅ Full | ✅ Full | ❌ (via PostgreSQL) | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
-| gRPC API | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| gRPC API | ✅ Qdrant-compatible | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| GraphQL API | ✅ Full with GraphiQL | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | MCP Integration | ✅ 20 tools | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| GraphQL | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| n8n Integration | ✅ Official node | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Langflow Integration | ✅ LangChain components | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Python SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | TypeScript SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| JavaScript SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Rust SDK | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| C# SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Go SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | **Performance** |
 | Search Latency | < 3ms (CPU)<br>< 1ms (GPU) | ~1-5ms | ~5-50ms | ~50-100ms | ~10-50ms | ~5-20ms | ~10-100ms |
 | SIMD Acceleration | ✅ AVX2 | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
@@ -211,9 +216,10 @@ Comprehensive feature comparison with major vector database solutions:
 | Replication | ✅ Master-Replica (BETA) | ✅ | ✅ (PostgreSQL) | ✅ Cloud | ✅ | ✅ | ❌ |
 | Auto-scaling | ❌ | ❌ | ❌ | ✅ Cloud | ❌ | ✅ | ❌ |
 | **Management & UI** |
-| Web Dashboard | ✅ React + TypeScript | ✅ Basic | ❌ (pgAdmin) | ✅ Cloud | ✅ | ✅ | ✅ Basic |
-| Desktop GUI | ✅ Electron | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Graph Visualization | ✅ vis-network | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Web Dashboard | ✅ React + Full Graph UI | ✅ Basic | ❌ (pgAdmin) | ✅ Cloud | ✅ | ✅ | ✅ Basic |
+| Desktop GUI | ✅ Electron + vis-network | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Graph Visualization | ✅ vis-network + Full Controls | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Graph Management | ✅ Create/Delete Edges, Path Finding | ❌ | ❌ | ❌ | ✅ Basic | ❌ | ❌ |
 | CLI Tools | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
 | **Migration & Compatibility** |
 | Qdrant Compatibility | ✅ Full API | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -232,15 +238,18 @@ Comprehensive feature comparison with major vector database solutions:
 
 **Vectorizer Advantages:**
 - ✅ **MCP Integration**: Native Model Context Protocol support with 20 focused tools
-- ✅ **Graph Relationships**: Automatic relationship discovery with full GUI visualization
+- ✅ **Graph Relationships**: Automatic relationship discovery with complete GUI management (create/delete edges, path finding, neighbor exploration)
+- ✅ **No-Code Integrations**: Official n8n node and Langflow components for visual workflow/LLM app building
+- ✅ **GraphQL API**: Full GraphQL API with GraphiQL playground and complete REST parity
 - ✅ **Document Processing**: Built-in support for 14 document formats (PDF, Office, images)
-- ✅ **Desktop GUI**: Electron-based desktop application for visual database management
-- ✅ **Qdrant Compatibility**: Full API compatibility + migration tools
+- ✅ **Desktop GUI**: Electron-based desktop application with vis-network graph visualization
+- ✅ **Qdrant Compatibility**: Full API compatibility + migration tools + gRPC support
 - ✅ **Performance**: 4-5x faster search than Qdrant in benchmarks
 - ✅ **Unified Storage**: Compact `.vecdb` format with 20-30% space savings
+- ✅ **Complete SDK Coverage**: 6 official SDKs (Python, TypeScript, JavaScript, Rust, C#, Go)
 
 **Best Use Cases:**
-- **Vectorizer**: AI applications requiring MCP integration, document processing, graph relationships, and high-performance search
+- **Vectorizer**: AI applications requiring MCP integration, no-code workflows, document processing, graph relationships, and high-performance search
 - **Qdrant**: Production-ready vector search with good performance and cloud options
 - **pgvector**: PostgreSQL-based applications needing vector search alongside relational data
 - **Pinecone**: Managed cloud solution with minimal infrastructure management
