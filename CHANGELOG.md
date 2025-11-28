@@ -40,6 +40,34 @@ All notable changes to this project will be documented in this file.
   - **BENEFIT**: Higher and more accurate BM25 scores, better search quality and relevance ranking
 
 ### Added
+- **n8n Integration**: Official n8n node for no-code workflow automation
+  - **Package**: `@vectorizer/n8n-nodes-vectorizer` (version 1.6.0)
+  - **Resources**: Collection, Vector, Search
+  - **Collection Operations**: create, delete, get, list
+  - **Vector Operations**: insert, batchInsert, delete, get
+  - **Search Operations**: vectorSearch, semanticSearch, hybridSearch
+  - **Authentication**: Supports API key authentication
+  - **Configuration**: Customizable host URL and credentials
+  - **Examples**: RAG pipelines, document ingestion, semantic search webhooks
+  - **Installation**: Available for n8n Cloud and self-hosted instances
+  - **Documentation**: Complete examples in sdks/n8n/README.md
+  - **BENEFIT**: No-code access to Vectorizer, visual workflow building, integration with 400+ n8n nodes
+
+- **Langflow Integration**: LangChain-compatible components for visual LLM workflows
+  - **Package**: `vectorizer-langflow` (version 1.6.0)
+  - **Components**:
+    - `VectorizerVectorStore` - Full LangChain VectorStore implementation
+    - `VectorizerRetriever` - Retriever for RAG pipelines
+    - `VectorizerLoader` - Loader for existing vectors
+  - **VectorStore Operations**: add_texts, similarity_search, similarity_search_with_score, from_texts, from_documents
+  - **Search Types**: Vector similarity, hybrid search, filtered search
+  - **Authentication**: API key support
+  - **Distance Metrics**: cosine, euclidean, dot
+  - **Examples**: Document ingestion, RAG pipelines, filtered search
+  - **Requirements**: Python 3.9+, LangChain >= 0.1.0
+  - **Documentation**: Complete API reference in sdks/langflow/README.md
+  - **BENEFIT**: Visual LLM app building, drag-and-drop RAG pipelines, seamless LangChain integration
+
 - **GraphQL API**: Full GraphQL API implementation with async-graphql
   - **Queries**: collections, collection, vectors, vector, search, stats
   - **Graph Queries**: graphStats, graphNodes, graphEdges, graphNode, graphNeighbors, graphRelated, graphPath
