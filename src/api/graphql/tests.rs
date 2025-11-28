@@ -221,8 +221,9 @@ mod unit_tests {
 
     #[test]
     fn test_graph_node_conversion() {
-        use crate::db::graph::Node;
         use std::collections::HashMap;
+
+        use crate::db::graph::Node;
 
         let mut metadata = HashMap::new();
         metadata.insert("file_path".to_string(), serde_json::json!("/path/to/file"));
@@ -342,11 +343,13 @@ mod unit_tests {
 
 #[cfg(test)]
 mod schema_tests {
+    use std::sync::Arc;
+
+    use tempfile::TempDir;
+
     use crate::api::graphql::{VectorizerSchema, create_schema};
     use crate::db::VectorStore;
     use crate::embedding::EmbeddingManager;
-    use std::sync::Arc;
-    use tempfile::TempDir;
 
     fn create_test_schema() -> (VectorizerSchema, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -788,11 +791,13 @@ mod schema_tests {
 
 #[cfg(test)]
 mod error_handling_tests {
+    use std::sync::Arc;
+
+    use tempfile::TempDir;
+
     use crate::api::graphql::create_schema;
     use crate::db::VectorStore;
     use crate::embedding::EmbeddingManager;
-    use std::sync::Arc;
-    use tempfile::TempDir;
 
     fn create_test_schema() -> (crate::api::graphql::VectorizerSchema, TempDir) {
         let temp_dir = TempDir::new().unwrap();

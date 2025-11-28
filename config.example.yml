@@ -352,6 +352,49 @@ api:
     max_message_size_mb: 10 # Maximum gRPC message size in MB
 
 # =============================================================================
+# AUTHENTICATION CONFIGURATION
+# =============================================================================
+# Authentication provides JWT and API key based access control.
+# When enabled, all API endpoints (except /health and /metrics) require authentication.
+
+auth:
+  # Enable/disable authentication globally
+  # When false, all endpoints are publicly accessible (development mode)
+  # When true, authentication is required for all protected endpoints
+  enabled: false
+
+  # JWT (JSON Web Token) configuration
+  # Used for user authentication via login endpoint
+  jwt_secret: "your-secret-key-change-in-production"  # IMPORTANT: Change in production!
+  jwt_expiration: 3600  # Token expiration in seconds (default: 1 hour)
+
+  # API Key configuration
+  # Used for machine-to-machine authentication
+  api_key_length: 32  # Length of generated API keys
+
+  # Rate limiting per API key
+  # Prevents abuse and ensures fair usage
+  rate_limit_per_minute: 100  # Maximum requests per minute per key
+  rate_limit_per_hour: 1000   # Maximum requests per hour per key
+
+# Authentication endpoints (when auth.enabled: true):
+# - POST /auth/login     - Login with username/password, returns JWT token
+# - GET  /auth/me        - Get current user info (requires auth)
+# - POST /auth/keys      - Create new API key (requires admin)
+# - GET  /auth/keys      - List API keys for current user
+# - DELETE /auth/keys/{id} - Revoke an API key
+
+# Usage examples:
+# 1. JWT Authentication:
+#    curl -H "Authorization: Bearer <jwt_token>" http://localhost:15002/api/collections
+#
+# 2. API Key Authentication (header):
+#    curl -H "Authorization: <api_key>" http://localhost:15002/api/collections
+#
+# 3. API Key Authentication (query parameter):
+#    curl http://localhost:15002/api/collections?api_key=<api_key>
+
+# =============================================================================
 # SECURITY CONFIGURATION
 # =============================================================================
 security:

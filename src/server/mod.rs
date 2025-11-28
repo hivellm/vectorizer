@@ -17,14 +17,13 @@ mod qdrant_vector_handlers;
 pub mod replication_handlers;
 pub mod rest_handlers;
 
+// Re-export main server types from the original implementation
+use std::sync::Arc;
+
 pub use auth_handlers::{
     AuthHandlerState, UserRecord, auth_middleware, require_admin_middleware,
     require_auth_middleware,
 };
-
-// Re-export main server types from the original implementation
-use std::sync::Arc;
-
 use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;

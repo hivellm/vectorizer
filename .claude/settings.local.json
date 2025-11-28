@@ -19,7 +19,22 @@
       "Bash(mkdir:*)",
       "Bash(cargo clippy:*)",
       "Bash(cargo fmt:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(timeout 10 ./target/release/vectorizer.exe:*)",
+      "Bash(cat:*)",
+      "Bash(timeout 5 ./target/release/vectorizer.exe:*)",
+      "Bash(Start-Process -FilePath \"target/release/vectorizer.exe\" -ArgumentList \"--host\", \"0.0.0.0\", \"--port\", \"17780\" -NoNewWindow -PassThru)",
+      "Bash(TOKEN=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiQWRtaW4iXSwiaWF0IjoxNzY0MzU3OTkxLCJleHAiOjE3NjQzNjE1OTF9.3vA3Mj4IFDDfl4NiibhQ-07TMQwrO9I7Bt3NzP3YAKs\")",
+      "Bash(timeout:*)",
+      "Bash(TOKEN=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiQWRtaW4iXSwiaWF0IjoxNzY0MzU5NTI5LCJleHAiOjE3NjQzNjMxMjl9.nmTwkUOaXUR0MvJPWxxR5DfyvWWVqJcANi73_aCxAhk\")",
+      "Bash(TOKEN=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiQWRtaW4iXSwiaWF0IjoxNzY0MzYwMjc5LCJleHAiOjE3NjQzNjM4Nzl9.r37e2Jp2_4GNtwGD1HD7JITrmV3dOmYx5_CWOb9uyc8\")",
+      "Bash(TOKEN=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiQWRtaW4iXSwiaWF0IjoxNzY0MzYwOTc5LCJleHAiOjE3NjQzNjQ1Nzl9.VtofzW9FS0H6j0JcnpseL1rYRCaYZez_PhVb5b2PHm0\")",
+      "Bash(rulebook task validate:*)",
+      "Bash(npx rulebook:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebSearch",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

@@ -6,6 +6,7 @@
 pub mod api_keys;
 pub mod jwt;
 pub mod middleware;
+pub mod persistence;
 pub mod roles;
 
 use std::collections::HashMap;

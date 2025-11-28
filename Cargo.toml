@@ -99,6 +99,7 @@ regex = { version = "1.10", default-features = false, features = ["std", "unicod
 jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
 uuid = { version = "1.18", features = ["v4", "serde"] }
 rand = "0.9"
+bcrypt = "0.17"
 lazy_static = "1.4"
 tower_governor = "0.8"  # Rate limiting middleware
 governor = "0.10.2"       # Rate limiting core
@@ -134,6 +135,10 @@ async-trait = "0.1"
 lru = "0.16.1"
 hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1.18", features = ["tokio", "server", "server-auto"] }
+
+# GraphQL API
+async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
+async-graphql-axum = "7.0"
 
 # Monitoring and Observability
 prometheus = "0.14"

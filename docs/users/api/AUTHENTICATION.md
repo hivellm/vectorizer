@@ -9,13 +9,15 @@ The authentication system includes:
 - **API Keys**: Long-lived keys for programmatic access
 - **Role-Based Access Control (RBAC)**: Fine-grained permissions
 - **Rate Limiting**: Request throttling per API key
+- **Persistence**: Users and API keys are saved to disk and persist across restarts
+- **Default Admin**: Auto-created on first start when authentication is enabled
 
 ## Enabling Authentication
 
 By default, authentication is disabled for development. Enable it in your configuration:
 
 ```yaml
-# vectorizer.yaml
+# config.yml
 auth:
   enabled: true
   jwt_secret: "your-secure-secret-key-at-least-32-chars"
@@ -33,17 +35,28 @@ export VECTORIZER_JWT_SECRET="your-secure-secret-key"
 export VECTORIZER_JWT_EXPIRATION=3600
 ```
 
+## First Start & Default Admin
+
+When authentication is enabled and no users exist, Vectorizer automatically creates a default admin user:
+
+- **Username**: `admin`
+- **Password**: `admin123`
+
+> ⚠️ **Important**: Change the default admin password immediately in production!
+
+Auth data is stored in `data/auth.json` and persists across server restarts.
+
 ## JWT Authentication
 
-### Generate Token
+### Login
 
 ```http
-POST /api/v1/auth/login
+POST /auth/login
 Content-Type: application/json
 
 {
   "username": "admin",
-  "password": "secure-password"
+  "password": "admin123"
 }
 ```
 
@@ -51,13 +64,12 @@ Response:
 
 ```json
 {
+  "success": true,
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "expires_at": 1699999999,
-  "user": {
-    "id": "user-123",
-    "username": "admin",
-    "roles": ["admin"]
-  }
+  "user_id": "user-123",
+  "username": "admin",
+  "roles": ["Admin"]
 }
 ```
 
@@ -66,15 +78,25 @@ Response:
 Include the token in the Authorization header:
 
 ```http
-GET /api/v1/collections
+GET /collections
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### Token Refresh
+### Get Current User
 
 ```http
-POST /api/v1/auth/refresh
-Authorization: Bearer <current-token>
+GET /auth/me
+Authorization: Bearer <jwt-token>
+```
+
+Response:
+
+```json
+{
+  "user_id": "user-123",
+  "username": "admin",
+  "roles": ["Admin"]
+}
 ```
 
 ## API Keys
@@ -84,14 +106,14 @@ API keys are ideal for server-to-server communication and automation.
 ### Create API Key
 
 ```http
-POST /api/v1/auth/api-keys
+POST /auth/keys
 Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
   "name": "production-backend",
-  "permissions": ["read", "write"],
-  "expires_at": null
+  "permissions": ["Read", "Write", "Search"],
+  "expires_in_days": null
 }
 ```
 
@@ -99,12 +121,11 @@ Response:
 
 ```json
 {
+  "success": true,
   "api_key": "vz_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "id": "key-123",
+  "key_id": "key-123",
   "name": "production-backend",
-  "permissions": ["read", "write"],
-  "created_at": 1699999999,
-  "expires_at": null
+  "message": "Store this API key securely. It will not be shown again."
 }
 ```
 
@@ -112,31 +133,139 @@ Response:
 
 ### Using API Key
 
+Three methods are supported:
+
+**1. X-API-Key Header (Recommended)**
 ```http
-GET /api/v1/collections
+GET /collections
 X-API-Key: vz_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Or in the Authorization header:
-
+**2. Authorization Header**
 ```http
-GET /api/v1/collections
-Authorization: ApiKey vz_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GET /collections
+Authorization: vz_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**3. Query Parameter**
+```http
+GET /collections?api_key=vz_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ### List API Keys
 
 ```http
-GET /api/v1/auth/api-keys
+GET /auth/keys
 Authorization: Bearer <jwt-token>
+```
+
+Response:
+
+```json
+{
+  "keys": [
+    {
+      "id": "key-123",
+      "name": "production-backend",
+      "created_at": 1699999999,
+      "last_used": 1699999999,
+      "expires_at": null,
+      "active": true
+    }
+  ]
+}
 ```
 
 ### Revoke API Key
 
 ```http
-DELETE /api/v1/auth/api-keys/{key_id}
+DELETE /auth/keys/{key_id}
 Authorization: Bearer <jwt-token>
 ```
+
+## User Management (Admin Only)
+
+Administrators can manage users through the following endpoints.
+
+### Create User
+
+```http
+POST /auth/users
+Authorization: Bearer <admin-jwt-token>
+Content-Type: application/json
+
+{
+  "username": "newuser",
+  "password": "secure-password",
+  "roles": ["User"]
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "user_id": "user-456",
+  "username": "newuser",
+  "roles": ["User"],
+  "message": "User created successfully"
+}
+```
+
+### List Users
+
+```http
+GET /auth/users
+Authorization: Bearer <admin-jwt-token>
+```
+
+Response:
+
+```json
+{
+  "users": [
+    {
+      "user_id": "user-123",
+      "username": "admin",
+      "roles": ["Admin"],
+      "created_at": 1699999999,
+      "last_login": 1699999999
+    },
+    {
+      "user_id": "user-456",
+      "username": "newuser",
+      "roles": ["User"],
+      "created_at": 1699999999,
+      "last_login": null
+    }
+  ]
+}
+```
+
+### Delete User
+
+```http
+DELETE /auth/users/{username}
+Authorization: Bearer <admin-jwt-token>
+```
+
+### Change Password
+
+Users can change their own password, and admins can change any user's password:
+
+```http
+PUT /auth/users/{username}/password
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "current_password": "old-password",
+  "new_password": "new-secure-password"
+}
+```
+
+> Note: Admins do not need to provide `current_password` when changing another user's password.
 
 ## Role-Based Access Control (RBAC)
 
@@ -144,43 +273,47 @@ Authorization: Bearer <jwt-token>
 
 | Role | Description |
 |------|-------------|
-| `admin` | Full access to all operations |
-| `write` | Read and write access to collections and vectors |
-| `read` | Read-only access |
-| `api_user` | Standard API access (assigned to API keys) |
+| `Admin` | Full access to all operations, including user management |
+| `User` | Standard access to collections and vectors |
+| `ReadOnly` | Read-only access to collections and vectors |
+| `ApiUser` | Standard API access (assigned to API keys) |
 
 ### Permissions
 
 | Permission | Description |
 |------------|-------------|
-| `collections:create` | Create new collections |
-| `collections:read` | Read collection info |
-| `collections:update` | Update collection settings |
-| `collections:delete` | Delete collections |
-| `vectors:write` | Insert/update vectors |
-| `vectors:read` | Search and retrieve vectors |
-| `vectors:delete` | Delete vectors |
-| `admin:users` | Manage users |
-| `admin:keys` | Manage API keys |
-| `admin:config` | Modify configuration |
+| `Read` | Read collections and search vectors |
+| `Write` | Insert/update vectors |
+| `Delete` | Delete vectors |
+| `Search` | Perform vector searches |
+| `CreateCollection` | Create new collections |
+| `DeleteCollection` | Delete collections |
+| `ManageUsers` | Create/delete users (admin only) |
+| `ManageApiKeys` | Create/revoke API keys |
+| `ViewLogs` | View server logs |
+| `SystemConfig` | Modify server configuration |
 
 ### Role-Permission Mapping
 
 ```yaml
-admin:
-  - "*"  # All permissions
+Admin:
+  - All permissions
 
-write:
-  - "collections:create"
-  - "collections:read"
-  - "collections:update"
-  - "vectors:write"
-  - "vectors:read"
-  - "vectors:delete"
+User:
+  - Read
+  - Write
+  - Delete
+  - Search
+  - CreateCollection
+  - DeleteCollection
+  - ManageApiKeys
 
-read:
-  - "collections:read"
-  - "vectors:read"
+ReadOnly:
+  - Read
+  - Search
+
+ApiUser:
+  - Based on permissions granted when creating the API key
 ```
 
 ## Rate Limiting

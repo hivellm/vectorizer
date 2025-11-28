@@ -12,7 +12,9 @@
 pub mod advanced_api;
 pub mod cluster;
 pub mod graph;
+pub mod graphql;
 
 pub use advanced_api::*;
 pub use cluster::*;
 pub use graph::*;
+pub use graphql::*;
