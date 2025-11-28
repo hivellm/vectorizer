@@ -1204,83 +1204,78 @@ impl VectorStore {
 
         match &mut *collection_ref {
             CollectionType::Cpu(collection) => {
-                // Try to load graph from disk first
+                // Check if graph already exists in memory
+                if collection.get_graph().is_some() {
+                    info!(
+                        "Graph already enabled for collection '{}', skipping",
+                        canonical_ref
+                    );
+                    return Ok(());
+                }
+
+                // Try to load graph from disk first (only if file actually exists)
                 let data_dir = Self::get_data_dir();
-                if let Ok(graph) = crate::db::graph::Graph::load_from_file(canonical_ref, &data_dir)
-                {
-                    // Graph loaded from disk, check if it has nodes and edges
-                    let node_count = graph.node_count();
-                    let edge_count = graph.edge_count();
+                let graph_path = data_dir.join(format!("{}_graph.json", canonical_ref));
 
-                    // Set graph first
-                    collection.set_graph(Arc::new(graph.clone()));
+                if graph_path.exists() {
+                    if let Ok(graph) =
+                        crate::db::graph::Graph::load_from_file(canonical_ref, &data_dir)
+                    {
+                        let node_count = graph.node_count();
+                        let edge_count = graph.edge_count();
 
-                    // If graph is empty (no nodes), populate it with existing vectors
-                    if node_count == 0 {
-                        info!(
-                            "Graph loaded from disk for '{}' but is empty ({} nodes), populating with existing vectors",
-                            canonical_ref, node_count
-                        );
-
-                        // Populate graph with nodes from existing vectors
-                        collection.populate_graph_if_empty()?;
-
-                        info!(
-                            "Populated graph for '{}' with nodes from existing vectors",
-                            canonical_ref
-                        );
-                    } else {
-                        info!(
-                            "Loaded graph for collection '{}' from disk with {} nodes and {} edges",
-                            canonical_ref, node_count, edge_count
-                        );
-
-                        // If graph has nodes but no edges, discover edges automatically
-                        if edge_count == 0 && node_count > 0 {
+                        // Only use disk graph if it has nodes
+                        if node_count > 0 {
+                            collection.set_graph(Arc::new(graph.clone()));
                             info!(
-                                "Graph for '{}' has {} nodes but no edges, discovering edges automatically",
-                                canonical_ref, node_count
+                                "Loaded graph for collection '{}' from disk with {} nodes and {} edges",
+                                canonical_ref, node_count, edge_count
                             );
 
-                            // Use default config for auto-discovery
-                            let config = crate::models::AutoRelationshipConfig {
-                                similarity_threshold: 0.7,
-                                max_per_node: 10,
-                                enabled_types: vec!["SIMILAR_TO".to_string()],
-                            };
+                            // If graph has nodes but no edges, discover edges automatically
+                            if edge_count == 0 {
+                                info!(
+                                    "Graph for '{}' has {} nodes but no edges, discovering edges automatically",
+                                    canonical_ref, node_count
+                                );
 
-                            // Get nodes from graph and limit to first 100 to avoid blocking
-                            let nodes = graph.get_all_nodes();
-                            let nodes_to_process: Vec<String> =
-                                nodes.iter().take(100).map(|n| n.id.clone()).collect();
+                                let config = crate::models::AutoRelationshipConfig {
+                                    similarity_threshold: 0.7,
+                                    max_per_node: 10,
+                                    enabled_types: vec!["SIMILAR_TO".to_string()],
+                                };
 
-                            let mut edges_created = 0;
-                            for node_id in &nodes_to_process {
-                                if let Ok(_edges) =
-                                    crate::db::graph_relationship_discovery::discover_edges_for_node(
-                                        &graph, node_id, collection, &config,
-                                    )
-                                {
-                                    edges_created += _edges;
+                                let nodes = graph.get_all_nodes();
+                                let nodes_to_process: Vec<String> =
+                                    nodes.iter().take(100).map(|n| n.id.clone()).collect();
+
+                                let mut edges_created = 0;
+                                for node_id in &nodes_to_process {
+                                    if let Ok(_edges) =
+                                        crate::db::graph_relationship_discovery::discover_edges_for_node(
+                                            &graph, node_id, collection, &config,
+                                        )
+                                    {
+                                        edges_created += _edges;
+                                    }
                                 }
+
+                                info!(
+                                    "Auto-discovery created {} edges for {} nodes in collection '{}' (use API endpoint /graph/discover/{} for full discovery)",
+                                    edges_created,
+                                    nodes_to_process.len().min(node_count),
+                                    canonical_ref,
+                                    canonical_ref
+                                );
                             }
 
-                            info!(
-                                "Auto-discovery created {} edges for {} nodes in collection '{}' (use API endpoint /graph/discover/{} for full discovery)",
-                                edges_created,
-                                nodes_to_process.len().min(node_count),
-                                canonical_ref,
-                                canonical_ref
-                            );
+                            return Ok(());
                         }
                     }
-
-                    Ok(())
-                } else {
-                    // No graph file exists or load failed, enable graph normally
-                    // This will create nodes for all existing vectors
-                    collection.enable_graph()
                 }
+
+                // No valid graph on disk, create new graph
+                collection.enable_graph()
             }
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(_) => Err(VectorizerError::Storage(

@@ -668,7 +668,11 @@ mod schema_tests {
         );
 
         let data = result.data.into_json().unwrap();
-        assert_eq!(data["enableGraph"]["success"], true);
+        assert_eq!(
+            data["enableGraph"]["success"], true,
+            "Enable graph failed with message: {:?}",
+            data["enableGraph"]["message"]
+        );
 
         // Verify graph is enabled
         let stats_query = r#"
