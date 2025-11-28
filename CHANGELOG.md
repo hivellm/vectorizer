@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Docker Authentication Configuration**: Built-in authentication support for Docker deployments
+  - Environment variables for admin credentials (`VECTORIZER_ADMIN_USERNAME`, `VECTORIZER_ADMIN_PASSWORD`)
+  - JWT secret configuration (`VECTORIZER_JWT_SECRET`)
+  - Authentication enabled by default with configurable credentials
+  - Default credentials: `admin/admin` (must be changed in production)
+  - `.env.example` file with all authentication configuration options
+  - Updated docker-compose.yml and docker-compose.dev.yml with authentication settings
+  - Security warnings and best practices in documentation
+  - **BENEFIT**: Secure Docker deployments out-of-the-box, easy credential customization
+
 ### Fixed
 
 - **Qdrant-Compatible Vector Insertion Performance**: Fixed blocking issues in vector insertion endpoint

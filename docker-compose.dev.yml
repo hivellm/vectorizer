@@ -38,6 +38,12 @@ services:
       - RUN_MODE=development
       - RUST_LOG=debug
       - RUST_BACKTRACE=1
+      # Authentication (enabled by default with admin credentials)
+      # For development, using simple credentials is acceptable
+      - VECTORIZER_AUTH_ENABLED=true
+      - VECTORIZER_ADMIN_USERNAME=admin
+      - VECTORIZER_ADMIN_PASSWORD=admin
+      - VECTORIZER_JWT_SECRET=dev-secret-key
     
     restart: unless-stopped
     

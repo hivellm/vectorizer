@@ -28,6 +28,12 @@ services:
       - VECTORIZER_PORT=15002
       - TZ=America/Sao_Paulo
       - RUN_MODE=production
+      # Authentication (enabled by default with admin credentials)
+      # SECURITY: Change these credentials in production!
+      - VECTORIZER_AUTH_ENABLED=true
+      - VECTORIZER_ADMIN_USERNAME=admin
+      - VECTORIZER_ADMIN_PASSWORD=admin
+      - VECTORIZER_JWT_SECRET=change-this-secret-in-production
 
     restart: unless-stopped
 

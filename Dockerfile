@@ -69,6 +69,15 @@
 #     -e TZ=America/Sao_Paulo \
 #     --name vectorizer vectorizer:latest
 #
+# Run with custom authentication (RECOMMENDED FOR PRODUCTION):
+#   docker run -d -p 15002:15002 \
+#     -e VECTORIZER_AUTH_ENABLED=true \
+#     -e VECTORIZER_ADMIN_USERNAME=admin \
+#     -e VECTORIZER_ADMIN_PASSWORD=your-secure-password \
+#     -e VECTORIZER_JWT_SECRET=your-jwt-secret-key \
+#     -v $(pwd)/data:/vectorizer/data \
+#     --name vectorizer vectorizer:latest
+#
 # Run with workspace (recommended for monorepo):
 #   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
@@ -239,10 +248,17 @@ WORKDIR /vectorizer
 # Distroless runs as nonroot (UID 65532) by default - no need to create user
 # This is more secure than custom UID as it's a well-known unprivileged user
 
+# Authentication configuration
+# Default admin credentials (override with environment variables in production)
+# SECURITY: Change VECTORIZER_ADMIN_PASSWORD in production!
 ENV TZ=Etc/UTC \
     RUN_MODE=production \
     VECTORIZER_HOST=0.0.0.0 \
-    VECTORIZER_PORT=15002
+    VECTORIZER_PORT=15002 \
+    VECTORIZER_AUTH_ENABLED=true \
+    VECTORIZER_ADMIN_USERNAME=admin \
+    VECTORIZER_ADMIN_PASSWORD=admin \
+    VECTORIZER_JWT_SECRET=change-this-secret-in-production
 
 EXPOSE 15002
 

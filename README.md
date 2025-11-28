@@ -87,25 +87,48 @@ powershell -c "irm https://raw.githubusercontent.com/hivellm/vectorizer/main/scr
 
 ### Using Docker (Recommended)
 
-**Docker Hub:**
+**Basic Docker Run (with authentication):**
 ```bash
 docker run -d \
   --name vectorizer \
   -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
+  -e VECTORIZER_AUTH_ENABLED=true \
+  -e VECTORIZER_ADMIN_USERNAME=admin \
+  -e VECTORIZER_ADMIN_PASSWORD=admin \
+  -e VECTORIZER_JWT_SECRET=change-this-secret-in-production \
   --restart unless-stopped \
   hivehub/vectorizer:latest
 ```
 
-**GitHub Container Registry:**
+**Production Docker Run (with custom credentials):**
 ```bash
 docker run -d \
   --name vectorizer \
   -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
+  -e VECTORIZER_AUTH_ENABLED=true \
+  -e VECTORIZER_ADMIN_USERNAME=admin \
+  -e VECTORIZER_ADMIN_PASSWORD=your-secure-password \
+  -e VECTORIZER_JWT_SECRET=your-jwt-secret-key \
   --restart unless-stopped \
-  ghcr.io/hivellm/vectorizer:latest
+  hivehub/vectorizer:latest
 ```
+
+**Using Docker Compose:**
+```bash
+# Copy .env.example to .env and customize
+cp .env.example .env
+# Edit .env with your credentials
+
+# Start with docker-compose
+docker-compose up -d
+```
+
+**Default Credentials (CHANGE IN PRODUCTION!):**
+- **Username:** `admin`
+- **Password:** `admin`
+- **JWT Secret:** `change-this-secret-in-production`
 
 **Available at:**
 - 🐳 [Docker Hub](https://hub.docker.com/r/hivehub/vectorizer) - `hivehub/vectorizer:latest`
