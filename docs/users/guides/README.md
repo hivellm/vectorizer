@@ -11,6 +11,17 @@ tags: [advanced, guides, sparse-vectors, quantization, optimization, n8n, langfl
 
 Advanced features and optimization guides for experienced users.
 
+## High Availability
+
+### [Master/Replica Routing](./MASTER_REPLICA_ROUTING.md)
+Automatic read/write routing for HA deployments:
+- Configure master and replica URLs
+- Automatic write routing to master
+- Read routing based on preference (master, replica, nearest)
+- Round-robin load balancing across replicas
+- Per-operation override for read-your-writes patterns
+- Supported in all SDKs (TypeScript, JavaScript, Python, Rust, Go, C#)
+
 ## Integrations
 
 ### [n8n Integration](./N8N_INTEGRATION.md)

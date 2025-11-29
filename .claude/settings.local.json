@@ -50,7 +50,19 @@
       "Bash(dotnet run)",
       "Bash(dotnet clean:*)",
       "Bash(for i in {1..10})",
-      "Bash(do echo \"=== Run $i ===\")"
+      "Bash(do echo \"=== Run $i ===\")",
+      "WebFetch(domain:github.com)",
+      "Bash(cargo nextest run:*)",
+      "Bash(git push:*)",
+      "Bash(wmic:*)",
+      "Bash(dir \"C:\\Users\\Bolado\" /s /a:-d)",
+      "Bash(powershell:*)",
+      "Bash(wsl -d Ubuntu-24.04 -- bash -c:*)",
+      "Bash(wsl --list:*)",
+      "Bash(wsl --export:*)",
+      "Bash(wsl --shutdown)",
+      "Bash(wsl --set-version:*)",
+      "Bash(wsl --unregister:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,10 +1,10 @@
 ---
 title: Master/Replica Routing
-module: sdks
+module: guides
 id: master-replica-routing
-order: 10
+order: 15
 description: Automatic read/write routing for Master-Replica deployments
-tags: [sdks, replication, high-availability, master-replica, routing, load-balancing]
+tags: [guides, replication, high-availability, master-replica, routing, load-balancing]
 ---
 
 # Master/Replica Routing

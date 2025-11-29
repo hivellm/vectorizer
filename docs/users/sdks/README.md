@@ -92,28 +92,6 @@ All SDKs support the same core operations:
 - **Cluster**: Cluster status and management
 - **Master/Replica Routing**: Automatic read/write routing
 
-## Advanced Features
-
-### [Master/Replica Routing](./MASTER_REPLICA_ROUTING.md)
-
-All SDKs support automatic routing for high-availability deployments:
-
-- Configure master and replica URLs
-- Automatic write routing to master
-- Read routing based on preference (master, replica, nearest)
-- Round-robin load balancing across replicas
-- Per-operation override for read-your-writes patterns
-
-```typescript
-const client = new VectorizerClient({
-  hosts: {
-    master: 'http://master:15002',
-    replicas: ['http://replica1:15002', 'http://replica2:15002']
-  },
-  readPreference: 'replica'
-});
-```
-
 ## Related Topics
 
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection operations
