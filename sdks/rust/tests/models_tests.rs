@@ -68,15 +68,22 @@ fn test_collection_creation() {
     let collection = Collection {
         name: "test_collection".to_string(),
         dimension: 384,
-        similarity_metric: SimilarityMetric::Cosine,
+        metric: Some("cosine".to_string()),
         description: Some("Test collection".to_string()),
         created_at: None,
         updated_at: None,
+        vector_count: 0,
+        document_count: 0,
+        embedding_provider: None,
+        indexing_status: None,
+        normalization: None,
+        quantization: None,
+        size: None,
     };
 
     assert_eq!(collection.name, "test_collection");
     assert_eq!(collection.dimension, 384);
-    assert_eq!(collection.similarity_metric, SimilarityMetric::Cosine);
+    assert_eq!(collection.metric, Some("cosine".to_string()));
     assert_eq!(collection.description, Some("Test collection".to_string()));
 }
 
@@ -370,17 +377,24 @@ fn test_serialization_deserialization() {
     let collection = Collection {
         name: "test_collection".to_string(),
         dimension: 384,
-        similarity_metric: SimilarityMetric::Cosine,
+        metric: Some("cosine".to_string()),
         description: None,
         created_at: None,
         updated_at: None,
+        vector_count: 0,
+        document_count: 0,
+        embedding_provider: None,
+        indexing_status: None,
+        normalization: None,
+        quantization: None,
+        size: None,
     };
 
     let json = serde_json::to_string(&collection).unwrap();
     let deserialized: Collection = serde_json::from_str(&json).unwrap();
     assert_eq!(collection.name, deserialized.name);
     assert_eq!(collection.dimension, deserialized.dimension);
-    assert_eq!(collection.similarity_metric, deserialized.similarity_metric);
+    assert_eq!(collection.metric, deserialized.metric);
 }
 
 #[test]

@@ -65,16 +65,23 @@ fn test_collection_model_validation() {
     let collection = Collection {
         name: "test_collection".to_string(),
         dimension: 384,
-        similarity_metric: SimilarityMetric::Cosine,
+        metric: Some("cosine".to_string()),
         description: Some("Test collection for validation".to_string()),
         created_at: None,
         updated_at: None,
+        vector_count: 0,
+        document_count: 0,
+        embedding_provider: None,
+        indexing_status: None,
+        normalization: None,
+        quantization: None,
+        size: None,
     };
 
     // Validate collection properties
     assert_eq!(collection.name, "test_collection");
     assert_eq!(collection.dimension, 384);
-    assert_eq!(collection.similarity_metric, SimilarityMetric::Cosine);
+    assert_eq!(collection.metric, Some("cosine".to_string()));
     assert!(collection.description.is_some());
     assert_eq!(
         collection.description.clone().unwrap(),
@@ -89,7 +96,7 @@ fn test_collection_model_validation() {
     let deserialized: Collection = serde_json::from_str(&json).unwrap();
     assert_eq!(collection.name, deserialized.name);
     assert_eq!(collection.dimension, deserialized.dimension);
-    assert_eq!(collection.similarity_metric, deserialized.similarity_metric);
+    assert_eq!(collection.metric, deserialized.metric);
 }
 
 #[test]
@@ -435,10 +442,17 @@ fn test_comprehensive_model_integration() {
     let collection = Collection {
         name: "workflow_collection".to_string(),
         dimension: 5,
-        similarity_metric: SimilarityMetric::Cosine,
+        metric: Some("cosine".to_string()),
         description: Some("Workflow test collection".to_string()),
         created_at: None,
         updated_at: None,
+        vector_count: 0,
+        document_count: 0,
+        embedding_provider: None,
+        indexing_status: None,
+        normalization: None,
+        quantization: None,
+        size: None,
     };
 
     let search_result = SearchResult {

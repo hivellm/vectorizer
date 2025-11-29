@@ -48,7 +48,10 @@ async fn test_list_collections() {
             for collection in collections {
                 assert!(!collection.name.is_empty());
                 assert!(collection.dimension > 0);
-                assert_eq!(collection.similarity_metric, SimilarityMetric::Cosine);
+                // metric is now an Option<String>, check if present
+                if let Some(metric) = &collection.metric {
+                    assert!(!metric.is_empty());
+                }
             }
         }
         Err(e) => {

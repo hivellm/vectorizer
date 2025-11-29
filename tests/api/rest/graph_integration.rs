@@ -194,12 +194,13 @@ fn test_graph_discovery_creates_edges_and_api_returns_them() {
             .collect::<Vec<_>>()
     );
 
-    // Verify edge details
+    // Verify edge details - check for edge in either direction since discovery order is non-deterministic
+    let has_edge_between_doc1_and_doc2 = all_edges.iter().any(|e| {
+        (e.source == "doc1" && e.target == "doc2") || (e.source == "doc2" && e.target == "doc1")
+    });
     assert!(
-        all_edges
-            .iter()
-            .any(|e| e.source == "doc1" && e.target == "doc2"),
-        "Should have edge from doc1 to doc2. Edges: {:?}",
+        has_edge_between_doc1_and_doc2,
+        "Should have edge between doc1 and doc2 (in either direction). Edges: {:?}",
         all_edges
             .iter()
             .map(|e| format!("{} -> {}", e.source, e.target))
@@ -320,12 +321,16 @@ fn test_graph_discovery_via_api_and_list_edges_returns_them() {
         graph_after.edge_count()
     );
 
-    // Verify specific edges
+    // Verify specific edges - check for edge in either direction since discovery order is non-deterministic
+    // When processing api_doc1, it should find api_doc2 as similar and vice versa
+    // The actual direction depends on the order nodes are processed (HashMap iteration order)
+    let has_edge_between_doc1_and_doc2 = edges.iter().any(|e| {
+        (e.source == "api_doc1" && e.target == "api_doc2")
+            || (e.source == "api_doc2" && e.target == "api_doc1")
+    });
     assert!(
-        edges
-            .iter()
-            .any(|e| e.source == "api_doc1" && e.target == "api_doc2"),
-        "Should have edge from api_doc1 to api_doc2. Edges: {:?}",
+        has_edge_between_doc1_and_doc2,
+        "Should have edge between api_doc1 and api_doc2 (in either direction). Edges: {:?}",
         edges
             .iter()
             .map(|e| format!("{} -> {}", e.source, e.target))

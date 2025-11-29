@@ -48,7 +48,9 @@
       "Bash(dir \"F:\\Node\\hivellm\\vectorizer\" /b)",
       "Bash(cargo run:*)",
       "Bash(dotnet run)",
-      "Bash(dotnet clean:*)"
+      "Bash(dotnet clean:*)",
+      "Bash(for i in {1..10})",
+      "Bash(do echo \"=== Run $i ===\")"
     ],
     "deny": [],
     "ask": []
