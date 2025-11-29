@@ -25,6 +25,6 @@ jobs:
       - name: Run Codespell
         run: |
           codespell \
-            --skip="*.lock,*.json,*.map,*.yaml,*.rtf,*.toml,target,node_modules,.git,sample,gui,client-sdks,qdrant,dashboard,scripts,docs" \
+            --skip="*.lock,*.json,*.map,*.yaml,*.rtf,*.toml,target,node_modules,.git,sample,gui,client-sdks,qdrant,dashboard,scripts,docs,sdks,rulebook" \
             --ignore-words-list="crate,ser,deser,erro,erros,vetor,nome,atual,limite,excede,fase,inicial,comando,momento,profissional,aspectos,componentes,comandos,anull"
 
