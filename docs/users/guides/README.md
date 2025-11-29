@@ -4,14 +4,37 @@ module: guides
 id: guides-index
 order: 0
 description: Advanced features and optimization guides
-tags: [advanced, guides, sparse-vectors, quantization, optimization]
+tags: [advanced, guides, sparse-vectors, quantization, optimization, n8n, langflow, graph]
 ---
 
 # Advanced Guides
 
 Advanced features and optimization guides for experienced users.
 
-## Guides
+## Integrations
+
+### [n8n Integration](./N8N_INTEGRATION.md)
+No-code workflow automation:
+- Official n8n community node
+- Collection, Vector, and Search operations
+- RAG pipeline examples
+- Integration with 400+ n8n nodes
+
+### [Langflow Integration](./LANGFLOW_INTEGRATION.md)
+Visual LLM app building:
+- LangChain-compatible components
+- VectorStore, Retriever, Loader
+- RAG pipeline examples
+- Custom embeddings support
+
+## Features
+
+### [Graph Relationships](./GRAPH.md)
+Knowledge graph features:
+- Graph nodes and edges
+- Relationship discovery
+- Path finding
+- Graph traversal
 
 ### [Sparse Vectors](./SPARSE_VECTORS.md)
 Complete sparse vector guide:
