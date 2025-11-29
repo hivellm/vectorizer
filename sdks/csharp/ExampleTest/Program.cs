@@ -11,11 +11,53 @@ class Program
         Console.WriteLine("🔷 Vectorizer C# SDK Test");
         Console.WriteLine("=========================");
 
-        // Create client
+        // Test Master/Replica configuration
+        Console.WriteLine("\n=== Testing Master/Replica Topology ===\n");
+
+        // Create client with master/replica configuration
+        var replicaClient = new VectorizerClient(new ClientConfig
+        {
+            Hosts = new HostConfig
+            {
+                Master = "http://localhost:15002",
+                Replicas = new List<string> { "http://localhost:17780" }
+            },
+            ReadPreference = ReadPreference.Replica,
+            ApiKey = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiQWRtaW4iXSwiaWF0IjoxNzY0Mzk0MzI3LCJleHAiOjE3NjQzOTc5Mjd9.AnLPTgdHRfCFMdMp6VFemhcIZPUfpzjwB5r6xOkCxNQ"
+        });
+
+        Console.WriteLine("1. Testing health check on replica...");
+        try
+        {
+            await replicaClient.HealthAsync();
+            Console.WriteLine("   ✅ Replica health: OK");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"   ❌ Replica health failed: {ex.Message}");
+        }
+
+        Console.WriteLine("2. Testing WithMaster()...");
+        try
+        {
+            var masterClient = replicaClient.WithMaster();
+            await masterClient.HealthAsync();
+            Console.WriteLine("   ✅ Master health: OK");
+            masterClient.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"   ❌ WithMaster failed: {ex.Message}");
+        }
+
+        replicaClient.Dispose();
+        Console.WriteLine("\n=== Master/Replica Test Complete ===\n");
+
+        // Create client for the rest of tests
         var client = new VectorizerClient(new ClientConfig
         {
             BaseUrl = "http://localhost:15002",
-            ApiKey = "your-api-key"
+            ApiKey = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYWRtaW4iLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOlsiQWRtaW4iXSwiaWF0IjoxNzY0Mzk0MzI3LCJleHAiOjE3NjQzOTc5Mjd9.AnLPTgdHRfCFMdMp6VFemhcIZPUfpzjwB5r6xOkCxNQ"
         });
         Console.WriteLine("✅ Client created successfully");
 

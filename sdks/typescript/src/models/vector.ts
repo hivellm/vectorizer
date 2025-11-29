@@ -14,6 +14,8 @@ export interface Vector {
 }
 
 export interface CreateVectorRequest {
+  /** Optional vector ID (auto-generated if not provided) */
+  id?: string;
   /** Vector data as an array of numbers */
   data: number[];
   /** Optional metadata associated with the vector */

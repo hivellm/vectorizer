@@ -211,6 +211,98 @@ client := vectorizer.NewClient(&vectorizer.Config{
 })
 ```
 
+### Master/Slave Configuration (Read/Write Separation)
+
+Vectorizer supports **Master-Replica replication** for high availability and read scaling. The SDK provides **automatic routing** - writes go to master, reads are distributed across replicas.
+
+#### Basic Setup
+
+```go
+package main
+
+import (
+    "context"
+    "github.com/hivellm/vectorizer-sdk-go"
+)
+
+func main() {
+    ctx := context.Background()
+
+    // Configure with master and replicas - SDK handles routing automatically
+    client := vectorizer.NewClient(&vectorizer.Config{
+        Hosts: vectorizer.HostConfig{
+            Master:   "http://master-node:15001",
+            Replicas: []string{"http://replica1:15001", "http://replica2:15001"},
+        },
+        APIKey:         "your-api-key",
+        ReadPreference: vectorizer.ReadPreferenceReplica, // Master | Replica | Nearest
+    })
+
+    // Writes automatically go to master
+    client.CreateCollection(&vectorizer.CreateCollectionRequest{
+        Name: "documents",
+        Config: &vectorizer.CollectionConfig{
+            Dimension: 768,
+            Metric:    vectorizer.MetricCosine,
+        },
+    })
+
+    client.InsertText(ctx, "documents", "Sample document", map[string]interface{}{
+        "source": "api",
+    })
+
+    // Reads automatically go to replicas (load balanced)
+    results, _ := client.SearchText(ctx, "documents", "sample", &vectorizer.SearchOptions{
+        Limit: 10,
+    })
+
+    collections, _ := client.ListCollections(ctx)
+}
+```
+
+#### Read Preferences
+
+| Preference | Description | Use Case |
+|------------|-------------|----------|
+| `ReadPreferenceReplica` | Route reads to replicas (round-robin) | Default for high read throughput |
+| `ReadPreferenceMaster` | Route all reads to master | When you need read-your-writes consistency |
+| `ReadPreferenceNearest` | Route to the node with lowest latency | Geo-distributed deployments |
+
+#### Read-Your-Writes Consistency
+
+For operations that need to immediately read what was just written:
+
+```go
+// Option 1: Override read preference for specific operation
+client.InsertText(ctx, "docs", "New document", nil)
+result, _ := client.GetVectorWithPreference(ctx, "docs", "doc_id", vectorizer.ReadPreferenceMaster)
+
+// Option 2: Use options struct
+opts := &vectorizer.GetOptions{ReadPreference: vectorizer.ReadPreferenceMaster}
+result, _ := client.GetVector(ctx, "docs", "doc_id", opts)
+```
+
+#### Automatic Operation Routing
+
+The SDK automatically classifies operations:
+
+| Operation Type | Routed To | Methods |
+|---------------|-----------|---------|
+| **Writes** | Always Master | `InsertText`, `InsertVector`, `UpdateVector`, `DeleteVector`, `CreateCollection`, `DeleteCollection` |
+| **Reads** | Based on `ReadPreference` | `Search`, `SearchText`, `GetVector`, `ListCollections`, `IntelligentSearch`, `SemanticSearch` |
+
+#### Standalone Mode (Single Node)
+
+For development or single-node deployments:
+
+```go
+// Single node - no replication
+client := vectorizer.NewClient(&vectorizer.Config{
+    BaseURL: "http://localhost:15001",
+    APIKey:  "your-api-key",
+})
+```
+
 ## API Reference
 
 ### Collection Management

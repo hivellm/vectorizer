@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] - 2025-11-29
+
+### Added
+
+- **SDK Master/Slave Abstraction**: All SDKs now support automatic read/write routing for Master-Replica deployments
+  - **HostConfig**: Configure master URL and replica URLs in a single configuration
+  - **ReadPreference**: Choose routing strategy (`master`, `replica`, `nearest`)
+  - **Automatic Routing**: Writes always go to master, reads distributed based on preference
+  - **Round-Robin Load Balancing**: Replica reads automatically distributed across replicas
+  - **Per-Operation Override**: Override read preference for specific operations (read-your-writes)
+  - **withMaster() Context**: Execute multiple operations with master routing
+  - **Backward Compatible**: Single-node `baseURL` configuration continues to work
+  - **SDKs Updated**: TypeScript, JavaScript, Python, Rust, Go, C#
+  - **BENEFIT**: MongoDB-like read/write routing for high availability deployments
+
+- **GraphQL force_cpu Option**: Added `forceCpu` field to `createCollection` mutation
+  - Forces CPU backend when GPU is available (required for graph-enabled collections)
+  - Automatically set when `enableGraph: true` (graphs not supported on GPU)
+  - **BENEFIT**: Deterministic collection creation across different hardware
+
+### Fixed
+
+- **GraphQL enable_graph Test**: Fixed CI test failure on macOS with GPU (Metal)
+  - Collections created with graph support now force CPU backend
+  - Test uses `forceCpu: true` for consistent behavior across environments
+
 ## [Unreleased]
 
 ### Changed

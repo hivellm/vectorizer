@@ -31,6 +31,10 @@ from models import (
     HybridSearchResponse,
     HybridSearchResult,
     SparseVector,
+    # Replication/routing models
+    ReadPreference,
+    HostConfig,
+    ReadOptions,
 )
 
 __version__ = "1.5.1"
@@ -40,7 +44,7 @@ __email__ = "team@hivellm.org"
 __all__ = [
     "VectorizerClient",
     "VectorizerError",
-    "AuthenticationError", 
+    "AuthenticationError",
     "CollectionNotFoundError",
     "ValidationError",
     "NetworkError",
@@ -56,4 +60,8 @@ __all__ = [
     "HybridSearchResponse",
     "HybridSearchResult",
     "SparseVector",
+    # Replication/routing
+    "ReadPreference",
+    "HostConfig",
+    "ReadOptions",
 ]

@@ -325,6 +325,81 @@ Use HTTP when:
 | Firewall    | Widely supported        | May require configuration    |
 | Build Time  | Fast                    | Requires UMICP feature       |
 
+### Master/Slave Configuration (Read/Write Separation)
+
+Vectorizer supports **Master-Replica replication** for high availability and read scaling. The SDK provides **automatic routing** - writes go to master, reads are distributed across replicas.
+
+#### Basic Setup
+
+```rust
+use vectorizer_rust_sdk::{VectorizerClient, ReadPreference};
+
+// Configure with master and replicas - SDK handles routing automatically
+let client = VectorizerClient::builder()
+    .master("http://master-node:15001")
+    .replica("http://replica1:15001")
+    .replica("http://replica2:15001")
+    .api_key("your-api-key")
+    .read_preference(ReadPreference::Replica)
+    .build()?;
+
+// Writes automatically go to master
+client.create_collection("documents", 768, Some(SimilarityMetric::Cosine)).await?;
+client.insert_texts("documents", vec![
+    BatchTextRequest {
+        id: "doc1".to_string(),
+        text: "Sample document".to_string(),
+        metadata: Some(metadata),
+    }
+]).await?;
+
+// Reads automatically go to replicas (load balanced)
+let results = client.search_vectors("documents", &query_vector, 10).await?;
+let collections = client.list_collections().await?;
+```
+
+#### Read Preferences
+
+| Preference | Description | Use Case |
+|------------|-------------|----------|
+| `ReadPreference::Replica` | Route reads to replicas (round-robin) | Default for high read throughput |
+| `ReadPreference::Master` | Route all reads to master | When you need read-your-writes consistency |
+| `ReadPreference::Nearest` | Route to the node with lowest latency | Geo-distributed deployments |
+
+#### Read-Your-Writes Consistency
+
+For operations that need to immediately read what was just written:
+
+```rust
+// Option 1: Override read preference for specific operation
+client.insert_texts("docs", vec![new_doc]).await?;
+let result = client.get_vector_with_preference("docs", "doc_id", ReadPreference::Master).await?;
+
+// Option 2: Use a scoped master context
+client.with_master(|master_client| async {
+    master_client.insert_texts("docs", vec![new_doc]).await?;
+    master_client.get_vector("docs", "doc_id").await
+}).await?;
+```
+
+#### Automatic Operation Routing
+
+The SDK automatically classifies operations:
+
+| Operation Type | Routed To | Methods |
+|---------------|-----------|---------|
+| **Writes** | Always Master | `insert_texts`, `insert_vectors`, `update_vector`, `delete_vector`, `create_collection`, `delete_collection` |
+| **Reads** | Based on `ReadPreference` | `search_vectors`, `get_vector`, `list_collections`, `intelligent_search`, `semantic_search`, `hybrid_search` |
+
+#### Standalone Mode (Single Node)
+
+For development or single-node deployments:
+
+```rust
+// Single node - no replication
+let client = VectorizerClient::new_with_api_key("http://localhost:15001", "your-api-key")?;
+```
+
 ## API Endpoints
 
 ### ✅ Health & Monitoring

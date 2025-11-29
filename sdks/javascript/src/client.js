@@ -58,6 +58,22 @@ import {
 
 // Removed unused exception imports - exceptions are handled in http-client
 
+/**
+ * @typedef {'master' | 'replica' | 'nearest'} ReadPreference
+ * Read preference for routing read operations.
+ */
+
+/**
+ * @typedef {Object} HostConfig
+ * @property {string} master - Master node URL
+ * @property {string[]} replicas - Replica node URLs
+ */
+
+/**
+ * @typedef {Object} ReadOptions
+ * @property {ReadPreference} [readPreference] - Override read preference for this operation
+ */
+
 export class VectorizerClient {
   constructor(config = {}) {
     this.config = {
@@ -65,10 +81,28 @@ export class VectorizerClient {
       timeout: 30000,
       headers: {},
       logger: { level: 'info', enabled: true },
+      readPreference: 'replica',
       ...config,
     };
 
     this.logger = createLogger(this.config.logger);
+
+    /** @type {ReadPreference} */
+    this.readPreference = this.config.readPreference || 'replica';
+    /** @type {boolean} */
+    this.isReplicaMode = false;
+    /** @type {import('./utils/transport.js').ITransport|undefined} */
+    this.masterTransport = undefined;
+    /** @type {import('./utils/transport.js').ITransport[]} */
+    this.replicaTransports = [];
+    /** @type {number} */
+    this.replicaIndex = 0;
+
+    // Check if using master/replica configuration
+    if (this.config.hosts) {
+      this._initializeReplicaMode();
+      return;
+    }
 
     // Determine protocol and create transport
     if (this.config.connectionString) {
@@ -123,6 +157,114 @@ export class VectorizerClient {
   }
 
   /**
+   * Initialize replica mode with master and replica transports.
+   * @private
+   */
+  _initializeReplicaMode() {
+    const { hosts } = this.config;
+    if (!hosts) return;
+
+    this.isReplicaMode = true;
+    this.protocol = 'http';
+
+    // Create master transport
+    const masterHttpConfig = {
+      baseURL: hosts.master,
+      ...(this.config.timeout && { timeout: this.config.timeout }),
+      ...(this.config.headers && { headers: this.config.headers }),
+      ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+    };
+    this.masterTransport = TransportFactory.create({ protocol: 'http', http: masterHttpConfig });
+
+    // Create replica transports
+    this.replicaTransports = hosts.replicas.map(replicaUrl => {
+      const replicaHttpConfig = {
+        baseURL: replicaUrl,
+        ...(this.config.timeout && { timeout: this.config.timeout }),
+        ...(this.config.headers && { headers: this.config.headers }),
+        ...(this.config.apiKey && { apiKey: this.config.apiKey }),
+      };
+      return TransportFactory.create({ protocol: 'http', http: replicaHttpConfig });
+    });
+
+    // Default transport is master (for backward compatibility)
+    this.transport = this.masterTransport;
+
+    this.logger.info('VectorizerClient initialized with master/replica topology', {
+      master: hosts.master,
+      replicas: hosts.replicas,
+      readPreference: this.readPreference,
+      hasApiKey: !!this.config.apiKey,
+    });
+  }
+
+  /**
+   * Get transport for write operations (always master).
+   * @private
+   * @returns {import('./utils/transport.js').ITransport}
+   */
+  _getWriteTransport() {
+    if (this.isReplicaMode && this.masterTransport) {
+      return this.masterTransport;
+    }
+    return this.transport;
+  }
+
+  /**
+   * Get transport for read operations based on read preference.
+   * @private
+   * @param {ReadOptions} [options] - Optional read options
+   * @returns {import('./utils/transport.js').ITransport}
+   */
+  _getReadTransport(options) {
+    if (!this.isReplicaMode) {
+      return this.transport;
+    }
+
+    const preference = options?.readPreference || this.readPreference;
+
+    switch (preference) {
+      case 'master':
+        return this.masterTransport;
+
+      case 'replica':
+        if (this.replicaTransports.length === 0) {
+          return this.masterTransport;
+        }
+        // Round-robin selection
+        const transport = this.replicaTransports[this.replicaIndex];
+        this.replicaIndex = (this.replicaIndex + 1) % this.replicaTransports.length;
+        return transport;
+
+      case 'nearest':
+        // For now, use round-robin as a simple implementation
+        if (this.replicaTransports.length === 0) {
+          return this.masterTransport;
+        }
+        const nearestTransport = this.replicaTransports[this.replicaIndex];
+        this.replicaIndex = (this.replicaIndex + 1) % this.replicaTransports.length;
+        return nearestTransport;
+
+      default:
+        return this.masterTransport;
+    }
+  }
+
+  /**
+   * Execute a callback with master transport for read-your-writes scenarios.
+   * @param {function(VectorizerClient): Promise<T>} callback - Callback to execute
+   * @returns {Promise<T>}
+   * @template T
+   */
+  async withMaster(callback) {
+    const masterClient = new VectorizerClient({
+      ...this.config,
+      readPreference: 'master',
+    });
+    return callback(masterClient);
+  }
+
+  /**
    * Get the current transport protocol being used.
    */
   getProtocol() {
@@ -164,10 +306,12 @@ export class VectorizerClient {
 
   /**
    * List all collections.
+   * @param {ReadOptions} [options] - Optional read options
    */
-  async listCollections() {
+  async listCollections(options) {
     try {
-      const response = await this.transport.get('/collections');
+      const transport = this._getReadTransport(options);
+      const response = await transport.get('/collections');
       this.logger.debug('Collections listed', { count: response.length });
       return response;
     } catch (error) {
@@ -178,10 +322,13 @@ export class VectorizerClient {
 
   /**
    * Get collection information.
+   * @param {string} collectionName - Collection name
+   * @param {ReadOptions} [options] - Optional read options
    */
-  async getCollection(collectionName) {
+  async getCollection(collectionName, options) {
     try {
-      const response = await this.transport.get(`/collections/${collectionName}`);
+      const transport = this._getReadTransport(options);
+      const response = await transport.get(`/collections/${collectionName}`);
       validateCollectionInfo(response);
       this.logger.debug('Collection info retrieved', { collectionName });
       return response;
@@ -197,7 +344,8 @@ export class VectorizerClient {
   async createCollection(request) {
     try {
       validateCreateCollectionRequest(request);
-      const response = await this.transport.post('/collections', request);
+      const transport = this._getWriteTransport();
+      const response = await transport.post('/collections', request);
       validateCollection(response);
       this.logger.info('Collection created', { collectionName: request.name });
       return response;
@@ -212,7 +360,8 @@ export class VectorizerClient {
    */
   async updateCollection(collectionName, request) {
     try {
-      const response = await this.transport.put(`/collections/${collectionName}`, request);
+      const transport = this._getWriteTransport();
+      const response = await transport.put(`/collections/${collectionName}`, request);
       validateCollection(response);
       this.logger.info('Collection updated', { collectionName });
       return response;
@@ -227,7 +376,8 @@ export class VectorizerClient {
    */
   async deleteCollection(collectionName) {
     try {
-      await this.transport.delete(`/collections/${collectionName}`);
+      const transport = this._getWriteTransport();
+      await transport.delete(`/collections/${collectionName}`);
       this.logger.info('Collection deleted', { collectionName });
     } catch (error) {
       this.logger.error('Failed to delete collection', { collectionName, error });
@@ -243,7 +393,8 @@ export class VectorizerClient {
   async insertVectors(collectionName, vectors) {
     try {
       vectors.forEach(validateCreateVectorRequest);
-      const response = await this.transport.post(
+      const transport = this._getWriteTransport();
+      const response = await transport.post(
         `/collections/${collectionName}/vectors`,
         { vectors }
       );
@@ -257,10 +408,14 @@ export class VectorizerClient {
 
   /**
    * Get a vector by ID.
+   * @param {string} collectionName - Collection name
+   * @param {string} vectorId - Vector ID
+   * @param {ReadOptions} [options] - Optional read options
    */
-  async getVector(collectionName, vectorId) {
+  async getVector(collectionName, vectorId, options) {
     try {
-      const response = await this.transport.get(`/collections/${collectionName}/vectors/${vectorId}`);
+      const transport = this._getReadTransport(options);
+      const response = await transport.get(`/collections/${collectionName}/vectors/${vectorId}`);
       validateVector(response);
       this.logger.debug('Vector retrieved', { collectionName, vectorId });
       return response;
@@ -275,7 +430,8 @@ export class VectorizerClient {
    */
   async updateVector(collectionName, vectorId, request) {
     try {
-      const response = await this.transport.put(
+      const transport = this._getWriteTransport();
+      const response = await transport.put(
         `/collections/${collectionName}/vectors/${vectorId}`,
         request
       );
@@ -293,7 +449,8 @@ export class VectorizerClient {
    */
   async deleteVector(collectionName, vectorId) {
     try {
-      await this.transport.delete(`/collections/${collectionName}/vectors/${vectorId}`);
+      const transport = this._getWriteTransport();
+      await transport.delete(`/collections/${collectionName}/vectors/${vectorId}`);
       this.logger.info('Vector deleted', { collectionName, vectorId });
     } catch (error) {
       this.logger.error('Failed to delete vector', { collectionName, vectorId, error });
@@ -306,7 +463,8 @@ export class VectorizerClient {
    */
   async deleteVectors(collectionName, vectorIds) {
     try {
-      const response = await this.transport.post(
+      const transport = this._getWriteTransport();
+      const response = await transport.post(
         `/collections/${collectionName}/vectors/delete`,
         { vector_ids: vectorIds }
       );
@@ -322,11 +480,15 @@ export class VectorizerClient {
 
   /**
    * Search for similar vectors.
+   * @param {string} collectionName - Collection name
+   * @param {Object} request - Search request
+   * @param {ReadOptions} [options] - Optional read options
    */
-  async searchVectors(collectionName, request) {
+  async searchVectors(collectionName, request, options) {
     try {
       validateSearchRequest(request);
-      const response = await this.transport.post(
+      const transport = this._getReadTransport(options);
+      const response = await transport.post(
         `/collections/${collectionName}/search`,
         request
       );
@@ -341,11 +503,15 @@ export class VectorizerClient {
 
   /**
    * Search for similar vectors using text query.
+   * @param {string} collectionName - Collection name
+   * @param {Object} request - Text search request
+   * @param {ReadOptions} [options] - Optional read options
    */
-  async searchText(collectionName, request) {
+  async searchText(collectionName, request, options) {
     try {
       validateTextSearchRequest(request);
-      const response = await this.transport.post(
+      const transport = this._getReadTransport(options);
+      const response = await transport.post(
         `/collections/${collectionName}/search/text`,
         request
       );
@@ -370,15 +536,17 @@ export class VectorizerClient {
    * @param {boolean} [request.technical_focus=true] - Enable technical focus
    * @param {boolean} [request.mmr_enabled=true] - Enable MMR diversification
    * @param {number} [request.mmr_lambda=0.7] - MMR balance parameter (0.0-1.0)
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Intelligent search response
    */
-  async intelligentSearch(request) {
+  async intelligentSearch(request, options) {
     try {
-      const response = await this.transport.post('/intelligent_search', request);
-      this.logger.debug('Intelligent search completed', { 
-        query: request.query, 
+      const transport = this._getReadTransport(options);
+      const response = await transport.post('/intelligent_search', request);
+      this.logger.debug('Intelligent search completed', {
+        query: request.query,
         resultCount: response.results?.length || 0,
-        collections: request.collections 
+        collections: request.collections
       });
       return response;
     } catch (error) {
@@ -396,15 +564,17 @@ export class VectorizerClient {
    * @param {boolean} [request.semantic_reranking=true] - Enable semantic reranking
    * @param {boolean} [request.cross_encoder_reranking=false] - Enable cross-encoder reranking
    * @param {number} [request.similarity_threshold=0.5] - Minimum similarity threshold
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Semantic search response
    */
-  async semanticSearch(request) {
+  async semanticSearch(request, options) {
     try {
-      const response = await this.transport.post('/semantic_search', request);
-      this.logger.debug('Semantic search completed', { 
-        query: request.query, 
+      const transport = this._getReadTransport(options);
+      const response = await transport.post('/semantic_search', request);
+      this.logger.debug('Semantic search completed', {
+        query: request.query,
         collection: request.collection,
-        resultCount: response.results?.length || 0 
+        resultCount: response.results?.length || 0
       });
       return response;
     } catch (error) {
@@ -422,16 +592,18 @@ export class VectorizerClient {
    * @param {number} [request.max_results=10] - Maximum number of results
    * @param {boolean} [request.context_reranking=true] - Enable context-aware reranking
    * @param {number} [request.context_weight=0.3] - Weight of context factors (0.0-1.0)
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Contextual search response
    */
-  async contextualSearch(request) {
+  async contextualSearch(request, options) {
     try {
-      const response = await this.transport.post('/contextual_search', request);
-      this.logger.debug('Contextual search completed', { 
-        query: request.query, 
+      const transport = this._getReadTransport(options);
+      const response = await transport.post('/contextual_search', request);
+      this.logger.debug('Contextual search completed', {
+        query: request.query,
         collection: request.collection,
         resultCount: response.results?.length || 0,
-        contextFilters: request.context_filters 
+        contextFilters: request.context_filters
       });
       return response;
     } catch (error) {
@@ -448,12 +620,14 @@ export class VectorizerClient {
    * @param {number} [request.max_per_collection=5] - Maximum results per collection
    * @param {number} [request.max_total_results=20] - Maximum total results
    * @param {boolean} [request.cross_collection_reranking=true] - Enable cross-collection reranking
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Multi-collection search response
    */
-  async multiCollectionSearch(request) {
+  async multiCollectionSearch(request, options) {
     try {
-      const response = await this.transport.post('/multi_collection_search', request);
-      this.logger.debug('Multi-collection search completed', { 
+      const transport = this._getReadTransport(options);
+      const response = await transport.post('/multi_collection_search', request);
+      this.logger.debug('Multi-collection search completed', {
         query: request.query, 
         collections: request.collections,
         resultCount: response.results?.length || 0 
@@ -476,9 +650,10 @@ export class VectorizerClient {
    * @param {number} [request.dense_k=20] - Number of dense results to retrieve
    * @param {number} [request.sparse_k=20] - Number of sparse results to retrieve
    * @param {number} [request.final_k=10] - Final number of results to return
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Hybrid search response
    */
-  async hybridSearch(request) {
+  async hybridSearch(request, options) {
     try {
       validateHybridSearchRequest(request);
       const payload = {
@@ -495,15 +670,16 @@ export class VectorizerClient {
           values: request.query_sparse.values,
         };
       }
-      const response = await this.transport.post(
+      const transport = this._getReadTransport(options);
+      const response = await transport.post(
         `/collections/${request.collection}/hybrid_search`,
         payload
       );
-      this.logger.debug('Hybrid search completed', { 
-        query: request.query, 
+      this.logger.debug('Hybrid search completed', {
+        query: request.query,
         collection: request.collection,
         algorithm: request.algorithm,
-        resultCount: response.results?.length || 0 
+        resultCount: response.results?.length || 0
       });
       return response;
     } catch (error) {
@@ -516,11 +692,13 @@ export class VectorizerClient {
 
   /**
    * List all collections (Qdrant-compatible API).
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Qdrant collection list response
    */
-  async qdrantListCollections() {
+  async qdrantListCollections(options) {
     try {
-      return await this.transport.get('/qdrant/collections');
+      const transport = this._getReadTransport(options);
+      return await transport.get('/qdrant/collections');
     } catch (error) {
       this.logger.error('Failed to list Qdrant collections', { error });
       throw error;
@@ -530,11 +708,13 @@ export class VectorizerClient {
   /**
    * Get collection information (Qdrant-compatible API).
    * @param {string} name - Collection name
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Qdrant collection info response
    */
-  async qdrantGetCollection(name) {
+  async qdrantGetCollection(name, options) {
     try {
-      return await this.transport.get(`/qdrant/collections/${name}`);
+      const transport = this._getReadTransport(options);
+      return await transport.get(`/qdrant/collections/${name}`);
     } catch (error) {
       this.logger.error('Failed to get Qdrant collection', { name, error });
       throw error;
@@ -549,7 +729,8 @@ export class VectorizerClient {
    */
   async qdrantCreateCollection(name, config) {
     try {
-      return await this.transport.put(`/qdrant/collections/${name}`, { config });
+      const transport = this._getWriteTransport();
+      return await transport.put(`/qdrant/collections/${name}`, { config });
     } catch (error) {
       this.logger.error('Failed to create Qdrant collection', { name, error });
       throw error;
@@ -565,7 +746,8 @@ export class VectorizerClient {
    */
   async qdrantUpsertPoints(collection, points, wait = false) {
     try {
-      return await this.transport.put(`/qdrant/collections/${collection}/points`, {
+      const transport = this._getWriteTransport();
+      return await transport.put(`/qdrant/collections/${collection}/points`, {
         points,
         wait,
       });
@@ -583,9 +765,10 @@ export class VectorizerClient {
    * @param {Object} [filter] - Optional Qdrant filter
    * @param {boolean} [withPayload=true] - Include payload in results
    * @param {boolean} [withVector=false] - Include vector in results
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Qdrant search response
    */
-  async qdrantSearchPoints(collection, vector, limit = 10, filter, withPayload = true, withVector = false) {
+  async qdrantSearchPoints(collection, vector, limit = 10, filter, withPayload = true, withVector = false, options) {
     try {
       const payload = {
         vector,
@@ -596,7 +779,8 @@ export class VectorizerClient {
       if (filter) {
         payload.filter = filter;
       }
-      return await this.transport.post(`/qdrant/collections/${collection}/points/search`, payload);
+      const transport = this._getReadTransport(options);
+      return await transport.post(`/qdrant/collections/${collection}/points/search`, payload);
     } catch (error) {
       this.logger.error('Failed to search Qdrant points', { collection, error });
       throw error;
@@ -612,7 +796,8 @@ export class VectorizerClient {
    */
   async qdrantDeletePoints(collection, pointIds, wait = false) {
     try {
-      return await this.transport.post(`/qdrant/collections/${collection}/points/delete`, {
+      const transport = this._getWriteTransport();
+      return await transport.post(`/qdrant/collections/${collection}/points/delete`, {
         points: pointIds,
         wait,
       });
@@ -628,16 +813,18 @@ export class VectorizerClient {
    * @param {Array<string|number>} pointIds - List of point IDs to retrieve
    * @param {boolean} [withPayload=true] - Include payload in results
    * @param {boolean} [withVector=false] - Include vector in results
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Qdrant retrieve response
    */
-  async qdrantRetrievePoints(collection, pointIds, withPayload = true, withVector = false) {
+  async qdrantRetrievePoints(collection, pointIds, withPayload = true, withVector = false, options) {
     try {
       const params = new URLSearchParams({
         ids: pointIds.join(','),
         with_payload: String(withPayload),
         with_vector: String(withVector),
       });
-      return await this.transport.get(`/qdrant/collections/${collection}/points?${params.toString()}`);
+      const transport = this._getReadTransport(options);
+      return await transport.get(`/qdrant/collections/${collection}/points?${params.toString()}`);
     } catch (error) {
       this.logger.error('Failed to retrieve Qdrant points', { collection, error });
       throw error;
@@ -648,15 +835,17 @@ export class VectorizerClient {
    * Count points in collection (Qdrant-compatible API).
    * @param {string} collection - Collection name
    * @param {Object} [filter] - Optional Qdrant filter
+   * @param {ReadOptions} [options] - Optional read options
    * @returns {Promise<Object>} Qdrant count response
    */
-  async qdrantCountPoints(collection, filter) {
+  async qdrantCountPoints(collection, filter, options) {
     try {
       const payload = {};
       if (filter) {
         payload.filter = filter;
       }
-      return await this.transport.post(`/qdrant/collections/${collection}/points/count`, payload);
+      const transport = this._getReadTransport(options);
+      return await transport.post(`/qdrant/collections/${collection}/points/count`, payload);
     } catch (error) {
       this.logger.error('Failed to count Qdrant points', { collection, error });
       throw error;

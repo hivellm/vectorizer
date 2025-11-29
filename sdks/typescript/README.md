@@ -267,6 +267,90 @@ Use HTTP when:
 | Firewall    | Widely supported     | May require configuration    |
 | Debugging   | Easy (browser tools) | Requires UMICP tools         |
 
+### Master/Slave Configuration (Read/Write Separation)
+
+Vectorizer supports **Master-Replica replication** for high availability and read scaling. The SDK provides **automatic routing** - writes go to master, reads are distributed across replicas.
+
+#### Basic Setup
+
+```typescript
+import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+
+// Configure with master and replicas - SDK handles routing automatically
+const client = new VectorizerClient({
+  hosts: {
+    master: "http://master-node:15001",
+    replicas: ["http://replica1:15001", "http://replica2:15001"],
+  },
+  apiKey: "your-api-key",
+  readPreference: "replica", // "master" | "replica" | "nearest"
+});
+
+// Writes automatically go to master
+await client.createCollection({
+  name: "documents",
+  dimension: 768,
+  similarity_metric: "cosine",
+});
+
+await client.insertTexts("documents", [
+  { id: "doc1", text: "Sample document", metadata: { source: "api" } },
+]);
+
+// Reads automatically go to replicas (load balanced)
+const results = await client.searchVectors("documents", {
+  query: "sample",
+  limit: 10,
+});
+
+const collections = await client.listCollections();
+```
+
+#### Read Preferences
+
+| Preference | Description | Use Case |
+|------------|-------------|----------|
+| `"replica"` | Route reads to replicas (round-robin) | Default for high read throughput |
+| `"master"` | Route all reads to master | When you need read-your-writes consistency |
+| `"nearest"` | Route to the node with lowest latency | Geo-distributed deployments |
+
+#### Read-Your-Writes Consistency
+
+For operations that need to immediately read what was just written:
+
+```typescript
+// Option 1: Override read preference for specific operation
+await client.insertTexts("docs", [newDoc]);
+const result = await client.getVector("docs", newDoc.id, { readPreference: "master" });
+
+// Option 2: Use a transaction-like pattern
+const result = await client.withMaster(async (masterClient) => {
+  await masterClient.insertTexts("docs", [newDoc]);
+  return await masterClient.getVector("docs", newDoc.id);
+});
+```
+
+#### Automatic Operation Routing
+
+The SDK automatically classifies operations:
+
+| Operation Type | Routed To | Methods |
+|---------------|-----------|---------|
+| **Writes** | Always Master | `insertTexts`, `insertVectors`, `updateVector`, `deleteVector`, `createCollection`, `deleteCollection` |
+| **Reads** | Based on `readPreference` | `searchVectors`, `getVector`, `listCollections`, `intelligentSearch`, `semanticSearch`, `hybridSearch` |
+
+#### Standalone Mode (Single Node)
+
+For development or single-node deployments:
+
+```typescript
+// Single node - no replication
+const client = new VectorizerClient({
+  baseURL: "http://localhost:15001",
+  apiKey: "your-api-key",
+});
+```
+
 ## API Reference
 
 ### Collection Management

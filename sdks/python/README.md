@@ -500,6 +500,83 @@ Use HTTP when:
 pip install vectorizer-sdk umicp-python
 ```
 
+### Master/Slave Configuration (Read/Write Separation)
+
+Vectorizer supports **Master-Replica replication** for high availability and read scaling. The SDK provides **automatic routing** - writes go to master, reads are distributed across replicas.
+
+#### Basic Setup
+
+```python
+from vectorizer import VectorizerClient
+
+# Configure with master and replicas - SDK handles routing automatically
+client = VectorizerClient(
+    hosts={
+        "master": "http://master-node:15001",
+        "replicas": ["http://replica1:15001", "http://replica2:15001"]
+    },
+    api_key="your-api-key",
+    read_preference="replica"  # "master" | "replica" | "nearest"
+)
+
+# Writes automatically go to master
+await client.create_collection("documents", dimension=768)
+await client.insert_texts("documents", [
+    {"id": "doc1", "text": "Sample document", "metadata": {"source": "api"}}
+])
+await client.update_vector("documents", "doc1", metadata={"updated": True})
+await client.delete_vector("documents", "doc1")
+
+# Reads automatically go to replicas (load balanced)
+results = await client.search_vectors("documents", query="sample", limit=10)
+collections = await client.list_collections()
+vector = await client.get_vector("documents", "doc1")
+```
+
+#### Read Preferences
+
+| Preference | Description | Use Case |
+|------------|-------------|----------|
+| `"replica"` | Route reads to replicas (round-robin) | Default for high read throughput |
+| `"master"` | Route all reads to master | When you need read-your-writes consistency |
+| `"nearest"` | Route to the node with lowest latency | Geo-distributed deployments |
+
+#### Read-Your-Writes Consistency
+
+For operations that need to immediately read what was just written:
+
+```python
+# Option 1: Override read preference for specific operation
+await client.insert_texts("docs", [new_doc])
+result = await client.get_vector("docs", new_doc["id"], read_preference="master")
+
+# Option 2: Use context manager for a block of operations
+async with client.with_master() as master_client:
+    await master_client.insert_texts("docs", [new_doc])
+    result = await master_client.get_vector("docs", new_doc["id"])
+```
+
+#### Automatic Operation Routing
+
+The SDK automatically classifies operations:
+
+| Operation Type | Routed To | Methods |
+|---------------|-----------|---------|
+| **Writes** | Always Master | `insert_texts`, `insert_vectors`, `update_vector`, `delete_vector`, `create_collection`, `delete_collection` |
+| **Reads** | Based on `read_preference` | `search_vectors`, `get_vector`, `list_collections`, `intelligent_search`, `semantic_search`, `hybrid_search` |
+
+#### Standalone Mode (Single Node)
+
+For development or single-node deployments, use the simple configuration:
+
+```python
+# Single node - no replication
+client = VectorizerClient(
+    base_url="http://localhost:15001",
+    api_key="your-api-key"
+)
+```
+
 ## Testing
 
 The SDK includes a comprehensive test suite with 73+ tests covering all functionality:

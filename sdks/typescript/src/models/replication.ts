@@ -1,9 +1,41 @@
 /**
  * Replication Models
  *
- * Data models for replication monitoring and status tracking.
+ * Data models for replication monitoring, status tracking,
+ * and client-side read/write routing.
  * Compatible with Vectorizer v1.3.0+
  */
+
+// ===== CLIENT-SIDE REPLICATION CONFIGURATION =====
+
+/**
+ * Read preference for routing read operations.
+ * Similar to MongoDB's read preferences.
+ */
+export type ReadPreference = 'master' | 'replica' | 'nearest';
+
+/**
+ * Host configuration for master/replica topology.
+ */
+export interface HostConfig {
+  /** Master node URL (receives all write operations) */
+  master: string;
+  /** Replica node URLs (receive read operations based on readPreference) */
+  replicas: string[];
+}
+
+/**
+ * Options that can be passed to read operations for per-operation override.
+ */
+export interface ReadOptions {
+  /** Override the default read preference for this operation */
+  readPreference?: ReadPreference;
+}
+
+/**
+ * Operation types for automatic routing classification.
+ */
+export type OperationType = 'read' | 'write';
 
 /**
  * Status of a replica node

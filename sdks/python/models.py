@@ -7,8 +7,42 @@ vectors, collections, search results, and other entities.
 
 import math
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Literal
 from datetime import datetime
+from enum import Enum
+
+
+# ===== CLIENT-SIDE REPLICATION CONFIGURATION =====
+
+class ReadPreference(str, Enum):
+    """
+    Read preference for routing read operations.
+    Similar to MongoDB's read preferences.
+    """
+    MASTER = "master"
+    REPLICA = "replica"
+    NEAREST = "nearest"
+
+
+@dataclass
+class HostConfig:
+    """
+    Host configuration for master/replica topology.
+    """
+    master: str
+    """Master node URL (receives all write operations)"""
+
+    replicas: List[str] = field(default_factory=list)
+    """Replica node URLs (receive read operations based on read_preference)"""
+
+
+@dataclass
+class ReadOptions:
+    """
+    Options that can be passed to read operations for per-operation override.
+    """
+    read_preference: Optional[ReadPreference] = None
+    """Override the default read preference for this operation"""
 
 
 @dataclass
@@ -60,16 +94,24 @@ class Collection:
 @dataclass
 class CollectionInfo:
     """Information about a collection."""
-    
+
     name: str
     dimension: int
-    similarity_metric: str
-    status: str
     vector_count: int
+    similarity_metric: Optional[str] = None
+    metric: Optional[str] = None  # Alternative field name from API
+    status: Optional[str] = None
     document_count: Optional[int] = None
     error_message: Optional[str] = None
     last_updated: Optional[str] = None
-    
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    embedding_provider: Optional[str] = None
+    indexing_status: Optional[dict] = None
+    normalization: Optional[dict] = None
+    quantization: Optional[dict] = None
+    size: Optional[dict] = None
+
     def __post_init__(self):
         """Validate collection info after initialization."""
         if not self.name:
@@ -78,6 +120,9 @@ class CollectionInfo:
             raise ValueError("Dimension must be positive")
         if self.vector_count < 0:
             raise ValueError("Vector count cannot be negative")
+        # Normalize similarity_metric from metric field if not set
+        if not self.similarity_metric and self.metric:
+            self.similarity_metric = self.metric.lower()
 
 
 @dataclass

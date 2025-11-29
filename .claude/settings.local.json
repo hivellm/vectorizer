@@ -34,7 +34,21 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "WebSearch",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(done)",
+      "Bash(rulebook task list)",
+      "Bash(npm run build:*)",
+      "Bash(go build:*)",
+      "Bash(dotnet build:*)",
+      "Bash(F:/Node/hivellm/vectorizer/target/release/vectorizer.exe:*)",
+      "Bash(netstat:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(node test-master-replica.js:*)",
+      "Bash(go run:*)",
+      "Bash(dir \"F:\\Node\\hivellm\\vectorizer\" /b)",
+      "Bash(cargo run:*)",
+      "Bash(dotnet run)",
+      "Bash(dotnet clean:*)"
     ],
     "deny": [],
     "ask": []

@@ -71,3 +71,10 @@ export type {
   LoggerConfig,
 } from './utils/logger';
 
+// Replication/Routing types
+export type {
+  ReadPreference,
+  HostConfig,
+  ReadOptions,
+} from './models/replication';
+

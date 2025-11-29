@@ -9,6 +9,35 @@ const (
 	MetricDotProduct Metric = "DotProduct"
 )
 
+// ===== CLIENT-SIDE REPLICATION CONFIGURATION =====
+
+// ReadPreference represents read preference for routing read operations.
+// Similar to MongoDB's read preferences.
+type ReadPreference string
+
+const (
+	// ReadPreferenceMaster routes all reads to master
+	ReadPreferenceMaster ReadPreference = "master"
+	// ReadPreferenceReplica routes reads to replicas (round-robin)
+	ReadPreferenceReplica ReadPreference = "replica"
+	// ReadPreferenceNearest routes to the node with lowest latency
+	ReadPreferenceNearest ReadPreference = "nearest"
+)
+
+// HostConfig holds host configuration for master/replica topology.
+type HostConfig struct {
+	// Master is the master node URL (receives all write operations)
+	Master string
+	// Replicas are the replica node URLs (receive read operations based on ReadPreference)
+	Replicas []string
+}
+
+// ReadOptions holds options for read operations that can override default settings.
+type ReadOptions struct {
+	// ReadPreference overrides the default read preference for this operation
+	ReadPreference ReadPreference
+}
+
 // CollectionConfig represents collection configuration
 type CollectionConfig struct {
 	Dimension int    `json:"dimension"`

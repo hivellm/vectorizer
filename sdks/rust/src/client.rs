@@ -15,8 +15,9 @@ use serde_json;
 use std::sync::Arc;
 
 /// Configuration for VectorizerClient
+#[derive(Clone)]
 pub struct ClientConfig {
-    /// Base URL for HTTP transport
+    /// Base URL for HTTP transport (single-node deployments)
     pub base_url: Option<String>,
     /// Connection string (supports http://, https://, umicp://)
     pub connection_string: Option<String>,
@@ -29,10 +30,15 @@ pub struct ClientConfig {
     /// UMICP configuration
     #[cfg(feature = "umicp")]
     pub umicp: Option<UmicpConfig>,
+    /// Master/replica host configuration for read/write routing
+    pub hosts: Option<HostConfig>,
+    /// Default read preference for read operations
+    pub read_preference: Option<ReadPreference>,
 }
 
 #[cfg(feature = "umicp")]
 /// UMICP-specific configuration
+#[derive(Clone)]
 pub struct UmicpConfig {
     pub host: String,
     pub port: u16,
@@ -48,15 +54,29 @@ impl Default for ClientConfig {
             timeout_secs: Some(30),
             #[cfg(feature = "umicp")]
             umicp: None,
+            hosts: None,
+            read_preference: None,
         }
     }
 }
 
-/// Vectorizer client
+/// Vectorizer client with optional master/replica topology support
 pub struct VectorizerClient {
     transport: Arc<dyn Transport>,
     protocol: Protocol,
     base_url: String,
+    /// Master transport for write operations (if replica mode is enabled)
+    master_transport: Option<Arc<dyn Transport>>,
+    /// Replica transports for read operations (if replica mode is enabled)
+    replica_transports: Vec<Arc<dyn Transport>>,
+    /// Current replica index for round-robin selection
+    replica_index: std::sync::atomic::AtomicUsize,
+    /// Default read preference
+    read_preference: ReadPreference,
+    /// Whether replica mode is enabled
+    is_replica_mode: bool,
+    /// Original config for creating child clients
+    config: ClientConfig,
 }
 
 impl VectorizerClient {
@@ -71,7 +91,7 @@ impl VectorizerClient {
 
         // Determine protocol and create transport
         let (transport, protocol, base_url): (Arc<dyn Transport>, Protocol, String) =
-            if let Some(conn_str) = config.connection_string {
+            if let Some(ref conn_str) = config.connection_string {
                 // Use connection string
                 #[allow(unused_variables)] // port is only used when umicp feature is enabled
                 let (proto, host, port) = crate::transport::parse_connection_string(&conn_str)?;
@@ -103,16 +123,17 @@ impl VectorizerClient {
                     Protocol::Http => {
                         let base_url = config
                             .base_url
+                            .clone()
                             .unwrap_or_else(|| "http://localhost:15002".to_string());
                         let transport =
                             HttpTransport::new(&base_url, config.api_key.as_deref(), timeout_secs)?;
-                        (Arc::new(transport), Protocol::Http, base_url.clone())
+                        (Arc::new(transport), Protocol::Http, base_url)
                     }
                     #[cfg(feature = "umicp")]
                     Protocol::Umicp => {
                         #[cfg(feature = "umicp")]
                         {
-                            let umicp_config = config.umicp.ok_or_else(|| {
+                            let umicp_config = config.umicp.clone().ok_or_else(|| {
                                 VectorizerError::configuration(
                                     "UMICP configuration is required when using UMICP protocol",
                                 )
@@ -138,10 +159,35 @@ impl VectorizerClient {
                 }
             };
 
+        // Initialize replica mode if hosts are configured
+        let (master_transport, replica_transports, is_replica_mode) =
+            if let Some(ref hosts) = config.hosts {
+                let master = HttpTransport::new(&hosts.master, config.api_key.as_deref(), timeout_secs)?;
+                let replicas: Result<Vec<Arc<dyn Transport>>> = hosts
+                    .replicas
+                    .iter()
+                    .map(|url| {
+                        let t = HttpTransport::new(url, config.api_key.as_deref(), timeout_secs)?;
+                        Ok(Arc::new(t) as Arc<dyn Transport>)
+                    })
+                    .collect();
+                (Some(Arc::new(master) as Arc<dyn Transport>), replicas?, true)
+            } else {
+                (None, vec![], false)
+            };
+
+        let read_preference = config.read_preference.unwrap_or(ReadPreference::Replica);
+
         Ok(Self {
             transport,
             protocol,
             base_url,
+            master_transport,
+            replica_transports,
+            replica_index: std::sync::atomic::AtomicUsize::new(0),
+            read_preference,
+            is_replica_mode,
+            config,
         })
     }
 
@@ -181,6 +227,54 @@ impl VectorizerClient {
         self.protocol
     }
 
+    /// Get transport for write operations (always master)
+    fn get_write_transport(&self) -> &Arc<dyn Transport> {
+        if self.is_replica_mode {
+            self.master_transport.as_ref().unwrap_or(&self.transport)
+        } else {
+            &self.transport
+        }
+    }
+
+    /// Get transport for read operations based on read preference
+    fn get_read_transport(&self, options: Option<&ReadOptions>) -> &Arc<dyn Transport> {
+        if !self.is_replica_mode {
+            return &self.transport;
+        }
+
+        let preference = options
+            .and_then(|o| o.read_preference)
+            .unwrap_or(self.read_preference);
+
+        match preference {
+            ReadPreference::Master => self.master_transport.as_ref().unwrap_or(&self.transport),
+            ReadPreference::Replica | ReadPreference::Nearest => {
+                if self.replica_transports.is_empty() {
+                    return self.master_transport.as_ref().unwrap_or(&self.transport);
+                }
+                // Round-robin selection
+                let idx = self
+                    .replica_index
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                    % self.replica_transports.len();
+                &self.replica_transports[idx]
+            }
+        }
+    }
+
+    /// Execute a callback with master transport for read-your-writes scenarios.
+    /// All operations within the callback will be routed to master.
+    pub async fn with_master<F, Fut, T>(&self, callback: F) -> Result<T>
+    where
+        F: FnOnce(VectorizerClient) -> Fut,
+        Fut: std::future::Future<Output = Result<T>>,
+    {
+        let mut master_config = self.config.clone();
+        master_config.read_preference = Some(ReadPreference::Master);
+        let master_client = VectorizerClient::new(master_config)?;
+        callback(master_client).await
+    }
+
     /// Health check
     pub async fn health_check(&self) -> Result<HealthStatus> {
         let response = self.make_request("GET", "/health", None).await?;
@@ -193,10 +287,28 @@ impl VectorizerClient {
     /// List collections
     pub async fn list_collections(&self) -> Result<Vec<Collection>> {
         let response = self.make_request("GET", "/collections", None).await?;
-        let collections: Vec<Collection> =
-            serde_json::from_str(&response).map_err(|e| {
-                VectorizerError::server(format!("Failed to parse collections response: {e}"))
-            })?;
+        // Handle both array and {collections: [...]} response formats
+        let collections: Vec<Collection> = if let Ok(wrapper) =
+            serde_json::from_str::<serde_json::Value>(&response)
+        {
+            if let Some(arr) = wrapper.get("collections").and_then(|v| v.as_array()) {
+                serde_json::from_value(serde_json::Value::Array(arr.clone())).map_err(|e| {
+                    VectorizerError::server(format!("Failed to parse collections array: {e}"))
+                })?
+            } else if wrapper.is_array() {
+                serde_json::from_value(wrapper).map_err(|e| {
+                    VectorizerError::server(format!("Failed to parse collections response: {e}"))
+                })?
+            } else {
+                return Err(VectorizerError::server(
+                    "Unexpected collections response format".to_string(),
+                ));
+            }
+        } else {
+            return Err(VectorizerError::server(
+                "Failed to parse collections response".to_string(),
+            ));
+        };
         Ok(collections)
     }
 

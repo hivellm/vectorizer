@@ -9,7 +9,8 @@ using System;
 namespace Vectorizer;
 
 /// <summary>
-/// Main client for interacting with the Vectorizer service
+/// Main client for interacting with the Vectorizer service.
+/// Supports master/replica topology for read/write routing.
 /// </summary>
 public partial class VectorizerClient : IDisposable
 {
@@ -19,15 +20,29 @@ public partial class VectorizerClient : IDisposable
     private readonly JsonSerializerOptions _jsonOptions;
     private bool _disposed;
 
+    // Master/replica support
+    private readonly HttpClient? _masterHttpClient;
+    private readonly List<HttpClient> _replicaHttpClients;
+    private readonly List<string> _replicaUrls;
+    private readonly string? _masterUrl;
+    private int _replicaIndex;
+    private readonly ReadPreference _readPreference;
+    private readonly bool _isReplicaMode;
+    private readonly ClientConfig _config;
+
     /// <summary>
     /// Creates a new Vectorizer client
     /// </summary>
     public VectorizerClient(ClientConfig? config = null)
     {
         config ??= new ClientConfig();
+        _config = config;
 
         _baseUrl = config.BaseUrl.TrimEnd('/');
         _apiKey = config.ApiKey;
+        _readPreference = config.ReadPreference;
+        _replicaHttpClients = new List<HttpClient>();
+        _replicaUrls = new List<string>();
 
         _httpClient = config.HttpClient ?? new HttpClient
         {
@@ -48,6 +63,98 @@ public partial class VectorizerClient : IDisposable
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = false
         };
+
+        // Initialize replica mode if hosts are configured
+        if (config.Hosts != null)
+        {
+            _isReplicaMode = true;
+            _masterUrl = config.Hosts.Master.TrimEnd('/');
+            _masterHttpClient = CreateHttpClient(config);
+
+            foreach (var replicaUrl in config.Hosts.Replicas)
+            {
+                _replicaUrls.Add(replicaUrl.TrimEnd('/'));
+                _replicaHttpClients.Add(CreateHttpClient(config));
+            }
+        }
+    }
+
+    private HttpClient CreateHttpClient(ClientConfig config)
+    {
+        var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds)
+        };
+        client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("application/json"));
+        if (!string.IsNullOrEmpty(config.ApiKey))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", config.ApiKey);
+        }
+        return client;
+    }
+
+    /// <summary>
+    /// Gets the HTTP client and base URL for write operations (always master)
+    /// </summary>
+    private (HttpClient client, string baseUrl) GetWriteClient()
+    {
+        if (_isReplicaMode && _masterHttpClient != null && _masterUrl != null)
+        {
+            return (_masterHttpClient, _masterUrl);
+        }
+        return (_httpClient, _baseUrl);
+    }
+
+    /// <summary>
+    /// Gets the HTTP client and base URL for read operations based on preference
+    /// </summary>
+    private (HttpClient client, string baseUrl) GetReadClient(ReadOptions? options = null)
+    {
+        if (!_isReplicaMode)
+        {
+            return (_httpClient, _baseUrl);
+        }
+
+        var preference = options?.ReadPreference ?? _readPreference;
+
+        switch (preference)
+        {
+            case ReadPreference.Master:
+                return (_masterHttpClient!, _masterUrl!);
+
+            case ReadPreference.Replica:
+            case ReadPreference.Nearest:
+                if (_replicaHttpClients.Count == 0)
+                {
+                    return (_masterHttpClient!, _masterUrl!);
+                }
+                // Round-robin selection using Interlocked
+                var idx = Interlocked.Increment(ref _replicaIndex) % _replicaHttpClients.Count;
+                if (idx < 0) idx = 0;
+                return (_replicaHttpClients[idx], _replicaUrls[idx]);
+
+            default:
+                return (_masterHttpClient!, _masterUrl!);
+        }
+    }
+
+    /// <summary>
+    /// Creates a new client that always routes reads to master.
+    /// Useful for read-your-writes scenarios.
+    /// </summary>
+    public VectorizerClient WithMaster()
+    {
+        var masterConfig = new ClientConfig
+        {
+            BaseUrl = _config.BaseUrl,
+            ApiKey = _config.ApiKey,
+            TimeoutSeconds = _config.TimeoutSeconds,
+            Hosts = _config.Hosts,
+            ReadPreference = ReadPreference.Master
+        };
+        return new VectorizerClient(masterConfig);
     }
 
     /// <summary>
@@ -71,7 +178,35 @@ public partial class VectorizerClient : IDisposable
     /// </summary>
     public async Task<List<string>> ListCollectionsAsync(CancellationToken cancellationToken = default)
     {
-        return await RequestAsync<List<string>>("GET", "/collections", null, cancellationToken);
+        var (client, baseUrl) = GetReadClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{baseUrl}/collections");
+        var response = await client.SendAsync(request, cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new VectorizerException("REQUEST_FAILED", $"Failed to list collections: {content}", (int)response.StatusCode);
+        }
+
+        // Handle both array and {collections: [...]} response formats
+        using var doc = JsonDocument.Parse(content);
+        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            return JsonSerializer.Deserialize<List<string>>(content, _jsonOptions) ?? new List<string>();
+        }
+        else if (doc.RootElement.TryGetProperty("collections", out var collectionsElement))
+        {
+            var result = new List<string>();
+            foreach (var item in collectionsElement.EnumerateArray())
+            {
+                if (item.TryGetProperty("name", out var nameElement))
+                {
+                    result.Add(nameElement.GetString() ?? "");
+                }
+            }
+            return result;
+        }
+        return new List<string>();
     }
 
     /// <summary>

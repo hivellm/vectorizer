@@ -80,6 +80,10 @@ from models import (
     DiscoverEdgesRequest,
     DiscoverEdgesResponse,
     DiscoveryStatusResponse,
+    # Replication/routing models
+    ReadPreference,
+    HostConfig,
+    ReadOptions,
 )
 from utils.transport import TransportFactory, TransportProtocol, parse_connection_string
 from utils.http_client import HTTPClient
@@ -90,12 +94,16 @@ logger = logging.getLogger(__name__)
 class VectorizerClient:
     """
     Main client for interacting with the Hive Vectorizer service.
-    
+
     This client supports multiple transport protocols:
     - HTTP/HTTPS (default)
     - UMICP (Universal Messaging and Inter-process Communication Protocol)
+
+    Also supports master/replica topology for read/write routing:
+    - Write operations are always routed to master
+    - Read operations are routed based on read_preference
     """
-    
+
     def __init__(
         self,
         base_url: str = "http://localhost:15002",
@@ -105,13 +113,15 @@ class VectorizerClient:
         max_retries: int = 3,
         connection_string: Optional[str] = None,
         protocol: Optional[str] = None,
-        umicp: Optional[Dict[str, Any]] = None
+        umicp: Optional[Dict[str, Any]] = None,
+        hosts: Optional[HostConfig] = None,
+        read_preference: ReadPreference = ReadPreference.REPLICA
     ):
         """
         Initialize the Vectorizer client.
-        
+
         Args:
-            base_url: Base URL for HTTP API
+            base_url: Base URL for HTTP API (single-node deployments)
             ws_url: WebSocket URL for real-time communication
             api_key: API key for authentication
             timeout: Request timeout in seconds
@@ -119,6 +129,8 @@ class VectorizerClient:
             connection_string: Connection string (supports http://, https://, umicp://)
             protocol: Protocol to use ('http' or 'umicp')
             umicp: UMICP-specific configuration dict
+            hosts: Master/replica host configuration for read/write routing
+            read_preference: Default read preference for read operations
         """
         self.base_url = base_url.rstrip('/')
         self.ws_url = ws_url
@@ -127,7 +139,20 @@ class VectorizerClient:
         self.max_retries = max_retries
         self._session: Optional[aiohttp.ClientSession] = None
         self._ws_connection: Optional[websockets.WebSocketServerProtocol] = None
-        
+
+        # Master/replica configuration
+        self._hosts = hosts
+        self._read_preference = read_preference
+        self._is_replica_mode = hosts is not None
+        self._master_transport: Optional[Any] = None
+        self._replica_transports: List[Any] = []
+        self._replica_index = 0
+
+        # Initialize replica mode if hosts are configured
+        if hosts:
+            self._initialize_replica_mode()
+            return
+
         # Determine protocol and create transport
         if connection_string:
             # Use connection string
@@ -178,7 +203,105 @@ class VectorizerClient:
     def get_protocol(self) -> str:
         """Get the current transport protocol being used."""
         return self._protocol.value if hasattr(self._protocol, 'value') else str(self._protocol)
-        
+
+    def _initialize_replica_mode(self) -> None:
+        """Initialize replica mode with master and replica transports."""
+        if not self._hosts:
+            return
+
+        self._is_replica_mode = True
+        self._protocol = TransportProtocol.HTTP
+
+        # Create master transport
+        master_config = {
+            "base_url": self._hosts.master,
+            "api_key": self.api_key,
+            "timeout": self.timeout,
+            "max_retries": self.max_retries
+        }
+        self._master_transport = HTTPClient(**master_config)
+
+        # Create replica transports
+        self._replica_transports = []
+        for replica_url in self._hosts.replicas:
+            replica_config = {
+                "base_url": replica_url,
+                "api_key": self.api_key,
+                "timeout": self.timeout,
+                "max_retries": self.max_retries
+            }
+            self._replica_transports.append(HTTPClient(**replica_config))
+
+        # Default transport is master (for backward compatibility)
+        self._transport = self._master_transport
+
+        logger.info(
+            f"VectorizerClient initialized with master/replica topology "
+            f"(master: {self._hosts.master}, replicas: {self._hosts.replicas}, "
+            f"read_preference: {self._read_preference.value})"
+        )
+
+    def _get_write_transport(self) -> Any:
+        """Get transport for write operations (always master)."""
+        if self._is_replica_mode and self._master_transport:
+            return self._master_transport
+        return self._transport
+
+    def _get_read_transport(self, options: Optional[ReadOptions] = None) -> Any:
+        """Get transport for read operations based on read preference."""
+        if not self._is_replica_mode:
+            return self._transport
+
+        preference = options.read_preference if options and options.read_preference else self._read_preference
+
+        if preference == ReadPreference.MASTER:
+            return self._master_transport
+
+        if preference == ReadPreference.REPLICA:
+            if not self._replica_transports:
+                return self._master_transport
+            # Round-robin selection
+            transport = self._replica_transports[self._replica_index]
+            self._replica_index = (self._replica_index + 1) % len(self._replica_transports)
+            return transport
+
+        if preference == ReadPreference.NEAREST:
+            # For now, use round-robin as a simple implementation
+            if not self._replica_transports:
+                return self._master_transport
+            transport = self._replica_transports[self._replica_index]
+            self._replica_index = (self._replica_index + 1) % len(self._replica_transports)
+            return transport
+
+        return self._master_transport
+
+    async def with_master(self, callback):
+        """
+        Execute a callback with master transport for read-your-writes scenarios.
+        All operations within the callback will be routed to master.
+
+        Args:
+            callback: Async function that takes the client as argument
+
+        Returns:
+            Result of the callback
+
+        Example:
+            async def read_after_write(client):
+                return await client.get_vector("docs", "doc_id")
+
+            result = await client.with_master(read_after_write)
+        """
+        master_client = VectorizerClient(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+            hosts=self._hosts,
+            read_preference=ReadPreference.MASTER
+        )
+        return await callback(master_client)
+
     async def __aenter__(self):
         """Async context manager entry."""
         await self.connect()
@@ -243,19 +366,23 @@ class VectorizerClient:
             
     # Collection Management
     
-    async def list_collections(self) -> List[CollectionInfo]:
+    async def list_collections(self, options: Optional[ReadOptions] = None) -> List[CollectionInfo]:
         """
         List all available collections.
-        
+
+        Args:
+            options: Optional read options for routing override
+
         Returns:
             List of collection information
-            
+
         Raises:
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
         try:
-            data = await self._transport.get("/collections")
+            transport = self._get_read_transport(options)
+            data = await transport.get("/collections")
             if isinstance(data, dict) and "collections" in data:
                 return [CollectionInfo(**collection) for collection in data.get("collections", [])]
             return []
@@ -263,24 +390,26 @@ class VectorizerClient:
             raise
         except Exception as e:
             raise NetworkError(f"Failed to list collections: {e}")
-            
-    async def get_collection_info(self, name: str) -> CollectionInfo:
+
+    async def get_collection_info(self, name: str, options: Optional[ReadOptions] = None) -> CollectionInfo:
         """
         Get information about a specific collection.
-        
+
         Args:
             name: Collection name
-            
+            options: Optional read options for routing override
+
         Returns:
             Collection information
-            
+
         Raises:
             CollectionNotFoundError: If collection doesn't exist
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
         try:
-            data = await self._transport.get(f"/collections/{name}")
+            transport = self._get_read_transport(options)
+            data = await transport.get(f"/collections/{name}")
             return CollectionInfo(**data)
         except ServerError as e:
             if "not found" in str(e).lower() or "404" in str(e):
@@ -331,7 +460,8 @@ class VectorizerClient:
             payload["description"] = description
             
         try:
-            data = await self._transport.post("/collections", payload)
+            transport = self._get_write_transport()
+            data = await transport.post("/collections", payload)
             return CollectionInfo(**data)
         except ServerError as e:
             if "400" in str(e) or "invalid" in str(e).lower():
@@ -341,24 +471,25 @@ class VectorizerClient:
             raise
         except Exception as e:
             raise NetworkError(f"Failed to create collection: {e}")
-            
+
     async def delete_collection(self, name: str) -> bool:
         """
         Delete a collection.
-        
+
         Args:
             name: Collection name
-            
+
         Returns:
             True if deleted successfully
-            
+
         Raises:
             CollectionNotFoundError: If collection doesn't exist
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
         try:
-            await self._transport.delete(f"/collections/{name}")
+            transport = self._get_write_transport()
+            await transport.delete(f"/collections/{name}")
             return True
         except ServerError as e:
             if "not found" in str(e).lower() or "404" in str(e):

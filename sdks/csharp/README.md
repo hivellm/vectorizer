@@ -195,6 +195,96 @@ var client = new VectorizerClient(new ClientConfig
 });
 ```
 
+### Master/Slave Configuration (Read/Write Separation)
+
+Vectorizer supports **Master-Replica replication** for high availability and read scaling. The SDK provides **automatic routing** - writes go to master, reads are distributed across replicas.
+
+#### Basic Setup
+
+```csharp
+using Vectorizer.Sdk;
+
+// Configure with master and replicas - SDK handles routing automatically
+var client = new VectorizerClient(new ClientConfig
+{
+    Hosts = new HostConfig
+    {
+        Master = "http://master-node:15001",
+        Replicas = new[] { "http://replica1:15001", "http://replica2:15001" }
+    },
+    ApiKey = "your-api-key",
+    ReadPreference = ReadPreference.Replica // Master | Replica | Nearest
+});
+
+// Writes automatically go to master
+await client.CreateCollectionAsync(new CreateCollectionRequest
+{
+    Name = "documents",
+    Config = new CollectionConfig
+    {
+        Dimension = 768,
+        Metric = DistanceMetric.Cosine
+    }
+});
+
+await client.InsertTextAsync("documents", "Sample document", new Dictionary<string, object>
+{
+    ["source"] = "api"
+});
+
+// Reads automatically go to replicas (load balanced)
+var results = await client.SearchTextAsync("documents", "sample", new SearchOptions
+{
+    Limit = 10
+});
+
+var collections = await client.ListCollectionsAsync();
+```
+
+#### Read Preferences
+
+| Preference | Description | Use Case |
+|------------|-------------|----------|
+| `ReadPreference.Replica` | Route reads to replicas (round-robin) | Default for high read throughput |
+| `ReadPreference.Master` | Route all reads to master | When you need read-your-writes consistency |
+| `ReadPreference.Nearest` | Route to the node with lowest latency | Geo-distributed deployments |
+
+#### Read-Your-Writes Consistency
+
+For operations that need to immediately read what was just written:
+
+```csharp
+// Option 1: Override read preference for specific operation
+await client.InsertTextAsync("docs", "New document", null);
+var result = await client.GetVectorAsync("docs", "doc_id", ReadPreference.Master);
+
+// Option 2: Use options with read preference
+var options = new GetOptions { ReadPreference = ReadPreference.Master };
+var result = await client.GetVectorAsync("docs", "doc_id", options);
+```
+
+#### Automatic Operation Routing
+
+The SDK automatically classifies operations:
+
+| Operation Type | Routed To | Methods |
+|---------------|-----------|---------|
+| **Writes** | Always Master | `InsertTextAsync`, `InsertVectorAsync`, `UpdateVectorAsync`, `DeleteVectorAsync`, `CreateCollectionAsync`, `DeleteCollectionAsync` |
+| **Reads** | Based on `ReadPreference` | `SearchAsync`, `SearchTextAsync`, `GetVectorAsync`, `ListCollectionsAsync`, `IntelligentSearchAsync`, `SemanticSearchAsync` |
+
+#### Standalone Mode (Single Node)
+
+For development or single-node deployments:
+
+```csharp
+// Single node - no replication
+var client = new VectorizerClient(new ClientConfig
+{
+    BaseUrl = "http://localhost:15001",
+    ApiKey = "your-api-key"
+});
+```
+
 ## API Reference
 
 ### Collection Management

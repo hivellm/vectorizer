@@ -399,6 +399,251 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
                     └─────────────────┘    └─────────────────┘
 ```
 
+## Master/Slave Replication (Read/Write Separation)
+
+Vectorizer supports **Master-Replica replication** for high availability and read scaling. The SDK provides **automatic routing** - writes go to master, reads are distributed across replicas.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Your Application                                  │
+│                                                                          │
+│                    ┌─────────────────────────┐                          │
+│                    │   VectorizerClient      │                          │
+│                    │   (Single Interface)    │                          │
+│                    └───────────┬─────────────┘                          │
+│                                │                                         │
+│              ┌─────────────────┴─────────────────┐                      │
+│              │        Automatic Routing          │                      │
+│              │  writes → master | reads → replica │                      │
+│              └─────────────────┬─────────────────┘                      │
+└────────────────────────────────┼─────────────────────────────────────────┘
+                                 │
+               ┌─────────────────┴─────────────────┐
+               ▼                                   ▼
+┌──────────────────────────┐    ┌──────────────────────────────────────────┐
+│      Master Node         │    │           Replica Nodes                   │
+│  ┌────────────────────┐  │    │  ┌──────────────┐  ┌──────────────┐     │
+│  │ Writes: INSERT,    │  │───▶│  │  Replica 1   │  │  Replica 2   │     │
+│  │ UPDATE, DELETE     │  │    │  │  (Read-Only) │  │  (Read-Only) │     │
+│  │ CREATE COLLECTION  │  │    │  └──────────────┘  └──────────────┘     │
+│  └────────────────────┘  │    │                                          │
+└──────────────────────────┘    └──────────────────────────────────────────┘
+```
+
+### Quick Start - All Languages
+
+Configure once, use everywhere. The SDK automatically routes operations:
+
+```typescript
+// TypeScript/JavaScript
+const client = new VectorizerClient({
+  hosts: {
+    master: "http://master-node:15001",
+    replicas: ["http://replica1:15001", "http://replica2:15001"],
+  },
+  apiKey: "your-api-key",
+  readPreference: "replica", // "master" | "replica" | "nearest"
+});
+
+// Writes automatically go to master
+await client.insertTexts("documents", [
+  { id: "doc1", text: "Sample document", metadata: { source: "api" } },
+]);
+
+// Reads automatically go to replicas (load balanced)
+const results = await client.searchVectors("documents", {
+  query: "sample",
+  limit: 10,
+});
+
+// Force read from master when you need read-your-writes consistency
+const fresh = await client.getVector("documents", "doc1", {
+  readPreference: "master",
+});
+```
+
+```python
+# Python
+client = VectorizerClient(
+    hosts={
+        "master": "http://master-node:15001",
+        "replicas": ["http://replica1:15001", "http://replica2:15001"]
+    },
+    api_key="your-api-key",
+    read_preference="replica"  # "master" | "replica" | "nearest"
+)
+
+# Writes automatically go to master
+await client.insert_texts("documents", [{
+    "id": "doc1",
+    "text": "Sample document",
+    "metadata": {"source": "api"}
+}])
+
+# Reads automatically go to replicas (load balanced)
+results = await client.search_vectors("documents", query="sample", limit=10)
+
+# Force read from master when you need read-your-writes consistency
+fresh = await client.get_vector("documents", "doc1", read_preference="master")
+```
+
+```rust
+// Rust
+let client = VectorizerClient::builder()
+    .master("http://master-node:15001")
+    .replica("http://replica1:15001")
+    .replica("http://replica2:15001")
+    .api_key("your-api-key")
+    .read_preference(ReadPreference::Replica)
+    .build()?;
+
+// Writes automatically go to master
+client.insert_texts("documents", vec![
+    BatchTextRequest {
+        id: "doc1".to_string(),
+        text: "Sample document".to_string(),
+        metadata: Some(metadata),
+    }
+]).await?;
+
+// Reads automatically go to replicas (load balanced)
+let results = client.search_vectors("documents", &query_vector, 10).await?;
+
+// Force read from master
+let fresh = client.get_vector_with_preference("documents", "doc1", ReadPreference::Master).await?;
+```
+
+```go
+// Go
+client := vectorizer.NewClient(&vectorizer.Config{
+    Hosts: vectorizer.HostConfig{
+        Master:   "http://master-node:15001",
+        Replicas: []string{"http://replica1:15001", "http://replica2:15001"},
+    },
+    APIKey:         "your-api-key",
+    ReadPreference: vectorizer.ReadPreferenceReplica, // Master | Replica | Nearest
+})
+
+// Writes automatically go to master
+client.InsertTexts(ctx, "documents", []vectorizer.TextInput{
+    {ID: "doc1", Text: "Sample document", Metadata: map[string]any{"source": "api"}},
+})
+
+// Reads automatically go to replicas (load balanced)
+results, _ := client.SearchVectors(ctx, "documents", queryVector, 10)
+
+// Force read from master
+fresh, _ := client.GetVectorWithPreference(ctx, "documents", "doc1", vectorizer.ReadPreferenceMaster)
+```
+
+```csharp
+// C#
+var client = new VectorizerClient(new ClientConfig
+{
+    Hosts = new HostConfig
+    {
+        Master = "http://master-node:15001",
+        Replicas = new[] { "http://replica1:15001", "http://replica2:15001" }
+    },
+    ApiKey = "your-api-key",
+    ReadPreference = ReadPreference.Replica // Master | Replica | Nearest
+});
+
+// Writes automatically go to master
+await client.InsertTextsAsync("documents", new[] {
+    new TextInput { Id = "doc1", Text = "Sample document", Metadata = new { source = "api" } }
+});
+
+// Reads automatically go to replicas (load balanced)
+var results = await client.SearchVectorsAsync("documents", queryVector, limit: 10);
+
+// Force read from master
+var fresh = await client.GetVectorAsync("documents", "doc1", ReadPreference.Master);
+```
+
+### Read Preferences
+
+| Preference | Description | Use Case |
+|------------|-------------|----------|
+| `replica` | Route reads to replicas (round-robin) | Default for high read throughput |
+| `master` | Route all reads to master | When you need read-your-writes consistency |
+| `nearest` | Route to the node with lowest latency | Geo-distributed deployments |
+
+### Automatic Operation Routing
+
+The SDK automatically classifies operations:
+
+| Operation Type | Routed To | Methods |
+|---------------|-----------|---------|
+| **Writes** | Always Master | `insertTexts`, `insertVectors`, `updateVector`, `deleteVector`, `createCollection`, `deleteCollection` |
+| **Reads** | Based on `readPreference` | `searchVectors`, `getVector`, `listCollections`, `intelligentSearch`, `semanticSearch`, `hybridSearch` |
+
+### Read-Your-Writes Consistency
+
+For operations that need to immediately read what was just written:
+
+```typescript
+// Option 1: Override read preference for specific operation
+await client.insertTexts("docs", [newDoc]);
+const result = await client.getVector("docs", newDoc.id, { readPreference: "master" });
+
+// Option 2: Use a transaction-like pattern
+const result = await client.withMaster(async (masterClient) => {
+  await masterClient.insertTexts("docs", [newDoc]);
+  return await masterClient.getVector("docs", newDoc.id);
+});
+```
+
+```python
+# Option 1: Override read preference for specific operation
+await client.insert_texts("docs", [new_doc])
+result = await client.get_vector("docs", new_doc["id"], read_preference="master")
+
+# Option 2: Use a transaction-like pattern
+async with client.with_master() as master_client:
+    await master_client.insert_texts("docs", [new_doc])
+    result = await master_client.get_vector("docs", new_doc["id"])
+```
+
+### Standalone Mode (Single Node)
+
+For development or single-node deployments:
+
+```typescript
+// Single node - no replication
+const client = new VectorizerClient({
+  baseURL: "http://localhost:15001",
+  apiKey: "your-api-key",
+});
+```
+
+### Server Configuration
+
+Configure master and replica nodes on the **server side**:
+
+**Master Node** (`config.yml`):
+```yaml
+replication:
+  enabled: true
+  role: "master"
+  bind_address: "0.0.0.0:7001"
+  heartbeat_interval_secs: 5
+  log_size: 1000000
+```
+
+**Replica Node** (`config.yml`):
+```yaml
+replication:
+  enabled: true
+  role: "replica"
+  master_address: "192.168.1.10:7001"
+  reconnect_interval_secs: 5
+```
+
+For detailed server configuration, see [Replication Documentation](../docs/specs/REPLICATION.md).
+
 ## Text Summarization
 
 All SDKs support intelligent text and context summarization with multiple algorithms:

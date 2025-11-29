@@ -12,6 +12,38 @@ pub use hybrid_search::*;
 pub mod graph;
 pub use graph::*;
 
+// ===== CLIENT-SIDE REPLICATION CONFIGURATION =====
+
+/// Read preference for routing read operations.
+/// Similar to MongoDB's read preferences.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadPreference {
+    /// Route all reads to master
+    Master,
+    /// Route reads to replicas (round-robin)
+    #[default]
+    Replica,
+    /// Route to the node with lowest latency
+    Nearest,
+}
+
+/// Host configuration for master/replica topology.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HostConfig {
+    /// Master node URL (receives all write operations)
+    pub master: String,
+    /// Replica node URLs (receive read operations based on read_preference)
+    pub replicas: Vec<String>,
+}
+
+/// Options that can be passed to read operations for per-operation override.
+#[derive(Debug, Clone, Default)]
+pub struct ReadOptions {
+    /// Override the default read preference for this operation
+    pub read_preference: Option<ReadPreference>,
+}
+
 /// Vector similarity metrics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -43,14 +75,39 @@ pub struct Collection {
     pub name: String,
     /// Vector dimension
     pub dimension: usize,
-    /// Similarity metric used for search
-    pub similarity_metric: SimilarityMetric,
+    /// Similarity metric used for search (API may return as 'metric')
+    #[serde(alias = "similarity_metric")]
+    pub metric: Option<String>,
     /// Optional description
+    #[serde(default)]
     pub description: Option<String>,
     /// Creation timestamp
-    pub created_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub created_at: Option<String>,
     /// Last update timestamp
-    pub updated_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+    /// Vector count
+    #[serde(default)]
+    pub vector_count: usize,
+    /// Document count
+    #[serde(default)]
+    pub document_count: usize,
+    /// Embedding provider
+    #[serde(default)]
+    pub embedding_provider: Option<String>,
+    /// Indexing status
+    #[serde(default)]
+    pub indexing_status: Option<serde_json::Value>,
+    /// Normalization config
+    #[serde(default)]
+    pub normalization: Option<serde_json::Value>,
+    /// Quantization config
+    #[serde(default)]
+    pub quantization: Option<serde_json::Value>,
+    /// Size info
+    #[serde(default)]
+    pub size: Option<serde_json::Value>,
 }
 
 /// Collection information
