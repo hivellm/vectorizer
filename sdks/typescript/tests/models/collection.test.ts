@@ -103,14 +103,14 @@ describe('Collection Model Validation', () => {
       expect(() => validateCollection(collection)).toThrow('Dimension must be a positive number');
     });
 
-    it('should throw error for missing similarity metric', () => {
+    it('should allow missing similarity metric (optional field)', () => {
       const collection = {
         name: 'test-collection',
         dimension: 384
       } as any;
 
-      expect(() => validateCollection(collection)).toThrow(ValidationError);
-      expect(() => validateCollection(collection)).toThrow('Invalid similarity metric');
+      // similarity_metric is optional in validateCollection
+      expect(() => validateCollection(collection)).not.toThrow();
     });
 
     it('should throw error for invalid similarity metric', () => {

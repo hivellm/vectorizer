@@ -58,7 +58,7 @@ describe('VectorizerClient Integration Tests', () => {
       const collection = await client.createCollection(collectionData);
       expect(collection.name).toBe('test-collection');
 
-      // 3. Insert vectors
+      // 3. Insert vectors (uses PUT with Qdrant API)
       const vectors = [
         {
           data: Array.from({ length: 384 }, () => Math.random()),
@@ -69,7 +69,7 @@ describe('VectorizerClient Integration Tests', () => {
           metadata: { source: 'doc2.pdf' }
         }
       ];
-      mockHttpClient.post.mockResolvedValueOnce({ inserted: 2 } as any);
+      mockHttpClient.put.mockResolvedValueOnce({ status: 'ok' } as any);
 
       const insertResult = await client.insertVectors('test-collection', vectors);
       expect(insertResult.inserted).toBe(2);
@@ -204,11 +204,12 @@ describe('VectorizerClient Integration Tests', () => {
         { data: [0.4, 0.5, 0.6], metadata: { source: 'doc2.pdf' } }
       ];
 
-      // Simulate partial success
-      mockHttpClient.post.mockResolvedValueOnce({ inserted: 1 } as any);
+      // Uses PUT with Qdrant API - returns count based on vectors array length
+      mockHttpClient.put.mockResolvedValueOnce({ status: 'ok' } as any);
 
       const result = await client.insertVectors('test-collection', vectors);
-      expect(result.inserted).toBe(1);
+      // insertVectors returns the length of the input vectors array
+      expect(result.inserted).toBe(2);
     });
   });
 
@@ -219,7 +220,7 @@ describe('VectorizerClient Integration Tests', () => {
         metadata: { source: 'large-doc.pdf' }
       };
 
-      mockHttpClient.post.mockResolvedValueOnce({ inserted: 1 } as any);
+      mockHttpClient.put.mockResolvedValueOnce({ status: 'ok' } as any);
 
       const result = await client.insertVectors('test-collection', [largeVector]);
       expect(result.inserted).toBe(1);

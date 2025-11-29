@@ -121,6 +121,16 @@ debian/files
 debian/*.log
 debian/*.substvarsvenv/
 
+# Windows reserved filenames (breaks Windows builds if in repo)
+nul
+NUL
+con
+CON
+aux
+AUX
+prn
+PRN
+
 # Patterns added by @hivellm/rulebook
 # Added at: 2025-11-15T10:31:56.086Z
 

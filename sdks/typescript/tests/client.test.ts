@@ -142,16 +142,28 @@ describe('VectorizerClient', () => {
         { data: [0.1, 0.2, 0.3], metadata: { source: 'doc1' } },
         { data: [0.4, 0.5, 0.6], metadata: { source: 'doc2' } },
       ];
-      const mockResponse = { inserted: 2 };
-      mockHttpClient.post.mockResolvedValue(mockResponse as any);
+      const mockResponse = { status: 'ok' };
+      mockHttpClient.put.mockResolvedValue(mockResponse as any);
 
       const result = await client.insertVectors('test-collection', vectors);
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/collections/test-collection/vectors' as any,
-        { vectors }
+      // Uses Qdrant-compatible API with PUT and points format
+      expect(mockHttpClient.put).toHaveBeenCalledWith(
+        '/qdrant/collections/test-collection/points' as any,
+        expect.objectContaining({
+          points: expect.arrayContaining([
+            expect.objectContaining({
+              vector: [0.1, 0.2, 0.3],
+              payload: { source: 'doc1' },
+            }),
+            expect.objectContaining({
+              vector: [0.4, 0.5, 0.6],
+              payload: { source: 'doc2' },
+            }),
+          ]),
+        })
       );
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual({ inserted: 2 });
     });
 
     it('should validate vector data', async () => {
@@ -181,9 +193,17 @@ describe('VectorizerClient', () => {
 
       const result = await client.searchVectors('test-collection', request);
 
+      // API uses /search endpoint with 'vector' field and collection in body
       expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/collections/test-collection/search' as any,
-        request
+        '/search' as any,
+        {
+          vector: request.query_vector,
+          limit: request.limit,
+          threshold: request.threshold,
+          include_metadata: request.include_metadata,
+          filter: undefined,
+          collection: 'test-collection',
+        }
       );
       expect(result).toEqual(mockResponse);
     });
