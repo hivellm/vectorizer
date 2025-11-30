@@ -31,8 +31,8 @@ jobs:
       shell: bash
       run: |
         git clone --no-checkout --depth 1 --filter=blob:none ${{ github.server_url }}/${{ github.repository }}.git .
-        git sparse-checkout init --cone
-        git sparse-checkout set '/*' '!nul' '!NUL'
+        git sparse-checkout init --no-cone
+        git sparse-checkout set '/*' ':!nul' ':!NUL'
         git checkout ${{ github.sha }} || git checkout ${{ github.ref_name }}
 
     - name: Setup Node.js ${{ matrix.node-version }}
