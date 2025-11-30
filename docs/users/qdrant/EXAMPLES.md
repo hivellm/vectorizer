@@ -1358,5 +1358,5 @@ For detailed troubleshooting examples with scripts, see [Troubleshooting Example
 - [Troubleshooting Guide](./TROUBLESHOOTING.md)
 - [Troubleshooting Examples](./TROUBLESHOOTING_EXAMPLES.md) - Practical troubleshooting scripts
 - [Testing Guide](./TESTING.md)
-- [Migration Guide](../specs/QDRANT_MIGRATION.md)
+- [Migration Guide](../../specs/QDRANT_MIGRATION.md)
 

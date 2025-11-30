@@ -130,4 +130,4 @@ Get-EventLog -LogName Application -Source Vectorizer -Newest 50
 
 - [Quick Start Guide](./QUICK_START.md) - General quick start
 - [Collections Guide](../collections/COLLECTIONS.md) - Learn about collections
-- [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Manage the service
+- [Service Management](../operations/SERVICE_MANAGEMENT.md) - Manage the service

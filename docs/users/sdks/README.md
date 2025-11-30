@@ -98,4 +98,4 @@ All SDKs support the same core operations:
 - [Search Guide](../search/SEARCH.md) - Search operations
 - [Vectors Guide](../vectors/VECTORS.md) - Vector operations
 - [Replication API](../api/REPLICATION.md) - Server-side replication
-- [API Reference](../../specs/API_REFERENCE.md) - Complete REST API
+- [API Reference](../api/API_REFERENCE.md) - Complete REST API

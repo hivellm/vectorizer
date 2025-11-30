@@ -262,7 +262,7 @@ Complete feature comparison between Qdrant and Vectorizer, including limitations
 ## Support and Migration
 
 For help with feature parity or migration:
-- 📚 See [Migration Guide](../specs/QDRANT_MIGRATION.md)
+- 📚 See [Migration Guide](../../specs/QDRANT_MIGRATION.md)
 - 🔍 See [API Compatibility](./API_COMPATIBILITY.md)
 - 💬 [GitHub Issues](https://github.com/hivellm/vectorizer/issues)
 

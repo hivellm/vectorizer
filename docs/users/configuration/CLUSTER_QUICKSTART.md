@@ -162,5 +162,5 @@ curl http://192.168.1.10:15002/api/v1/cluster/shard-distribution
 - [Full Cluster Configuration Guide](./CLUSTER.md)
 - [Sharding Guide](../collections/SHARDING.md)
 - [Cluster Deployment Guide](../../deployment/CLUSTER.md)
-- [Cluster API Documentation](../../api/CLUSTER.md)
+- [API Reference](../api/API_REFERENCE.md) - Complete API documentation
 

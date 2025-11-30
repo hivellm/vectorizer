@@ -138,13 +138,13 @@ New to Vectorizer? Start here:
 
 ## 📖 Additional Resources
 
-- **[API Reference](../specs/API_REFERENCE.md)** - Complete REST API documentation
-- **[MCP Integration](../specs/MCP.md)** - Model Context Protocol guide
-- **[Performance Guide](../specs/PERFORMANCE.md)** - Performance optimization tips
+- **[API Reference](./api/API_REFERENCE.md)** - Complete REST API documentation
+- **[MCP Integration](./api/API_REFERENCE.md#mcp-model-context-protocol)** - Model Context Protocol guide
+- **[Performance Guide](./configuration/PERFORMANCE_TUNING.md)** - Performance optimization tips
 - **[Technical Specifications](../specs/)** - Architecture and implementation details
 
 ## 💡 Need Help?
 
 - Check the [main README](../../README.md) for quick reference
 - Review [troubleshooting guide](./operations/TROUBLESHOOTING.md) for common issues
-- See [specifications](../specs/) for technical details
+- See [technical specifications](../specs/) for implementation details

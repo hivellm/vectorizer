@@ -11,7 +11,7 @@ Vectorizer provides **REST API compatibility** with Qdrant v1.14.x for easy migr
 ### Getting Started
 - [API Compatibility Matrix](./API_COMPATIBILITY.md) - Complete endpoint, parameter, and response compatibility
 - [Feature Parity](./FEATURE_PARITY.md) - Feature comparison and limitations
-- [Migration Guide](../specs/QDRANT_MIGRATION.md) - Step-by-step migration from Qdrant
+- [Migration Guide](../../specs/QDRANT_MIGRATION.md) - Step-by-step migration from Qdrant
 
 ### Usage Guides
 - [Examples](./EXAMPLES.md) - Code examples and tutorials
@@ -23,7 +23,7 @@ Vectorizer provides **REST API compatibility** with Qdrant v1.14.x for easy migr
 
 - **Base URL**: `http://localhost:15002/qdrant`
 - **API Reference**: See [API Compatibility Matrix](./API_COMPATIBILITY.md)
-- **Migration**: See [Migration Guide](../specs/QDRANT_MIGRATION.md)
+- **Migration**: See [Migration Guide](../../specs/QDRANT_MIGRATION.md)
 - **Native API**: See [API Reference](../api/API_REFERENCE.md)
 
 ## Important Notes

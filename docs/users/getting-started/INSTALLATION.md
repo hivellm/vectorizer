@@ -85,7 +85,7 @@ curl http://localhost:15002/health
 
 ## Related Topics
 
-- [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Managing the Vectorizer service
+- [Service Management](../operations/SERVICE_MANAGEMENT.md) - Managing the Vectorizer service
 - [Getting Started](../getting-started/QUICK_START.md) - Next steps after installation
 - [Configuration](../configuration/CONFIGURATION.md) - Configuring Vectorizer
 

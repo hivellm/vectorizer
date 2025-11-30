@@ -646,4 +646,4 @@ deploy:
 
 - [Installation Guide](./INSTALLATION.md) - General installation guide
 - [Configuration Guide](../configuration/SERVER.md) - Server configuration
-- [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Service management
+- [Service Management](../operations/SERVICE_MANAGEMENT.md) - Service management

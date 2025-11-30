@@ -360,7 +360,7 @@ curl http://localhost:15002/qdrant/collections/{name}
 
 ### Q: How do I migrate from Qdrant to Vectorizer?
 
-**A**: See [Migration Guide](../specs/QDRANT_MIGRATION.md) for step-by-step instructions.
+**A**: See [Migration Guide](../../specs/QDRANT_MIGRATION.md) for step-by-step instructions.
 
 ### Q: Is gRPC supported?
 
@@ -417,7 +417,7 @@ See [Migration Guide](../../specs/QDRANT_MIGRATION.md) for detailed instructions
 ## Support Resources
 
 - **Documentation**: [API Compatibility](./API_COMPATIBILITY.md)
-- **Migration Guide**: [Migration Guide](../specs/QDRANT_MIGRATION.md)
+- **Migration Guide**: [Migration Guide](../../specs/QDRANT_MIGRATION.md)
 - **Examples**: [Examples](./EXAMPLES.md)
 - **GitHub Issues**: https://github.com/hivellm/vectorizer/issues
 - **Community**: [Discord](https://discord.gg/vectorizer)

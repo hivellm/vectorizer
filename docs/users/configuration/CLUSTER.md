@@ -341,5 +341,5 @@ cluster:
 - [Sharding Guide](../collections/SHARDING.md) - Detailed sharding documentation
 - [Server Configuration](./SERVER.md) - Network and server settings
 - [Performance Tuning](./PERFORMANCE_TUNING.md) - Optimization tips
-- [API Documentation](../../api/README.md) - Cluster API endpoints
+- [API Documentation](../api/API_REFERENCE.md) - Cluster API endpoints
 

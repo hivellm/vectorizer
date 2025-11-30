@@ -260,4 +260,4 @@ const status = await client.qdrantClusterStatus();
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection operations
 - [Search Guide](../search/SEARCH.md) - Search operations
 - [Qdrant Compatibility](../qdrant/API_COMPATIBILITY.md) - Qdrant API reference
-- [API Reference](../../specs/API_REFERENCE.md) - Complete REST API
+- [API Reference](../api/API_REFERENCE.md) - Complete REST API

@@ -581,4 +581,4 @@ vectorizer --port 15012
 - [Logging Configuration](./LOGGING.md) - Detailed logging setup
 - [Data Directory Configuration](./DATA_DIRECTORY.md) - Storage configuration
 - [Performance Tuning](./PERFORMANCE.md) - Performance optimization
-- [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Service configuration
+- [Service Management](../operations/SERVICE_MANAGEMENT.md) - Service configuration

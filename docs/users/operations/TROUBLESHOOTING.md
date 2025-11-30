@@ -599,7 +599,7 @@ If you're still experiencing issues:
 1. **Check the documentation**:
 
    - [Main README](../../README.md)
-   - [API Reference](../../specs/API_REFERENCE.md)
+   - [API Reference](../api/API_REFERENCE.md)
    - [Performance Guide](../configuration/PERFORMANCE_TUNING.md)
 
 2. **Review logs** for detailed error messages:
@@ -623,6 +623,6 @@ If you're still experiencing issues:
 
 ## Related Topics
 
-- [Service Management](../service-management/SERVICE_MANAGEMENT.md) - Service troubleshooting
+- [Service Management](./SERVICE_MANAGEMENT.md) - Service troubleshooting
 - [Configuration](../configuration/CONFIGURATION.md) - Configuration issues
 - [Installation Guide](../getting-started/INSTALLATION.md) - Installation problems

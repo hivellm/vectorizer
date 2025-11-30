@@ -373,7 +373,7 @@ for entity in entities:
 
 ## See Also
 
-- [Graph API Documentation](../../api/GRAPH.md)
+- [GraphQL API Documentation](../api/GRAPHQL.md)
 - [Collection Configuration](../collections/CONFIGURATION.md)
 - [SDK Documentation](../sdks/README.md)
 
