@@ -41,6 +41,13 @@ All notable changes to this project will be documented in this file.
   - **BREAKING**: Existing `vectorizer-workspace.yml` files should be renamed to `workspace.yml`
   - **BENEFIT**: Simpler, more intuitive naming convention
 
+### Fixed
+
+- **Musl Build Configuration**: Improved Cross.toml configuration for musl targets
+  - Added `ORT_STRATEGY=system` for ONNX Runtime compatibility
+  - Added `ORT_USE_CUDA=0` to disable CUDA in musl environments
+  - **BENEFIT**: More reliable musl static binary builds in CI
+
 - **Dependency Updates**: Updated key dependencies to latest versions
   - `rmcp`: 0.8.1 → 0.9.1 (MCP SDK with new meta field support)
   - `tower-http`: 0.6.6 → 0.6.7

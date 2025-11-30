@@ -14,6 +14,8 @@ image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:main"
 [target.x86_64-unknown-linux-musl.env]
 passthrough = [
     "OPENSSL_STATIC=1",
+    "ORT_STRATEGY=system",
+    "ORT_USE_CUDA=0",
 ]
 
 [target.aarch64-unknown-linux-musl]
@@ -23,5 +25,7 @@ image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:main"
 [target.aarch64-unknown-linux-musl.env]
 passthrough = [
     "OPENSSL_STATIC=1",
+    "ORT_STRATEGY=system",
+    "ORT_USE_CUDA=0",
 ]
 
