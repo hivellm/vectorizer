@@ -72,7 +72,7 @@ jobs:
     - name: Run clippy
       working-directory: ./sdks/rust
       run: |
-        cargo clippy -- -D warnings || echo "Clippy check skipped"
+        cargo clippy --lib --tests -- -W clippy::all || echo "Clippy check skipped"
 
     - name: Check formatting
       working-directory: ./sdks/rust

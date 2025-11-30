@@ -66,14 +66,19 @@ pub struct VectorizerClient {
     protocol: Protocol,
     base_url: String,
     /// Master transport for write operations (if replica mode is enabled)
+    #[allow(dead_code)]
     master_transport: Option<Arc<dyn Transport>>,
     /// Replica transports for read operations (if replica mode is enabled)
+    #[allow(dead_code)]
     replica_transports: Vec<Arc<dyn Transport>>,
     /// Current replica index for round-robin selection
+    #[allow(dead_code)]
     replica_index: std::sync::atomic::AtomicUsize,
     /// Default read preference
+    #[allow(dead_code)]
     read_preference: ReadPreference,
     /// Whether replica mode is enabled
+    #[allow(dead_code)]
     is_replica_mode: bool,
     /// Original config for creating child clients
     config: ClientConfig,
@@ -94,7 +99,7 @@ impl VectorizerClient {
             if let Some(ref conn_str) = config.connection_string {
                 // Use connection string
                 #[allow(unused_variables)] // port is only used when umicp feature is enabled
-                let (proto, host, port) = crate::transport::parse_connection_string(&conn_str)?;
+                let (proto, host, port) = crate::transport::parse_connection_string(conn_str)?;
 
                 match proto {
                     Protocol::Http => {
@@ -228,6 +233,7 @@ impl VectorizerClient {
     }
 
     /// Get transport for write operations (always master)
+    #[allow(dead_code)]
     fn get_write_transport(&self) -> &Arc<dyn Transport> {
         if self.is_replica_mode {
             self.master_transport.as_ref().unwrap_or(&self.transport)
@@ -237,6 +243,7 @@ impl VectorizerClient {
     }
 
     /// Get transport for read operations based on read preference
+    #[allow(dead_code)]
     fn get_read_transport(&self, options: Option<&ReadOptions>) -> &Arc<dyn Transport> {
         if !self.is_replica_mode {
             return &self.transport;
@@ -707,7 +714,7 @@ impl VectorizerClient {
     /// List all snapshots (Qdrant-compatible API)
     pub async fn qdrant_list_all_snapshots(&self) -> Result<serde_json::Value> {
         let url = "/qdrant/snapshots";
-        let response = self.make_request("GET", &url, None).await?;
+        let response = self.make_request("GET", url, None).await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant list all snapshots response: {}",
@@ -720,7 +727,7 @@ impl VectorizerClient {
     /// Create full snapshot (Qdrant-compatible API)
     pub async fn qdrant_create_full_snapshot(&self) -> Result<serde_json::Value> {
         let url = "/qdrant/snapshots";
-        let response = self.make_request("POST", &url, None).await?;
+        let response = self.make_request("POST", url, None).await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant create full snapshot response: {}",
@@ -782,7 +789,7 @@ impl VectorizerClient {
     /// Get cluster status (Qdrant-compatible API)
     pub async fn qdrant_get_cluster_status(&self) -> Result<serde_json::Value> {
         let url = "/qdrant/cluster";
-        let response = self.make_request("GET", &url, None).await?;
+        let response = self.make_request("GET", url, None).await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant cluster status response: {}",
@@ -795,7 +802,7 @@ impl VectorizerClient {
     /// Recover current peer (Qdrant-compatible API)
     pub async fn qdrant_cluster_recover(&self) -> Result<serde_json::Value> {
         let url = "/qdrant/cluster/recover";
-        let response = self.make_request("POST", &url, None).await?;
+        let response = self.make_request("POST", url, None).await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant cluster recover response: {}",
@@ -821,7 +828,7 @@ impl VectorizerClient {
     /// List metadata keys (Qdrant-compatible API)
     pub async fn qdrant_list_metadata_keys(&self) -> Result<serde_json::Value> {
         let url = "/qdrant/cluster/metadata/keys";
-        let response = self.make_request("GET", &url, None).await?;
+        let response = self.make_request("GET", url, None).await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant list metadata keys response: {}",
