@@ -7,40 +7,40 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 ### 🟦 TypeScript SDK ✅
 
 - **Package**: `@hivellm/vectorizer-sdk`
-- **Status**: Published on npm (v1.5.0)
-- **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search, UMICP support
+- **Status**: Published on npm (v1.7.1)
+- **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing
 - **Installation**: `npm install @hivellm/vectorizer-sdk`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
 
 ### 🟨 JavaScript SDK ✅
 
-- **Package**: `@hivellm/vectorizer-sdk`
-- **Status**: Published on npm (v1.5.0)
-- **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD), intelligent search, UMICP support
-- **Installation**: `npm install @hivellm/vectorizer-sdk`
+- **Package**: `@hivellm/vectorizer-sdk-js`
+- **Status**: Published on npm (v1.7.1)
+- **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD), intelligent search, Master/Replica routing
+- **Installation**: `npm install @hivellm/vectorizer-sdk-js`
 - **Documentation**: [JavaScript SDK README](./javascript/README.md)
 
 ### 🦀 Rust SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on crates.io (v1.5.0)
-- **Features**: High performance, async/await, MCP support, type safety, intelligent search
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.5.0"`
+- **Status**: Published on crates.io (v1.7.1)
+- **Features**: High performance, async/await, MCP support, type safety, intelligent search, Master/Replica routing
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.7.1"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
 ### 🐍 Python SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on PyPI (v1.5.0)
-- **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search
-- **Installation**: `pip install vectorizer-sdk`
+- **Status**: Published on PyPI (v1.7.1)
+- **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search, Master/Replica routing
+- **Installation**: `pip install vectorizer-sdk==1.7.1`
 - **Documentation**: [Python SDK README](./python/README.md)
 
 ### 🐹 Go SDK 🚧
 
 - **Package**: `github.com/hivellm/vectorizer-sdk-go`
-- **Status**: In Development
-- **Features**: High performance, simple API, comprehensive error handling, intelligent search
+- **Status**: In Development (v1.7.1)
+- **Features**: High performance, simple API, comprehensive error handling, intelligent search, Master/Replica routing
 - **Installation**: `go get github.com/hivellm/vectorizer-sdk-go`
 - **Repository**: https://github.com/hivellm/vectorizer/tree/main/sdks/go
 - **Documentation**: [Go SDK README](./go/README.md)
@@ -48,11 +48,35 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 ### 🔷 C# SDK ✅
 
 - **Package**: `Vectorizer.Sdk`
-- **Status**: Published on NuGet (v1.5.0)
-- **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Code Analysis
+- **Status**: Published on NuGet (v1.7.1)
+- **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Master/Replica routing
 - **Installation**: `dotnet add package Vectorizer.Sdk`
 - **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 - **Documentation**: [C# SDK README](./csharp/README.md)
+
+### 🔌 n8n Integration ✅
+
+- **Package**: `@vectorizer/n8n-nodes-vectorizer`
+- **Status**: Published on npm (v1.7.1)
+- **Features**: No-code workflow automation, Collection/Vector/Search operations, RAG pipelines
+- **Installation**: Install via n8n community nodes
+- **Documentation**: [n8n SDK README](./n8n/README.md)
+
+### 🎨 Langflow Integration ✅
+
+- **Package**: `vectorizer-langflow`
+- **Status**: Published on PyPI (v1.7.1)
+- **Features**: LangChain-compatible components, VectorStore, Retriever, Loader
+- **Installation**: `pip install vectorizer-langflow`
+- **Documentation**: [Langflow SDK README](./langflow/README.md)
+
+### ⛓️ LangChain.js Integration ✅
+
+- **Package**: `@vectorizer/langchain-js`
+- **Status**: Published on npm (v1.7.1)
+- **Features**: LangChain.js VectorStore integration
+- **Installation**: `npm install @vectorizer/langchain-js`
+- **Documentation**: [LangChain.js SDK README](./langchain-js/README.md)
 
 ## 🧠 Intelligent Search Features (v1.5.0+)
 
@@ -218,15 +242,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-vectorizer-sdk = "1.5.0"
+vectorizer-sdk = "1.7.1"
 ```
 
 ## SDK Comparison Table
 
 | Feature                     | TypeScript   | JavaScript   | Rust         | Python       | Go         | C#           |
 | --------------------------- | ------------ | ------------ | ------------ | ------------ | ---------- | ------------ |
-| **Version**                 | 1.5.0        | 1.5.0        | 1.5.0        | 1.5.0        | 1.5.0      | 1.5.0        |
+| **Version**                 | 1.7.1        | 1.7.1        | 1.7.1        | 1.7.1        | 1.7.1      | 1.7.1        |
 | **Status**                  | ✅ Published | ✅ Published | ✅ Published | ✅ Published | 🚧 Dev     | ✅ Published |
+| **Master/Replica Routing**  | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
 | **Package Manager**         | npm          | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
 | **Collection Management**   | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
 | **Vector Operations**       | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |

@@ -4,54 +4,81 @@
 
 ### TypeScript SDK
 
-- **Package**: `@hivellm/vectorizer-client-ts`
+- **Package**: `@hivellm/vectorizer-sdk`
 - **Registry**: npm
-- **Version**: v1.5.0
+- **Version**: v1.7.1
 - **Status**: ✅ Published successfully
-- **Installation**: `npm install @hivellm/vectorizer-client-ts`
+- **Installation**: `npm install @hivellm/vectorizer-sdk`
 
 ### JavaScript SDK
 
-- **Package**: `@hivellm/vectorizer-client-js`
+- **Package**: `@hivellm/vectorizer-sdk-js`
 - **Registry**: npm
-- **Version**: v1.5.0
+- **Version**: v1.7.1
 - **Status**: ✅ Published successfully
-- **Installation**: `npm install @hivellm/vectorizer-client-js`
+- **Installation**: `npm install @hivellm/vectorizer-sdk-js`
 
 ### Rust SDK
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: crates.io
-- **Version**: v1.5.0
+- **Version**: v1.7.1
 - **Status**: ✅ Published successfully
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.5.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.7.1"`
 
 ### Python SDK
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: PyPI
-- **Version**: v1.5.0
+- **Version**: v1.7.1
 - **Status**: ✅ Published successfully
-- **Installation**: `pip install vectorizer-sdk`
+- **Installation**: `pip install vectorizer-sdk==1.7.1`
 
 ### C# SDK
 
 - **Package**: `Vectorizer.Sdk`
 - **Registry**: NuGet
-- **Version**: v1.5.0
+- **Version**: v1.7.1
 - **Status**: ✅ Published successfully
 - **Installation**: `dotnet add package Vectorizer.Sdk`
 
+### n8n Integration
+
+- **Package**: `@vectorizer/n8n-nodes-vectorizer`
+- **Registry**: npm
+- **Version**: v1.7.1
+- **Status**: ✅ Published successfully
+- **Installation**: Install via n8n community nodes
+
+### Langflow Integration
+
+- **Package**: `vectorizer-langflow`
+- **Registry**: PyPI
+- **Version**: v1.7.1
+- **Status**: ✅ Published successfully
+- **Installation**: `pip install vectorizer-langflow`
+
+### LangChain.js Integration
+
+- **Package**: `@vectorizer/langchain-js`
+- **Registry**: npm
+- **Version**: v1.7.1
+- **Status**: ✅ Published successfully
+- **Installation**: `npm install @vectorizer/langchain-js`
+
 ## 📋 **Publishing Summary**
 
-| SDK        | Registry  | Status       | Version | Package Name                  |
-| ---------- | --------- | ------------ | ------- | ----------------------------- |
-| TypeScript | npm       | ✅ Published | v1.5.0  | @hivellm/vectorizer-client-ts |
-| JavaScript | npm       | ✅ Published | v1.5.0  | @hivellm/vectorizer-client-js |
-| Rust       | crates.io | ✅ Published | v1.5.0  | vectorizer-sdk                |
-| Python     | PyPI      | ✅ Published | v1.5.0  | vectorizer-sdk                |
-| C#         | NuGet     | ✅ Published | v1.5.0  | Vectorizer.Sdk                |
-| Go         | Go Modules| 🚧 In Dev    | v1.5.0  | github.com/hivellm/vectorizer-sdk-go |
+| SDK           | Registry   | Status       | Version | Package Name                         |
+| ------------- | ---------- | ------------ | ------- | ------------------------------------ |
+| TypeScript    | npm        | ✅ Published | v1.7.1  | @hivellm/vectorizer-sdk              |
+| JavaScript    | npm        | ✅ Published | v1.7.1  | @hivellm/vectorizer-sdk-js           |
+| Rust          | crates.io  | ✅ Published | v1.7.1  | vectorizer-sdk                       |
+| Python        | PyPI       | ✅ Published | v1.7.1  | vectorizer-sdk                       |
+| C#            | NuGet      | ✅ Published | v1.7.1  | Vectorizer.Sdk                       |
+| Go            | Go Modules | 🚧 In Dev    | v1.7.1  | github.com/hivellm/vectorizer-sdk-go |
+| n8n           | npm        | ✅ Published | v1.7.1  | @vectorizer/n8n-nodes-vectorizer     |
+| Langflow      | PyPI       | ✅ Published | v1.7.1  | vectorizer-langflow                  |
+| LangChain.js  | npm        | ✅ Published | v1.7.1  | @vectorizer/langchain-js             |
 
 ## 🔧 **Publishing Infrastructure**
 
@@ -78,7 +105,15 @@
 
 ## 🎯 **SDK Feature Completeness**
 
-All 5 published SDKs are **100% complete** with all latest features implemented (Go SDK in development):
+All 8 published SDKs are **100% complete** with all latest features implemented (Go SDK in development):
+
+### New in v1.7.1: Master/Replica Routing
+
+All SDKs now support automatic read/write routing for high-availability deployments:
+- **HostConfig**: Configure master URL and replica URLs
+- **ReadPreference**: Choose routing strategy (master, replica, nearest)
+- **Automatic Routing**: Writes → master, reads → replicas (round-robin)
+- **Per-Operation Override**: Override read preference for specific operations
 
 ### Feature Coverage Matrix
 

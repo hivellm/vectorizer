@@ -1,6 +1,8 @@
 # Test Coverage Report for Hive Vectorizer Client SDKs
 
-This document provides a comprehensive overview of test coverage for TypeScript, JavaScript, Python, Rust, Go, and C# client SDKs.
+This document provides a comprehensive overview of test coverage for TypeScript, JavaScript, Python, Rust, Go, C#, n8n, Langflow, and LangChain.js client SDKs.
+
+**Current Version**: v1.7.1
 
 ## Coverage Summary
 

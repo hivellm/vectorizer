@@ -133,13 +133,13 @@ The publishing scripts perform the following steps:
 
 Before publishing, the scripts run:
 
-- **TypeScript SDK**: 150+ tests
-- **JavaScript SDK**: 140+ tests
-- **Python SDK**: 184+ tests (✅ Published v1.5.0)
-- **Rust SDK**: 88+ tests (✅ Published v1.5.0)
-- **TypeScript SDK**: 256+ tests (✅ Published v1.5.0)
-- **JavaScript SDK**: 236+ tests (✅ Published v1.5.0)
-- **C# SDK**: Tests included (✅ Published v1.5.0)
+- **TypeScript SDK**: 256+ tests (✅ Published v1.7.1)
+- **JavaScript SDK**: 236+ tests (✅ Published v1.7.1)
+- **Python SDK**: 184+ tests (✅ Published v1.7.1)
+- **Rust SDK**: 88+ tests (✅ Published v1.7.1)
+- **C# SDK**: Tests included (✅ Published v1.7.1)
+- **n8n Integration**: Integration tests (✅ Published v1.7.1)
+- **Langflow Integration**: Tests included (✅ Published v1.7.1)
 
 ## Manual Publishing (Alternative)
 
@@ -188,7 +188,7 @@ Before publishing, update version numbers in:
 ```json
 // package.json
 {
-  "version": "1.5.0"
+  "version": "1.7.1"
 }
 ```
 
@@ -197,7 +197,7 @@ Before publishing, update version numbers in:
 ```python
 # pyproject.toml
 [project]
-version = "1.5.0"
+version = "1.7.1"
 ```
 
 #### Rust SDK
@@ -205,7 +205,14 @@ version = "1.5.0"
 ```toml
 # Cargo.toml
 [package]
-version = "1.5.0"
+version = "1.7.1"
+```
+
+#### C# SDK
+
+```xml
+<!-- Vectorizer.csproj -->
+<Version>1.7.1</Version>
 ```
 
 ### Version Guidelines
