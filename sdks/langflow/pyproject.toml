@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vectorizer-langflow"
-version = "1.6.0"
+version = "1.7.0"
 description = "Langflow components for Vectorizer vector database"
 readme = "README.md"
 requires-python = ">=3.9"
