@@ -14,16 +14,13 @@ pub mod utils;
 pub mod umicp_transport;
 
 // Re-export main types for convenience
-pub use client::{ClientConfig, VectorizerClient};
-
 #[cfg(feature = "umicp")]
 pub use client::UmicpConfig;
-
+pub use client::{ClientConfig, VectorizerClient};
 pub use error::{Result, VectorizerError};
 pub use http_transport::HttpTransport;
 pub use models::*;
 pub use transport::{Protocol, Transport, parse_connection_string};
-
 #[cfg(feature = "umicp")]
 pub use umicp_transport::UmicpTransport;
 

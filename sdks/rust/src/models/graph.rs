@@ -1,7 +1,8 @@
 //! Graph models for the Vectorizer SDK
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Graph node representing a document/file
 #[derive(Debug, Clone, Serialize, Deserialize)]

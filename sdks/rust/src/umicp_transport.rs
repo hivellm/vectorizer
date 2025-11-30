@@ -1,13 +1,14 @@
 //! UMICP transport implementation using umicp-core
 
 #[cfg(feature = "umicp")]
-use crate::error::{Result, VectorizerError};
-#[cfg(feature = "umicp")]
-use crate::transport::{Protocol, Transport};
-#[cfg(feature = "umicp")]
 use async_trait::async_trait;
 #[cfg(feature = "umicp")]
 use serde_json::Value;
+
+#[cfg(feature = "umicp")]
+use crate::error::{Result, VectorizerError};
+#[cfg(feature = "umicp")]
+use crate::transport::{Protocol, Transport};
 
 #[cfg(feature = "umicp")]
 /// UMICP transport client
@@ -39,10 +40,8 @@ impl UmicpTransport {
         // Since umicp-core doesn't have high-level HTTP client, we use a hybrid approach:
         // Use HTTP with UMICP protocol headers
 
-        use reqwest::{
-            Client, ClientBuilder,
-            header::{CONTENT_TYPE, HeaderMap, HeaderValue},
-        };
+        use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
+        use reqwest::{Client, ClientBuilder};
 
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));

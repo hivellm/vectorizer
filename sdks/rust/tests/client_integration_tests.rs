@@ -2,6 +2,7 @@
 //! Tests for client operations, model integration, and data transformation
 
 use std::collections::HashMap;
+
 use vectorizer_sdk::*;
 
 #[test]

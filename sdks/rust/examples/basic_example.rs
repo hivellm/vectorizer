@@ -2,6 +2,7 @@
 //! This example demonstrates all core operations available in the SDK.
 
 use std::collections::HashMap;
+
 use tracing::{debug, error, info, warn};
 use vectorizer_sdk::*;
 

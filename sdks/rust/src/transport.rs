@@ -4,9 +4,10 @@
 //! - HTTP/HTTPS (default)
 //! - UMICP (Universal Messaging and Inter-process Communication Protocol)
 
-use crate::error::Result;
 use async_trait::async_trait;
 use serde_json::Value;
+
+use crate::error::Result;
 
 /// Transport protocol type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

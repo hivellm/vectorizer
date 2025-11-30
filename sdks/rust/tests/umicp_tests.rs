@@ -1,9 +1,8 @@
 //! Tests for UMICP transport
 
-use vectorizer_sdk::{ClientConfig, Protocol, VectorizerClient, parse_connection_string};
-
 #[cfg(feature = "umicp")]
 use vectorizer_sdk::UmicpConfig;
+use vectorizer_sdk::{ClientConfig, Protocol, VectorizerClient, parse_connection_string};
 
 #[cfg(feature = "umicp")]
 #[tokio::test]

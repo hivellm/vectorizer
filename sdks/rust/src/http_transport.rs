@@ -1,13 +1,12 @@
 //! HTTP transport implementation using reqwest
 
+use async_trait::async_trait;
+use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
+use reqwest::{Client, ClientBuilder};
+use serde_json::Value;
+
 use crate::error::{Result, VectorizerError};
 use crate::transport::{Protocol, Transport};
-use async_trait::async_trait;
-use reqwest::{
-    Client, ClientBuilder,
-    header::{CONTENT_TYPE, HeaderMap, HeaderValue},
-};
-use serde_json::Value;
 
 /// HTTP transport client
 pub struct HttpTransport {

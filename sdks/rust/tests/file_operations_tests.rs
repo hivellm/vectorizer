@@ -12,6 +12,7 @@
 #[cfg(test)]
 mod file_operations_tests {
     use std::env;
+
     use tracing::{debug, error, info, warn};
     use vectorizer_sdk::*;
 

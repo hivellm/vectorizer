@@ -1,5 +1,9 @@
 //! Vectorizer client with transport abstraction
 
+use std::sync::Arc;
+
+use serde_json;
+
 use crate::error::{Result, VectorizerError};
 use crate::http_transport::HttpTransport;
 use crate::models::hybrid_search::{
@@ -7,12 +11,8 @@ use crate::models::hybrid_search::{
 };
 use crate::models::*;
 use crate::transport::{Protocol, Transport};
-
 #[cfg(feature = "umicp")]
 use crate::umicp_transport::UmicpTransport;
-
-use serde_json;
-use std::sync::Arc;
 
 /// Configuration for VectorizerClient
 #[derive(Clone)]
@@ -167,7 +167,8 @@ impl VectorizerClient {
         // Initialize replica mode if hosts are configured
         let (master_transport, replica_transports, is_replica_mode) =
             if let Some(ref hosts) = config.hosts {
-                let master = HttpTransport::new(&hosts.master, config.api_key.as_deref(), timeout_secs)?;
+                let master =
+                    HttpTransport::new(&hosts.master, config.api_key.as_deref(), timeout_secs)?;
                 let replicas: Result<Vec<Arc<dyn Transport>>> = hosts
                     .replicas
                     .iter()
@@ -176,7 +177,11 @@ impl VectorizerClient {
                         Ok(Arc::new(t) as Arc<dyn Transport>)
                     })
                     .collect();
-                (Some(Arc::new(master) as Arc<dyn Transport>), replicas?, true)
+                (
+                    Some(Arc::new(master) as Arc<dyn Transport>),
+                    replicas?,
+                    true,
+                )
             } else {
                 (None, vec![], false)
             };
@@ -876,7 +881,9 @@ impl VectorizerClient {
         request: &serde_json::Value,
     ) -> Result<serde_json::Value> {
         let url = format!("/qdrant/collections/{collection}/points/query");
-        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let response = self
+            .make_request("POST", &url, Some(request.clone()))
+            .await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant query points response: {}",
@@ -893,7 +900,9 @@ impl VectorizerClient {
         request: &serde_json::Value,
     ) -> Result<serde_json::Value> {
         let url = format!("/qdrant/collections/{collection}/points/query/batch");
-        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let response = self
+            .make_request("POST", &url, Some(request.clone()))
+            .await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant batch query points response: {}",
@@ -910,7 +919,9 @@ impl VectorizerClient {
         request: &serde_json::Value,
     ) -> Result<serde_json::Value> {
         let url = format!("/qdrant/collections/{collection}/points/query/groups");
-        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let response = self
+            .make_request("POST", &url, Some(request.clone()))
+            .await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant query points groups response: {}",
@@ -927,7 +938,9 @@ impl VectorizerClient {
         request: &serde_json::Value,
     ) -> Result<serde_json::Value> {
         let url = format!("/qdrant/collections/{collection}/points/search/groups");
-        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let response = self
+            .make_request("POST", &url, Some(request.clone()))
+            .await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant search points groups response: {}",
@@ -944,7 +957,9 @@ impl VectorizerClient {
         request: &serde_json::Value,
     ) -> Result<serde_json::Value> {
         let url = format!("/qdrant/collections/{collection}/points/search/matrix/pairs");
-        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let response = self
+            .make_request("POST", &url, Some(request.clone()))
+            .await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant search matrix pairs response: {}",
@@ -961,7 +976,9 @@ impl VectorizerClient {
         request: &serde_json::Value,
     ) -> Result<serde_json::Value> {
         let url = format!("/qdrant/collections/{collection}/points/search/matrix/offsets");
-        let response = self.make_request("POST", &url, Some(request.clone())).await?;
+        let response = self
+            .make_request("POST", &url, Some(request.clone()))
+            .await?;
         let result: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!(
                 "Failed to parse Qdrant search matrix offsets response: {}",

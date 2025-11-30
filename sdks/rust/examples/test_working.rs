@@ -1,6 +1,7 @@
 //! Simple and functional test example
 
 use std::collections::HashMap;
+
 use tracing::{debug, error, info, warn};
 use vectorizer_rust_sdk::*;
 

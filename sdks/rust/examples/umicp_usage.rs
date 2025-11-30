@@ -7,7 +7,6 @@
 
 use tracing::{debug, error, info, warn};
 use vectorizer_rust_sdk::{ClientConfig, VectorizerClient};
-
 #[cfg(feature = "umicp")]
 use vectorizer_rust_sdk::{Protocol, UmicpConfig};
 

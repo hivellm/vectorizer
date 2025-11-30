@@ -7,7 +7,10 @@ async fn test_qdrant_list_collection_snapshots() {
     let client = VectorizerClient::new_default().unwrap();
     let collection_name = "test_collection";
 
-    match client.qdrant_list_collection_snapshots(collection_name).await {
+    match client
+        .qdrant_list_collection_snapshots(collection_name)
+        .await
+    {
         Ok(result) => {
             // Should return a valid JSON response
             assert!(result.is_object() || result.is_array());
@@ -24,7 +27,10 @@ async fn test_qdrant_create_collection_snapshot() {
     let client = VectorizerClient::new_default().unwrap();
     let collection_name = "test_collection";
 
-    match client.qdrant_create_collection_snapshot(collection_name).await {
+    match client
+        .qdrant_create_collection_snapshot(collection_name)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -121,7 +127,10 @@ async fn test_qdrant_create_shard_key() {
     let collection_name = "test_collection";
     let shard_key = serde_json::json!({"shard_key": "test_key"});
 
-    match client.qdrant_create_shard_key(collection_name, &shard_key).await {
+    match client
+        .qdrant_create_shard_key(collection_name, &shard_key)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -137,7 +146,10 @@ async fn test_qdrant_delete_shard_key() {
     let collection_name = "test_collection";
     let shard_key = serde_json::json!({"shard_key": "test_key"});
 
-    match client.qdrant_delete_shard_key(collection_name, &shard_key).await {
+    match client
+        .qdrant_delete_shard_key(collection_name, &shard_key)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -271,7 +283,10 @@ async fn test_qdrant_batch_query_points() {
         ]
     });
 
-    match client.qdrant_batch_query_points(collection_name, &request).await {
+    match client
+        .qdrant_batch_query_points(collection_name, &request)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -294,7 +309,10 @@ async fn test_qdrant_query_points_groups() {
         "limit": 10
     });
 
-    match client.qdrant_query_points_groups(collection_name, &request).await {
+    match client
+        .qdrant_query_points_groups(collection_name, &request)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -315,7 +333,10 @@ async fn test_qdrant_search_points_groups() {
         "limit": 10
     });
 
-    match client.qdrant_search_points_groups(collection_name, &request).await {
+    match client
+        .qdrant_search_points_groups(collection_name, &request)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -334,7 +355,10 @@ async fn test_qdrant_search_matrix_pairs() {
         "limit": 5
     });
 
-    match client.qdrant_search_matrix_pairs(collection_name, &request).await {
+    match client
+        .qdrant_search_matrix_pairs(collection_name, &request)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -353,7 +377,10 @@ async fn test_qdrant_search_matrix_offsets() {
         "limit": 5
     });
 
-    match client.qdrant_search_matrix_offsets(collection_name, &request).await {
+    match client
+        .qdrant_search_matrix_offsets(collection_name, &request)
+        .await
+    {
         Ok(result) => {
             assert!(result.is_object());
         }
@@ -362,4 +389,3 @@ async fn test_qdrant_search_matrix_offsets() {
         }
     }
 }
-

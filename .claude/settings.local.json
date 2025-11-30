@@ -63,7 +63,8 @@
       "Bash(wsl --shutdown)",
       "Bash(wsl --set-version:*)",
       "Bash(wsl --unregister:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(for i in {1..5})"
     ],
     "deny": [],
     "ask": []

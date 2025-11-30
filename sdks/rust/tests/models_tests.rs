@@ -2,6 +2,7 @@
 //! Tests for Vector, Collection, SearchResult, and Batch models
 
 use std::collections::HashMap;
+
 use vectorizer_sdk::*;
 
 #[test]

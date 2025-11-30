@@ -9,6 +9,7 @@
 #[cfg(test)]
 mod intelligent_search_tests {
     use std::env;
+
     use tracing::{debug, error, info, warn};
     use vectorizer_sdk::*;
 

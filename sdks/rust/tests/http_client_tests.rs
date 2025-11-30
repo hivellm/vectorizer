@@ -2,6 +2,7 @@
 //! Tests for HTTP request handling, error mapping, and response processing
 
 use std::collections::HashMap;
+
 use vectorizer_sdk::*;
 
 // Note: These tests focus on error mapping and client initialization
