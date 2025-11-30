@@ -133,7 +133,7 @@ performance:
 # =============================================================================
 workspace:
   enabled: true
-  default_workspace_file: "./vectorize-workspace.yml"
+  default_workspace_file: "./workspace.yml"
 
 # =============================================================================
 # API CONFIGURATION

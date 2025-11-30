@@ -32,9 +32,9 @@ This setup allows Vectorizer to index multiple projects in a monorepo structure.
 **Step 1**: Create Docker-specific workspace config:
 ```bash
 # Copy example workspace config
-cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
+cp workspace.docker.example.yml workspace.docker.yml
 
-# Edit vectorize-workspace.docker.yml with /workspace/* paths
+# Edit workspace.docker.yml with /workspace/* paths
 # All paths in the config should use container paths starting with /workspace/
 ```
 
@@ -48,7 +48,7 @@ docker run -d \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
   -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
   -v $(pwd)/vectorizer-dashboard:/vectorizer/dashboard \
-  -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+  -v $(pwd)/workspace.docker.yml:/vectorizer/workspace.yml:ro \
   -v $(pwd)/../../:/workspace:ro \
   -e VECTORIZER_HOST=0.0.0.0 \
   -e VECTORIZER_PORT=15002 \
@@ -63,7 +63,7 @@ docker run -d \
 docker logs vectorizer | grep -i workspace
 
 # Check if workspace file is accessible
-docker exec vectorizer cat /vectorizer/vectorize-workspace.yml
+docker exec vectorizer cat /vectorizer/workspace.yml
 
 # Verify mounted directories
 docker exec vectorizer ls -la /workspace/
@@ -75,8 +75,8 @@ docker exec vectorizer ls -la /workspace/
 - Host: `../../hivellm/governance` → Container: `/workspace/hivellm/governance`
 
 **Important**: 
-- The workspace file **must** be mounted to `/vectorizer/vectorize-workspace.yml`
-- All paths in `vectorize-workspace.docker.yml` should use container paths (e.g., `/workspace/project-name`)
+- The workspace file **must** be mounted to `/vectorizer/workspace.yml`
+- All paths in `workspace.docker.yml` should use container paths (e.g., `/workspace/project-name`)
 - Use `:ro` (read-only) flag for security when mounting source directories
 
 ### With Workspace Configuration
@@ -85,15 +85,15 @@ docker exec vectorizer ls -la /workspace/
 - **Local execution**: Use relative paths like `../../cmmv/cmmv`
 - **Docker execution**: Use container paths like `/workspace/cmmv/cmmv`
 
-**Default workspace file location**: The container looks for `vectorize-workspace.yml` at `/vectorizer/vectorize-workspace.yml` (inside the container).
+**Default workspace file location**: The container looks for `workspace.yml` at `/vectorizer/workspace.yml` (inside the container).
 
 1. Create workspace configs:
 ```bash
 # For local execution (relative paths)
-cp vectorize-workspace.example.yml vectorize-workspace.yml
+cp workspace.example.yml workspace.yml
 
 # For Docker execution (container paths /workspace/*)
-cp vectorize-workspace.docker.example.yml vectorize-workspace.docker.yml
+cp workspace.docker.example.yml workspace.docker.yml
 
 # Edit both files according to your needs
 ```
@@ -105,21 +105,21 @@ docker run -d -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
   -v $(pwd)/vectorizer-snapshots:/vectorizer/snapshots \
-  -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+  -v $(pwd)/workspace.docker.yml:/vectorizer/workspace.yml:ro \
   -v $(pwd)/src:/workspace/src:ro \
   -v $(pwd)/docs:/workspace/docs:ro \
   ghcr.io/hivellm/vectorizer:latest
 ```
 
 **Note**: 
-- The workspace file must be mounted to `/vectorizer/vectorize-workspace.yml` inside the container
+- The workspace file must be mounted to `/vectorizer/workspace.yml` inside the container
 - Adjust the mounted volumes (`src`, `docs`) to match your `watch_paths` in the workspace config
 - Use `:ro` (read-only) flag for workspace file and source directories for security
 
 3. Verify workspace is loaded:
 ```bash
 # Check if workspace file is accessible
-docker exec vectorizer cat /vectorizer/vectorize-workspace.yml
+docker exec vectorizer cat /vectorizer/workspace.yml
 
 # Check if workspace directories are mounted
 docker exec vectorizer ls -la /workspace/
@@ -137,12 +137,12 @@ If you need to index multiple projects (e.g., HiveLLM monorepo structure where v
 docker run -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
   -v $(pwd)/vectorizer-storage:/vectorizer/storage \
-  -v $(pwd)/vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro \
+  -v $(pwd)/workspace.yml:/vectorizer/workspace.yml:ro \
   -v $(pwd)/../..:/workspace:ro \
   ghcr.io/hivellm/vectorizer:latest
 ```
 
-Then in your `vectorize-workspace.yml`:
+Then in your `workspace.yml`:
 ```yaml
 global_settings:
   file_watcher:
@@ -282,7 +282,7 @@ volumes:
 ├── vectorizer-storage/       # Additional storage
 ├── vectorizer-snapshots/     # Automatic snapshots
 ├── vectorizer-dashboard/     # Dashboard data and assets
-└── vectorize-workspace.yml   # Workspace configuration (must be mounted to /vectorizer/vectorize-workspace.yml)
+└── workspace.yml   # Workspace configuration (must be mounted to /vectorizer/workspace.yml)
 ```
 
 ### Container Directory Structure
@@ -291,7 +291,7 @@ Inside the container:
 ```
 /vectorizer/
 ├── vectorizer              # Executable
-├── vectorize-workspace.yml # Workspace config (default location)
+├── workspace.yml # Workspace config (default location)
 ├── data/                  # Collection data
 ├── storage/               # Additional storage
 ├── snapshots/             # Automatic snapshots
@@ -304,7 +304,7 @@ Inside the container:
 └── ...                    # Other projects/directories
 ```
 
-**Important**: The workspace configuration file must be mounted to `/vectorizer/vectorize-workspace.yml` for the container to find it automatically.
+**Important**: The workspace configuration file must be mounted to `/vectorizer/workspace.yml` for the container to find it automatically.
 
 ## Unprivileged Image
 
@@ -392,12 +392,12 @@ docker run --user $(id -u):$(id -g) ...
 
 1. **Verify the workspace file is mounted correctly**:
 ```bash
-docker exec <container-id> cat /vectorizer/vectorize-workspace.yml
+docker exec <container-id> cat /vectorizer/workspace.yml
 ```
 
 If the file doesn't exist, mount it:
 ```bash
-docker run ... -v $(pwd)/vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro ...
+docker run ... -v $(pwd)/workspace.yml:/vectorizer/workspace.yml:ro ...
 ```
 
 2. **Check that watched directories are mounted**:
@@ -405,7 +405,7 @@ docker run ... -v $(pwd)/vectorize-workspace.yml:/vectorizer/vectorize-workspace
 docker exec <container-id> ls -la /workspace/
 ```
 
-3. **Ensure paths in `vectorize-workspace.yml` match mounted volumes**:
+3. **Ensure paths in `workspace.yml` match mounted volumes**:
    - Container paths should start with `/workspace/` (e.g., `/workspace/src`)
    - Host paths should match your `-v` mount points
    - Example: If you mount `-v $(pwd)/src:/workspace/src:ro`, use `/workspace/src` in workspace config
@@ -416,7 +416,7 @@ docker logs <container-id> | grep -i workspace
 ```
 
 5. **Common issues**:
-   - **File not found**: Workspace file must be at `/vectorizer/vectorize-workspace.yml` inside container
+   - **File not found**: Workspace file must be at `/vectorizer/workspace.yml` inside container
    - **Path mismatch**: Container paths in config don't match mounted volumes
    - **Permission denied**: Use `:ro` flag for read-only mounts, ensure directories are readable
    - **YAML syntax error**: Validate YAML syntax before mounting

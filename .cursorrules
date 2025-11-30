@@ -514,7 +514,7 @@ src/
 ```
 
 ### Configuration Hierarchy
-1. **Workspace config** (`vectorize-workspace.yml`): Project definitions, global settings
+1. **Workspace config** (`workspace.yml`): Project definitions, global settings
 2. **Runtime config**: Environment variables, command-line flags
 3. **Default config**: Sensible defaults in code
 

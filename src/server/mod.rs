@@ -1940,9 +1940,9 @@ impl rmcp::ServerHandler for VectorizerMcpService {
     }
 }
 
-/// Load file watcher configuration from vectorize-workspace.yml
+/// Load file watcher configuration from workspace.yml
 async fn load_file_watcher_config() -> anyhow::Result<crate::file_watcher::FileWatcherConfig> {
-    match crate::file_watcher::FileWatcherConfig::from_yaml_file("vectorize-workspace.yml") {
+    match crate::file_watcher::FileWatcherConfig::from_yaml_file("workspace.yml") {
         Ok(config) => {
             info!(
                 "Loaded file watcher configuration from workspace: watch_paths={:?}, exclude_patterns={:?}",
@@ -1972,13 +1972,13 @@ pub async fn load_workspace_collections(
     use crate::workspace::manager::WorkspaceManager;
 
     // Look for workspace configuration file
-    let workspace_file = Path::new("vectorize-workspace.yml");
+    let workspace_file = Path::new("workspace.yml");
     info!(
         "Checking for workspace file at: {}",
         workspace_file.display()
     );
     if !workspace_file.exists() {
-        info!("No workspace configuration file found at vectorize-workspace.yml");
+        info!("No workspace configuration file found at workspace.yml");
         return Ok(0);
     }
 

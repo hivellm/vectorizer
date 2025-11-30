@@ -122,5 +122,5 @@ Use `tokio` runtime. Never use blocking operations (`std::thread::sleep`) in asy
 ## Configuration Files
 
 - `config.yml` - Runtime configuration
-- `vectorize-workspace.yml` - Workspace/project definitions
+- `workspace.yml` - Workspace/project definitions
 - `config.example.yml` - Configuration reference

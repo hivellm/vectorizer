@@ -14,7 +14,7 @@ Enhanced vector database persistence layer with transaction management, data int
 ### Features
 
 **✅ Current Capabilities**:
-- Workspace collections (read-only) from vectorize-workspace.yml
+- Workspace collections (read-only) from workspace.yml
 - Automatic cache-based loading
 - HNSW index persistence
 - Excellent performance (<10ms latency)
@@ -31,7 +31,7 @@ Enhanced vector database persistence layer with transaction management, data int
 ## Collection Types
 
 ### Workspace Collections (Read-Only)
-- Source: `vectorize-workspace.yml`
+- Source: `workspace.yml`
 - Auto-loaded from cache at startup
 - Updated by file watcher when files change
 - Cannot be modified via API/MCP

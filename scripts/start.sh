@@ -60,22 +60,22 @@ usage() {
     echo "Usage: $0 [OPTIONS] [WORKSPACE_FILE]"
     echo ""
     echo "Options:"
-    echo "  --workspace WORKSPACE_FILE    Path to vectorize-workspace.yml file"
+    echo "  --workspace WORKSPACE_FILE    Path to workspace.yml file"
     echo "  --daemon                      Run as daemon/service (background)"
     echo "  --help, -h                    Show this help message"
-    echo "  WORKSPACE_FILE                Path to vectorize-workspace.yml file (positional)"
+    echo "  WORKSPACE_FILE                Path to workspace.yml file (positional)"
     echo ""
     echo "Examples:"
-    echo "  $0 --workspace vectorize-workspace.yml"
-    echo "  $0 --workspace vectorize-workspace.yml --daemon"
-    echo "  $0 ../my-project/vectorize-workspace.yml"
-    echo "  $0 --daemon                   # Uses default: vectorize-workspace.yml"
-    echo "  $0                            # Uses default: vectorize-workspace.yml"
+    echo "  $0 --workspace workspace.yml"
+    echo "  $0 --workspace workspace.yml --daemon"
+    echo "  $0 ../my-project/workspace.yml"
+    echo "  $0 --daemon                   # Uses default: workspace.yml"
+    echo "  $0                            # Uses default: workspace.yml"
     exit 1
 }
 
 # Parse arguments
-WORKSPACE_FILE="config/vectorize-workspace.yml"
+WORKSPACE_FILE="config/workspace.yml"
 DAEMON_MODE=false
 
 while [[ $# -gt 0 ]]; do

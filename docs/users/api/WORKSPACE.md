@@ -261,7 +261,7 @@ curl -X POST http://localhost:15002/api/workspace/config \
 
 ## Workspace Configuration File
 
-Workspaces are configured via `vectorize-workspace.yml`:
+Workspaces are configured via `workspace.yml`:
 
 ```yaml
 projects:

@@ -8,7 +8,6 @@
 *.swp
 *.swo
 *~
-vectorize-workspace.yml
 
 # OS files
 .DS_Store
@@ -88,9 +87,8 @@ backups/** */
 cuhnsw
 data
 
-!./vectorize-workspace.yml
-vectorize-workspace.yml
-vectorize-workspace.docker.yml
+workspace.yml
+./workspace.yml
 /cache/
 /qdrant/
 

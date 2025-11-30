@@ -8,7 +8,7 @@
 
 ## Overview
 
-Workspace management system for organizing and indexing multiple projects through `vectorize-workspace.yml` configuration.
+Workspace management system for organizing and indexing multiple projects through `workspace.yml` configuration.
 
 ---
 

@@ -75,8 +75,8 @@
                       Source="config.example.yml" />
             </Component>
             <Component Id="WorkspaceExampleComponent" Guid="A6B7C8D9-E0F1-4A5B-9C8D-7E6F5A4B3C2D">
-                <File Id="WorkspaceExampleFile" 
-                      Source="vectorize-workspace.example.yml" />
+                <File Id="WorkspaceExampleFile"
+                      Source="workspace.example.yml" />
             </Component>
         </ComponentGroup>
 

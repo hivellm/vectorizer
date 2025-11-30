@@ -534,11 +534,11 @@ impl FileWatcherSystem {
         Ok(indexed_files.into_iter().collect())
     }
 
-    /// Load workspace configuration from vectorize-workspace.yml
+    /// Load workspace configuration from workspace.yml
     async fn load_workspace_config(&self) -> Result<WorkspaceWatchConfig> {
         let workspace_file = std::env::current_dir()
             .unwrap_or_else(|_| std::path::PathBuf::from("."))
-            .join("vectorize-workspace.yml");
+            .join("workspace.yml");
 
         if !workspace_file.exists() {
             return Err(FileWatcherError::ConfigError(format!(

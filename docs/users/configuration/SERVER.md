@@ -220,7 +220,7 @@ Vectorizer can load configuration from a YAML file:
 
 **Default locations (checked in order):**
 
-1. `./vectorize-workspace.yml` (current directory)
+1. `./workspace.yml` (current directory)
 2. `~/.vectorizer/config.yml` (user home)
 3. `/etc/vectorizer/config.yml` (system-wide)
 

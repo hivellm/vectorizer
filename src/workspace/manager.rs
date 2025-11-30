@@ -134,7 +134,7 @@ impl WorkspaceManager {
     /// Create a new workspace with default configuration
     pub fn create_default<P: AsRef<Path>>(workspace_root: P) -> Result<Self> {
         let workspace_root = workspace_root.as_ref().to_path_buf();
-        let config_path = workspace_root.join("vectorize-workspace.yml");
+        let config_path = workspace_root.join("workspace.yml");
 
         info!(
             "Creating default workspace at: {}",

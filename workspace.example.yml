@@ -1,5 +1,5 @@
 # Vectorizer Workspace Configuration Example
-# Copy this file to vectorize-workspace.yml and customize for your project
+# Copy this file to workspace.yml and customize for your project
 
 global_settings:
   file_watcher:

@@ -325,7 +325,7 @@ workspace:
   enabled: true
 
   # Default workspace file
-  default_workspace_file: "./vectorize-workspace.yml"
+  default_workspace_file: "./workspace.yml"
 
 # =============================================================================
 # API CONFIGURATION

@@ -32,7 +32,7 @@ git push origin "v0.23.0"
 #### **Release Contents**
 Each release includes:
 - **Binaries**: `vectorizer-cli`, `vectorizer-server`, `vectorizer-mcp-server`, `vzr`
-- **Configuration**: `config.yml`, `vectorize-workspace.yml`
+- **Configuration**: `config.yml`, `workspace.yml`
 - **Documentation**: `README.md`, `LICENSE`
 - **Installation Scripts**: `install.sh` (Linux/macOS), `install.bat` (Windows)
 

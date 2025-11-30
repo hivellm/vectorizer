@@ -635,7 +635,7 @@ const config = reactive({
   },
   workspace: {
     enabled: true,
-    default_workspace_file: './vectorize-workspace.yml',
+    default_workspace_file: './workspace.yml',
     auto_load_collections: true
   },
   storage: {

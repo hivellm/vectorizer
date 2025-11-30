@@ -62,7 +62,8 @@
       "Bash(wsl --export:*)",
       "Bash(wsl --shutdown)",
       "Bash(wsl --set-version:*)",
-      "Bash(wsl --unregister:*)"
+      "Bash(wsl --unregister:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

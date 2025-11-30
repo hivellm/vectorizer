@@ -116,7 +116,7 @@ Vectorizer can be configured via:
 
 2. **Config File**: Mount `config.yml` to `/vectorizer/config.yml`
 
-3. **Workspace Configuration**: Mount `vectorize-workspace.yml` to `/vectorizer/vectorize-workspace.yml` for monorepo indexing
+3. **Workspace Configuration**: Mount `workspace.yml` to `/vectorizer/workspace.yml` for monorepo indexing
 
 ## 📝 Examples
 
@@ -184,7 +184,7 @@ docker run -d \
   --name vectorizer \
   -p 15002:15002 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
-  -v $(pwd)/vectorize-workspace.yml:/vectorizer/vectorize-workspace.yml:ro \
+  -v $(pwd)/workspace.yml:/vectorizer/workspace.yml:ro \
   -v $(pwd)/workspace:/workspace:ro \
   --restart unless-stopped \
   hivehub/vectorizer:latest

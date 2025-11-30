@@ -166,7 +166,7 @@ gpu:
 Vectorizer checks for configuration files in this order:
 
 1. Path specified by `--config` argument
-2. `./vectorize-workspace.yml` (current directory)
+2. `./workspace.yml` (current directory)
 3. `~/.vectorizer/config.yml` (user home)
 4. `/etc/vectorizer/config.yml` (system-wide)
 

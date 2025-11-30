@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.6.1"
+version = "1.7.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -438,7 +438,7 @@ assets = [
     ["README.md", "usr/share/doc/vectorizer/README", "644"],
     ["config.yml", "etc/vectorizer/config.yml", "644"],
     ["config.example.yml", "etc/vectorizer/", "644"],
-    ["vectorize-workspace.example.yml", "etc/vectorizer/", "644"],
+    ["workspace.example.yml", "etc/vectorizer/", "644"],
     ["dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],
     ["dashboard/app.js", "usr/share/vectorizer/dashboard/", "644"],
     ["dashboard/api-client.js", "usr/share/vectorizer/dashboard/", "644"],

@@ -33,6 +33,6 @@ sleep 2
 
 # Inicia o serviço
 echo "🚀 Iniciando o serviço..."
-./scripts/start.sh --workspace vectorize-workspace.yml
+./scripts/start.sh --workspace workspace.yml
 
 echo "✅ Restart concluído com sucesso!"

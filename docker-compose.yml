@@ -14,8 +14,8 @@ services:
       - ./../../:/workspace:ro
 
       # Workspace configuration for Docker (paths are /workspace/*)
-      # For local dev, use vectorize-workspace.yml with relative paths
-      - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
+      # For local dev, use workspace.yml with relative paths
+      - ./workspace.docker.yml:/vectorizer/workspace.yml:ro
 
       # Mount parent directories for monorepo access
       # Adjust the number of ../ based on your folder structure

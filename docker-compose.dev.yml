@@ -23,7 +23,7 @@ services:
       - ./vectorizer-dashboard:/vectorizer/dashboard
       
       # Workspace configuration for Docker
-      - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
+      - ./workspace.docker.yml:/vectorizer/workspace.yml:ro
       
       # Mount entire monorepo for development
       - ../../:/workspace:ro

@@ -38,14 +38,14 @@
 #   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
 #     -v $(pwd)/data:/vectorizer/data \
-#     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+#     -v $(pwd)/workspace.docker.yml:/vectorizer/workspace.yml:ro \
 #     -v $(pwd)/../../:/workspace:ro \
 #     --name vectorizer vectorizer:latest
 #
 #   # PowerShell (Windows):
 #   docker run -d -p 15002:15002 `
 #     -v ${PWD}/data:/vectorizer/data `
-#     -v ${PWD}/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro `
+#     -v ${PWD}/workspace.docker.yml:/vectorizer/workspace.yml:ro `
 #     -v ${PWD}/../../:/workspace:ro `
 #     --name vectorizer vectorizer:latest
 #
@@ -82,7 +82,7 @@
 #   # Bash/Linux/Mac:
 #   docker run -d -p 15002:15002 \
 #     -v $(pwd)/data:/vectorizer/data \
-#     -v $(pwd)/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro \
+#     -v $(pwd)/workspace.docker.yml:/vectorizer/workspace.yml:ro \
 #     -v $(pwd)/../../:/workspace:ro \
 #     -e VECTORIZER_HOST=0.0.0.0 \
 #     -e VECTORIZER_PORT=15002 \
@@ -91,7 +91,7 @@
 #   # PowerShell (Windows):
 #   docker run -d -p 15002:15002 `
 #     -v ${PWD}/data:/vectorizer/data `
-#     -v ${PWD}/vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro `
+#     -v ${PWD}/workspace.docker.yml:/vectorizer/workspace.yml:ro `
 #     -v ${PWD}/../../:/workspace:ro `
 #     -e VECTORIZER_HOST=0.0.0.0 `
 #     -e VECTORIZER_PORT=15002 `
@@ -120,7 +120,7 @@
 #         - "15002:15002"
 #       volumes:
 #         - ./data:/vectorizer/data
-#         - ./vectorize-workspace.docker.yml:/vectorizer/vectorize-workspace.yml:ro
+#         - ./workspace.docker.yml:/vectorizer/workspace.yml:ro
 #         - ../../:/workspace:ro
 #       environment:
 #         - VECTORIZER_HOST=0.0.0.0

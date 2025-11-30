@@ -28,9 +28,18 @@ All notable changes to this project will be documented in this file.
   - Collections created with graph support now force CPU backend
   - Test uses `forceCpu: true` for consistent behavior across environments
 
-## [Unreleased]
+## [1.7.0] - 2025-11-30
 
 ### Changed
+
+- **Workspace Configuration File Naming**: Renamed workspace configuration from `vectorizer-workspace.yml` to `workspace.yml`
+  - Shorter, cleaner filename that better aligns with industry standards
+  - All documentation, code, and examples updated
+  - Example file renamed: `workspace.example.yml`
+  - Docker variant renamed: `workspace.docker.yml`
+  - Environment variable updated: `VECTORIZER_WORKSPACE_CONFIG`
+  - **BREAKING**: Existing `vectorizer-workspace.yml` files should be renamed to `workspace.yml`
+  - **BENEFIT**: Simpler, more intuitive naming convention
 
 - **Dependency Updates**: Updated key dependencies to latest versions
   - `rmcp`: 0.8.1 → 0.9.1 (MCP SDK with new meta field support)
@@ -2433,7 +2442,7 @@ normalization:
 
 #### **Configuration Features**
 
-- ✅ **YAML Configuration**: Complete workspace configuration via `vectorize-workspace.yml`
+- ✅ **YAML Configuration**: Complete workspace configuration via `workspace.yml`
 - ✅ **Pattern Matching**: Glob-based include/exclude patterns for files and directories
 - ✅ **Project-specific Settings**: Per-project configuration with inheritance
 - ✅ **Collection Mapping**: Automatic collection creation based on file patterns
@@ -2541,7 +2550,7 @@ global_settings:
 ### 🔄 **Migration Guide**
 
 - **From Bash Scripts**: All bash test scripts have been removed and replaced with Rust tests
-- **Configuration**: New `file_watcher` section in `vectorize-workspace.yml`
+- **Configuration**: New `file_watcher` section in `workspace.yml`
 - **API**: New REST endpoints for file watcher status and control
 - **Dependencies**: No new external dependencies required
 
@@ -3134,12 +3143,12 @@ gpu:
 
 ```bash
 # Auto-detection (Recommended)
-./target/release/vzr start --workspace vectorize-workspace.yml
+./target/release/vzr start --workspace workspace.yml
 
 # Force specific backend
-./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend vulkan
-./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend dx12
-./target/release/vzr start --workspace vectorize-workspace.yml --gpu-backend metal
+./target/release/vzr start --workspace workspace.yml --gpu-backend vulkan
+./target/release/vzr start --workspace workspace.yml --gpu-backend dx12
+./target/release/vzr start --workspace workspace.yml --gpu-backend metal
 
 # Run benchmarks
 cargo run --example multi_gpu_benchmark --features wgpu-gpu --release
@@ -3449,7 +3458,7 @@ This release fixes a **critical data persistence bug** where all vector data app
   - Push version tag (e.g., `v0.22.0`) triggers automatic release
   - Builds all 4 binaries: `vectorizer-server`, `vectorizer-cli`, `vzr`, `vectorizer-mcp-server`
   - Creates installation scripts for Linux/macOS and Windows
-  - Includes configuration files (`config.yml`, `vectorize-workspace.yml`)
+  - Includes configuration files (`config.yml`, `workspace.yml`)
   - Generates GitHub release with downloadable archives
 - **Build Scripts**: Enhanced `scripts/start.sh` with proper workspace configuration
 - **Cross-Platform Support**: Native binaries for all major operating systems
@@ -4484,7 +4493,7 @@ client-sdks/python/
 #### Collection Indexing Fixes
 
 - **FIXED**: Collections now index only their specified files (gov-bips vs gov-proposals separation)
-- **FIXED**: vzr now uses collection-specific patterns from vectorize-workspace.yml
+- **FIXED**: vzr now uses collection-specific patterns from workspace.yml
 - **FIXED**: Eliminated duplicate indexing between different collections
 - **IMPROVED**: Each collection respects its own include/exclude patterns
 
@@ -4503,7 +4512,7 @@ client-sdks/python/
 
 #### Configuration Integration
 
-- **IMPROVED**: vzr now fully respects vectorize-workspace.yml configuration
+- **IMPROVED**: vzr now fully respects workspace.yml configuration
 - **IMPROVED**: Collection-specific chunk_size, chunk_overlap, and embedding settings
 - **IMPROVED**: Proper exclude patterns for binary files and build artifacts
 

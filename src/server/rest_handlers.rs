@@ -2962,10 +2962,10 @@ pub async fn get_backup_directory() -> Json<Value> {
 /// Get workspace configuration (for GUI)
 pub async fn get_workspace_config() -> Result<Json<Value>, ErrorResponse> {
     let possible_paths = vec![
-        "./vectorize-workspace.yml",
-        "../vectorize-workspace.yml",
-        "../../vectorize-workspace.yml",
-        "./config/vectorize-workspace.yml",
+        "./workspace.yml",
+        "../workspace.yml",
+        "../../workspace.yml",
+        "./config/workspace.yml",
     ];
 
     for path in &possible_paths {
@@ -3002,9 +3002,9 @@ pub async fn get_workspace_config() -> Result<Json<Value>, ErrorResponse> {
 pub async fn update_workspace_config(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    // Write to vectorize-workspace.yml
+    // Write to workspace.yml
     match serde_yaml::to_string(&payload) {
-        Ok(yaml_content) => match std::fs::write("./vectorize-workspace.yml", yaml_content) {
+        Ok(yaml_content) => match std::fs::write("./workspace.yml", yaml_content) {
             Ok(_) => {
                 info!("Workspace configuration updated successfully");
                 Ok(Json(json!({
@@ -3013,7 +3013,7 @@ pub async fn update_workspace_config(
                 })))
             }
             Err(e) => {
-                error!("Failed to write vectorize-workspace.yml: {}", e);
+                error!("Failed to write workspace.yml: {}", e);
                 Err(create_bad_request_error(&format!(
                     "Operation failed: {}",
                     e

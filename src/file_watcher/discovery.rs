@@ -397,7 +397,7 @@ impl FileDiscovery {
     ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error + Send + Sync>> {
         let workspace_file = std::env::current_dir()
             .unwrap_or_else(|_| std::path::PathBuf::from("."))
-            .join("vectorize-workspace.yml");
+            .join("workspace.yml");
 
         if !workspace_file.exists() {
             // Fallback to current directory

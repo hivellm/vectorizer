@@ -102,7 +102,7 @@ api:
 workspace:
   enabled: true
   auto_load_collections: false    # Development: manual loading
-  default_workspace_file: "./vectorize-workspace.yml"
+  default_workspace_file: "./workspace.yml"
 
 # =============================================================================
 # FILE WATCHER

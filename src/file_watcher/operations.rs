@@ -297,7 +297,7 @@ impl VectorOperations {
         // Extract meaningful parts from path for collection name
         let path_str = path.to_string_lossy();
 
-        // Try to match against known project patterns from vectorize-workspace.yml
+        // Try to match against known project patterns from workspace.yml
         if path_str.contains("/docs/") {
             if path_str.contains("/architecture/") {
                 "docs-architecture".to_string()

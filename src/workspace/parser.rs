@@ -107,7 +107,7 @@ pub fn find_workspace_config<P: AsRef<Path>>(start_path: P) -> Result<Option<std
     let mut current_path = start_path.to_path_buf();
 
     loop {
-        let config_path = current_path.join("vectorize-workspace.yml");
+        let config_path = current_path.join("workspace.yml");
 
         if config_path.exists() {
             info!("Found workspace config: {}", config_path.display());
@@ -215,7 +215,7 @@ projects: []
     #[test]
     fn test_find_workspace_config() {
         let temp_dir = tempdir().unwrap();
-        let config_path = temp_dir.path().join("vectorize-workspace.yml");
+        let config_path = temp_dir.path().join("workspace.yml");
 
         // Create a test config file
         let config = create_default_workspace_config();

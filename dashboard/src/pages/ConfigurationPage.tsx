@@ -834,7 +834,7 @@ function ConfigurationPage() {
                       <Input
                         value={config.workspace?.default_workspace_file || ''}
                         onChange={(e) => updateConfig(['workspace', 'default_workspace_file'], e.target.value)}
-                        placeholder="./vectorize-workspace.yml"
+                        placeholder="./workspace.yml"
                       />
                     </div>
                   </div>

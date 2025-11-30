@@ -124,9 +124,9 @@ if [[ -f "$PROJECT_ROOT/config.exemple.yml" ]]; then
 fi
 
 if [[ "$PACKAGE_TYPE" == "full" ]]; then
-    if [[ -f "$PROJECT_ROOT/vectorize-workspace.example.yml" ]]; then
-        cp "$PROJECT_ROOT/vectorize-workspace.example.yml" "$PACKAGE_DIR/config/vectorize-workspace.yml"
-        echo -e "${GREEN}  ✅ vectorize-workspace.yml${NC}"
+    if [[ -f "$PROJECT_ROOT/workspace.example.yml" ]]; then
+        cp "$PROJECT_ROOT/workspace.example.yml" "$PACKAGE_DIR/config/workspace.yml"
+        echo -e "${GREEN}  ✅ workspace.yml${NC}"
     fi
 fi
 
@@ -249,7 +249,7 @@ Edit \`config/config.yml\` to change:
 
 ### Option 2: With Workspace
 \`\`\`bash
-./vectorizer --config config/config.yml --workspace config/vectorize-workspace.yml
+./vectorizer --config config/config.yml --workspace config/workspace.yml
 \`\`\`
 
 ### Option 3: Systemd Service (Linux)
@@ -363,7 +363,7 @@ fi
 echo -e "  ✅ config/config.yml"
 
 if [[ "$PACKAGE_TYPE" == "full" ]]; then
-    echo -e "  ✅ config/vectorize-workspace.yml"
+    echo -e "  ✅ config/workspace.yml"
     echo -e "  ✅ scripts/ (management scripts)"
 fi
 

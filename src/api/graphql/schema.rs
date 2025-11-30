@@ -466,10 +466,10 @@ impl QueryRoot {
         _ctx: &Context<'_>,
     ) -> async_graphql::Result<GqlWorkspaceConfig> {
         let possible_paths = vec![
-            "./vectorize-workspace.yml",
-            "../vectorize-workspace.yml",
-            "../../vectorize-workspace.yml",
-            "./config/vectorize-workspace.yml",
+            "./workspace.yml",
+            "../workspace.yml",
+            "../../workspace.yml",
+            "./config/workspace.yml",
         ];
 
         for path in &possible_paths {
@@ -927,9 +927,9 @@ impl MutationRoot {
         _ctx: &Context<'_>,
         config: async_graphql::Json<serde_json::Value>,
     ) -> async_graphql::Result<MutationResult> {
-        // Write to vectorize-workspace.yml
+        // Write to workspace.yml
         match serde_yaml::to_string(&config.0) {
-            Ok(yaml_content) => match std::fs::write("./vectorize-workspace.yml", yaml_content) {
+            Ok(yaml_content) => match std::fs::write("./workspace.yml", yaml_content) {
                 Ok(_) => {
                     info!("GraphQL: Workspace configuration updated successfully");
                     Ok(MutationResult::ok_with_message(

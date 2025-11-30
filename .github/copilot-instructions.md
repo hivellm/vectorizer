@@ -1222,7 +1222,7 @@ pub fn sum_positive(numbers: &[i32]) -> i32 {
 
 ### Configuration Hierarchy
 
-1. **Workspace Config**: `vectorize-workspace.yml` - project definitions
+1. **Workspace Config**: `workspace.yml` - project definitions
 2. **Runtime Config**: Environment variables and CLI flags
 3. **Code Defaults**: Sensible defaults in Rust code
 

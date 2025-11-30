@@ -261,7 +261,7 @@ create_linux_package() {
     # Copy configuration files
     mkdir -p "$package_dir/config"
     cp "$PROJECT_ROOT/config.example.yml" "$package_dir/config/"
-    cp "$PROJECT_ROOT/vectorize-workspace.example.yml" "$package_dir/config/"
+    cp "$PROJECT_ROOT/workspace.example.yml" "$package_dir/config/"
     
     # Copy scripts
     mkdir -p "$package_dir/scripts"
@@ -391,7 +391,7 @@ EOF
 ## Configuration
 
 - Edit \`config/config.yml\` for server settings
-- Edit \`config/vectorize-workspace.yml\` for workspace configuration
+- Edit \`config/workspace.yml\` for workspace configuration
 
 ## Python SDK
 
@@ -428,7 +428,7 @@ create_windows_package() {
     # Copy configuration files
     mkdir -p "$package_dir/config"
     cp "$PROJECT_ROOT/config.example.yml" "$package_dir/config/"
-    cp "$PROJECT_ROOT/vectorize-workspace.example.yml" "$package_dir/config/"
+    cp "$PROJECT_ROOT/workspace.example.yml" "$package_dir/config/"
     
     # Copy scripts
     mkdir -p "$package_dir/scripts"
@@ -509,7 +509,7 @@ EOF
 ## Configuration
 
 - Edit \`config\\config.yml\` for server settings
-- Edit \`config\\vectorize-workspace.yml\` for workspace configuration
+- Edit \`config\\workspace.yml\` for workspace configuration
 
 ## Python SDK
 
@@ -563,7 +563,7 @@ create_release_notes() {
 ## 📚 Documentation
 
 - **README**: Complete documentation included in package
-- **Configuration**: Edit \`config/config.yml\` and \`config/vectorize-workspace.yml\`
+- **Configuration**: Edit \`config/config.yml\` and \`config/workspace.yml\`
 - **Python SDK**: Included in \`client-sdks/python/\`
 
 ## 🐛 Support
