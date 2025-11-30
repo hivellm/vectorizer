@@ -22,8 +22,18 @@ jobs:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (non-Windows)
+        if: runner.os != 'Windows'
         uses: actions/checkout@v6
+
+      - name: Checkout code (Windows - skip reserved filenames)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          git clone --no-checkout --depth 1 --filter=blob:none ${{ github.server_url }}/${{ github.repository }}.git .
+          git sparse-checkout init --cone
+          git sparse-checkout set '/*' '!nul' '!NUL'
+          git checkout ${{ github.sha }} || git checkout ${{ github.ref_name }}
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6

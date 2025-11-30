@@ -27,8 +27,18 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
     
-    - name: Checkout code
+    - name: Checkout code (non-Windows)
+      if: runner.os != 'Windows'
       uses: actions/checkout@v6
+
+    - name: Checkout code (Windows - skip reserved filenames)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        git clone --no-checkout --depth 1 --filter=blob:none ${{ github.server_url }}/${{ github.repository }}.git .
+        git sparse-checkout init --cone
+        git sparse-checkout set '/*' '!nul' '!NUL'
+        git checkout ${{ github.sha }} || git checkout ${{ github.ref_name }}
     
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2

@@ -22,8 +22,18 @@ jobs:
         node-version: [ '18.x', '20.x' ]
 
     steps:
-    - name: Checkout code
+    - name: Checkout code (non-Windows)
+      if: runner.os != 'Windows'
       uses: actions/checkout@v6
+
+    - name: Checkout code (Windows - skip reserved filenames)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        git clone --no-checkout --depth 1 --filter=blob:none ${{ github.server_url }}/${{ github.repository }}.git .
+        git sparse-checkout init --cone
+        git sparse-checkout set '/*' '!nul' '!NUL'
+        git checkout ${{ github.sha }} || git checkout ${{ github.ref_name }}
 
     - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v6
@@ -44,7 +54,6 @@ jobs:
       working-directory: ./sdks/javascript
       run: npm test
       env:
-        # Skip server-to-server tests that require running server
         VITEST_SKIP_S2S: true
 
     - name: Upload test results
@@ -109,4 +118,3 @@ jobs:
           exit 1
         fi
         echo "Build artifacts verified successfully"
-
