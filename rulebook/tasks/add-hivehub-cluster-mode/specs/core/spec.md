@@ -2,43 +2,45 @@
 
 ## ADDED Requirements
 
-### Requirement: HiveHub API Client
+### Requirement: HiveHub Cloud SDK Integration
 
-The system SHALL implement a robust HiveHub API client for external service integration.
+The system SHALL integrate the official `hivehub-cloud-internal-sdk` for HiveHub Cloud API communication.
 
-The client MUST support the following operations:
-- Validate API keys and retrieve tenant information
-- Fetch quota limits for tenants
-- Report usage metrics to HiveHub
-- Handle connection failures gracefully with retry logic
-- Cache responses to minimize API calls
+The SDK integration MUST provide:
+- API key validation and tenant information retrieval
+- Quota management (fetch, validate, update)
+- Automatic caching with configurable TTL
+- Retry logic with exponential backoff
+- Connection pooling for performance
+- Type-safe request/response models
 
 #### Scenario: API Key Validation Success
 
 Given a valid API key "hh_test_abc123"
-When the system validates the API key with HiveHub
-Then HiveHub SHALL return tenant information including:
+When the system calls `client.auth().validate_api_key("hh_test_abc123")`
+Then the SDK SHALL return tenant information including:
 - `tenant_id`: Unique identifier for the tenant
 - `tenant_name`: Display name
 - `quotas`: Storage and rate limit quotas
 - `permissions`: List of allowed operations
-And the client SHALL cache this information for 5 minutes
+And the SDK SHALL automatically cache this information for 5 minutes
 
 #### Scenario: API Key Validation Failure
 
 Given an invalid API key "hh_invalid_key"
-When the system validates the API key with HiveHub
-Then HiveHub SHALL return an authentication error
+When the system calls `client.auth().validate_api_key("hh_invalid_key")`
+Then the SDK SHALL return `HiveHubError::InvalidApiKey`
 And the system SHALL reject the request with 401 Unauthorized
-And the system SHALL NOT cache the failed result
+And the SDK SHALL NOT cache the failed result
 
 #### Scenario: HiveHub API Unavailable
 
 Given the HiveHub API is temporarily unavailable
-When the system attempts to validate an API key
-Then the client SHALL retry up to 3 times with exponential backoff
-And if all retries fail, SHALL use cached data if available
-And if no cache exists, SHALL return 503 Service Unavailable
+When the system calls `client.auth().validate_api_key()`
+Then the SDK SHALL automatically retry up to 3 times with exponential backoff
+And if all retries fail, the SDK SHALL use cached data if available
+And if no cache exists, the SDK SHALL return `HiveHubError::ServiceUnavailable`
+And the system SHALL return 503 Service Unavailable to client
 
 ---
 
@@ -244,29 +246,27 @@ cluster:
   # Enable cluster mode (default: false)
   enabled: boolean
   
-  # HiveHub API configuration
-  hivehub_api_url: string
-  hivehub_api_key: string  # Environment variable recommended
-  
-  # Quota synchronization interval (seconds)
-  quota_check_interval: integer
+  # HiveHub Cloud SDK configuration
+  hivehub:
+    api_url: string  # HiveHub Cloud API URL
+    service_api_key: string  # Service authentication key
+    timeout_seconds: integer  # Request timeout
+    retries: integer  # Max retry attempts
+    
+    # SDK Cache configuration
+    cache:
+      enabled: boolean
+      ttl_seconds: integer  # API key cache TTL
+      quota_ttl_seconds: integer  # Quota cache TTL
+      max_entries: integer  # Max cache size
+    
+    # Connection pool
+    connection_pool:
+      max_idle_per_host: integer
+      pool_timeout_seconds: integer
   
   # Usage reporting interval (seconds)
   usage_report_interval: integer
-  
-  # Cache configuration
-  cache:
-    # API key cache TTL (seconds)
-    api_key_ttl: integer
-    
-    # Quota cache TTL (seconds)
-    quota_ttl: integer
-    
-    # Cache backend: "memory" or "redis"
-    backend: string
-    
-    # Redis connection (if backend: redis)
-    redis_url: string
 
 auth:
   # Require authentication on all endpoints
@@ -283,6 +283,72 @@ rate_limiting:
   default_requests_per_minute: integer
   default_requests_per_hour: integer
   default_requests_per_day: integer
+```
+
+## SDK Usage Examples
+
+### Initialize HiveHub Client
+
+```rust
+use hivehub_cloud_internal_sdk::HiveHubCloudClient;
+
+// Initialize from environment
+let client = HiveHubCloudClient::from_env()?;
+
+// Or with explicit configuration
+let client = HiveHubCloudClient::new(
+    "svc_vectorizer_abc123...",
+    "https://api.hivehub.cloud".to_string(),
+)?;
+```
+
+### Validate API Key
+
+```rust
+// In authentication middleware
+let tenant_info = client.auth()
+    .validate_api_key(&api_key)
+    .await?;
+
+// Extract tenant context
+let tenant_context = TenantContext {
+    tenant_id: tenant_info.tenant_id,
+    permissions: tenant_info.permissions,
+};
+```
+
+### Check and Update Quota
+
+```rust
+// Check quota before operation
+let quota = client.vectorizer()
+    .get_user_quota(&tenant_id)
+    .await?;
+
+if !quota.storage.can_insert {
+    return Err(VectorizerError::QuotaExceeded);
+}
+
+// Update usage after operation
+client.vectorizer()
+    .update_usage(&tenant_id, &UpdateUsageRequest {
+        vector_count: new_count,
+        storage_bytes: new_storage,
+    })
+    .await?;
+```
+
+### Validate Collection Ownership
+
+```rust
+// Validate collection belongs to tenant
+let validation = client.vectorizer()
+    .validate_collection(&collection_id, &tenant_id)
+    .await?;
+
+if !validation.valid {
+    return Err(VectorizerError::Forbidden);
+}
 ```
 
 ## Error Codes

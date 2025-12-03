@@ -25,18 +25,27 @@ The current Vectorizer implementation is designed for single-user or single-orga
 
 ## What Changes
 
-### 1. HiveHub Integration API
+### 1. HiveHub Cloud SDK Integration
 
-**New Component**: HiveHub integration client that communicates with HiveHub API to:
-- Validate API keys and retrieve tenant information
-- Fetch quota limits (storage, operations, rate limits)
-- Report usage metrics for billing
-- Synchronize access control policies
+**New Dependency**: `hivehub-cloud-internal-sdk` - Official Rust SDK for HiveHub Cloud API integration
 
-**Files Added**:
-- `src/hivehub/client.rs` - HiveHub API client
-- `src/hivehub/models.rs` - HiveHub data models (quotas, tenant info)
-- `src/hivehub/cache.rs` - Local cache for quota/auth data
+The SDK provides:
+- API key validation and tenant information retrieval
+- Quota management (fetch limits, validate, update usage)
+- Automatic caching with configurable TTL
+- Retry logic with exponential backoff
+- Connection pooling and performance optimization
+- Type-safe request/response models
+
+**Integration**:
+- Add dependency: `hivehub-cloud-internal-sdk = "1.0.0"`
+- Initialize client with service API key: `svc_vectorizer_abc123...`
+- Use SDK methods throughout the codebase instead of raw HTTP calls
+
+**Files Modified**:
+- `Cargo.toml` - Add SDK dependency
+- `src/main.rs` - Initialize HiveHub client
+- `src/config.rs` - Add HiveHub configuration section
 
 ### 2. Authentication & Authorization System
 
@@ -115,14 +124,25 @@ The current Vectorizer implementation is designed for single-user or single-orga
 ```yaml
 cluster:
   enabled: true  # Enable cluster mode
-  hivehub_api_url: "https://api.hivehub.io"
-  hivehub_api_key: "${HIVEHUB_API_KEY}"
-  quota_check_interval: 60  # seconds
+  
+  # HiveHub Cloud SDK configuration
+  hivehub:
+    api_url: "https://api.hivehub.cloud"
+    service_api_key: "${HIVEHUB_SERVICE_API_KEY}"  # Service authentication
+    timeout_seconds: 30
+    retries: 3
+    cache:
+      enabled: true
+      ttl_seconds: 300  # 5 minutes for API key validation
+      quota_ttl_seconds: 60  # 1 minute for quota checks
+    connection_pool:
+      max_idle_per_host: 10
+  
+  # Usage reporting
   usage_report_interval: 300  # seconds
   
 auth:
   require_authentication: true  # Enforce auth on all endpoints
-  api_key_cache_ttl: 300  # seconds
   
 rate_limiting:
   default_requests_per_minute: 1000

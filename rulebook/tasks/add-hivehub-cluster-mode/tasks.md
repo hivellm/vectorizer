@@ -2,21 +2,21 @@
 
 ## 1. Foundation & Infrastructure
 
-- [ ] 1.1 Create HiveHub client module structure
-- [ ] 1.2 Implement HiveHub API client with authentication
-- [ ] 1.3 Add HiveHub data models (Tenant, Quota, ApiKey)
-- [ ] 1.4 Implement local cache for HiveHub data (Redis-compatible)
+- [ ] 1.1 Add hivehub-cloud-internal-sdk dependency to Cargo.toml
+- [ ] 1.2 Configure HiveHub SDK client with service API key
+- [ ] 1.3 Initialize HiveHub client in main.rs
+- [ ] 1.4 Add HiveHub configuration section to config.yml
 - [ ] 1.5 Add cluster mode configuration options
-- [ ] 1.6 Write unit tests for HiveHub client (95%+ coverage)
+- [ ] 1.6 Write integration tests with HiveHub SDK (95%+ coverage)
 
 ## 2. Authentication & Authorization System
 
-- [ ] 2.1 Create auth middleware for API key validation
-- [ ] 2.2 Implement tenant context extraction
-- [ ] 2.3 Add permission model (Admin, ReadWrite, ReadOnly, MCP)
-- [ ] 2.4 Implement API key caching layer
-- [ ] 2.5 Add authentication error handling
-- [ ] 2.6 Write unit tests for auth system (95%+ coverage)
+- [ ] 2.1 Create auth middleware using HiveHub SDK
+- [ ] 2.2 Implement API key validation with SDK.auth().validate_api_key()
+- [ ] 2.3 Implement tenant context extraction from SDK response
+- [ ] 2.4 Add permission model (Admin, ReadWrite, ReadOnly, MCP)
+- [ ] 2.5 Add authentication error handling (map SDK errors)
+- [ ] 2.6 Write unit tests for auth system with SDK mocks (95%+ coverage)
 
 ## 3. Multi-Tenant Data Isolation
 
@@ -30,14 +30,14 @@
 
 ## 4. Quota Management System
 
-- [ ] 4.1 Create quota manager module
+- [ ] 4.1 Create quota manager module using HiveHub SDK
 - [ ] 4.2 Implement storage usage tracking
-- [ ] 4.3 Implement rate limiting (token bucket algorithm)
-- [ ] 4.4 Add quota enforcement middleware
-- [ ] 4.5 Implement quota check caching
+- [ ] 4.3 Implement get quota with SDK.vectorizer().get_user_quota()
+- [ ] 4.4 Add quota enforcement middleware with SDK quota checks
+- [ ] 4.5 Implement rate limiting (token bucket algorithm)
 - [ ] 4.6 Add quota exceeded error responses
-- [ ] 4.7 Implement usage reporting to HiveHub
-- [ ] 4.8 Write quota system tests (95%+ coverage)
+- [ ] 4.7 Implement usage reporting with SDK.vectorizer().update_usage()
+- [ ] 4.8 Write quota system tests with SDK mocks (95%+ coverage)
 
 ## 5. REST API Updates
 
