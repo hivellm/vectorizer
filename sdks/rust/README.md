@@ -25,7 +25,7 @@ High-performance Rust SDK for Vectorizer vector database.
 
 ```toml
 [dependencies]
-vectorizer-sdk = "1.0.0"
+vectorizer-sdk = "1.8.0"
 ```
 
 ```rust
