@@ -1,6 +1,6 @@
 {
   "name": "@vectorizer/langchain-js",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "LangChain.js integration for Vectorizer vector database",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

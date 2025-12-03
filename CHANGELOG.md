@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2025-12-03
+
+### Changed
+
+- **Version Bump**: Updated all SDKs and server to version 1.8.0
+  - Server (Rust): 1.7.1 → 1.8.0
+  - TypeScript SDK: 1.7.1 → 1.8.0
+  - JavaScript SDK: 1.7.1 → 1.8.0
+  - Python SDK: 1.7.1 → 1.8.0
+  - Rust SDK: 1.7.1 → 1.8.0
+  - C# SDK: 1.7.1 → 1.8.0
+  - n8n Integration: 1.7.1 → 1.8.0
+  - Langflow Integration: 1.7.1 → 1.8.0
+  - LangChain.js Integration: 1.7.1 → 1.8.0
+  - **BENEFIT**: Synchronized version across all packages for easier version management
+
 ## [1.6.1] - 2025-11-29
 
 ### Added

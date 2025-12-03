@@ -1,6 +1,6 @@
 {
-  "name": "@hivellm/vectorizer-sdk-js",
-  "version": "1.7.1",
+  "name": "@hivehub/vectorizer-sdk-js",
+  "version": "1.8.0",
   "type": "module",
   "description": "JavaScript SDK for Vectorizer - High-performance vector database",
   "main": "dist/index.js",
@@ -29,7 +29,7 @@
     "hnsw",
     "similarity-search",
     "javascript",
-    "hivellm"
+    "hivehub"
   ],
   "author": "HiveLLM Contributors",
   "license": "Apache-2.0",

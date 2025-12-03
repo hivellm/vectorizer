@@ -1,6 +1,6 @@
 {
-  "name": "@hivellm/vectorizer-sdk",
-  "version": "1.7.1",
+  "name": "@hivehub/vectorizer-sdk",
+  "version": "1.8.0",
   "description": "TypeScript SDK for Vectorizer - High-performance vector database",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,7 +29,7 @@
     "hnsw",
     "similarity-search",
     "typescript",
-    "hivellm"
+    "hivehub"
   ],
   "author": "HiveLLM Contributors",
   "license": "Apache-2.0",
