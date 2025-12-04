@@ -518,7 +518,7 @@ impl VectorStore {
 
     /// Create a new empty vector store with CPU-only collections (for testing)
     /// This bypasses GPU detection and ensures consistent behavior across platforms
-    #[cfg(test)]
+    /// Note: Also available to integration tests via doctest attribute
     pub fn new_cpu_only() -> Self {
         info!("Creating new VectorStore (CPU-only mode for testing)");
 
@@ -1413,6 +1413,100 @@ impl VectorStore {
             .filter(|entry| entry.value().belongs_to(owner_id))
             .map(|entry| entry.key().clone())
             .collect()
+    }
+
+    /// Delete all collections owned by a specific tenant (for tenant cleanup on deletion)
+    ///
+    /// This method deletes all collections belonging to the given owner_id.
+    /// Useful for cleaning up tenant data when a tenant account is deleted.
+    ///
+    /// Returns the number of collections deleted.
+    pub fn cleanup_tenant_data(&self, owner_id: &uuid::Uuid) -> Result<usize> {
+        let collections_to_delete = self.list_collections_for_owner(owner_id);
+        let count = collections_to_delete.len();
+
+        for collection_name in collections_to_delete {
+            if let Err(e) = self.delete_collection(&collection_name) {
+                warn!(
+                    "Failed to delete collection '{}' for tenant {}: {}",
+                    collection_name, owner_id, e
+                );
+                // Continue deleting other collections even if one fails
+            } else {
+                info!(
+                    "Deleted collection '{}' for tenant {} during cleanup",
+                    collection_name, owner_id
+                );
+            }
+        }
+
+        info!(
+            "Tenant cleanup complete: deleted {} collections for owner {}",
+            count, owner_id
+        );
+        Ok(count)
+    }
+
+    /// Check if a collection is empty (has zero vectors)
+    pub fn is_collection_empty(&self, name: &str) -> Result<bool> {
+        let collection_ref = self.get_collection(name)?;
+        Ok(collection_ref.vector_count() == 0)
+    }
+
+    /// List all empty collections
+    ///
+    /// Returns a vector of collection names that have zero vectors.
+    /// Useful for identifying collections that can be safely deleted.
+    pub fn list_empty_collections(&self) -> Vec<String> {
+        self.list_collections()
+            .into_iter()
+            .filter(|name| self.is_collection_empty(name).unwrap_or(false))
+            .collect()
+    }
+
+    /// Cleanup (delete) all empty collections
+    ///
+    /// This method removes collections that have zero vectors. It's useful for
+    /// cleaning up collections created by the file watcher that were never populated.
+    ///
+    /// # Arguments
+    ///
+    /// * `dry_run` - If true, only report what would be deleted without actually deleting
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of collections deleted (or that would be deleted in dry run mode)
+    pub fn cleanup_empty_collections(&self, dry_run: bool) -> Result<usize> {
+        let empty_collections = self.list_empty_collections();
+        let count = empty_collections.len();
+
+        if dry_run {
+            info!(
+                "🧹 Dry run: Would delete {} empty collections: {:?}",
+                count, empty_collections
+            );
+            return Ok(count);
+        }
+
+        let mut deleted_count = 0;
+        for collection_name in &empty_collections {
+            if let Err(e) = self.delete_collection(collection_name) {
+                warn!(
+                    "Failed to delete empty collection '{}': {}",
+                    collection_name, e
+                );
+                // Continue deleting other collections even if one fails
+            } else {
+                info!("Deleted empty collection '{}'", collection_name);
+                deleted_count += 1;
+            }
+        }
+
+        info!(
+            "🧹 Cleanup complete: deleted {} empty collections",
+            deleted_count
+        );
+        Ok(deleted_count)
     }
 
     /// Get collection metadata for a specific owner (returns None if not owned by that user)

@@ -3196,6 +3196,69 @@ pub async fn update_workspace_config(
     }
 }
 
+/// GET /collections/empty - List all empty collections
+///
+/// Returns a list of collection names that have zero vectors.
+/// Useful for identifying collections created by file watcher but never populated.
+pub async fn list_empty_collections(State(state): State<VectorizerServer>) -> Json<Value> {
+    let empty_collections = state.store.list_empty_collections();
+
+    info!("Found {} empty collections", empty_collections.len());
+
+    json!({
+        "status": "success",
+        "empty_collections": empty_collections,
+        "count": empty_collections.len()
+    })
+    .into()
+}
+
+/// DELETE /collections/cleanup - Cleanup empty collections
+///
+/// Deletes all collections that have zero vectors.
+/// Supports dry_run parameter to preview what would be deleted.
+///
+/// Query parameters:
+/// - dry_run: bool (default: false) - Preview mode, doesn't actually delete
+pub async fn cleanup_empty_collections(
+    State(state): State<VectorizerServer>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    let dry_run = params
+        .get("dry_run")
+        .and_then(|v| v.parse::<bool>().ok())
+        .unwrap_or(false);
+
+    match state.store.cleanup_empty_collections(dry_run) {
+        Ok(deleted_count) => {
+            let message = if dry_run {
+                format!("Would delete {} empty collections", deleted_count)
+            } else {
+                format!("Successfully deleted {} empty collections", deleted_count)
+            };
+
+            info!("{}", message);
+
+            Ok(Json(json!({
+                "status": "success",
+                "message": message,
+                "deleted_count": deleted_count,
+                "dry_run": dry_run
+            })))
+        }
+        Err(e) => {
+            error!("Failed to cleanup empty collections: {}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("Cleanup failed: {}", e)
+                })),
+            ))
+        }
+    }
+}
+
 /// Handler to export Prometheus metrics
 pub async fn get_prometheus_metrics() -> Result<(StatusCode, String), (StatusCode, String)> {
     match crate::monitoring::export_metrics() {

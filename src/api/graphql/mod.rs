@@ -26,5 +26,5 @@ mod types;
 #[cfg(test)]
 mod tests;
 
-pub use schema::{VectorizerSchema, create_schema};
+pub use schema::{VectorizerSchema, create_schema, create_schema_with_hub};
 pub use types::*;

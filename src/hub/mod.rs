@@ -9,9 +9,12 @@
 pub mod auth;
 pub mod backup;
 pub mod client;
+pub mod ip_whitelist;
+pub mod key_rotation;
 pub mod mcp_gateway;
 pub mod middleware;
 pub mod quota;
+pub mod request_signing;
 pub mod usage;
 
 use std::sync::Arc;
@@ -19,9 +22,17 @@ use std::sync::Arc;
 pub use auth::{HubAuth, HubAuthResult, TenantContext, TenantPermission};
 pub use backup::{BackupConfig, RestoreResult, UserBackupInfo, UserBackupManager};
 pub use client::{HubClient, HubClientConfig};
+pub use ip_whitelist::{
+    IpAccessResult, IpPolicy, IpWhitelist, IpWhitelistConfig, IpWhitelistStats,
+};
+pub use key_rotation::{DEFAULT_GRACE_PERIOD_SECS, KeyRotation, KeyRotationManager, KeyStatus};
 pub use mcp_gateway::{McpHubGateway, McpOperationLog, McpOperationType, McpRequestContext};
 pub use middleware::HubAuthMiddleware;
 pub use quota::{QuotaInfo, QuotaManager, QuotaType};
+pub use request_signing::{
+    HEADER_NONCE, HEADER_SIGNATURE, HEADER_TIMESTAMP, RequestSigningValidator, SignedRequest,
+    SigningConfig, create_signing_headers,
+};
 pub use usage::{UsageMetrics, UsageReporter};
 
 use parking_lot::RwLock;
@@ -197,7 +208,7 @@ impl Default for ConnectionPoolConfig {
 /// HiveHub integration manager
 ///
 /// Coordinates all HiveHub integration components including
-/// authentication, quota management, and usage reporting.
+/// authentication, quota management, usage reporting, and key rotation.
 #[derive(Debug)]
 pub struct HubManager {
     /// HiveHub client
@@ -208,6 +219,8 @@ pub struct HubManager {
     quota: Arc<QuotaManager>,
     /// Usage reporter
     usage: Arc<UsageReporter>,
+    /// Key rotation manager
+    key_rotation: Arc<KeyRotationManager>,
     /// Configuration
     config: HubConfig,
     /// Active state
@@ -242,12 +255,14 @@ impl HubManager {
             client.clone(),
             config.usage_report_interval,
         ));
+        let key_rotation = Arc::new(KeyRotationManager::new(client.clone(), None));
 
         Ok(Self {
             client,
             auth,
             quota,
             usage,
+            key_rotation,
             config,
             active: Arc::new(RwLock::new(false)),
         })
@@ -324,6 +339,11 @@ impl HubManager {
     /// Get the usage reporter
     pub fn usage(&self) -> &Arc<UsageReporter> {
         &self.usage
+    }
+
+    /// Get the key rotation manager
+    pub fn key_rotation(&self) -> &Arc<KeyRotationManager> {
+        &self.key_rotation
     }
 
     /// Get the HiveHub client

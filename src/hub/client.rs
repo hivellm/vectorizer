@@ -278,6 +278,27 @@ impl HubClient {
             }
         }
     }
+
+    /// Create a mock HubClient for testing
+    #[cfg(test)]
+    pub fn new_mock() -> Self {
+        let config = HubClientConfig {
+            api_url: "http://localhost:12000".to_string(),
+            service_api_key: "test-key".to_string(),
+            timeout_seconds: 10,
+            retries: 1,
+        };
+
+        // Create a mock client (this will fail in tests but that's okay for unit tests)
+        let inner = SdkClient::new(config.service_api_key.clone(), config.api_url.clone())
+            .expect("Failed to create mock client");
+
+        Self {
+            inner,
+            config,
+            connected: Arc::new(RwLock::new(false)),
+        }
+    }
 }
 
 /// Request to update usage metrics

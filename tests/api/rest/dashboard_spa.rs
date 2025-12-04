@@ -1,6 +1,7 @@
 //! Dashboard SPA Routing Integration Tests
 //!
 //! These tests verify that the dashboard SPA routing works correctly:
+#![allow(unused_imports, clippy::uninlined_format_args)]
 //! - Static files are served with proper cache headers
 //! - SPA routes return index.html with 200 status
 //! - API routes are not affected by SPA fallback

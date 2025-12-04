@@ -54,6 +54,9 @@ pub struct ServerConfig {
     pub port: u16,
     /// MCP port
     pub mcp_port: u16,
+    /// Cleanup empty collections on startup
+    #[serde(default)]
+    pub startup_cleanup_empty: bool,
 }
 
 impl Default for ServerConfig {
@@ -62,6 +65,7 @@ impl Default for ServerConfig {
             host: "0.0.0.0".to_string(),
             port: 15002,
             mcp_port: 15003,
+            startup_cleanup_empty: false,
         }
     }
 }

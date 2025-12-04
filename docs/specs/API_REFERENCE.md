@@ -172,8 +172,10 @@ See [HUB_INTEGRATION.md](../HUB_INTEGRATION.md) for complete HiveHub authenticat
 |--------|----------|------|------------|-------------|
 | GET | `/collections` | Yes | ReadOnly | List all collections (filtered by owner in HiveHub mode) |
 | GET | `/collections/{name}` | Yes | ReadOnly | Get collection details |
+| GET | `/collections/empty` | Yes | Admin | List all empty collections |
 | POST | `/collections` | Yes | ReadWrite | Create collection (quota check in HiveHub mode) |
 | DELETE | `/collections/{name}` | Yes | ReadWrite | Delete collection |
+| DELETE | `/collections/cleanup` | Yes | Admin | Delete all empty collections (supports ?dry_run=true) |
 | POST | `/collections/{name}/reindex` | Yes | Admin | Reindex collection |
 
 ### Vector Operations

@@ -1,5 +1,6 @@
 //! Configuration for File Watcher System
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -28,6 +29,14 @@ pub struct FileWatcherConfig {
 
     /// Collection name for indexed files
     pub collection_name: String,
+
+    /// Default collection name for files that don't match known patterns
+    /// Used to prevent automatic creation of empty collections
+    pub default_collection: Option<String>,
+
+    /// Custom path-to-collection mappings (path pattern -> collection name)
+    /// Example: { "*/docs/*": "documentation", "*/src/*.rs": "rust-code" }
+    pub collection_mapping: Option<HashMap<String, String>>,
 
     /// Enable recursive directory watching
     pub recursive: bool,
@@ -117,6 +126,8 @@ impl Default for FileWatcherConfig {
             max_file_size: 10 * 1024 * 1024, // 10MB
             enable_hash_validation: true,
             collection_name: "watched_files".to_string(),
+            default_collection: Some("workspace-default".to_string()),
+            collection_mapping: None,
             recursive: true,
             max_concurrent_tasks: 4,
             enable_realtime_indexing: true,

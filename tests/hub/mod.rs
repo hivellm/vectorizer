@@ -2,6 +2,7 @@
 
 mod auth_tests;
 mod backup_tests;
+mod failover_tests;
 mod isolation_tests;
 mod middleware_tests;
 mod migration_tests;

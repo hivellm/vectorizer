@@ -11,6 +11,8 @@ use super::types::*;
 use crate::db::VectorStore;
 use crate::db::graph::{Edge, Node, RelationshipType};
 use crate::embedding::EmbeddingManager;
+use crate::hub::auth::TenantContext;
+use crate::hub::quota::QuotaManager;
 use crate::models::{CollectionConfig, HnswConfig, Payload, Vector};
 
 /// GraphQL context containing shared state
@@ -18,6 +20,10 @@ pub struct GraphQLContext {
     pub store: Arc<VectorStore>,
     pub embedding_manager: Arc<EmbeddingManager>,
     pub start_time: std::time::Instant,
+    /// Optional tenant context for multi-tenant mode
+    pub tenant_context: Option<TenantContext>,
+    /// Optional quota manager for multi-tenant mode
+    pub quota_manager: Option<Arc<QuotaManager>>,
 }
 
 /// The GraphQL schema type
@@ -37,6 +43,8 @@ pub fn create_schema(
         store,
         embedding_manager,
         start_time,
+        tenant_context: None,
+        quota_manager: None,
     };
 
     Schema::build(QueryRoot, MutationRoot, EmptySubscription)
@@ -48,6 +56,52 @@ pub fn create_schema(
         .finish()
 }
 
+/// Create the GraphQL schema with multi-tenant support
+pub fn create_schema_with_hub(
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+    start_time: std::time::Instant,
+    quota_manager: Arc<QuotaManager>,
+) -> VectorizerSchema {
+    let ctx = GraphQLContext {
+        store,
+        embedding_manager,
+        start_time,
+        tenant_context: None, // Set per-request in handler
+        quota_manager: Some(quota_manager),
+    };
+
+    Schema::build(QueryRoot, MutationRoot, EmptySubscription)
+        .data(ctx)
+        .limit_depth(10)
+        .limit_complexity(1000)
+        .finish()
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/// Verify collection ownership in multi-tenant mode
+fn check_collection_ownership(
+    store: &VectorStore,
+    collection: &str,
+    tenant_ctx: Option<&TenantContext>,
+) -> async_graphql::Result<()> {
+    if let Some(tenant) = tenant_ctx {
+        // Parse tenant_id as UUID
+        let tenant_uuid = uuid::Uuid::parse_str(&tenant.tenant_id)
+            .map_err(|e| async_graphql::Error::new(format!("Invalid tenant ID: {e}")))?;
+
+        if !store.is_collection_owned_by(collection, &tenant_uuid) {
+            return Err(async_graphql::Error::new(
+                "Collection not found or access denied",
+            ));
+        }
+    }
+    Ok(())
+}
+
 // =============================================================================
 // QUERY ROOT
 // =============================================================================
@@ -57,10 +111,22 @@ pub struct QueryRoot;
 
 #[Object]
 impl QueryRoot {
-    /// Get all collections
+    /// Get all collections (filtered by tenant in multi-tenant mode)
     async fn collections(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlCollection>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
-        let collection_names = gql_ctx.store.list_collections();
+
+        // Get tenant context if available
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        let collection_names = if let Some(tenant) = tenant_ctx {
+            // Multi-tenant mode: filter by owner
+            let tenant_uuid = uuid::Uuid::parse_str(&tenant.tenant_id)
+                .map_err(|e| async_graphql::Error::new(format!("Invalid tenant ID: {e}")))?;
+            gql_ctx.store.list_collections_for_owner(&tenant_uuid)
+        } else {
+            // Single-tenant mode: list all
+            gql_ctx.store.list_collections()
+        };
 
         let mut collections = Vec::new();
         for name in collection_names {
@@ -72,21 +138,36 @@ impl QueryRoot {
         Ok(collections)
     }
 
-    /// Get a specific collection by name
+    /// Get a specific collection by name (with tenant ownership check)
     async fn collection(
         &self,
         ctx: &Context<'_>,
         name: String,
     ) -> async_graphql::Result<Option<GqlCollection>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
 
         match gql_ctx.store.get_collection_metadata(&name) {
-            Ok(meta) => Ok(Some(meta.into())),
+            Ok(meta) => {
+                // In multi-tenant mode, verify ownership
+                if let Some(tenant) = tenant_ctx {
+                    let tenant_uuid = uuid::Uuid::parse_str(&tenant.tenant_id).map_err(|e| {
+                        async_graphql::Error::new(format!("Invalid tenant ID: {e}"))
+                    })?;
+                    if gql_ctx.store.is_collection_owned_by(&name, &tenant_uuid) {
+                        Ok(Some(meta.into()))
+                    } else {
+                        Ok(None) // Not owned by this tenant
+                    }
+                } else {
+                    Ok(Some(meta.into()))
+                }
+            }
             Err(_) => Ok(None),
         }
     }
 
-    /// Get a vector by ID from a collection
+    /// Get a vector by ID from a collection (with tenant ownership check)
     async fn vector(
         &self,
         ctx: &Context<'_>,
@@ -94,6 +175,10 @@ impl QueryRoot {
         id: String,
     ) -> async_graphql::Result<Option<GqlVector>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         match gql_ctx.store.get_vector(&collection, &id) {
             Ok(v) => Ok(Some(v.into())),
@@ -101,13 +186,17 @@ impl QueryRoot {
         }
     }
 
-    /// List vectors in a collection with pagination
+    /// List vectors in a collection with pagination (with tenant ownership check)
     async fn vectors(
         &self,
         ctx: &Context<'_>,
         input: ScrollInput,
     ) -> async_graphql::Result<GqlPage<GqlVector>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &input.collection, tenant_ctx)?;
 
         // Get collection to retrieve vectors
         let collection_ref = gql_ctx
@@ -148,13 +237,17 @@ impl QueryRoot {
         })
     }
 
-    /// Semantic vector search
+    /// Semantic vector search (with tenant ownership check)
     async fn search(
         &self,
         ctx: &Context<'_>,
         input: SearchInput,
     ) -> async_graphql::Result<Vec<GqlSearchResult>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &input.collection, tenant_ctx)?;
 
         let results = gql_ctx
             .store
@@ -171,11 +264,22 @@ impl QueryRoot {
         Ok(filtered)
     }
 
-    /// Get server statistics
+    /// Get server statistics (tenant-scoped in multi-tenant mode)
     async fn stats(&self, ctx: &Context<'_>) -> async_graphql::Result<GqlServerStats> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
 
-        let collection_names = gql_ctx.store.list_collections();
+        // Get collection names based on tenant context
+        let collection_names = if let Some(tenant) = tenant_ctx {
+            // Multi-tenant mode: only count this tenant's collections
+            let tenant_uuid = uuid::Uuid::parse_str(&tenant.tenant_id)
+                .map_err(|e| async_graphql::Error::new(format!("Invalid tenant ID: {e}")))?;
+            gql_ctx.store.list_collections_for_owner(&tenant_uuid)
+        } else {
+            // Single-tenant mode: count all collections
+            gql_ctx.store.list_collections()
+        };
+
         let mut total_vectors: i64 = 0;
 
         for name in &collection_names {
@@ -202,13 +306,17 @@ impl QueryRoot {
     // GRAPH QUERIES
     // =========================================================================
 
-    /// Get graph statistics for a collection
+    /// Get graph statistics for a collection (with tenant ownership check)
     async fn graph_stats(
         &self,
         ctx: &Context<'_>,
         collection: String,
     ) -> async_graphql::Result<GqlGraphStats> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -229,7 +337,7 @@ impl QueryRoot {
         }
     }
 
-    /// Get all nodes in a collection's graph
+    /// Get all nodes in a collection's graph (with tenant ownership check)
     async fn graph_nodes(
         &self,
         ctx: &Context<'_>,
@@ -238,6 +346,10 @@ impl QueryRoot {
         #[graphql(default)] cursor: Option<String>,
     ) -> async_graphql::Result<GqlPage<GqlNode>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -280,7 +392,7 @@ impl QueryRoot {
         })
     }
 
-    /// Get all edges in a collection's graph
+    /// Get all edges in a collection's graph (with tenant ownership check)
     async fn graph_edges(
         &self,
         ctx: &Context<'_>,
@@ -289,6 +401,10 @@ impl QueryRoot {
         #[graphql(default)] cursor: Option<String>,
     ) -> async_graphql::Result<GqlPage<GqlEdge>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -331,7 +447,7 @@ impl QueryRoot {
         })
     }
 
-    /// Get a specific node by ID
+    /// Get a specific node by ID (with tenant ownership check)
     async fn graph_node(
         &self,
         ctx: &Context<'_>,
@@ -339,6 +455,10 @@ impl QueryRoot {
         node_id: String,
     ) -> async_graphql::Result<Option<GqlNode>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -352,7 +472,7 @@ impl QueryRoot {
         Ok(graph.get_node(&node_id).map(|n| n.into()))
     }
 
-    /// Get neighbors of a node (nodes connected by edges)
+    /// Get neighbors of a node (with tenant ownership check)
     async fn graph_neighbors(
         &self,
         ctx: &Context<'_>,
@@ -361,6 +481,10 @@ impl QueryRoot {
         #[graphql(default)] relationship_type: Option<GqlRelationshipType>,
     ) -> async_graphql::Result<Vec<GqlRelatedNode>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -387,7 +511,7 @@ impl QueryRoot {
             .collect())
     }
 
-    /// Find nodes related to a source node within N hops
+    /// Find nodes related to a source node within N hops (with tenant ownership check)
     async fn graph_related(
         &self,
         ctx: &Context<'_>,
@@ -397,6 +521,10 @@ impl QueryRoot {
         #[graphql(default)] relationship_type: Option<GqlRelationshipType>,
     ) -> async_graphql::Result<Vec<GqlRelatedNode>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -423,7 +551,7 @@ impl QueryRoot {
             .collect())
     }
 
-    /// Find shortest path between two nodes
+    /// Find shortest path between two nodes (with tenant ownership check)
     async fn graph_path(
         &self,
         ctx: &Context<'_>,
@@ -432,6 +560,10 @@ impl QueryRoot {
         target: String,
     ) -> async_graphql::Result<Vec<GqlNode>> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -516,13 +648,38 @@ pub struct MutationRoot;
 
 #[Object]
 impl MutationRoot {
-    /// Create a new collection
+    /// Create a new collection (with tenant scoping and quota check)
     async fn create_collection(
         &self,
         ctx: &Context<'_>,
         input: CreateCollectionInput,
     ) -> async_graphql::Result<GqlCollection> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // In multi-tenant mode, enforce quota check
+        if let (Some(tenant), Some(quota_mgr)) = (tenant_ctx, &gql_ctx.quota_manager) {
+            // Check collection count quota
+            match quota_mgr
+                .check_quota(
+                    &tenant.tenant_id,
+                    crate::hub::quota::QuotaType::CollectionCount,
+                    1,
+                )
+                .await
+            {
+                Ok(true) => {} // Quota OK
+                Ok(false) => {
+                    return Err(async_graphql::Error::new(
+                        "Collection limit exceeded for your plan",
+                    ));
+                }
+                Err(e) => {
+                    error!("GraphQL: Quota check failed: {e}");
+                    // Continue anyway if quota check fails
+                }
+            }
+        }
 
         // Build collection config
         let mut config = CollectionConfig {
@@ -553,25 +710,32 @@ impl MutationRoot {
             config.graph = Some(crate::models::GraphConfig::default());
         }
 
+        // In multi-tenant mode, add tenant prefix to collection name
+        let collection_name = if let Some(tenant) = tenant_ctx {
+            format!("user_{}:{}", tenant.tenant_id, input.name)
+        } else {
+            input.name.clone()
+        };
+
         // Force CPU if requested or if graph is enabled (graphs not supported on GPU)
         let force_cpu = input.force_cpu.unwrap_or(false) || enable_graph;
         if force_cpu {
             gql_ctx
                 .store
-                .create_collection_cpu_only(&input.name, config)
+                .create_collection_cpu_only(&collection_name, config)
                 .map_err(|e| {
                     async_graphql::Error::new(format!("Failed to create collection: {e}"))
                 })?;
         } else {
             gql_ctx
                 .store
-                .create_collection(&input.name, config)
+                .create_collection(&collection_name, config)
                 .map_err(|e| {
                     async_graphql::Error::new(format!("Failed to create collection: {e}"))
                 })?;
         }
 
-        info!("GraphQL: Created collection '{}'", input.name);
+        info!("GraphQL: Created collection '{}'", collection_name);
 
         // Return the created collection metadata
         let meta = gql_ctx
@@ -582,13 +746,25 @@ impl MutationRoot {
         Ok(meta.into())
     }
 
-    /// Delete a collection
+    /// Delete a collection (with tenant ownership check)
     async fn delete_collection(
         &self,
         ctx: &Context<'_>,
         name: String,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // In multi-tenant mode, verify ownership
+        if let Some(tenant) = tenant_ctx {
+            let tenant_uuid = uuid::Uuid::parse_str(&tenant.tenant_id)
+                .map_err(|e| async_graphql::Error::new(format!("Invalid tenant ID: {e}")))?;
+            if !gql_ctx.store.is_collection_owned_by(&name, &tenant_uuid) {
+                return Ok(MutationResult::err(
+                    "Collection not found or access denied".to_string(),
+                ));
+            }
+        }
 
         match gql_ctx.store.delete_collection(&name) {
             Ok(_) => {
@@ -606,7 +782,7 @@ impl MutationRoot {
         }
     }
 
-    /// Upsert a single vector
+    /// Upsert a single vector (with tenant ownership check and quota validation)
     async fn upsert_vector(
         &self,
         ctx: &Context<'_>,
@@ -614,6 +790,32 @@ impl MutationRoot {
         input: UpsertVectorInput,
     ) -> async_graphql::Result<GqlVector> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
+
+        // Check quota in multi-tenant mode
+        if let (Some(tenant), Some(quota_mgr)) = (tenant_ctx, &gql_ctx.quota_manager) {
+            match quota_mgr
+                .check_quota(
+                    &tenant.tenant_id,
+                    crate::hub::quota::QuotaType::VectorCount,
+                    1,
+                )
+                .await
+            {
+                Ok(true) => {} // Quota OK
+                Ok(false) => {
+                    return Err(async_graphql::Error::new(
+                        "Vector count limit exceeded for your plan",
+                    ));
+                }
+                Err(e) => {
+                    error!("GraphQL: Quota check failed: {e}");
+                }
+            }
+        }
 
         let payload = input.payload.map(|p| Payload::new(p.0));
 
@@ -631,13 +833,39 @@ impl MutationRoot {
         Ok(vector.into())
     }
 
-    /// Upsert multiple vectors in batch
+    /// Upsert multiple vectors in batch (with tenant ownership check and quota validation)
     async fn upsert_vectors(
         &self,
         ctx: &Context<'_>,
         input: UpsertVectorsInput,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &input.collection, tenant_ctx)?;
+
+        // Check quota in multi-tenant mode
+        if let (Some(tenant), Some(quota_mgr)) = (tenant_ctx, &gql_ctx.quota_manager) {
+            match quota_mgr
+                .check_quota(
+                    &tenant.tenant_id,
+                    crate::hub::quota::QuotaType::VectorCount,
+                    1,
+                )
+                .await
+            {
+                Ok(true) => {} // Quota OK
+                Ok(false) => {
+                    return Err(async_graphql::Error::new(
+                        "Vector count limit exceeded for your plan",
+                    ));
+                }
+                Err(e) => {
+                    error!("GraphQL: Quota check failed: {e}");
+                }
+            }
+        }
 
         let vectors: Vec<Vector> = input
             .vectors
@@ -666,7 +894,7 @@ impl MutationRoot {
         Ok(MutationResult::ok_with_count(count))
     }
 
-    /// Delete a vector by ID
+    /// Delete a vector by ID (with tenant ownership check)
     async fn delete_vector(
         &self,
         ctx: &Context<'_>,
@@ -674,6 +902,10 @@ impl MutationRoot {
         id: String,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         match gql_ctx.store.delete(&collection, &id) {
             Ok(_) => Ok(MutationResult::ok_with_message(format!(
@@ -683,7 +915,7 @@ impl MutationRoot {
         }
     }
 
-    /// Update vector payload
+    /// Update vector payload (with tenant ownership check)
     async fn update_payload(
         &self,
         ctx: &Context<'_>,
@@ -692,6 +924,10 @@ impl MutationRoot {
         payload: async_graphql::Json<serde_json::Value>,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         // Get existing vector
         let existing = gql_ctx
@@ -714,13 +950,17 @@ impl MutationRoot {
     // GRAPH MUTATIONS
     // =========================================================================
 
-    /// Enable graph for a collection (creates nodes and discovers edges)
+    /// Enable graph for a collection (with tenant ownership check)
     async fn enable_graph(
         &self,
         ctx: &Context<'_>,
         collection: String,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         match gql_ctx.store.enable_graph_for_collection(&collection) {
             Ok(_) => {
@@ -736,7 +976,7 @@ impl MutationRoot {
         }
     }
 
-    /// Add a node to the graph
+    /// Add a node to the graph (with tenant ownership check)
     async fn add_graph_node(
         &self,
         ctx: &Context<'_>,
@@ -746,6 +986,10 @@ impl MutationRoot {
         #[graphql(default)] metadata: Option<async_graphql::Json<serde_json::Value>>,
     ) -> async_graphql::Result<GqlNode> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -779,7 +1023,7 @@ impl MutationRoot {
         Ok(node.into())
     }
 
-    /// Remove a node and all its edges from the graph
+    /// Remove a node and all its edges from the graph (with tenant ownership check)
     async fn remove_graph_node(
         &self,
         ctx: &Context<'_>,
@@ -787,6 +1031,10 @@ impl MutationRoot {
         node_id: String,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -811,7 +1059,7 @@ impl MutationRoot {
         }
     }
 
-    /// Create an edge between two nodes
+    /// Create an edge between two nodes (with tenant ownership check)
     async fn create_graph_edge(
         &self,
         ctx: &Context<'_>,
@@ -819,6 +1067,10 @@ impl MutationRoot {
         input: CreateEdgeInput,
     ) -> async_graphql::Result<GqlEdge> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store
@@ -852,7 +1104,7 @@ impl MutationRoot {
         Ok(edge.into())
     }
 
-    /// Delete an edge from the graph
+    /// Delete an edge from the graph (with tenant ownership check)
     async fn delete_graph_edge(
         &self,
         ctx: &Context<'_>,
@@ -860,6 +1112,10 @@ impl MutationRoot {
         edge_id: String,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Verify ownership
+        check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         let collection_ref = gql_ctx
             .store

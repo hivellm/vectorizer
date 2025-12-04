@@ -141,3 +141,8 @@ logs/
 target/
 temp/
 tmp/
+.claude
+.claude/
+.claude/settings.local.json
+/.claude/
+/.claude/settings.local.json
