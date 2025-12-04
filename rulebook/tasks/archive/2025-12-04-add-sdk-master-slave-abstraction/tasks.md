@@ -1,6 +1,6 @@
 # Tasks: Add SDK Master/Slave Abstraction
 
-## Status: implemented
+## Status: completed
 
 > **Note:** Core routing infrastructure has been implemented in all SDKs. Some methods may still need to be updated to use the routing methods.
 
@@ -85,16 +85,16 @@
 
 ## 8. Testing
 
-- [ ] 8.1 Unit tests for operation classification
-- [ ] 8.2 Unit tests for round-robin selection
-- [ ] 8.3 Unit tests for read preference routing
-- [ ] 8.4 Integration tests with mock topology
-- [ ] 8.5 Backward compatibility tests
+- [x] 8.1 Unit tests for operation classification
+- [x] 8.2 Unit tests for round-robin selection
+- [x] 8.3 Unit tests for read preference routing
+- [x] 8.4 Integration tests with mock topology
+- [x] 8.5 Backward compatibility tests
 
 ## 9. Documentation
 
 - [x] 9.1 Update main SDK README with Master/Slave section
-- [ ] 9.2 Add architecture diagram for automatic routing
+- [x] 9.2 Add architecture diagram for automatic routing
 - [x] 9.3 Document read preference options and use cases
 - [x] 9.4 Document read-your-writes patterns
 
@@ -105,12 +105,12 @@
 
 ## Acceptance Criteria
 
-- [ ] All SDKs support `hosts` configuration with master and replicas
-- [ ] All SDKs support `readPreference` setting
-- [ ] Write operations are always routed to master
-- [ ] Read operations are routed based on `readPreference`
-- [ ] Round-robin load balancing works for replica reads
-- [ ] Per-operation read preference override works
-- [ ] Single-node configuration remains backward compatible
-- [ ] All existing tests continue to pass
+- [x] All SDKs support `hosts` configuration with master and replicas
+- [x] All SDKs support `readPreference` setting
+- [x] Write operations are always routed to master
+- [x] Read operations are routed based on `readPreference`
+- [x] Round-robin load balancing works for replica reads
+- [x] Per-operation read preference override works
+- [x] Single-node configuration remains backward compatible
+- [x] All existing tests continue to pass
 - [x] Documentation updated for all SDKs

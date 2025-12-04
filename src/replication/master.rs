@@ -493,6 +493,7 @@ mod tests {
                 id: format!("vec_{}", i),
                 vector: vec![i as f32; 64],
                 payload: None,
+                owner_id: None, // No tenant in test
             };
             let offset = master.replicate(op);
             assert_eq!(offset, i + 1);

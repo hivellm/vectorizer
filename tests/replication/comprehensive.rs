@@ -99,6 +99,7 @@ async fn test_replication_log_append_and_retrieve() {
                 dimension: 128,
                 metric: "cosine".to_string(),
             },
+            owner_id: None,
         };
         let offset = log.append(op);
         assert_eq!(offset, i + 1);
@@ -125,6 +126,7 @@ async fn test_replication_log_circular_buffer() {
             id: format!("vec_{i}"),
             vector: vec![i as f32; 128],
             payload: None,
+            owner_id: None,
         };
         log.append(op);
     }
@@ -160,6 +162,7 @@ async fn test_replication_log_concurrent_access() {
                     id: format!("vec_{thread_id}_{i}"),
                     vector: vec![thread_id as f32; 64],
                     payload: None,
+                    owner_id: None,
                 };
                 log_clone.append(op);
             }

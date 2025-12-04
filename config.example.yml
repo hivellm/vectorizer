@@ -555,3 +555,94 @@ replication:
 #       - "15003:15002"
 #
 # For more information, see docs/REPLICATION.md
+
+# =============================================================================
+# HIVEHUB CLOUD INTEGRATION (Multi-Tenant Cluster Mode)
+# =============================================================================
+# HiveHub integration enables Vectorizer to operate as a managed service
+# through HiveHub.Cloud with proper user isolation, authentication,
+# quota management, and usage tracking.
+#
+# In cluster mode, the Vectorizer runs locally and HiveHub handles all
+# external authentication. Internal requests from HiveHub use the
+# x-hivehub-service header to bypass authentication.
+
+hub:
+  # Enable/disable HiveHub integration
+  # When enabled, the server integrates with HiveHub.Cloud for multi-tenancy
+  enabled: false
+
+  # HiveHub API URL
+  # Can also be set via HIVEHUB_API_URL environment variable
+  api_url: "https://api.hivehub.cloud"
+
+  # Service API key for server-to-hub communication
+  # IMPORTANT: Set via HIVEHUB_SERVICE_API_KEY environment variable in production!
+  # This key authenticates the Vectorizer server with HiveHub
+  # service_api_key: null  # Set via env var HIVEHUB_SERVICE_API_KEY
+
+  # Request timeout in seconds for HiveHub API calls
+  timeout_seconds: 30
+
+  # Number of retries for failed HiveHub API requests
+  retries: 3
+
+  # Usage reporting interval in seconds
+  # Determines how often usage metrics are sent to HiveHub
+  usage_report_interval: 300  # 5 minutes
+
+  # Tenant isolation mode
+  # Options:
+  #   - none: No tenant isolation (single-tenant mode)
+  #   - collection: Collection-level isolation with user_ prefix
+  #   - storage: Full storage-level isolation with separate paths
+  tenant_isolation: "collection"
+
+  # Cache configuration for HiveHub API responses
+  cache:
+    enabled: true  # Enable caching to reduce API calls
+    api_key_ttl_seconds: 300  # API key validation cache TTL (5 minutes)
+    quota_ttl_seconds: 60  # Quota cache TTL (1 minute)
+    max_entries: 10000  # Maximum cached entries
+
+  # Connection pool configuration
+  connection_pool:
+    max_idle_per_host: 10  # Maximum idle connections per host
+    pool_timeout_seconds: 30  # Pool timeout
+
+# =============================================================================
+# HIVEHUB INTEGRATION EXAMPLES
+# =============================================================================
+#
+# Example 1: Basic HiveHub Integration
+# ------------------------------------
+# hub:
+#   enabled: true
+#   api_url: "https://api.hivehub.cloud"
+#   tenant_isolation: "collection"
+#
+# # Set environment variable:
+# # export HIVEHUB_SERVICE_API_KEY="your-service-api-key"
+#
+# Example 2: Development/Testing Setup
+# ------------------------------------
+# hub:
+#   enabled: true
+#   api_url: "http://localhost:3000"  # Local HiveHub instance
+#   tenant_isolation: "none"
+#   usage_report_interval: 60  # Faster reporting for testing
+#
+# Example 3: Production with Full Isolation
+# -----------------------------------------
+# hub:
+#   enabled: true
+#   api_url: "https://api.hivehub.cloud"
+#   timeout_seconds: 10  # Lower timeout for production
+#   retries: 5  # More retries for reliability
+#   tenant_isolation: "storage"
+#   cache:
+#     enabled: true
+#     api_key_ttl_seconds: 600  # Longer cache for production
+#     quota_ttl_seconds: 120
+#
+# For more information, see docs/HUB_INTEGRATION.md

@@ -107,6 +107,9 @@ rustls = "0.23"         # TLS support
 tokio-rustls = "0.26"   # Tokio TLS integration
 rcgen = "0.14"          # Certificate generation for testing
 
+# HiveHub Cloud integration
+hivehub-internal-sdk = "1.0"
+
 # CLI utilities
 sys-info = "0.9"
 

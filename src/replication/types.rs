@@ -52,21 +52,36 @@ pub struct ReplicationOperation {
 }
 
 /// Vector database operations that can be replicated
+///
+/// Note: owner_id fields are always serialized (no skip_serializing_if) because
+/// bincode requires all fields to be present. For JSON APIs, separate DTOs should
+/// be used if field omission is desired.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VectorOperation {
     /// Create a new collection
     CreateCollection {
         name: String,
         config: CollectionConfigData,
+        /// Owner/tenant ID for multi-tenant mode (HiveHub integration)
+        #[serde(default)]
+        owner_id: Option<String>,
     },
     /// Delete a collection
-    DeleteCollection { name: String },
+    DeleteCollection {
+        name: String,
+        /// Owner/tenant ID for multi-tenant mode (HiveHub integration)
+        #[serde(default)]
+        owner_id: Option<String>,
+    },
     /// Insert vector into collection
     InsertVector {
         collection: String,
         id: String,
         vector: Vec<f32>,
         payload: Option<Vec<u8>>,
+        /// Owner/tenant ID for multi-tenant mode (HiveHub integration)
+        #[serde(default)]
+        owner_id: Option<String>,
     },
     /// Update vector in collection
     UpdateVector {
@@ -74,9 +89,18 @@ pub enum VectorOperation {
         id: String,
         vector: Option<Vec<f32>>,
         payload: Option<Vec<u8>>,
+        /// Owner/tenant ID for multi-tenant mode (HiveHub integration)
+        #[serde(default)]
+        owner_id: Option<String>,
     },
     /// Delete vector from collection
-    DeleteVector { collection: String, id: String },
+    DeleteVector {
+        collection: String,
+        id: String,
+        /// Owner/tenant ID for multi-tenant mode (HiveHub integration)
+        #[serde(default)]
+        owner_id: Option<String>,
+    },
 }
 
 /// Serializable collection configuration

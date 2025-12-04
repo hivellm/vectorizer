@@ -2,11 +2,13 @@
 
 use std::collections::HashMap;
 
+use axum::Extension;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde_json::{Value, json};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use super::VectorizerServer;
 use super::error_middleware::{
@@ -14,11 +16,26 @@ use super::error_middleware::{
 };
 use crate::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::error::VectorizerError;
+use crate::hub::middleware::RequestTenantContext;
 use crate::models::SparseVector;
+
+/// Extract tenant ID as UUID from request extensions (if present)
+///
+/// Returns None if:
+/// - Hub mode is disabled
+/// - No tenant context in request
+/// - Tenant ID is not a valid UUID
+fn extract_tenant_id(tenant_ctx: &Option<Extension<RequestTenantContext>>) -> Option<Uuid> {
+    tenant_ctx
+        .as_ref()
+        .and_then(|ctx| Uuid::parse_str(&ctx.0.0.tenant_id).ok())
+}
 
 pub async fn health_check(State(state): State<VectorizerServer>) -> Json<Value> {
     let cache_stats = state.query_cache.stats();
-    Json(json!({
+
+    // Build base health response
+    let mut response = json!({
         "status": "healthy",
         "timestamp": chrono::Utc::now(),
         "version": env!("CARGO_PKG_VERSION"),
@@ -30,7 +47,26 @@ pub async fn health_check(State(state): State<VectorizerServer>) -> Json<Value> 
             "evictions": cache_stats.evictions,
             "hit_rate": cache_stats.hit_rate
         }
-    }))
+    });
+
+    // Add Hub status if Hub is enabled
+    if let Some(ref hub_manager) = state.hub_manager {
+        let hub_status = json!({
+            "enabled": hub_manager.is_enabled(),
+            "active": hub_manager.is_active(),
+            "tenant_isolation": format!("{:?}", hub_manager.config().tenant_isolation),
+        });
+        response["hub"] = hub_status;
+    }
+
+    // Add backup manager status
+    if state.backup_manager.is_some() {
+        response["backup"] = json!({
+            "enabled": true
+        });
+    }
+
+    Json(response)
 }
 
 pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
@@ -79,6 +115,7 @@ pub async fn get_indexing_progress(State(state): State<VectorizerServer>) -> Jso
 pub async fn search_vectors_by_text(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     use crate::cache::query_cache::QueryKey;
@@ -115,10 +152,13 @@ pub async fn search_vectors_by_text(
         query, collection_name
     );
 
-    // Get the collection
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get the collection with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
 
     // Generate embedding for the query
@@ -178,6 +218,7 @@ pub async fn search_vectors_by_text(
 pub async fn hybrid_search_vectors(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     use crate::cache::query_cache::QueryKey;
@@ -190,6 +231,9 @@ pub async fn hybrid_search_vectors(
         .search_latency_seconds
         .with_label_values(&[label_collection, &label_hybrid])
         .start_timer();
+
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
 
     // Parse query (required)
     let query = payload
@@ -278,10 +322,10 @@ pub async fn hybrid_search_vectors(
         query, collection_name, alpha, algorithm
     );
 
-    // Get the collection
+    // Get the collection with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
 
     // Generate dense embedding for the query
@@ -353,6 +397,7 @@ pub async fn hybrid_search_vectors(
 pub async fn search_by_file(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     let file_path = payload
@@ -362,6 +407,15 @@ pub async fn search_by_file(
             create_validation_error("file_path", "missing or invalid file_path parameter")
         })?;
     let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
+
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Validate collection access (even though we return empty results for now)
+    let _ = state
+        .store
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
+        .map_err(|e| ErrorResponse::from(e))?;
 
     // For now, return empty results
     Ok(Json(json!({
@@ -375,6 +429,7 @@ pub async fn search_by_file(
 pub async fn list_vectors(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Value>, ErrorResponse> {
     let start_time = std::time::Instant::now();
@@ -397,10 +452,13 @@ pub async fn list_vectors(
         .max(0.0)
         .min(1.0);
 
-    // Get the collection
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get the collection with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
 
     // Get actual vectors from the local collection
@@ -470,8 +528,21 @@ pub async fn list_vectors(
     Ok(Json(response))
 }
 
-pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Value> {
-    let mut collections = state.store.list_collections();
+pub async fn list_collections(
+    State(state): State<VectorizerServer>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
+) -> Json<Value> {
+    // Get collections based on tenant context (if present)
+    let mut collections = match extract_tenant_id(&tenant_ctx) {
+        Some(tenant_id) => {
+            debug!("Listing collections for tenant: {}", tenant_id);
+            state.store.list_collections_for_owner(&tenant_id)
+        }
+        None => {
+            // No tenant context - list all collections (non-tenant mode)
+            state.store.list_collections()
+        }
+    };
 
     // Sort alphabetically for consistent dashboard display
     collections.sort();
@@ -574,6 +645,7 @@ pub async fn list_collections(State(state): State<VectorizerServer>) -> Json<Val
 
 pub async fn create_collection(
     State(state): State<VectorizerServer>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     let name = payload
@@ -589,10 +661,44 @@ pub async fn create_collection(
         .and_then(|m| m.as_str())
         .unwrap_or("cosine");
 
+    // Extract tenant ID for multi-tenant mode
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
     info!(
-        "Creating collection: {} with dimension {} and metric {}",
-        name, dimension, metric
+        "Creating collection: {} with dimension {} and metric {} (tenant: {:?})",
+        name, dimension, metric, tenant_id
     );
+
+    // Check HiveHub quota if enabled
+    // In cluster mode, verify the tenant has quota for new collections
+    if let Some(ref hub_manager) = state.hub_manager {
+        let tenant_id_str = tenant_id
+            .map(|id| id.to_string())
+            .unwrap_or_else(|| "default".to_string());
+
+        match hub_manager
+            .check_quota(&tenant_id_str, crate::hub::QuotaType::CollectionCount, 1)
+            .await
+        {
+            Ok(allowed) => {
+                if !allowed {
+                    warn!(
+                        "Collection creation denied for tenant {}: quota exceeded",
+                        tenant_id_str
+                    );
+                    return Err(ErrorResponse::new(
+                        "QUOTA_EXCEEDED".to_string(),
+                        "Collection quota exceeded. Please upgrade your plan or delete unused collections.".to_string(),
+                        StatusCode::TOO_MANY_REQUESTS,
+                    ));
+                }
+            }
+            Err(e) => {
+                // Log the error but don't fail - the Hub handles actual enforcement
+                warn!("Failed to check quota with HiveHub: {}", e);
+            }
+        }
+    }
 
     // Parse graph configuration if provided
     let graph_config = payload.get("graph").and_then(|g| {
@@ -629,10 +735,29 @@ pub async fn create_collection(
     };
 
     // Actually create the collection in the store
-    state
-        .store
-        .create_collection(name, config)
-        .map_err(|e| ErrorResponse::from(e))?;
+    // In multi-tenant mode, associate collection with the owner
+    if let Some(owner_id) = tenant_id {
+        state
+            .store
+            .create_collection_with_owner(name, config, owner_id)
+            .map_err(|e| ErrorResponse::from(e))?;
+    } else {
+        state
+            .store
+            .create_collection(name, config)
+            .map_err(|e| ErrorResponse::from(e))?;
+    }
+
+    // Record usage metrics if HiveHub is enabled
+    if let Some(ref hub_manager) = state.hub_manager {
+        let mut metrics = crate::hub::UsageMetrics::new();
+        metrics.record_collection_create();
+        // Use a placeholder collection_id - in production this would be the actual UUID
+        let collection_id = uuid::Uuid::new_v4();
+        if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
+            warn!("Failed to record collection creation usage: {}", e);
+        }
+    }
 
     info!("Collection '{}' created successfully", name);
     Ok(Json(json!({
@@ -832,11 +957,39 @@ pub async fn insert_text(
         .get_collection(collection_name)
         .map_err(|e| ErrorResponse::from(e))?;
 
+    // Check HiveHub quota for vector insertion if enabled
+    if let Some(ref hub_manager) = state.hub_manager {
+        let tenant_id = "default"; // TODO: Extract from request context
+        match hub_manager
+            .check_quota(tenant_id, crate::hub::QuotaType::VectorCount, 1)
+            .await
+        {
+            Ok(allowed) => {
+                if !allowed {
+                    warn!(
+                        "Vector insertion denied for tenant {}: quota exceeded",
+                        tenant_id
+                    );
+                    return Err(ErrorResponse::new(
+                        "QUOTA_EXCEEDED".to_string(),
+                        "Vector quota exceeded. Please upgrade your plan or delete unused vectors."
+                            .to_string(),
+                        StatusCode::TOO_MANY_REQUESTS,
+                    ));
+                }
+            }
+            Err(e) => {
+                warn!("Failed to check quota with HiveHub: {}", e);
+            }
+        }
+    }
+
     // Generate embedding for the text
     let embedding = state
         .embedding_manager
         .embed(text)
         .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
+    let embedding_len = embedding.len(); // Save length before move
 
     // Create payload with metadata
     let payload_data = crate::models::Payload::new(serde_json::Value::Object(
@@ -869,6 +1022,19 @@ pub async fn insert_text(
     );
 
     info!("Vector inserted successfully with ID: {}", vector_id);
+
+    // Record usage metrics if HiveHub is enabled
+    if let Some(ref hub_manager) = state.hub_manager {
+        let mut metrics = crate::hub::UsageMetrics::new();
+        // Record 1 vector insertion, estimate storage as embedding dimension * 4 bytes (f32)
+        let estimated_storage = (embedding_len * 4) as u64;
+        metrics.record_insert(1, estimated_storage);
+        let collection_id = uuid::Uuid::new_v4(); // TODO: Use actual collection UUID
+        if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
+            warn!("Failed to record vector insertion usage: {}", e);
+        }
+    }
+
     let label_collection: &str = &collection_name;
     let label_success = "success";
     METRICS

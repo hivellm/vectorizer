@@ -6,23 +6,39 @@ package vectorizer.cluster;
 service ClusterService {
     // Get cluster state from a node
     rpc GetClusterState(GetClusterStateRequest) returns (GetClusterStateResponse);
-    
+
     // Update cluster state (heartbeat, membership changes)
     rpc UpdateClusterState(UpdateClusterStateRequest) returns (UpdateClusterStateResponse);
-    
+
     // Remote vector operations
     rpc RemoteInsertVector(RemoteInsertVectorRequest) returns (RemoteInsertVectorResponse);
     rpc RemoteUpdateVector(RemoteUpdateVectorRequest) returns (RemoteUpdateVectorResponse);
     rpc RemoteDeleteVector(RemoteDeleteVectorRequest) returns (RemoteDeleteVectorResponse);
     rpc RemoteSearchVectors(RemoteSearchVectorsRequest) returns (RemoteSearchVectorsResponse);
-    
+
     // Remote collection operations
     rpc RemoteCreateCollection(RemoteCreateCollectionRequest) returns (RemoteCreateCollectionResponse);
     rpc RemoteGetCollectionInfo(RemoteGetCollectionInfoRequest) returns (RemoteGetCollectionInfoResponse);
     rpc RemoteDeleteCollection(RemoteDeleteCollectionRequest) returns (RemoteDeleteCollectionResponse);
-    
+
     // Health check
     rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+    // Quota check across cluster
+    rpc CheckQuota(CheckQuotaRequest) returns (CheckQuotaResponse);
+}
+
+// Tenant context for multi-tenant operations
+// Propagated across cluster nodes for user isolation
+message TenantContext {
+    // Tenant/user ID (UUID format)
+    string tenant_id = 1;
+    // Optional username for logging
+    optional string username = 2;
+    // Tenant permissions (read, write, admin)
+    repeated string permissions = 3;
+    // Request trace ID for distributed tracing
+    optional string trace_id = 4;
 }
 
 // Cluster state messages
@@ -80,6 +96,8 @@ message RemoteInsertVectorRequest {
     string vector_id = 2;
     repeated float vector = 3;
     optional string payload_json = 4;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 5;
 }
 
 message RemoteInsertVectorResponse {
@@ -92,6 +110,8 @@ message RemoteUpdateVectorRequest {
     string vector_id = 2;
     repeated float vector = 3;
     optional string payload_json = 4;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 5;
 }
 
 message RemoteUpdateVectorResponse {
@@ -102,6 +122,8 @@ message RemoteUpdateVectorResponse {
 message RemoteDeleteVectorRequest {
     string collection_name = 1;
     string vector_id = 2;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 3;
 }
 
 message RemoteDeleteVectorResponse {
@@ -115,6 +137,8 @@ message RemoteSearchVectorsRequest {
     uint32 limit = 3;
     optional float threshold = 4;
     repeated uint32 shard_ids = 5; // Optional: specific shards to search
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 6;
 }
 
 message RemoteSearchVectorsResponse {
@@ -134,6 +158,8 @@ message SearchResult {
 message RemoteCreateCollectionRequest {
     string collection_name = 1;
     optional CollectionConfig config = 2;
+    // Tenant context for multi-tenant isolation (owner_id)
+    optional TenantContext tenant = 3;
 }
 
 message RemoteCreateCollectionResponse {
@@ -143,6 +169,8 @@ message RemoteCreateCollectionResponse {
 
 message RemoteGetCollectionInfoRequest {
     string collection_name = 1;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 2;
 }
 
 message RemoteGetCollectionInfoResponse {
@@ -153,6 +181,8 @@ message RemoteGetCollectionInfoResponse {
 
 message RemoteDeleteCollectionRequest {
     string collection_name = 1;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 2;
 }
 
 message RemoteDeleteCollectionResponse {
@@ -169,6 +199,35 @@ message HealthCheckResponse {
     bool healthy = 1;
     string message = 2;
     NodeMetadata metadata = 3;
+}
+
+// Distributed quota check messages
+message CheckQuotaRequest {
+    // Tenant to check quota for
+    TenantContext tenant = 1;
+    // Type of quota to check (collections, vectors, storage)
+    QuotaType quota_type = 2;
+    // Requested amount
+    uint64 requested_amount = 3;
+}
+
+message CheckQuotaResponse {
+    // Whether the quota allows the operation
+    bool allowed = 1;
+    // Current usage
+    uint64 current_usage = 2;
+    // Quota limit
+    uint64 limit = 3;
+    // Remaining quota
+    uint64 remaining = 4;
+    // Error message if not allowed
+    string message = 5;
+}
+
+enum QuotaType {
+    QUOTA_COLLECTIONS = 0;
+    QUOTA_VECTORS = 1;
+    QUOTA_STORAGE = 2;
 }
 
 // Reused from vectorizer.proto (simplified for cluster service)

@@ -7,6 +7,7 @@
 mod api;
 mod core;
 mod gpu;
+mod hub;
 mod infrastructure;
 mod integration;
 mod performance;

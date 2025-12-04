@@ -28,6 +28,9 @@ pub struct Collection {
     name: String,
     /// Collection configuration
     config: CollectionConfig,
+    /// Owner ID (tenant/user ID for multi-tenancy in HiveHub cluster mode)
+    /// None for standalone mode, Some(uuid) for cluster mode
+    owner_id: Option<uuid::Uuid>,
     /// Vector storage (Memory or Mmap)
     vectors: VectorStorageBackend,
     /// Quantized vector storage (only used when quantization is enabled)
@@ -393,10 +396,25 @@ impl Collection {
         Self::new_with_embedding_type(name, config, "bm25".to_string())
     }
 
+    /// Create a new collection with a specific owner (for HiveHub cluster mode)
+    pub fn new_with_owner(name: String, config: CollectionConfig, owner_id: uuid::Uuid) -> Self {
+        Self::new_with_owner_and_embedding(name, config, Some(owner_id), "bm25".to_string())
+    }
+
     /// Create a new collection with specific embedding type
     pub fn new_with_embedding_type(
         name: String,
         config: CollectionConfig,
+        embedding_type: String,
+    ) -> Self {
+        Self::new_with_owner_and_embedding(name, config, None, embedding_type)
+    }
+
+    /// Create a new collection with owner and embedding type
+    pub fn new_with_owner_and_embedding(
+        name: String,
+        config: CollectionConfig,
+        owner_id: Option<uuid::Uuid>,
         embedding_type: String,
     ) -> Self {
         // Convert HnswConfig to OptimizedHnswConfig
@@ -461,6 +479,7 @@ impl Collection {
         Self {
             name,
             config,
+            owner_id,
             vectors,
             quantized_vectors: Arc::new(Mutex::new(HashMap::new())),
             vector_order: Arc::new(RwLock::new(Vec::new())),
@@ -477,11 +496,26 @@ impl Collection {
         }
     }
 
+    /// Get the owner ID (tenant/user ID for multi-tenancy)
+    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+        self.owner_id
+    }
+
+    /// Set the owner ID (used when loading from persistence or updating ownership)
+    pub fn set_owner_id(&mut self, owner_id: Option<uuid::Uuid>) {
+        self.owner_id = owner_id;
+    }
+
+    /// Check if this collection belongs to a specific owner
+    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+        self.owner_id.map(|id| &id == owner_id).unwrap_or(false)
+    }
+
     /// Get collection metadata
     pub fn metadata(&self) -> CollectionMetadata {
         CollectionMetadata {
             name: self.name.clone(),
-            tenant_id: None,
+            tenant_id: self.owner_id.map(|id| id.to_string()),
             created_at: self.created_at,
             updated_at: *self.updated_at.read(),
             vector_count: *self.vector_count.read(),

@@ -4,6 +4,8 @@ mod error_middleware;
 pub mod file_operations_handlers;
 mod graph_handlers;
 mod graphql_handlers;
+mod hub_backup_handlers;
+mod hub_usage_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
 mod qdrant_alias_handlers;
@@ -84,6 +86,12 @@ pub struct VectorizerServer {
     pub snapshot_manager: Option<Arc<crate::storage::SnapshotManager>>,
     /// Authentication handler state (optional, only if auth is enabled)
     pub auth_handler_state: Option<AuthHandlerState>,
+    /// HiveHub manager (optional, only if hub integration is enabled)
+    pub hub_manager: Option<Arc<crate::hub::HubManager>>,
+    /// User backup manager (optional, only if hub integration is enabled)
+    pub backup_manager: Option<Arc<crate::hub::UserBackupManager>>,
+    /// MCP Hub Gateway for multi-tenant MCP operations
+    pub mcp_hub_gateway: Option<Arc<crate::hub::McpHubGateway>>,
 }
 
 impl VectorizerServer {
@@ -704,6 +712,82 @@ impl VectorizerServer {
             }
         };
 
+        // Initialize HiveHub manager if hub integration is enabled
+        let hub_manager = {
+            // Try to load hub config from config.yml
+            let hub_config = match std::fs::read_to_string("config.yml") {
+                Ok(content) => {
+                    match serde_yaml::from_str::<crate::config::VectorizerConfig>(&content) {
+                        Ok(config) => {
+                            info!(
+                                "✅ Loaded hub config from config.yml: enabled={}",
+                                config.hub.enabled
+                            );
+                            config.hub
+                        }
+                        Err(e) => {
+                            warn!("⚠️  Failed to parse config.yml for hub config: {}", e);
+                            crate::hub::HubConfig::default()
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("⚠️  Failed to read config.yml for hub config: {}", e);
+                    crate::hub::HubConfig::default()
+                }
+            };
+
+            if hub_config.enabled {
+                info!("🌐 Initializing HiveHub integration...");
+                match crate::hub::HubManager::new(hub_config).await {
+                    Ok(manager) => {
+                        let manager_arc = Arc::new(manager);
+                        // Start the usage reporter background task
+                        if let Err(e) = manager_arc.start().await {
+                            warn!("⚠️  Failed to start HiveHub usage reporter: {}", e);
+                        }
+                        info!("✅ HiveHub integration initialized");
+                        Some(manager_arc)
+                    }
+                    Err(e) => {
+                        warn!("⚠️  Failed to initialize HiveHub integration: {}", e);
+                        None
+                    }
+                }
+            } else {
+                info!("ℹ️  HiveHub integration disabled");
+                None
+            }
+        };
+
+        // Initialize user backup manager if hub integration is enabled
+        let backup_manager = if hub_manager.is_some() {
+            info!("📦 Initializing HiveHub backup manager...");
+            let backup_config = crate::hub::BackupConfig::default();
+            match crate::hub::UserBackupManager::new(backup_config, store_arc.clone()) {
+                Ok(manager) => {
+                    info!("✅ HiveHub backup manager initialized");
+                    Some(Arc::new(manager))
+                }
+                Err(e) => {
+                    warn!("⚠️  Failed to initialize backup manager: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        // Initialize MCP Hub Gateway if hub integration is enabled
+        let mcp_hub_gateway = if let Some(ref hub_mgr) = hub_manager {
+            info!("🔌 Initializing MCP Hub Gateway...");
+            let gateway = crate::hub::McpHubGateway::new(hub_mgr.clone());
+            info!("✅ MCP Hub Gateway initialized");
+            Some(Arc::new(gateway))
+        } else {
+            None
+        };
+
         Ok(Self {
             store: store_arc,
             embedding_manager: Arc::new(final_embedding_manager),
@@ -737,6 +821,9 @@ impl VectorizerServer {
                 )))
             },
             auth_handler_state,
+            hub_manager,
+            backup_manager,
+            mcp_hub_gateway,
         })
     }
 
@@ -752,9 +839,13 @@ impl VectorizerServer {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
 
         // SECURITY CHECK: When binding to 0.0.0.0 (production), require authentication
+        // Either standard auth or HiveHub integration must be enabled
         let is_production_bind = host == "0.0.0.0";
         if is_production_bind {
-            if self.auth_handler_state.is_none() {
+            let has_auth = self.auth_handler_state.is_some();
+            let has_hub = self.hub_manager.is_some();
+
+            if !has_auth && !has_hub {
                 error!("❌ SECURITY ERROR: Cannot bind to 0.0.0.0 without authentication enabled!");
                 error!(
                     "   When exposing the server to all network interfaces, authentication is required."
@@ -764,14 +855,24 @@ impl VectorizerServer {
                 error!("     enabled: true");
                 error!("     jwt_secret: \"your-secure-secret-key\"");
                 error!("");
+                error!("   Or enable HiveHub integration:");
+                error!("   hub:");
+                error!("     enabled: true");
+                error!("");
                 error!("   Or use --host 127.0.0.1 for local development only.");
                 return Err(anyhow::anyhow!(
                     "Security: Authentication required when binding to 0.0.0.0"
                 ));
             }
-            warn!(
-                "🔐 Production mode detected (0.0.0.0) - Authentication is REQUIRED for all API requests"
-            );
+
+            if has_hub {
+                info!("🌐 HiveHub integration enabled - accepting internal service requests");
+            }
+            if has_auth {
+                warn!(
+                    "🔐 Production mode detected (0.0.0.0) - Authentication is REQUIRED for all API requests"
+                );
+            }
         }
 
         // Start gRPC server in background
@@ -885,6 +986,49 @@ impl VectorizerServer {
             .route(
                 "/api/backups/directory",
                 get(rest_handlers::get_backup_directory),
+            )
+            // HiveHub user-scoped backup routes
+            .route(
+                "/api/hub/backups",
+                get(hub_backup_handlers::list_user_backups),
+            )
+            .route(
+                "/api/hub/backups",
+                post(hub_backup_handlers::create_user_backup),
+            )
+            .route(
+                "/api/hub/backups/restore",
+                post(hub_backup_handlers::restore_user_backup),
+            )
+            .route(
+                "/api/hub/backups/upload",
+                post(hub_backup_handlers::upload_user_backup),
+            )
+            .route(
+                "/api/hub/backups/{backup_id}",
+                get(hub_backup_handlers::get_user_backup),
+            )
+            .route(
+                "/api/hub/backups/{backup_id}",
+                delete(hub_backup_handlers::delete_user_backup),
+            )
+            .route(
+                "/api/hub/backups/{backup_id}/download",
+                get(hub_backup_handlers::download_user_backup),
+            )
+            // HiveHub usage statistics routes
+            .route(
+                "/api/hub/usage/statistics",
+                get(hub_usage_handlers::get_usage_statistics),
+            )
+            .route(
+                "/api/hub/usage/quota",
+                get(hub_usage_handlers::get_quota_info),
+            )
+            // HiveHub API key validation
+            .route(
+                "/api/hub/validate-key",
+                post(hub_usage_handlers::validate_api_key),
             )
             // Collection management
             .route("/collections", get(rest_handlers::list_collections))
@@ -1285,6 +1429,28 @@ impl VectorizerServer {
             rest_routes
         };
 
+        // Apply HiveHub middleware if hub integration is enabled
+        // This middleware extracts tenant context from headers for multi-tenant isolation
+        let rest_routes = if let Some(ref hub_manager) = self.hub_manager {
+            info!("🔐 Applying HiveHub tenant middleware to routes...");
+
+            use crate::hub::middleware::{HubAuthMiddleware, hub_auth_middleware};
+            use axum::middleware::from_fn_with_state;
+
+            let hub_auth = hub_manager.auth().clone();
+            let hub_quota = hub_manager.quota().clone();
+            let hub_config = hub_manager.config().clone();
+
+            let hub_middleware_state = HubAuthMiddleware::new(hub_auth, hub_quota, hub_config);
+
+            rest_routes.layer(from_fn_with_state(
+                hub_middleware_state,
+                hub_auth_middleware,
+            ))
+        } else {
+            rest_routes
+        };
+
         // Create UMICP state
         let umicp_state = crate::umicp::UmicpState {
             store: self.store.clone(),
@@ -1364,15 +1530,18 @@ impl VectorizerServer {
             .fallback(dashboard_fallback);
 
         // In production mode, apply global auth middleware BEFORE CORS
-        let app = if is_production_bind && self.auth_handler_state.is_some() {
+        // This middleware handles both standard auth (JWT/API key) and HiveHub integration
+        let hub_mgr = self.hub_manager.clone();
+        let app = if is_production_bind && (self.auth_handler_state.is_some() || hub_mgr.is_some())
+        {
             let auth_mgr = self
                 .auth_handler_state
                 .as_ref()
-                .unwrap()
-                .auth_manager
-                .clone();
+                .map(|state| state.auth_manager.clone());
+            let hub_manager = hub_mgr.clone();
             app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
                 let auth_manager = auth_mgr.clone();
+                let hub_manager = hub_manager.clone();
                 async move {
                     let path = req.uri().path();
 
@@ -1387,20 +1556,42 @@ impl VectorizerServer {
                         return next.run(req).await;
                     }
 
-                    // Extract credentials from headers
-                    let (jwt_token, api_key) = extract_auth_credentials(&req);
+                    // Check for HiveHub internal service header
+                    // When HiveHub integration is enabled, internal service requests bypass auth
+                    if hub_manager.is_some() {
+                        if req.headers().contains_key("x-hivehub-service") {
+                            tracing::debug!("HiveHub internal service request - bypassing auth for {}", path);
+                            return next.run(req).await;
+                        }
+                    }
 
-                    // Debug: Log what we found
-                    tracing::debug!("Auth check for {}: jwt={:?}, api_key={:?}", path, jwt_token.is_some(), api_key.is_some());
+                    // Standard authentication (if auth is enabled)
+                    if let Some(ref auth_manager) = auth_manager {
+                        // Extract credentials from headers
+                        let (jwt_token, api_key) = extract_auth_credentials(&req);
 
-                    // Validate credentials
-                    if !check_mcp_auth_with_credentials(jwt_token, api_key, &auth_manager).await {
+                        // Debug: Log what we found
+                        tracing::debug!("Auth check for {}: jwt={:?}, api_key={:?}", path, jwt_token.is_some(), api_key.is_some());
+
+                        // Validate credentials
+                        if !check_mcp_auth_with_credentials(jwt_token, api_key, auth_manager).await {
+                            return axum::response::Response::builder()
+                                .status(axum::http::StatusCode::UNAUTHORIZED)
+                                .header("Content-Type", "application/json")
+                                .header("Access-Control-Allow-Origin", "*")
+                                .body(axum::body::Body::from(
+                                    r#"{"error":"unauthorized","message":"Authentication required. Provide a valid JWT token or API key."}"#
+                                ))
+                                .unwrap();
+                        }
+                    } else if hub_manager.is_none() {
+                        // No auth configured and no hub integration - reject
                         return axum::response::Response::builder()
                             .status(axum::http::StatusCode::UNAUTHORIZED)
                             .header("Content-Type", "application/json")
                             .header("Access-Control-Allow-Origin", "*")
                             .body(axum::body::Body::from(
-                                r#"{"error":"unauthorized","message":"Authentication required. Provide a valid JWT token or API key."}"#
+                                r#"{"error":"unauthorized","message":"Authentication not configured."}"#
                             ))
                             .unwrap();
                     }
@@ -1432,6 +1623,9 @@ impl VectorizerServer {
         info!("   📊 Dashboard: http://{}:{}/dashboard/", host, port);
         if self.auth_handler_state.is_some() {
             info!("   🔐 Auth API: http://{}:{}/auth", host, port);
+        }
+        if self.hub_manager.is_some() {
+            info!("   🌐 HiveHub: Cluster mode enabled (internal service access)");
         }
 
         // Bind and start the server

@@ -22,6 +22,8 @@ pub struct ShardedCollection {
     name: String,
     /// Base collection configuration
     config: CollectionConfig,
+    /// Owner ID (tenant/user ID for multi-tenancy in HiveHub cluster mode)
+    owner_id: Option<uuid::Uuid>,
     /// Shard router for routing vectors to shards
     router: Arc<ShardRouter>,
     /// Individual shard collections (shard_id -> Collection)
@@ -77,6 +79,7 @@ impl ShardedCollection {
         Ok(Self {
             name,
             config,
+            owner_id: None,
             router,
             shards,
             rebalancer,
@@ -91,6 +94,21 @@ impl ShardedCollection {
     /// Get collection configuration
     pub fn config(&self) -> &CollectionConfig {
         &self.config
+    }
+
+    /// Get the owner ID (tenant/user ID for multi-tenancy)
+    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+        self.owner_id
+    }
+
+    /// Set the owner ID (used when loading from persistence or updating ownership)
+    pub fn set_owner_id(&mut self, owner_id: Option<uuid::Uuid>) {
+        self.owner_id = owner_id;
+    }
+
+    /// Check if this collection belongs to a specific owner
+    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+        self.owner_id.map(|id| &id == owner_id).unwrap_or(false)
     }
 
     /// Insert a vector into the appropriate shard

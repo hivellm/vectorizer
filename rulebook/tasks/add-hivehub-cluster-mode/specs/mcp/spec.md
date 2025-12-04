@@ -2,47 +2,37 @@
 
 ## ADDED Requirements
 
-### Requirement: MCP WebSocket Authentication
+### Requirement: MCP StreamableHTTP Authentication
 
-The system SHALL implement authentication for MCP WebSocket connections.
+The system SHALL implement authentication for MCP StreamableHTTP endpoints.
 
-MCP connections MUST authenticate using API keys before accessing any tools. Unauthenticated connections SHALL be rejected.
+MCP requests MUST include API keys in headers before accessing any tools. Unauthenticated requests SHALL be rejected.
 
-#### Scenario: MCP Connection with Valid API Key
+#### Scenario: MCP Request with Valid API Key
 
-Given a client initiating MCP WebSocket connection
-When the client sends authentication message:
-```json
+Given a client making MCP StreamableHTTP request
+When the client includes API key in header:
+```http
+POST /mcp HTTP/1.1
+x-api-key: hh_test_mcp123
+Content-Type: application/json
+
 {
   "jsonrpc": "2.0",
-  "method": "auth/authenticate",
-  "params": {
-    "api_key": "hh_test_mcp123"
-  },
+  "method": "tools/list",
   "id": 1
 }
 ```
 Then the server SHALL validate the API key with HiveHub
-And SHALL establish tenant context for "tenant_alice"
-And SHALL return success:
-```json
-{
-  "jsonrpc": "2.0",
-  "result": {
-    "authenticated": true,
-    "tenant_id": "tenant_alice",
-    "permissions": ["MCP"]
-  },
-  "id": 1
-}
-```
+And SHALL extract tenant context for "tenant_alice" from API key
+And SHALL return success with tenant-scoped tools
 
-#### Scenario: MCP Connection with Invalid API Key
+#### Scenario: MCP Request with Invalid API Key
 
 Given a client with invalid API key "hh_invalid_key"
-When the client attempts authentication
-Then the server SHALL reject the connection
-And SHALL return error:
+When the client makes an MCP request
+Then the server SHALL reject the request
+And SHALL return HTTP 401 Unauthorized:
 ```json
 {
   "jsonrpc": "2.0",
@@ -56,13 +46,12 @@ And SHALL return error:
   "id": 1
 }
 ```
-And SHALL close the WebSocket connection
 
 #### Scenario: MCP Tool Call Without Authentication
 
-Given an unauthenticated MCP connection
+Given an MCP request without x-api-key header
 When the client attempts to call any tool
-Then the server SHALL reject with error:
+Then the server SHALL reject with HTTP 401 and error:
 ```json
 {
   "jsonrpc": "2.0",
@@ -258,10 +247,10 @@ And SHALL maintain session until disconnect
 #### Scenario: MCP Session Cleanup on Disconnect
 
 Given an active MCP session for "tenant_bob"
-When the WebSocket connection closes
-Then the system SHALL clean up session data
+When the request completes
+Then the system SHALL clean up request context
 And SHALL release any held resources
-And SHALL log session end event
+And SHALL log request completion
 
 ---
 
@@ -308,43 +297,45 @@ And SHALL NOT access files from other tenants
 ## MCP Authentication Flow
 
 ```
-1. Client Connects to MCP WebSocket
+1. Client Sends MCP Request (StreamableHTTP)
    ↓
-2. Server Accepts Connection
+2. Server Receives Request
    ↓
-3. Client Sends auth/authenticate
+3. Server Extracts x-api-key Header
    ↓
 4. Server Validates API Key with HiveHub
    ↓
-5. Server Creates Session with Tenant Context
+5. Server Establishes Tenant Context for Request
    ↓
-6. Server Returns Authentication Success
+6. Request Proceeds with Tenant Scoping
    ↓
-7. Client Can Now Call Tools
+7. Server Processes Tool Call
    ↓
-8. [On Disconnect] → Cleanup Session
+8. [On Completion] → Record Metrics & Cleanup
 ```
 
 ## MCP Tool Call Flow
 
 ```
-1. Receive Tool Call Request
+1. Receive Tool Call Request (StreamableHTTP)
    ↓
-2. Validate Session Authenticated
+2. Extract & Validate API Key from Header
    ↓
-3. Check Permission for Tool
+3. Establish Tenant Context
    ↓
-4. Check Rate Limit
+4. Check Permission for Tool
    ↓
-5. Check Quota (if applicable)
+5. Check Rate Limit
    ↓
-6. Apply Tenant Scoping
+6. Check Quota (if applicable)
    ↓
-7. Execute Tool Logic
+7. Apply Tenant Scoping
    ↓
-8. Update Usage Metrics
+8. Execute Tool Logic
    ↓
-9. Return Result
+9. Update Usage Metrics
+   ↓
+10. Return Result
 ```
 
 ## Tenant-Scoped MCP Tools
@@ -372,30 +363,30 @@ mcp:
   # Enable multi-tenant mode for MCP
   multi_tenant: true
   
-  # Require authentication for all MCP connections
+  # Require authentication for all MCP requests
   require_auth: true
   
-  # Session timeout (seconds)
-  session_timeout: 3600
+  # Request timeout (seconds)
+  request_timeout: 300
   
   # MCP-specific rate limits (override tenant defaults)
   rate_limits:
     requests_per_minute: 100
     requests_per_hour: 1000
   
-  # WebSocket configuration
-  websocket:
-    max_connections_per_tenant: 10
-    ping_interval: 30
-    pong_timeout: 10
+  # StreamableHTTP configuration
+  http:
+    enabled: true
+    max_concurrent_requests_per_tenant: 10
+    timeout_seconds: 300
 ```
 
 ## Security Considerations
 
-### Connection Security
-- ✅ MCP MUST use WSS (WebSocket Secure) in production
+### Request Security
+- ✅ MCP MUST use HTTPS (TLS) in production
 - ✅ API keys MUST NOT be logged in MCP server logs
-- ✅ Session tokens MUST be cryptographically random
+- ✅ API keys MUST be validated on every request
 - ✅ Failed auth attempts MUST be rate-limited
 
 ### Data Isolation
@@ -405,8 +396,8 @@ mcp:
 - ✅ Tenant context MUST be immutable after authentication
 
 ### Resource Protection
-- ✅ Per-tenant connection limits MUST be enforced
-- ✅ Long-running operations MUST be cancellable
-- ✅ Memory usage per session MUST be bounded
+- ✅ Per-tenant concurrent request limits MUST be enforced
+- ✅ Long-running operations MUST have timeouts
+- ✅ Memory usage per request MUST be bounded
 - ✅ Idle sessions MUST be terminated after timeout
 

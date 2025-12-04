@@ -181,6 +181,7 @@ async fn test_master_replicate_operations() {
             dimension: 3,
             metric: "cosine".to_string(),
         },
+        owner_id: None,
     });
 
     sleep(Duration::from_secs(1)).await;
@@ -208,6 +209,7 @@ async fn test_master_replicate_operations() {
             id: vec.id,
             vector: vec.data,
             payload: payload_bytes,
+            owner_id: None,
         });
     }
 
@@ -270,6 +272,7 @@ async fn test_master_multiple_replicas_and_stats() {
             id: format!("vec_{i}"),
             vector: vec![i as f32, 0.0, 0.0],
             payload: None,
+            owner_id: None,
         });
     }
 
@@ -387,6 +390,7 @@ async fn test_replica_partial_sync_on_reconnect() {
             id: vec.id,
             vector: vec.data,
             payload: None,
+            owner_id: None,
         });
     }
 
@@ -420,6 +424,7 @@ async fn test_replica_partial_sync_on_reconnect() {
             id: vec.id,
             vector: vec.data,
             payload: None,
+            owner_id: None,
         });
     }
 
@@ -465,6 +470,7 @@ async fn test_replica_apply_all_operation_types() {
             dimension: 4,
             metric: "euclidean".to_string(),
         },
+        owner_id: None,
     });
 
     sleep(Duration::from_millis(300)).await;
@@ -482,6 +488,7 @@ async fn test_replica_apply_all_operation_types() {
     master.replicate(VectorOperation::DeleteVector {
         collection: "ops_test".to_string(),
         id: "insert_test".to_string(),
+        owner_id: None,
     });
 
     sleep(Duration::from_millis(300)).await;
@@ -564,6 +571,7 @@ async fn test_replica_incremental_operations() {
             id: vec.id,
             vector: vec.data,
             payload: None,
+            owner_id: None,
         });
 
         // Small delay between operations
@@ -655,6 +663,7 @@ async fn test_replica_delete_operations() {
         master.replicate(VectorOperation::DeleteVector {
             collection: "delete_test".to_string(),
             id: format!("vec_{i}"),
+            owner_id: None,
         });
 
         // Small delay between operations to ensure processing
@@ -681,6 +690,7 @@ async fn test_replica_delete_operations() {
 
     master.replicate(VectorOperation::DeleteCollection {
         name: "delete_test".to_string(),
+        owner_id: None,
     });
 
     sleep(Duration::from_millis(500)).await;
@@ -740,6 +750,7 @@ async fn test_replica_update_operations() {
         id: "updatable".to_string(),
         vector: Some(vec![9.0, 9.0, 9.0]),
         payload: Some(serde_json::to_vec(&serde_json::json!({"updated": true})).unwrap()),
+        owner_id: None,
     });
 
     sleep(Duration::from_secs(1)).await;
@@ -787,6 +798,7 @@ async fn test_replica_stats_tracking() {
             id: format!("vec_{i}"),
             vector: vec![i as f32, 0.0, 0.0],
             payload: None,
+            owner_id: None,
         });
     }
 

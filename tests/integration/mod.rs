@@ -13,6 +13,7 @@ pub mod cluster_e2e;
 pub mod cluster_failures;
 pub mod cluster_fault_tolerance;
 pub mod cluster_integration;
+pub mod cluster_multitenant;
 pub mod cluster_performance;
 pub mod cluster_scale;
 pub mod distributed_search;

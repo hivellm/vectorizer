@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::AuthConfig;
 use crate::config::FileWatcherYamlConfig;
+use crate::hub::HubConfig;
 use crate::storage::StorageConfig;
 use crate::summarization::SummarizationConfig;
 
@@ -22,6 +23,7 @@ pub struct VectorizerConfig {
     #[serde(default)]
     pub gpu: GpuConfig,
     /// Summarization configuration
+    #[serde(default)]
     pub summarization: SummarizationConfig,
     /// Transmutation configuration
     #[serde(default)]
@@ -30,6 +32,7 @@ pub struct VectorizerConfig {
     #[serde(default)]
     pub storage: StorageConfig,
     /// Projects configuration
+    #[serde(default)]
     pub projects: Vec<ProjectConfig>,
     /// Cluster configuration (for distributed sharding)
     #[serde(default)]
@@ -37,6 +40,9 @@ pub struct VectorizerConfig {
     /// Authentication configuration
     #[serde(default)]
     pub auth: AuthConfig,
+    /// HiveHub Cloud integration configuration
+    #[serde(default)]
+    pub hub: HubConfig,
 }
 
 /// Server configuration
@@ -217,6 +223,7 @@ impl Default for VectorizerConfig {
             storage: StorageConfig::default(),
             projects: Vec::new(),
             auth: AuthConfig::default(),
+            hub: HubConfig::default(),
         }
     }
 }
