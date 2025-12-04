@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2025-12-04
+
+### Fixed
+
+- **Dashboard SPA Routing 404 Bug**: Fixed browser refresh returning 404 on dashboard routes
+  - **Root Cause**: `ServeDir` was not configured with a fallback for SPA routing
+  - **Solution**: Added `.fallback(ServeFile::new("dashboard/dist/index.html"))` to ServeDir
+  - **Impact**: Direct URL access and browser refresh now work on all dashboard routes
+  - **Routes Fixed**: `/dashboard/collections`, `/dashboard/search`, `/dashboard/settings`, etc.
+  - **BENEFIT**: Full SPA navigation support with proper HTTP 200 responses
+
+- **File Watcher Empty Collections Bug**: Fixed automatic creation of empty collections
+  - **Root Cause**: `determine_collection_name()` was generating collection names from file paths when no known pattern matched
+  - **Solution**: Now uses configured `default_collection` (defaults to "workspace-default") instead of creating new collections
+  - **Impact**: Prevents collection list clutter and simplifies collection management
+  - **BENEFIT**: Clean collection management without empty collection proliferation
+
+### Added
+
+- **Dashboard Cache Headers**: Added proper cache headers for dashboard assets
+  - Static assets (`/dashboard/assets/*`): 1 year cache with immutable flag
+  - HTML routes: no-cache for immediate updates on deploy
+  - **BENEFIT**: Faster dashboard loading with proper browser caching
+
+- **Empty Collection Management**: New REST and MCP endpoints for collection cleanup
+  - `GET /collections/empty`: List all empty collections
+  - `DELETE /collections/cleanup`: Delete all empty collections with optional dry-run mode
+  - **MCP Tools**: `list_empty_collections`, `cleanup_empty_collections`, `get_collection_stats`
+  - **Startup Cleanup**: Optional `server.startup_cleanup_empty` config to cleanup on startup
+  - **BENEFIT**: Easy cleanup of existing empty collections and maintenance automation
+
+- **Collection Mapping Config**: Added `collection_mapping` field to FileWatcherConfig
+  - Allows custom path-to-collection mappings via configuration
+  - Extensibility for future workspace-based collection routing
+  - **BENEFIT**: More flexible collection organization
+
+### Changed
+
+- **Default Collection Behavior**: File watcher now uses default collection for unmatched paths
+  - Prevents automatic creation of `libsodium-regen-msvc`, `Benchmark-src`, etc.
+  - Existing known patterns (docs/, vectorizer/, gov/) continue to work
+  - **BENEFIT**: Predictable collection naming and no surprise collections
+
 ## [1.8.0] - 2025-12-03
 
 ### Changed

@@ -5,6 +5,7 @@ pub mod file_operations_handlers;
 mod graph_handlers;
 mod graphql_handlers;
 mod hub_backup_handlers;
+// mod hub_tenant_handlers; // TODO: Fix type errors before enabling
 mod hub_usage_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
@@ -35,7 +36,8 @@ pub use mcp_handlers::handle_mcp_tool;
 pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
+use tower_http::set_header::SetResponseHeaderLayer;
 use tracing::{debug, error, info, warn};
 
 use crate::file_watcher::{FileWatcherMetrics, FileWatcherSystem, MetricsCollector};
@@ -112,6 +114,31 @@ impl VectorizerServer {
         // Initialize VectorStore with auto-save enabled
         let vector_store = VectorStore::new_auto();
         let store_arc = Arc::new(vector_store);
+
+        // Check if we should cleanup empty collections on startup
+        let should_cleanup = std::fs::read_to_string("config.yml")
+            .ok()
+            .and_then(|content| {
+                serde_yaml::from_str::<crate::config::VectorizerConfig>(&content).ok()
+            })
+            .map(|config| config.server.startup_cleanup_empty)
+            .unwrap_or(false);
+
+        if should_cleanup {
+            info!("🧹 Running startup cleanup of empty collections...");
+            match store_arc.cleanup_empty_collections(false) {
+                Ok(count) => {
+                    if count > 0 {
+                        info!("✅ Cleaned up {} empty collections on startup", count);
+                    } else {
+                        info!("✨ No empty collections found to cleanup");
+                    }
+                }
+                Err(e) => {
+                    warn!("⚠️  Failed to cleanup empty collections on startup: {}", e);
+                }
+            }
+        }
 
         info!("🔍 PRE_INIT: Creating embedding manager...");
         let mut embedding_manager = EmbeddingManager::new();
@@ -1025,6 +1052,19 @@ impl VectorizerServer {
                 "/api/hub/usage/quota",
                 get(hub_usage_handlers::get_quota_info),
             )
+            // HiveHub tenant management routes (TODO: Fix handler implementations)
+            // .route(
+            //     "/api/hub/tenant/cleanup",
+            //     post(hub_tenant_handlers::cleanup_tenant_data),
+            // )
+            // .route(
+            //     "/api/hub/tenant/{tenant_id}/stats",
+            //     get(hub_tenant_handlers::get_tenant_statistics),
+            // )
+            // .route(
+            //     "/api/hub/tenant/{tenant_id}/migrate",
+            //     post(hub_tenant_handlers::migrate_tenant_data),
+            // )
             // HiveHub API key validation
             .route(
                 "/api/hub/validate-key",
@@ -1037,6 +1077,15 @@ impl VectorizerServer {
             .route(
                 "/collections/{name}",
                 delete(rest_handlers::delete_collection),
+            )
+            // Collection cleanup (file watcher bug fix)
+            .route(
+                "/collections/empty",
+                get(rest_handlers::list_empty_collections),
+            )
+            .route(
+                "/collections/cleanup",
+                delete(rest_handlers::cleanup_empty_collections),
             )
             // Vector operations - single
             .route("/search", post(rest_handlers::search_vectors))
@@ -1315,7 +1364,55 @@ impl VectorizerServer {
                 put(qdrant_cluster_handlers::update_metadata_key),
             )
             // Dashboard - serve static files from dist directory (production build)
-            .nest_service("/dashboard", ServeDir::new("dashboard/dist"))
+            // Use ServeDir with fallback to index.html for SPA routing support
+            // This ensures that direct URL access (e.g., /dashboard/collections) works on refresh
+            //
+            // Route priority for /dashboard/*:
+            // 1. Exact file match (assets/, favicon.ico, etc.) - served with cache headers
+            // 2. SPA fallback - any other route returns index.html for React Router
+            .nest_service(
+                "/dashboard",
+                ServeDir::new("dashboard/dist")
+                    .fallback(ServeFile::new("dashboard/dist/index.html")),
+            )
+            // Add cache headers for dashboard assets
+            // Assets in /dashboard/assets/* are fingerprinted, so max-age=1year is safe
+            // index.html should not be cached to ensure updates are picked up
+            .layer(axum::middleware::from_fn(
+                |req: axum::extract::Request, next: axum::middleware::Next| async move {
+                    let path = req.uri().path().to_string();
+                    let mut response = next.run(req).await;
+
+                    // Only apply cache headers to dashboard routes
+                    if path.starts_with("/dashboard") {
+                        // Log dashboard requests at debug level
+                        tracing::debug!("📊 Dashboard request: {}", path);
+
+                        let headers = response.headers_mut();
+                        if path.starts_with("/dashboard/assets/") {
+                            // Fingerprinted assets: cache for 1 year
+                            headers.insert(
+                                axum::http::header::CACHE_CONTROL,
+                                "public, max-age=31536000, immutable".parse().unwrap(),
+                            );
+                        } else if path == "/dashboard/" || path == "/dashboard" {
+                            // index.html: no cache to ensure updates
+                            headers.insert(
+                                axum::http::header::CACHE_CONTROL,
+                                "no-cache, no-store, must-revalidate".parse().unwrap(),
+                            );
+                        } else {
+                            // SPA routes (fallback to index.html): no cache
+                            headers.insert(
+                                axum::http::header::CACHE_CONTROL,
+                                "no-cache, no-store, must-revalidate".parse().unwrap(),
+                            );
+                        }
+                    }
+
+                    response
+                },
+            ))
             .layer(axum::middleware::from_fn(
                 crate::monitoring::correlation_middleware,
             ))
@@ -1468,66 +1565,19 @@ impl VectorizerServer {
             )
             .with_state(umicp_state);
 
-        // Create fallback handler for SPA routing (serve index.html for dashboard routes)
-        // This handles client-side routing for React Router
-        async fn dashboard_fallback(
-            uri: axum::extract::Request<axum::body::Body>,
-        ) -> impl axum::response::IntoResponse {
-            use std::path::PathBuf;
-
-            use axum::http::{StatusCode, Uri, header};
-            use axum::response::Response;
-
-            let path = uri.uri().path();
-
-            // Only handle dashboard routes (with or without trailing slash)
-            if !path.starts_with("/dashboard/") && path != "/dashboard" {
-                return Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(axum::body::Body::from("Not found"))
-                    .unwrap();
-            }
-
-            // Don't serve index.html for static assets (they should be handled by ServeDir)
-            if path.starts_with("/dashboard/assets/") {
-                return Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(axum::body::Body::from("Asset not found"))
-                    .unwrap();
-            }
-
-            // Serve index.html for all other dashboard routes (SPA routing)
-            let index_path = PathBuf::from("dashboard/dist/index.html");
-            match tokio::fs::read_to_string(&index_path).await {
-                Ok(content) => Response::builder()
-                    .status(StatusCode::OK)
-                    .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-                    .body(axum::body::Body::from(content))
-                    .unwrap(),
-                Err(_) => Response::builder()
-                    .status(StatusCode::NOT_FOUND)
-                    .body(axum::body::Body::from(
-                        "Dashboard not found. Please build the dashboard first: cd dashboard && npm run build",
-                    ))
-                    .unwrap(),
-            }
-        }
-
         // Merge all routes - order matters!
         // 1. Public routes first (health check, prometheus metrics) - no auth required
         // 2. UMICP routes (most specific)
         // 3. MCP routes
-        // 4. REST API routes (including /api/*)
+        // 4. REST API routes (including /api/*, dashboard with SPA fallback via ServeDir)
         // 5. Metrics routes
-        // 6. Dashboard static files (ServeDir handles /dashboard/assets/*)
-        // 7. Dashboard SPA fallback (handles /dashboard/* routes for React Router)
+        // Note: Dashboard SPA routing is handled by ServeDir with not_found_service in rest_routes
         let app = Router::new()
             .merge(public_routes) // Health check and prometheus - always public
             .merge(umicp_routes)
             .merge(mcp_router)
             .merge(rest_routes)
-            .merge(metrics_router)
-            .fallback(dashboard_fallback);
+            .merge(metrics_router);
 
         // In production mode, apply global auth middleware BEFORE CORS
         // This middleware handles both standard auth (JWT/API key) and HiveHub integration
