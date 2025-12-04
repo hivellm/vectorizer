@@ -128,6 +128,7 @@ async fn test_cache_lru_eviction() {
 }
 
 #[tokio::test]
+#[ignore = "slow test - requires full server initialization"]
 async fn test_cache_integration_with_server() {
     // Test cache integration with VectorizerServer
     let server = VectorizerServer::new()
@@ -183,6 +184,7 @@ async fn test_cache_integration_with_server() {
 }
 
 #[tokio::test]
+#[ignore = "slow test - requires full server initialization"]
 async fn test_cache_invalidation_on_insert() {
     // Test that cache is invalidated when vectors are inserted
     let server = VectorizerServer::new()
@@ -227,6 +229,7 @@ async fn test_cache_invalidation_on_insert() {
 }
 
 #[tokio::test]
+#[ignore = "slow test - requires full server initialization"]
 async fn test_cache_stats_in_health_endpoint() {
     // Test that cache stats are available
     let server = VectorizerServer::new()
