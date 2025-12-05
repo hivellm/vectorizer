@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectOption } from '@/components/ui/Select';
+import PasswordStrengthIndicator from '@/components/ui/PasswordStrengthIndicator';
 import { useToastContext } from '@/providers/ToastProvider';
 import LoadingState from '@/components/LoadingState';
 import { formatDate } from '@/utils/formatters';
@@ -275,7 +276,10 @@ function UsersPage() {
       <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create User">
         <div className="space-y-4">
           <Input label="Username" value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })} placeholder="Enter username" />
-          <Input label="Password" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Enter password" />
+          <div>
+            <Input label="Password" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Enter password" />
+            <PasswordStrengthIndicator password={createForm.password} />
+          </div>
           <Input label="Confirm Password" type="password" value={createForm.confirmPassword} onChange={(e) => setCreateForm({ ...createForm, confirmPassword: e.target.value })} placeholder="Confirm password" />
           <Select label="Role" value={createForm.role} onChange={(value) => setCreateForm({ ...createForm, role: value })}>
             <SelectOption id="Viewer" value="Viewer">Viewer - Read-only access</SelectOption>
@@ -290,7 +294,10 @@ function UsersPage() {
 
       <Modal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} title={`Change Password for ${selectedUser?.username || ''}`}>
         <div className="space-y-4">
-          <Input label="New Password" type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} placeholder="Enter new password" />
+          <div>
+            <Input label="New Password" type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} placeholder="Enter new password" />
+            <PasswordStrengthIndicator password={passwordForm.newPassword} />
+          </div>
           <Input label="Confirm Password" type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} placeholder="Confirm new password" />
           <div className="flex justify-end gap-3 pt-4">
             <Button variant="secondary" onClick={() => setShowPasswordModal(false)}>Cancel</Button>

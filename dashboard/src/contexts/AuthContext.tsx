@@ -25,6 +25,13 @@ interface LoginResponse {
   user: User;
 }
 
+// Refresh token response from the server
+interface RefreshTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
 // Auth context state
 interface AuthContextType {
   user: User | null;
@@ -35,6 +42,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   verifySession: () => Promise<boolean>;
+  refreshToken: () => Promise<boolean>;
 }
 
 // Create the context
@@ -141,8 +149,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Login failed' }));
-      throw new Error(error.message || 'Invalid username or password');
+      const error = await response.json().catch(() => ({ error: 'unknown', message: 'Login failed' }));
+
+      // Handle rate limiting specifically
+      if (response.status === 429 || error.error === 'rate_limited') {
+        throw new Error(error.message || 'Too many login attempts. Please try again later.');
+      }
+
+      // Handle invalid credentials
+      if (response.status === 401 || error.error === 'invalid_credentials') {
+        throw new Error('Invalid username or password');
+      }
+
+      // Handle other errors
+      throw new Error(error.message || 'Login failed. Please try again.');
     }
 
     const data: LoginResponse = await response.json();
@@ -155,8 +175,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(data.user);
   }, []);
 
-  // Logout function
+  // Logout function - calls server to invalidate token
   const logout = useCallback(async () => {
+    const baseUrl = getApiBaseUrl();
+
+    // Try to invalidate token on server (best effort)
+    if (token) {
+      try {
+        await fetch(`${baseUrl}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      } catch {
+        // Ignore errors - we'll clear local state anyway
+      }
+    }
+
     // Clear local storage
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
@@ -164,7 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Clear state
     setToken(null);
     setUser(null);
-  }, []);
+  }, [token]);
 
   // Verify current session
   const verifySession = useCallback(async (): Promise<boolean> => {
@@ -199,12 +235,64 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [token, logout]);
 
+  // Refresh the current token
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    if (!token) {
+      return false;
+    }
+
+    const baseUrl = getApiBaseUrl();
+
+    try {
+      const response = await fetch(`${baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        // Token refresh failed, session may be expired
+        if (response.status === 401) {
+          await logout();
+        }
+        return false;
+      }
+
+      const data: RefreshTokenResponse = await response.json();
+
+      // Update token in storage and state
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      setToken(data.access_token);
+
+      return true;
+    } catch {
+      // Network error or other issue
+      return false;
+    }
+  }, [token, logout]);
+
   // Auto-verify session on mount if we have a token
   useEffect(() => {
     if (token && !isLoading && authRequired) {
       verifySession();
     }
   }, [token, isLoading, authRequired, verifySession]);
+
+  // Set up automatic token refresh (refresh 5 minutes before expiry)
+  // JWT tokens typically expire in 1 hour (3600s), so refresh at ~55 minutes
+  useEffect(() => {
+    if (!token || !authRequired) {
+      return;
+    }
+
+    // Refresh token every 50 minutes (before the 1 hour expiry)
+    const refreshInterval = setInterval(() => {
+      refreshToken();
+    }, 50 * 60 * 1000); // 50 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, [token, authRequired, refreshToken]);
 
   const value: AuthContextType = {
     user,
@@ -216,6 +304,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     verifySession,
+    refreshToken,
   };
 
   return (

@@ -11,8 +11,9 @@
 //! Note: These tests require both HiveHub API and Vectorizer to be running.
 //! Run with: `cargo test --test all_tests hub_integration_live -- --ignored`
 
-use serde_json::{Value, json};
 use std::time::Duration;
+
+use serde_json::{Value, json};
 
 const HIVEHUB_API_URL: &str = "http://localhost:12000";
 const VECTORIZER_API_URL: &str = "http://localhost:15002";

@@ -16,10 +16,11 @@
 //! Note: These tests require both HiveHub API and Vectorizer to be running.
 //! Run with: `cargo test --test all_tests graphql::hub_integration -- --ignored`
 
-use async_graphql::{Request, Variables};
-use serde_json::{Value, json};
 use std::sync::Arc;
 use std::time::Duration;
+
+use async_graphql::{Request, Variables};
+use serde_json::{Value, json};
 
 const HIVEHUB_API_URL: &str = "http://localhost:12000";
 const VECTORIZER_API_URL: &str = "http://localhost:15002";

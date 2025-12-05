@@ -96,9 +96,23 @@ pub struct VectorizerServer {
     pub mcp_hub_gateway: Option<Arc<crate::hub::McpHubGateway>>,
 }
 
+/// Configuration for root user credentials
+#[derive(Debug, Clone, Default)]
+pub struct RootUserConfig {
+    /// Root username (defaults to "root" if not set)
+    pub root_user: Option<String>,
+    /// Root password (generates random if not set)
+    pub root_password: Option<String>,
+}
+
 impl VectorizerServer {
     /// Create a new vectorizer server
     pub async fn new() -> anyhow::Result<Self> {
+        Self::new_with_root_config(RootUserConfig::default()).await
+    }
+
+    /// Create a new vectorizer server with root user configuration
+    pub async fn new_with_root_config(root_config: RootUserConfig) -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
 
         // Initialize monitoring system
@@ -795,9 +809,13 @@ impl VectorizerServer {
                 match crate::auth::AuthManager::new(auth_config) {
                     Ok(auth_manager) => {
                         let auth_manager_arc = Arc::new(auth_manager);
-                        // Create auth handler state with default admin user
-                        let handler_state =
-                            AuthHandlerState::new_with_default_admin(auth_manager_arc).await;
+                        // Create auth handler state with root user configuration
+                        let handler_state = AuthHandlerState::new_with_root_user(
+                            auth_manager_arc,
+                            root_config.root_user.clone(),
+                            root_config.root_password.clone(),
+                        )
+                        .await;
                         info!("✅ Authentication system initialized");
                         Some(handler_state)
                     }
@@ -1567,15 +1585,21 @@ impl VectorizerServer {
         let rest_routes = if let Some(auth_state) = self.auth_handler_state.clone() {
             info!("🔐 Adding authentication routes...");
 
-            // Public routes (no auth required) - login and health check
+            // Public routes (no auth required) - login, password validation, and health check
             let public_auth_router = Router::new()
                 .route("/auth/login", post(auth_handlers::login))
+                .route(
+                    "/auth/validate-password",
+                    post(auth_handlers::validate_password_endpoint),
+                )
                 .with_state(auth_state.clone());
 
             // Protected auth routes (require authentication via handlers)
             // Note: Each handler internally checks auth_state.authenticated
             let protected_auth_router = Router::new()
                 .route("/auth/me", get(auth_handlers::get_me))
+                .route("/auth/logout", post(auth_handlers::logout))
+                .route("/auth/refresh", post(auth_handlers::refresh_token))
                 .route("/auth/keys", post(auth_handlers::create_api_key))
                 .route("/auth/keys", get(auth_handlers::list_api_keys))
                 .route("/auth/keys/{id}", delete(auth_handlers::revoke_api_key))
@@ -1604,8 +1628,9 @@ impl VectorizerServer {
         let rest_routes = if let Some(ref hub_manager) = self.hub_manager {
             info!("🔐 Applying HiveHub tenant middleware to routes...");
 
-            use crate::hub::middleware::{HubAuthMiddleware, hub_auth_middleware};
             use axum::middleware::from_fn_with_state;
+
+            use crate::hub::middleware::{HubAuthMiddleware, hub_auth_middleware};
 
             let hub_auth = hub_manager.auth().clone();
             let hub_quota = hub_manager.quota().clone();
@@ -1672,6 +1697,7 @@ impl VectorizerServer {
                     if path == "/health"
                         || path == "/prometheus/metrics"
                         || path == "/auth/login"
+                        || path == "/auth/validate-password"
                         || path == "/umicp/health"
                         || path == "/umicp/discover"
                         || path.starts_with("/dashboard")

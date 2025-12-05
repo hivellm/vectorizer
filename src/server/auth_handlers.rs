@@ -3,7 +3,7 @@
 //! Provides endpoints for user authentication, API key management,
 //! and user information retrieval.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use axum::Extension;
@@ -147,6 +147,53 @@ pub struct ChangePasswordRequest {
     pub new_password: String,
 }
 
+/// Logout response
+#[derive(Debug, Serialize)]
+pub struct LogoutResponse {
+    /// Status
+    pub status: String,
+    /// Message
+    pub message: String,
+}
+
+/// Refresh token request
+#[derive(Debug, Deserialize)]
+pub struct RefreshTokenRequest {
+    /// The current access token to refresh (optional, can use Authorization header)
+    pub access_token: Option<String>,
+}
+
+/// Refresh token response
+#[derive(Debug, Serialize)]
+pub struct RefreshTokenResponse {
+    /// New JWT access token
+    pub access_token: String,
+    /// Token type (always "Bearer")
+    pub token_type: String,
+    /// Token expiration in seconds
+    pub expires_in: u64,
+}
+
+/// Password validation request
+#[derive(Debug, Deserialize)]
+pub struct ValidatePasswordRequest {
+    /// Password to validate
+    pub password: String,
+}
+
+/// Password validation response
+#[derive(Debug, Serialize)]
+pub struct ValidatePasswordResponse {
+    /// Whether the password meets all requirements
+    pub valid: bool,
+    /// List of validation errors (empty if valid)
+    pub errors: Vec<String>,
+    /// Password strength score (0-100)
+    pub strength: u8,
+    /// Strength label (Very Weak, Weak, Fair, Strong, Very Strong)
+    pub strength_label: String,
+}
+
 /// Error response
 #[derive(Debug, Serialize)]
 pub struct AuthErrorResponse {
@@ -155,6 +202,22 @@ pub struct AuthErrorResponse {
     /// Error message
     pub message: String,
 }
+
+/// Login attempt tracking for rate limiting
+#[derive(Debug, Clone)]
+pub struct LoginAttempt {
+    /// Number of failed attempts
+    pub count: u32,
+    /// Timestamp of first failed attempt in this window
+    pub window_start: std::time::Instant,
+    /// Timestamp when lockout expires (if locked)
+    pub locked_until: Option<std::time::Instant>,
+}
+
+/// Rate limit configuration
+const MAX_LOGIN_ATTEMPTS: u32 = 5;
+const LOGIN_WINDOW_SECONDS: u64 = 300; // 5 minutes
+const LOCKOUT_SECONDS: u64 = 900; // 15 minutes lockout after max attempts
 
 /// Shared state for auth handlers
 #[derive(Clone)]
@@ -165,6 +228,10 @@ pub struct AuthHandlerState {
     pub users: Arc<tokio::sync::RwLock<HashMap<String, UserRecord>>>,
     /// Persistence manager for saving/loading from disk
     pub persistence: Arc<AuthPersistence>,
+    /// Token blacklist for logout (tokens that have been invalidated)
+    pub token_blacklist: Arc<tokio::sync::RwLock<HashSet<String>>>,
+    /// Login attempt tracking for rate limiting (by IP or username)
+    pub login_attempts: Arc<tokio::sync::RwLock<HashMap<String, LoginAttempt>>>,
 }
 
 /// User record for authentication
@@ -185,15 +252,33 @@ impl AuthHandlerState {
     pub fn new(auth_manager: Arc<AuthManager>) -> Self {
         let users = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         let persistence = Arc::new(AuthPersistence::with_default_dir());
+        let token_blacklist = Arc::new(tokio::sync::RwLock::new(HashSet::new()));
+        let login_attempts = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {
             auth_manager,
             users,
             persistence,
+            token_blacklist,
+            login_attempts,
         }
     }
 
     /// Create with persistence - loads from disk or creates default admin
     pub async fn new_with_default_admin(auth_manager: Arc<AuthManager>) -> Self {
+        Self::new_with_root_user(auth_manager, None, None).await
+    }
+
+    /// Create with persistence and optional root user configuration
+    ///
+    /// # Arguments
+    /// * `auth_manager` - The authentication manager
+    /// * `root_user` - Optional root username (defaults to "root")
+    /// * `root_password` - Optional root password (generates random if not provided)
+    pub async fn new_with_root_user(
+        auth_manager: Arc<AuthManager>,
+        root_user: Option<String>,
+        root_password: Option<String>,
+    ) -> Self {
         let persistence = Arc::new(AuthPersistence::with_default_dir());
         let users = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 
@@ -221,25 +306,40 @@ impl AuthHandlerState {
             }
         }
 
-        // Create default admin if no users exist
-        if loaded_users.is_empty() {
-            info!("No users found, creating default admin user");
-            let password_hash = bcrypt::hash("admin", bcrypt::DEFAULT_COST)
+        // Check if any admin user exists
+        let has_admin = loaded_users
+            .values()
+            .any(|u| u.roles.contains(&Role::Admin));
+
+        // Create root admin if no admin users exist
+        if !has_admin {
+            let username = root_user.unwrap_or_else(|| "root".to_string());
+            let (password, was_generated) = match root_password {
+                Some(pwd) => (pwd, false),
+                None => (Self::generate_secure_password(), true),
+            };
+
+            info!(
+                "No admin users found, creating root admin user '{}'",
+                username
+            );
+
+            let password_hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST)
                 .unwrap_or_else(|_| "invalid".to_string());
 
             let admin = UserRecord {
-                user_id: "admin".to_string(),
-                username: "admin".to_string(),
+                user_id: username.clone(),
+                username: username.clone(),
                 password_hash: password_hash.clone(),
                 roles: vec![Role::Admin],
             };
 
-            loaded_users.insert("admin".to_string(), admin);
+            loaded_users.insert(username.clone(), admin);
 
             // Save to disk
             let persisted_admin = PersistedUser {
-                user_id: "admin".to_string(),
-                username: "admin".to_string(),
+                user_id: username.clone(),
+                username: username.clone(),
                 password_hash,
                 roles: vec![Role::Admin],
                 created_at: chrono::Utc::now().timestamp() as u64,
@@ -247,20 +347,187 @@ impl AuthHandlerState {
             };
 
             if let Err(e) = persistence.save_user(persisted_admin) {
-                error!("Failed to save default admin to disk: {}", e);
+                error!("Failed to save root admin to disk: {}", e);
             }
 
+            // Print credentials to console (one-time only)
+            println!();
+            println!(
+                "╔════════════════════════════════════════════════════════════════════════════╗"
+            );
+            println!(
+                "║                     🔐 ROOT USER CREDENTIALS                               ║"
+            );
+            println!(
+                "╠════════════════════════════════════════════════════════════════════════════╣"
+            );
+            println!("║  Username: {:<63} ║", username);
+            println!("║  Password: {:<63} ║", password);
+            println!(
+                "╠════════════════════════════════════════════════════════════════════════════╣"
+            );
+            if was_generated {
+                println!(
+                    "║  ⚠️  SAVE THIS PASSWORD NOW - IT WILL NOT BE SHOWN AGAIN!                  ║"
+                );
+            } else {
+                println!(
+                    "║  ⚠️  Consider changing this password after first login!                    ║"
+                );
+            }
+            println!(
+                "╚════════════════════════════════════════════════════════════════════════════╝"
+            );
+            println!();
+
             warn!(
-                "Default admin user created with password 'admin'. Please change this in production!"
+                "Root admin user '{}' created. {}",
+                username,
+                if was_generated {
+                    "Password was auto-generated - see console output above."
+                } else {
+                    "Please change the password in production!"
+                }
             );
         }
 
         *users.write().await = loaded_users;
 
+        let token_blacklist = Arc::new(tokio::sync::RwLock::new(HashSet::new()));
+        let login_attempts = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+
         Self {
             auth_manager,
             users,
             persistence,
+            token_blacklist,
+            login_attempts,
+        }
+    }
+
+    /// Generate a secure random password
+    fn generate_secure_password() -> String {
+        use rand::Rng;
+        const CHARSET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*";
+        let mut rng = rand::thread_rng();
+        let password: String = (0..24)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
+        password
+    }
+
+    /// Check if a token is blacklisted (logged out)
+    pub async fn is_token_blacklisted(&self, token: &str) -> bool {
+        self.token_blacklist.read().await.contains(token)
+    }
+
+    /// Add a token to the blacklist (logout)
+    pub async fn blacklist_token(&self, token: String) {
+        self.token_blacklist.write().await.insert(token);
+    }
+
+    /// Clean up expired tokens from blacklist (should be called periodically)
+    pub async fn cleanup_expired_tokens(&self) {
+        let mut blacklist = self.token_blacklist.write().await;
+        let before_count = blacklist.len();
+
+        // Remove tokens that have expired (can no longer be used anyway)
+        blacklist.retain(|token| {
+            // Try to decode without validation to check expiry
+            match self.auth_manager.validate_jwt(token) {
+                Ok(_) => true,   // Still valid, keep in blacklist
+                Err(_) => false, // Expired or invalid, remove from blacklist
+            }
+        });
+
+        let removed = before_count - blacklist.len();
+        if removed > 0 {
+            debug!("Cleaned up {} expired tokens from blacklist", removed);
+        }
+    }
+
+    /// Check if login is rate limited for a given key (username or IP)
+    pub async fn check_login_rate_limit(&self, key: &str) -> Result<(), (u32, u64)> {
+        let attempts = self.login_attempts.read().await;
+
+        if let Some(attempt) = attempts.get(key) {
+            // Check if currently locked out
+            if let Some(locked_until) = attempt.locked_until {
+                if locked_until > std::time::Instant::now() {
+                    let remaining = locked_until
+                        .duration_since(std::time::Instant::now())
+                        .as_secs();
+                    return Err((attempt.count, remaining));
+                }
+            }
+
+            // Check if within window and exceeded attempts
+            let window_elapsed = attempt.window_start.elapsed().as_secs();
+            if window_elapsed < LOGIN_WINDOW_SECONDS && attempt.count >= MAX_LOGIN_ATTEMPTS {
+                let remaining = LOGIN_WINDOW_SECONDS - window_elapsed;
+                return Err((attempt.count, remaining));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Record a failed login attempt
+    pub async fn record_failed_login(&self, key: &str) {
+        let mut attempts = self.login_attempts.write().await;
+        let now = std::time::Instant::now();
+
+        let attempt = attempts.entry(key.to_string()).or_insert(LoginAttempt {
+            count: 0,
+            window_start: now,
+            locked_until: None,
+        });
+
+        // Reset window if expired
+        if attempt.window_start.elapsed().as_secs() >= LOGIN_WINDOW_SECONDS {
+            attempt.count = 0;
+            attempt.window_start = now;
+            attempt.locked_until = None;
+        }
+
+        attempt.count += 1;
+
+        // Lock out if exceeded max attempts
+        if attempt.count >= MAX_LOGIN_ATTEMPTS {
+            attempt.locked_until = Some(now + std::time::Duration::from_secs(LOCKOUT_SECONDS));
+            warn!(
+                "Account '{}' locked out for {} seconds after {} failed login attempts",
+                key, LOCKOUT_SECONDS, attempt.count
+            );
+        }
+    }
+
+    /// Clear login attempts on successful login
+    pub async fn clear_login_attempts(&self, key: &str) {
+        let mut attempts = self.login_attempts.write().await;
+        attempts.remove(key);
+    }
+
+    /// Clean up expired login attempt records
+    pub async fn cleanup_expired_login_attempts(&self) {
+        let mut attempts = self.login_attempts.write().await;
+        let before_count = attempts.len();
+
+        attempts.retain(|_, attempt| {
+            // Keep if within window or still locked
+            let window_active = attempt.window_start.elapsed().as_secs() < LOGIN_WINDOW_SECONDS;
+            let still_locked = attempt
+                .locked_until
+                .is_some_and(|until| until > std::time::Instant::now());
+            window_active || still_locked
+        });
+
+        let removed = before_count - attempts.len();
+        if removed > 0 {
+            debug!("Cleaned up {} expired login attempt records", removed);
         }
     }
 
@@ -288,6 +555,23 @@ impl AuthHandlerState {
     }
 }
 
+/// Validate password strength - POST /auth/validate-password
+///
+/// This is a public endpoint (no auth required) that checks password
+/// complexity and returns strength information.
+pub async fn validate_password_endpoint(
+    Json(request): Json<ValidatePasswordRequest>,
+) -> Json<ValidatePasswordResponse> {
+    let result = crate::auth::validate_password(&request.password);
+
+    Json(ValidatePasswordResponse {
+        valid: result.valid,
+        errors: result.errors,
+        strength: result.strength,
+        strength_label: result.strength_label,
+    })
+}
+
 /// Login endpoint - POST /auth/login
 pub async fn login(
     State(state): State<AuthHandlerState>,
@@ -295,18 +579,43 @@ pub async fn login(
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<AuthErrorResponse>)> {
     debug!("Login attempt for user: {}", request.username);
 
+    // Check rate limiting first
+    if let Err((attempts, remaining_secs)) = state.check_login_rate_limit(&request.username).await {
+        warn!(
+            "Login rate limited for user '{}': {} attempts, {} seconds remaining",
+            request.username, attempts, remaining_secs
+        );
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(AuthErrorResponse {
+                error: "rate_limited".to_string(),
+                message: format!(
+                    "Too many login attempts. Please try again in {} seconds.",
+                    remaining_secs
+                ),
+            }),
+        ));
+    }
+
     // Look up user
     let users = state.users.read().await;
-    let user = users.get(&request.username).ok_or_else(|| {
-        warn!("Login failed: user '{}' not found", request.username);
-        (
-            StatusCode::UNAUTHORIZED,
-            Json(AuthErrorResponse {
-                error: "invalid_credentials".to_string(),
-                message: "Invalid username or password".to_string(),
-            }),
-        )
-    })?;
+    let user = match users.get(&request.username) {
+        Some(u) => u.clone(),
+        None => {
+            warn!("Login failed: user '{}' not found", request.username);
+            // Record failed attempt even for non-existent users (prevent enumeration)
+            drop(users);
+            state.record_failed_login(&request.username).await;
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                Json(AuthErrorResponse {
+                    error: "invalid_credentials".to_string(),
+                    message: "Invalid username or password".to_string(),
+                }),
+            ));
+        }
+    };
+    drop(users);
 
     // Verify password
     let valid = bcrypt::verify(&request.password, &user.password_hash).unwrap_or(false);
@@ -315,6 +624,8 @@ pub async fn login(
             "Login failed: invalid password for user '{}'",
             request.username
         );
+        // Record failed attempt
+        state.record_failed_login(&request.username).await;
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(AuthErrorResponse {
@@ -323,6 +634,9 @@ pub async fn login(
             }),
         ));
     }
+
+    // Clear failed attempts on successful login
+    state.clear_login_attempts(&request.username).await;
 
     // Generate JWT token
     let token = state
@@ -376,6 +690,115 @@ pub async fn get_me(
             .iter()
             .map(|r| format!("{:?}", r))
             .collect(),
+    }))
+}
+
+/// Logout endpoint - POST /auth/logout
+///
+/// Invalidates the current JWT token by adding it to a blacklist.
+/// The token will remain invalid until it expires naturally.
+pub async fn logout(
+    State(state): State<AuthHandlerState>,
+    Extension(auth_state): Extension<AuthState>,
+    request: axum::extract::Request,
+) -> Result<Json<LogoutResponse>, (StatusCode, Json<AuthErrorResponse>)> {
+    if !auth_state.authenticated {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(AuthErrorResponse {
+                error: "unauthorized".to_string(),
+                message: "Authentication required".to_string(),
+            }),
+        ));
+    }
+
+    // Extract the token from the Authorization header to blacklist it
+    if let Some(auth_header) = request.headers().get(axum::http::header::AUTHORIZATION) {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                state.blacklist_token(token.to_string()).await;
+                info!(
+                    "User '{}' logged out, token blacklisted",
+                    auth_state.user_claims.username
+                );
+            }
+        }
+    }
+
+    Ok(Json(LogoutResponse {
+        status: "ok".to_string(),
+        message: "Logged out successfully".to_string(),
+    }))
+}
+
+/// Refresh token endpoint - POST /auth/refresh
+///
+/// Generates a new JWT token with extended expiration.
+/// The old token remains valid until it expires (unless logout is called).
+pub async fn refresh_token(
+    State(state): State<AuthHandlerState>,
+    Extension(auth_state): Extension<AuthState>,
+    request: axum::extract::Request,
+) -> Result<Json<RefreshTokenResponse>, (StatusCode, Json<AuthErrorResponse>)> {
+    if !auth_state.authenticated {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(AuthErrorResponse {
+                error: "unauthorized".to_string(),
+                message: "Authentication required".to_string(),
+            }),
+        ));
+    }
+
+    // Get the current token from Authorization header
+    let current_token = request
+        .headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
+
+    // Check if the current token is blacklisted
+    if let Some(ref token) = current_token {
+        if state.is_token_blacklisted(token).await {
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                Json(AuthErrorResponse {
+                    error: "token_revoked".to_string(),
+                    message: "Token has been revoked. Please login again.".to_string(),
+                }),
+            ));
+        }
+    }
+
+    // Generate a new token with same user info but fresh expiration
+    let new_token = state
+        .auth_manager
+        .generate_jwt(
+            &auth_state.user_claims.user_id,
+            &auth_state.user_claims.username,
+            auth_state.user_claims.roles.clone(),
+        )
+        .map_err(|e| {
+            error!("Failed to generate refresh token: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(AuthErrorResponse {
+                    error: "token_error".to_string(),
+                    message: "Failed to generate new access token".to_string(),
+                }),
+            )
+        })?;
+
+    info!(
+        "Token refreshed for user '{}'",
+        auth_state.user_claims.username
+    );
+
+    Ok(Json(RefreshTokenResponse {
+        access_token: new_token,
+        token_type: "Bearer".to_string(),
+        expires_in: state.auth_manager.config().jwt_expiration,
     }))
 }
 
@@ -620,13 +1043,14 @@ pub async fn create_user(
         ));
     }
 
-    // Validate password
-    if request.password.len() < 6 {
+    // Validate password complexity
+    let password_validation = crate::auth::validate_password(&request.password);
+    if !password_validation.valid {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(AuthErrorResponse {
                 error: "invalid_password".to_string(),
-                message: "Password must be at least 6 characters".to_string(),
+                message: password_validation.errors.join(". "),
             }),
         ));
     }
@@ -802,17 +1226,43 @@ pub async fn delete_user(
         ));
     }
 
-    // Remove from memory
+    // Check if user exists and if they're the last admin
     let mut users = state.users.write().await;
-    if users.remove(&username).is_none() {
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(AuthErrorResponse {
-                error: "user_not_found".to_string(),
-                message: "User not found".to_string(),
-            }),
-        ));
+
+    // Check if user exists
+    let user_to_delete = match users.get(&username) {
+        Some(user) => user.clone(),
+        None => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(AuthErrorResponse {
+                    error: "user_not_found".to_string(),
+                    message: "User not found".to_string(),
+                }),
+            ));
+        }
+    };
+
+    // Prevent deleting the last admin user
+    if user_to_delete.roles.contains(&Role::Admin) {
+        let admin_count = users
+            .values()
+            .filter(|u| u.roles.contains(&Role::Admin))
+            .count();
+        if admin_count <= 1 {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(AuthErrorResponse {
+                    error: "cannot_delete_last_admin".to_string(),
+                    message: "Cannot delete the last admin user. Create another admin first."
+                        .to_string(),
+                }),
+            ));
+        }
     }
+
+    // Remove from memory
+    users.remove(&username);
     drop(users);
 
     // Remove from disk
@@ -863,13 +1313,14 @@ pub async fn change_password(
         ));
     }
 
-    // Validate new password
-    if request.new_password.len() < 6 {
+    // Validate new password complexity
+    let password_validation = crate::auth::validate_password(&request.new_password);
+    if !password_validation.valid {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(AuthErrorResponse {
                 error: "invalid_password".to_string(),
-                message: "Password must be at least 6 characters".to_string(),
+                message: password_validation.errors.join(". "),
             }),
         ));
     }
@@ -1051,6 +1502,21 @@ async fn extract_auth_from_request(
         if let Ok(auth_str) = auth_header.to_str() {
             // Check for Bearer token (JWT)
             if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                // Check if token is blacklisted (logged out)
+                if state.is_token_blacklisted(token).await {
+                    debug!("Token is blacklisted, rejecting authentication");
+                    return AuthState {
+                        user_claims: UserClaims {
+                            user_id: "anonymous".to_string(),
+                            username: "anonymous".to_string(),
+                            roles: vec![],
+                            iat: 0,
+                            exp: 0,
+                        },
+                        authenticated: false,
+                    };
+                }
+
                 if let Ok(claims) = state.auth_manager.validate_jwt(token) {
                     return AuthState {
                         user_claims: claims,

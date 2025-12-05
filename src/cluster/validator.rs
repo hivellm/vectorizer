@@ -3,10 +3,9 @@
 //! Validates cluster configuration to ensure memory limits and storage
 //! requirements are properly configured for production cluster deployments.
 
+use super::{ClusterConfig, ClusterMemoryConfig};
 use crate::config::FileWatcherYamlConfig;
 use crate::models::StorageType;
-
-use super::{ClusterConfig, ClusterMemoryConfig};
 
 /// Result of cluster configuration validation
 #[derive(Debug, Clone)]

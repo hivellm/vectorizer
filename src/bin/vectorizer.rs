@@ -8,7 +8,7 @@
 use clap::Parser;
 use tracing::{error, info, warn};
 use vectorizer::config::VectorizerConfig;
-use vectorizer::server::VectorizerServer;
+use vectorizer::server::{RootUserConfig, VectorizerServer};
 
 #[derive(Parser)]
 #[command(name = "vectorizer")]
@@ -29,6 +29,16 @@ struct Cli {
     /// Path to config file
     #[arg(long, default_value = "config.yml")]
     config: String,
+
+    /// Root user username for dashboard authentication (default: "root")
+    /// If no admin users exist, this user will be created on startup
+    #[arg(long, env = "ROOT_USER")]
+    root_user: Option<String>,
+
+    /// Root user password for dashboard authentication
+    /// If not provided, a secure random password will be generated
+    #[arg(long, env = "ROOT_PASSWORD")]
+    root_password: Option<String>,
 }
 
 /// Load configuration from config.yml, falling back to defaults
@@ -103,8 +113,14 @@ async fn main() -> anyhow::Result<()> {
     info!("🚀 Starting Vectorizer Server");
     info!("🌐 Server: {}:{}", host, port);
 
-    // Create and start the server
-    let server = VectorizerServer::new().await?;
+    // Create root user configuration from CLI arguments
+    let root_config = RootUserConfig {
+        root_user: cli.root_user,
+        root_password: cli.root_password,
+    };
+
+    // Create and start the server with root user configuration
+    let server = VectorizerServer::new_with_root_config(root_config).await?;
 
     // Start the server (this will block)
     if let Err(e) = server.start(&host, port).await {

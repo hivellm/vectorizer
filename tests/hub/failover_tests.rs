@@ -12,9 +12,10 @@
 //! Note: These tests require the ability to simulate HiveHub failures.
 //! Run with: `cargo test --test all_tests hub::failover_tests -- --ignored`
 
+use std::time::Duration;
+
 use reqwest::blocking::Client;
 use serde_json::{Value, json};
-use std::time::Duration;
 use uuid::Uuid;
 
 const VECTORIZER_API_URL: &str = "http://localhost:15002";

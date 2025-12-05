@@ -12,11 +12,12 @@
 //! Note: These are stress tests and may take several minutes to complete.
 //! Run with: `cargo test --release --test all_tests performance::multi_tenant_load -- --ignored --test-threads=1`
 
-use reqwest::blocking::Client;
-use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
+
+use reqwest::blocking::Client;
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 const HIVEHUB_API_URL: &str = "http://localhost:12000";

@@ -373,11 +373,13 @@ impl VectorOperations {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::file_watcher::FileWatcherConfig;
     use std::path::PathBuf;
     use std::sync::Arc;
+
     use tokio::sync::RwLock;
+
+    use super::*;
+    use crate::file_watcher::FileWatcherConfig;
 
     fn create_test_ops() -> VectorOperations {
         let vector_store = Arc::new(crate::VectorStore::new_cpu_only());

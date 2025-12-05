@@ -5,8 +5,9 @@
 
 use std::sync::Arc;
 
-use super::mock_hub::{MockHubApi, MockUser};
 use vectorizer::hub::auth::{TenantContext, TenantPermission};
+
+use super::mock_hub::{MockHubApi, MockUser};
 
 /// Create a test tenant context for a given user
 fn create_tenant_context(user: &MockUser, permissions: Vec<TenantPermission>) -> TenantContext {

@@ -9,14 +9,12 @@
 
 use std::sync::Arc;
 
-use axum::{
-    Json,
-    body::Body,
-    extract::State,
-    http::{Request, StatusCode},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
+use axum::Json;
+use axum::body::Body;
+use axum::extract::State;
+use axum::http::{Request, StatusCode};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace, warn};
 

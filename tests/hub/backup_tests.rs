@@ -4,8 +4,8 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use uuid::Uuid;
 
+use uuid::Uuid;
 use vectorizer::hub::backup::{
     BackupCollectionData, BackupConfig, BackupVector, UserBackupData, UserBackupInfo,
 };

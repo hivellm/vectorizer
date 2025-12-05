@@ -356,8 +356,9 @@ impl KeyRotationManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
+    use super::*;
 
     fn create_test_manager() -> KeyRotationManager {
         let client = Arc::new(HubClient::new_mock());
