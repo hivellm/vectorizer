@@ -519,7 +519,7 @@ mod tests {
             "F:\\Some\\Random\\Directory\\document.md",
             "/usr/local/bin/script.sh",
             "/home/user/downloads/file.pdf",
-            "/ThirdParty/libsodium/src/file.c",
+            "/third-party/libsodium/src/file.c",
             "/Server/ToS-Server-5/Api/endpoint.cs",
             "/Benchmark/src/test.cpp",
         ];
@@ -650,7 +650,7 @@ mod tests {
         // These paths previously caused empty collections to be created
         // Now they should all use the default collection
         let problematic_paths = vec![
-            "/ThirdParty/libsodium/src/file.c",
+            "/third-party/libsodium/src/file.c",
             "/Server/ToS-Server-5/Api/endpoint.cs",
             "/Benchmark/src/test.cpp",
             "/test/symbols/symbol.txt",

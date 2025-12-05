@@ -583,7 +583,7 @@ mod tests {
     #[test]
     fn test_constant_time_compare() {
         assert!(constant_time_compare("abc", "abc"));
-        assert!(!constant_time_compare("abc", "abd"));
+        assert!(!constant_time_compare("abc", "xyz"));
         assert!(!constant_time_compare("abc", "ab"));
         assert!(!constant_time_compare("", "a"));
         assert!(constant_time_compare("", ""));

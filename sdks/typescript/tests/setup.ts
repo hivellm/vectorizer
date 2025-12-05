@@ -2,10 +2,11 @@
  * Test setup for TypeScript SDK tests.
  */
 
+import { vi } from 'vitest';
+
 // Global test setup
 beforeAll(() => {
-  // Set test timeout
-  jest.setTimeout(10000);
+  // Set test timeout (Vitest uses testTimeout in config)
 });
 
 // Global test teardown
@@ -14,7 +15,7 @@ afterAll(() => {
 });
 
 // Mock fetch for tests
-global.fetch = jest.fn().mockImplementation((url: string | URL, options?: RequestInit) => {
+global.fetch = vi.fn().mockImplementation((url: string | URL, options?: RequestInit) => {
   const urlStr = typeof url === 'string' ? url : url.toString();
   const method = options?.method || 'GET';
   
@@ -358,29 +359,29 @@ global.fetch = jest.fn().mockImplementation((url: string | URL, options?: Reques
 }) as unknown as typeof fetch;
 
 // Mock AbortController
-global.AbortController = jest.fn().mockImplementation(() => ({
-  abort: jest.fn(),
+global.AbortController = vi.fn().mockImplementation(() => ({
+  abort: vi.fn(),
   signal: {
     aborted: false,
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
   },
-}));
+})) as any;
 
 // Mock setTimeout and clearTimeout
 const originalSetTimeout = global.setTimeout;
-const mockSetTimeout = jest.fn((callback, delay) => {
+const mockSetTimeout = vi.fn((callback, delay) => {
   return originalSetTimeout(callback, delay);
 });
 
 // Add __promisify__ property for Node.js compatibility
 Object.assign(mockSetTimeout, {
-  __promisify__: jest.fn(),
+  __promisify__: vi.fn(),
 });
 
 global.setTimeout = mockSetTimeout as any;
 
 const originalClearTimeout = global.clearTimeout;
-global.clearTimeout = jest.fn((id) => {
+global.clearTimeout = vi.fn((id) => {
   return originalClearTimeout(id);
-});
+}) as any;
