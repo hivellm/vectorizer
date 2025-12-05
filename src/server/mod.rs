@@ -1651,9 +1651,12 @@ impl VectorizerServer {
             }))
             // Apply CORS after auth middleware
             .layer(CorsLayer::permissive())
+            // Apply security headers
+            .layer(axum::middleware::from_fn(security_headers_middleware))
         } else {
-            // Development mode: just apply CORS
+            // Development mode: just apply CORS and security headers
             app.layer(CorsLayer::permissive())
+                .layer(axum::middleware::from_fn(security_headers_middleware))
         };
 
         info!("🌐 Vectorizer Server available at:");
@@ -2029,6 +2032,63 @@ async fn check_mcp_auth_with_credentials(
     }
 
     false
+}
+
+/// Security headers middleware
+///
+/// Adds standard security headers to all responses:
+/// - X-Content-Type-Options: nosniff - Prevents MIME type sniffing
+/// - X-Frame-Options: DENY - Prevents clickjacking
+/// - X-XSS-Protection: 1; mode=block - XSS filter (legacy browsers)
+/// - Content-Security-Policy: default-src 'self' - CSP for dashboard
+/// - Referrer-Policy: strict-origin-when-cross-origin - Controls referrer info
+/// - Permissions-Policy: geolocation=(), microphone=(), camera=() - Disables sensitive APIs
+async fn security_headers_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+
+    // Prevent MIME type sniffing
+    headers.insert(
+        axum::http::header::X_CONTENT_TYPE_OPTIONS,
+        "nosniff".parse().unwrap(),
+    );
+
+    // Prevent clickjacking (allow framing for dashboard)
+    headers.insert(
+        axum::http::header::X_FRAME_OPTIONS,
+        "SAMEORIGIN".parse().unwrap(),
+    );
+
+    // XSS protection for legacy browsers
+    headers.insert(
+        axum::http::HeaderName::from_static("x-xss-protection"),
+        "1; mode=block".parse().unwrap(),
+    );
+
+    // Content Security Policy - allow self and inline for dashboard
+    headers.insert(
+        axum::http::header::CONTENT_SECURITY_POLICY,
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:".parse().unwrap(),
+    );
+
+    // Referrer policy
+    headers.insert(
+        axum::http::header::REFERRER_POLICY,
+        "strict-origin-when-cross-origin".parse().unwrap(),
+    );
+
+    // Permissions policy - disable sensitive APIs
+    headers.insert(
+        axum::http::HeaderName::from_static("permissions-policy"),
+        "geolocation=(), microphone=(), camera=(), payment=()"
+            .parse()
+            .unwrap(),
+    );
+
+    response
 }
 
 /// Get File Watcher metrics endpoint
