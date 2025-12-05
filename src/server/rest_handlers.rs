@@ -951,11 +951,15 @@ pub async fn insert_text(
         collection_name, text
     );
 
-    // Get the collection
-    let _collection = state
-        .store
-        .get_collection(collection_name)
-        .map_err(|e| ErrorResponse::from(e))?;
+    // Verify collection exists (drop the reference immediately to avoid deadlock with DashMap)
+    // The insert operation needs a write lock, so we can't hold a read reference
+    {
+        let _collection = state
+            .store
+            .get_collection(collection_name)
+            .map_err(|e| ErrorResponse::from(e))?;
+        // Reference dropped here at end of block
+    }
 
     // Check HiveHub quota for vector insertion if enabled
     if let Some(ref hub_manager) = state.hub_manager {

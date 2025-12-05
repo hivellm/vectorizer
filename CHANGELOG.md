@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.4] - 2025-12-05
+
+### Fixed
+
+- **MMap Storage Deadlock on Insert**: Fixed deadlock issue when inserting vectors into MMap storage
+  - **Root Cause**: `MmapVectorStorage` was using `Arc<RwLock<MmapMut>>` internally, causing nested locks when combined with external locks in `VectorStorageBackend`
+  - **Solution**: Removed internal `Arc<RwLock<>>` wrapper, changed to direct `MmapMut` ownership. Lock management is now handled externally by `VectorStorageBackend` which wraps the storage in its own `RwLock`
+  - **Additional Fix**: Added explicit scope block in `insert_text` REST handler to ensure collection reference is dropped before insert operation, preventing DashMap deadlock
+  - **Impact**: Eliminates deadlocks during concurrent vector insertions in MMap storage
+  - **BENEFIT**: Stable concurrent insert operations without blocking
+
 ## [1.8.3] - 2025-12-05
 
 ### Added
