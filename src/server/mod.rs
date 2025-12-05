@@ -174,7 +174,18 @@ impl VectorizerServer {
 
         info!("🔍 STEP 4: Checking if file watcher is enabled...");
 
+        // Load cluster config for file watcher check
+        let cluster_config_for_watcher = std::fs::read_to_string("config.yml")
+            .ok()
+            .and_then(|content| {
+                serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                    .ok()
+                    .map(|config| config.cluster)
+            })
+            .unwrap_or_default();
+
         // Check if file watcher is enabled in config before starting
+        // Also check if cluster mode requires file watcher to be disabled
         let file_watcher_enabled = std::fs::read_to_string("config.yml")
             .ok()
             .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
@@ -185,6 +196,20 @@ impl VectorizerServer {
                     .and_then(|enabled| enabled.as_bool())
             })
             .unwrap_or(false); // Default to disabled if not found
+
+        // Disable file watcher if cluster mode is enabled and requires it
+        let file_watcher_enabled = if cluster_config_for_watcher.enabled
+            && cluster_config_for_watcher.memory.disable_file_watcher
+        {
+            if file_watcher_enabled {
+                warn!(
+                    "⚠️  File watcher is DISABLED because cluster mode is enabled with disable_file_watcher=true"
+                );
+            }
+            false
+        } else {
+            file_watcher_enabled
+        };
 
         let watcher_system_arc = Arc::new(tokio::sync::Mutex::new(
             None::<crate::file_watcher::FileWatcherSystem>,
@@ -653,7 +678,7 @@ impl VectorizerServer {
         );
 
         // Initialize cluster manager if cluster is enabled
-        let (cluster_manager, cluster_client_pool) = {
+        let (cluster_manager, cluster_client_pool, cluster_config_ref) = {
             // Try to load cluster config from config.yml or use default
             let cluster_config = std::fs::read_to_string("config.yml")
                 .ok()
@@ -666,6 +691,51 @@ impl VectorizerServer {
 
             if cluster_config.enabled {
                 info!("🔗 Initializing cluster manager...");
+
+                // Validate cluster configuration
+                let validator = crate::cluster::ClusterConfigValidator::new();
+
+                // Also load file watcher config for validation
+                let file_watcher_config = std::fs::read_to_string("config.yml")
+                    .ok()
+                    .and_then(|content| {
+                        serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                            .ok()
+                            .map(|config| config.file_watcher)
+                    })
+                    .unwrap_or_default();
+
+                let validation_result =
+                    validator.validate_with_file_watcher(&cluster_config, &file_watcher_config);
+
+                // Log validation warnings
+                if validation_result.has_warnings() {
+                    warn!("{}", validation_result.warning_message());
+                }
+
+                // Check for validation errors
+                if validation_result.has_errors() {
+                    if cluster_config.memory.strict_validation {
+                        error!("{}", validation_result.error_message());
+                        panic!(
+                            "Cluster configuration validation failed. Fix the errors or set cluster.memory.strict_validation = false to continue with warnings."
+                        );
+                    } else {
+                        warn!(
+                            "Cluster configuration has errors (strict_validation=false, continuing anyway):"
+                        );
+                        warn!("{}", validation_result.error_message());
+                    }
+                }
+
+                // Log cluster memory configuration
+                info!(
+                    "📊 Cluster memory config: max_cache={} MB, enforce_mmap={}, disable_file_watcher={}",
+                    cluster_config.memory.max_cache_memory_bytes / (1024 * 1024),
+                    cluster_config.memory.enforce_mmap_storage,
+                    cluster_config.memory.disable_file_watcher
+                );
+
                 match crate::cluster::ClusterManager::new(cluster_config.clone()) {
                     Ok(manager) => {
                         let manager_arc = Arc::new(manager);
@@ -673,18 +743,21 @@ impl VectorizerServer {
                         let client_pool = Arc::new(crate::cluster::ClusterClientPool::new(timeout));
 
                         info!("✅ Cluster manager initialized");
-                        (Some(manager_arc), Some(client_pool))
+                        (Some(manager_arc), Some(client_pool), Some(cluster_config))
                     }
                     Err(e) => {
                         warn!("⚠️  Failed to initialize cluster manager: {}", e);
-                        (None, None)
+                        (None, None, None)
                     }
                 }
             } else {
                 info!("ℹ️  Cluster mode disabled");
-                (None, None)
+                (None, None, None)
             }
         };
+
+        // Store cluster config for later use (e.g., storage type enforcement)
+        let _cluster_config = cluster_config_ref;
 
         // Load API config for max request size
         let max_request_size_mb = std::fs::read_to_string("config.yml")

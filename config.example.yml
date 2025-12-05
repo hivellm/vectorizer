@@ -166,6 +166,33 @@ cluster:
     #   address: "192.168.1.12"      # Node 3 IP address
     #   grpc_port: 15003             # gRPC port
 
+  # Memory limits configuration for cluster mode
+  # These settings enforce predictable memory usage in production clusters
+  memory:
+    # Maximum total cache memory in bytes (default: 1GB)
+    # This limit applies globally across all caches in cluster mode
+    # Set based on available RAM, leaving room for OS and other processes
+    max_cache_memory_bytes: 1073741824  # 1GB
+
+    # Enforce MMap storage for all collections in cluster mode
+    # When true, Memory storage type will be rejected (default: true)
+    # MMap storage prevents memory exhaustion with large collections
+    enforce_mmap_storage: true
+
+    # Disable file watcher in cluster mode (default: true)
+    # File watcher is incompatible with distributed clusters
+    # Set to false only if running a single-node "cluster" for testing
+    disable_file_watcher: true
+
+    # Warning threshold for cache memory (0-100 percent)
+    # Emit warning when cache usage exceeds this percentage
+    cache_warning_threshold: 80
+
+    # Enable strict validation of cluster configuration
+    # When true, server will fail to start if config violates cluster requirements
+    # Set to false only for debugging or testing
+    strict_validation: true
+
 # =============================================================================
 # DEFAULT COLLECTION CONFIGURATION
 # =============================================================================

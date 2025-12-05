@@ -50,6 +50,53 @@ let config = CollectionConfig {
 - **Reads**: Fast if data is in OS page cache. If data is cold, incurs disk latency.
 - **Memory**: Significantly reduced. Only metadata and HNSW graph structure remain in RAM. Dense vectors (usually >90% of size) are offloaded to OS cache/disk.
 
+## Cluster Mode Requirements
+
+**Important**: When running in cluster mode, MMap storage is **mandatory**.
+
+### Why MMap is Required for Clusters
+
+Cluster deployments require predictable memory usage for:
+
+1. **Memory Limits**: The `CacheMemoryManager` enforces strict memory limits (default: 1GB) to prevent OOM crashes
+2. **Multi-Tenancy**: Multiple tenants share cluster resources, requiring fair memory distribution
+3. **Stability**: Memory storage can grow unbounded, while MMap offloads to OS page cache
+4. **Capacity Planning**: MMap usage is predictable and can be monitored via Prometheus metrics
+
+### Cluster Configuration
+
+```yaml
+cluster:
+  enabled: true
+  memory:
+    # Enforces MMap storage for all collections (default: true)
+    enforce_mmap_storage: true
+
+    # Maximum cache memory across all caches (default: 1GB)
+    max_cache_memory_bytes: 1073741824
+
+    # Fail startup if Memory storage is configured (default: true)
+    strict_validation: true
+```
+
+### Validation Behavior
+
+When `cluster.memory.enforce_mmap_storage: true`:
+- Server startup validates that no collections use `StorageType::Memory`
+- `ClusterConfigValidator` rejects configurations with Memory storage
+- Error message: `MemoryStorageNotAllowed: Memory storage type is not allowed in cluster mode`
+
+### Migration from Memory to MMap
+
+If you have existing Memory-based collections, you must migrate before enabling cluster mode:
+
+1. Export collection data via REST API
+2. Recreate collection with `storage_type: Mmap`
+3. Re-import data
+4. Enable cluster mode
+
+See [CLUSTER_MEMORY.md](./CLUSTER_MEMORY.md) for detailed migration guidance.
+
 ## Next Steps
 - **Persistence**: Currently, the `id_map`, `payloads`, and `sparse` maps in `Mmap` mode are in-memory only. They need to be persisted to disk (e.g., via RocksDB or a custom WAL/snapshot) to survive restarts. The current implementation relies on the existing `save_to_disk` mechanism which might need adjustment to avoid loading everything into RAM during save.
 - **Full Persistence**: Phase 2 (WAL) will address robust persistence.

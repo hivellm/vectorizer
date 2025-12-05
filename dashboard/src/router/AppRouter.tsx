@@ -6,8 +6,11 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Lazy load pages for code splitting (smaller initial bundle)
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const OverviewPage = lazy(() => import('@/pages/OverviewPage'));
 const CollectionsPage = lazy(() => import('@/pages/CollectionsPage'));
 const VectorsPage = lazy(() => import('@/pages/VectorsPage'));
@@ -20,6 +23,8 @@ const ConfigurationPage = lazy(() => import('@/pages/ConfigurationPage'));
 const LogsPage = lazy(() => import('@/pages/LogsPage'));
 const BackupsPage = lazy(() => import('@/pages/BackupsPage'));
 const TestPage = lazy(() => import('@/pages/TestPage'));
+const UsersPage = lazy(() => import('@/pages/UsersPage'));
+const ApiKeysPage = lazy(() => import('@/pages/ApiKeysPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -29,10 +34,28 @@ const PageLoader = () => (
 );
 
 function AppRouter() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        <Route path="/" element={<MainLayout />}>
+        {/* Public routes */}
+        <Route
+          path="/login"
+          element={
+            isAuthenticated ? <Navigate to="/overview" replace /> : <LoginPage />
+          }
+        />
+
+        {/* Protected routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="/overview" replace />} />
           <Route path="overview" element={<OverviewPage />} />
           <Route path="collections" element={<CollectionsPage />} />
@@ -46,6 +69,8 @@ function AppRouter() {
           <Route path="logs" element={<LogsPage />} />
           <Route path="backups" element={<BackupsPage />} />
           <Route path="test" element={<TestPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="api-keys" element={<ApiKeysPage />} />
         </Route>
       </Routes>
     </Suspense>

@@ -177,7 +177,7 @@ export default function EdgeCreateModal({
           step="0.1"
           required
           disabled={loading}
-          helpText="Weight for the edge (0-10)"
+          helperText="Weight for the edge (0-10)"
         />
       </form>
     </Modal>

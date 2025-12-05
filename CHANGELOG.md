@@ -2,6 +2,78 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.3] - 2025-12-05
+
+### Added
+
+- **Dashboard Authentication**: Complete authentication system for the dashboard
+  - Login page with username/password form and modern UI
+  - JWT token-based authentication via `/auth/login` endpoint
+  - `AuthContext` and `useAuth()` hook for React state management
+  - `ProtectedRoute` component for automatic route protection
+  - User info display and logout button in header
+  - Session persistence with localStorage
+  - **BENEFIT**: Secure dashboard access with proper authentication
+
+- **HiveHub Cluster Integration**: Multi-tenant cluster mode support
+  - `HubManager` for HiveHub API integration
+  - API key validation and tenant isolation
+  - Tenant-scoped collections with `user_` prefix
+  - Request signing for secure communication
+  - IP whitelist support for trusted sources
+  - Key rotation mechanism for security
+  - Quota enforcement and usage tracking
+  - **BENEFIT**: Production-ready multi-tenant deployment with HiveHub
+
+- **Dashboard UI Improvements**:
+  - Added `required` and `disabled` props to Select component
+  - Fixed `helpText` to `helperText` prop in form components
+  - Cleaned up unused variables in GraphPage
+  - **BENEFIT**: Better form validation and cleaner codebase
+
+### Changed
+
+- **Auth Endpoints**: Authentication now available at `/auth/login`, `/auth/me`, `/auth/keys`
+  - Requires `auth.enabled: true` in config.yml
+  - Default credentials: admin/admin (change in production!)
+  - JWT tokens valid for 1 hour by default
+
+## [1.8.2] - 2025-12-04
+
+### Added
+
+- **Cluster Memory Limits**: Enforce predictable memory usage in cluster mode
+  - `ClusterMemoryConfig` in `ClusterConfig` with memory limit settings
+  - `max_cache_memory_bytes`: Global cache memory limit (default: 1GB)
+  - `enforce_mmap_storage`: Reject Memory storage type in cluster mode (default: true)
+  - `disable_file_watcher`: Auto-disable file watcher in cluster mode (default: true)
+  - `cache_warning_threshold`: Warning when cache usage exceeds threshold (default: 80%)
+  - `strict_validation`: Fail startup on config violations (default: true)
+  - **BENEFIT**: Prevents memory exhaustion in production cluster deployments
+
+- **Cluster Configuration Validator**: Comprehensive validation at startup
+  - `ClusterConfigValidator` validates cluster config before server starts
+  - Checks: node_id required, servers configured, memory limits valid
+  - Validates file watcher is disabled, MMap storage enforced
+  - Clear error messages with error codes for troubleshooting
+  - Warnings for non-critical issues (single server, low cache, etc.)
+  - **BENEFIT**: Fail fast with clear guidance for misconfigured clusters
+
+- **Cache Memory Manager**: Global cache memory tracking for cluster mode
+  - `CacheMemoryManager` tracks cache allocations across all caches
+  - Strict enforcement mode rejects allocations over limit
+  - Warning threshold alerts for proactive monitoring
+  - Statistics: current usage, peak usage, allocations, rejections
+  - Global singleton with `get_global_cache_memory_manager()`
+  - **BENEFIT**: Prevents cache memory exhaustion in multi-tenant clusters
+
+### Changed
+
+- **File Watcher in Cluster Mode**: Auto-disabled when cluster mode is enabled
+  - Cluster config `memory.disable_file_watcher` controls behavior
+  - Warning logged when file watcher would have started but was disabled
+  - **BENEFIT**: Prevents incompatible file watcher in distributed clusters
+
 ## [1.8.1] - 2025-12-04
 
 ### Fixed

@@ -5,6 +5,7 @@
 //! Note: Each test module imports its own helpers to avoid duplicate mod errors
 
 mod api;
+mod cluster;
 mod core;
 mod gpu;
 mod hub;

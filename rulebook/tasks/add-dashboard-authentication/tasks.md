@@ -1,22 +1,22 @@
 ## 1. Backend - Authentication API
 
-- [ ] 1.1 Create src/server/dashboard_auth.rs
-- [ ] 1.2 Add DashboardAuthConfig struct
-- [ ] 1.3 Implement POST /api/dashboard/auth/login endpoint
+- [x] 1.1 Create src/server/dashboard_auth.rs (implemented in src/auth/ and auth_handlers.rs)
+- [x] 1.2 Add DashboardAuthConfig struct (AuthConfig in src/auth/mod.rs)
+- [x] 1.3 Implement POST /api/dashboard/auth/login endpoint (POST /auth/login)
 - [ ] 1.4 Implement POST /api/dashboard/auth/logout endpoint
-- [ ] 1.5 Implement GET /api/dashboard/auth/verify endpoint
+- [x] 1.5 Implement GET /api/dashboard/auth/verify endpoint (GET /auth/me)
 - [ ] 1.6 Implement POST /api/dashboard/auth/refresh endpoint
-- [ ] 1.7 Add JWT token generation and validation
+- [x] 1.7 Add JWT token generation and validation (src/auth/jwt.rs)
 - [ ] 1.8 Add secure cookie handling
 
 ## 2. Backend - Local Authentication
 
-- [ ] 2.1 Create user storage system in secrets/users.json
-- [ ] 2.2 Implement bcrypt password hashing (cost factor 10)
-- [ ] 2.3 Add UserStore for reading/writing users.json
-- [ ] 2.4 Implement password validation and complexity rules
-- [ ] 2.5 Add role-based access (admin, viewer)
-- [ ] 2.6 Support multiple admin users
+- [ ] 2.1 Create user storage system in secrets/users.json (using auth/persistence.rs but not in secrets/)
+- [x] 2.2 Implement bcrypt password hashing (cost factor 10)
+- [x] 2.3 Add UserStore for reading/writing users.json (AuthPersistence in src/auth/persistence.rs)
+- [x] 2.4 Implement password validation and complexity rules
+- [x] 2.5 Add role-based access (admin, viewer) (src/auth/roles.rs)
+- [x] 2.6 Support multiple admin users
 - [ ] 2.7 Add file permissions check (warn if not 600)
 - [ ] 2.8 Add backup mechanism for users.json
 
@@ -55,32 +55,32 @@
 
 ## 6. Backend - Session Management
 
-- [ ] 6.1 Implement JWT session tokens
-- [ ] 6.2 Add session storage (in-memory or Redis)
-- [ ] 6.3 Implement session expiration (default 24h)
+- [x] 6.1 Implement JWT session tokens (src/auth/jwt.rs)
+- [x] 6.2 Add session storage (in-memory or Redis) (in-memory via AuthManager)
+- [x] 6.3 Implement session expiration (default 24h)
 - [ ] 6.4 Add session refresh mechanism
 - [ ] 6.5 Implement CSRF token generation
 - [ ] 6.6 Add secure cookie settings (HTTP-only, Secure, SameSite)
 
 ## 7. Backend - Auth Middleware
 
-- [ ] 5.1 Create dashboard auth middleware
-- [ ] 5.2 Protect all /api/dashboard/* routes
-- [ ] 5.3 Allow /api/dashboard/auth/* without auth
-- [ ] 5.4 Add tenant scoping in cluster mode
-- [ ] 5.5 Skip auth in development mode
-- [ ] 5.6 Add auth bypass for health check endpoint
+- [x] 7.1 Create dashboard auth middleware (src/auth/middleware.rs)
+- [x] 7.2 Protect all /api/dashboard/* routes (auth middleware active)
+- [x] 7.3 Allow /api/dashboard/auth/* without auth (auth routes public)
+- [ ] 7.4 Add tenant scoping in cluster mode
+- [ ] 7.5 Skip auth in development mode
+- [x] 7.6 Add auth bypass for health check endpoint
 
 ## 8. Frontend - Login Page
 
-- [ ] 8.1 Create dashboard/src/pages/Login.tsx
-- [ ] 8.2 Add email/password form (local mode)
+- [x] 8.1 Create dashboard/src/pages/LoginPage.tsx
+- [x] 8.2 Add username/password form (local mode)
 - [ ] 8.3 Add API key input (cluster mode)
 - [ ] 8.4 Add "Remember me" checkbox
-- [ ] 8.5 Add error handling and validation
-- [ ] 8.6 Add loading states
-- [ ] 8.7 Style login page (modern UI)
-- [ ] 8.8 Add HiveLLM/Vectorizer branding
+- [x] 8.5 Add error handling and validation
+- [x] 8.6 Add loading states
+- [x] 8.7 Style login page (modern UI)
+- [x] 8.8 Add HiveLLM/Vectorizer branding
 - [ ] 8.9 Add password strength indicator
 
 ## 9. Frontend - User Management Page
@@ -126,31 +126,31 @@
 
 ## 10. Frontend - Auth Context
 
-- [ ] 7.1 Create dashboard/src/contexts/AuthContext.tsx
-- [ ] 7.2 Implement useAuth() hook
-- [ ] 7.3 Add login() function
-- [ ] 7.4 Add logout() function
-- [ ] 7.5 Add verifySession() function
-- [ ] 7.6 Add auto-refresh session logic
-- [ ] 7.7 Handle auth errors globally
+- [x] 10.1 Create dashboard/src/contexts/AuthContext.tsx
+- [x] 10.2 Implement useAuth() hook
+- [x] 10.3 Add login() function
+- [x] 10.4 Add logout() function
+- [x] 10.5 Add verifySession() function
+- [ ] 10.6 Add auto-refresh session logic
+- [ ] 10.7 Handle auth errors globally
 
-## 8. Frontend - Protected Routes
+## 11. Frontend - Protected Routes
 
-- [ ] 8.1 Create ProtectedRoute component
-- [ ] 8.2 Wrap all dashboard routes with ProtectedRoute
-- [ ] 8.3 Redirect to /login if not authenticated
-- [ ] 8.4 Redirect to /dashboard after login
-- [ ] 8.5 Handle session expiration gracefully
-- [ ] 8.6 Show loading state while verifying auth
+- [x] 11.1 Create ProtectedRoute component
+- [x] 11.2 Wrap all dashboard routes with ProtectedRoute
+- [x] 11.3 Redirect to /login if not authenticated
+- [x] 11.4 Redirect to /overview after login
+- [ ] 11.5 Handle session expiration gracefully
+- [x] 11.6 Show loading state while verifying auth
 
-## 9. Frontend - User Interface
+## 12. Frontend - User Interface
 
-- [ ] 9.1 Add logout button to dashboard header
-- [ ] 9.2 Display logged-in username
-- [ ] 9.3 Display tenant info (cluster mode)
-- [ ] 9.4 Add mode indicator (dev/prod/cluster)
-- [ ] 9.5 Show warning banner in development mode
-- [ ] 9.6 Add session timeout warning
+- [x] 12.1 Add logout button to dashboard header
+- [x] 12.2 Display logged-in username
+- [ ] 12.3 Display tenant info (cluster mode)
+- [ ] 12.4 Add mode indicator (dev/prod/cluster)
+- [ ] 12.5 Show warning banner in development mode
+- [ ] 12.6 Add session timeout warning
 
 ## 13. Frontend - API Client Updates
 

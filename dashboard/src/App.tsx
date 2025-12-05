@@ -5,6 +5,7 @@
 import { BrowserRouter } from 'react-router-dom';
 import AppRouter from './router/AppRouter';
 import { ThemeProvider } from './providers/ThemeProvider';
+import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
   // Use Vite's BASE_URL which matches the base config
@@ -14,9 +15,11 @@ function App() {
 
   return (
     <ThemeProvider>
-      <BrowserRouter basename={basename}>
-        <AppRouter />
-      </BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter basename={basename}>
+          <AppRouter />
+        </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

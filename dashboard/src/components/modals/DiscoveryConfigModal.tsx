@@ -74,7 +74,7 @@ export default function DiscoveryConfigModal({
           max="1"
           step="0.05"
           disabled={loading}
-          helpText="Minimum similarity score (0-1)"
+          helperText="Minimum similarity score (0-1)"
         />
 
         <Input
@@ -85,7 +85,7 @@ export default function DiscoveryConfigModal({
           min="1"
           max="100"
           disabled={loading}
-          helpText="Maximum number of edges to create per node"
+          helperText="Maximum number of edges to create per node"
         />
       </div>
     </Modal>

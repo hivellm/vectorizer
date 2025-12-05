@@ -524,6 +524,32 @@ curl -H "x-hivehub-service: true" \
 
 See [HiveHub Integration Guide](./docs/HUB_INTEGRATION.md) for detailed documentation.
 
+### Cluster Mode Requirements
+
+When running Vectorizer in cluster mode, the following requirements are enforced:
+
+| Requirement | Description | Default |
+|-------------|-------------|---------|
+| **MMap Storage** | Memory storage is not allowed; MMap is required | Enforced |
+| **Cache Limit** | Maximum cache memory across all caches | 1GB |
+| **File Watcher** | Automatically disabled in cluster mode | Disabled |
+| **Strict Validation** | Server fails to start on config violations | Enabled |
+
+Example cluster configuration:
+
+```yaml
+cluster:
+  enabled: true
+  node_id: "node-1"
+  memory:
+    max_cache_memory_bytes: 1073741824  # 1GB
+    enforce_mmap_storage: true
+    disable_file_watcher: true
+    strict_validation: true
+```
+
+See [Cluster Memory Limits](./docs/specs/CLUSTER_MEMORY.md) for detailed configuration and troubleshooting.
+
 ## 📚 Documentation
 
 - **[User Documentation](./docs/users/)** - Installation guides and user tutorials
@@ -531,6 +557,7 @@ See [HiveHub Integration Guide](./docs/HUB_INTEGRATION.md) for detailed document
 - **[Dashboard Integration](./docs/DASHBOARD_INTEGRATION.md)** - Web dashboard setup and integration guide
 - **[Qdrant Compatibility](./docs/users/qdrant/)** - Qdrant API compatibility and migration guide
 - **[HiveHub Integration](./docs/HUB_INTEGRATION.md)** - Multi-tenant cluster mode with HiveHub.Cloud
+- **[Cluster Memory Limits](./docs/specs/CLUSTER_MEMORY.md)** - Cluster mode memory management and validation
 - **[Technical Specifications](./docs/specs/)** - Architecture, performance, and implementation guides
 - **[MCP Integration](./docs/specs/MCP.md)** - Model Context Protocol guide
 

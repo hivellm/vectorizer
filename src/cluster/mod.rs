@@ -9,6 +9,7 @@ mod node;
 mod server_client;
 mod shard_router;
 mod state_sync;
+pub mod validator;
 
 use std::sync::Arc;
 
@@ -20,6 +21,10 @@ pub use server_client::{ClusterClient, ClusterClientPool};
 pub use shard_router::DistributedShardRouter;
 pub use state_sync::ClusterStateSynchronizer;
 use tracing::{error, info, warn};
+pub use validator::{
+    ClusterConfigValidator, ClusterValidationError, ClusterValidationResult,
+    ClusterValidationWarning,
+};
 
 /// Cluster configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -39,6 +44,66 @@ pub struct ClusterConfig {
     /// Retry count for failed operations
     #[serde(default = "default_retry_count")]
     pub retry_count: u32,
+    /// Memory limits configuration for cluster mode
+    #[serde(default)]
+    pub memory: ClusterMemoryConfig,
+}
+
+/// Memory configuration for cluster mode
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ClusterMemoryConfig {
+    /// Maximum total cache memory in bytes (default: 1GB)
+    /// This limit applies globally across all caches in cluster mode
+    #[serde(default = "default_max_cache_memory_bytes")]
+    pub max_cache_memory_bytes: u64,
+    /// Enforce MMap storage for all collections in cluster mode
+    /// When true, Memory storage type will be rejected
+    #[serde(default = "default_enforce_mmap_storage")]
+    pub enforce_mmap_storage: bool,
+    /// Disable file watcher in cluster mode
+    /// File watcher is incompatible with distributed clusters
+    #[serde(default = "default_disable_file_watcher")]
+    pub disable_file_watcher: bool,
+    /// Warning threshold for cache memory (percentage, 0-100)
+    /// Emit warning when cache usage exceeds this percentage
+    #[serde(default = "default_cache_warning_threshold")]
+    pub cache_warning_threshold: u8,
+    /// Enable strict validation of cluster configuration
+    /// When true, server will fail to start if config violates cluster requirements
+    #[serde(default = "default_strict_validation")]
+    pub strict_validation: bool,
+}
+
+fn default_max_cache_memory_bytes() -> u64 {
+    1024 * 1024 * 1024 // 1GB
+}
+
+fn default_enforce_mmap_storage() -> bool {
+    true
+}
+
+fn default_disable_file_watcher() -> bool {
+    true
+}
+
+fn default_cache_warning_threshold() -> u8 {
+    80 // 80%
+}
+
+fn default_strict_validation() -> bool {
+    true
+}
+
+impl Default for ClusterMemoryConfig {
+    fn default() -> Self {
+        Self {
+            max_cache_memory_bytes: default_max_cache_memory_bytes(),
+            enforce_mmap_storage: default_enforce_mmap_storage(),
+            disable_file_watcher: default_disable_file_watcher(),
+            cache_warning_threshold: default_cache_warning_threshold(),
+            strict_validation: default_strict_validation(),
+        }
+    }
 }
 
 /// Server configuration for cluster membership
@@ -85,6 +150,7 @@ impl Default for ClusterConfig {
             discovery: DiscoveryMethod::Static,
             timeout_ms: 5000,
             retry_count: 3,
+            memory: ClusterMemoryConfig::default(),
         }
     }
 }
