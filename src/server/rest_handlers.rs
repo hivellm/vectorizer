@@ -748,6 +748,11 @@ pub async fn create_collection(
             .map_err(|e| ErrorResponse::from(e))?;
     }
 
+    // Mark changes for auto-save
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
     // Record usage metrics if HiveHub is enabled
     if let Some(ref hub_manager) = state.hub_manager {
         let mut metrics = crate::hub::UsageMetrics::new();
@@ -838,6 +843,11 @@ pub async fn delete_collection(
         .store
         .delete_collection(&name)
         .map_err(|e| ErrorResponse::from(e))?;
+
+    // Mark changes for auto-save
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
 
     // Invalidate cache for this collection
     state.query_cache.invalidate_collection(&name);
@@ -1017,6 +1027,11 @@ pub async fn insert_text(
         .store
         .insert(collection_name, vec![vector])
         .map_err(|e| ErrorResponse::from(e))?;
+
+    // Mark changes for auto-save
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
 
     // Invalidate cache for this collection
     state.query_cache.invalidate_collection(collection_name);
@@ -2675,40 +2690,6 @@ pub async fn force_save_collection(
             error!("Collection not found: {}", e);
             Err(ErrorResponse::from(e))
         }
-    }
-}
-
-/// Force save all collections to .vecdb (for GUI/API)
-/// This uses the AutoSaveManager to properly persist to .vecdb format
-pub async fn force_save_all(
-    State(state): State<VectorizerServer>,
-) -> Result<Json<Value>, ErrorResponse> {
-    info!("💾 Force saving all collections to .vecdb...");
-
-    // Use AutoSaveManager for proper .vecdb persistence
-    if let Some(auto_save) = &state.auto_save_manager {
-        match auto_save.force_save().await {
-            Ok(_) => {
-                info!("✅ All collections saved successfully");
-                Ok(Json(json!({
-                    "success": true,
-                    "message": "All collections saved successfully to .vecdb"
-                })))
-            }
-            Err(e) => {
-                error!("❌ Failed to save collections: {}", e);
-                Ok(Json(json!({
-                    "success": false,
-                    "message": format!("Failed to save collections: {}", e)
-                })))
-            }
-        }
-    } else {
-        warn!("⚠️ AutoSaveManager not available");
-        Ok(Json(json!({
-            "success": false,
-            "message": "AutoSaveManager not available"
-        })))
     }
 }
 
