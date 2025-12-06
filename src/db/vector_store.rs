@@ -2334,16 +2334,9 @@ impl VectorStore {
                 collection_name
             );
 
-            // SKIP empty collections - don't create them
-            if persisted_collection.vectors.is_empty() {
-                warn!(
-                    "⚠️  Collection '{}' has NO vectors in .vecdb, skipping creation",
-                    collection_name
-                );
-                continue;
-            }
-
             // Create collection with the persisted config
+            // NOTE: We now preserve empty collections (they have valid metadata/config)
+            // Previously we skipped empty collections, causing metadata loss on restart
             let mut config = persisted_collection.config.clone().unwrap_or_else(|| {
                 debug!(
                     "⚠️  Collection '{}' has no config, using default",
@@ -2371,8 +2364,20 @@ impl VectorStore {
                         }
                     }
 
-                    // Load vectors (we already checked they exist above)
+                    // Load vectors if they exist
                     // Graph nodes are created automatically if graph is enabled (see load_collection_from_cache -> load_vectors_into_memory)
+                    if persisted_collection.vectors.is_empty() {
+                        // Empty collection - just count it as loaded (metadata preserved)
+                        collections_loaded += 1;
+                        info!(
+                            "✅ Restored empty collection '{}' (metadata only) ({}/{})",
+                            collection_name,
+                            i + 1,
+                            persisted_collections.len()
+                        );
+                        continue;
+                    }
+
                     debug!(
                         "Loading {} vectors into collection '{}'",
                         persisted_collection.vectors.len(),

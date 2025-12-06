@@ -1083,6 +1083,7 @@ impl VectorizerServer {
                 "/api/collections/{name}/force-save",
                 post(rest_handlers::force_save_collection),
             )
+            .route("/api/save-all", post(rest_handlers::force_save_all))
             .route("/api/workspace/add", post(rest_handlers::add_workspace))
             .route(
                 "/api/workspace/remove",
@@ -1887,7 +1888,17 @@ impl VectorizerServer {
             }
         }
 
-        // Auto save task (non-blocking)
+        // Force save all data before shutdown to prevent data loss
+        // This ensures any changes made since the last auto-save are persisted
+        if let Some(auto_save) = &self.auto_save_manager {
+            info!("💾 Forcing final save before shutdown...");
+            match auto_save.force_save().await {
+                Ok(_) => info!("✅ Final save completed successfully"),
+                Err(e) => warn!("⚠️ Final save failed (data may be lost): {}", e),
+            }
+        }
+
+        // Auto save task (non-blocking) - abort AFTER force_save
         if let Ok(mut auto_task) = self.auto_save_task.try_lock() {
             if let Some(handle) = auto_task.take() {
                 handle.abort();

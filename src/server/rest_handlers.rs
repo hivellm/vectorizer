@@ -2678,6 +2678,40 @@ pub async fn force_save_collection(
     }
 }
 
+/// Force save all collections to .vecdb (for GUI/API)
+/// This uses the AutoSaveManager to properly persist to .vecdb format
+pub async fn force_save_all(
+    State(state): State<VectorizerServer>,
+) -> Result<Json<Value>, ErrorResponse> {
+    info!("💾 Force saving all collections to .vecdb...");
+
+    // Use AutoSaveManager for proper .vecdb persistence
+    if let Some(auto_save) = &state.auto_save_manager {
+        match auto_save.force_save().await {
+            Ok(_) => {
+                info!("✅ All collections saved successfully");
+                Ok(Json(json!({
+                    "success": true,
+                    "message": "All collections saved successfully to .vecdb"
+                })))
+            }
+            Err(e) => {
+                error!("❌ Failed to save collections: {}", e);
+                Ok(Json(json!({
+                    "success": false,
+                    "message": format!("Failed to save collections: {}", e)
+                })))
+            }
+        }
+    } else {
+        warn!("⚠️ AutoSaveManager not available");
+        Ok(Json(json!({
+            "success": false,
+            "message": "AutoSaveManager not available"
+        })))
+    }
+}
+
 /// Add workspace directory (for GUI)
 pub async fn add_workspace(
     State(_state): State<VectorizerServer>,
