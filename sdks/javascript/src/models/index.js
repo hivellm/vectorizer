@@ -16,3 +16,4 @@ export * from './summarization.js';
 export * from './replication.js';
 export * from './hybrid-search.js';
 export * from './graph.js';
+export * from './file-upload.js';

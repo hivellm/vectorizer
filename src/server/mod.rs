@@ -2,6 +2,8 @@ mod auth_handlers;
 mod discovery_handlers;
 mod error_middleware;
 pub mod file_operations_handlers;
+mod file_upload_handlers;
+mod file_validation;
 mod graph_handlers;
 mod graphql_handlers;
 mod hub_backup_handlers;
@@ -1280,6 +1282,12 @@ impl VectorizerServer {
             .route(
                 "/file/search_by_type",
                 post(rest_handlers::search_by_file_type),
+            )
+            // File Upload routes
+            .route("/files/upload", post(file_upload_handlers::upload_file))
+            .route(
+                "/files/config",
+                get(file_upload_handlers::get_upload_config),
             )
             // Replication routes
             .route(

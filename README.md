@@ -34,7 +34,7 @@ A high-performance vector database and search engine built in Rust, designed for
   - Search Groups and Matrix API (grouped results, similarity matrices)
   - Named Vectors support (partial)
   - Quantization configuration (PQ and Binary)
-- **🎯 MCP Integration**: 20 focused individual tools for AI model integration
+- **🎯 MCP Integration**: 26 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
 - **📊 GraphQL API**: Full GraphQL API with async-graphql
   - Complete REST API parity with flexible queries
@@ -205,7 +205,7 @@ curl -X GET http://localhost:15002/collections \
 | **Storage Reduction** | 30-50% with normalization      |
 | **Test Coverage**     | 95%+ coverage                  |
 | **Test Suite**        | 1514 passing, 101 ignored     |
-| **MCP Tools**         | 20 focused individual tools    |
+| **MCP Tools**         | 26 focused individual tools    |
 | **Document Formats**  | 14 formats supported           |
 
 ### Benchmark Results (vs Qdrant)
@@ -239,7 +239,7 @@ Comprehensive feature comparison with major vector database solutions:
 | REST API | ✅ Full | ✅ Full | ❌ (via PostgreSQL) | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
 | gRPC API | ✅ Qdrant-compatible | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | GraphQL API | ✅ Full with GraphiQL | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| MCP Integration | ✅ 20 tools | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| MCP Integration | ✅ 26 tools | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | n8n Integration | ✅ Official node | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Langflow Integration | ✅ LangChain components | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Python SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -376,37 +376,41 @@ Cursor IDE configuration:
 }
 ```
 
-**Available MCP Tools** (20 tools):
+**Available MCP Tools** (26 tools):
 
-### Core Operations
-
+### Core Operations (9 tools)
 - `list_collections`, `create_collection`, `get_collection_info`
 - `insert_text`, `get_vector`, `update_vector`, `delete_vector`
 - `search`, `multi_collection_search`
 
-### Advanced Search
-
+### Advanced Search (4 tools)
 - `search_intelligent` - AI-powered search with query expansion
 - `search_semantic` - Semantic search with reranking
 - `search_extra` - Combined search using multiple strategies
 - `search_hybrid` - Hybrid dense + sparse vector search
 
-### Discovery & Files
-
+### Discovery & Files (7 tools)
 - `filter_collections`, `expand_queries`
 - `get_file_content`, `list_files`, `get_file_chunks`
 - `get_project_outline`, `get_related_files`
 
+### Graph Operations (6 tools)
+- `graph_list_nodes`, `graph_list_edges`, `graph_find_related`
+- `graph_create_edge`, `graph_delete_edge`
+- `graph_discover_edges`, `graph_discover_status`
+
+> **Note:** Cluster management operations are available via REST API only for security reasons.
+
 ## 📦 Client SDKs
 
-All SDKs are synchronized with server version **1.8.0**:
+All SDKs are synchronized with server version **1.8.5**:
 
-- **Python**: `pip install vectorizer-sdk` (v1.8.0)
-- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.8.0)
-- **Rust**: `cargo add vectorizer-sdk` (v1.8.0)
-- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.8.0)
-- **C#**: `dotnet add package Vectorizer.SDK` (v1.8.0)
-- **Go**: `go get github.com/hivellm/vectorizer/sdks/go` (v1.8.0)
+- **Python**: `pip install vectorizer-sdk` (v1.8.5)
+- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.8.5)
+- **Rust**: `cargo add vectorizer-sdk` (v1.8.5)
+- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.8.5)
+- **C#**: `dotnet add package Vectorizer.SDK` (v1.8.5)
+- **Go**: `go get github.com/hivellm/vectorizer/sdks/go` (v1.8.5)
 
 ## 🔗 Workflow & LLM Integrations
 

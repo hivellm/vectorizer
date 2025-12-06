@@ -680,3 +680,153 @@ pub struct AddWorkspaceInput {
     /// Collection name to store vectors
     pub collection_name: String,
 }
+
+// =============================================================================
+// FILE UPLOAD TYPES
+// =============================================================================
+
+/// Input for uploading a file via GraphQL
+#[derive(InputObject, Clone, Debug)]
+pub struct UploadFileInput {
+    /// Target collection name
+    pub collection_name: String,
+    /// Filename with extension
+    pub filename: String,
+    /// File content as base64-encoded string
+    pub content_base64: String,
+    /// Chunk size in characters (optional, uses config default)
+    #[graphql(default)]
+    pub chunk_size: Option<i32>,
+    /// Chunk overlap in characters (optional, uses config default)
+    #[graphql(default)]
+    pub chunk_overlap: Option<i32>,
+    /// Additional metadata as JSON
+    #[graphql(default)]
+    pub metadata: Option<async_graphql::Json<JsonValue>>,
+}
+
+/// Result of file upload operation
+#[derive(Clone, Debug)]
+pub struct GqlFileUploadResult {
+    /// Whether the upload was successful
+    pub success: bool,
+    /// Original filename
+    pub filename: String,
+    /// Target collection
+    pub collection_name: String,
+    /// Number of chunks created
+    pub chunks_created: i32,
+    /// Number of vectors created
+    pub vectors_created: i32,
+    /// File size in bytes
+    pub file_size: i32,
+    /// Detected language/file type
+    pub language: String,
+    /// Processing time in milliseconds
+    pub processing_time_ms: i64,
+    /// Error message (if failed)
+    pub error: Option<String>,
+}
+
+#[Object]
+impl GqlFileUploadResult {
+    /// Whether the upload was successful
+    async fn success(&self) -> bool {
+        self.success
+    }
+
+    /// Original filename
+    async fn filename(&self) -> &str {
+        &self.filename
+    }
+
+    /// Target collection
+    async fn collection_name(&self) -> &str {
+        &self.collection_name
+    }
+
+    /// Number of chunks created
+    async fn chunks_created(&self) -> i32 {
+        self.chunks_created
+    }
+
+    /// Number of vectors created
+    async fn vectors_created(&self) -> i32 {
+        self.vectors_created
+    }
+
+    /// File size in bytes
+    async fn file_size(&self) -> i32 {
+        self.file_size
+    }
+
+    /// Detected language/file type
+    async fn language(&self) -> &str {
+        &self.language
+    }
+
+    /// Processing time in milliseconds
+    async fn processing_time_ms(&self) -> i64 {
+        self.processing_time_ms
+    }
+
+    /// Error message (if failed)
+    async fn error(&self) -> Option<&str> {
+        self.error.as_deref()
+    }
+}
+
+impl GqlFileUploadResult {
+    pub fn success_result(
+        filename: String,
+        collection_name: String,
+        chunks_created: i32,
+        vectors_created: i32,
+        file_size: i32,
+        language: String,
+        processing_time_ms: i64,
+    ) -> Self {
+        Self {
+            success: true,
+            filename,
+            collection_name,
+            chunks_created,
+            vectors_created,
+            file_size,
+            language,
+            processing_time_ms,
+            error: None,
+        }
+    }
+
+    pub fn error_result(filename: String, collection_name: String, error: String) -> Self {
+        Self {
+            success: false,
+            filename,
+            collection_name,
+            chunks_created: 0,
+            vectors_created: 0,
+            file_size: 0,
+            language: String::new(),
+            processing_time_ms: 0,
+            error: Some(error),
+        }
+    }
+}
+
+/// File upload configuration info
+#[derive(SimpleObject, Clone, Debug)]
+pub struct GqlFileUploadConfig {
+    /// Maximum file size in bytes
+    pub max_file_size: i32,
+    /// Maximum file size in MB
+    pub max_file_size_mb: i32,
+    /// Whether binary files are rejected
+    pub reject_binary: bool,
+    /// Default chunk size
+    pub default_chunk_size: i32,
+    /// Default chunk overlap
+    pub default_chunk_overlap: i32,
+    /// List of allowed file extensions
+    pub allowed_extensions: Vec<String>,
+}

@@ -80,6 +80,10 @@ from models import (
     DiscoverEdgesRequest,
     DiscoverEdgesResponse,
     DiscoveryStatusResponse,
+    # File upload models
+    FileUploadRequest,
+    FileUploadResponse,
+    FileUploadConfig,
     # Replication/routing models
     ReadPreference,
     HostConfig,
@@ -2619,7 +2623,7 @@ class VectorizerClient:
         try:
             validate_non_empty_string(collection)
             logger.debug(f"Getting graph discovery status for collection: {collection}")
-            
+
             async with self._transport.get(
                 f"{self.base_url}/graph/discover/{collection}/status"
             ) as response:
@@ -2638,3 +2642,245 @@ class VectorizerClient:
         except aiohttp.ClientError as e:
             logger.error(f"Network error getting graph discovery status: {e}")
             raise NetworkError(f"Failed to get discovery status: {e}")
+
+    # ========== File Upload Operations ==========
+
+    async def upload_file(
+        self,
+        file_path: str,
+        collection_name: str,
+        chunk_size: Optional[int] = None,
+        chunk_overlap: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> FileUploadResponse:
+        """
+        Upload a file for indexing.
+
+        The file will be validated, chunked, and indexed into the specified collection.
+        If the collection doesn't exist, it will be created automatically.
+
+        Args:
+            file_path: Path to the file to upload
+            collection_name: Target collection name
+            chunk_size: Chunk size in characters (uses server default if not specified)
+            chunk_overlap: Chunk overlap in characters (uses server default if not specified)
+            metadata: Additional metadata to attach to all chunks
+
+        Returns:
+            FileUploadResponse with upload results
+
+        Raises:
+            ValidationError: If file path or collection name is invalid
+            NetworkError: If network error occurs
+            ServerError: If server returns an error
+
+        Example:
+            >>> response = await client.upload_file(
+            ...     "src/main.rs",
+            ...     "rust-code",
+            ...     chunk_size=1024,
+            ...     metadata={"project": "myapp"}
+            ... )
+            >>> print(f"Created {response.vectors_created} vectors")
+        """
+        import os
+
+        try:
+            validate_non_empty_string(file_path)
+            validate_non_empty_string(collection_name)
+
+            if not os.path.exists(file_path):
+                raise ValidationError(f"File not found: {file_path}")
+
+            if not os.path.isfile(file_path):
+                raise ValidationError(f"Path is not a file: {file_path}")
+
+            filename = os.path.basename(file_path)
+            logger.debug(f"Uploading file: {filename} to collection: {collection_name}")
+
+            # Read file content
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+
+            # Build multipart form data
+            form_data = aiohttp.FormData()
+            form_data.add_field(
+                'file',
+                file_content,
+                filename=filename,
+                content_type='application/octet-stream'
+            )
+            form_data.add_field('collection_name', collection_name)
+
+            if chunk_size is not None:
+                form_data.add_field('chunk_size', str(chunk_size))
+
+            if chunk_overlap is not None:
+                form_data.add_field('chunk_overlap', str(chunk_overlap))
+
+            if metadata is not None:
+                form_data.add_field('metadata', json.dumps(metadata))
+
+            async with self._transport.post(
+                f"{self.base_url}/files/upload",
+                data=form_data
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    result = FileUploadResponse(**data)
+                    logger.info(
+                        f"File uploaded successfully: {filename} - "
+                        f"{result.chunks_created} chunks, {result.vectors_created} vectors"
+                    )
+                    return result
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(error_data.get("message", "Invalid file"))
+                elif response.status == 413:
+                    raise ValidationError("File too large")
+                else:
+                    raise ServerError(f"Failed to upload file: {response.status}")
+
+        except (ValidationError, ValueError) as e:
+            logger.error(f"Validation error uploading file: {e}")
+            if isinstance(e, ValueError):
+                raise ValidationError(str(e))
+            raise
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error uploading file: {e}")
+            raise NetworkError(f"Failed to upload file: {e}")
+
+    async def upload_file_content(
+        self,
+        content: Union[str, bytes],
+        filename: str,
+        collection_name: str,
+        chunk_size: Optional[int] = None,
+        chunk_overlap: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> FileUploadResponse:
+        """
+        Upload file content directly for indexing.
+
+        Similar to upload_file, but accepts content directly instead of a file path.
+
+        Args:
+            content: File content as string or bytes
+            filename: Filename (used for extension detection)
+            collection_name: Target collection name
+            chunk_size: Chunk size in characters (uses server default if not specified)
+            chunk_overlap: Chunk overlap in characters (uses server default if not specified)
+            metadata: Additional metadata to attach to all chunks
+
+        Returns:
+            FileUploadResponse with upload results
+
+        Raises:
+            ValidationError: If filename or collection name is invalid
+            NetworkError: If network error occurs
+            ServerError: If server returns an error
+
+        Example:
+            >>> code = "fn main() { println!(\"Hello!\"); }"
+            >>> response = await client.upload_file_content(
+            ...     code,
+            ...     "main.rs",
+            ...     "rust-code"
+            ... )
+        """
+        try:
+            validate_non_empty_string(filename)
+            validate_non_empty_string(collection_name)
+
+            logger.debug(f"Uploading content as: {filename} to collection: {collection_name}")
+
+            # Convert content to bytes if string
+            if isinstance(content, str):
+                file_content = content.encode('utf-8')
+            else:
+                file_content = content
+
+            # Build multipart form data
+            form_data = aiohttp.FormData()
+            form_data.add_field(
+                'file',
+                file_content,
+                filename=filename,
+                content_type='application/octet-stream'
+            )
+            form_data.add_field('collection_name', collection_name)
+
+            if chunk_size is not None:
+                form_data.add_field('chunk_size', str(chunk_size))
+
+            if chunk_overlap is not None:
+                form_data.add_field('chunk_overlap', str(chunk_overlap))
+
+            if metadata is not None:
+                form_data.add_field('metadata', json.dumps(metadata))
+
+            async with self._transport.post(
+                f"{self.base_url}/files/upload",
+                data=form_data
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    result = FileUploadResponse(**data)
+                    logger.info(
+                        f"Content uploaded successfully: {filename} - "
+                        f"{result.chunks_created} chunks, {result.vectors_created} vectors"
+                    )
+                    return result
+                elif response.status == 400:
+                    error_data = await response.json()
+                    raise ValidationError(error_data.get("message", "Invalid content"))
+                elif response.status == 413:
+                    raise ValidationError("Content too large")
+                else:
+                    raise ServerError(f"Failed to upload content: {response.status}")
+
+        except (ValidationError, ValueError) as e:
+            logger.error(f"Validation error uploading content: {e}")
+            if isinstance(e, ValueError):
+                raise ValidationError(str(e))
+            raise
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error uploading content: {e}")
+            raise NetworkError(f"Failed to upload content: {e}")
+
+    async def get_upload_config(self) -> FileUploadConfig:
+        """
+        Get file upload configuration from the server.
+
+        Returns:
+            FileUploadConfig with server upload limits and settings
+
+        Raises:
+            NetworkError: If network error occurs
+            ServerError: If server returns an error
+
+        Example:
+            >>> config = await client.get_upload_config()
+            >>> print(f"Max file size: {config.max_file_size_mb}MB")
+            >>> print(f"Allowed extensions: {config.allowed_extensions}")
+        """
+        try:
+            logger.debug("Getting file upload configuration")
+
+            async with self._transport.get(
+                f"{self.base_url}/files/config"
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    result = FileUploadConfig(**data)
+                    logger.debug(
+                        f"Upload config retrieved: max_size={result.max_file_size_mb}MB, "
+                        f"extensions={len(result.allowed_extensions)}"
+                    )
+                    return result
+                else:
+                    raise ServerError(f"Failed to get upload config: {response.status}")
+
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error getting upload config: {e}")
+            raise NetworkError(f"Failed to get upload config: {e}")

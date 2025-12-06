@@ -1049,8 +1049,114 @@ class DiscoverEdgesResponse:
 @dataclass
 class DiscoveryStatusResponse:
     """Response for discovery status."""
-    
+
     total_nodes: int
     nodes_with_edges: int
     total_edges: int
     progress_percentage: float
+
+
+# ========== File Upload Models ==========
+
+@dataclass
+class FileUploadRequest:
+    """Request to upload a file for indexing."""
+
+    collection_name: str
+    """Target collection name"""
+
+    chunk_size: Optional[int] = None
+    """Chunk size in characters (uses server default if not specified)"""
+
+    chunk_overlap: Optional[int] = None
+    """Chunk overlap in characters (uses server default if not specified)"""
+
+    metadata: Optional[Dict[str, Any]] = None
+    """Additional metadata to attach to all chunks"""
+
+    def __post_init__(self):
+        """Validate file upload request data."""
+        if not self.collection_name or not self.collection_name.strip():
+            raise ValueError("collection_name cannot be empty")
+
+        if self.chunk_size is not None:
+            if not isinstance(self.chunk_size, int) or self.chunk_size < 1:
+                raise ValueError("chunk_size must be a positive integer")
+
+        if self.chunk_overlap is not None:
+            if not isinstance(self.chunk_overlap, int) or self.chunk_overlap < 0:
+                raise ValueError("chunk_overlap must be a non-negative integer")
+
+
+@dataclass
+class FileUploadResponse:
+    """Response from file upload operation."""
+
+    success: bool
+    """Whether the upload was successful"""
+
+    filename: str
+    """Original filename"""
+
+    collection_name: str
+    """Target collection"""
+
+    chunks_created: int
+    """Number of chunks created from the file"""
+
+    vectors_created: int
+    """Number of vectors created and stored"""
+
+    file_size: int
+    """File size in bytes"""
+
+    language: str
+    """Detected language/file type"""
+
+    processing_time_ms: int
+    """Processing time in milliseconds"""
+
+    def __post_init__(self):
+        """Validate file upload response data."""
+        if self.chunks_created < 0:
+            raise ValueError("chunks_created cannot be negative")
+        if self.vectors_created < 0:
+            raise ValueError("vectors_created cannot be negative")
+        if self.file_size < 0:
+            raise ValueError("file_size cannot be negative")
+        if self.processing_time_ms < 0:
+            raise ValueError("processing_time_ms cannot be negative")
+
+
+@dataclass
+class FileUploadConfig:
+    """Configuration for file uploads."""
+
+    max_file_size: int
+    """Maximum file size in bytes"""
+
+    max_file_size_mb: int
+    """Maximum file size in megabytes"""
+
+    allowed_extensions: List[str]
+    """List of allowed file extensions"""
+
+    reject_binary: bool
+    """Whether binary files are rejected"""
+
+    default_chunk_size: int
+    """Default chunk size in characters"""
+
+    default_chunk_overlap: int
+    """Default chunk overlap in characters"""
+
+    def __post_init__(self):
+        """Validate file upload config data."""
+        if self.max_file_size < 0:
+            raise ValueError("max_file_size cannot be negative")
+        if self.max_file_size_mb < 0:
+            raise ValueError("max_file_size_mb cannot be negative")
+        if self.default_chunk_size < 1:
+            raise ValueError("default_chunk_size must be at least 1")
+        if self.default_chunk_overlap < 0:
+            raise ValueError("default_chunk_overlap cannot be negative")

@@ -1606,6 +1606,218 @@ To migrate from Qdrant to Vectorizer:
 
 **Endpoint:** `POST /file/search_by_type`
 
+## File Upload Endpoints
+
+The File Upload API allows you to upload files for automatic text extraction, chunking, and indexing into a vector collection. Files are automatically processed, chunked, and embedded using the BM25 provider.
+
+### Upload File
+
+Upload a file for automatic indexing into a collection.
+
+**Endpoint:** `POST /files/upload`
+
+**Content-Type:** `multipart/form-data`
+
+**Form Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | File | Yes | The file to upload |
+| `collection_name` | string | Yes | Target collection name |
+| `chunk_size` | integer | No | Chunk size in characters (default: 2048) |
+| `chunk_overlap` | integer | No | Chunk overlap in characters (default: 256) |
+| `metadata` | string | No | JSON-encoded metadata to attach to all chunks |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "filename": "example.rs",
+  "collection_name": "my_code",
+  "chunks_created": 15,
+  "vectors_created": 15,
+  "file_size": 8192,
+  "language": "rust",
+  "processing_time_ms": 245
+}
+```
+
+**Example (curl):**
+
+```bash
+curl -X POST http://localhost:15002/files/upload \
+  -F "file=@src/main.rs" \
+  -F "collection_name=my_code" \
+  -F "chunk_size=1024" \
+  -F "chunk_overlap=128"
+```
+
+**Example (with metadata):**
+
+```bash
+curl -X POST http://localhost:15002/files/upload \
+  -F "file=@document.md" \
+  -F "collection_name=docs" \
+  -F 'metadata={"project":"vectorizer","version":"1.6.0"}'
+```
+
+**Supported File Extensions:**
+
+Code files: `.rs`, `.py`, `.js`, `.ts`, `.tsx`, `.jsx`, `.go`, `.java`, `.c`, `.cpp`, `.h`, `.hpp`, `.cs`, `.rb`, `.php`, `.swift`, `.kt`, `.scala`, `.r`, `.jl`, `.lua`, `.pl`, `.sh`, `.bash`, `.zsh`, `.fish`, `.ps1`, `.bat`, `.cmd`
+
+Documentation: `.md`, `.txt`, `.rst`, `.adoc`, `.org`, `.tex`, `.html`, `.xml`, `.json`, `.yaml`, `.yml`, `.toml`, `.ini`, `.cfg`, `.conf`, `.csv`, `.tsv`
+
+**Error Responses:**
+
+- `400 Bad Request` - File too large, unsupported extension, or binary file detected
+- `404 Not Found` - Collection not found
+- `500 Internal Server Error` - Processing error
+
+### Get Upload Configuration
+
+Retrieve the server's file upload configuration.
+
+**Endpoint:** `GET /files/config`
+
+**Response:**
+
+```json
+{
+  "max_file_size": 10485760,
+  "max_file_size_mb": 10.0,
+  "allowed_extensions": [
+    ".rs", ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".java",
+    ".c", ".cpp", ".h", ".hpp", ".cs", ".rb", ".php", ".swift",
+    ".kt", ".scala", ".r", ".jl", ".lua", ".pl", ".sh", ".bash",
+    ".zsh", ".fish", ".ps1", ".bat", ".cmd", ".md", ".txt",
+    ".rst", ".adoc", ".org", ".tex", ".html", ".xml", ".json",
+    ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".csv", ".tsv"
+  ],
+  "reject_binary": true,
+  "default_chunk_size": 2048,
+  "default_chunk_overlap": 256
+}
+```
+
+**Example:**
+
+```bash
+curl http://localhost:15002/files/config
+```
+
+### Configuration
+
+File upload behavior can be configured in `config.yml`:
+
+```yaml
+file_upload:
+  max_file_size: 10485760      # 10MB in bytes
+  allowed_extensions:
+    - ".rs"
+    - ".py"
+    - ".js"
+    - ".ts"
+    - ".md"
+    - ".txt"
+    # ... add more extensions as needed
+  reject_binary: true           # Reject binary files
+  default_chunk_size: 2048      # Characters per chunk
+  default_chunk_overlap: 256    # Overlap between chunks
+```
+
+### SDK Examples
+
+**Python:**
+
+```python
+from vectorizer import VectorizerClient
+
+client = VectorizerClient(base_url="http://localhost:15002")
+
+# Upload a file
+result = await client.upload_file(
+    collection_name="my_code",
+    file_path="src/main.rs",
+    chunk_size=1024,
+    chunk_overlap=128,
+    metadata={"project": "vectorizer"}
+)
+print(f"Created {result.vectors_created} vectors")
+
+# Upload content directly
+result = await client.upload_file_content(
+    collection_name="docs",
+    content="# My Documentation\n\nThis is the content...",
+    filename="README.md"
+)
+```
+
+**TypeScript:**
+
+```typescript
+import { VectorizerClient } from '@hivellm/vectorizer';
+
+const client = new VectorizerClient({ baseURL: 'http://localhost:15002' });
+
+// Upload a file (browser)
+const file = document.querySelector('input[type="file"]').files[0];
+const result = await client.uploadFile('my_code', file, file.name, {
+  chunkSize: 1024,
+  chunkOverlap: 128,
+  metadata: { project: 'vectorizer' }
+});
+
+// Upload content directly
+const result = await client.uploadFileContent(
+  'docs',
+  '# My Documentation\n\nThis is the content...',
+  'README.md'
+);
+```
+
+**JavaScript:**
+
+```javascript
+import { VectorizerClient } from '@hivellm/vectorizer';
+
+const client = new VectorizerClient({ baseURL: 'http://localhost:15002' });
+
+// Upload a file
+const result = await client.uploadFile('my_code', file, 'main.rs', {
+  chunkSize: 1024,
+  metadata: { author: 'john' }
+});
+
+// Get upload configuration
+const config = await client.getUploadConfig();
+console.log(`Max file size: ${config.max_file_size_mb}MB`);
+```
+
+### Troubleshooting
+
+**Error: "File too large"**
+- Check the `max_file_size` configuration
+- Default limit is 10MB
+- Increase the limit in `config.yml` if needed
+
+**Error: "Unsupported file extension"**
+- Check the `allowed_extensions` list in configuration
+- Add the extension to `config.yml` if it's a text-based file
+
+**Error: "Binary file detected"**
+- The file contains binary content (null bytes, non-text data)
+- Only text-based files are supported
+- Set `reject_binary: false` to disable this check (not recommended)
+
+**Error: "Collection not found"**
+- The target collection doesn't exist
+- Create the collection first using `POST /collections`
+
+**Large files processing slowly**
+- Reduce `chunk_size` for faster processing
+- Consider splitting very large files before upload
+
 ## Discovery Endpoints
 
 ### Discover

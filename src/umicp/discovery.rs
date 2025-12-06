@@ -26,10 +26,10 @@ impl DiscoverableService for VectorizerDiscoveryService {
             "workspace-management".to_string(),
             "mcp-compatible".to_string(),
         ])
-        .operations_count(32)
+        .operations_count(26)
         .mcp_compatible(true)
         .metadata(json!({
-            "description": "HiveLLM Vectorizer - High-performance semantic search and vector database system with 32 tools"
+            "description": "HiveLLM Vectorizer - High-performance semantic search and vector database system with 26 tools"
         }))
     }
 
@@ -96,11 +96,12 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        // Should have 37 individual focused operations (34 core + 3 cleanup tools)
+        // Should have 31 individual focused operations (28 core + 3 cleanup tools)
+        // Note: 6 cluster tools were removed from MCP for security (v1.8.5)
         assert_eq!(
             operations.len(),
-            37,
-            "Expected 37 individual operations, got {}",
+            31,
+            "Expected 31 individual operations, got {}",
             operations.len()
         );
 

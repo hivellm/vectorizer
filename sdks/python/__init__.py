@@ -35,9 +35,13 @@ from models import (
     ReadPreference,
     HostConfig,
     ReadOptions,
+    # File upload models
+    FileUploadRequest,
+    FileUploadResponse,
+    FileUploadConfig,
 )
 
-__version__ = "1.5.1"
+__version__ = "1.6.0"
 __author__ = "HiveLLM Team"
 __email__ = "team@hivellm.org"
 
@@ -64,4 +68,8 @@ __all__ = [
     "ReadPreference",
     "HostConfig",
     "ReadOptions",
+    # File upload
+    "FileUploadRequest",
+    "FileUploadResponse",
+    "FileUploadConfig",
 ]

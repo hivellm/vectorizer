@@ -17,3 +17,4 @@ export * from './intelligent-search';
 export * from './replication';
 export * from './hybrid-search';
 export * from './graph';
+export * from './file-upload';

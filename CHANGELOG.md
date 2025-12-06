@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.5] - 2025-12-06
+
+### Added
+
+- **File Upload API**: New REST and GraphQL endpoints for direct file upload and indexing
+  - `POST /files/upload` - Upload files via multipart/form-data for automatic chunking and indexing
+  - `GET /files/config` - Get upload configuration (max size, allowed extensions)
+  - GraphQL `uploadFile` mutation with base64 file content support
+  - GraphQL `fileUploadConfig` query
+  - Configurable chunk size, overlap, and metadata per upload
+  - Automatic language/file type detection
+  - 43 unit tests for file validation and upload handlers
+  - **BENEFIT**: Direct file upload without workspace configuration
+
+- **SDK File Upload Support**: All SDKs now support file upload
+  - Python: `upload_file()`, `upload_file_content()`, `get_upload_config()`
+  - TypeScript: `uploadFile()`, `uploadFileContent()`, `getUploadConfig()`
+  - JavaScript: `uploadFile()`, `uploadFileContent()`, `getUploadConfig()`
+  - **BENEFIT**: Programmatic file upload from any SDK
+
+### Changed
+
+- **MCP Tools**: Removed cluster management tools from MCP for security
+  - Removed: `cluster_list_nodes`, `cluster_get_shard_distribution`, `cluster_rebalance`, `cluster_add_node`, `cluster_remove_node`, `cluster_get_node_info`
+  - Cluster operations now REST-only (available at `/cluster/*` endpoints)
+  - MCP tool count: 32 → 26
+  - **BENEFIT**: Improved security for cluster operations
+
+### Documentation
+
+- Updated API Reference with File Upload endpoints
+- Updated GraphQL documentation with uploadFile mutation
+- Added SDK examples for file upload
+- Added troubleshooting section for file upload errors
+- Updated OpenAPI spec with file upload schemas
+
 ## [1.8.4] - 2025-12-05
 
 ### Fixed
