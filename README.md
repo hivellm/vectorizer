@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/vectorizer.svg)](https://crates.io/crates/vectorizer)
 [![GitHub release](https://img.shields.io/github/release/hivellm/vectorizer.svg)](https://github.com/hivellm/vectorizer/releases)
-[![Tests](https://img.shields.io/badge/tests-703%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
+[![Tests](https://img.shields.io/badge/tests-1514%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
 [![Coverage](https://img.shields.io/badge/coverage-95%25%2B-success.svg)](https://github.com/hivellm/vectorizer)
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
@@ -18,8 +18,13 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
 - **📦 Product Quantization**: PQ compression for 64x memory reduction with minimal accuracy loss
 - **💾 Compact Storage**: Unified `.vecdb` format with 20-30% space savings and automatic snapshots
-- **🔄 Master-Replica Replication**: High availability with automatic failover (BETA)
-- **🔗 Distributed Sharding**: Horizontal scaling across multiple servers with automatic shard routing (BETA)
+- **🔄 Master-Replica Replication**: High availability with automatic failover and SDK routing support
+- **🔗 Distributed Sharding**: Horizontal scaling across multiple servers with automatic shard routing
+- **☁️ HiveHub Cluster Mode**: Multi-tenant cluster deployment with HiveHub.Cloud
+  - Tenant isolation with user-scoped collections
+  - Quota enforcement (collections, vectors, storage)
+  - Usage tracking and reporting
+  - Memory limits and MMap storage enforcement
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images
 - **🔄 Qdrant Migration**: Complete migration tools and full Qdrant 1.14.x API compatibility
   - Snapshots API (create, list, delete, recover)
@@ -31,7 +36,12 @@ A high-performance vector database and search engine built in Rust, designed for
   - Quantization configuration (PQ and Binary)
 - **🎯 MCP Integration**: 20 focused individual tools for AI model integration
 - **🔄 UMICP Protocol**: Native JSON types + Tool Discovery endpoint
+- **📊 GraphQL API**: Full GraphQL API with async-graphql
+  - Complete REST API parity with flexible queries
+  - GraphiQL playground for interactive exploration
+  - Mutations for collections, vectors, and search
 - **🖥️ Web Dashboard**: Modern React + TypeScript dashboard with complete graph management interface
+  - JWT-based authentication with login page and session management
   - Create/delete edges with relationship types and weights
   - Explore node neighbors and related nodes
   - Find shortest paths between nodes
@@ -194,7 +204,7 @@ curl -X GET http://localhost:15002/collections \
 | **Search Speed**      | < 3ms (CPU), < 1ms (Metal GPU) |
 | **Storage Reduction** | 30-50% with normalization      |
 | **Test Coverage**     | 95%+ coverage                  |
-| **Test Suite**        | 703 passing, 6 ignored        |
+| **Test Suite**        | 1514 passing, 101 ignored     |
 | **MCP Tools**         | 20 focused individual tools    |
 | **Document Formats**  | 14 formats supported           |
 
@@ -282,7 +292,7 @@ Comprehensive feature comparison with major vector database solutions:
 | **Cost & Licensing** |
 | Open Source | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ |
 | Self-Hosted | ✅ | ✅ | ✅ | ✅ (Enterprise) | ✅ | ✅ | ✅ |
-| Cloud Hosted | ❌ | ✅ (Qdrant Cloud) | ✅ (Various) | ✅ | ✅ (Weaviate Cloud) | ✅ (Zilliz Cloud) | ✅ |
+| Cloud Hosted | ✅ (HiveHub.Cloud) | ✅ (Qdrant Cloud) | ✅ (Various) | ✅ | ✅ (Weaviate Cloud) | ✅ (Zilliz Cloud) | ✅ |
 | Free Tier | ✅ Unlimited | ✅ | ✅ | ✅ Limited | ✅ | ✅ | ✅ |
 
 ### Key Differentiators
@@ -308,36 +318,41 @@ Comprehensive feature comparison with major vector database solutions:
 - **Milvus**: Large-scale deployments requiring advanced scalability features
 - **Chroma**: Python-first applications with simple setup requirements
 
-## 🔧 Recent Improvements (v1.6.0)
+## 🔧 Recent Improvements (v1.8.x)
 
-### New Features
+### New Features (v1.8.3+)
+
+- **✅ Dashboard Authentication**: Complete authentication system for the dashboard
+  - Login page with username/password form and modern UI
+  - JWT token-based authentication via `/auth/login` endpoint
+  - Session persistence with localStorage and automatic route protection
+- **✅ HiveHub Cluster Integration**: Multi-tenant cluster mode support
+  - `HubManager` for HiveHub API integration with tenant isolation
+  - API key validation, quota enforcement, and usage tracking
+  - Request signing and IP whitelist support for security
+- **✅ Cluster Memory Limits**: Enforce predictable memory usage in cluster mode
+  - Global cache memory limit (default: 1GB)
+  - MMap storage enforcement and file watcher auto-disable
+  - Comprehensive configuration validator at startup
+- **✅ MMap Storage Deadlock Fix**: Fixed deadlock during concurrent vector insertions
+  - Removed internal `Arc<RwLock<>>` wrapper for proper lock management
+  - Stable concurrent insert operations without blocking
+
+### Quality Improvements (v1.8.1+)
+
+- **✅ Dashboard SPA Routing Fix**: Browser refresh now works on all dashboard routes
+- **✅ File Watcher Improvements**: Uses default collection instead of creating empty collections
+- **✅ Empty Collection Management**: New endpoints to list and cleanup empty collections
+- **✅ Dashboard Cache Headers**: Proper caching for faster dashboard loading
+
+### Previous Features (v1.6.0 - v1.7.0)
 
 - **✅ Graph Dashboard Enhancements**: Complete graph management interface
-  - Create/delete edges with relationship types and weights
-  - View node neighbors and find related nodes
-  - Find shortest paths between nodes
-  - Node-specific edge discovery with configurable parameters
-  - Enhanced node details panel with inline actions
 - **✅ n8n Integration**: Official community node for workflow automation
-  - Collection, Vector, and Search resources
-  - 12 operations across all resources
-  - Visual workflow builder integration
-- **✅ Langflow Integration**: LangChain-compatible components
-  - VectorizerVectorStore for document storage
-  - VectorizerRetriever for RAG pipelines
-  - VectorizerLoader for existing vectors
-- **✅ GraphQL API**: Full GraphQL API with async-graphql
-  - Complete REST API parity with flexible queries
-  - GraphiQL playground for interactive exploration
-  - 37 unit and integration tests
-
-### Quality Improvements (v1.5.0)
-
-- **✅ All core tests passing**: 703+ tests with comprehensive coverage
-- **✅ Better error handling**: Improved dimension validation and error messages
-- **✅ Storage reliability**: MMap storage now properly persists vector counts
-- **✅ Test stability**: Timeout protection prevents hanging tests
-- **✅ BM25 search quality**: Fixed document frequency calculation for correct IDF values and improved BM25 scores
+- **✅ Langflow Integration**: LangChain-compatible components for RAG pipelines
+- **✅ GraphQL API**: Full GraphQL API with async-graphql and GraphiQL playground
+- **✅ SDK Master/Replica Routing**: Automatic read/write routing for high availability
+- **✅ All core tests passing**: 1514+ tests with comprehensive coverage
 
 ## 🎯 Use Cases
 
@@ -384,14 +399,14 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-All SDKs are synchronized with server version **1.6.0**:
+All SDKs are synchronized with server version **1.8.0**:
 
-- **Python**: `pip install vectorizer-sdk` (v1.6.0)
-- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.6.0)
-- **Rust**: `cargo add vectorizer-sdk` (v1.6.0)
-- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.6.0)
-- **C#**: `dotnet add package Vectorizer.SDK` (v1.6.0)
-- **Go**: `go get github.com/hivellm/vectorizer/sdks/go` (v1.6.0)
+- **Python**: `pip install vectorizer-sdk` (v1.8.0)
+- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.8.0)
+- **Rust**: `cargo add vectorizer-sdk` (v1.8.0)
+- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.8.0)
+- **C#**: `dotnet add package Vectorizer.SDK` (v1.8.0)
+- **Go**: `go get github.com/hivellm/vectorizer/sdks/go` (v1.8.0)
 
 ## 🔗 Workflow & LLM Integrations
 
