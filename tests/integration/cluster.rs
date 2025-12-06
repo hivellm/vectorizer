@@ -17,6 +17,7 @@ async fn test_cluster_manager_initialization() {
         discovery: DiscoveryMethod::Static,
         timeout_ms: 5000,
         retry_count: 3,
+        memory: Default::default(),
     };
 
     let manager = ClusterManager::new(config).unwrap();
@@ -33,6 +34,7 @@ async fn test_cluster_manager_add_remove_node() {
         discovery: DiscoveryMethod::Static,
         timeout_ms: 5000,
         retry_count: 3,
+        memory: Default::default(),
     };
 
     let manager = Arc::new(ClusterManager::new(config).unwrap());
@@ -182,6 +184,7 @@ async fn test_cluster_config_serialization() {
         discovery: DiscoveryMethod::Static,
         timeout_ms: 5000,
         retry_count: 3,
+        memory: Default::default(),
     };
 
     // Test serialization

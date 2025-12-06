@@ -1,6 +1,6 @@
 # API Reference & Integrations
 
-**Version**: 0.9.0  
+**Version**: 1.8.0
 **Base URL**: `http://localhost:15002`  
 **MCP Endpoint**: `http://localhost:15002/mcp`  
 **Status**: ✅ Production Ready
@@ -114,36 +114,112 @@ vectorizer api-keys delete <key-id>
 
 **Dashboard**: `http://localhost:15002` (localhost only)
 
+### HiveHub Cluster Mode Authentication
+
+When running in HiveHub cluster mode, additional authentication mechanisms are available:
+
+#### Internal Service Header
+
+The `x-hivehub-service` header allows trusted internal services to bypass API key authentication:
+
+```bash
+curl -H "x-hivehub-service: true" http://localhost:15002/api/collections
+```
+
+> **Note**: This header should only be used by HiveHub internal services, not external applications.
+
+#### User Context Header
+
+For internal requests requiring tenant scoping, include the `x-hivehub-user-id` header:
+
+```bash
+curl -H "x-hivehub-service: true" \
+     -H "x-hivehub-user-id: 550e8400-e29b-41d4-a716-446655440000" \
+     http://localhost:15002/api/collections
+```
+
+When both headers are present:
+- API key authentication is bypassed
+- A tenant context is created for the specified user
+- Collection access is filtered to only those owned by the user
+
+See [HUB_INTEGRATION.md](../HUB_INTEGRATION.md) for complete HiveHub authentication documentation.
+
 ---
 
 ## REST API Endpoints
 
+### Authentication Requirements Summary
+
+| Category | Auth Required | HiveHub Mode | Permission Required |
+|----------|---------------|--------------|---------------------|
+| Health/Status | No | No | - |
+| Read Operations | Yes | Yes | `ReadOnly` or higher |
+| Write Operations | Yes | Yes | `ReadWrite` or higher |
+| Admin Operations | Yes | Yes | `Admin` |
+
 ### Health & Status
 
-**GET /health** - Server health check
-**GET /status** - Detailed server status
-**GET /collections** - List all collections
-**GET /collections/{name}** - Collection details
-
-### Vector Operations
-
-**POST /collections/{name}/search** - Search vectors
-**POST /collections/{name}/vectors** - Insert vectors
-**DELETE /collections/{name}/vectors/{id}** - Delete vector
-**PUT /collections/{name}/vectors/{id}** - Update vector
-
-### Intelligent Search
-
-**POST /intelligent_search** - Advanced multi-query search
-**POST /semantic_search** - Pure semantic search
-**POST /contextual_search** - Context-aware search
-**POST /multi_collection_search** - Cross-collection search
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/health` | No | Server health check |
+| GET | `/status` | No | Detailed server status |
+| GET | `/metrics` | No | Prometheus metrics |
 
 ### Collection Management
 
-**POST /collections** - Create collection
-**DELETE /collections/{name}** - Delete collection
-**POST /collections/{name}/reindex** - Reindex collection
+| Method | Endpoint | Auth | Permission | Description |
+|--------|----------|------|------------|-------------|
+| GET | `/collections` | Yes | ReadOnly | List all collections (filtered by owner in HiveHub mode) |
+| GET | `/collections/{name}` | Yes | ReadOnly | Get collection details |
+| GET | `/collections/empty` | Yes | Admin | List all empty collections |
+| POST | `/collections` | Yes | ReadWrite | Create collection (quota check in HiveHub mode) |
+| DELETE | `/collections/{name}` | Yes | ReadWrite | Delete collection |
+| DELETE | `/collections/cleanup` | Yes | Admin | Delete all empty collections (supports ?dry_run=true) |
+| POST | `/collections/{name}/reindex` | Yes | Admin | Reindex collection |
+
+### Vector Operations
+
+| Method | Endpoint | Auth | Permission | Description |
+|--------|----------|------|------------|-------------|
+| POST | `/collections/{name}/search` | Yes | ReadOnly | Search vectors |
+| POST | `/collections/{name}/vectors` | Yes | ReadWrite | Insert vectors (quota check in HiveHub mode) |
+| PUT | `/collections/{name}/vectors/{id}` | Yes | ReadWrite | Update vector |
+| DELETE | `/collections/{name}/vectors/{id}` | Yes | ReadWrite | Delete vector |
+
+### Intelligent Search
+
+| Method | Endpoint | Auth | Permission | Description |
+|--------|----------|------|------------|-------------|
+| POST | `/intelligent_search` | Yes | ReadOnly | Advanced multi-query search |
+| POST | `/semantic_search` | Yes | ReadOnly | Pure semantic search |
+| POST | `/contextual_search` | Yes | ReadOnly | Context-aware search |
+| POST | `/multi_collection_search` | Yes | ReadOnly | Cross-collection search |
+
+### HiveHub Backup API
+
+These endpoints are only available when HiveHub mode is enabled.
+
+| Method | Endpoint | Auth | Permission | Description |
+|--------|----------|------|------------|-------------|
+| GET | `/api/hub/backups` | Yes | ReadOnly | List user backups |
+| POST | `/api/hub/backups` | Yes | ReadWrite | Create backup |
+| GET | `/api/hub/backups/{id}` | Yes | ReadOnly | Get backup metadata |
+| GET | `/api/hub/backups/{id}/download` | Yes | ReadOnly | Download backup file |
+| POST | `/api/hub/backups/restore` | Yes | ReadWrite | Restore from backup |
+| POST | `/api/hub/backups/upload` | Yes | ReadWrite | Upload backup file |
+| DELETE | `/api/hub/backups/{id}` | Yes | ReadWrite | Delete backup |
+
+### Permission Levels
+
+When running in HiveHub cluster mode, permissions are enforced based on the user's tenant context:
+
+| Permission | Description | Allowed Operations |
+|------------|-------------|-------------------|
+| `Admin` | Full access | All operations including reindex, admin endpoints |
+| `ReadWrite` | Read and write access | Create, update, delete collections/vectors |
+| `ReadOnly` | Read access only | List, search, get operations |
+| `Mcp` | MCP-limited access | List, search, insert, update (no delete) |
 
 ---
 
@@ -195,10 +271,32 @@ await client.insertText('collection', 'id', 'text', {});
 
 ## Error Handling
 
-**400 Bad Request**: Invalid parameters
-**401 Unauthorized**: Invalid/missing API key
-**404 Not Found**: Collection/vector not found
-**500 Internal Server Error**: Server error
+### Standard Errors
+
+| Status | Code | Description |
+|--------|------|-------------|
+| 400 | Bad Request | Invalid parameters |
+| 401 | Unauthorized | Invalid/missing API key |
+| 404 | Not Found | Collection/vector not found |
+| 500 | Internal Server Error | Server error |
+
+### HiveHub Cluster Mode Errors
+
+| Status | Error Type | Description |
+|--------|------------|-------------|
+| 429 | QUOTA_EXCEEDED | User has exceeded their quota (collections, vectors, or storage) |
+| 503 | BACKUP_DISABLED | Backup functionality is not enabled |
+| 403 | ACCESS_DENIED | User does not have access to the requested collection |
+
+#### Quota Exceeded Response
+
+```json
+{
+  "error_type": "QUOTA_EXCEEDED",
+  "message": "Collection quota exceeded. Please upgrade your plan or delete unused collections.",
+  "status_code": 429
+}
+```
 
 ---
 

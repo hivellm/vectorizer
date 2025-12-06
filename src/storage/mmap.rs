@@ -1,10 +1,8 @@
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::path::Path;
-use std::sync::Arc;
 
 use memmap2::{MmapMut, MmapOptions};
-use parking_lot::RwLock;
 
 use crate::error::{Result, VectorizerError};
 
@@ -12,10 +10,12 @@ use crate::error::{Result, VectorizerError};
 const HEADER_SIZE: usize = 8;
 
 /// Memory-mapped vector storage for handling large datasets
+/// Note: This struct is NOT thread-safe on its own. It should be wrapped
+/// in an external RwLock (as done in VectorStorageBackend) for concurrent access.
 #[derive(Debug)]
 pub struct MmapVectorStorage {
     file: File,
-    mmap: Arc<RwLock<MmapMut>>,
+    mmap: MmapMut,
     dimension: usize,
     count: usize,
     capacity: usize,
@@ -64,7 +64,7 @@ impl MmapVectorStorage {
 
         Ok(Self {
             file,
-            mmap: Arc::new(RwLock::new(mmap)),
+            mmap,
             dimension,
             count,
             capacity,
@@ -84,13 +84,12 @@ impl MmapVectorStorage {
 
         // Resize if needed
         if self.count >= self.capacity {
-            let current_len = self.mmap.read().len();
+            let current_len = self.mmap.len();
             let new_len = (current_len * 2).max(HEADER_SIZE + vector_size * 1000);
             self.file.set_len(new_len as u64)?;
 
-            let mut mmap_guard = self.mmap.write();
-            *mmap_guard = unsafe { MmapOptions::new().map_mut(&self.file)? };
-            let data_size = mmap_guard.len().saturating_sub(HEADER_SIZE);
+            self.mmap = unsafe { MmapOptions::new().map_mut(&self.file)? };
+            let data_size = self.mmap.len().saturating_sub(HEADER_SIZE);
             self.capacity = data_size / vector_size;
         }
 
@@ -99,19 +98,15 @@ impl MmapVectorStorage {
         let bytes: &[u8] =
             unsafe { std::slice::from_raw_parts(vector.as_ptr() as *const u8, vector_size) };
 
-        let mut mmap = self.mmap.write();
-        mmap[offset..offset + vector_size].copy_from_slice(bytes);
+        self.mmap[offset..offset + vector_size].copy_from_slice(bytes);
 
         // Update count in header
-        let count_bytes = self.count.to_le_bytes();
-        mmap[0..HEADER_SIZE].copy_from_slice(&count_bytes);
-
         let id = self.count;
         self.count += 1;
 
-        // Update count in header again
+        // Write new count to header
         let new_count_bytes = self.count.to_le_bytes();
-        mmap[0..HEADER_SIZE].copy_from_slice(&new_count_bytes);
+        self.mmap[0..HEADER_SIZE].copy_from_slice(&new_count_bytes);
 
         Ok(id)
     }
@@ -137,8 +132,7 @@ impl MmapVectorStorage {
         let bytes: &[u8] =
             unsafe { std::slice::from_raw_parts(vector.as_ptr() as *const u8, vector_size) };
 
-        let mut mmap_guard = self.mmap.write();
-        mmap_guard[offset..offset + vector_size].copy_from_slice(bytes);
+        self.mmap[offset..offset + vector_size].copy_from_slice(bytes);
 
         Ok(())
     }
@@ -153,8 +147,7 @@ impl MmapVectorStorage {
         // Calculate offset (after header)
         let offset = HEADER_SIZE + (index * vector_size);
 
-        let mmap = self.mmap.read();
-        let bytes = &mmap[offset..offset + vector_size];
+        let bytes = &self.mmap[offset..offset + vector_size];
 
         let mut vector = vec![0.0f32; self.dimension];
         unsafe {
@@ -173,9 +166,14 @@ impl MmapVectorStorage {
         self.count
     }
 
+    /// Check if storage is empty
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
     /// Flush changes to disk
     pub fn flush(&self) -> Result<()> {
-        self.mmap.read().flush()?;
+        self.mmap.flush()?;
         Ok(())
     }
 }

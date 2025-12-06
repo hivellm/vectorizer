@@ -28,6 +28,7 @@ mod tests {
                 dimension: 128,
                 metric: "cosine".to_string(),
             },
+            owner_id: None,
         };
 
         let offset1 = log.append(op.clone());
@@ -52,6 +53,7 @@ mod tests {
                     dimension: 128,
                     metric: "cosine".to_string(),
                 },
+                owner_id: None,
             };
             log.append(op);
         }
@@ -184,25 +186,30 @@ mod tests {
                     dimension: 128,
                     metric: "cosine".to_string(),
                 },
+                owner_id: None,
             },
             VectorOperation::InsertVector {
                 collection: "test".to_string(),
                 id: "vec1".to_string(),
                 vector: vec![1.0, 2.0, 3.0],
                 payload: Some(b"test".to_vec()),
+                owner_id: Some("tenant-123".to_string()),
             },
             VectorOperation::UpdateVector {
                 collection: "test".to_string(),
                 id: "vec1".to_string(),
                 vector: Some(vec![4.0, 5.0, 6.0]),
                 payload: None,
+                owner_id: None,
             },
             VectorOperation::DeleteVector {
                 collection: "test".to_string(),
                 id: "vec1".to_string(),
+                owner_id: None,
             },
             VectorOperation::DeleteCollection {
                 name: "test".to_string(),
+                owner_id: None,
             },
         ];
 
@@ -236,6 +243,7 @@ mod tests {
                 dimension: 128,
                 metric: "cosine".to_string(),
             },
+            owner_id: None,
         };
 
         let offset = log.append(op);

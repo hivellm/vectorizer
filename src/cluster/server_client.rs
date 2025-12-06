@@ -7,6 +7,7 @@ use tracing::{debug, error, info, warn};
 
 use super::node::NodeId;
 use crate::error::{Result, VectorizerError};
+use crate::hub::TenantContext;
 
 // Include generated cluster proto code
 mod cluster_proto {
@@ -14,6 +15,16 @@ mod cluster_proto {
 }
 
 use cluster_proto::cluster_service_client::ClusterServiceClient;
+
+/// Convert hub TenantContext to proto TenantContext
+fn tenant_to_proto(tenant: Option<&TenantContext>) -> Option<cluster_proto::TenantContext> {
+    tenant.map(|t| cluster_proto::TenantContext {
+        tenant_id: t.tenant_id.clone(),
+        username: Some(t.tenant_name.clone()),
+        permissions: t.permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        trace_id: None,
+    })
+}
 
 /// gRPC client for cluster inter-server communication
 #[derive(Debug, Clone)]
@@ -72,12 +83,15 @@ impl ClusterClient {
     }
 
     /// Insert a vector on the remote server with retry and exponential backoff
+    ///
+    /// If `tenant` is provided, the operation is scoped to that tenant.
     pub async fn insert_vector(
         &self,
         collection_name: &str,
         vector_id: &str,
         vector: &[f32],
         payload: Option<&serde_json::Value>,
+        tenant: Option<&TenantContext>,
     ) -> Result<()> {
         let payload_json = payload
             .map(|p| serde_json::to_string(p))
@@ -91,6 +105,7 @@ impl ClusterClient {
             vector_id: vector_id.to_string(),
             vector: vector.to_vec(),
             payload_json,
+            tenant: tenant_to_proto(tenant),
         };
 
         // Retry with exponential backoff (3 retries)
@@ -132,12 +147,15 @@ impl ClusterClient {
     }
 
     /// Update a vector on the remote server
+    ///
+    /// If `tenant` is provided, the operation is scoped to that tenant.
     pub async fn update_vector(
         &self,
         collection_name: &str,
         vector_id: &str,
         vector: &[f32],
         payload: Option<&serde_json::Value>,
+        tenant: Option<&TenantContext>,
     ) -> Result<()> {
         let mut client = self.client.clone();
 
@@ -153,6 +171,7 @@ impl ClusterClient {
             vector_id: vector_id.to_string(),
             vector: vector.to_vec(),
             payload_json,
+            tenant: tenant_to_proto(tenant),
         });
 
         match client.remote_update_vector(request).await {
@@ -179,12 +198,20 @@ impl ClusterClient {
     }
 
     /// Delete a vector on the remote server
-    pub async fn delete_vector(&self, collection_name: &str, vector_id: &str) -> Result<()> {
+    ///
+    /// If `tenant` is provided, the operation is scoped to that tenant.
+    pub async fn delete_vector(
+        &self,
+        collection_name: &str,
+        vector_id: &str,
+        tenant: Option<&TenantContext>,
+    ) -> Result<()> {
         let mut client = self.client.clone();
 
         let request = tonic::Request::new(cluster_proto::RemoteDeleteVectorRequest {
             collection_name: collection_name.to_string(),
             vector_id: vector_id.to_string(),
+            tenant: tenant_to_proto(tenant),
         });
 
         match client.remote_delete_vector(request).await {
@@ -211,6 +238,8 @@ impl ClusterClient {
     }
 
     /// Search vectors on the remote server with retry and exponential backoff
+    ///
+    /// If `tenant` is provided, the search is scoped to that tenant's collections.
     pub async fn search_vectors(
         &self,
         collection_name: &str,
@@ -218,6 +247,7 @@ impl ClusterClient {
         limit: usize,
         threshold: Option<f32>,
         shard_ids: Option<&[crate::db::sharding::ShardId]>,
+        tenant: Option<&TenantContext>,
     ) -> Result<Vec<crate::models::SearchResult>> {
         let shard_ids_vec = shard_ids
             .map(|ids| ids.iter().map(|id| id.as_u32()).collect())
@@ -229,6 +259,7 @@ impl ClusterClient {
             limit: limit as u32,
             threshold,
             shard_ids: shard_ids_vec,
+            tenant: tenant_to_proto(tenant),
         };
 
         // Retry with exponential backoff (2 retries for search - faster failure)
@@ -311,14 +342,18 @@ impl ClusterClient {
     }
 
     /// Get collection info from remote server
+    ///
+    /// If `tenant` is provided, only returns info if the collection belongs to that tenant.
     pub async fn get_collection_info(
         &self,
         collection_name: &str,
+        tenant: Option<&TenantContext>,
     ) -> Result<Option<cluster_proto::CollectionInfo>> {
         let mut client = self.client.clone();
 
         let request = tonic::Request::new(cluster_proto::RemoteGetCollectionInfoRequest {
             collection_name: collection_name.to_string(),
+            tenant: tenant_to_proto(tenant),
         });
 
         match client.remote_get_collection_info(request).await {
@@ -339,6 +374,48 @@ impl ClusterClient {
                     "Failed to get collection info from node {}: {}",
                     self.node_id, e
                 );
+                Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
+            }
+        }
+    }
+
+    /// Check quota on remote server
+    ///
+    /// Returns (allowed, current_usage, limit, remaining)
+    pub async fn check_quota(
+        &self,
+        tenant: &TenantContext,
+        quota_type: cluster_proto::QuotaType,
+        requested_amount: u64,
+    ) -> Result<(bool, u64, u64, u64)> {
+        let mut client = self.client.clone();
+
+        let request = tonic::Request::new(cluster_proto::CheckQuotaRequest {
+            tenant: Some(cluster_proto::TenantContext {
+                tenant_id: tenant.tenant_id.clone(),
+                username: Some(tenant.tenant_name.clone()),
+                permissions: tenant
+                    .permissions
+                    .iter()
+                    .map(|p| format!("{:?}", p))
+                    .collect(),
+                trace_id: None,
+            }),
+            quota_type: quota_type as i32,
+            requested_amount,
+        });
+
+        match client.check_quota(request).await {
+            Ok(response) => {
+                let resp = response.into_inner();
+                debug!(
+                    "Quota check on node {}: allowed={}, current={}, limit={}, remaining={}",
+                    self.node_id, resp.allowed, resp.current_usage, resp.limit, resp.remaining
+                );
+                Ok((resp.allowed, resp.current_usage, resp.limit, resp.remaining))
+            }
+            Err(e) => {
+                error!("Failed to check quota on node {}: {}", self.node_id, e);
                 Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
             }
         }

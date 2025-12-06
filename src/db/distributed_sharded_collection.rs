@@ -167,7 +167,13 @@ impl DistributedShardedCollection {
                         .map(|p| serde_json::to_value(p).unwrap_or_default());
 
                     client
-                        .insert_vector(&self.name, &vector.id, &vector.data, payload_json.as_ref())
+                        .insert_vector(
+                            &self.name,
+                            &vector.id,
+                            &vector.data,
+                            payload_json.as_ref(),
+                            None,
+                        )
                         .await
                         .map_err(|e| {
                             VectorizerError::Storage(format!(
@@ -231,7 +237,13 @@ impl DistributedShardedCollection {
                         .map(|p| serde_json::to_value(p).unwrap_or_default());
 
                     client
-                        .update_vector(&self.name, &vector.id, &vector.data, payload_json.as_ref())
+                        .update_vector(
+                            &self.name,
+                            &vector.id,
+                            &vector.data,
+                            payload_json.as_ref(),
+                            None,
+                        )
                         .await
                         .map_err(|e| {
                             VectorizerError::Storage(format!(
@@ -289,7 +301,7 @@ impl DistributedShardedCollection {
                         })?;
 
                     client
-                        .delete_vector(&self.name, vector_id)
+                        .delete_vector(&self.name, vector_id, None)
                         .await
                         .map_err(|e| {
                             VectorizerError::Storage(format!(
@@ -391,6 +403,7 @@ impl DistributedShardedCollection {
                                 k,
                                 threshold,
                                 Some(&remote_shard_ids),
+                                None,
                             )
                             .await
                         {
@@ -495,7 +508,10 @@ impl DistributedShardedCollection {
                         for shard_id in &node_shards {
                             let shard_collection_name = format!("{}_{}", self.name, shard_id);
 
-                            match client.get_collection_info(&shard_collection_name).await {
+                            match client
+                                .get_collection_info(&shard_collection_name, None)
+                                .await
+                            {
                                 Ok(Some(info)) => {
                                     total += info.vector_count as usize;
                                     debug!(

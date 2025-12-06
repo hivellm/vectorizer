@@ -102,6 +102,8 @@ impl FileWatcherYamlConfig {
                 .collection_name
                 .clone()
                 .unwrap_or_else(|| "default_collection".to_string()),
+            default_collection: Some("workspace-default".to_string()),
+            collection_mapping: None, // TODO: Allow configuring via YAML
             recursive: self.recursive.unwrap_or(true),
             max_concurrent_tasks: 4,
             enable_realtime_indexing: true,

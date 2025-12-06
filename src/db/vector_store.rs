@@ -77,6 +77,30 @@ impl CollectionType {
         }
     }
 
+    /// Get owner ID (for multi-tenancy in HiveHub cluster mode)
+    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+        match self {
+            CollectionType::Cpu(c) => c.owner_id(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => None, // GPU collections don't support multi-tenancy yet
+            CollectionType::Sharded(c) => c.owner_id(),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(_) => None, // Distributed collections don't support multi-tenancy yet
+        }
+    }
+
+    /// Check if this collection belongs to a specific owner
+    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+        match self {
+            CollectionType::Cpu(c) => c.belongs_to(owner_id),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(_) => false, // GPU collections don't support multi-tenancy yet
+            CollectionType::Sharded(c) => c.belongs_to(owner_id),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(_) => false, // Distributed collections don't support multi-tenancy yet
+        }
+    }
+
     /// Add a vector to the collection
     pub fn add_vector(&mut self, _id: String, vector: Vector) -> Result<()> {
         match self {
@@ -494,7 +518,7 @@ impl VectorStore {
 
     /// Create a new empty vector store with CPU-only collections (for testing)
     /// This bypasses GPU detection and ensures consistent behavior across platforms
-    #[cfg(test)]
+    /// Note: Also available to integration tests via doctest attribute
     pub fn new_cpu_only() -> Self {
         info!("Creating new VectorStore (CPU-only mode for testing)");
 
@@ -694,21 +718,35 @@ impl VectorStore {
 
     /// Create a new collection
     pub fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
-        self.create_collection_internal(name, config, true)
+        self.create_collection_internal(name, config, true, None)
+    }
+
+    /// Create a new collection with an owner (for multi-tenant mode)
+    ///
+    /// In HiveHub cluster mode, each collection is owned by a specific user/tenant.
+    /// This method creates the collection and associates it with the given owner_id.
+    pub fn create_collection_with_owner(
+        &self,
+        name: &str,
+        config: CollectionConfig,
+        owner_id: uuid::Uuid,
+    ) -> Result<()> {
+        self.create_collection_internal(name, config, true, Some(owner_id))
     }
 
     /// Create a collection with option to disable GPU (for testing)
     /// This method forces CPU-only collection creation, useful for tests that need deterministic behavior
     pub fn create_collection_cpu_only(&self, name: &str, config: CollectionConfig) -> Result<()> {
-        self.create_collection_internal(name, config, false)
+        self.create_collection_internal(name, config, false, None)
     }
 
-    /// Internal collection creation with GPU control
+    /// Internal collection creation with GPU control and owner support
     fn create_collection_internal(
         &self,
         name: &str,
         config: CollectionConfig,
         allow_gpu: bool,
+        owner_id: Option<uuid::Uuid>,
     ) -> Result<()> {
         debug!("Creating collection '{}' with config: {:?}", name, config);
 
@@ -744,6 +782,14 @@ impl VectorStore {
                             backend,
                         )?;
 
+                        // TODO: Add owner_id support to HiveGpuCollection for multi-tenant mode
+                        // For now, GPU collections don't support multi-tenancy
+                        if owner_id.is_some() {
+                            warn!(
+                                "GPU collections don't support multi-tenancy yet, owner_id ignored"
+                            );
+                        }
+
                         let collection = CollectionType::HiveGpu(hive_gpu_collection);
                         self.collections.insert(name.to_string(), collection);
                         info!(
@@ -769,7 +815,14 @@ impl VectorStore {
         // Check if sharding is enabled
         if config.sharding.is_some() {
             info!("Creating sharded collection '{}'", name);
-            let sharded_collection = ShardedCollection::new(name.to_string(), config)?;
+            let mut sharded_collection = ShardedCollection::new(name.to_string(), config)?;
+
+            // Set owner if provided (multi-tenant mode)
+            if let Some(owner) = owner_id {
+                sharded_collection.set_owner_id(Some(owner));
+                debug!("Set owner_id {} for sharded collection '{}'", owner, name);
+            }
+
             self.collections.insert(
                 name.to_string(),
                 CollectionType::Sharded(sharded_collection),
@@ -780,7 +833,14 @@ impl VectorStore {
 
         // Fallback to CPU
         debug!("Creating CPU-based collection '{}'", name);
-        let collection = Collection::new(name.to_string(), config);
+        let mut collection = Collection::new(name.to_string(), config);
+
+        // Set owner if provided (multi-tenant mode)
+        if let Some(owner) = owner_id {
+            collection.set_owner_id(Some(owner));
+            debug!("Set owner_id {} for CPU collection '{}'", owner, name);
+        }
+
         self.collections
             .insert(name.to_string(), CollectionType::Cpu(collection));
 
@@ -1341,6 +1401,170 @@ impl VectorStore {
         }
 
         collection_names.into_iter().collect()
+    }
+
+    /// List collections owned by a specific user (for multi-tenancy)
+    ///
+    /// In cluster mode with HiveHub, each collection has an owner_id.
+    /// This method returns only collections belonging to the given owner.
+    pub fn list_collections_for_owner(&self, owner_id: &uuid::Uuid) -> Vec<String> {
+        self.collections
+            .iter()
+            .filter(|entry| entry.value().belongs_to(owner_id))
+            .map(|entry| entry.key().clone())
+            .collect()
+    }
+
+    /// Delete all collections owned by a specific tenant (for tenant cleanup on deletion)
+    ///
+    /// This method deletes all collections belonging to the given owner_id.
+    /// Useful for cleaning up tenant data when a tenant account is deleted.
+    ///
+    /// Returns the number of collections deleted.
+    pub fn cleanup_tenant_data(&self, owner_id: &uuid::Uuid) -> Result<usize> {
+        let collections_to_delete = self.list_collections_for_owner(owner_id);
+        let count = collections_to_delete.len();
+
+        for collection_name in collections_to_delete {
+            if let Err(e) = self.delete_collection(&collection_name) {
+                warn!(
+                    "Failed to delete collection '{}' for tenant {}: {}",
+                    collection_name, owner_id, e
+                );
+                // Continue deleting other collections even if one fails
+            } else {
+                info!(
+                    "Deleted collection '{}' for tenant {} during cleanup",
+                    collection_name, owner_id
+                );
+            }
+        }
+
+        info!(
+            "Tenant cleanup complete: deleted {} collections for owner {}",
+            count, owner_id
+        );
+        Ok(count)
+    }
+
+    /// Check if a collection is empty (has zero vectors)
+    pub fn is_collection_empty(&self, name: &str) -> Result<bool> {
+        let collection_ref = self.get_collection(name)?;
+        Ok(collection_ref.vector_count() == 0)
+    }
+
+    /// List all empty collections
+    ///
+    /// Returns a vector of collection names that have zero vectors.
+    /// Useful for identifying collections that can be safely deleted.
+    pub fn list_empty_collections(&self) -> Vec<String> {
+        self.list_collections()
+            .into_iter()
+            .filter(|name| self.is_collection_empty(name).unwrap_or(false))
+            .collect()
+    }
+
+    /// Cleanup (delete) all empty collections
+    ///
+    /// This method removes collections that have zero vectors. It's useful for
+    /// cleaning up collections created by the file watcher that were never populated.
+    ///
+    /// # Arguments
+    ///
+    /// * `dry_run` - If true, only report what would be deleted without actually deleting
+    ///
+    /// # Returns
+    ///
+    /// Returns the number of collections deleted (or that would be deleted in dry run mode)
+    pub fn cleanup_empty_collections(&self, dry_run: bool) -> Result<usize> {
+        let empty_collections = self.list_empty_collections();
+        let count = empty_collections.len();
+
+        if dry_run {
+            info!(
+                "🧹 Dry run: Would delete {} empty collections: {:?}",
+                count, empty_collections
+            );
+            return Ok(count);
+        }
+
+        let mut deleted_count = 0;
+        for collection_name in &empty_collections {
+            if let Err(e) = self.delete_collection(collection_name) {
+                warn!(
+                    "Failed to delete empty collection '{}': {}",
+                    collection_name, e
+                );
+                // Continue deleting other collections even if one fails
+            } else {
+                info!("Deleted empty collection '{}'", collection_name);
+                deleted_count += 1;
+            }
+        }
+
+        info!(
+            "🧹 Cleanup complete: deleted {} empty collections",
+            deleted_count
+        );
+        Ok(deleted_count)
+    }
+
+    /// Get collection metadata for a specific owner (returns None if not owned by that user)
+    pub fn get_collection_for_owner(
+        &self,
+        name: &str,
+        owner_id: &uuid::Uuid,
+    ) -> Option<crate::models::CollectionMetadata> {
+        let canonical = self.resolve_alias_target(name).ok()?;
+        self.collections.get(&canonical).and_then(|collection| {
+            if collection.belongs_to(owner_id) {
+                Some(collection.metadata())
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Check if a collection is owned by the given user
+    pub fn is_collection_owned_by(&self, name: &str, owner_id: &uuid::Uuid) -> bool {
+        let canonical = match self.resolve_alias_target(name) {
+            Ok(name) => name,
+            Err(_) => return false,
+        };
+        self.collections
+            .get(&canonical)
+            .map(|c| c.belongs_to(owner_id))
+            .unwrap_or(false)
+    }
+
+    /// Get a reference to a collection by name, with ownership validation
+    ///
+    /// Returns the collection only if:
+    /// 1. The collection exists
+    /// 2. Either the collection has no owner, or the owner matches the given owner_id
+    ///
+    /// This is used in multi-tenant mode to ensure users can only access their own collections.
+    pub fn get_collection_with_owner(
+        &self,
+        name: &str,
+        owner_id: Option<&uuid::Uuid>,
+    ) -> Result<impl std::ops::Deref<Target = CollectionType> + '_> {
+        // First get the collection normally
+        let collection = self.get_collection(name)?;
+
+        // If no owner_id is provided, allow access (non-tenant mode)
+        if owner_id.is_none() {
+            return Ok(collection);
+        }
+
+        let owner = owner_id.unwrap();
+
+        // Check ownership - allow access if collection has no owner or matches
+        if collection.owner_id().is_none() || collection.belongs_to(owner) {
+            Ok(collection)
+        } else {
+            Err(VectorizerError::CollectionNotFound(name.to_string()))
+        }
     }
 
     /// List all aliases and their target collections

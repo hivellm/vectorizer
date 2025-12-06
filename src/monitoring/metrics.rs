@@ -91,6 +91,36 @@ pub struct Metrics {
 
     /// GPU batch operation latency in seconds
     pub gpu_batch_latency_seconds: HistogramVec,
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // HiveHub Metrics (Cluster Mode)
+    // ═══════════════════════════════════════════════════════════════════════
+    /// Total quota check requests
+    pub hub_quota_checks_total: CounterVec,
+
+    /// Quota check latency in seconds
+    pub hub_quota_check_latency_seconds: Histogram,
+
+    /// Quota exceeded events
+    pub hub_quota_exceeded_total: CounterVec,
+
+    /// Current quota usage (by tenant and quota type)
+    pub hub_quota_usage: GaugeVec,
+
+    /// Hub API request total
+    pub hub_api_requests_total: CounterVec,
+
+    /// Hub API request latency
+    pub hub_api_latency_seconds: HistogramVec,
+
+    /// Active tenants count
+    pub hub_active_tenants: Gauge,
+
+    /// Usage report sync events
+    pub hub_usage_reports_total: CounterVec,
+
+    /// Backup operations total
+    pub hub_backup_operations_total: CounterVec,
 }
 
 impl Metrics {
@@ -260,6 +290,86 @@ impl Metrics {
                 &["operation_type"],
             )
             .unwrap(),
+
+            // HiveHub metrics
+            hub_quota_checks_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_hub_quota_checks_total",
+                    "Total quota check requests",
+                ),
+                &["tenant_id", "quota_type", "result"],
+            )
+            .unwrap(),
+
+            hub_quota_check_latency_seconds: Histogram::with_opts(
+                HistogramOpts::new(
+                    "vectorizer_hub_quota_check_latency_seconds",
+                    "Quota check latency in seconds",
+                )
+                .buckets(vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5]),
+            )
+            .unwrap(),
+
+            hub_quota_exceeded_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_hub_quota_exceeded_total",
+                    "Total quota exceeded events",
+                ),
+                &["tenant_id", "quota_type"],
+            )
+            .unwrap(),
+
+            hub_quota_usage: GaugeVec::new(
+                Opts::new(
+                    "vectorizer_hub_quota_usage",
+                    "Current quota usage by tenant and type",
+                ),
+                &["tenant_id", "quota_type"],
+            )
+            .unwrap(),
+
+            hub_api_requests_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_hub_api_requests_total",
+                    "Total Hub API requests",
+                ),
+                &["endpoint", "status"],
+            )
+            .unwrap(),
+
+            hub_api_latency_seconds: HistogramVec::new(
+                HistogramOpts::new(
+                    "vectorizer_hub_api_latency_seconds",
+                    "Hub API request latency in seconds",
+                )
+                .buckets(vec![0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]),
+                &["endpoint"],
+            )
+            .unwrap(),
+
+            hub_active_tenants: Gauge::new(
+                "vectorizer_hub_active_tenants",
+                "Number of active tenants",
+            )
+            .unwrap(),
+
+            hub_usage_reports_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_hub_usage_reports_total",
+                    "Total usage report sync events",
+                ),
+                &["status"],
+            )
+            .unwrap(),
+
+            hub_backup_operations_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_hub_backup_operations_total",
+                    "Total backup operations",
+                ),
+                &["operation", "status"],
+            )
+            .unwrap(),
         }
     }
 
@@ -295,6 +405,17 @@ impl Metrics {
         registry.register(Box::new(self.gpu_search_latency_seconds.clone()))?;
         registry.register(Box::new(self.gpu_batch_operations_total.clone()))?;
         registry.register(Box::new(self.gpu_batch_latency_seconds.clone()))?;
+
+        // HiveHub metrics
+        registry.register(Box::new(self.hub_quota_checks_total.clone()))?;
+        registry.register(Box::new(self.hub_quota_check_latency_seconds.clone()))?;
+        registry.register(Box::new(self.hub_quota_exceeded_total.clone()))?;
+        registry.register(Box::new(self.hub_quota_usage.clone()))?;
+        registry.register(Box::new(self.hub_api_requests_total.clone()))?;
+        registry.register(Box::new(self.hub_api_latency_seconds.clone()))?;
+        registry.register(Box::new(self.hub_active_tenants.clone()))?;
+        registry.register(Box::new(self.hub_usage_reports_total.clone()))?;
+        registry.register(Box::new(self.hub_backup_operations_total.clone()))?;
 
         Ok(())
     }

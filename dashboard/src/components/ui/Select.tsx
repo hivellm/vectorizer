@@ -27,6 +27,8 @@ interface SelectProps {
   children: React.ReactNode;
   placeholder?: string;
   isDisabled?: boolean;
+  disabled?: boolean;
+  required?: boolean;
   className?: string;
 }
 
@@ -43,13 +45,17 @@ export function Select({
   children,
   placeholder = 'Select...',
   isDisabled = false,
+  disabled = false,
+  required = false,
   className = '',
 }: SelectProps) {
+  const effectiveDisabled = isDisabled || disabled;
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
       {label && (
         <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
           {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
       <AriaSelect
@@ -59,7 +65,7 @@ export function Select({
             onChange(key);
           }
         }}
-        isDisabled={isDisabled}
+        isDisabled={effectiveDisabled}
       >
         <Button
           className={`

@@ -6,6 +6,7 @@
 pub mod api_keys;
 pub mod jwt;
 pub mod middleware;
+pub mod password;
 pub mod persistence;
 pub mod roles;
 
@@ -15,6 +16,10 @@ use std::sync::Arc;
 pub use api_keys::ApiKeyManager;
 pub use jwt::JwtManager;
 pub use middleware::AuthMiddleware;
+pub use password::{
+    PasswordRequirements, PasswordValidationResult, validate_password,
+    validate_password_with_requirements,
+};
 pub use roles::{Permission, Role};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;

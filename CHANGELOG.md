@@ -2,6 +2,132 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.4] - 2025-12-05
+
+### Fixed
+
+- **MMap Storage Deadlock on Insert**: Fixed deadlock issue when inserting vectors into MMap storage
+  - **Root Cause**: `MmapVectorStorage` was using `Arc<RwLock<MmapMut>>` internally, causing nested locks when combined with external locks in `VectorStorageBackend`
+  - **Solution**: Removed internal `Arc<RwLock<>>` wrapper, changed to direct `MmapMut` ownership. Lock management is now handled externally by `VectorStorageBackend` which wraps the storage in its own `RwLock`
+  - **Additional Fix**: Added explicit scope block in `insert_text` REST handler to ensure collection reference is dropped before insert operation, preventing DashMap deadlock
+  - **Impact**: Eliminates deadlocks during concurrent vector insertions in MMap storage
+  - **BENEFIT**: Stable concurrent insert operations without blocking
+
+## [1.8.3] - 2025-12-05
+
+### Added
+
+- **Dashboard Authentication**: Complete authentication system for the dashboard
+  - Login page with username/password form and modern UI
+  - JWT token-based authentication via `/auth/login` endpoint
+  - `AuthContext` and `useAuth()` hook for React state management
+  - `ProtectedRoute` component for automatic route protection
+  - User info display and logout button in header
+  - Session persistence with localStorage
+  - **BENEFIT**: Secure dashboard access with proper authentication
+
+- **HiveHub Cluster Integration**: Multi-tenant cluster mode support
+  - `HubManager` for HiveHub API integration
+  - API key validation and tenant isolation
+  - Tenant-scoped collections with `user_` prefix
+  - Request signing for secure communication
+  - IP whitelist support for trusted sources
+  - Key rotation mechanism for security
+  - Quota enforcement and usage tracking
+  - **BENEFIT**: Production-ready multi-tenant deployment with HiveHub
+
+- **Dashboard UI Improvements**:
+  - Added `required` and `disabled` props to Select component
+  - Fixed `helpText` to `helperText` prop in form components
+  - Cleaned up unused variables in GraphPage
+  - **BENEFIT**: Better form validation and cleaner codebase
+
+### Changed
+
+- **Auth Endpoints**: Authentication now available at `/auth/login`, `/auth/me`, `/auth/keys`
+  - Requires `auth.enabled: true` in config.yml
+  - Default credentials: admin/admin (change in production!)
+  - JWT tokens valid for 1 hour by default
+
+## [1.8.2] - 2025-12-04
+
+### Added
+
+- **Cluster Memory Limits**: Enforce predictable memory usage in cluster mode
+  - `ClusterMemoryConfig` in `ClusterConfig` with memory limit settings
+  - `max_cache_memory_bytes`: Global cache memory limit (default: 1GB)
+  - `enforce_mmap_storage`: Reject Memory storage type in cluster mode (default: true)
+  - `disable_file_watcher`: Auto-disable file watcher in cluster mode (default: true)
+  - `cache_warning_threshold`: Warning when cache usage exceeds threshold (default: 80%)
+  - `strict_validation`: Fail startup on config violations (default: true)
+  - **BENEFIT**: Prevents memory exhaustion in production cluster deployments
+
+- **Cluster Configuration Validator**: Comprehensive validation at startup
+  - `ClusterConfigValidator` validates cluster config before server starts
+  - Checks: node_id required, servers configured, memory limits valid
+  - Validates file watcher is disabled, MMap storage enforced
+  - Clear error messages with error codes for troubleshooting
+  - Warnings for non-critical issues (single server, low cache, etc.)
+  - **BENEFIT**: Fail fast with clear guidance for misconfigured clusters
+
+- **Cache Memory Manager**: Global cache memory tracking for cluster mode
+  - `CacheMemoryManager` tracks cache allocations across all caches
+  - Strict enforcement mode rejects allocations over limit
+  - Warning threshold alerts for proactive monitoring
+  - Statistics: current usage, peak usage, allocations, rejections
+  - Global singleton with `get_global_cache_memory_manager()`
+  - **BENEFIT**: Prevents cache memory exhaustion in multi-tenant clusters
+
+### Changed
+
+- **File Watcher in Cluster Mode**: Auto-disabled when cluster mode is enabled
+  - Cluster config `memory.disable_file_watcher` controls behavior
+  - Warning logged when file watcher would have started but was disabled
+  - **BENEFIT**: Prevents incompatible file watcher in distributed clusters
+
+## [1.8.1] - 2025-12-04
+
+### Fixed
+
+- **Dashboard SPA Routing 404 Bug**: Fixed browser refresh returning 404 on dashboard routes
+  - **Root Cause**: `ServeDir` was not configured with a fallback for SPA routing
+  - **Solution**: Added `.fallback(ServeFile::new("dashboard/dist/index.html"))` to ServeDir
+  - **Impact**: Direct URL access and browser refresh now work on all dashboard routes
+  - **Routes Fixed**: `/dashboard/collections`, `/dashboard/search`, `/dashboard/settings`, etc.
+  - **BENEFIT**: Full SPA navigation support with proper HTTP 200 responses
+
+- **File Watcher Empty Collections Bug**: Fixed automatic creation of empty collections
+  - **Root Cause**: `determine_collection_name()` was generating collection names from file paths when no known pattern matched
+  - **Solution**: Now uses configured `default_collection` (defaults to "workspace-default") instead of creating new collections
+  - **Impact**: Prevents collection list clutter and simplifies collection management
+  - **BENEFIT**: Clean collection management without empty collection proliferation
+
+### Added
+
+- **Dashboard Cache Headers**: Added proper cache headers for dashboard assets
+  - Static assets (`/dashboard/assets/*`): 1 year cache with immutable flag
+  - HTML routes: no-cache for immediate updates on deploy
+  - **BENEFIT**: Faster dashboard loading with proper browser caching
+
+- **Empty Collection Management**: New REST and MCP endpoints for collection cleanup
+  - `GET /collections/empty`: List all empty collections
+  - `DELETE /collections/cleanup`: Delete all empty collections with optional dry-run mode
+  - **MCP Tools**: `list_empty_collections`, `cleanup_empty_collections`, `get_collection_stats`
+  - **Startup Cleanup**: Optional `server.startup_cleanup_empty` config to cleanup on startup
+  - **BENEFIT**: Easy cleanup of existing empty collections and maintenance automation
+
+- **Collection Mapping Config**: Added `collection_mapping` field to FileWatcherConfig
+  - Allows custom path-to-collection mappings via configuration
+  - Extensibility for future workspace-based collection routing
+  - **BENEFIT**: More flexible collection organization
+
+### Changed
+
+- **Default Collection Behavior**: File watcher now uses default collection for unmatched paths
+  - Prevents automatic creation of `libsodium-regen-msvc`, `Benchmark-src`, etc.
+  - Existing known patterns (docs/, vectorizer/, gov/) continue to work
+  - **BENEFIT**: Predictable collection naming and no surprise collections
+
 ## [1.8.0] - 2025-12-03
 
 ### Changed

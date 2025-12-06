@@ -478,12 +478,86 @@ let result = QdrantDataImporter::import_collection(&store, &exported).await?;
 
 See [Qdrant Migration Guide](./docs/specs/QDRANT_MIGRATION.md) for detailed instructions.
 
+## ☁️ HiveHub Cloud Integration
+
+Vectorizer supports multi-tenant cluster mode integration with [HiveHub.Cloud](https://hivehub.cloud) for managed deployment:
+
+### Features
+
+- **Multi-Tenant Isolation**: Each user's collections are isolated with owner-based filtering
+- **Quota Management**: Collection count, vector count, and storage quotas enforced per tenant
+- **Usage Tracking**: Automatic tracking and reporting of resource usage
+- **User-Scoped Backups**: Create, download, and restore backups per user
+
+### Configuration
+
+Enable HiveHub integration in `config.yml`:
+
+```yaml
+hub:
+  enabled: true
+  api_url: "https://api.hivehub.cloud"
+  tenant_isolation: "collection"
+  usage_report_interval: 300
+```
+
+Set the service API key:
+
+```bash
+export HIVEHUB_SERVICE_API_KEY="your-service-api-key"
+```
+
+### Internal Request Headers
+
+For internal HiveHub requests:
+
+```bash
+# Bypass authentication
+curl -H "x-hivehub-service: true" \
+     http://localhost:15002/api/collections
+
+# With user context (tenant scoping)
+curl -H "x-hivehub-service: true" \
+     -H "x-hivehub-user-id: <user-uuid>" \
+     http://localhost:15002/api/collections
+```
+
+See [HiveHub Integration Guide](./docs/HUB_INTEGRATION.md) for detailed documentation.
+
+### Cluster Mode Requirements
+
+When running Vectorizer in cluster mode, the following requirements are enforced:
+
+| Requirement | Description | Default |
+|-------------|-------------|---------|
+| **MMap Storage** | Memory storage is not allowed; MMap is required | Enforced |
+| **Cache Limit** | Maximum cache memory across all caches | 1GB |
+| **File Watcher** | Automatically disabled in cluster mode | Disabled |
+| **Strict Validation** | Server fails to start on config violations | Enabled |
+
+Example cluster configuration:
+
+```yaml
+cluster:
+  enabled: true
+  node_id: "node-1"
+  memory:
+    max_cache_memory_bytes: 1073741824  # 1GB
+    enforce_mmap_storage: true
+    disable_file_watcher: true
+    strict_validation: true
+```
+
+See [Cluster Memory Limits](./docs/specs/CLUSTER_MEMORY.md) for detailed configuration and troubleshooting.
+
 ## 📚 Documentation
 
 - **[User Documentation](./docs/users/)** - Installation guides and user tutorials
 - **[API Reference](./docs/specs/API_REFERENCE.md)** - Complete REST API documentation
 - **[Dashboard Integration](./docs/DASHBOARD_INTEGRATION.md)** - Web dashboard setup and integration guide
 - **[Qdrant Compatibility](./docs/users/qdrant/)** - Qdrant API compatibility and migration guide
+- **[HiveHub Integration](./docs/HUB_INTEGRATION.md)** - Multi-tenant cluster mode with HiveHub.Cloud
+- **[Cluster Memory Limits](./docs/specs/CLUSTER_MEMORY.md)** - Cluster mode memory management and validation
 - **[Technical Specifications](./docs/specs/)** - Architecture, performance, and implementation guides
 - **[MCP Integration](./docs/specs/MCP.md)** - Model Context Protocol guide
 

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::AuthConfig;
 use crate::config::FileWatcherYamlConfig;
+use crate::hub::HubConfig;
 use crate::storage::StorageConfig;
 use crate::summarization::SummarizationConfig;
 
@@ -22,6 +23,7 @@ pub struct VectorizerConfig {
     #[serde(default)]
     pub gpu: GpuConfig,
     /// Summarization configuration
+    #[serde(default)]
     pub summarization: SummarizationConfig,
     /// Transmutation configuration
     #[serde(default)]
@@ -30,6 +32,7 @@ pub struct VectorizerConfig {
     #[serde(default)]
     pub storage: StorageConfig,
     /// Projects configuration
+    #[serde(default)]
     pub projects: Vec<ProjectConfig>,
     /// Cluster configuration (for distributed sharding)
     #[serde(default)]
@@ -37,6 +40,9 @@ pub struct VectorizerConfig {
     /// Authentication configuration
     #[serde(default)]
     pub auth: AuthConfig,
+    /// HiveHub Cloud integration configuration
+    #[serde(default)]
+    pub hub: HubConfig,
 }
 
 /// Server configuration
@@ -48,6 +54,9 @@ pub struct ServerConfig {
     pub port: u16,
     /// MCP port
     pub mcp_port: u16,
+    /// Cleanup empty collections on startup
+    #[serde(default)]
+    pub startup_cleanup_empty: bool,
 }
 
 impl Default for ServerConfig {
@@ -56,6 +65,7 @@ impl Default for ServerConfig {
             host: "0.0.0.0".to_string(),
             port: 15002,
             mcp_port: 15003,
+            startup_cleanup_empty: false,
         }
     }
 }
@@ -217,6 +227,7 @@ impl Default for VectorizerConfig {
             storage: StorageConfig::default(),
             projects: Vec::new(),
             auth: AuthConfig::default(),
+            hub: HubConfig::default(),
         }
     }
 }

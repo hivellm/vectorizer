@@ -1174,5 +1174,74 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             meta: None,
         },
 
+        // =============================================
+        // Collection Maintenance Tools (3 tools)
+        // =============================================
+
+        // List Empty Collections
+        Tool {
+            name: Cow::Borrowed("list_empty_collections"),
+            title: Some("List Empty Collections".to_string()),
+            description: Some(Cow::Borrowed(
+                "List all collections that have zero vectors. Useful for identifying collections that can be cleaned up."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
+        },
+
+        // Cleanup Empty Collections
+        Tool {
+            name: Cow::Borrowed("cleanup_empty_collections"),
+            title: Some("Cleanup Empty Collections".to_string()),
+            description: Some(Cow::Borrowed(
+                "Delete all empty collections (collections with zero vectors). Use dry_run=true to preview what would be deleted without actually deleting."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, only shows what would be deleted without actually deleting. Default: false",
+                        "default": false
+                    }
+                },
+                "required": []
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(false)),
+            meta: None,
+        },
+
+        // Get Collection Stats
+        Tool {
+            name: Cow::Borrowed("get_collection_stats"),
+            title: Some("Get Collection Statistics".to_string()),
+            description: Some(Cow::Borrowed(
+                "Get detailed statistics for a collection including vector count, dimension, and whether it's empty."
+            )),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    }
+                },
+                "required": ["collection"]
+            }).as_object().unwrap().clone().into(),
+            output_schema: None,
+            icons: None,
+            annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
+            meta: None,
+        },
+
     ]
 }

@@ -2,16 +2,26 @@
 
 use std::collections::HashMap;
 
+use axum::Extension;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, error, info};
+use uuid::Uuid;
 
 use super::VectorizerServer;
 use super::error_middleware::{ErrorResponse, create_error_response, create_not_found_error};
 use crate::error::VectorizerError;
+use crate::hub::middleware::RequestTenantContext;
 use crate::models::qdrant::point::{QdrantPointId, QdrantValue, QdrantVector};
+
+/// Extract tenant ID as UUID from request extensions (if present)
+fn extract_tenant_id(tenant_ctx: &Option<Extension<RequestTenantContext>>) -> Option<Uuid> {
+    tenant_ctx
+        .as_ref()
+        .and_then(|ctx| Uuid::parse_str(&ctx.0.0.tenant_id).ok())
+}
 use crate::models::qdrant::{
     FilterProcessor, QdrantBatchRecommendRequest, QdrantBatchRecommendResponse,
     QdrantBatchSearchRequest, QdrantBatchSearchResponse, QdrantDistancePair, QdrantGroupsResult,
@@ -54,6 +64,7 @@ fn json_value_to_qdrant_value(value: serde_json::Value) -> QdrantValue {
 pub async fn search_points(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(request): Json<QdrantSearchRequest>,
 ) -> Result<Json<QdrantSearchResponse>, ErrorResponse> {
     info!(
@@ -63,11 +74,14 @@ pub async fn search_points(
         "Searching points in collection"
     );
 
-    // Get collection from store
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get collection from store with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
-        .map_err(|e| create_not_found_error("collection", &collection_name))?;
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
+        .map_err(|_e| create_not_found_error("collection", &collection_name))?;
 
     // Validate vector dimension
     let expected_dim = collection.config().dimension;
@@ -171,6 +185,7 @@ pub async fn search_points(
 pub async fn recommend_points(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(request): Json<QdrantRecommendRequest>,
 ) -> Result<Json<QdrantRecommendResponse>, ErrorResponse> {
     info!(
@@ -180,11 +195,14 @@ pub async fn recommend_points(
         "Recommending points in collection"
     );
 
-    // Get collection from store
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get collection from store with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
-        .map_err(|e| create_not_found_error("collection", &collection_name))?;
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
+        .map_err(|_e| create_not_found_error("collection", &collection_name))?;
 
     // Convert point IDs to strings for retrieval
     let positive_ids: Vec<String> = request
@@ -339,6 +357,7 @@ pub async fn recommend_points(
 pub async fn batch_search_points(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(request): Json<QdrantBatchSearchRequest>,
 ) -> Result<Json<QdrantBatchSearchResponse>, ErrorResponse> {
     info!(
@@ -347,11 +366,14 @@ pub async fn batch_search_points(
         "Batch searching points in collection"
     );
 
-    // Get collection from store
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get collection from store with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
-        .map_err(|e| create_not_found_error("collection", &collection_name))?;
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
+        .map_err(|_e| create_not_found_error("collection", &collection_name))?;
 
     let expected_dim = collection.config().dimension;
 
@@ -465,6 +487,7 @@ pub async fn batch_search_points(
 pub async fn batch_recommend_points(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(request): Json<QdrantBatchRecommendRequest>,
 ) -> Result<Json<QdrantBatchRecommendResponse>, ErrorResponse> {
     info!(
@@ -473,11 +496,14 @@ pub async fn batch_recommend_points(
         "Batch recommending points in collection"
     );
 
-    // Get collection from store
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get collection from store with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
-        .map_err(|e| create_not_found_error("collection", &collection_name))?;
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
+        .map_err(|_e| create_not_found_error("collection", &collection_name))?;
 
     // Process each recommend request in the batch
     let mut results = Vec::new();
@@ -647,6 +673,7 @@ pub async fn batch_recommend_points(
 pub async fn search_points_groups(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(request): Json<QdrantSearchGroupsRequest>,
 ) -> Result<Json<QdrantSearchGroupsResponse>, ErrorResponse> {
     info!(
@@ -658,10 +685,13 @@ pub async fn search_points_groups(
         "Searching points with grouping"
     );
 
-    // Get collection from store
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get collection from store with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|_e| create_not_found_error("collection", &collection_name))?;
 
     // Validate vector dimension
@@ -820,6 +850,7 @@ pub async fn search_points_groups(
 pub async fn search_matrix_pairs(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(request): Json<QdrantSearchMatrixPairsRequest>,
 ) -> Result<Json<QdrantSearchMatrixPairsResponse>, ErrorResponse> {
     let sample_size = request.sample.unwrap_or(10) as usize;
@@ -832,10 +863,13 @@ pub async fn search_matrix_pairs(
         "Computing search matrix pairs"
     );
 
-    // Get collection from store
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get collection from store with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|_e| create_not_found_error("collection", &collection_name))?;
 
     // Get all vectors from collection
@@ -917,6 +951,7 @@ pub async fn search_matrix_pairs(
 pub async fn search_matrix_offsets(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(request): Json<QdrantSearchMatrixOffsetsRequest>,
 ) -> Result<Json<QdrantSearchMatrixOffsetsResponse>, ErrorResponse> {
     let sample_size = request.sample.unwrap_or(10) as usize;
@@ -929,10 +964,13 @@ pub async fn search_matrix_offsets(
         "Computing search matrix offsets"
     );
 
-    // Get collection from store
+    // Extract tenant ID for multi-tenant access control
+    let tenant_id = extract_tenant_id(&tenant_ctx);
+
+    // Get collection from store with owner validation
     let collection = state
         .store
-        .get_collection(&collection_name)
+        .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|_e| create_not_found_error("collection", &collection_name))?;
 
     // Get all vectors from collection

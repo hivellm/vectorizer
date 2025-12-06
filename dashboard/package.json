@@ -30,6 +30,7 @@
     "@visx/visx": "^3.12.0",
     "@visx/xychart": "^3.12.0",
     "clsx": "^2.1.1",
+    "js-yaml": "^4.1.0",
     "monaco-editor": "^0.45.0",
     "react": "^18.3.1",
     "react-aria-components": "^1.4.0",
@@ -38,13 +39,13 @@
     "react-router-dom": "^6.28.0",
     "tailwind-merge": "^2.5.0",
     "tailwindcss-animate": "^1.0.7",
-    "js-yaml": "^4.1.0",
     "vis-data": "^8.0.3",
     "vis-network": "^10.0.2",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/vite": "^4.1.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

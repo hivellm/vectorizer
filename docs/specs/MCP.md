@@ -32,7 +32,7 @@ Vectorizer implements a comprehensive MCP (Model Context Protocol) server that e
 
 **🛠️ Comprehensive Tool Set**
 - **Search Tools**: search_vectors, intelligent_search, semantic_search, contextual_search, multi_collection_search
-- **Collection Management**: list_collections, get_collection_info, create_collection, delete_collection
+- **Collection Management**: list_collections, get_collection_info, create_collection, delete_collection, list_empty_collections, cleanup_empty_collections, get_collection_stats
 - **Vector Operations**: insert_texts, delete_vectors, update_vector, get_vector, embed_text
 - **Batch Operations**: batch_insert_texts, batch_search_vectors, batch_update_vectors, batch_delete_vectors
 - **System Info**: get_database_stats, health_check
@@ -244,6 +244,114 @@ Removes an entire collection and all its data.
 ```json
 {
   "name": "string"           // Required
+}
+```
+
+#### list_empty_collections
+
+Lists all collections that contain no vectors. Useful for identifying collections that can be safely cleaned up.
+
+**Parameters**: None
+
+**Response**:
+```json
+{
+  "empty_collections": [
+    "collection-name-1",
+    "collection-name-2"
+  ],
+  "count": 2
+}
+```
+
+**Example**:
+```javascript
+const result = await mcpClient.call_tool("list_empty_collections", {});
+console.log(`Found ${result.count} empty collections`);
+```
+
+#### cleanup_empty_collections
+
+Removes all empty collections from the database. Supports dry-run mode to preview what would be deleted without actually deleting.
+
+**Parameters**:
+```json
+{
+  "dry_run": "boolean"       // Optional, default: false
+}
+```
+
+**Response**:
+```json
+{
+  "deleted_collections": [
+    "empty-collection-1",
+    "empty-collection-2"
+  ],
+  "count": 2,
+  "dry_run": false
+}
+```
+
+**Example**:
+```javascript
+// Preview what would be deleted
+const preview = await mcpClient.call_tool("cleanup_empty_collections", {
+  dry_run: true
+});
+console.log(`Would delete ${preview.count} collections:`, preview.deleted_collections);
+
+// Actually delete empty collections
+const result = await mcpClient.call_tool("cleanup_empty_collections", {
+  dry_run: false
+});
+console.log(`Deleted ${result.count} empty collections`);
+```
+
+**Use Cases**:
+- Clean up automatically created empty collections
+- Maintain database hygiene
+- Free up resources
+- Simplify collection management UI
+
+#### get_collection_stats
+
+Retrieves comprehensive statistics about a specific collection, including vector count, memory usage, and configuration.
+
+**Parameters**:
+```json
+{
+  "collection": "string"     // Required
+}
+```
+
+**Response**:
+```json
+{
+  "name": "docs-architecture",
+  "vector_count": 1250,
+  "dimension": 384,
+  "metric": "cosine",
+  "memory_bytes": 1920000,
+  "is_empty": false,
+  "config": {
+    "dimension": 384,
+    "metric": "cosine"
+  }
+}
+```
+
+**Example**:
+```javascript
+const stats = await mcpClient.call_tool("get_collection_stats", {
+  collection: "docs-architecture"
+});
+
+if (stats.is_empty) {
+  console.log(`Collection ${stats.name} is empty and can be deleted`);
+} else {
+  console.log(`Collection ${stats.name} has ${stats.vector_count} vectors`);
+  console.log(`Memory usage: ${(stats.memory_bytes / 1024 / 1024).toFixed(2)} MB`);
 }
 ```
 

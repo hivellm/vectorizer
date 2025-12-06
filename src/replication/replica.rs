@@ -240,9 +240,16 @@ impl ReplicaNode {
     }
 
     /// Apply a vector operation
+    ///
+    /// For multi-tenant mode (HiveHub integration), the owner_id is preserved
+    /// during replication to maintain tenant ownership on replica nodes.
     async fn apply_operation(&self, operation: &VectorOperation) -> ReplicationResult<()> {
         match operation {
-            VectorOperation::CreateCollection { name, config } => {
+            VectorOperation::CreateCollection {
+                name,
+                config,
+                owner_id,
+            } => {
                 let collection_config = crate::models::CollectionConfig {
                     dimension: config.dimension,
                     metric: parse_distance_metric(&config.metric),
@@ -255,13 +262,29 @@ impl ReplicaNode {
                     graph: None,
                 };
 
-                self.vector_store
-                    .create_collection(name, collection_config)
-                    .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
-
-                debug!("Created collection: {}", name);
+                // In multi-tenant mode, we use create_collection_with_owner if owner_id is present
+                if let Some(owner) = owner_id {
+                    if let Ok(uuid) = uuid::Uuid::parse_str(owner) {
+                        self.vector_store
+                            .create_collection_with_owner(name, collection_config, uuid)
+                            .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                        debug!("Created collection: {} with owner: {}", name, owner);
+                    } else {
+                        // Fallback to regular creation if UUID is invalid
+                        self.vector_store
+                            .create_collection(name, collection_config)
+                            .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                        debug!("Created collection: {} (invalid owner_id: {})", name, owner);
+                    }
+                } else {
+                    self.vector_store
+                        .create_collection(name, collection_config)
+                        .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                    debug!("Created collection: {}", name);
+                }
             }
-            VectorOperation::DeleteCollection { name } => {
+            VectorOperation::DeleteCollection { name, owner_id: _ } => {
+                // owner_id is used for audit/logging, actual deletion uses collection name
                 self.vector_store
                     .delete_collection(name)
                     .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
@@ -273,7 +296,10 @@ impl ReplicaNode {
                 id,
                 vector,
                 payload,
+                owner_id: _,
             } => {
+                // owner_id is preserved in the operation for audit purposes
+                // The collection already has the owner association
                 let payload_obj = payload.as_ref().map(|p| crate::models::Payload {
                     data: serde_json::from_slice(p).unwrap_or_default(),
                 });
@@ -296,8 +322,10 @@ impl ReplicaNode {
                 id,
                 vector,
                 payload,
+                owner_id: _,
             } => {
                 // For update, we use upsert semantics
+                // owner_id is preserved for audit purposes
                 let payload_obj = payload.as_ref().map(|p| crate::models::Payload {
                     data: serde_json::from_slice(p).unwrap_or_default(),
                 });
@@ -317,7 +345,12 @@ impl ReplicaNode {
 
                 debug!("Updated vector {} in collection {}", id, collection);
             }
-            VectorOperation::DeleteVector { collection, id } => {
+            VectorOperation::DeleteVector {
+                collection,
+                id,
+                owner_id: _,
+            } => {
+                // owner_id is preserved for audit purposes
                 info!(
                     "Replica applying delete operation: {} from {}",
                     id, collection

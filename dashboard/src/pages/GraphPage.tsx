@@ -50,7 +50,7 @@ function GraphPage() {
     getNeighbors,
     findRelated,
     findPath,
-    getDiscoveryStatus,
+    // getDiscoveryStatus, // TODO: Use for discovery status indicator
   } = useGraph();
   const { listCollections } = useCollections();
   const toast = useToastContext();
@@ -76,7 +76,8 @@ function GraphPage() {
   // Neighbors and related nodes
   const [neighbors, setNeighbors] = useState<NeighborInfo[]>([]);
   const [relatedNodes, setRelatedNodes] = useState<RelatedNodeInfo[]>([]);
-  const [pathNodes, setPathNodes] = useState<GraphNode[]>([]);
+  // pathNodes is used to store path results for later visualization
+  const [, setPathNodes] = useState<GraphNode[]>([]);
 
   const networkRef = useRef<HTMLDivElement>(null);
   const networkInstanceRef = useRef<Network | null>(null);
@@ -531,29 +532,6 @@ function GraphPage() {
         setLoading(false);
       });
   }, [selectedCollection, listNodes, listEdges, toast]);
-
-  // Handle discover edges
-  const handleDiscoverEdges = useCallback(async () => {
-    if (!selectedCollection) return;
-
-    setLoading(true);
-    try {
-      const response = await discoverEdges(selectedCollection, {
-        similarity_threshold: 0.7,
-        max_per_node: 10,
-      });
-
-      toast.success(`Discovery completed: ${response.edges_created} edges created`);
-
-      // Clear cache and refresh graph data after discovery
-      graphCache.delete(selectedCollection);
-      await handleRefresh();
-    } catch (error) {
-      console.error('[GraphPage] Error discovering edges:', error);
-      toast.error(`Failed to discover edges: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setLoading(false);
-    }
-  }, [selectedCollection, discoverEdges, handleRefresh, toast]);
 
   // Handle create edge
   const handleCreateEdge = useCallback(

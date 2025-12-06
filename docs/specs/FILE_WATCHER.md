@@ -131,6 +131,56 @@ file_watcher:
 
 ---
 
+## Cluster Mode Behavior
+
+**Important**: The file watcher is **automatically disabled** when running in cluster mode.
+
+### Why File Watcher is Disabled in Cluster Mode
+
+When `cluster.enabled: true`, the file watcher is incompatible for several reasons:
+
+1. **Distributed Nature**: Each cluster node would independently watch the same files, causing duplicate processing and race conditions
+2. **Memory Predictability**: File watcher can cause unpredictable memory spikes when large batches of files change
+3. **State Consistency**: File changes should be propagated through the cluster's replication mechanism, not local file watching
+
+### Configuration
+
+```yaml
+cluster:
+  enabled: true
+  memory:
+    # Controls file watcher behavior in cluster mode (default: true)
+    disable_file_watcher: true
+```
+
+When `cluster.memory.disable_file_watcher: true` (default):
+- File watcher is automatically disabled at server startup
+- A warning is logged if file watcher was enabled in the config
+- The server continues starting without the file watcher
+
+### Workaround for Testing
+
+If you need file watching in a cluster environment for testing:
+
+```yaml
+cluster:
+  enabled: true
+  memory:
+    disable_file_watcher: false  # Not recommended for production
+```
+
+**Warning**: This is not recommended for production clusters as it can cause inconsistent state across nodes.
+
+### Alternative Approaches
+
+For cluster deployments that need file-based updates:
+
+1. **External Ingestion Service**: Use a dedicated service to watch files and push updates via the REST API
+2. **Batch Processing**: Use scheduled batch jobs to scan and update files
+3. **Event-Driven**: Integrate with message queues (Kafka, RabbitMQ) for file change events
+
+---
+
 ## Troubleshooting
 
 **High CPU Usage**:

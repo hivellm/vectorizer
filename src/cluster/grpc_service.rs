@@ -456,4 +456,83 @@ impl ClusterServiceTrait for ClusterGrpcService {
 
         Ok(Response::new(response))
     }
+
+    /// Check quota across cluster
+    ///
+    /// This allows distributed quota checking by aggregating usage from all nodes.
+    async fn check_quota(
+        &self,
+        request: Request<CheckQuotaRequest>,
+    ) -> Result<Response<CheckQuotaResponse>, Status> {
+        let req = request.into_inner();
+
+        let tenant = req.tenant.as_ref().ok_or_else(|| {
+            Status::invalid_argument("Tenant context is required for quota check")
+        })?;
+
+        debug!(
+            "gRPC: CheckQuota request for tenant '{}', type {:?}",
+            tenant.tenant_id, req.quota_type
+        );
+
+        // Get local usage for this tenant
+        let (current_usage, limit) = match req.quota_type() {
+            QuotaType::QuotaCollections => {
+                // Count collections owned by this tenant
+                let tenant_id = uuid::Uuid::parse_str(&tenant.tenant_id)
+                    .map_err(|e| Status::invalid_argument(format!("Invalid tenant ID: {}", e)))?;
+                let collections = self.store.list_collections_for_owner(&tenant_id);
+                (collections.len() as u64, 100u64) // Default limit, should come from HiveHub
+            }
+            QuotaType::QuotaVectors => {
+                // Count vectors in tenant's collections
+                let tenant_id = uuid::Uuid::parse_str(&tenant.tenant_id)
+                    .map_err(|e| Status::invalid_argument(format!("Invalid tenant ID: {}", e)))?;
+                let collections = self.store.list_collections_for_owner(&tenant_id);
+                let mut total_vectors = 0u64;
+                for name in collections {
+                    if let Ok(collection) = self.store.get_collection(&name) {
+                        total_vectors += collection.vector_count() as u64;
+                    }
+                }
+                (total_vectors, 1_000_000u64) // Default limit
+            }
+            QuotaType::QuotaStorage => {
+                // Estimate storage usage for tenant's collections
+                let tenant_id = uuid::Uuid::parse_str(&tenant.tenant_id)
+                    .map_err(|e| Status::invalid_argument(format!("Invalid tenant ID: {}", e)))?;
+                let collections = self.store.list_collections_for_owner(&tenant_id);
+                let mut total_storage = 0u64;
+                for name in collections {
+                    if let Ok(collection) = self.store.get_collection(&name) {
+                        // Rough estimate: vectors * dimension * 4 bytes per float
+                        let config = collection.config();
+                        total_storage +=
+                            collection.vector_count() as u64 * config.dimension as u64 * 4;
+                    }
+                }
+                (total_storage, 10_737_418_240u64) // 10GB default limit
+            }
+        };
+
+        let remaining = limit.saturating_sub(current_usage);
+        let allowed = current_usage + req.requested_amount <= limit;
+
+        let response = CheckQuotaResponse {
+            allowed,
+            current_usage,
+            limit,
+            remaining,
+            message: if allowed {
+                "Quota check passed".to_string()
+            } else {
+                format!(
+                    "Quota exceeded: current={}, requested={}, limit={}",
+                    current_usage, req.requested_amount, limit
+                )
+            },
+        };
+
+        Ok(Response::new(response))
+    }
 }

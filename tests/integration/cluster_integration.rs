@@ -24,6 +24,7 @@ fn create_test_cluster_config() -> ClusterConfig {
         discovery: DiscoveryMethod::Static,
         timeout_ms: 5000,
         retry_count: 3,
+        memory: Default::default(),
     }
 }
 

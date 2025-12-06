@@ -1,4 +1,8 @@
 //! Distributed shard router for routing shards across cluster nodes
+//!
+//! Supports tenant-aware routing for multi-tenant cluster mode.
+//! When a tenant_id is provided, the routing includes the tenant in the hash
+//! to ensure consistent shard assignment per tenant.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
@@ -291,6 +295,125 @@ impl DistributedShardRouter {
         use std::collections::hash_map::DefaultHasher;
         let mut hasher = DefaultHasher::new();
         vector_id.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    // ============================================
+    // Tenant-aware routing methods for multi-tenant cluster mode
+    // ============================================
+
+    /// Get the shard for a vector ID within a tenant's scope
+    ///
+    /// The tenant_id is included in the hash calculation to ensure
+    /// vectors from different tenants are distributed independently,
+    /// even if they have the same vector_id.
+    pub fn get_shard_for_tenant_vector(&self, tenant_id: &str, vector_id: &str) -> ShardId {
+        let hash = Self::hash_tenant_vector(tenant_id, vector_id);
+        let ring = self.ring.read();
+
+        // Find the first shard with hash >= computed hash (circular)
+        match ring.range(hash..).next() {
+            Some((_, (shard_id, _))) => *shard_id,
+            None => {
+                // Wrap around to the beginning of the ring
+                ring.iter()
+                    .next()
+                    .map(|(_, (shard_id, _))| *shard_id)
+                    .unwrap_or_else(|| ShardId::new(0))
+            }
+        }
+    }
+
+    /// Get the node ID for a vector within a tenant's scope
+    ///
+    /// Routes the vector to a node considering both tenant_id and vector_id.
+    pub fn get_node_for_tenant_vector(&self, tenant_id: &str, vector_id: &str) -> Option<NodeId> {
+        let shard_id = self.get_shard_for_tenant_vector(tenant_id, vector_id);
+        self.get_node_for_shard(&shard_id)
+    }
+
+    /// Get a consistent shard for a tenant (for tenant-level operations)
+    ///
+    /// This is useful for operations that need to be routed to a specific
+    /// shard based on tenant_id alone, such as tenant metadata or quota checks.
+    pub fn get_shard_for_tenant(&self, tenant_id: &str) -> ShardId {
+        let hash = Self::hash_tenant_id(tenant_id);
+        let ring = self.ring.read();
+
+        match ring.range(hash..).next() {
+            Some((_, (shard_id, _))) => *shard_id,
+            None => ring
+                .iter()
+                .next()
+                .map(|(_, (shard_id, _))| *shard_id)
+                .unwrap_or_else(|| ShardId::new(0)),
+        }
+    }
+
+    /// Get the node responsible for a tenant's operations
+    pub fn get_node_for_tenant(&self, tenant_id: &str) -> Option<NodeId> {
+        let shard_id = self.get_shard_for_tenant(tenant_id);
+        self.get_node_for_shard(&shard_id)
+    }
+
+    /// Get all shards that should handle a tenant's data
+    ///
+    /// In multi-tenant mode, we may want to spread a tenant's data
+    /// across multiple shards for better parallelism. This returns
+    /// a deterministic set of shards for a given tenant.
+    pub fn get_shards_for_tenant(&self, tenant_id: &str, num_shards: usize) -> Vec<ShardId> {
+        let mut shards = Vec::with_capacity(num_shards);
+        let ring = self.ring.read();
+
+        if ring.is_empty() {
+            return shards;
+        }
+
+        // Generate multiple hashes for the tenant to get multiple shards
+        for i in 0..num_shards {
+            let hash = Self::hash_tenant_shard(tenant_id, i);
+
+            let shard_id = match ring.range(hash..).next() {
+                Some((_, (shard_id, _))) => *shard_id,
+                None => ring
+                    .iter()
+                    .next()
+                    .map(|(_, (shard_id, _))| *shard_id)
+                    .unwrap_or_else(|| ShardId::new(0)),
+            };
+
+            // Avoid duplicates
+            if !shards.contains(&shard_id) {
+                shards.push(shard_id);
+            }
+        }
+
+        shards
+    }
+
+    /// Hash a tenant ID with a vector ID for tenant-scoped routing
+    fn hash_tenant_vector(tenant_id: &str, vector_id: &str) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        let mut hasher = DefaultHasher::new();
+        tenant_id.hash(&mut hasher);
+        vector_id.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    /// Hash a tenant ID alone
+    fn hash_tenant_id(tenant_id: &str) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        let mut hasher = DefaultHasher::new();
+        tenant_id.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    /// Hash a tenant ID with a shard index for multi-shard tenant distribution
+    fn hash_tenant_shard(tenant_id: &str, shard_index: usize) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        let mut hasher = DefaultHasher::new();
+        tenant_id.hash(&mut hasher);
+        shard_index.hash(&mut hasher);
         hasher.finish()
     }
 }

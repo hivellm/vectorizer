@@ -141,3 +141,6 @@ logs/
 target/
 temp/
 tmp/
+
+# Claude AI settings (local only, should not be in git)
+.claude/

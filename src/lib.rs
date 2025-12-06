@@ -25,6 +25,7 @@ pub mod file_watcher;
 #[cfg(feature = "hive-gpu")]
 pub mod gpu_adapter;
 pub mod grpc;
+pub mod hub;
 pub mod hybrid_search;
 pub mod intelligent_search;
 pub mod logging;

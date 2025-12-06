@@ -139,6 +139,7 @@ mod tests {
                 dimension: 128,
                 metric: "cosine".to_string(),
             },
+            owner_id: None,
         });
 
         assert_eq!(offset1, 1);
@@ -158,6 +159,7 @@ mod tests {
                     dimension: 128,
                     metric: "cosine".to_string(),
                 },
+                owner_id: None,
             });
         }
 
@@ -185,6 +187,7 @@ mod tests {
                     dimension: 128,
                     metric: "cosine".to_string(),
                 },
+                owner_id: None,
             });
         }
 
@@ -207,6 +210,7 @@ mod tests {
                     dimension: 128,
                     metric: "cosine".to_string(),
                 },
+                owner_id: None,
             });
         }
 
@@ -225,6 +229,7 @@ mod tests {
                 id: format!("vec_{}", i),
                 vector: vec![i as f32; 64],
                 payload: None,
+                owner_id: None,
             });
         }
 
@@ -250,6 +255,7 @@ mod tests {
                 dimension: 128,
                 metric: "cosine".to_string(),
             },
+            owner_id: None,
         });
 
         // InsertVector with payload
@@ -258,6 +264,7 @@ mod tests {
             id: "vec1".to_string(),
             vector: vec![1.0; 128],
             payload: Some(b"payload".to_vec()),
+            owner_id: Some("tenant-123".to_string()),
         });
 
         // InsertVector without payload
@@ -266,6 +273,7 @@ mod tests {
             id: "vec2".to_string(),
             vector: vec![2.0; 128],
             payload: None,
+            owner_id: None,
         });
 
         // UpdateVector with vector
@@ -274,6 +282,7 @@ mod tests {
             id: "vec1".to_string(),
             vector: Some(vec![3.0; 128]),
             payload: None,
+            owner_id: None,
         });
 
         // UpdateVector with payload only
@@ -282,17 +291,20 @@ mod tests {
             id: "vec1".to_string(),
             vector: None,
             payload: Some(b"new_payload".to_vec()),
+            owner_id: None,
         });
 
         // DeleteVector
         log.append(VectorOperation::DeleteVector {
             collection: "test".to_string(),
             id: "vec2".to_string(),
+            owner_id: None,
         });
 
         // DeleteCollection
         log.append(VectorOperation::DeleteCollection {
             name: "test".to_string(),
+            owner_id: None,
         });
 
         assert_eq!(log.size(), 7);
@@ -316,6 +328,7 @@ mod tests {
                     dimension: 128,
                     metric: "cosine".to_string(),
                 },
+                owner_id: None,
             });
         }
 
@@ -334,6 +347,7 @@ mod tests {
                 dimension: 128,
                 metric: "cosine".to_string(),
             },
+            owner_id: None,
         });
 
         assert_eq!(log.size(), 5); // Still 5

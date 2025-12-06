@@ -137,6 +137,11 @@ pub async fn handle_mcp_tool(
         "graph_discover_edges" => handle_graph_discover_edges(request, store).await,
         "graph_discover_status" => handle_graph_discover_status(request, store).await,
 
+        // Collection Maintenance
+        "list_empty_collections" => handle_list_empty_collections(store).await,
+        "cleanup_empty_collections" => handle_cleanup_empty_collections(request, store).await,
+        "get_collection_stats" => handle_get_collection_stats(request, store).await,
+
         // Cluster Operations
         "cluster_list_nodes" => handle_cluster_list_nodes(store, cluster_manager).await,
         "cluster_get_shard_distribution" => {
@@ -1315,6 +1320,97 @@ async fn handle_cluster_get_node_info(
         "grpc_port": node.grpc_port,
         "status": format!("{:?}", node.status),
         "shards": node.shards.iter().map(|s| s.as_u32()).collect::<Vec<_>>(),
+    });
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response.to_string(),
+    )]))
+}
+
+// =============================================
+// Collection Maintenance Handlers
+// =============================================
+
+async fn handle_list_empty_collections(
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let empty_collections = store.list_empty_collections();
+
+    let response = json!({
+        "status": "success",
+        "empty_collections": empty_collections,
+        "count": empty_collections.len()
+    });
+
+    Ok(CallToolResult::success(vec![Content::text(
+        response.to_string(),
+    )]))
+}
+
+async fn handle_cleanup_empty_collections(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request.arguments.as_ref();
+
+    let dry_run = args
+        .and_then(|a| a.get("dry_run"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    match store.cleanup_empty_collections(dry_run) {
+        Ok(deleted_count) => {
+            let message = if dry_run {
+                format!("Would delete {} empty collections", deleted_count)
+            } else {
+                format!("Successfully deleted {} empty collections", deleted_count)
+            };
+
+            let response = json!({
+                "status": "success",
+                "dry_run": dry_run,
+                "deleted_count": deleted_count,
+                "message": message
+            });
+
+            Ok(CallToolResult::success(vec![Content::text(
+                response.to_string(),
+            )]))
+        }
+        Err(e) => Err(ErrorData::internal_error(
+            format!("Failed to cleanup empty collections: {}", e),
+            None,
+        )),
+    }
+}
+
+async fn handle_get_collection_stats(
+    request: CallToolRequestParam,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let collection = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection name", None))?;
+
+    // Get collection to check if it exists
+    let collection_ref = store
+        .get_collection(collection)
+        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+
+    let vector_count = collection_ref.vector_count();
+    let is_empty = vector_count == 0;
+
+    let response = json!({
+        "status": "success",
+        "collection": collection,
+        "vector_count": vector_count,
+        "is_empty": is_empty
     });
 
     Ok(CallToolResult::success(vec![Content::text(
