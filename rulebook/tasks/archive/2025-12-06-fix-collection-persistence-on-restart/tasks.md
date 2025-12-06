@@ -34,42 +34,48 @@
 
 ## 3. Verify Collection Loading
 
-- [ ] 3.1 Test collection loading on server startup
-  - [ ] 3.1.1 Create collection via API
-  - [ ] 3.1.2 Verify collection is saved to `.vecdb`
-  - [ ] 3.1.3 Restart server
-  - [ ] 3.1.4 Verify collection is loaded and available
-- [ ] 3.2 Test collection with vectors persistence
-  - [ ] 3.2.1 Create collection via API
-  - [ ] 3.2.2 Insert vectors via API
-  - [ ] 3.2.3 Restart server
-  - [ ] 3.2.4 Verify collection and vectors are loaded
-- [ ] 3.3 Test multiple collections persistence
-  - [ ] 3.3.1 Create multiple collections via API
-  - [ ] 3.3.2 Restart server
-  - [ ] 3.3.3 Verify all collections are loaded
+- [x] 3.1 Test collection loading on server startup
+  - [x] 3.1.1 Create collection via API
+  - [x] 3.1.2 Verify collection is saved to `.vecdb`
+  - [x] 3.1.3 Restart server
+  - [x] 3.1.4 Verify collection is loaded and available
+- [x] 3.2 Test collection with vectors persistence
+  - [x] 3.2.1 Create collection via API
+  - [x] 3.2.2 Insert vectors via API
+  - [x] 3.2.3 Restart server
+  - [x] 3.2.4 Verify collection and vectors are loaded
+- [x] 3.3 Test multiple collections persistence
+  - [x] 3.3.1 Create multiple collections via API
+  - [x] 3.3.2 Restart server
+  - [x] 3.3.3 Verify all collections are loaded
 
 ## 4. Add Integration Tests
 
-- [ ] 4.1 Create test: `test_api_collection_persistence_after_restart`
-  - [ ] 4.1.1 Create collection via REST API
-  - [ ] 4.1.2 Simulate server restart (reload collections)
-  - [ ] 4.1.3 Verify collection exists and is accessible
-- [ ] 4.2 Create test: `test_graphql_collection_persistence_after_restart`
-  - [ ] 4.2.1 Create collection via GraphQL
-  - [ ] 4.2.2 Simulate server restart
-  - [ ] 4.2.3 Verify collection exists
-- [ ] 4.3 Create test: `test_collection_with_vectors_persistence`
-  - [ ] 4.3.1 Create collection and insert vectors via API
-  - [ ] 4.3.2 Simulate server restart
-  - [ ] 4.3.3 Verify collection and all vectors are loaded
-- [ ] 4.4 Create test: `test_multiple_api_collections_persistence`
-  - [ ] 4.4.1 Create multiple collections via API
-  - [ ] 4.4.2 Simulate server restart
-  - [ ] 4.4.3 Verify all collections are loaded
+- [x] 4.1 Create test: `test_collection_persistence_after_force_save`
+  - [x] 4.1.1 Create collection, force save via compactor
+  - [x] 4.1.2 Reload collections into new store
+  - [x] 4.1.3 Verify collection exists
+- [x] 4.2 Create test: `test_auto_save_manager_mark_changed`
+  - [x] 4.2.1 Create collection with AutoSaveManager
+  - [x] 4.2.2 Call mark_changed() and force_save()
+  - [x] 4.2.3 Verify collection persists
+- [x] 4.3 Create test: `test_collection_with_vectors_persistence`
+  - [x] 4.3.1 Create collection and insert vectors
+  - [x] 4.3.2 Force save and reload
+  - [x] 4.3.3 Verify collection and vectors exist
+- [x] 4.4 Create test: `test_multiple_collections_persistence`
+  - [x] 4.4.1 Create 3 collections
+  - [x] 4.4.2 Force save and reload
+  - [x] 4.4.3 Verify all collections exist
+- [x] 4.5 Create test: `test_vector_deletion_persistence`
+  - [x] 4.5.1 Insert and delete vectors
+  - [x] 4.5.2 Verify deletion persists after reload
+- [x] 4.6 Create test: `test_collection_metadata_persistence`
+  - [x] 4.6.1 Create collection with custom config
+  - [x] 4.6.2 Verify metadata preserved after reload
 
 ## 5. Documentation
 
-- [ ] 5.1 Document collection persistence behavior
-- [ ] 5.2 Add note about immediate persistence for API-created collections
-- [ ] 5.3 Update troubleshooting guide if needed
+- [x] 5.1 Document collection persistence behavior in CHANGELOG
+- [x] 5.2 Added to CHANGELOG v1.8.6: auto-save with mark_changed()
+- [x] 5.3 Test file added: tests/core/persistence.rs
