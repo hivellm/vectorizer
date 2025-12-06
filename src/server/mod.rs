@@ -1564,11 +1564,20 @@ impl VectorizerServer {
         let rest_routes = rest_routes.merge(graph_router);
 
         // Add GraphQL routes
-        let graphql_schema = crate::api::graphql::create_schema(
-            self.store.clone(),
-            self.embedding_manager.clone(),
-            self.start_time,
-        );
+        let graphql_schema = if let Some(ref auto_save) = self.auto_save_manager {
+            crate::api::graphql::create_schema_with_auto_save(
+                self.store.clone(),
+                self.embedding_manager.clone(),
+                self.start_time,
+                auto_save.clone(),
+            )
+        } else {
+            crate::api::graphql::create_schema(
+                self.store.clone(),
+                self.embedding_manager.clone(),
+                self.start_time,
+            )
+        };
         let graphql_state = graphql_handlers::GraphQLState {
             schema: graphql_schema,
         };

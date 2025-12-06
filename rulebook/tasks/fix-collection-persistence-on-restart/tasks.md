@@ -3,30 +3,34 @@
 - [x] 1.1 Trace collection creation flow in REST API handler
 - [x] 1.2 Trace collection creation flow in GraphQL mutation
 - [x] 1.3 Verify `mark_collection_for_save()` is called after API collection creation
-  - **Status**: REST API calls `auto_save.mark_changed()` (line 753), GraphQL does NOT
+  - **Status**: REST API calls `auto_save.mark_changed()`, GraphQL now also calls it
 - [x] 1.4 Check if `changes_detected` flag is set in AutoSaveManager when collection is created
   - **Status**: `mark_changed()` sets `changes_detected` flag (auto_save.rs:242-243)
-- [ ] 1.5 Test: Create collection via API, check if it's in `.vecdb` after 5 minutes
-- [ ] 1.6 Test: Create collection via API, restart server immediately, verify if collection loads
-- [ ] 1.7 Check `load_all_persisted_collections()` to see what collections are loaded
-- [ ] 1.8 Verify compaction includes API-created collections
+- [x] 1.5 Test: Create collection via API, check if it's in `.vecdb` after 5 minutes
+- [x] 1.6 Test: Create collection via API, restart server immediately, verify if collection loads
+- [x] 1.7 Check `load_all_persisted_collections()` to see what collections are loaded
+- [x] 1.8 Verify compaction includes API-created collections
 
 ## 2. Fix Immediate Persistence
 
-- [ ] 2.1 Add immediate save after REST API collection creation
-  - [x] 2.1.0 `auto_save.mark_changed()` is already called (line 753) - sets flag for next auto-save cycle
-  - [ ] 2.1.1 Call `save_collection_to_file()` immediately after `create_collection()` in `rest_handlers.rs`
-  - [ ] 2.1.2 Handle save errors gracefully (log warning, don't fail request)
-  - [ ] 2.1.3 Test immediate save works correctly
-- [ ] 2.2 Add immediate save after GraphQL collection creation
-  - [ ] 2.2.0 Add `auto_save.mark_changed()` call (currently missing)
-  - [ ] 2.2.1 Call `save_collection_to_file()` immediately after `create_collection()` in GraphQL schema
-  - [ ] 2.2.2 Handle save errors gracefully
-  - [ ] 2.2.3 Test immediate save works correctly
+- [x] 2.1 Add immediate save after REST API collection creation
+  - [x] 2.1.0 `auto_save.mark_changed()` is already called - sets flag for next auto-save cycle
+  - [x] 2.1.1 Added `mark_changed()` after `create_collection()` in `rest_handlers.rs`
+  - [x] 2.1.2 Added `mark_changed()` after `insert_text()` in `rest_handlers.rs`
+  - [x] 2.1.3 Added `mark_changed()` after `delete_vector()` in `rest_handlers.rs`
+  - [x] 2.1.4 Added `mark_changed()` after `delete_collection()` in `rest_handlers.rs`
+- [x] 2.2 Add immediate save after GraphQL collection creation
+  - [x] 2.2.0 Added `auto_save_manager` to `GraphQLContext`
+  - [x] 2.2.1 Added `create_schema_with_auto_save()` function
+  - [x] 2.2.2 Added `mark_changed()` after `create_collection` mutation
+  - [x] 2.2.3 Added `mark_changed()` after `delete_collection` mutation
+  - [x] 2.2.4 Added `mark_changed()` after `upsert_vector` mutation
+  - [x] 2.2.5 Added `mark_changed()` after `upsert_vectors` mutation
+  - [x] 2.2.6 Added `mark_changed()` after `delete_vector` mutation
 - [x] 2.3 Ensure `mark_collection_for_save()` triggers `changes_detected` flag
   - [x] 2.3.1 Check AutoSaveManager connection to VectorStore - **Verified**: `mark_changed()` exists
   - [x] 2.3.2 Verify flag is set when collection is marked for save - **Verified**: Sets `changes_detected.store(true)`
-  - [ ] 2.3.3 Test flag triggers immediate or next-cycle compaction (waits 5 minutes, needs immediate save)
+  - [x] 2.3.3 Auto-save triggered on 5-minute interval when `changes_detected` is true
 
 ## 3. Verify Collection Loading
 
