@@ -84,6 +84,14 @@ export class HttpClient {
   }
 
   /**
+   * Make a POST request with FormData (for file uploads).
+   */
+  public async postFormData<T = unknown>(url: string, formData: FormData, requestConfig?: RequestConfig): Promise<T> {
+    const response = await this.requestFormData<T>(url, formData, requestConfig);
+    return response;
+  }
+
+  /**
    * Make a generic HTTP request.
    */
   private async request<T = unknown>(url: string, options: RequestInit & RequestConfig): Promise<T> {
@@ -148,6 +156,79 @@ export class HttpClient {
         throw new NetworkError(error.message);
       }
       
+      throw new NetworkError('Unknown network error');
+    }
+  }
+
+  /**
+   * Make a FormData HTTP request (for file uploads).
+   * Note: Content-Type header is not set to allow the browser to set it with boundary.
+   */
+  private async requestFormData<T = unknown>(url: string, formData: FormData, options?: RequestConfig): Promise<T> {
+    const fullUrl = url.startsWith('http') ? url : `${this.config.baseURL}${url}`;
+
+    // Don't set Content-Type for FormData - let the browser set it with boundary
+    const headers: Record<string, string> = {};
+
+    if (this.config.headers) {
+      Object.assign(headers, this.config.headers);
+    }
+
+    if (options?.headers) {
+      Object.assign(headers, options.headers);
+    }
+
+    // Remove Content-Type if set - browser needs to set it for multipart/form-data
+    delete headers['Content-Type'];
+
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, options?.timeout || this.config.timeout);
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const error = await this.handleError(response);
+        throw error;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json() as T;
+      }
+
+      return (await response.text()) as unknown as T;
+    } catch (error) {
+      clearTimeout(timeout);
+
+      // Re-throw errors that are already our custom exceptions
+      if (error instanceof ServerError ||
+          error instanceof AuthenticationError ||
+          error instanceof RateLimitError ||
+          error instanceof TimeoutError) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new TimeoutError('Request timeout');
+        }
+        throw new NetworkError(error.message);
+      }
+
       throw new NetworkError('Unknown network error');
     }
   }

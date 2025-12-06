@@ -54,6 +54,11 @@ import {
   validateDiscoverEdgesRequest,
 } from './models/graph.js';
 
+import {
+  validateFileUploadResponse,
+  validateFileUploadConfig,
+} from './models/file-upload.js';
+
 // Summarization models are used internally but not directly exported
 
 // Removed unused exception imports - exceptions are handled in http-client
@@ -1348,6 +1353,128 @@ export class VectorizerClient {
    */
   async close() {
     this.logger.info('VectorizerClient closed');
+  }
+
+  // =============================================================================
+  // FILE UPLOAD OPERATIONS
+  // =============================================================================
+
+  /**
+   * Upload a file for automatic text extraction, chunking, and indexing.
+   *
+   * @param {string} collectionName - Target collection name
+   * @param {File|Blob} file - File or Blob to upload
+   * @param {string} filename - Name of the file
+   * @param {Object} [options] - Upload options
+   * @param {number} [options.chunkSize] - Chunk size in characters
+   * @param {number} [options.chunkOverlap] - Chunk overlap in characters
+   * @param {Object} [options.metadata] - Additional metadata to attach to all chunks
+   * @returns {Promise<Object>} File upload response
+   */
+  async uploadFile(collectionName, file, filename, options = {}) {
+    try {
+      validateNonEmptyString(collectionName, 'collectionName');
+      validateNonEmptyString(filename, 'filename');
+
+      this.logger.debug('Uploading file', {
+        collectionName,
+        filename,
+        options
+      });
+
+      const formData = new FormData();
+      formData.append('file', file, filename);
+      formData.append('collection_name', collectionName);
+
+      if (options.chunkSize !== undefined) {
+        formData.append('chunk_size', String(options.chunkSize));
+      }
+
+      if (options.chunkOverlap !== undefined) {
+        formData.append('chunk_overlap', String(options.chunkOverlap));
+      }
+
+      if (options.metadata !== undefined) {
+        formData.append('metadata', JSON.stringify(options.metadata));
+      }
+
+      const transport = this._getWriteTransport();
+      const response = await transport.postFormData('/files/upload', formData);
+
+      validateFileUploadResponse(response);
+
+      this.logger.info('File uploaded successfully', {
+        filename,
+        chunksCreated: response.chunks_created,
+        vectorsCreated: response.vectors_created,
+      });
+
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to upload file', { collectionName, filename, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Upload file content directly as a string.
+   *
+   * @param {string} collectionName - Target collection name
+   * @param {string} content - File content as string
+   * @param {string} filename - Name of the file (used for language detection)
+   * @param {Object} [options] - Upload options
+   * @param {number} [options.chunkSize] - Chunk size in characters
+   * @param {number} [options.chunkOverlap] - Chunk overlap in characters
+   * @param {Object} [options.metadata] - Additional metadata to attach to all chunks
+   * @returns {Promise<Object>} File upload response
+   */
+  async uploadFileContent(collectionName, content, filename, options = {}) {
+    try {
+      validateNonEmptyString(collectionName, 'collectionName');
+      validateNonEmptyString(content, 'content');
+      validateNonEmptyString(filename, 'filename');
+
+      this.logger.debug('Uploading file content', {
+        collectionName,
+        filename,
+        contentLength: content.length,
+        options
+      });
+
+      // Create a Blob from the content
+      const blob = new Blob([content], { type: 'text/plain' });
+
+      return await this.uploadFile(collectionName, blob, filename, options);
+    } catch (error) {
+      this.logger.error('Failed to upload file content', { collectionName, filename, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get the server's file upload configuration.
+   *
+   * @returns {Promise<Object>} File upload configuration
+   */
+  async getUploadConfig() {
+    try {
+      this.logger.debug('Getting upload configuration');
+
+      const transport = this._getReadTransport();
+      const response = await transport.get('/files/config');
+
+      validateFileUploadConfig(response);
+
+      this.logger.debug('Upload configuration retrieved', {
+        maxFileSize: response.max_file_size,
+        allowedExtensions: response.allowed_extensions?.length,
+      });
+
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to get upload configuration', { error });
+      throw error;
+    }
   }
 
   // =============================================================================

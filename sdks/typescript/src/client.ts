@@ -56,6 +56,10 @@ import {
   DiscoverEdgesRequest,
   DiscoverEdgesResponse,
   DiscoveryStatusResponse,
+  // File upload models
+  FileUploadResponse,
+  FileUploadConfig,
+  UploadFileOptions,
   // Replication/routing models
   ReadPreference,
   HostConfig,
@@ -1734,5 +1738,127 @@ export class VectorizerClient {
   async getGraphDiscoveryStatus(collection: string): Promise<DiscoveryStatusResponse> {
     this.logger.debug('Getting graph discovery status', { collection });
     return this.transport.get(`/graph/discover/${collection}/status`);
+  }
+
+  // ============================================================
+  // File Upload Operations
+  // ============================================================
+
+  /**
+   * Upload a file for indexing.
+   *
+   * The file will be validated, chunked, and indexed into the specified collection.
+   * If the collection doesn't exist, it will be created automatically.
+   *
+   * @param file - File to upload (File object in browser, Buffer in Node.js)
+   * @param filename - Filename (used for extension detection)
+   * @param collectionName - Target collection name
+   * @param options - Upload options
+   * @returns Upload response with results
+   *
+   * @example
+   * ```typescript
+   * // Browser
+   * const file = fileInput.files[0];
+   * const response = await client.uploadFile(file, file.name, 'my-docs');
+   *
+   * // Node.js
+   * const buffer = fs.readFileSync('document.md');
+   * const response = await client.uploadFile(buffer, 'document.md', 'my-docs');
+   * ```
+   */
+  async uploadFile(
+    file: File | Buffer | Uint8Array,
+    filename: string,
+    collectionName: string,
+    options: UploadFileOptions = {}
+  ): Promise<FileUploadResponse> {
+    this.logger.debug('Uploading file', { filename, collectionName, options });
+
+    // Create FormData
+    const formData = new FormData();
+
+    // Handle different input types
+    if (typeof File !== 'undefined' && file instanceof File) {
+      formData.append('file', file, filename);
+    } else if (typeof Blob !== 'undefined') {
+      const blob = new Blob([file as Buffer | Uint8Array]);
+      formData.append('file', blob, filename);
+    } else {
+      throw new Error('File upload requires File, Buffer, or Uint8Array');
+    }
+
+    formData.append('collection_name', collectionName);
+
+    if (options.chunkSize !== undefined) {
+      formData.append('chunk_size', options.chunkSize.toString());
+    }
+
+    if (options.chunkOverlap !== undefined) {
+      formData.append('chunk_overlap', options.chunkOverlap.toString());
+    }
+
+    if (options.metadata !== undefined) {
+      formData.append('metadata', JSON.stringify(options.metadata));
+    }
+
+    const response = await this.transport.postFormData<FileUploadResponse>('/files/upload', formData);
+
+    this.logger.info('File uploaded successfully', {
+      filename,
+      chunksCreated: response.chunks_created,
+      vectorsCreated: response.vectors_created,
+    });
+
+    return response;
+  }
+
+  /**
+   * Upload file content directly for indexing.
+   *
+   * Similar to uploadFile, but accepts content directly as a string.
+   *
+   * @param content - File content as string
+   * @param filename - Filename (used for extension detection)
+   * @param collectionName - Target collection name
+   * @param options - Upload options
+   * @returns Upload response with results
+   *
+   * @example
+   * ```typescript
+   * const code = `fn main() { println!("Hello!"); }`;
+   * const response = await client.uploadFileContent(code, 'main.rs', 'rust-code');
+   * ```
+   */
+  async uploadFileContent(
+    content: string,
+    filename: string,
+    collectionName: string,
+    options: UploadFileOptions = {}
+  ): Promise<FileUploadResponse> {
+    this.logger.debug('Uploading file content', { filename, collectionName, options });
+
+    // Convert string to Uint8Array
+    const encoder = new TextEncoder();
+    const buffer = encoder.encode(content);
+
+    return this.uploadFile(buffer, filename, collectionName, options);
+  }
+
+  /**
+   * Get file upload configuration from the server.
+   *
+   * @returns Upload configuration with server limits and settings
+   *
+   * @example
+   * ```typescript
+   * const config = await client.getUploadConfig();
+   * console.log(`Max file size: ${config.max_file_size_mb}MB`);
+   * console.log(`Allowed extensions: ${config.allowed_extensions.join(', ')}`);
+   * ```
+   */
+  async getUploadConfig(): Promise<FileUploadConfig> {
+    this.logger.debug('Getting file upload configuration');
+    return this.transport.get('/files/config');
   }
 }

@@ -91,6 +91,38 @@ enum RelationshipType {
 }
 ```
 
+#### File Upload Types
+```graphql
+input UploadFileInput {
+  collectionName: String!
+  filename: String!
+  content: String!
+  chunkSize: Int
+  chunkOverlap: Int
+  metadata: String
+}
+
+type FileUploadResult {
+  success: Boolean!
+  filename: String!
+  collectionName: String!
+  chunksCreated: Int!
+  vectorsCreated: Int!
+  fileSize: Int!
+  language: String!
+  processingTimeMs: Int!
+}
+
+type FileUploadConfig {
+  maxFileSize: Int!
+  maxFileSizeMb: Float!
+  allowedExtensions: [String!]!
+  rejectBinary: Boolean!
+  defaultChunkSize: Int!
+  defaultChunkOverlap: Int!
+}
+```
+
 ## Queries
 
 ### Collections
@@ -453,6 +485,63 @@ mutation {
   ) {
     success
     message
+  }
+}
+```
+
+### File Upload Mutations
+
+#### Upload a file for indexing
+```graphql
+mutation {
+  uploadFile(input: {
+    collectionName: "my-collection"
+    filename: "example.rs"
+    content: "Zm4gbWFpbigpIHsKICAgIHByaW50bG4hKCJIZWxsbyB3b3JsZCIpOwp9"
+    chunkSize: 1024
+    chunkOverlap: 128
+    metadata: "{\"author\": \"john\"}"
+  }) {
+    success
+    filename
+    collectionName
+    chunksCreated
+    vectorsCreated
+    fileSize
+    language
+    processingTimeMs
+  }
+}
+```
+
+**Input Fields:**
+- `collectionName` (required): Target collection name
+- `filename` (required): Name of the file (used for language detection)
+- `content` (required): Base64-encoded file content
+- `chunkSize` (optional): Chunk size in characters (default: 2048)
+- `chunkOverlap` (optional): Chunk overlap in characters (default: 256)
+- `metadata` (optional): JSON string with additional metadata
+
+**Response Fields:**
+- `success`: Whether the upload was successful
+- `filename`: Original filename
+- `collectionName`: Target collection
+- `chunksCreated`: Number of text chunks created
+- `vectorsCreated`: Number of vectors stored
+- `fileSize`: File size in bytes
+- `language`: Detected programming language or file type
+- `processingTimeMs`: Processing time in milliseconds
+
+#### Get file upload configuration
+```graphql
+query {
+  fileUploadConfig {
+    maxFileSize
+    maxFileSizeMb
+    allowedExtensions
+    rejectBinary
+    defaultChunkSize
+    defaultChunkOverlap
   }
 }
 ```

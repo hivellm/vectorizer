@@ -8,12 +8,17 @@ use async_graphql::{Context, EmptySubscription, Object, Schema};
 use tracing::{error, info};
 
 use super::types::*;
+use crate::config::FileUploadConfig;
 use crate::db::VectorStore;
 use crate::db::graph::{Edge, Node, RelationshipType};
 use crate::embedding::EmbeddingManager;
+use crate::file_loader::chunker::Chunker;
+use crate::file_loader::config::LoaderConfig;
 use crate::hub::auth::TenantContext;
 use crate::hub::quota::QuotaManager;
-use crate::models::{CollectionConfig, HnswConfig, Payload, Vector};
+use crate::models::{
+    CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
+};
 
 /// GraphQL context containing shared state
 pub struct GraphQLContext {
@@ -590,6 +595,23 @@ impl QueryRoot {
         // TODO: Implement workspace manager integration
         // For now, return empty list
         Ok(Vec::new())
+    }
+
+    /// Get file upload configuration
+    async fn file_upload_config(
+        &self,
+        _ctx: &Context<'_>,
+    ) -> async_graphql::Result<GqlFileUploadConfig> {
+        let config = load_file_upload_config();
+
+        Ok(GqlFileUploadConfig {
+            max_file_size: config.max_file_size as i32,
+            max_file_size_mb: (config.max_file_size / (1024 * 1024)) as i32,
+            reject_binary: config.reject_binary,
+            default_chunk_size: config.default_chunk_size as i32,
+            default_chunk_overlap: config.default_chunk_overlap as i32,
+            allowed_extensions: config.allowed_extensions,
+        })
     }
 
     /// Get workspace configuration
@@ -1208,5 +1230,323 @@ impl MutationRoot {
                 )))
             }
         }
+    }
+
+    // =========================================================================
+    // FILE UPLOAD MUTATIONS
+    // =========================================================================
+
+    /// Upload a file for indexing (base64-encoded content)
+    ///
+    /// This mutation accepts a file as base64-encoded content and processes it
+    /// into chunks, generates embeddings, and stores them in the specified collection.
+    async fn upload_file(
+        &self,
+        ctx: &Context<'_>,
+        input: UploadFileInput,
+    ) -> async_graphql::Result<GqlFileUploadResult> {
+        let start_time = std::time::Instant::now();
+        let gql_ctx = ctx.data::<GraphQLContext>()?;
+        let tenant_ctx = ctx.data_opt::<TenantContext>();
+
+        // Load file upload config
+        let upload_config = load_file_upload_config();
+
+        // Decode base64 content
+        let file_bytes = match base64_decode(&input.content_base64) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                return Ok(GqlFileUploadResult::error_result(
+                    input.filename.clone(),
+                    input.collection_name.clone(),
+                    format!("Failed to decode base64 content: {}", e),
+                ));
+            }
+        };
+
+        // Validate file extension
+        let extension = std::path::Path::new(&input.filename)
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.to_lowercase())
+            .unwrap_or_default();
+
+        if !upload_config.allowed_extensions.contains(&extension) {
+            return Ok(GqlFileUploadResult::error_result(
+                input.filename.clone(),
+                input.collection_name.clone(),
+                format!("File extension '{}' is not allowed", extension),
+            ));
+        }
+
+        // Validate file size
+        if file_bytes.len() > upload_config.max_file_size {
+            return Ok(GqlFileUploadResult::error_result(
+                input.filename.clone(),
+                input.collection_name.clone(),
+                format!(
+                    "File size {} exceeds maximum of {} bytes",
+                    file_bytes.len(),
+                    upload_config.max_file_size
+                ),
+            ));
+        }
+
+        // Check for binary content if rejection is enabled
+        if upload_config.reject_binary && is_binary_content(&file_bytes) {
+            return Ok(GqlFileUploadResult::error_result(
+                input.filename.clone(),
+                input.collection_name.clone(),
+                "Binary files are not allowed".to_string(),
+            ));
+        }
+
+        // Convert to string
+        let content = String::from_utf8_lossy(&file_bytes).into_owned();
+        let file_size = file_bytes.len() as i32;
+
+        // Determine language from extension
+        let language = get_language_from_extension(&extension);
+
+        // Apply tenant prefix if in hub mode
+        let collection_name = if let Some(tenant) = tenant_ctx {
+            format!("user_{}_{}", tenant.tenant_id, input.collection_name)
+        } else {
+            input.collection_name.clone()
+        };
+
+        // Check if collection exists, create if not
+        if !gql_ctx.store.has_collection_in_memory(&collection_name) {
+            let config = CollectionConfig {
+                dimension: 512,
+                metric: DistanceMetric::Cosine,
+                hnsw_config: HnswConfig::default(),
+                quantization: QuantizationConfig::SQ { bits: 8 },
+                compression: Default::default(),
+                normalization: None,
+                storage_type: Some(crate::models::StorageType::Memory),
+                sharding: None,
+                graph: None,
+            };
+
+            if let Err(e) = gql_ctx
+                .store
+                .create_collection_with_quantization(&collection_name, config)
+            {
+                return Ok(GqlFileUploadResult::error_result(
+                    input.filename.clone(),
+                    input.collection_name.clone(),
+                    format!("Failed to create collection: {}", e),
+                ));
+            }
+            info!("GraphQL: Created new collection: {}", collection_name);
+        }
+
+        // Create chunks
+        let loader_config = LoaderConfig {
+            max_chunk_size: input
+                .chunk_size
+                .unwrap_or(upload_config.default_chunk_size as i32)
+                as usize,
+            chunk_overlap: input
+                .chunk_overlap
+                .unwrap_or(upload_config.default_chunk_overlap as i32)
+                as usize,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
+            embedding_dimension: 512,
+            embedding_type: "bm25".to_string(),
+            collection_name: collection_name.clone(),
+            max_file_size: upload_config.max_file_size,
+        };
+
+        let chunker = Chunker::new(loader_config);
+        let file_path = std::path::PathBuf::from(&input.filename);
+
+        let chunks = match chunker.chunk_text(&content, &file_path) {
+            Ok(c) => c,
+            Err(e) => {
+                return Ok(GqlFileUploadResult::error_result(
+                    input.filename.clone(),
+                    input.collection_name.clone(),
+                    format!("Failed to chunk file: {}", e),
+                ));
+            }
+        };
+
+        let chunks_created = chunks.len() as i32;
+
+        if chunks_created == 0 {
+            return Ok(GqlFileUploadResult::success_result(
+                input.filename,
+                input.collection_name,
+                0,
+                0,
+                file_size,
+                language.to_string(),
+                start_time.elapsed().as_millis() as i64,
+            ));
+        }
+
+        // Create embeddings and store vectors
+        let mut vectors_created = 0i32;
+
+        for chunk in &chunks {
+            let embedding = match gql_ctx.embedding_manager.embed(&chunk.content) {
+                Ok(emb) => emb,
+                Err(_) => continue,
+            };
+
+            if embedding.iter().all(|&x| x == 0.0) {
+                continue;
+            }
+
+            let mut payload_data = serde_json::json!({
+                "content": chunk.content,
+                "file_path": chunk.file_path,
+                "chunk_index": chunk.chunk_index,
+                "language": language,
+                "source": "graphql_upload",
+                "original_filename": input.filename,
+                "file_extension": extension,
+            });
+
+            // Merge chunk metadata
+            if let Some(obj) = payload_data.as_object_mut() {
+                for (k, v) in &chunk.metadata {
+                    obj.insert(k.clone(), v.clone());
+                }
+
+                // Merge extra metadata if provided
+                if let Some(ref extra) = input.metadata {
+                    if let Some(extra_obj) = extra.0.as_object() {
+                        for (k, v) in extra_obj {
+                            obj.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+            }
+
+            let mut payload = Payload { data: payload_data };
+            payload.normalize();
+
+            let vector = Vector {
+                id: uuid::Uuid::new_v4().to_string(),
+                data: embedding,
+                sparse: None,
+                payload: Some(payload),
+            };
+
+            if gql_ctx.store.insert(&collection_name, vec![vector]).is_ok() {
+                vectors_created += 1;
+            }
+        }
+
+        let processing_time_ms = start_time.elapsed().as_millis() as i64;
+
+        info!(
+            "GraphQL: File upload completed: {} - {} chunks, {} vectors, {}ms",
+            input.filename, chunks_created, vectors_created, processing_time_ms
+        );
+
+        Ok(GqlFileUploadResult::success_result(
+            input.filename,
+            input.collection_name,
+            chunks_created,
+            vectors_created,
+            file_size,
+            language.to_string(),
+            processing_time_ms,
+        ))
+    }
+}
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/// Load file upload configuration from config.yml
+fn load_file_upload_config() -> FileUploadConfig {
+    std::fs::read_to_string("config.yml")
+        .ok()
+        .and_then(|content| {
+            serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                .ok()
+                .map(|config| config.file_upload)
+        })
+        .unwrap_or_default()
+}
+
+/// Decode base64 string to bytes
+fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(input)
+        .map_err(|e| e.to_string())
+}
+
+/// Check if content appears to be binary
+fn is_binary_content(content: &[u8]) -> bool {
+    let check_size = content.len().min(8192);
+    let sample = &content[..check_size];
+
+    let mut null_count = 0;
+    let mut non_printable_count = 0;
+
+    for &byte in sample {
+        if byte == 0 {
+            null_count += 1;
+        } else if byte < 0x09 || (byte > 0x0D && byte < 0x20 && byte != 0x1B) {
+            non_printable_count += 1;
+        }
+    }
+
+    let null_ratio = null_count as f32 / check_size as f32;
+    let non_printable_ratio = non_printable_count as f32 / check_size as f32;
+
+    null_ratio > 0.01 || non_printable_ratio > 0.10
+}
+
+/// Get language from file extension
+fn get_language_from_extension(extension: &str) -> &'static str {
+    match extension.to_lowercase().as_str() {
+        "rs" => "rust",
+        "py" | "pyw" | "pyi" => "python",
+        "js" | "mjs" | "cjs" => "javascript",
+        "ts" | "mts" | "cts" => "typescript",
+        "jsx" => "javascriptreact",
+        "tsx" => "typescriptreact",
+        "go" => "go",
+        "java" => "java",
+        "kt" | "kts" => "kotlin",
+        "scala" | "sc" => "scala",
+        "c" => "c",
+        "cpp" | "cc" | "cxx" => "cpp",
+        "h" | "hpp" | "hxx" => "cpp",
+        "cs" => "csharp",
+        "rb" | "rake" | "gemspec" => "ruby",
+        "php" => "php",
+        "swift" => "swift",
+        "r" => "r",
+        "sql" => "sql",
+        "sh" | "bash" | "zsh" => "shell",
+        "ps1" | "psm1" | "psd1" => "powershell",
+        "bat" | "cmd" => "batch",
+        "json" => "json",
+        "yaml" | "yml" => "yaml",
+        "toml" => "toml",
+        "xml" => "xml",
+        "ini" | "cfg" | "conf" => "ini",
+        "html" | "htm" => "html",
+        "css" => "css",
+        "scss" => "scss",
+        "sass" => "sass",
+        "less" => "less",
+        "md" | "markdown" => "markdown",
+        "rst" => "restructuredtext",
+        "txt" | "text" => "plaintext",
+        "csv" => "csv",
+        "log" => "log",
+        _ => "plaintext",
     }
 }

@@ -171,6 +171,78 @@ export class UMICPClient {
   }
 
   /**
+   * Make a POST request with FormData (for file uploads).
+   */
+  public async postFormData<T = unknown>(url: string, formData: FormData, requestConfig?: RequestConfig): Promise<T> {
+    if (!this.isConnected()) {
+      await this.connect();
+    }
+
+    const fullUrl = `http://${this.config.host}:${this.config.port}${url}`;
+
+    // Don't set Content-Type for FormData - let the browser set it with boundary
+    const headers: Record<string, string> = {
+      'X-UMICP-Protocol': 'true',
+    };
+
+    if (requestConfig?.headers) {
+      Object.assign(headers, requestConfig.headers);
+    }
+
+    // Remove Content-Type if set - browser needs to set it for multipart/form-data
+    delete headers['Content-Type'];
+
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, requestConfig?.timeout || this.config.timeout);
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const error = await this.handleError(response);
+        throw error;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json() as T;
+      }
+
+      return (await response.text()) as unknown as T;
+    } catch (error) {
+      clearTimeout(timeout);
+
+      if (error instanceof ServerError ||
+          error instanceof AuthenticationError ||
+          error instanceof TimeoutError) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new TimeoutError('Request timeout');
+        }
+        throw new NetworkError(error.message);
+      }
+
+      throw new NetworkError('Unknown network error');
+    }
+  }
+
+  /**
    * Handle errors and convert them to appropriate exceptions.
    */
   private async handleError(response: Response): Promise<Error> {

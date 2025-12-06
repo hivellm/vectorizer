@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.8.4"
+version = "1.8.5"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -14,7 +14,7 @@ ctrlc = { version = "3.5", optional = true }
 # Core dependencies
 # Optimized: Use only needed tokio features instead of "full" (saves ~30% compile time)
 tokio = { version = "1.48", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
-axum = { version = "0.8.7", features = ["ws", "json"], default-features = false }
+axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
 tower = { version = "0.5", default-features = false }
 tower-http = { version = "0.6.7", features = ["cors", "trace", "fs", "set-header"], default-features = false }
 serde = { version = "1.0", features = ["derive"], default-features = false }
@@ -170,7 +170,7 @@ tonic-build = "0.12"
 criterion = { version = "0.5", features = ["html_reports", "async_tokio"] }
 proptest = "1.9"
 tempfile = "3.8"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "multipart"] }
 
 [[bench]]
 name = "filter_benchmark"

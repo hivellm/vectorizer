@@ -43,6 +43,124 @@ pub struct VectorizerConfig {
     /// HiveHub Cloud integration configuration
     #[serde(default)]
     pub hub: HubConfig,
+    /// File upload configuration
+    #[serde(default)]
+    pub file_upload: FileUploadConfig,
+}
+
+/// File upload configuration for direct file indexing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileUploadConfig {
+    /// Maximum file size in bytes (default: 10MB)
+    #[serde(default = "FileUploadConfig::default_max_file_size")]
+    pub max_file_size: usize,
+
+    /// List of allowed file extensions (without dot)
+    #[serde(default = "FileUploadConfig::default_allowed_extensions")]
+    pub allowed_extensions: Vec<String>,
+
+    /// Reject binary files (default: true)
+    #[serde(default = "FileUploadConfig::default_reject_binary")]
+    pub reject_binary: bool,
+
+    /// Default chunk size for uploaded files
+    #[serde(default = "FileUploadConfig::default_chunk_size")]
+    pub default_chunk_size: usize,
+
+    /// Default chunk overlap for uploaded files
+    #[serde(default = "FileUploadConfig::default_chunk_overlap")]
+    pub default_chunk_overlap: usize,
+}
+
+impl FileUploadConfig {
+    fn default_max_file_size() -> usize {
+        10 * 1024 * 1024 // 10MB
+    }
+
+    fn default_allowed_extensions() -> Vec<String> {
+        vec![
+            // Text files
+            "txt".to_string(),
+            "md".to_string(),
+            "rst".to_string(),
+            "text".to_string(),
+            // Code files
+            "rs".to_string(),
+            "py".to_string(),
+            "js".to_string(),
+            "ts".to_string(),
+            "jsx".to_string(),
+            "tsx".to_string(),
+            "go".to_string(),
+            "java".to_string(),
+            "c".to_string(),
+            "cpp".to_string(),
+            "h".to_string(),
+            "hpp".to_string(),
+            "cs".to_string(),
+            "rb".to_string(),
+            "php".to_string(),
+            "swift".to_string(),
+            "kt".to_string(),
+            "scala".to_string(),
+            "r".to_string(),
+            "sql".to_string(),
+            "sh".to_string(),
+            "bash".to_string(),
+            "zsh".to_string(),
+            "ps1".to_string(),
+            "bat".to_string(),
+            "cmd".to_string(),
+            // Config files
+            "json".to_string(),
+            "yaml".to_string(),
+            "yml".to_string(),
+            "toml".to_string(),
+            "xml".to_string(),
+            "ini".to_string(),
+            "cfg".to_string(),
+            "conf".to_string(),
+            // Web files
+            "html".to_string(),
+            "htm".to_string(),
+            "css".to_string(),
+            "scss".to_string(),
+            "sass".to_string(),
+            "less".to_string(),
+            // Other text files
+            "csv".to_string(),
+            "log".to_string(),
+            "env".to_string(),
+            "gitignore".to_string(),
+            "dockerignore".to_string(),
+            "makefile".to_string(),
+            "dockerfile".to_string(),
+        ]
+    }
+
+    fn default_reject_binary() -> bool {
+        true
+    }
+
+    fn default_chunk_size() -> usize {
+        2048
+    }
+
+    fn default_chunk_overlap() -> usize {
+        256
+    }
+}
+
+impl Default for FileUploadConfig {
+    fn default() -> Self {
+        Self {
+            max_file_size: Self::default_max_file_size(),
+            allowed_extensions: Self::default_allowed_extensions(),
+            reject_binary: Self::default_reject_binary(),
+            default_chunk_size: Self::default_chunk_size(),
+            default_chunk_overlap: Self::default_chunk_overlap(),
+        }
+    }
 }
 
 /// Server configuration
@@ -228,6 +346,7 @@ impl Default for VectorizerConfig {
             projects: Vec::new(),
             auth: AuthConfig::default(),
             hub: HubConfig::default(),
+            file_upload: FileUploadConfig::default(),
         }
     }
 }
@@ -411,5 +530,187 @@ mod config_tests {
         let config_from_yaml: TransmutationConfig = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(config.enabled, config_from_yaml.enabled);
         assert_eq!(config.max_file_size_mb, config_from_yaml.max_file_size_mb);
+    }
+
+    // =========================================================================
+    // FileUploadConfig Tests
+    // =========================================================================
+
+    #[test]
+    fn test_file_upload_config_default() {
+        let config = FileUploadConfig::default();
+
+        assert_eq!(config.max_file_size, 10 * 1024 * 1024); // 10MB
+        assert!(config.reject_binary);
+        assert_eq!(config.default_chunk_size, 2048);
+        assert_eq!(config.default_chunk_overlap, 256);
+        assert!(!config.allowed_extensions.is_empty());
+    }
+
+    #[test]
+    fn test_file_upload_config_default_extensions_count() {
+        let config = FileUploadConfig::default();
+
+        // Should have a reasonable number of extensions
+        assert!(config.allowed_extensions.len() > 40);
+        assert!(config.allowed_extensions.len() < 100);
+    }
+
+    #[test]
+    fn test_file_upload_config_serialization() {
+        let config = FileUploadConfig {
+            max_file_size: 5 * 1024 * 1024,
+            allowed_extensions: vec!["rs".to_string(), "py".to_string()],
+            reject_binary: true,
+            default_chunk_size: 1024,
+            default_chunk_overlap: 128,
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("max_file_size"));
+        assert!(json.contains("5242880")); // 5MB in bytes
+        assert!(json.contains("rs"));
+        assert!(json.contains("py"));
+        assert!(json.contains("reject_binary"));
+        assert!(json.contains("default_chunk_size"));
+        assert!(json.contains("default_chunk_overlap"));
+    }
+
+    #[test]
+    fn test_file_upload_config_deserialization() {
+        let json = r#"{
+            "max_file_size": 20971520,
+            "allowed_extensions": ["md", "txt", "json"],
+            "reject_binary": false,
+            "default_chunk_size": 4096,
+            "default_chunk_overlap": 512
+        }"#;
+
+        let config: FileUploadConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.max_file_size, 20 * 1024 * 1024); // 20MB
+        assert_eq!(config.allowed_extensions.len(), 3);
+        assert!(config.allowed_extensions.contains(&"md".to_string()));
+        assert!(!config.reject_binary);
+        assert_eq!(config.default_chunk_size, 4096);
+        assert_eq!(config.default_chunk_overlap, 512);
+    }
+
+    #[test]
+    fn test_file_upload_config_yaml_format() {
+        let config = FileUploadConfig {
+            max_file_size: 10485760,
+            allowed_extensions: vec!["rs".to_string(), "py".to_string(), "js".to_string()],
+            reject_binary: true,
+            default_chunk_size: 2048,
+            default_chunk_overlap: 256,
+        };
+
+        // Test YAML serialization
+        let yaml = serde_yaml::to_string(&config).unwrap();
+        assert!(yaml.contains("max_file_size"));
+        assert!(yaml.contains("allowed_extensions"));
+        assert!(yaml.contains("reject_binary"));
+
+        // Test YAML deserialization
+        let config_from_yaml: FileUploadConfig = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(config.max_file_size, config_from_yaml.max_file_size);
+        assert_eq!(config.reject_binary, config_from_yaml.reject_binary);
+        assert_eq!(
+            config.allowed_extensions.len(),
+            config_from_yaml.allowed_extensions.len()
+        );
+    }
+
+    #[test]
+    fn test_file_upload_config_partial_deserialization() {
+        // Test that missing fields use defaults
+        let json = r#"{
+            "max_file_size": 5242880
+        }"#;
+
+        let config: FileUploadConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.max_file_size, 5 * 1024 * 1024);
+        // Other fields should use defaults
+        assert!(config.reject_binary); // default is true
+        assert_eq!(config.default_chunk_size, 2048);
+        assert_eq!(config.default_chunk_overlap, 256);
+        assert!(!config.allowed_extensions.is_empty());
+    }
+
+    #[test]
+    fn test_file_upload_config_empty_extensions() {
+        let config = FileUploadConfig {
+            max_file_size: 1024,
+            allowed_extensions: vec![],
+            reject_binary: true,
+            default_chunk_size: 100,
+            default_chunk_overlap: 10,
+        };
+
+        assert!(config.allowed_extensions.is_empty());
+    }
+
+    #[test]
+    fn test_file_upload_config_in_vectorizer_config() {
+        let config = VectorizerConfig::default();
+
+        // Verify file_upload config is present and has correct defaults
+        assert_eq!(config.file_upload.max_file_size, 10 * 1024 * 1024);
+        assert!(config.file_upload.reject_binary);
+        assert!(!config.file_upload.allowed_extensions.is_empty());
+    }
+
+    #[test]
+    fn test_file_upload_config_clone() {
+        let config = FileUploadConfig::default();
+        let cloned = config.clone();
+
+        assert_eq!(config.max_file_size, cloned.max_file_size);
+        assert_eq!(config.reject_binary, cloned.reject_binary);
+        assert_eq!(config.default_chunk_size, cloned.default_chunk_size);
+        assert_eq!(
+            config.allowed_extensions.len(),
+            cloned.allowed_extensions.len()
+        );
+    }
+
+    #[test]
+    fn test_file_upload_config_debug() {
+        let config = FileUploadConfig::default();
+        let debug_str = format!("{:?}", config);
+
+        assert!(debug_str.contains("FileUploadConfig"));
+        assert!(debug_str.contains("max_file_size"));
+        assert!(debug_str.contains("reject_binary"));
+    }
+
+    #[test]
+    fn test_file_upload_config_extension_categories() {
+        let config = FileUploadConfig::default();
+
+        // Text files
+        assert!(config.allowed_extensions.contains(&"txt".to_string()));
+        assert!(config.allowed_extensions.contains(&"md".to_string()));
+
+        // Programming languages
+        assert!(config.allowed_extensions.contains(&"rs".to_string()));
+        assert!(config.allowed_extensions.contains(&"py".to_string()));
+        assert!(config.allowed_extensions.contains(&"js".to_string()));
+        assert!(config.allowed_extensions.contains(&"ts".to_string()));
+        assert!(config.allowed_extensions.contains(&"go".to_string()));
+        assert!(config.allowed_extensions.contains(&"java".to_string()));
+        assert!(config.allowed_extensions.contains(&"c".to_string()));
+        assert!(config.allowed_extensions.contains(&"cpp".to_string()));
+
+        // Config files
+        assert!(config.allowed_extensions.contains(&"json".to_string()));
+        assert!(config.allowed_extensions.contains(&"yaml".to_string()));
+        assert!(config.allowed_extensions.contains(&"yml".to_string()));
+        assert!(config.allowed_extensions.contains(&"toml".to_string()));
+        assert!(config.allowed_extensions.contains(&"xml".to_string()));
+
+        // Web files
+        assert!(config.allowed_extensions.contains(&"html".to_string()));
+        assert!(config.allowed_extensions.contains(&"css".to_string()));
     }
 }

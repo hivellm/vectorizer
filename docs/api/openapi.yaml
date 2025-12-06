@@ -1140,6 +1140,89 @@ paths:
               schema:
                 $ref: "#/components/schemas/SearchByFileTypeResponse"
 
+  /files/upload:
+    post:
+      summary: Upload File
+      description: |
+        Upload a file for automatic text extraction, chunking, and indexing into a vector collection.
+        Supports various text-based file formats including code files, markdown, text, and configuration files.
+        Files are automatically chunked and embedded using the BM25 provider.
+      operationId: uploadFile
+      tags:
+        - File Upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - collection_name
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                collection_name:
+                  type: string
+                  description: Target collection name to store the file chunks
+                chunk_size:
+                  type: integer
+                  minimum: 100
+                  maximum: 10000
+                  description: Chunk size in characters (uses server default if not specified)
+                chunk_overlap:
+                  type: integer
+                  minimum: 0
+                  maximum: 1000
+                  description: Chunk overlap in characters (uses server default if not specified)
+                metadata:
+                  type: string
+                  description: JSON-encoded metadata to attach to all chunks
+      responses:
+        "200":
+          description: File uploaded and indexed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResponse"
+        "400":
+          description: Bad request (invalid file, unsupported format, file too large, or binary file)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Collection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /files/config:
+    get:
+      summary: Get Upload Configuration
+      description: |
+        Retrieve the server's file upload configuration including maximum file size,
+        allowed extensions, and default chunking parameters.
+      operationId: getUploadConfig
+      tags:
+        - File Upload
+      responses:
+        "200":
+          description: Upload configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadConfig"
+
   /graph/nodes/{collection}:
     get:
       summary: List Graph Nodes
@@ -2931,6 +3014,75 @@ components:
               content:
                 type: string
 
+    # File Upload Schemas
+    FileUploadResponse:
+      type: object
+      required:
+        - success
+        - filename
+        - collection_name
+        - chunks_created
+        - vectors_created
+        - file_size
+        - language
+        - processing_time_ms
+      properties:
+        success:
+          type: boolean
+          description: Whether the upload was successful
+        filename:
+          type: string
+          description: Original filename
+        collection_name:
+          type: string
+          description: Target collection where chunks were stored
+        chunks_created:
+          type: integer
+          description: Number of chunks created from the file
+        vectors_created:
+          type: integer
+          description: Number of vectors created and stored
+        file_size:
+          type: integer
+          description: File size in bytes
+        language:
+          type: string
+          description: Detected language/file type
+        processing_time_ms:
+          type: integer
+          description: Processing time in milliseconds
+
+    FileUploadConfig:
+      type: object
+      required:
+        - max_file_size
+        - max_file_size_mb
+        - allowed_extensions
+        - reject_binary
+        - default_chunk_size
+        - default_chunk_overlap
+      properties:
+        max_file_size:
+          type: integer
+          description: Maximum file size in bytes
+        max_file_size_mb:
+          type: number
+          description: Maximum file size in megabytes
+        allowed_extensions:
+          type: array
+          items:
+            type: string
+          description: List of allowed file extensions
+        reject_binary:
+          type: boolean
+          description: Whether binary files are rejected
+        default_chunk_size:
+          type: integer
+          description: Default chunk size in characters
+        default_chunk_overlap:
+          type: integer
+          description: Default chunk overlap in characters
+
     # Graph Operations Schemas
     GraphNode:
       type: object
@@ -3296,6 +3448,8 @@ tags:
     description: Discovery pipeline and components for intelligent information extraction
   - name: File Operations
     description: File content retrieval and analysis operations
+  - name: File Upload
+    description: File upload and indexing operations for automatic text extraction, chunking, and embedding
   - name: Graph Operations
     description: Graph relationship operations (nodes, edges, paths, discovery)
   - name: Qdrant Compatibility

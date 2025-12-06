@@ -143,6 +143,67 @@ export class UMICPClient {
   }
 
   /**
+   * Make a POST request with FormData (for file uploads).
+   * @param {string} url - URL to post to
+   * @param {FormData} formData - FormData object containing the file and other fields
+   * @param {Object} requestConfig - Additional request configuration
+   * @returns {Promise<Object>} Response data
+   */
+  async postFormData(url, formData, requestConfig = {}) {
+    if (!this.isConnected()) {
+      await this.connect();
+    }
+
+    const fullUrl = `http://${this.config.host}:${this.config.port}${url}`;
+
+    // Don't set Content-Type for FormData - let the browser set it with boundary
+    const headers = {
+      'X-UMICP-Protocol': 'true',
+    };
+
+    if (requestConfig.headers) {
+      Object.assign(headers, requestConfig.headers);
+    }
+
+    // Remove Content-Type if set - browser needs to set it for multipart/form-data
+    delete headers['Content-Type'];
+
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = this.handleError({ statusCode: response.status, message: response.statusText });
+        throw error;
+      }
+
+      const contentType = response.headers?.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      }
+
+      return await response.text();
+    } catch (error) {
+      if (error instanceof ServerError || error instanceof AuthenticationError) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        throw new NetworkError(`UMICP FormData request failed: ${error.message}`);
+      }
+
+      throw new NetworkError('Unknown UMICP error');
+    }
+  }
+
+  /**
    * Handle errors and convert them to appropriate exceptions.
    */
   handleError(response) {

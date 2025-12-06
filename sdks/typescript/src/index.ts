@@ -78,3 +78,10 @@ export type {
   ReadOptions,
 } from './models/replication';
 
+// File upload types
+export type {
+  FileUploadRequest,
+  FileUploadResponse,
+  FileUploadConfig,
+  UploadFileOptions,
+} from './models/file-upload';
