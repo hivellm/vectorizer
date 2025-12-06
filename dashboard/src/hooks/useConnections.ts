@@ -96,7 +96,7 @@ export function useConnections() {
     updateConnection(id, { status: 'connecting' });
 
     try {
-      const url = `http://${connection.host}:${connection.port}/api/status`;
+      const url = `http://${connection.host}:${connection.port}/status`;
       const headers: HeadersInit = {};
       
       if (connection.auth?.token) {

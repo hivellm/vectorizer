@@ -1654,7 +1654,7 @@ export class VectorizerClient {
    */
   async getStatus() {
     this.logger.debug('Getting server status');
-    return this.transport.get('/api/status');
+    return this.transport.get('/status');
   }
 
   /**
@@ -1666,7 +1666,7 @@ export class VectorizerClient {
    */
   async getLogs(params = {}) {
     this.logger.debug('Getting logs', params);
-    return this.transport.get('/api/logs', params);
+    return this.transport.get('/logs', params);
   }
 
   /**
@@ -1676,7 +1676,7 @@ export class VectorizerClient {
    */
   async forceSaveCollection(name) {
     this.logger.debug('Force saving collection', { name });
-    return this.transport.post(`/api/collections/${name}/force-save`, {});
+    return this.transport.post(`/collections/${name}/force-save`, {});
   }
 
   /**
@@ -1689,7 +1689,7 @@ export class VectorizerClient {
    */
   async addWorkspace(params) {
     this.logger.debug('Adding workspace', params);
-    return this.transport.post('/api/workspace/add', params);
+    return this.transport.post('/workspace/add', params);
   }
 
   /**
@@ -1700,7 +1700,7 @@ export class VectorizerClient {
    */
   async removeWorkspace(params) {
     this.logger.debug('Removing workspace', params);
-    return this.transport.post('/api/workspace/remove', params);
+    return this.transport.post('/workspace/remove', params);
   }
 
   /**
@@ -1709,7 +1709,7 @@ export class VectorizerClient {
    */
   async listWorkspaces() {
     this.logger.debug('Listing workspaces');
-    return this.transport.get('/api/workspace/list');
+    return this.transport.get('/workspace/list');
   }
 
   /**
@@ -1718,7 +1718,7 @@ export class VectorizerClient {
    */
   async getServerConfig() {
     this.logger.debug('Getting server configuration');
-    return this.transport.get('/api/config');
+    return this.transport.get('/config');
   }
 
   /**
@@ -1728,7 +1728,7 @@ export class VectorizerClient {
    */
   async updateConfig(config) {
     this.logger.debug('Updating server configuration', config);
-    return this.transport.post('/api/config', config);
+    return this.transport.post('/config', config);
   }
 
   /**
@@ -1746,7 +1746,7 @@ export class VectorizerClient {
    */
   async listBackups() {
     this.logger.debug('Listing backups');
-    return this.transport.get('/api/backups/list');
+    return this.transport.get('/backups/list');
   }
 
   /**
@@ -1757,7 +1757,7 @@ export class VectorizerClient {
    */
   async createBackup(params = {}) {
     this.logger.debug('Creating backup', params);
-    return this.transport.post('/api/backups/create', params);
+    return this.transport.post('/backups/create', params);
   }
 
   /**
@@ -1768,7 +1768,7 @@ export class VectorizerClient {
    */
   async restoreBackup(params) {
     this.logger.debug('Restoring backup', params);
-    return this.transport.post('/api/backups/restore', params);
+    return this.transport.post('/backups/restore', params);
   }
 
   /**
@@ -1777,7 +1777,7 @@ export class VectorizerClient {
    */
   async getBackupDirectory() {
     this.logger.debug('Getting backup directory');
-    return this.transport.get('/api/backups/directory');
+    return this.transport.get('/backups/directory');
   }
 
   // ========== Graph Operations ==========

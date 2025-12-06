@@ -1507,7 +1507,7 @@ export class VectorizerClient {
     total_vectors: number;
   }> {
     this.logger.debug('Getting server status');
-    return this.transport.get('/api/status');
+    return this.transport.get('/status');
   }
 
   /**
@@ -1518,7 +1518,7 @@ export class VectorizerClient {
     level?: string;
   }): Promise<{ logs: string[] }> {
     this.logger.debug('Getting logs', params);
-    return this.transport.get('/api/logs', params ? { params } : undefined);
+    return this.transport.get('/logs', params ? { params } : undefined);
   }
 
   /**
@@ -1526,7 +1526,7 @@ export class VectorizerClient {
    */
   async forceSaveCollection(name: string): Promise<{ success: boolean; message: string }> {
     this.logger.debug('Force saving collection', { name });
-    return this.transport.post(`/api/collections/${name}/force-save`, {});
+    return this.transport.post(`/collections/${name}/force-save`, {});
   }
 
   /**
@@ -1542,7 +1542,7 @@ export class VectorizerClient {
     }>;
   }): Promise<{ success: boolean; message: string }> {
     this.logger.debug('Adding workspace', params);
-    return this.transport.post('/api/workspace/add', params);
+    return this.transport.post('/workspace/add', params);
   }
 
   /**
@@ -1552,7 +1552,7 @@ export class VectorizerClient {
     name: string;
   }): Promise<{ success: boolean; message: string }> {
     this.logger.debug('Removing workspace', params);
-    return this.transport.post('/api/workspace/remove', params);
+    return this.transport.post('/workspace/remove', params);
   }
 
   /**
@@ -1566,7 +1566,7 @@ export class VectorizerClient {
     }>;
   }> {
     this.logger.debug('Listing workspaces');
-    return this.transport.get('/api/workspace/list');
+    return this.transport.get('/workspace/list');
   }
 
   /**
@@ -1574,7 +1574,7 @@ export class VectorizerClient {
    */
   async getServerConfig(): Promise<Record<string, any>> {
     this.logger.debug('Getting server configuration');
-    return this.transport.get('/api/config');
+    return this.transport.get('/config');
   }
 
   /**
@@ -1585,7 +1585,7 @@ export class VectorizerClient {
     message: string;
   }> {
     this.logger.debug('Updating server configuration', config);
-    return this.transport.post('/api/config', config);
+    return this.transport.post('/config', config);
   }
 
   /**
@@ -1607,7 +1607,7 @@ export class VectorizerClient {
     }>;
   }> {
     this.logger.debug('Listing backups');
-    return this.transport.get('/api/backups/list');
+    return this.transport.get('/backups/list');
   }
 
   /**
@@ -1621,7 +1621,7 @@ export class VectorizerClient {
     filename?: string;
   }> {
     this.logger.debug('Creating backup', params);
-    return this.transport.post('/api/backups/create', params || {});
+    return this.transport.post('/backups/create', params || {});
   }
 
   /**
@@ -1634,7 +1634,7 @@ export class VectorizerClient {
     message: string;
   }> {
     this.logger.debug('Restoring backup', params);
-    return this.transport.post('/api/backups/restore', params);
+    return this.transport.post('/backups/restore', params);
   }
 
   /**
@@ -1644,7 +1644,7 @@ export class VectorizerClient {
     directory: string;
   }> {
     this.logger.debug('Getting backup directory');
-    return this.transport.get('/api/backups/directory');
+    return this.transport.get('/backups/directory');
   }
 
   // ========== Graph Operations ==========

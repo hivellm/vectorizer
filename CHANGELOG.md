@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.6] - 2025-12-06
+
+### Changed
+
+- **REST API Routes**: Removed `/api/` prefix from all management routes for consistency
+  - `/api/status` → `/status`
+  - `/api/logs` → `/logs`
+  - `/api/workspace/*` → `/workspace/*`
+  - `/api/config` → `/config`
+  - `/api/backups/*` → `/backups/*`
+  - `/api/hub/*` → `/hub/*`
+  - `/api/collections/{name}/force-save` → `/collections/{name}/force-save`
+  - **BENEFIT**: Cleaner, more consistent API without redundant prefixes
+
+### Fixed
+
+- **delete_vector REST handler**: Now actually deletes vectors from the store
+  - Previously only invalidated cache without deleting data
+  - Now calls `store.delete()` and marks changes for auto-save
+  - **BENEFIT**: delete_vector endpoint works correctly
+
+- **Collection persistence on restart**: Collections now persist correctly after restart
+  - Added `mark_changed()` calls in `insert_text`, `create_collection`, `delete_collection`
+  - Auto-save mechanism now triggers correctly when data changes
+  - **BENEFIT**: No data loss on server restart
+
+### Updated
+
+- **SDKs**: Updated TypeScript, JavaScript SDKs to use new routes without `/api/` prefix
+- **Dashboard hooks**: Updated all dashboard hooks to use new routes
+
 ## [1.8.5] - 2025-12-06
 
 ### Added

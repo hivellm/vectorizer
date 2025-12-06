@@ -96,12 +96,12 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        // Should have 31 individual focused operations (28 core + 3 cleanup tools)
+        // Should have 26 individual focused operations
         // Note: 6 cluster tools were removed from MCP for security (v1.8.5)
         assert_eq!(
             operations.len(),
-            31,
-            "Expected 31 individual operations, got {}",
+            26,
+            "Expected 26 individual operations, got {}",
             operations.len()
         );
 
