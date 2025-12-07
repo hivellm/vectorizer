@@ -14,11 +14,11 @@
 - [x] 2.2 Mark as complete when that task is done
 
 ### 3. Tenant Migration
-- [ ] 3.1 Implement tenant data export functionality
-- [ ] 3.2 Implement tenant data import functionality
-- [ ] 3.3 Implement tenant ownership transfer
-- [ ] 3.4 Implement tenant merging
-- [ ] 3.5 Add validation and error handling
+- [x] 3.1 Implement tenant data export functionality
+- [x] 3.2 Implement tenant data import functionality
+- [x] 3.3 Implement tenant ownership transfer
+- [x] 3.4 Implement tenant merging
+- [x] 3.5 Add validation and error handling
 - [ ] 3.6 Add tests for tenant migration
 - [ ] 3.7 Update API documentation
 
@@ -81,10 +81,10 @@
 ## Phase 3: Medium Priority Stubs
 
 ### 9. Sharded Collection Features
-- [ ] 9.1 Implement batch insert for distributed collections
-- [ ] 9.2 Implement hybrid search for sharded collections
-- [ ] 9.3 Implement hybrid search for distributed collections
-- [ ] 9.4 Add document count tracking for sharded collections
+- [x] 9.1 Implement batch insert for distributed collections
+- [x] 9.2 Implement hybrid search for sharded collections
+- [x] 9.3 Implement hybrid search for distributed collections
+- [x] 9.4 Add document count tracking for sharded collections
 - [ ] 9.5 Implement requantization for sharded collections
 - [ ] 9.6 Add tests for each feature
 - [ ] 9.7 Update sharding documentation
@@ -100,25 +100,25 @@
 - [ ] 10.8 Update Qdrant compatibility documentation
 
 ### 11. Rate Limiting
-- [ ] 11.1 Extract API key from requests
-- [ ] 11.2 Implement per-API-key rate limiting
-- [ ] 11.3 Add rate limit tracking per key
+- [x] 11.1 Extract API key from requests
+- [x] 11.2 Implement per-API-key rate limiting
+- [x] 11.3 Add rate limit tracking per key
 - [ ] 11.4 Add configuration for per-key limits
 - [ ] 11.5 Add tests for per-key rate limiting
 - [ ] 11.6 Update security documentation
 
 ### 12. Quantization Cache Tracking
-- [ ] 12.1 Implement cache hit ratio tracking
-- [ ] 12.2 Implement cache hit tracking in HNSW integration
-- [ ] 12.3 Add cache statistics collection
-- [ ] 12.4 Expose cache metrics via monitoring
+- [x] 12.1 Implement cache hit ratio tracking
+- [x] 12.2 Implement cache hit tracking in HNSW integration
+- [x] 12.3 Add cache statistics collection
+- [x] 12.4 Expose cache metrics via monitoring
 - [ ] 12.5 Add tests for cache tracking
 - [ ] 12.6 Update quantization documentation
 
 ### 13. HiveHub Features
-- [ ] 13.1 Implement API request tracking
+- [x] 13.1 Implement API request tracking
 - [ ] 13.2 Implement HiveHub Cloud logging endpoint
-- [ ] 13.3 Add request tracking to usage metrics
+- [x] 13.3 Add request tracking to usage metrics
 - [ ] 13.4 Integrate logging with HiveHub API
 - [ ] 13.5 Add tests for tracking and logging
 - [ ] 13.6 Update HiveHub documentation
@@ -179,7 +179,7 @@
 
 ### 21. gRPC Improvements
 - [ ] 21.1 Implement quantization config conversion
-- [ ] 21.2 Implement uptime tracking
+- [x] 21.2 Implement uptime tracking
 - [ ] 21.3 Implement actual dense/sparse score extraction
 - [ ] 21.4 Test gRPC improvements
 - [ ] 21.5 Update gRPC documentation
