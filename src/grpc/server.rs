@@ -3,7 +3,9 @@
 //! This module implements the VectorizerService trait generated from the protobuf definitions.
 
 use std::sync::Arc;
+use std::time::Instant;
 
+use once_cell::sync::Lazy;
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
@@ -15,6 +17,9 @@ use crate::db::{HybridSearchConfig, VectorStore};
 use crate::error::VectorizerError;
 use crate::models::{CollectionConfig, Payload, SparseVector, Vector};
 
+/// Server start time for uptime tracking
+static SERVER_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
+
 /// Vectorizer gRPC service implementation
 #[derive(Clone)]
 pub struct VectorizerGrpcService {
@@ -24,7 +29,14 @@ pub struct VectorizerGrpcService {
 impl VectorizerGrpcService {
     /// Create a new gRPC service instance
     pub fn new(store: Arc<VectorStore>) -> Self {
+        // Initialize the start time on first service creation
+        let _ = *SERVER_START_TIME;
         Self { store }
+    }
+
+    /// Get server uptime in seconds
+    pub fn uptime_seconds() -> u64 {
+        SERVER_START_TIME.elapsed().as_secs()
     }
 }
 
@@ -516,7 +528,7 @@ impl VectorizerService for VectorizerGrpcService {
         Ok(Response::new(vectorizer::GetStatsResponse {
             collections_count: collections.len() as u32,
             total_vectors: total_vectors as u64,
-            uptime_seconds: 0, // TODO: Track uptime
+            uptime_seconds: Self::uptime_seconds() as i64,
             version: env!("CARGO_PKG_VERSION").to_string(),
         }))
     }

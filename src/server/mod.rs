@@ -7,7 +7,7 @@ mod file_validation;
 mod graph_handlers;
 mod graphql_handlers;
 mod hub_backup_handlers;
-// mod hub_tenant_handlers; // TODO: Fix type errors before enabling
+// mod hub_tenant_handlers; // NOTE: Disabled due to axum version conflicts with tonic
 mod hub_usage_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
@@ -1136,7 +1136,9 @@ impl VectorizerServer {
                 get(hub_usage_handlers::get_usage_statistics),
             )
             .route("/hub/usage/quota", get(hub_usage_handlers::get_quota_info))
-            // HiveHub tenant management routes (TODO: Fix handler implementations)
+            // HiveHub tenant management routes
+            // NOTE: Disabled due to axum version conflicts with tonic dependency
+            // Routes implemented in hub_tenant_handlers.rs but need axum version alignment
             // .route(
             //     "/api/hub/tenant/cleanup",
             //     post(hub_tenant_handlers::cleanup_tenant_data),
