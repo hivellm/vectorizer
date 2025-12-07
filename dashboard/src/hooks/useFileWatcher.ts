@@ -62,9 +62,9 @@ export function useFileWatcher() {
 
   const getStatus = async (): Promise<FileWatcherStatus> => {
     try {
-      const config = await api.get<any>('/api/workspace/config');
+      const config = await api.get<any>('/workspace/config');
       const fileWatcher = config.global_settings?.file_watcher || {};
-      
+
       return {
         enabled: fileWatcher.enabled !== false,
         running: false, // Will be determined by metrics
@@ -92,7 +92,7 @@ export function useFileWatcher() {
 
   const updateConfig = async (config: Partial<FileWatcherStatus>): Promise<void> => {
     try {
-      const currentConfig = await api.get<any>('/api/workspace/config');
+      const currentConfig = await api.get<any>('/workspace/config');
       const updatedConfig = {
         ...currentConfig,
         global_settings: {
@@ -103,7 +103,7 @@ export function useFileWatcher() {
           },
         },
       };
-      await api.post('/api/workspace/config', updatedConfig);
+      await api.post('/workspace/config', updatedConfig);
     } catch (error) {
       console.error('Error updating file watcher config:', error);
       throw error;

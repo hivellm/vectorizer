@@ -1077,74 +1077,65 @@ impl VectorizerServer {
                 get(rest_handlers::get_indexing_progress),
             )
             // GUI-specific endpoints
-            .route("/api/status", get(rest_handlers::get_status))
-            .route("/api/logs", get(rest_handlers::get_logs))
+            .route("/status", get(rest_handlers::get_status))
+            .route("/logs", get(rest_handlers::get_logs))
             .route(
-                "/api/collections/{name}/force-save",
+                "/collections/{name}/force-save",
                 post(rest_handlers::force_save_collection),
             )
-            .route("/api/workspace/add", post(rest_handlers::add_workspace))
+            .route("/workspace/add", post(rest_handlers::add_workspace))
+            .route("/workspace/remove", post(rest_handlers::remove_workspace))
+            .route("/workspace/list", get(rest_handlers::list_workspaces))
             .route(
-                "/api/workspace/remove",
-                post(rest_handlers::remove_workspace),
-            )
-            .route("/api/workspace/list", get(rest_handlers::list_workspaces))
-            .route(
-                "/api/workspace/config",
+                "/workspace/config",
                 get(rest_handlers::get_workspace_config),
             )
             .route(
-                "/api/workspace/config",
+                "/workspace/config",
                 post(rest_handlers::update_workspace_config),
             )
-            .route("/api/config", get(rest_handlers::get_config))
-            .route("/api/config", post(rest_handlers::update_config))
+            .route("/config", get(rest_handlers::get_config))
+            .route("/config", post(rest_handlers::update_config))
             .route("/admin/restart", post(rest_handlers::restart_server))
-            .route("/api/backups", get(rest_handlers::list_backups))
-            .route("/api/backups/create", post(rest_handlers::create_backup))
-            .route("/api/backups/restore", post(rest_handlers::restore_backup))
+            .route("/backups", get(rest_handlers::list_backups))
+            .route("/backups/create", post(rest_handlers::create_backup))
+            .route("/backups/restore", post(rest_handlers::restore_backup))
             .route(
-                "/api/backups/directory",
+                "/backups/directory",
                 get(rest_handlers::get_backup_directory),
             )
             // HiveHub user-scoped backup routes
+            .route("/hub/backups", get(hub_backup_handlers::list_user_backups))
             .route(
-                "/api/hub/backups",
-                get(hub_backup_handlers::list_user_backups),
-            )
-            .route(
-                "/api/hub/backups",
+                "/hub/backups",
                 post(hub_backup_handlers::create_user_backup),
             )
             .route(
-                "/api/hub/backups/restore",
+                "/hub/backups/restore",
                 post(hub_backup_handlers::restore_user_backup),
             )
             .route(
-                "/api/hub/backups/upload",
+                "/hub/backups/upload",
                 post(hub_backup_handlers::upload_user_backup),
             )
             .route(
-                "/api/hub/backups/{backup_id}",
+                "/hub/backups/{backup_id}",
                 get(hub_backup_handlers::get_user_backup),
             )
             .route(
-                "/api/hub/backups/{backup_id}",
+                "/hub/backups/{backup_id}",
                 delete(hub_backup_handlers::delete_user_backup),
             )
             .route(
-                "/api/hub/backups/{backup_id}/download",
+                "/hub/backups/{backup_id}/download",
                 get(hub_backup_handlers::download_user_backup),
             )
             // HiveHub usage statistics routes
             .route(
-                "/api/hub/usage/statistics",
+                "/hub/usage/statistics",
                 get(hub_usage_handlers::get_usage_statistics),
             )
-            .route(
-                "/api/hub/usage/quota",
-                get(hub_usage_handlers::get_quota_info),
-            )
+            .route("/hub/usage/quota", get(hub_usage_handlers::get_quota_info))
             // HiveHub tenant management routes (TODO: Fix handler implementations)
             // .route(
             //     "/api/hub/tenant/cleanup",
@@ -1160,7 +1151,7 @@ impl VectorizerServer {
             // )
             // HiveHub API key validation
             .route(
-                "/api/hub/validate-key",
+                "/hub/validate-key",
                 post(hub_usage_handlers::validate_api_key),
             )
             // Collection management
@@ -1573,11 +1564,20 @@ impl VectorizerServer {
         let rest_routes = rest_routes.merge(graph_router);
 
         // Add GraphQL routes
-        let graphql_schema = crate::api::graphql::create_schema(
-            self.store.clone(),
-            self.embedding_manager.clone(),
-            self.start_time,
-        );
+        let graphql_schema = if let Some(ref auto_save) = self.auto_save_manager {
+            crate::api::graphql::create_schema_with_auto_save(
+                self.store.clone(),
+                self.embedding_manager.clone(),
+                self.start_time,
+                auto_save.clone(),
+            )
+        } else {
+            crate::api::graphql::create_schema(
+                self.store.clone(),
+                self.embedding_manager.clone(),
+                self.start_time,
+            )
+        };
         let graphql_state = graphql_handlers::GraphQLState {
             schema: graphql_schema,
         };
@@ -1887,7 +1887,17 @@ impl VectorizerServer {
             }
         }
 
-        // Auto save task (non-blocking)
+        // Force save all data before shutdown to prevent data loss
+        // This ensures any changes made since the last auto-save are persisted
+        if let Some(auto_save) = &self.auto_save_manager {
+            info!("💾 Forcing final save before shutdown...");
+            match auto_save.force_save().await {
+                Ok(_) => info!("✅ Final save completed successfully"),
+                Err(e) => warn!("⚠️ Final save failed (data may be lost): {}", e),
+            }
+        }
+
+        // Auto save task (non-blocking) - abort AFTER force_save
         if let Ok(mut auto_task) = self.auto_save_task.try_lock() {
             if let Some(handle) = auto_task.take() {
                 handle.abort();

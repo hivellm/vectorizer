@@ -34,7 +34,7 @@ export function useWorkspace() {
 
   const getConfig = async (): Promise<WorkspaceConfig> => {
     try {
-      const config = await api.get<WorkspaceConfig>('/api/workspace/config');
+      const config = await api.get<WorkspaceConfig>('/workspace/config');
       return config;
     } catch (error) {
       console.error('Error fetching workspace config:', error);
@@ -44,7 +44,7 @@ export function useWorkspace() {
 
   const updateConfig = async (config: WorkspaceConfig): Promise<void> => {
     try {
-      await api.post('/api/workspace/config', config);
+      await api.post('/workspace/config', config);
     } catch (error) {
       console.error('Error updating workspace config:', error);
       throw error;
@@ -53,7 +53,7 @@ export function useWorkspace() {
 
   const addWorkspace = async (path: string, collectionName: string): Promise<void> => {
     try {
-      await api.post('/api/workspace/add', {
+      await api.post('/workspace/add', {
         path,
         collection_name: collectionName,
       });
@@ -65,7 +65,7 @@ export function useWorkspace() {
 
   const removeWorkspace = async (path: string): Promise<void> => {
     try {
-      await api.post('/api/workspace/remove', { path });
+      await api.post('/workspace/remove', { path });
     } catch (error) {
       console.error('Error removing workspace:', error);
       throw error;
@@ -74,7 +74,7 @@ export function useWorkspace() {
 
   const listWorkspaces = async (): Promise<any[]> => {
     try {
-      const workspaces = await api.get<any[]>('/api/workspace/list');
+      const workspaces = await api.get<any[]>('/workspace/list');
       return Array.isArray(workspaces) ? workspaces : [];
     } catch (error) {
       console.error('Error listing workspaces:', error);

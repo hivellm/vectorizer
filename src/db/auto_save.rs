@@ -23,6 +23,9 @@ pub struct AutoSaveManager {
     /// Reference to the vector store
     store: Arc<VectorStore>,
 
+    /// Data directory for saving
+    data_dir: std::path::PathBuf,
+
     /// Storage compactor
     compactor: StorageCompactor,
 
@@ -52,6 +55,16 @@ impl AutoSaveManager {
     /// Create a new auto-save manager with 5min save interval and 1h snapshot interval
     pub fn new(store: Arc<VectorStore>, _interval_hours: u64) -> Self {
         let data_dir = VectorStore::get_data_dir();
+        Self::new_with_path(store, _interval_hours, data_dir)
+    }
+
+    /// Create a new auto-save manager with a custom data directory
+    /// This is useful for testing with isolated temp directories
+    pub fn new_with_path(
+        store: Arc<VectorStore>,
+        _interval_hours: u64,
+        data_dir: std::path::PathBuf,
+    ) -> Self {
         let compactor = StorageCompactor::new(&data_dir, 6, 1000);
 
         // Create snapshot manager (keep last 48 hours of snapshots, max 48 snapshots)
@@ -60,6 +73,7 @@ impl AutoSaveManager {
 
         Self {
             store,
+            data_dir,
             compactor,
             snapshot_manager,
             last_save: Arc::new(RwLock::new(Instant::now())),
@@ -69,6 +83,11 @@ impl AutoSaveManager {
             changes_detected: Arc::new(AtomicBool::new(false)),
             shutdown: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Check if there are pending changes (alias for has_pending_changes)
+    pub fn has_changes(&self) -> bool {
+        self.has_pending_changes()
     }
 
     /// Start the auto-save background task
@@ -247,8 +266,7 @@ impl AutoSaveManager {
     pub async fn force_save(&self) -> Result<()> {
         info!("💾 AutoSave: Forcing immediate compaction from memory...");
 
-        let data_dir = VectorStore::get_data_dir();
-        let mut compactor = StorageCompactor::new(&data_dir, 6, 1000);
+        let compactor = StorageCompactor::new(&self.data_dir, 6, 1000);
 
         match compactor.compact_from_memory(&self.store) {
             Ok(index) => {

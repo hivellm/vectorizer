@@ -533,12 +533,12 @@ For internal HiveHub requests:
 ```bash
 # Bypass authentication
 curl -H "x-hivehub-service: true" \
-     http://localhost:15002/api/collections
+     http://localhost:15002/collections
 
 # With user context (tenant scoping)
 curl -H "x-hivehub-service: true" \
      -H "x-hivehub-user-id: <user-uuid>" \
-     http://localhost:15002/api/collections
+     http://localhost:15002/collections
 ```
 
 See [HiveHub Integration Guide](./docs/HUB_INTEGRATION.md) for detailed documentation.

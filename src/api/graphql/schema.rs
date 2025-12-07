@@ -10,6 +10,7 @@ use tracing::{error, info};
 use super::types::*;
 use crate::config::FileUploadConfig;
 use crate::db::VectorStore;
+use crate::db::auto_save::AutoSaveManager;
 use crate::db::graph::{Edge, Node, RelationshipType};
 use crate::embedding::EmbeddingManager;
 use crate::file_loader::chunker::Chunker;
@@ -29,6 +30,8 @@ pub struct GraphQLContext {
     pub tenant_context: Option<TenantContext>,
     /// Optional quota manager for multi-tenant mode
     pub quota_manager: Option<Arc<QuotaManager>>,
+    /// Optional auto-save manager for persistence
+    pub auto_save_manager: Option<Arc<AutoSaveManager>>,
 }
 
 /// The GraphQL schema type
@@ -50,6 +53,7 @@ pub fn create_schema(
         start_time,
         tenant_context: None,
         quota_manager: None,
+        auto_save_manager: None,
     };
 
     Schema::build(QueryRoot, MutationRoot, EmptySubscription)
@@ -57,6 +61,29 @@ pub fn create_schema(
         // Limit query depth to prevent deeply nested queries
         .limit_depth(10)
         // Limit query complexity to prevent expensive queries
+        .limit_complexity(1000)
+        .finish()
+}
+
+/// Create the GraphQL schema with auto-save support
+pub fn create_schema_with_auto_save(
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+    start_time: std::time::Instant,
+    auto_save_manager: Arc<AutoSaveManager>,
+) -> VectorizerSchema {
+    let ctx = GraphQLContext {
+        store,
+        embedding_manager,
+        start_time,
+        tenant_context: None,
+        quota_manager: None,
+        auto_save_manager: Some(auto_save_manager),
+    };
+
+    Schema::build(QueryRoot, MutationRoot, EmptySubscription)
+        .data(ctx)
+        .limit_depth(10)
         .limit_complexity(1000)
         .finish()
 }
@@ -74,6 +101,7 @@ pub fn create_schema_with_hub(
         start_time,
         tenant_context: None, // Set per-request in handler
         quota_manager: Some(quota_manager),
+        auto_save_manager: None,
     };
 
     Schema::build(QueryRoot, MutationRoot, EmptySubscription)
@@ -759,6 +787,11 @@ impl MutationRoot {
 
         info!("GraphQL: Created collection '{}'", collection_name);
 
+        // Mark changes for auto-save
+        if let Some(ref auto_save) = gql_ctx.auto_save_manager {
+            auto_save.mark_changed();
+        }
+
         // Return the created collection metadata
         let meta = gql_ctx
             .store
@@ -791,6 +824,10 @@ impl MutationRoot {
         match gql_ctx.store.delete_collection(&name) {
             Ok(_) => {
                 info!("GraphQL: Deleted collection '{name}'");
+                // Mark changes for auto-save
+                if let Some(ref auto_save) = gql_ctx.auto_save_manager {
+                    auto_save.mark_changed();
+                }
                 Ok(MutationResult::ok_with_message(format!(
                     "Collection '{name}' deleted"
                 )))
@@ -852,6 +889,11 @@ impl MutationRoot {
             .insert(&collection, vec![vector.clone()])
             .map_err(|e| async_graphql::Error::new(format!("Failed to upsert vector: {e}")))?;
 
+        // Mark changes for auto-save
+        if let Some(ref auto_save) = gql_ctx.auto_save_manager {
+            auto_save.mark_changed();
+        }
+
         Ok(vector.into())
     }
 
@@ -909,6 +951,11 @@ impl MutationRoot {
             .insert(&input.collection, vectors)
             .map_err(|e| async_graphql::Error::new(format!("Failed to upsert vectors: {e}")))?;
 
+        // Mark changes for auto-save
+        if let Some(ref auto_save) = gql_ctx.auto_save_manager {
+            auto_save.mark_changed();
+        }
+
         info!(
             "GraphQL: Upserted {count} vectors in '{}'",
             input.collection
@@ -930,9 +977,15 @@ impl MutationRoot {
         check_collection_ownership(&gql_ctx.store, &collection, tenant_ctx)?;
 
         match gql_ctx.store.delete(&collection, &id) {
-            Ok(_) => Ok(MutationResult::ok_with_message(format!(
-                "Vector '{id}' deleted"
-            ))),
+            Ok(_) => {
+                // Mark changes for auto-save
+                if let Some(ref auto_save) = gql_ctx.auto_save_manager {
+                    auto_save.mark_changed();
+                }
+                Ok(MutationResult::ok_with_message(format!(
+                    "Vector '{id}' deleted"
+                )))
+            }
             Err(e) => Ok(MutationResult::err(format!("Failed to delete vector: {e}"))),
         }
     }

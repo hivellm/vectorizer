@@ -748,6 +748,11 @@ pub async fn create_collection(
             .map_err(|e| ErrorResponse::from(e))?;
     }
 
+    // Mark changes for auto-save
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
     // Record usage metrics if HiveHub is enabled
     if let Some(ref hub_manager) = state.hub_manager {
         let mut metrics = crate::hub::UsageMetrics::new();
@@ -839,6 +844,11 @@ pub async fn delete_collection(
         .delete_collection(&name)
         .map_err(|e| ErrorResponse::from(e))?;
 
+    // Mark changes for auto-save
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
     // Invalidate cache for this collection
     state.query_cache.invalidate_collection(&name);
     debug!(
@@ -879,6 +889,12 @@ pub async fn delete_vector(
         vector_id, collection_name
     );
 
+    // Actually delete the vector from the store
+    state
+        .store
+        .delete(&collection_name, &vector_id)
+        .map_err(|e| ErrorResponse::from(e))?;
+
     // Invalidate cache for this collection
     state.query_cache.invalidate_collection(&collection_name);
     debug!(
@@ -886,8 +902,14 @@ pub async fn delete_vector(
         collection_name
     );
 
+    // Mark changes for auto-save
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
     Ok(Json(json!({
-        "message": format!("Vector '{}' deleted from collection '{}'", vector_id, collection_name)
+        "message": format!("Vector '{}' deleted from collection '{}'", vector_id, collection_name),
+        "success": true
     })))
 }
 
@@ -1017,6 +1039,11 @@ pub async fn insert_text(
         .store
         .insert(collection_name, vec![vector])
         .map_err(|e| ErrorResponse::from(e))?;
+
+    // Mark changes for auto-save
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
 
     // Invalidate cache for this collection
     state.query_cache.invalidate_collection(collection_name);
