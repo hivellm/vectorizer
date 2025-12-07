@@ -8,6 +8,8 @@
 //! - Rebalancing and shard management
 //! - Data consistency and integrity
 
+use std::ops::Deref;
+
 use vectorizer::db::vector_store::VectorStore;
 use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,
@@ -28,6 +30,7 @@ fn create_sharded_config(shard_count: u32) -> CollectionConfig {
             virtual_nodes_per_shard: 10, // Lower for tests
             rebalance_threshold: 0.2,
         }),
+        graph: None,
     }
 }
 
@@ -37,7 +40,11 @@ fn test_sharding_collection_creation() {
     let config = create_sharded_config(4);
 
     // Create sharded collection
-    assert!(store.create_collection("sharded_test", config.clone()).is_ok());
+    assert!(
+        store
+            .create_collection("sharded_test", config.clone())
+            .is_ok()
+    );
 
     // Verify collection exists
     assert!(store.get_collection("sharded_test").is_ok());
@@ -56,7 +63,9 @@ fn test_sharding_collection_creation() {
 fn test_sharding_vector_distribution() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
-    store.create_collection("distribution_test", config).unwrap();
+    store
+        .create_collection("distribution_test", config)
+        .unwrap();
 
     // Insert 200 vectors
     let mut vectors = Vec::new();
@@ -179,10 +188,7 @@ fn test_sharding_delete_operations() {
 
     // Verify initial count
     assert_eq!(
-        store
-            .get_collection("delete_test")
-            .unwrap()
-            .vector_count(),
+        store.get_collection("delete_test").unwrap().vector_count(),
         50
     );
 
@@ -193,21 +199,24 @@ fn test_sharding_delete_operations() {
 
     // Verify deletion
     assert_eq!(
-        store
-            .get_collection("delete_test")
-            .unwrap()
-            .vector_count(),
+        store.get_collection("delete_test").unwrap().vector_count(),
         40
     );
 
     // Verify deleted vectors are gone
     for i in 0..10 {
-        assert!(store.get_vector("delete_test", &format!("vec_{i}")).is_err());
+        assert!(
+            store
+                .get_vector("delete_test", &format!("vec_{i}"))
+                .is_err()
+        );
     }
 
     // Verify remaining vectors still exist
     for i in 10..50 {
-        let vector = store.get_vector("delete_test", &format!("vec_{i}")).unwrap();
+        let vector = store
+            .get_vector("delete_test", &format!("vec_{i}"))
+            .unwrap();
         assert_eq!(vector.id, format!("vec_{i}"));
     }
 }
@@ -254,7 +263,11 @@ fn test_sharding_consistency_after_operations() {
             assert!(store.update("consistency_test", updated).is_ok());
         } else {
             // Delete odd indices
-            assert!(store.delete("consistency_test", &format!("vec_{i}")).is_ok());
+            assert!(
+                store
+                    .delete("consistency_test", &format!("vec_{i}"))
+                    .is_ok()
+            );
         }
     }
 
@@ -267,7 +280,9 @@ fn test_sharding_consistency_after_operations() {
 
     // Verify updated vectors
     for i in (0..50).step_by(2) {
-        let vector = store.get_vector("consistency_test", &format!("vec_{i}")).unwrap();
+        let vector = store
+            .get_vector("consistency_test", &format!("vec_{i}"))
+            .unwrap();
         assert_eq!(vector.data[0], (i * 2) as f32);
         assert!(vector.payload.is_some());
         let payload = vector.payload.unwrap();
@@ -276,9 +291,11 @@ fn test_sharding_consistency_after_operations() {
 
     // Verify deleted vectors are gone
     for i in (1..50).step_by(2) {
-        assert!(store
-            .get_vector("consistency_test", &format!("vec_{i}"))
-            .is_err());
+        assert!(
+            store
+                .get_vector("consistency_test", &format!("vec_{i}"))
+                .is_err()
+        );
     }
 }
 
@@ -330,11 +347,7 @@ fn test_sharding_search_accuracy() {
     // Insert vectors with known similarity
     let mut vectors = Vec::new();
     for i in 0..50 {
-        let mut data = vec![0.0; 128];
-        // Create vectors with increasing similarity
-        for j in 0..128 {
-            data[j] = (i as f32 + j as f32) * 0.1;
-        }
+        let data: Vec<f32> = (0..128).map(|j| (i as f32 + j as f32) * 0.1).collect();
         vectors.push(Vector {
             id: format!("vec_{i}"),
             data,
@@ -345,16 +358,13 @@ fn test_sharding_search_accuracy() {
     assert!(store.insert("accuracy_test", vectors).is_ok());
 
     // Search with query similar to vec_25
-    let mut query = vec![0.0; 128];
-    for j in 0..128 {
-        query[j] = (25.0 + j as f32) * 0.1;
-    }
+    let query: Vec<f32> = (0..128).map(|j| (25.0 + j as f32) * 0.1).collect();
 
     let results = store.search("accuracy_test", &query, 5).unwrap();
 
     // Should find vec_25 as most similar
     assert!(!results.is_empty());
-    
+
     // Verify results are sorted by similarity (descending)
     for i in 1..results.len() {
         assert!(results[i - 1].score >= results[i].score);
@@ -387,7 +397,9 @@ fn test_sharding_with_payload() {
 
     // Verify payloads are preserved
     for i in (0..100).step_by(10) {
-        let vector = store.get_vector("payload_test", &format!("vec_{i}")).unwrap();
+        let vector = store
+            .get_vector("payload_test", &format!("vec_{i}"))
+            .unwrap();
         assert!(vector.payload.is_some());
         let payload = vector.payload.unwrap();
         assert_eq!(payload.data["category"], i % 5);
@@ -523,4 +535,3 @@ fn test_sharding_concurrent_operations() {
         .vector_count();
     assert_eq!(final_count, 150); // 50 deleted, 150 remaining
 }
-

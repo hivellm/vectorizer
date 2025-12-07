@@ -6,6 +6,7 @@
 //! - Payload indexing
 //! - Query caching
 //! - Binary quantization
+//! - New implementations (batch insert, hybrid search, rate limiting, etc.)
 
 pub mod binary_quantization;
 pub mod cluster;
@@ -22,6 +23,7 @@ pub mod graph;
 pub mod hybrid_search;
 pub mod multi_tenancy;
 pub mod multi_tenancy_comprehensive;
+pub mod new_implementations;
 pub mod payload_index;
 pub mod qdrant_api;
 pub mod query_cache;
@@ -29,4 +31,5 @@ pub mod raft;
 pub mod raft_comprehensive;
 pub mod sharding;
 pub mod sharding_comprehensive;
+pub mod sharding_validation;
 pub mod sparse_vector;
