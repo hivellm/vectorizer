@@ -10,10 +10,11 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
+use super::HybridSearchConfig;
 use super::collection::Collection;
 use super::sharding::{ShardId, ShardRebalancer, ShardRouter};
 use crate::error::{Result, VectorizerError};
-use crate::models::{CollectionConfig, SearchResult, Vector};
+use crate::models::{CollectionConfig, SearchResult, SparseVector, Vector};
 
 /// A sharded collection that distributes vectors across multiple shards
 #[derive(Clone, Debug)]
@@ -270,11 +271,78 @@ impl ShardedCollection {
         Ok(all_results)
     }
 
+    /// Perform hybrid search across all shards and merge results
+    ///
+    /// # Arguments
+    /// * `query_dense` - Dense query vector
+    /// * `query_sparse` - Optional sparse query vector for hybrid search
+    /// * `config` - Hybrid search configuration
+    /// * `shard_keys` - Optional list of specific shards to search (if None, searches all)
+    pub fn hybrid_search(
+        &self,
+        query_dense: &[f32],
+        query_sparse: Option<&SparseVector>,
+        config: HybridSearchConfig,
+        shard_keys: Option<&[ShardId]>,
+    ) -> Result<Vec<SearchResult>> {
+        // Get shards to search
+        let shard_ids = self.router.route_search(shard_keys);
+
+        if shard_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Search each shard with hybrid search
+        let mut all_results = Vec::new();
+        let shard_count = shard_ids.len();
+
+        for shard_id in shard_ids {
+            if let Some(shard) = self.shards.get(&shard_id) {
+                match shard.hybrid_search(query_dense, query_sparse, config.clone()) {
+                    Ok(results) => {
+                        all_results.extend(results);
+                    }
+                    Err(e) => {
+                        warn!("Error in hybrid search for shard {}: {}", shard_id, e);
+                        // Continue with other shards
+                    }
+                }
+            }
+        }
+
+        // Merge and sort results by score (higher is better for similarity)
+        all_results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Take top k results
+        all_results.truncate(config.final_k);
+
+        debug!(
+            "Multi-shard hybrid search in collection '{}' returned {} results from {} shards",
+            self.name,
+            all_results.len(),
+            shard_count
+        );
+
+        Ok(all_results)
+    }
+
     /// Get total vector count across all shards
     pub fn vector_count(&self) -> usize {
         self.shards
             .iter()
             .map(|shard| shard.value().vector_count())
+            .sum()
+    }
+
+    /// Get total document count across all shards
+    pub fn document_count(&self) -> usize {
+        self.shards
+            .iter()
+            .map(|shard| shard.value().document_count())
             .sum()
     }
 

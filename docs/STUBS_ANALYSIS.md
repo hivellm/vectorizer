@@ -4,19 +4,22 @@ This document lists all stub implementations, TODOs, and incomplete functionalit
 
 ## 🔴 Critical Stubs (Production Blockers)
 
-### 1. TLS/SSL Support
+### 1. TLS/SSL Support ⚠️ **PARTIALLY IMPLEMENTED**
 **File**: `src/security/tls.rs`
-- **Status**: Infrastructure ready, implementation missing
-- **Issue**: `create_server_config()` returns error - TLS not fully implemented
-- **Impact**: Cannot enable HTTPS/TLS encryption
-- **Lines**: 38-51
+- **Status**: ✅ Certificate loading and mTLS implemented, missing cipher suites and ALPN
+- **Implementation**: `load_certs()`, `load_private_key()`, and mTLS with `WebPkiClientVerifier` implemented
+- **Remaining**: Cipher suite configuration, ALPN protocol, tests
+- **Impact**: Basic TLS/HTTPS can be enabled, advanced features missing
 
-### 2. Collection Persistence on Restart
+### 2. Collection Persistence on Restart ✅ **COMPLETED**
 **File**: `src/server/rest_handlers.rs`, `src/api/graphql/schema.rs`
-- **Status**: Collections created via API may not persist
-- **Issue**: Collections may not be saved immediately, lost on restart before auto-save
-- **Impact**: Data loss for API-created collections
-- **Task**: `fix-collection-persistence-on-restart` (created)
+- **Status**: ✅ **IMPLEMENTED** - Collections persist via auto-save with `mark_changed()`
+- **Implementation**: 
+  - REST API calls `auto_save.mark_changed()` after collection operations
+  - GraphQL has `auto_save_manager` in context, calls `mark_changed()` after mutations
+  - Auto-save compacts to `.vecdb` every 5 minutes when changes detected
+  - Tests added in `tests/core/persistence.rs`
+- **Task**: `fix-collection-persistence-on-restart` (completed and archived)
 
 ### 3. Tenant Migration
 **File**: `src/server/hub_tenant_handlers.rs`
@@ -27,12 +30,13 @@ This document lists all stub implementations, TODOs, and incomplete functionalit
 
 ## 🟡 High Priority Stubs
 
-### 4. Workspace Manager Integration
+### 4. Workspace Manager Integration ✅ **MOSTLY IMPLEMENTED**
 **Files**: 
 - `src/server/rest_handlers.rs` (lines 2718, 2737, 2746)
-- `src/api/graphql/schema.rs` (lines 595, 1180, 1195)
-- **Status**: Multiple TODOs for workspace manager integration
-- **Impact**: Workspace operations may not work correctly
+- `src/api/graphql/schema.rs` (lines 1241, 1262, 1195)
+- **Status**: ✅ `add_workspace` and `remove_workspace` implemented, `update_workspace_config` pending
+- **Implementation**: REST and GraphQL handlers use `WorkspaceManager::new()` for add/remove operations
+- **Remaining**: `update_workspace_config` handler implementation
 
 ### 5. BERT and MiniLM Embeddings
 **File**: `src/embedding/mod.rs`
@@ -44,22 +48,17 @@ This document lists all stub implementations, TODOs, and incomplete functionalit
 - **Impact**: BERT/MiniLM embeddings are not real, just hash-based placeholders
 - **Lines**: 455-509, 537-589
 
-### 6. Hybrid Search
+### 6. Hybrid Search ✅ **IMPLEMENTED**
 **File**: `src/discovery/hybrid.rs`
-- **Status**: Empty implementation
-- **Issue**: `HybridSearcher::search()` returns empty vector, TODO comment (line 27)
-- **Impact**: Hybrid search (dense + sparse) not functional
-- **Lines**: 19-32
+- **Status**: ✅ Fully implemented with HNSW dense search, BM25 sparse search, and RRF merging
+- **Implementation**: Complete hybrid search with `reciprocal_rank_fusion()`, alpha parameter, and tests
+- **Remaining**: Documentation update
 
-### 7. Transmutation Integration
+### 7. Transmutation Integration ⚠️ **PARTIALLY IMPLEMENTED**
 **File**: `src/transmutation_integration/mod.rs`
-- **Status**: Placeholder implementation
-- **Issue**: 
-  - `convert_to_markdown()` uses placeholder API (line 64-71)
-  - Page count extraction is placeholder (line 130)
-  - Content extraction is placeholder (line 116)
-- **Impact**: Document conversion may not work correctly
-- **Lines**: 64-172
+- **Status**: ⚠️ Structure exists but `convert_to_markdown()` still uses placeholder implementation
+- **Implementation**: Module structure, format detection, and tests exist
+- **Remaining**: Real transmutation API integration, page count extraction, content extraction
 
 ### 8. gRPC Unimplemented Methods
 **Files**:
@@ -127,10 +126,11 @@ This document lists all stub implementations, TODOs, and incomplete functionalit
 
 ## 🔵 Low Priority / Optional Stubs
 
-### 17. Graceful Restart
+### 17. Graceful Restart ⚠️ **PARTIALLY IMPLEMENTED**
 **File**: `src/server/rest_handlers.rs`
-- **Issue**: TODO: Implement graceful restart (line 2825)
-- **Impact**: Server restart may not be graceful
+- **Status**: ⚠️ Handler exists but may need signal handling improvements
+- **Implementation**: `graceful_restart()` function implemented at line 2882
+- **Remaining**: Signal handling improvements, ensure in-flight requests complete, tests
 
 ### 18. Collection Mapping Configuration
 **File**: `src/config/file_watcher.rs`
@@ -204,17 +204,17 @@ This document lists all stub implementations, TODOs, and incomplete functionalit
 ## Summary Statistics
 
 - **Total Stubs Found**: ~177 instances
-- **Critical (Production Blockers)**: 3
-- **High Priority**: 5
+- **Critical (Production Blockers)**: 3 (1 partially implemented, 1 completed, 1 pending)
+- **High Priority**: 5 (2 implemented, 1 partially implemented, 2 pending)
 - **Medium Priority**: 13
-- **Low Priority**: 9
+- **Low Priority**: 9 (1 partially implemented)
 
 ## Recommendations
 
-1. **Immediate Action**: Fix collection persistence on restart (task already created)
-2. **High Priority**: Implement TLS support for production deployments
-3. **High Priority**: Complete workspace manager integration
+1. ✅ **Completed**: Collection persistence on restart (task completed and archived)
+2. **High Priority**: Complete TLS support (cipher suites, ALPN, tests)
+3. **High Priority**: Complete workspace manager integration (`update_workspace_config`)
 4. **Medium Priority**: Fix BERT/MiniLM embeddings or remove if not needed
-5. **Medium Priority**: Complete hybrid search implementation
+5. ✅ **Completed**: Hybrid search implementation
 6. **Low Priority**: Clean up test stubs and fix broken tests
 

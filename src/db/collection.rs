@@ -524,6 +524,11 @@ impl Collection {
         }
     }
 
+    /// Get the number of unique documents in this collection
+    pub fn document_count(&self) -> usize {
+        self.document_ids.len()
+    }
+
     /// Get the embedding type used for this collection
     pub fn get_embedding_type(&self) -> String {
         self.embedding_type.read().clone()

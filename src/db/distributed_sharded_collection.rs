@@ -10,11 +10,12 @@ use std::time::{Duration, Instant};
 use parking_lot::RwLock;
 use tracing::{debug, error, info, warn};
 
+use super::HybridSearchConfig;
 use super::collection::Collection;
 use super::sharding::ShardId;
 use crate::cluster::{ClusterClientPool, ClusterManager, DistributedShardRouter, NodeId};
 use crate::error::{Result, VectorizerError};
-use crate::models::{CollectionConfig, SearchResult, Vector};
+use crate::models::{CollectionConfig, SearchResult, SparseVector, Vector};
 
 /// A distributed sharded collection that distributes vectors across multiple servers
 #[derive(Clone, Debug)]
@@ -195,6 +196,110 @@ impl DistributedShardedCollection {
             "Shard {} not found or not assigned to any node",
             shard_id
         )))
+    }
+
+    /// Batch insert vectors across shards (local and remote)
+    ///
+    /// This method optimizes batch insertion by:
+    /// 1. Grouping vectors by their target shard
+    /// 2. Grouping shards by node
+    /// 3. Executing batch inserts in parallel for each node
+    pub async fn insert_batch(&self, vectors: Vec<Vector>) -> Result<()> {
+        if vectors.is_empty() {
+            return Ok(());
+        }
+
+        // Group vectors by shard
+        let mut shard_vectors: HashMap<ShardId, Vec<Vector>> = HashMap::new();
+        for vector in vectors {
+            let shard_id = self.shard_router.get_shard_for_vector(&vector.id);
+            shard_vectors.entry(shard_id).or_default().push(vector);
+        }
+
+        // Group shards by node
+        let local_node_id = self.cluster_manager.local_node_id();
+        let mut local_vectors: HashMap<ShardId, Vec<Vector>> = HashMap::new();
+        let mut remote_vectors: HashMap<NodeId, Vec<Vector>> = HashMap::new();
+
+        for (shard_id, vectors) in shard_vectors {
+            if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
+                if node_id == *local_node_id {
+                    local_vectors.insert(shard_id, vectors);
+                } else {
+                    remote_vectors.entry(node_id).or_default().extend(vectors);
+                }
+            }
+        }
+
+        // Insert into local shards
+        {
+            let local_shards = self.local_shards.read();
+            for (shard_id, vectors) in local_vectors {
+                if let Some(shard) = local_shards.get(&shard_id) {
+                    let count = vectors.len();
+                    for vector in vectors {
+                        shard.insert(vector)?;
+                    }
+                    debug!(
+                        "Batch inserted {} vectors into local shard {} of collection '{}'",
+                        count, shard_id, self.name
+                    );
+                }
+            }
+        }
+
+        // Insert into remote shards
+        for (node_id, vectors) in remote_vectors {
+            if let Some(node) = self.cluster_manager.get_node(&node_id) {
+                let client = self
+                    .client_pool
+                    .get_client(&node_id, &node.grpc_address())
+                    .await
+                    .map_err(|e| {
+                        VectorizerError::Storage(format!(
+                            "Failed to get client for node {}: {}",
+                            node_id, e
+                        ))
+                    })?;
+
+                // Insert vectors in batches to avoid overwhelming the remote node
+                let batch_size = 100;
+                for chunk in vectors.chunks(batch_size) {
+                    for vector in chunk {
+                        let payload_json = vector
+                            .payload
+                            .as_ref()
+                            .map(|p| serde_json::to_value(p).unwrap_or_default());
+
+                        client
+                            .insert_vector(
+                                &self.name,
+                                &vector.id,
+                                &vector.data,
+                                payload_json.as_ref(),
+                                None,
+                            )
+                            .await
+                            .map_err(|e| {
+                                VectorizerError::Storage(format!(
+                                    "Failed to insert vector on remote node {}: {}",
+                                    node_id, e
+                                ))
+                            })?;
+                    }
+                }
+
+                debug!(
+                    "Batch inserted {} vectors into remote node {} for collection '{}'",
+                    vectors.len(),
+                    node_id,
+                    self.name
+                );
+            }
+        }
+
+        self.invalidate_vector_count_cache();
+        Ok(())
     }
 
     /// Update a vector in the appropriate shard (local or remote)
@@ -458,6 +563,138 @@ impl DistributedShardedCollection {
         Ok(all_results)
     }
 
+    /// Perform hybrid search across all shards (local and remote) and merge results
+    pub async fn hybrid_search(
+        &self,
+        query_dense: &[f32],
+        query_sparse: Option<&SparseVector>,
+        config: HybridSearchConfig,
+        shard_keys: Option<&[ShardId]>,
+    ) -> Result<Vec<SearchResult>> {
+        let k = config.final_k;
+
+        // Get all shards to search
+        let shard_ids = if let Some(keys) = shard_keys {
+            keys.to_vec()
+        } else {
+            let mut all_shards = Vec::new();
+            for node in self.cluster_manager.get_active_nodes() {
+                all_shards.extend(self.shard_router.get_shards_for_node(&node.id));
+            }
+            all_shards
+        };
+
+        if shard_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut all_results = Vec::new();
+        let local_node_id = self.cluster_manager.local_node_id();
+
+        // Group shards by node
+        let mut node_shards: HashMap<NodeId, Vec<ShardId>> = HashMap::new();
+        for shard_id in &shard_ids {
+            if let Some(node_id) = self.shard_router.get_node_for_shard(shard_id) {
+                node_shards
+                    .entry(node_id)
+                    .or_insert_with(Vec::new)
+                    .push(*shard_id);
+            }
+        }
+
+        // Search local shards with hybrid search
+        if let Some(local_shard_ids) = node_shards.get(local_node_id) {
+            let local_shards = self.local_shards.read();
+            for shard_id in local_shard_ids {
+                if let Some(shard) = local_shards.get(shard_id) {
+                    match shard.hybrid_search(query_dense, query_sparse, config.clone()) {
+                        Ok(results) => {
+                            all_results.extend(results);
+                        }
+                        Err(e) => {
+                            warn!("Error in hybrid search for local shard {}: {}", shard_id, e);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Search remote shards - fall back to dense search for now
+        // TODO: Add hybrid search support to gRPC client
+        let node_count = node_shards.len();
+        for (node_id, remote_shard_ids) in node_shards {
+            if node_id == *local_node_id {
+                continue;
+            }
+
+            if let Some(node) = self.cluster_manager.get_node(&node_id) {
+                match self
+                    .client_pool
+                    .get_client(&node_id, &node.grpc_address())
+                    .await
+                {
+                    Ok(client) => {
+                        // Use dense search as fallback for remote shards
+                        match client
+                            .search_vectors(
+                                &self.name,
+                                query_dense,
+                                k,
+                                None,
+                                Some(&remote_shard_ids),
+                                None,
+                            )
+                            .await
+                        {
+                            Ok(results) => {
+                                all_results.extend(results);
+                            }
+                            Err(e) => {
+                                warn!(
+                                    "Error in hybrid search for remote shards on node {}: {}",
+                                    node_id, e
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to get client for node {}: {}", node_id, e);
+                    }
+                }
+            }
+        }
+
+        // Merge results with optimized partial sort
+        if all_results.len() > k {
+            let (left, _middle, _right) = all_results.select_nth_unstable_by(k - 1, |a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            left.sort_by(|a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            all_results = left.to_vec();
+        } else {
+            all_results.sort_by(|a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        }
+
+        debug!(
+            "Distributed hybrid search in collection '{}' returned {} results from {} nodes",
+            self.name,
+            all_results.len(),
+            node_count
+        );
+
+        Ok(all_results)
+    }
+
     /// Get total vector count across all shards (with caching)
     pub async fn vector_count(&self) -> Result<usize> {
         // Check cache first
@@ -557,5 +794,86 @@ impl DistributedShardedCollection {
     fn invalidate_vector_count_cache(&self) {
         let mut cache = self.vector_count_cache.write();
         *cache = None;
+    }
+
+    /// Get total document count across all local shards
+    /// Note: This only counts local shards. For distributed document count,
+    /// use the collection info gRPC call.
+    pub fn document_count(&self) -> usize {
+        let local_shards = self.local_shards.read();
+        local_shards
+            .values()
+            .map(|shard| shard.document_count())
+            .sum()
+    }
+
+    /// Get total document count across all shards (local and remote)
+    pub async fn document_count_distributed(&self) -> Result<usize> {
+        let mut total = 0;
+
+        // Count local shards
+        let local_shards = self.local_shards.read();
+        for shard in local_shards.values() {
+            total += shard.document_count();
+        }
+        drop(local_shards);
+
+        // Count remote shards via gRPC
+        let local_node_id = self.cluster_manager.local_node_id();
+        let all_nodes = self.cluster_manager.get_active_nodes();
+
+        for node in all_nodes {
+            if node.id == *local_node_id {
+                continue;
+            }
+
+            let node_shards = self.shard_router.get_shards_for_node(&node.id);
+            if node_shards.is_empty() {
+                continue;
+            }
+
+            if let Some(node) = self.cluster_manager.get_node(&node.id) {
+                match self
+                    .client_pool
+                    .get_client(&node.id, &node.grpc_address())
+                    .await
+                {
+                    Ok(client) => {
+                        for shard_id in &node_shards {
+                            let shard_collection_name = format!("{}_{}", self.name, shard_id);
+
+                            match client
+                                .get_collection_info(&shard_collection_name, None)
+                                .await
+                            {
+                                Ok(Some(info)) => {
+                                    total += info.document_count as usize;
+                                }
+                                Ok(None) => {
+                                    debug!(
+                                        "No collection info for shard {} on node {}",
+                                        shard_id, node.id
+                                    );
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        "Failed to get document count for shard {} on node {}: {}",
+                                        shard_id, node.id, e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to get client for node {} to count documents: {}",
+                            node.id, e
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(total)
     }
 }

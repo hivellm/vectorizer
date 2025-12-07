@@ -933,6 +933,7 @@ pub async fn search_vectors(
 
 pub async fn insert_text(
     State(state): State<VectorizerServer>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     use crate::monitoring::metrics::METRICS;
@@ -985,7 +986,11 @@ pub async fn insert_text(
 
     // Check HiveHub quota for vector insertion if enabled
     if let Some(ref hub_manager) = state.hub_manager {
-        let tenant_id = "default"; // TODO: Extract from request context
+        // Extract tenant ID from request context, or use "default" for anonymous requests
+        let tenant_id = tenant_ctx
+            .as_ref()
+            .map(|ctx| ctx.0.0.tenant_id.as_str())
+            .unwrap_or("default");
         match hub_manager
             .check_quota(tenant_id, crate::hub::QuotaType::VectorCount, 1)
             .await

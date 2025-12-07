@@ -132,13 +132,12 @@ impl CollectionType {
             }
             CollectionType::Sharded(c) => c.insert_batch(vectors),
             #[cfg(feature = "cluster")]
-            CollectionType::DistributedSharded(_) => {
-                // Distributed collections - fall back to individual inserts
-                // TODO: Implement batch insert for distributed collections
-                for vector in vectors {
-                    self.add_vector(vector.id.clone(), vector)?;
-                }
-                Ok(())
+            CollectionType::DistributedSharded(c) => {
+                // Distributed collections - use optimized batch insert
+                let rt = tokio::runtime::Runtime::new().map_err(|e| {
+                    VectorizerError::Storage(format!("Failed to create runtime: {}", e))
+                })?;
+                rt.block_on(c.insert_batch(vectors))
             }
         }
     }
@@ -177,18 +176,16 @@ impl CollectionType {
                 self.search(query_dense, config.final_k)
             }
             CollectionType::Sharded(c) => {
-                // For sharded collections, use multi-shard search
-                // TODO: Implement proper hybrid search for sharded collections
-                c.search(query_dense, config.final_k, None)
+                // For sharded collections, use multi-shard hybrid search
+                c.hybrid_search(query_dense, query_sparse, config, None)
             }
             #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
-                // For distributed sharded collections, use distributed search
-                // TODO: Implement proper hybrid search for distributed collections
+                // For distributed sharded collections, use distributed hybrid search
                 let rt = tokio::runtime::Runtime::new().map_err(|e| {
                     VectorizerError::Storage(format!("Failed to create runtime: {}", e))
                 })?;
-                rt.block_on(c.search(query_dense, config.final_k, None, None))
+                rt.block_on(c.hybrid_search(query_dense, query_sparse, config, None))
             }
         }
     }
@@ -201,16 +198,15 @@ impl CollectionType {
             CollectionType::HiveGpu(c) => c.metadata(),
             CollectionType::Sharded(c) => {
                 // Create metadata for sharded collection
-                let mut meta = CollectionMetadata {
+                CollectionMetadata {
                     name: c.name().to_string(),
                     tenant_id: None,
                     created_at: chrono::Utc::now(),
                     updated_at: chrono::Utc::now(),
                     vector_count: c.vector_count(),
-                    document_count: 0, // TODO: track documents in sharded collections
+                    document_count: c.document_count(),
                     config: c.config().clone(),
-                };
-                meta
+                }
             }
             #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
@@ -219,13 +215,15 @@ impl CollectionType {
                     tokio::runtime::Runtime::new().expect("Failed to create runtime")
                 });
                 let vector_count = rt.block_on(c.vector_count()).unwrap_or(0);
+                // Use local document count for now (sync) - distributed count requires async
+                let document_count = c.document_count();
                 CollectionMetadata {
                     name: c.name().to_string(),
                     tenant_id: None,
                     created_at: chrono::Utc::now(),
                     updated_at: chrono::Utc::now(),
                     vector_count,
-                    document_count: 0, // TODO: track documents in distributed collections
+                    document_count,
                     config: c.config().clone(),
                 }
             }
