@@ -106,6 +106,7 @@ lazy_static = "1.4"
 tower_governor = "0.8"  # Rate limiting middleware
 governor = "0.10.2"       # Rate limiting core
 rustls = "0.23"         # TLS support
+rustls-pemfile = "2.2"  # PEM file parsing for TLS
 tokio-rustls = "0.26"   # Tokio TLS integration
 rcgen = "0.14"          # Certificate generation for testing
 

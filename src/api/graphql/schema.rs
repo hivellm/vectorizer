@@ -620,9 +620,17 @@ impl QueryRoot {
 
     /// List all registered workspaces
     async fn workspaces(&self, _ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlWorkspace>> {
-        // TODO: Implement workspace manager integration
-        // For now, return empty list
-        Ok(Vec::new())
+        let workspace_manager = crate::config::WorkspaceManager::new();
+        let workspaces = workspace_manager.list_workspaces();
+
+        Ok(workspaces
+            .into_iter()
+            .map(|w| GqlWorkspace {
+                path: w.path,
+                collection_name: w.collection_name,
+                indexed: w.last_indexed.is_some(),
+            })
+            .collect())
     }
 
     /// Get file upload configuration
@@ -1230,11 +1238,17 @@ impl MutationRoot {
             input.path, input.collection_name
         );
 
-        // TODO: Implement workspace manager integration
-        Ok(MutationResult::ok_with_message(format!(
-            "Workspace '{}' added for collection '{}'",
-            input.path, input.collection_name
-        )))
+        let workspace_manager = crate::config::WorkspaceManager::new();
+        match workspace_manager.add_workspace(&input.path, &input.collection_name) {
+            Ok(workspace) => Ok(MutationResult::ok_with_message(format!(
+                "Workspace '{}' added for collection '{}' (id: {})",
+                workspace.path, workspace.collection_name, workspace.id
+            ))),
+            Err(e) => {
+                error!("Failed to add workspace: {}", e);
+                Ok(MutationResult::err(&e))
+            }
+        }
     }
 
     /// Remove a workspace directory
@@ -1245,11 +1259,17 @@ impl MutationRoot {
     ) -> async_graphql::Result<MutationResult> {
         info!("GraphQL: Removing workspace: {}", path);
 
-        // TODO: Implement workspace manager integration
-        Ok(MutationResult::ok_with_message(format!(
-            "Workspace '{}' removed",
-            path
-        )))
+        let workspace_manager = crate::config::WorkspaceManager::new();
+        match workspace_manager.remove_workspace(&path) {
+            Ok(workspace) => Ok(MutationResult::ok_with_message(format!(
+                "Workspace '{}' removed (collection: {})",
+                workspace.path, workspace.collection_name
+            ))),
+            Err(e) => {
+                error!("Failed to remove workspace: {}", e);
+                Ok(MutationResult::err(&e))
+            }
+        }
     }
 
     /// Update workspace configuration

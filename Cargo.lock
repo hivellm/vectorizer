@@ -8519,6 +8519,7 @@ dependencies = [
  "rrf",
  "rust-tfidf",
  "rustls",
+ "rustls-pemfile",
  "scopeguard",
  "serde",
  "serde_json",
