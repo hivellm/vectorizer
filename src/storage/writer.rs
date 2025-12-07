@@ -34,6 +34,11 @@ impl StorageWriter {
 
     /// Write all collections to .vecdb archive atomically
     pub fn write_archive(&self, collections_dir: &Path) -> Result<StorageIndex> {
+        // Ensure data directory exists before writing
+        if !self.data_dir.exists() {
+            fs::create_dir_all(&self.data_dir).map_err(|e| VectorizerError::Io(e))?;
+        }
+
         let vecdb_path = self.data_dir.join(crate::storage::VECDB_FILE);
         let vecidx_path = self.data_dir.join(crate::storage::VECIDX_FILE);
         let temp_vecdb = vecdb_path.with_extension(format!("vecdb{}", crate::storage::TEMP_SUFFIX));
@@ -58,6 +63,11 @@ impl StorageWriter {
         &self,
         collections: Vec<crate::persistence::PersistedCollection>,
     ) -> Result<StorageIndex> {
+        // Ensure data directory exists before writing
+        if !self.data_dir.exists() {
+            fs::create_dir_all(&self.data_dir).map_err(|e| VectorizerError::Io(e))?;
+        }
+
         let vecdb_path = self.data_dir.join(crate::storage::VECDB_FILE);
         let vecidx_path = self.data_dir.join(crate::storage::VECIDX_FILE);
         let temp_vecdb = vecdb_path.with_extension(format!("vecdb{}", crate::storage::TEMP_SUFFIX));

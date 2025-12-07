@@ -77,9 +77,18 @@ async fn test_auto_save_manager_mark_changed() {
         "Should have changes after mark_changed"
     );
 
+    // Verify the vector was actually inserted
+    let collection = store.get_collection("autosave_test").unwrap();
+    let count = collection.vector_count();
+    assert_eq!(count, 1, "Should have 1 vector in collection");
+
     // Force save should succeed and create the .vecdb file
     let result = auto_save.force_save().await;
-    assert!(result.is_ok(), "Force save should succeed");
+    assert!(
+        result.is_ok(),
+        "Force save should succeed, but got error: {:?}",
+        result.err()
+    );
 
     // After force_save, the vecdb file should exist
     let vecdb_path = data_dir.join("vectorizer.vecdb");
