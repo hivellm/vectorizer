@@ -189,6 +189,26 @@ impl ApiKeyManager {
 
         Ok(expired_keys.len())
     }
+
+    /// Register an existing API key (for loading from persistence)
+    /// This is used when loading keys from disk on startup
+    pub async fn register_key(&self, key_info: ApiKey) -> Result<()> {
+        let mut keys = self.keys.write().await;
+        keys.insert(key_info.id.clone(), key_info);
+        Ok(())
+    }
+
+    /// Hash a key (exposed for persistence layer)
+    pub fn hash_key_value(&self, key: &str) -> String {
+        self.hash_key(key)
+    }
+
+    /// Delete a key completely (for sync with persistence)
+    pub async fn delete_key(&self, key_id: &str) -> Result<()> {
+        let mut keys = self.keys.write().await;
+        keys.remove(key_id);
+        Ok(())
+    }
 }
 
 #[cfg(test)]

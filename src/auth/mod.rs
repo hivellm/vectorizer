@@ -243,6 +243,21 @@ impl AuthManager {
     pub fn config(&self) -> &AuthConfig {
         &self.config
     }
+
+    /// Register an existing API key (for loading from persistence)
+    pub async fn register_api_key(&self, key_info: ApiKey) -> Result<()> {
+        self.api_key_manager.register_key(key_info).await
+    }
+
+    /// Delete an API key completely
+    pub async fn delete_api_key(&self, key_id: &str) -> Result<()> {
+        self.api_key_manager.delete_key(key_id).await
+    }
+
+    /// Get API key info by ID
+    pub async fn get_api_key_info(&self, key_id: &str) -> Result<ApiKey> {
+        self.api_key_manager.get_key_info(key_id).await
+    }
 }
 
 #[cfg(test)]

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
 use crate::auth::middleware::AuthState;
-use crate::auth::persistence::{AuthPersistence, PersistedUser};
+use crate::auth::persistence::{AuthPersistence, PersistedApiKey, PersistedUser};
 use crate::auth::roles::{Permission, Role};
 use crate::auth::{AuthManager, UserClaims};
 
@@ -282,8 +282,9 @@ impl AuthHandlerState {
         let persistence = Arc::new(AuthPersistence::with_default_dir());
         let users = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 
-        // Try to load users from disk
+        // Try to load users and API keys from disk
         let mut loaded_users = HashMap::new();
+        let mut loaded_api_keys = Vec::new();
         match persistence.load() {
             Ok(data) => {
                 if !data.users.is_empty() {
@@ -300,9 +301,32 @@ impl AuthHandlerState {
                         );
                     }
                 }
+                // Load API keys
+                if !data.api_keys.is_empty() {
+                    info!("Loaded {} API keys from disk", data.api_keys.len());
+                    loaded_api_keys = data.api_keys.into_values().collect();
+                }
             }
             Err(e) => {
                 warn!("Failed to load auth data from disk: {}", e);
+            }
+        }
+
+        // Register loaded API keys with the auth manager
+        for persisted_key in loaded_api_keys {
+            let api_key = crate::auth::ApiKey {
+                id: persisted_key.id,
+                name: persisted_key.name,
+                key_hash: persisted_key.key_hash,
+                user_id: persisted_key.user_id,
+                permissions: persisted_key.permissions,
+                created_at: persisted_key.created_at,
+                last_used: persisted_key.last_used,
+                expires_at: persisted_key.expires_at,
+                active: persisted_key.active,
+            };
+            if let Err(e) = auth_manager.register_api_key(api_key).await {
+                warn!("Failed to register API key from disk: {}", e);
             }
         }
 
@@ -868,6 +892,23 @@ pub async fn create_api_key(
             )
         })?;
 
+    // Persist the API key to disk (encrypted)
+    let persisted_key = PersistedApiKey {
+        id: key_info.id.clone(),
+        name: key_info.name.clone(),
+        key_hash: key_info.key_hash.clone(),
+        user_id: key_info.user_id.clone(),
+        permissions: key_info.permissions.clone(),
+        created_at: key_info.created_at,
+        last_used: key_info.last_used,
+        expires_at: key_info.expires_at,
+        active: key_info.active,
+    };
+    if let Err(e) = state.persistence.save_api_key(persisted_key) {
+        error!("Failed to persist API key to disk: {}", e);
+        // Continue anyway - key is in memory, just won't survive restart
+    }
+
     info!(
         "API key '{}' created for user '{}'",
         request.name, auth_state.user_claims.user_id
@@ -987,6 +1028,12 @@ pub async fn revoke_api_key(
                 }),
             )
         })?;
+
+    // Remove from persistent storage
+    if let Err(e) = state.persistence.remove_api_key(&key_id) {
+        error!("Failed to remove API key from disk: {}", e);
+        // Continue anyway - key is revoked in memory
+    }
 
     info!(
         "API key '{}' revoked by user '{}'",

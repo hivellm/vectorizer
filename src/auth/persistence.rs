@@ -1,15 +1,23 @@
 //! Authentication persistence module
 //!
-//! Handles saving and loading users and API keys to/from disk.
+//! Handles saving and loading users and API keys to/from disk with AES-GCM encryption.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use aes_gcm::aead::rand_core::RngCore;
+use aes_gcm::aead::{Aead, OsRng};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
 use super::ApiKey;
 use super::roles::{Permission, Role};
+
+/// Encryption key length for AES-256
+const KEY_LENGTH: usize = 32;
+/// Nonce length for AES-GCM
+const NONCE_LENGTH: usize = 12;
 
 /// Persisted user data (password hash, not plaintext)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,17 +81,76 @@ impl AuthDataStore {
     }
 }
 
-/// Auth persistence manager
+/// Auth persistence manager with AES-GCM encryption
 pub struct AuthPersistence {
-    /// Path to the auth data file
+    /// Path to the encrypted auth data file
     data_path: PathBuf,
+    /// Path to the encryption key file
+    key_path: PathBuf,
+    /// Encryption cipher
+    cipher: Aes256Gcm,
 }
 
 impl AuthPersistence {
     /// Create a new auth persistence manager
     pub fn new(data_dir: &PathBuf) -> Self {
-        let data_path = data_dir.join("auth.json");
-        Self { data_path }
+        let data_path = data_dir.join("auth.enc");
+        let key_path = data_dir.join(".auth.key");
+
+        // Load or generate encryption key
+        let key = Self::load_or_generate_key(&key_path, data_dir);
+        let cipher = Aes256Gcm::new_from_slice(&key).expect("Invalid key length for AES-256-GCM");
+
+        Self {
+            data_path,
+            key_path,
+            cipher,
+        }
+    }
+
+    /// Load existing key or generate a new one
+    fn load_or_generate_key(key_path: &PathBuf, data_dir: &PathBuf) -> [u8; KEY_LENGTH] {
+        // Ensure data directory exists
+        if !data_dir.exists() {
+            if let Err(e) = std::fs::create_dir_all(data_dir) {
+                error!("Failed to create data directory: {}", e);
+            }
+        }
+
+        // Try to load existing key
+        if key_path.exists() {
+            if let Ok(key_data) = std::fs::read(key_path) {
+                if key_data.len() == KEY_LENGTH {
+                    let mut key = [0u8; KEY_LENGTH];
+                    key.copy_from_slice(&key_data);
+                    debug!("Loaded existing encryption key");
+                    return key;
+                }
+            }
+        }
+
+        // Generate new key
+        let mut key = [0u8; KEY_LENGTH];
+        OsRng.fill_bytes(&mut key);
+
+        // Save the key with restricted permissions
+        if let Err(e) = std::fs::write(key_path, &key) {
+            error!("Failed to save encryption key: {}", e);
+        } else {
+            // Set restrictive permissions on key file (Unix-like systems)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Err(e) =
+                    std::fs::set_permissions(key_path, std::fs::Permissions::from_mode(0o600))
+                {
+                    warn!("Failed to set key file permissions: {}", e);
+                }
+            }
+            info!("Generated new encryption key for auth persistence");
+        }
+
+        key
     }
 
     /// Get the default data directory
@@ -97,21 +164,89 @@ impl AuthPersistence {
         Self::new(&Self::get_data_dir())
     }
 
-    /// Load auth data from disk
+    /// Encrypt data using AES-GCM
+    fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, String> {
+        let mut nonce_bytes = [0u8; NONCE_LENGTH];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
+
+        let ciphertext = self
+            .cipher
+            .encrypt(nonce, plaintext)
+            .map_err(|e| format!("Encryption failed: {}", e))?;
+
+        // Prepend nonce to ciphertext
+        let mut result = nonce_bytes.to_vec();
+        result.extend(ciphertext);
+        Ok(result)
+    }
+
+    /// Decrypt data using AES-GCM
+    fn decrypt(&self, encrypted: &[u8]) -> Result<Vec<u8>, String> {
+        if encrypted.len() < NONCE_LENGTH {
+            return Err("Encrypted data too short".to_string());
+        }
+
+        let (nonce_bytes, ciphertext) = encrypted.split_at(NONCE_LENGTH);
+        let nonce = Nonce::from_slice(nonce_bytes);
+
+        self.cipher
+            .decrypt(nonce, ciphertext)
+            .map_err(|e| format!("Decryption failed: {}", e))
+    }
+
+    /// Migrate from unencrypted to encrypted storage
+    fn migrate_from_unencrypted(&self, data_dir: &PathBuf) -> Option<AuthDataStore> {
+        let old_path = data_dir.join("auth.json");
+        if old_path.exists() {
+            info!("Found unencrypted auth.json, migrating to encrypted storage...");
+            if let Ok(content) = std::fs::read_to_string(&old_path) {
+                if let Ok(data) = serde_json::from_str::<AuthDataStore>(&content) {
+                    // Save to encrypted format
+                    if self.save(&data).is_ok() {
+                        // Remove old unencrypted file
+                        if let Err(e) = std::fs::remove_file(&old_path) {
+                            warn!("Failed to remove old auth.json: {}", e);
+                        } else {
+                            info!("Successfully migrated auth data to encrypted storage");
+                        }
+                        return Some(data);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Load auth data from disk (encrypted)
     pub fn load(&self) -> Result<AuthDataStore, String> {
+        // First check for migration from unencrypted format
+        let data_dir = self
+            .data_path
+            .parent()
+            .unwrap_or(&PathBuf::from("."))
+            .to_path_buf();
         if !self.data_path.exists() {
+            if let Some(data) = self.migrate_from_unencrypted(&data_dir) {
+                return Ok(data);
+            }
             debug!("Auth data file does not exist, returning empty store");
             return Ok(AuthDataStore::new());
         }
 
-        let content = std::fs::read_to_string(&self.data_path)
+        let encrypted = std::fs::read(&self.data_path)
             .map_err(|e| format!("Failed to read auth data file: {}", e))?;
+
+        let decrypted = self.decrypt(&encrypted)?;
+
+        let content = String::from_utf8(decrypted)
+            .map_err(|e| format!("Invalid UTF-8 in auth data: {}", e))?;
 
         let data: AuthDataStore = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse auth data: {}", e))?;
 
         info!(
-            "Loaded {} users and {} API keys from disk",
+            "Loaded {} users and {} API keys from encrypted storage",
             data.users.len(),
             data.api_keys.len()
         );
@@ -119,7 +254,7 @@ impl AuthPersistence {
         Ok(data)
     }
 
-    /// Save auth data to disk
+    /// Save auth data to disk (encrypted)
     pub fn save(&self, data: &AuthDataStore) -> Result<(), String> {
         // Ensure data directory exists
         if let Some(parent) = self.data_path.parent() {
@@ -132,16 +267,18 @@ impl AuthPersistence {
         let content = serde_json::to_string_pretty(data)
             .map_err(|e| format!("Failed to serialize auth data: {}", e))?;
 
+        let encrypted = self.encrypt(content.as_bytes())?;
+
         // Write to temp file first, then rename (atomic write)
-        let temp_path = self.data_path.with_extension("json.tmp");
-        std::fs::write(&temp_path, &content)
+        let temp_path = self.data_path.with_extension("enc.tmp");
+        std::fs::write(&temp_path, &encrypted)
             .map_err(|e| format!("Failed to write auth data: {}", e))?;
 
         std::fs::rename(&temp_path, &self.data_path)
             .map_err(|e| format!("Failed to rename auth data file: {}", e))?;
 
         debug!(
-            "Saved {} users and {} API keys to disk",
+            "Saved {} users and {} API keys to encrypted storage",
             data.users.len(),
             data.api_keys.len()
         );
