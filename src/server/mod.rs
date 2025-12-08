@@ -1740,8 +1740,27 @@ impl VectorizerServer {
                         // Debug: Log what we found
                         tracing::debug!("Auth check for {}: jwt={:?}, api_key={:?}", path, jwt_token.is_some(), api_key.is_some());
 
-                        // Validate credentials
-                        if !check_mcp_auth_with_credentials(jwt_token, api_key, auth_manager).await {
+                        // Try to validate and extract claims
+                        let mut user_claims = None;
+
+                        // Try JWT first
+                        if let Some(token) = jwt_token {
+                            if let Ok(claims) = auth_manager.validate_jwt(&token) {
+                                user_claims = Some(claims);
+                            }
+                        }
+
+                        // Try API key if JWT failed
+                        if user_claims.is_none() {
+                            if let Some(key) = api_key {
+                                if let Ok(claims) = auth_manager.validate_api_key(&key).await {
+                                    user_claims = Some(claims);
+                                }
+                            }
+                        }
+
+                        // If no valid credentials, return 401
+                        if user_claims.is_none() {
                             return axum::response::Response::builder()
                                 .status(axum::http::StatusCode::UNAUTHORIZED)
                                 .header("Content-Type", "application/json")
@@ -1751,6 +1770,17 @@ impl VectorizerServer {
                                 ))
                                 .unwrap();
                         }
+
+                        // Add AuthState as Extension
+                        let auth_state = crate::auth::middleware::AuthState {
+                            user_claims: user_claims.unwrap(),
+                            authenticated: true,
+                        };
+
+                        let mut req = req;
+                        req.extensions_mut().insert(auth_state);
+
+                        return next.run(req).await;
                     } else if hub_manager.is_none() {
                         // No auth configured and no hub integration - reject
                         return axum::response::Response::builder()

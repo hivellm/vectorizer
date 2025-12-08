@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.2] - 2025-12-08
+
+### Fixed
+- **CRITICAL: Auth Middleware Extension**: Fixed missing `AuthState` extension in protected auth routes
+  - Auth middleware now properly extracts user claims from JWT/API keys and adds `AuthState` as Extension
+  - Fixes 500 error on `/auth/me` and other protected endpoints: "Missing request extension: Extension of type `vectorizer::auth::middleware::AuthState` was not found"
+  - Protected auth handlers (`/auth/me`, `/auth/logout`, `/auth/refresh`, etc.) now work correctly
+  - Dashboard authentication flow now fully functional
+
 ## [2.0.1] - 2025-12-08
 
 ### Fixed
