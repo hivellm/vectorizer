@@ -3,13 +3,14 @@
 //! This module defines all Prometheus metrics used for monitoring the vector database.
 //! Metrics are organized by subsystem for clarity and maintainability.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use prometheus::{
     Counter, CounterVec, Gauge, GaugeVec, Histogram, HistogramOpts, HistogramVec, Opts, Registry,
 };
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Global metrics instance
 pub static METRICS: Lazy<Metrics> = Lazy::new(Metrics::new);

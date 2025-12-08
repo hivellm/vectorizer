@@ -377,6 +377,7 @@ mod workspace_manager_tests {
 #[cfg(test)]
 mod graphql_workspace_tests {
     use std::sync::Arc;
+
     use tempfile::TempDir;
     use vectorizer::api::graphql::{VectorizerSchema, create_schema};
     use vectorizer::db::VectorStore;

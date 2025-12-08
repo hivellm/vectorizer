@@ -2,10 +2,10 @@
 //!
 //! Tests the operation logging, request tracking, and HiveHub Cloud integration features.
 
-use serde_json::json;
 use std::time::Instant;
-use uuid::Uuid;
 
+use serde_json::json;
+use uuid::Uuid;
 use vectorizer::hub::mcp_gateway::{McpOperationType, McpRequestContext};
 use vectorizer::hub::usage::UsageMetrics;
 use vectorizer::hub::{TenantContext, TenantPermission};

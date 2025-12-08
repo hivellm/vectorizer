@@ -7,8 +7,8 @@
 //! - mTLS (mutual TLS) configuration
 
 use std::io::Write;
-use tempfile::NamedTempFile;
 
+use tempfile::NamedTempFile;
 use vectorizer::security::tls::{AlpnConfig, CipherSuitePreset, TlsConfig, create_server_config};
 
 /// Generate a self-signed certificate and key for testing
@@ -248,9 +248,10 @@ mod mtls_tests {
 
 #[cfg(test)]
 mod https_endpoint_tests {
-    use super::*;
     use tokio::net::TcpListener;
     use tokio_rustls::TlsAcceptor;
+
+    use super::*;
 
     /// Test that a TLS acceptor can be created from server config
     #[tokio::test]
