@@ -2223,7 +2223,7 @@ async fn check_mcp_auth_with_credentials(
 /// - X-Content-Type-Options: nosniff - Prevents MIME type sniffing
 /// - X-Frame-Options: DENY - Prevents clickjacking
 /// - X-XSS-Protection: 1; mode=block - XSS filter (legacy browsers)
-/// - Content-Security-Policy: default-src 'self' - CSP for dashboard
+/// - Content-Security-Policy: Allows Monaco Editor CDN resources (scripts, styles, workers, source maps) - CSP for dashboard
 /// - Referrer-Policy: strict-origin-when-cross-origin - Controls referrer info
 /// - Permissions-Policy: geolocation=(), microphone=(), camera=() - Disables sensitive APIs
 async fn security_headers_middleware(
@@ -2252,9 +2252,14 @@ async fn security_headers_middleware(
     );
 
     // Content Security Policy - allow self and inline for dashboard
+    // Monaco Editor requires:
+    // - script-src: CDN for editor scripts
+    // - style-src: CDN for editor styles
+    // - connect-src: CDN for source maps
+    // - worker-src: blob: and CDN for web workers
     headers.insert(
         axum::http::header::CONTENT_SECURITY_POLICY,
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:".parse().unwrap(),
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss: https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net".parse().unwrap(),
     );
 
     // Referrer policy
