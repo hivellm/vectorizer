@@ -331,7 +331,7 @@ full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
 
 # Unix-specific dependencies (for signal handling)
 [target.'cfg(unix)'.dependencies]
-nix = { version = "0.29", features = ["signal"] }
+nix = { version = "0.30", features = ["signal"] }
 
 # [[bin]]
 # name = "gpu_scale_benchmark"
