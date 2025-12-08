@@ -14,6 +14,8 @@ use super::VectorizerServer;
 use super::error_middleware::{
     ErrorResponse, create_bad_request_error, create_not_found_error, create_validation_error,
 };
+use crate::auth::middleware::AuthState;
+use crate::auth::roles::Role;
 use crate::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::error::VectorizerError;
 use crate::hub::middleware::RequestTenantContext;
@@ -530,17 +532,31 @@ pub async fn list_vectors(
 
 pub async fn list_collections(
     State(state): State<VectorizerServer>,
+    auth_state: Option<Extension<AuthState>>,
     tenant_ctx: Option<Extension<RequestTenantContext>>,
 ) -> Json<Value> {
-    // Get collections based on tenant context (if present)
-    let mut collections = match extract_tenant_id(&tenant_ctx) {
-        Some(tenant_id) => {
-            debug!("Listing collections for tenant: {}", tenant_id);
-            state.store.list_collections_for_owner(&tenant_id)
-        }
-        None => {
-            // No tenant context - list all collections (non-tenant mode)
-            state.store.list_collections()
+    // Check if user is admin - admins should see all collections
+    let is_admin = auth_state
+        .as_ref()
+        .map(|auth| auth.user_claims.roles.contains(&Role::Admin))
+        .unwrap_or(false);
+
+    // Get collections based on tenant context and admin status
+    let mut collections = if is_admin {
+        // Admin users see all collections regardless of tenant
+        debug!("Listing all collections for admin user");
+        state.store.list_collections()
+    } else {
+        // Non-admin users only see their tenant's collections
+        match extract_tenant_id(&tenant_ctx) {
+            Some(tenant_id) => {
+                debug!("Listing collections for tenant: {}", tenant_id);
+                state.store.list_collections_for_owner(&tenant_id)
+            }
+            None => {
+                // No tenant context - list all collections (non-tenant mode)
+                state.store.list_collections()
+            }
         }
     };
 

@@ -402,6 +402,28 @@ export const corsMiddleware: Middleware = async (context, next) => {
 };
 
 /**
+ * Built-in middleware: Authentication
+ * Automatically adds JWT token from localStorage to requests
+ */
+export const authMiddleware: Middleware = async (context, next) => {
+  const TOKEN_KEY = 'vectorizer_dashboard_token';
+  const token = localStorage.getItem(TOKEN_KEY);
+
+  if (token) {
+    // Add Authorization header with Bearer token
+    const headers = {
+      ...context.headers,
+      'Authorization': `Bearer ${token}`,
+    };
+
+    // Update context with new headers
+    context.headers = headers;
+  }
+
+  return next();
+};
+
+/**
  * Create default middleware stack
  */
 export function createDefaultMiddlewareStack(options?: {
@@ -419,6 +441,9 @@ export function createDefaultMiddlewareStack(options?: {
   if (options?.enableLogging !== false) {
     manager.use(loggingMiddleware);
   }
+
+  // Authentication (add JWT token to headers before request)
+  manager.use(authMiddleware);
 
   // Timeout (before request)
   if (options?.timeout) {
