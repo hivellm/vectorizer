@@ -194,10 +194,53 @@ curl -X POST http://localhost:15002/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin"}'
 
-# Use token in requests
+# Use JWT token in requests
 curl -X GET http://localhost:15002/collections \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
+
+**API Key Authentication:**
+
+API Keys can be created in the dashboard (`/api-keys`) or via REST API for programmatic access.
+
+⚠️ **IMPORTANT:** API Keys do NOT use the `Bearer` prefix. Use them directly in the `Authorization` header:
+
+```bash
+# Create API key (requires JWT authentication)
+curl -X POST http://localhost:15002/auth/keys \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "name": "Production API Key",
+    "permissions": ["read", "write"],
+    "expires_in_days": 90
+  }'
+
+# Use API key in requests (NO Bearer prefix!)
+curl -X GET http://localhost:15002/collections \
+  -H "Authorization: YOUR_API_KEY"
+
+# MCP Configuration (mcp.json)
+{
+  "mcpServers": {
+    "vectorizer": {
+      "command": "npx",
+      "args": ["-y", "@hivellm/mcp-vectorizer"],
+      "env": {
+        "VECTORIZER_API_URL": "http://localhost:15002",
+        "VECTORIZER_API_KEY": "YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+
+**Authentication Methods Comparison:**
+
+| Method | Header Format | Use Case |
+|--------|--------------|----------|
+| JWT Token | `Authorization: Bearer YOUR_JWT_TOKEN` | Dashboard, short-lived sessions |
+| API Key | `Authorization: YOUR_API_KEY` | MCP, CLI, long-lived integrations |
 
 **Production Security:**
 - Change default credentials using environment variables

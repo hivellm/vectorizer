@@ -27,7 +27,7 @@ interface ApiKey {
 
 interface CreateKeyResponse {
   id: string;
-  key: string;
+  api_key: string;
   name: string;
   permissions: string[];
 }
@@ -92,7 +92,7 @@ function ApiKeysPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setNewKeyValue(data.key);
+      setNewKeyValue(data.api_key);
       setShowCreateModal(false);
       setShowKeyModal(true);
       setCreateForm({ name: '', permissions: ['read'], expiresIn: '' });
