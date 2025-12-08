@@ -7,9 +7,10 @@
 //! - Geo filters (bounding box and radius)
 //! - Nested field filters
 
+use std::hint::black_box;
+
 use criterion::{Criterion, criterion_group, criterion_main};
 use serde_json::json;
-use std::hint::black_box;
 use vectorizer::db::payload_index::{PayloadIndex, PayloadIndexConfig, PayloadIndexType};
 use vectorizer::models::Payload;
 

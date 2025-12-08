@@ -14,10 +14,10 @@
 //!
 //! Run with: `cargo bench --bench multi_tenant_overhead`
 
+use std::hint::black_box;
 use std::time::Duration;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use uuid::Uuid;
 
 /// Benchmark service header validation
