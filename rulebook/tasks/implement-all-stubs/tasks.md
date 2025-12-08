@@ -158,10 +158,10 @@
 - [x] 17.4 Update discovery documentation
 
 ### 18. File Watcher Batch Processing
-- [ ] 18.1 Re-enable batch processing
-- [ ] 18.2 Test batch processing stability
-- [ ] 18.3 Monitor for issues
-- [ ] 18.4 Update file watcher documentation
+- [x] 18.1 Re-enable batch processing
+- [x] 18.2 Test batch processing stability
+- [x] 18.3 Monitor for issues
+- [x] 18.4 Update file watcher documentation
 
 ### 19. GPU Collection Multi-Tenant
 - [x] 19.1 Add owner_id support to HiveGpuCollection

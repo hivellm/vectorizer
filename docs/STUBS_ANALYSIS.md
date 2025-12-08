@@ -195,10 +195,17 @@ This document lists all stub implementations, TODOs, and incomplete functionalit
   - ✅ Better sentence boundary detection
 - **Tests**: 6 tests added and passing
 
-### 18. File Watcher Batch Processing ❌ **PENDING**
+### 18. File Watcher Batch Processing ✅ **COMPLETED**
 **File**: `src/file_watcher/discovery.rs`
-- **Issue**: Batch processing disabled for stability
-- **Impact**: Files processed individually
+- **Status**: ✅ **FULLY IMPLEMENTED**
+- **Implementation**: Batch processing with parallel execution using semaphore-based concurrency control
+- **Features**: 
+  - Files processed in configurable batches (batch_size)
+  - Parallel processing within batches (max_concurrent_tasks)
+  - Error isolation (failures in one file don't block the batch)
+  - Progress tracking and detailed logging
+- **Configuration**: `batch_size` and `max_concurrent_tasks` in FileWatcherConfig
+- **Documentation**: `docs/specs/FILE_WATCHER.md` - Batch Processing section
 
 ### 19. GPU Collection Multi-Tenant ✅ **COMPLETED**
 **File**: `src/db/vector_store.rs`

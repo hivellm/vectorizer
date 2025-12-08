@@ -217,51 +217,79 @@ impl FileDiscovery {
         stats.total_files_scanned = files.len();
         info!("📄 Found {} files in {:?}", files.len(), path);
 
-        // Process files sequentially to avoid overwhelming the system
-        // TODO: Re-enable batch processing once stability is confirmed
-        for (index, file_path) in files.iter().enumerate() {
+        // Process files in batches for better performance and stability
+        let batch_size = self.config.batch_size;
+        let max_concurrent = self.config.max_concurrent_tasks;
+
+        info!(
+            "📦 Processing {} files in batches of {} (max {} concurrent tasks)",
+            files.len(),
+            batch_size,
+            max_concurrent
+        );
+
+        // Process files in batches
+        for (batch_index, batch) in files.chunks(batch_size).enumerate() {
             info!(
-                "📄 Processing file {}/{}: {:?}",
-                index + 1,
-                files.len(),
-                file_path
+                "📦 Processing batch {}/{} ({} files)",
+                batch_index + 1,
+                (files.len() + batch_size - 1) / batch_size,
+                batch.len()
             );
 
-            match Self::process_single_file(file_path, &self.config, &self.vector_operations).await
-            {
-                Ok(ProcessResult::Indexed) => {
-                    stats.files_indexed += 1;
-                    indexed_files.push(file_path.clone());
-                    info!(
-                        "✅ Indexed file {}/{}: {:?}",
-                        index + 1,
-                        files.len(),
-                        file_path
-                    );
-                }
-                Ok(ProcessResult::Skipped(reason)) => {
-                    stats.files_skipped += 1;
-                    skipped_files.push(file_path.clone());
-                    info!(
-                        "⏭️ Skipped file {}/{}: {:?} - {}",
-                        index + 1,
-                        files.len(),
-                        file_path,
-                        reason
-                    );
-                }
-                Err(e) => {
-                    stats.files_errors += 1;
-                    error_files.push((file_path.clone(), e.to_string()));
-                    warn!(
-                        "❌ Error processing file {}/{}: {:?} - {}",
-                        index + 1,
-                        files.len(),
-                        file_path,
-                        e
-                    );
+            // Use semaphore to limit concurrent tasks
+            let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrent));
+            let mut tasks = Vec::new();
+
+            for file_path in batch.iter() {
+                let file_path = file_path.clone();
+                let config = self.config.clone();
+                let vector_operations = Arc::clone(&self.vector_operations);
+                let permit = semaphore.clone().acquire_owned().await.unwrap();
+
+                let task = tokio::spawn(async move {
+                    let _permit = permit; // Hold permit until task completes
+                    let result =
+                        Self::process_single_file(&file_path, &config, &vector_operations).await;
+                    (file_path, result)
+                });
+
+                tasks.push(task);
+            }
+
+            // Wait for all tasks in this batch to complete
+            for task in tasks {
+                match task.await {
+                    Ok((file_path, Ok(ProcessResult::Indexed))) => {
+                        stats.files_indexed += 1;
+                        indexed_files.push(file_path.clone());
+                        info!("✅ Indexed file: {:?}", file_path);
+                    }
+                    Ok((file_path, Ok(ProcessResult::Skipped(reason)))) => {
+                        stats.files_skipped += 1;
+                        skipped_files.push(file_path.clone());
+                        info!("⏭️ Skipped file: {:?} - {}", file_path, reason);
+                    }
+                    Ok((file_path, Err(e))) => {
+                        stats.files_errors += 1;
+                        error_files.push((file_path.clone(), e.to_string()));
+                        warn!("❌ Error processing file: {:?} - {}", file_path, e);
+                    }
+                    Err(e) => {
+                        stats.files_errors += 1;
+                        warn!("❌ Task panicked: {}", e);
+                    }
                 }
             }
+
+            info!(
+                "✅ Batch {}/{} completed ({} indexed, {} skipped, {} errors)",
+                batch_index + 1,
+                (files.len() + batch_size - 1) / batch_size,
+                stats.files_indexed,
+                stats.files_skipped,
+                stats.files_errors
+            );
         }
 
         Ok(DiscoveryResult {
