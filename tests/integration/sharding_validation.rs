@@ -46,10 +46,10 @@ fn test_sharding_collection_creation() {
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("sharded_test");
 
-    // Create sharded collection
+    // Create sharded collection (CPU-only to ensure sharding logic is used)
     assert!(
         store
-            .create_collection(&collection_name, config.clone())
+            .create_collection_cpu_only(&collection_name, config.clone())
             .is_ok()
     );
 
@@ -71,7 +71,9 @@ fn test_sharding_vector_distribution() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("distribution_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert 200 vectors
     let mut vectors = Vec::new();
@@ -110,7 +112,9 @@ fn test_sharding_multi_shard_search() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("search_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert diverse vectors
     let mut vectors = Vec::new();
@@ -147,7 +151,9 @@ fn test_sharding_update_operations() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("update_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert vector
     let vector = Vector {
@@ -181,7 +187,9 @@ fn test_sharding_delete_operations() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("delete_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert multiple vectors
     let mut vectors = Vec::new();
@@ -241,7 +249,9 @@ fn test_sharding_consistency_after_operations() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("consistency_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert vectors
     let mut vectors = Vec::new();
@@ -317,7 +327,9 @@ fn test_sharding_large_scale_insertion() {
     let store = VectorStore::new();
     let config = create_sharded_config(8); // More shards for better distribution
     let collection_name = unique_collection_name("large_scale_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert 1000 vectors
     let mut vectors = Vec::new();
@@ -357,7 +369,9 @@ fn test_sharding_search_accuracy() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("accuracy_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert vectors with known similarity
     let mut vectors = Vec::new();
@@ -391,7 +405,9 @@ fn test_sharding_with_payload() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("payload_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert vectors with payloads
     let mut vectors = Vec::new();
@@ -429,7 +445,9 @@ fn test_sharding_rebalancing_detection() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("rebalance_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert many vectors
     let mut vectors = Vec::new();
@@ -461,7 +479,9 @@ fn test_sharding_shard_metadata() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("metadata_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert vectors
     let mut vectors = Vec::new();
@@ -506,7 +526,9 @@ fn test_sharding_concurrent_operations() {
     let store = VectorStore::new();
     let config = create_sharded_config(4);
     let collection_name = unique_collection_name("concurrent_test");
-    store.create_collection(&collection_name, config).unwrap();
+    store
+        .create_collection_cpu_only(&collection_name, config)
+        .unwrap();
 
     // Insert vectors in batches
     for batch in 0..10 {
