@@ -1978,9 +1978,8 @@ impl VectorizerClient {
     /// ```
     pub async fn get_upload_config(&self) -> Result<FileUploadConfig> {
         let response = self.make_request("GET", "/files/config", None).await?;
-        let result: FileUploadConfig = serde_json::from_str(&response).map_err(|e| {
-            VectorizerError::server(format!("Failed to parse upload config: {e}"))
-        })?;
+        let result: FileUploadConfig = serde_json::from_str(&response)
+            .map_err(|e| VectorizerError::server(format!("Failed to parse upload config: {e}")))?;
         Ok(result)
     }
 }

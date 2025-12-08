@@ -123,8 +123,7 @@ impl HttpTransport {
         let mut form = reqwest::multipart::Form::new();
 
         // Add file
-        let file_part = reqwest::multipart::Part::bytes(file_bytes)
-            .file_name(filename.to_string());
+        let file_part = reqwest::multipart::Part::bytes(file_bytes).file_name(filename.to_string());
         form = form.part("file", file_part);
 
         // Add other form fields

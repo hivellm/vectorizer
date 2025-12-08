@@ -1,7 +1,8 @@
 //! File upload models for the Vectorizer SDK
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Request to upload a file for indexing
 #[derive(Debug, Clone, Serialize, Deserialize)]

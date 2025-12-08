@@ -42,7 +42,10 @@ async fn test_upload_file_content() {
             assert!(response.success, "Upload should succeed");
             assert_eq!(response.filename, "test.txt");
             assert_eq!(response.collection_name, "test-uploads");
-            assert!(response.chunks_created > 0, "Should create at least one chunk");
+            assert!(
+                response.chunks_created > 0,
+                "Should create at least one chunk"
+            );
             assert!(
                 response.vectors_created > 0,
                 "Should create at least one vector"
@@ -104,14 +107,8 @@ async fn test_get_upload_config() {
 #[test]
 fn test_upload_file_options_serialization() {
     let mut metadata = std::collections::HashMap::new();
-    metadata.insert(
-        "source".to_string(),
-        serde_json::json!("test"),
-    );
-    metadata.insert(
-        "type".to_string(),
-        serde_json::json!("document"),
-    );
+    metadata.insert("source".to_string(), serde_json::json!("test"));
+    metadata.insert("type".to_string(), serde_json::json!("document"));
 
     let options = UploadFileOptions {
         chunk_size: Some(512),
@@ -137,8 +134,7 @@ fn test_file_upload_response_deserialization() {
         "processing_time_ms": 150
     }"#;
 
-    let response: FileUploadResponse =
-        serde_json::from_str(json).expect("Failed to deserialize");
+    let response: FileUploadResponse = serde_json::from_str(json).expect("Failed to deserialize");
 
     assert!(response.success);
     assert_eq!(response.filename, "test.pdf");
