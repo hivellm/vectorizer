@@ -97,7 +97,7 @@ regex = { version = "1.10", default-features = false, features = ["std", "unicod
 
 # Authentication and security
 jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
-uuid = { version = "1.18", features = ["v4", "serde"] }
+uuid = { version = "1.19", features = ["v4", "serde"] }
 rand = "0.9"
 hmac = "0.12"           # HMAC for request signing
 base64 = "0.22"         # Base64 encoding for signing secrets
