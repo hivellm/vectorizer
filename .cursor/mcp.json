@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "Rulebook": {
+    "rulebook": {
       "command": "npx",
       "args": [
         "-y",
