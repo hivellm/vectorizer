@@ -403,30 +403,148 @@ impl SummarizationMethodTrait for SentenceSummarizer {
     }
 }
 
-/// Implementação de sumarização abstrativa (placeholder)
+/// Abstractive summarization implementation
+/// Uses OpenAI API for LLM-based summarization
 pub struct AbstractiveSummarizer {
-    // Requer integração com LLM externo
+    // No state needed - uses OpenAI API via HTTP
 }
 
 impl AbstractiveSummarizer {
     pub fn new() -> Self {
         Self {}
     }
+
+    /// Call OpenAI API for abstractive summarization
+    async fn call_openai_api(
+        text: &str,
+        api_key: &str,
+        model: &str,
+        max_tokens: usize,
+        temperature: f32,
+    ) -> Result<String, SummarizationError> {
+        use serde_json::json;
+
+        let client = reqwest::Client::new();
+        let url = "https://api.openai.com/v1/chat/completions";
+
+        let prompt = format!(
+            "Please provide a concise summary of the following text:\n\n{}\n\nSummary:",
+            text
+        );
+
+        let payload = json!({
+            "model": model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a helpful assistant that creates concise summaries."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "max_tokens": max_tokens,
+            "temperature": temperature
+        });
+
+        let response = client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| SummarizationError::SummarizationFailed {
+                message: format!("Failed to connect to OpenAI API: {}", e),
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(SummarizationError::SummarizationFailed {
+                message: format!("OpenAI API error ({}): {}", status, error_text),
+            });
+        }
+
+        let json_response: serde_json::Value =
+            response
+                .json()
+                .await
+                .map_err(|e| SummarizationError::SummarizationFailed {
+                    message: format!("Failed to parse OpenAI response: {}", e),
+                })?;
+
+        // Extract summary from response
+        let summary = json_response
+            .get("choices")
+            .and_then(|choices| choices.as_array())
+            .and_then(|choices| choices.first())
+            .and_then(|choice| choice.get("message"))
+            .and_then(|message| message.get("content"))
+            .and_then(|content| content.as_str())
+            .ok_or_else(|| SummarizationError::SummarizationFailed {
+                message: "Invalid response format from OpenAI API".to_string(),
+            })?;
+
+        Ok(summary.trim().to_string())
+    }
 }
 
 impl SummarizationMethodTrait for AbstractiveSummarizer {
     fn summarize(
         &self,
-        _params: &SummarizationParams,
-        _config: &MethodConfig,
+        params: &SummarizationParams,
+        config: &MethodConfig,
     ) -> Result<String, SummarizationError> {
-        Err(SummarizationError::SummarizationFailed {
-            message: "Abstractive summarization requires external LLM integration".to_string(),
-        })
+        // Check if API key is configured
+        let api_key = if let Some(key) = config.api_key.as_ref() {
+            key.clone()
+        } else if let Ok(env_key) = std::env::var("OPENAI_API_KEY") {
+            env_key
+        } else {
+            return Err(SummarizationError::ConfigurationError {
+                message: "OpenAI API key not configured. Set api_key in method config or OPENAI_API_KEY environment variable".to_string(),
+            });
+        };
+
+        // Get model name (default to gpt-4o-mini - latest GPT model)
+        let model = config
+            .model
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or("gpt-4o-mini");
+
+        // Get max tokens (default to 150)
+        let max_tokens = config.max_tokens.unwrap_or(150);
+
+        // Get temperature (default to 0.7)
+        let temperature = config.temperature.unwrap_or(0.7);
+
+        // Use tokio runtime for async call
+        // Create a new runtime for this blocking operation
+        let rt = tokio::runtime::Runtime::new().map_err(|e| {
+            SummarizationError::SummarizationFailed {
+                message: format!("Failed to create async runtime: {}", e),
+            }
+        })?;
+
+        // Call OpenAI API
+        rt.block_on(Self::call_openai_api(
+            &params.text,
+            &api_key,
+            model,
+            max_tokens,
+            temperature,
+        ))
     }
 
     fn is_available(&self) -> bool {
-        false // Por enquanto não disponível
+        // Check if API key is available (via env var or config)
+        std::env::var("OPENAI_API_KEY").is_ok()
     }
 
     fn name(&self) -> &'static str {

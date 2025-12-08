@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -90,6 +91,10 @@ pub struct QuantizedVectorStorage {
     cache: Arc<RwLock<HashMap<String, CachedQuantizedVectors>>>,
     cache_size: Arc<RwLock<usize>>,
     storage_dir: PathBuf,
+    /// Cache hit counter for statistics
+    cache_hits: AtomicU64,
+    /// Cache miss counter for statistics
+    cache_misses: AtomicU64,
 }
 
 impl QuantizedVectorStorage {
@@ -107,6 +112,8 @@ impl QuantizedVectorStorage {
             cache_size: Arc::new(RwLock::new(0)),
             storage_dir: config.storage_dir.clone(),
             config,
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
         })
     }
 
@@ -178,8 +185,12 @@ impl QuantizedVectorStorage {
     pub fn load(&self, collection_name: &str) -> QuantizationResult<QuantizedVectors> {
         // Check cache first
         if let Some(cached) = self.get_from_cache(collection_name) {
+            self.cache_hits.fetch_add(1, Ordering::Relaxed);
             return Ok(cached.vectors);
         }
+
+        // Cache miss
+        self.cache_misses.fetch_add(1, Ordering::Relaxed);
 
         let file_path = self.get_file_path(collection_name);
 
@@ -311,13 +322,23 @@ impl QuantizedVectorStorage {
             }
         }
 
+        // Calculate cache hit ratio
+        let hits = self.cache_hits.load(Ordering::Relaxed);
+        let misses = self.cache_misses.load(Ordering::Relaxed);
+        let total_accesses = hits + misses;
+        let cache_hit_ratio = if total_accesses > 0 {
+            hits as f32 / total_accesses as f32
+        } else {
+            0.0
+        };
+
         Ok(StorageStats {
             cached_collections: cache.len(),
             total_collections: total_files,
             cache_size_mb: cache_size / (1024 * 1024),
             total_storage_mb: total_size / (1024 * 1024),
             total_vectors,
-            cache_hit_ratio: 0.0, // TODO: Implement hit ratio tracking
+            cache_hit_ratio,
         })
     }
 

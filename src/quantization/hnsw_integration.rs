@@ -4,6 +4,7 @@
 //! Provides foundation for HNSW integration with quantization.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
@@ -56,6 +57,10 @@ pub struct QuantizedHnswIndex {
     vector_count: usize,
     /// Vector dimension
     dimension: usize,
+    /// Cache hit counter for statistics
+    cache_hits: AtomicU64,
+    /// Cache miss counter for statistics
+    cache_misses: AtomicU64,
 }
 
 impl QuantizedHnswIndex {
@@ -84,6 +89,8 @@ impl QuantizedHnswIndex {
             original_cache: Arc::new(RwLock::new(HashMap::new())),
             vector_count: 0,
             dimension: 0,
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
         })
     }
 
@@ -250,7 +257,16 @@ impl QuantizedHnswIndex {
             memory_usage_bytes: quantized_memory,
             quality_loss: self.quantization.quality_loss(),
             quantization_type: self.config.quantization_type.clone(),
-            cache_hit_ratio: 1.0, // TODO: Implement actual cache hit tracking
+            cache_hit_ratio: {
+                let hits = self.cache_hits.load(Ordering::Relaxed);
+                let misses = self.cache_misses.load(Ordering::Relaxed);
+                let total = hits + misses;
+                if total > 0 {
+                    hits as f32 / total as f32
+                } else {
+                    1.0 // No accesses yet, assume perfect
+                }
+            },
         })
     }
 

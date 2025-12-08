@@ -7,7 +7,7 @@ mod file_validation;
 mod graph_handlers;
 mod graphql_handlers;
 mod hub_backup_handlers;
-// mod hub_tenant_handlers; // TODO: Fix type errors before enabling
+// mod hub_tenant_handlers; // NOTE: Disabled due to axum version conflicts with tonic
 mod hub_usage_handlers;
 pub mod mcp_handlers;
 pub mod mcp_tools;
@@ -1136,7 +1136,9 @@ impl VectorizerServer {
                 get(hub_usage_handlers::get_usage_statistics),
             )
             .route("/hub/usage/quota", get(hub_usage_handlers::get_quota_info))
-            // HiveHub tenant management routes (TODO: Fix handler implementations)
+            // HiveHub tenant management routes
+            // NOTE: Disabled due to axum version conflicts with tonic dependency
+            // Routes implemented in hub_tenant_handlers.rs but need axum version alignment
             // .route(
             //     "/api/hub/tenant/cleanup",
             //     post(hub_tenant_handlers::cleanup_tenant_data),
@@ -1798,12 +1800,38 @@ impl VectorizerServer {
         // Create shutdown signal for axum graceful shutdown
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
 
-        // Spawn task to listen for Ctrl+C and trigger shutdown
+        // Spawn task to listen for shutdown signals (Ctrl+C and SIGTERM on Unix)
         tokio::spawn(async move {
-            if let Ok(()) = tokio::signal::ctrl_c().await {
+            // Create futures for different shutdown signals
+            let ctrl_c = async {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("Failed to install Ctrl+C handler");
                 info!("🛑 Received shutdown signal (Ctrl+C)");
-                let _ = shutdown_tx.send(());
+            };
+
+            // On Unix, also listen for SIGTERM (used by Docker, Kubernetes, systemd)
+            #[cfg(unix)]
+            let terminate = async {
+                use tokio::signal::unix::{SignalKind, signal};
+                let mut sigterm =
+                    signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
+                sigterm.recv().await;
+                info!("🛑 Received shutdown signal (SIGTERM)");
+            };
+
+            // On Windows, SIGTERM is not available, so we only listen for Ctrl+C
+            #[cfg(not(unix))]
+            let terminate = std::future::pending::<()>();
+
+            // Wait for either signal
+            tokio::select! {
+                _ = ctrl_c => {},
+                _ = terminate => {},
             }
+
+            // Send shutdown signal
+            let _ = shutdown_tx.send(());
         });
 
         // Serve the application with graceful shutdown

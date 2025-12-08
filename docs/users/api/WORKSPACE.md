@@ -27,7 +27,7 @@ Workspace management enables:
 
 List all configured workspace directories.
 
-**Endpoint:** `GET /api/workspace/list`
+**Endpoint:** `GET /workspace/list`
 
 **Response:**
 
@@ -51,7 +51,7 @@ List all configured workspace directories.
 **Example:**
 
 ```bash
-curl http://localhost:15002/api/workspace/list
+curl http://localhost:15002/workspace/list
 ```
 
 **Python SDK:**
@@ -72,7 +72,7 @@ for workspace in workspaces["workspaces"]:
 
 Add a new workspace directory for indexing.
 
-**Endpoint:** `POST /api/workspace/add`
+**Endpoint:** `POST /workspace/add`
 
 **Request Body:**
 
@@ -102,7 +102,7 @@ Add a new workspace directory for indexing.
 **Example:**
 
 ```bash
-curl -X POST http://localhost:15002/api/workspace/add \
+curl -X POST http://localhost:15002/workspace/add \
   -H "Content-Type: application/json" \
   -d '{
     "path": "/path/to/project",
@@ -126,7 +126,7 @@ if result["success"]:
 
 Remove a workspace directory from indexing.
 
-**Endpoint:** `POST /api/workspace/remove`
+**Endpoint:** `POST /workspace/remove`
 
 **Request Body:**
 
@@ -154,7 +154,7 @@ Remove a workspace directory from indexing.
 **Example:**
 
 ```bash
-curl -X POST http://localhost:15002/api/workspace/remove \
+curl -X POST http://localhost:15002/workspace/remove \
   -H "Content-Type: application/json" \
   -d '{
     "path": "/path/to/project"
@@ -174,7 +174,7 @@ if result["success"]:
 
 Get workspace configuration settings.
 
-**Endpoint:** `GET /api/workspace/config`
+**Endpoint:** `GET /workspace/config`
 
 **Response:**
 
@@ -206,14 +206,14 @@ Get workspace configuration settings.
 **Example:**
 
 ```bash
-curl http://localhost:15002/api/workspace/config
+curl http://localhost:15002/workspace/config
 ```
 
 ### Update Workspace Configuration
 
 Update workspace configuration settings.
 
-**Endpoint:** `POST /api/workspace/config`
+**Endpoint:** `POST /workspace/config`
 
 **Request Body:**
 
@@ -254,7 +254,7 @@ Update workspace configuration settings.
 **Example:**
 
 ```bash
-curl -X POST http://localhost:15002/api/workspace/config \
+curl -X POST http://localhost:15002/workspace/config \
   -H "Content-Type: application/json" \
   -d @workspace-config.json
 ```

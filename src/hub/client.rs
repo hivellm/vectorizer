@@ -245,6 +245,88 @@ impl HubClient {
     }
 
     // ========================================
+    // Logging API
+    // ========================================
+
+    /// Send operation logs to HiveHub Cloud
+    ///
+    /// This sends a batch of operation logs for centralized logging and analytics.
+    /// Logs are processed asynchronously by the cloud service.
+    pub async fn send_operation_logs(
+        &self,
+        request: OperationLogsRequest,
+    ) -> Result<OperationLogsResponse> {
+        trace!(
+            "Sending {} operation logs to HiveHub Cloud",
+            request.logs.len()
+        );
+
+        // Use reqwest directly since the SDK may not have this endpoint
+        let url = format!("{}/api/v1/vectorizer/logs", self.config.api_url);
+
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(self.config.timeout_seconds))
+            .build()
+            .map_err(|e| {
+                VectorizerError::InternalError(format!("Failed to create HTTP client: {}", e))
+            })?;
+
+        let response = client
+            .post(&url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.config.service_api_key),
+            )
+            .header("Content-Type", "application/json")
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| VectorizerError::InternalError(format!("Failed to send logs: {}", e)))?;
+
+        if response.status().is_success() {
+            let result: OperationLogsResponse =
+                response
+                    .json()
+                    .await
+                    .unwrap_or_else(|_| OperationLogsResponse {
+                        accepted: true,
+                        processed: request.logs.len(),
+                        error: None,
+                    });
+            debug!("Successfully sent {} operation logs", result.processed);
+            Ok(result)
+        } else {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            warn!("Failed to send operation logs: {} - {}", status, error_text);
+
+            // Return success anyway to avoid blocking operations
+            // Cloud logging failures should not impact core functionality
+            Ok(OperationLogsResponse {
+                accepted: false,
+                processed: 0,
+                error: Some(format!("HTTP {}: {}", status, error_text)),
+            })
+        }
+    }
+
+    /// Get the API URL for this client
+    pub fn api_url(&self) -> &str {
+        &self.config.api_url
+    }
+
+    /// Get the service ID (derived from API key prefix)
+    pub fn service_id(&self) -> String {
+        // Use first 8 chars of API key hash as service ID
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        self.config.service_api_key.hash(&mut hasher);
+        format!("vec-{:016x}", hasher.finish())
+    }
+
+    // ========================================
     // Error Mapping
     // ========================================
 
@@ -306,6 +388,55 @@ pub struct UpdateUsageRequest {
     pub vector_count: u64,
     /// Storage used in bytes
     pub storage_bytes: u64,
+}
+
+/// Request to send operation logs to HiveHub Cloud
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperationLogsRequest {
+    /// Service identifier (vectorizer instance)
+    pub service_id: String,
+    /// Batch of operation logs
+    pub logs: Vec<OperationLogEntry>,
+}
+
+/// Single operation log entry for cloud logging
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperationLogEntry {
+    /// Operation ID (UUID)
+    pub operation_id: Uuid,
+    /// Tenant ID
+    pub tenant_id: String,
+    /// Operation name/tool
+    pub operation: String,
+    /// Operation type category
+    pub operation_type: String,
+    /// Collection name (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection: Option<String>,
+    /// Timestamp (Unix epoch milliseconds)
+    pub timestamp: u64,
+    /// Duration in milliseconds
+    pub duration_ms: u64,
+    /// Success status
+    pub success: bool,
+    /// Error message (if failed)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// Additional metadata
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Response from sending operation logs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperationLogsResponse {
+    /// Whether the logs were accepted
+    pub accepted: bool,
+    /// Number of logs processed
+    pub processed: usize,
+    /// Error message if any
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 impl Default for UpdateUsageRequest {

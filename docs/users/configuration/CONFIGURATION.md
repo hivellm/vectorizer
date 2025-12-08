@@ -45,6 +45,7 @@ vectorizer --config /etc/vectorizer/config.yml
 ## Configuration Guides
 
 - **[Server Configuration](./SERVER.md)** - Network, ports, host binding, reverse proxy
+- **[TLS/SSL Configuration](./TLS.md)** - HTTPS, certificates, mTLS, cipher suites
 - **[Logging Configuration](./LOGGING.md)** - Log levels, output, filtering, aggregation
 - **[Data Directory](./DATA_DIRECTORY.md)** - Storage paths, snapshots, backups
 - **[Performance Tuning](./PERFORMANCE_TUNING.md)** - Threads, memory, optimization
@@ -159,6 +160,17 @@ storage:
 gpu:
   enabled: true
   device: "auto"
+
+# File Watcher configuration
+file_watcher:
+  enabled: true
+  watch_paths:
+    - "/path/to/project"
+  debounce_delay_ms: 1000
+  collection_name: "workspace-files"
+  collection_mapping:
+    "*/docs/**/*.md": "documentation"
+    "*/src/**/*.rs": "rust-code"
 ```
 
 ### Configuration File Locations

@@ -22,9 +22,10 @@ Real-time file system monitoring with automatic collection updates, supporting c
 
 **Processing**:
 - Event debouncing (300ms)
-- Batch processing
+- Batch processing (configurable batch size and concurrency limits)
 - Incremental indexing
 - Automatic reindexing
+- Parallel file processing with semaphore-based concurrency control
 
 ---
 
@@ -35,11 +36,60 @@ file_watcher:
   enabled: true
   watch_paths:
     - "/path/to/project"
-  debounce_ms: 300
+  debounce_delay_ms: 1000
   auto_discovery: true
   hot_reload: true
   batch_size: 100
+  collection_name: "workspace-files"
+  collection_mapping:
+    "*/docs/**/*.md": "documentation"
+    "*/src/**/*.rs": "rust-code"
+    "*/src/**/*.py": "python-code"
+    "*/tests/**/*": "test-files"
 ```
+
+### Collection Mapping
+
+The `collection_mapping` option allows you to configure custom path-to-collection mappings using glob patterns. This gives you fine-grained control over which collection each file is indexed into based on its path.
+
+**Priority Order**:
+1. Collection mapping patterns (from `collection_mapping` config)
+2. Known project patterns (from workspace.yml)
+3. Default collection (from `default_collection` or `collection_name`)
+
+**Example Configuration**:
+
+```yaml
+file_watcher:
+  enabled: true
+  collection_mapping:
+    # Documentation files go to docs collection
+    "*/docs/**/*.md": "documentation"
+    "*/docs/**/*.rst": "documentation"
+    
+    # Source code by language
+    "*/src/**/*.rs": "rust-code"
+    "*/src/**/*.py": "python-code"
+    "*/src/**/*.js": "javascript-code"
+    "*/src/**/*.ts": "typescript-code"
+    
+    # Tests go to separate collection
+    "*/tests/**/*": "test-files"
+    "*/test/**/*": "test-files"
+    
+    # Configuration files
+    "**/*.yml": "configuration"
+    "**/*.yaml": "configuration"
+    "**/*.toml": "configuration"
+    
+    # Default fallback (use default_collection if no pattern matches)
+```
+
+**Pattern Matching**:
+- Patterns use glob syntax (same as include/exclude patterns)
+- Patterns are checked in order, first match wins
+- Path separators are normalized (`\` → `/`) for cross-platform compatibility
+- Patterns support wildcards: `*`, `**`, `?`, `[...]`
 
 ---
 
@@ -129,6 +179,16 @@ file_watcher:
     - "**/.git/**"
 ```
 
+**Collection Mapping**:
+```yaml
+file_watcher:
+  enabled: true
+  collection_mapping:
+    "*/docs/**/*.md": "documentation"
+    "*/src/**/*.rs": "rust-code"
+    "*/tests/**/*": "test-files"
+```
+
 ---
 
 ## Cluster Mode Behavior
@@ -170,6 +230,45 @@ cluster:
 ```
 
 **Warning**: This is not recommended for production clusters as it can cause inconsistent state across nodes.
+
+### Batch Processing
+
+The file watcher uses batch processing to efficiently handle multiple files during initial discovery and indexing operations.
+
+**Configuration:**
+```yaml
+file_watcher:
+  batch_size: 100              # Number of files per batch
+  max_concurrent_tasks: 4      # Maximum parallel tasks per batch
+  enable_realtime_indexing: true
+```
+
+**Features:**
+- **Batch Grouping**: Files are processed in batches to optimize throughput
+- **Concurrent Processing**: Multiple files within a batch can be processed in parallel
+- **Concurrency Control**: Semaphore-based limiting prevents system overload
+- **Error Isolation**: Failures in one file don't block the entire batch
+- **Progress Tracking**: Detailed logging for batch progress and statistics
+
+**Benefits:**
+- Faster initial indexing of large file sets
+- Better resource utilization
+- Improved stability through error isolation
+- Configurable performance vs. resource usage trade-offs
+
+**How It Works:**
+
+1. Files are collected from watch paths
+2. Files are grouped into batches of `batch_size`
+3. Within each batch, up to `max_concurrent_tasks` files are processed in parallel
+4. A semaphore controls concurrent access to prevent system overload
+5. Each batch completes before starting the next one
+6. Errors in individual files don't prevent other files from being processed
+
+**Tuning:**
+- **High Throughput**: Increase `batch_size` and `max_concurrent_tasks` (watch memory usage)
+- **Low Resource Usage**: Decrease `batch_size` and `max_concurrent_tasks`
+- **Balanced**: Default values (batch_size: 100, max_concurrent_tasks: 4) work well for most cases
 
 ### Alternative Approaches
 

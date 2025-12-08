@@ -524,6 +524,11 @@ impl Collection {
         }
     }
 
+    /// Get the number of unique documents in this collection
+    pub fn document_count(&self) -> usize {
+        self.document_ids.len()
+    }
+
     /// Get the embedding type used for this collection
     pub fn get_embedding_type(&self) -> String {
         self.embedding_type.read().clone()
@@ -955,6 +960,8 @@ impl Collection {
             results.push(SearchResult {
                 id: id.clone(),
                 score,
+                dense_score: Some(score), // Dense-only search
+                sparse_score: None,
                 vector: Some(vector.data.clone()),
                 payload: normalized_payload,
             });
@@ -1068,6 +1075,8 @@ impl Collection {
             results.push(SearchResult {
                 id: hybrid_result.id.clone(),
                 score: hybrid_result.hybrid_score,
+                dense_score: hybrid_result.dense_score,
+                sparse_score: hybrid_result.sparse_score,
                 vector: Some(vector.data.clone()),
                 payload: normalized_payload,
             });

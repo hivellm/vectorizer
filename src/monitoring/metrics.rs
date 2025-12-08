@@ -3,6 +3,10 @@
 //! This module defines all Prometheus metrics used for monitoring the vector database.
 //! Metrics are organized by subsystem for clarity and maintainability.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use prometheus::{
     Counter, CounterVec, Gauge, GaugeVec, Histogram, HistogramOpts, HistogramVec, Opts, Registry,
@@ -121,6 +125,9 @@ pub struct Metrics {
 
     /// Backup operations total
     pub hub_backup_operations_total: CounterVec,
+
+    /// In-memory API request counter per tenant (for fast lookup)
+    pub tenant_api_requests: Arc<DashMap<String, AtomicU64>>,
 }
 
 impl Metrics {
@@ -333,7 +340,7 @@ impl Metrics {
                     "vectorizer_hub_api_requests_total",
                     "Total Hub API requests",
                 ),
-                &["endpoint", "status"],
+                &["tenant_id", "endpoint", "method", "status"],
             )
             .unwrap(),
 
@@ -370,7 +377,25 @@ impl Metrics {
                 &["operation", "status"],
             )
             .unwrap(),
+
+            tenant_api_requests: Arc::new(DashMap::new()),
         }
+    }
+
+    /// Record an API request for a tenant
+    pub fn record_tenant_api_request(&self, tenant_id: &str) {
+        self.tenant_api_requests
+            .entry(tenant_id.to_string())
+            .or_insert_with(|| AtomicU64::new(0))
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Get the total API request count for a tenant
+    pub fn get_tenant_api_requests(&self, tenant_id: &str) -> u64 {
+        self.tenant_api_requests
+            .get(tenant_id)
+            .map(|counter| counter.load(Ordering::Relaxed))
+            .unwrap_or(0)
     }
 
     /// Register all metrics with the given registry

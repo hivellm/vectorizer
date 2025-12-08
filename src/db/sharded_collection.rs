@@ -10,10 +10,11 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
+use super::HybridSearchConfig;
 use super::collection::Collection;
 use super::sharding::{ShardId, ShardRebalancer, ShardRouter};
 use crate::error::{Result, VectorizerError};
-use crate::models::{CollectionConfig, SearchResult, Vector};
+use crate::models::{CollectionConfig, SearchResult, SparseVector, Vector};
 
 /// A sharded collection that distributes vectors across multiple shards
 #[derive(Clone, Debug)]
@@ -270,11 +271,78 @@ impl ShardedCollection {
         Ok(all_results)
     }
 
+    /// Perform hybrid search across all shards and merge results
+    ///
+    /// # Arguments
+    /// * `query_dense` - Dense query vector
+    /// * `query_sparse` - Optional sparse query vector for hybrid search
+    /// * `config` - Hybrid search configuration
+    /// * `shard_keys` - Optional list of specific shards to search (if None, searches all)
+    pub fn hybrid_search(
+        &self,
+        query_dense: &[f32],
+        query_sparse: Option<&SparseVector>,
+        config: HybridSearchConfig,
+        shard_keys: Option<&[ShardId]>,
+    ) -> Result<Vec<SearchResult>> {
+        // Get shards to search
+        let shard_ids = self.router.route_search(shard_keys);
+
+        if shard_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Search each shard with hybrid search
+        let mut all_results = Vec::new();
+        let shard_count = shard_ids.len();
+
+        for shard_id in shard_ids {
+            if let Some(shard) = self.shards.get(&shard_id) {
+                match shard.hybrid_search(query_dense, query_sparse, config.clone()) {
+                    Ok(results) => {
+                        all_results.extend(results);
+                    }
+                    Err(e) => {
+                        warn!("Error in hybrid search for shard {}: {}", shard_id, e);
+                        // Continue with other shards
+                    }
+                }
+            }
+        }
+
+        // Merge and sort results by score (higher is better for similarity)
+        all_results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Take top k results
+        all_results.truncate(config.final_k);
+
+        debug!(
+            "Multi-shard hybrid search in collection '{}' returned {} results from {} shards",
+            self.name,
+            all_results.len(),
+            shard_count
+        );
+
+        Ok(all_results)
+    }
+
     /// Get total vector count across all shards
     pub fn vector_count(&self) -> usize {
         self.shards
             .iter()
             .map(|shard| shard.value().vector_count())
+            .sum()
+    }
+
+    /// Get total document count across all shards
+    pub fn document_count(&self) -> usize {
+        self.shards
+            .iter()
+            .map(|shard| shard.value().document_count())
             .sum()
     }
 
@@ -332,6 +400,79 @@ impl ShardedCollection {
     /// Get shard metadata
     pub fn get_shard_metadata(&self, shard_id: &ShardId) -> Option<super::sharding::ShardMetadata> {
         self.router.get_shard_metadata(shard_id)
+    }
+
+    /// Requantize existing vectors across all shards
+    ///
+    /// This method iterates over all shards and calls `requantize_existing_vectors`
+    /// on each shard's collection. This is useful when quantization configuration
+    /// is changed or when migrating existing vectors to quantized storage.
+    ///
+    /// # Returns
+    /// - `Ok(())` if all shards were successfully requantized
+    /// - `Err(VectorizerError)` if any shard fails to requantize
+    pub fn requantize_existing_vectors(&self) -> Result<()> {
+        info!(
+            "Starting requantization for sharded collection '{}' with {} shards",
+            self.name,
+            self.shards.len()
+        );
+
+        let mut total_vectors = 0;
+        let mut errors = Vec::new();
+
+        for entry in self.shards.iter() {
+            let shard_id = *entry.key();
+            let shard = entry.value();
+
+            debug!(
+                "Requantizing shard {} of collection '{}'",
+                shard_id, self.name
+            );
+
+            match shard.requantize_existing_vectors() {
+                Ok(()) => {
+                    let shard_count = shard.vector_count();
+                    total_vectors += shard_count;
+                    debug!(
+                        "Successfully requantized shard {} ({} vectors)",
+                        shard_id, shard_count
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to requantize shard {} of collection '{}': {}",
+                        shard_id, self.name, e
+                    );
+                    errors.push((shard_id, e));
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            let error_msg = errors
+                .iter()
+                .map(|(id, e)| format!("shard {}: {}", id, e))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            return Err(VectorizerError::InvalidConfiguration {
+                message: format!(
+                    "Failed to requantize {} shards: {}",
+                    errors.len(),
+                    error_msg
+                ),
+            });
+        }
+
+        info!(
+            "✅ Successfully requantized {} vectors across {} shards in collection '{}'",
+            total_vectors,
+            self.shards.len(),
+            self.name
+        );
+
+        Ok(())
     }
 }
 

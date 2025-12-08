@@ -295,13 +295,19 @@ impl VectorOperations {
     /// Determine collection name based on file path
     ///
     /// Priority order:
-    /// 1. Match known project patterns from workspace.yml
-    /// 2. Use configured default collection (NO automatic path-based generation)
+    /// 1. Check collection mapping from config (YAML collection_mapping patterns)
+    /// 2. Match known project patterns from workspace.yml
+    /// 3. Use configured default collection (NO automatic path-based generation)
     ///
     /// This prevents the aggressive automatic creation of empty collections
     /// that was happening with path-based name generation.
     pub fn determine_collection_name(&self, path: &std::path::Path) -> String {
-        // PRIORITY 1: Try to match against known project patterns from workspace.yml
+        // PRIORITY 1: Check collection mapping from config (YAML collection_mapping patterns)
+        if let Some(collection) = self.config.get_collection_for_path(path) {
+            return collection;
+        }
+
+        // PRIORITY 2: Try to match against known project patterns from workspace.yml
         let path_str = path.to_string_lossy();
 
         if path_str.contains("/docs/") {
@@ -368,6 +374,13 @@ impl VectorOperations {
                 .clone()
                 .unwrap_or_else(|| "workspace-default".to_string())
         }
+    }
+
+    /// Get collection name for a file path based on collection mapping patterns
+    ///
+    /// This is a convenience method that delegates to the config's get_collection_for_path.
+    pub fn get_collection_for_path(&self, path: &std::path::Path) -> Option<String> {
+        self.config.get_collection_for_path(path)
     }
 }
 
@@ -571,6 +584,77 @@ mod tests {
                 path, expected
             );
         }
+    }
+
+    #[test]
+    fn test_collection_mapping_priority() {
+        let vector_store = Arc::new(crate::VectorStore::new_cpu_only());
+        let embedding_manager = Arc::new(RwLock::new(crate::embedding::EmbeddingManager::new()));
+        let mut config = FileWatcherConfig::default();
+
+        // Configure collection mapping with patterns that match the test paths
+        let mut mapping = std::collections::HashMap::new();
+        // Use patterns that will definitely match
+        mapping.insert(
+            "**/project/docs/**/*.md".to_string(),
+            "custom-docs".to_string(),
+        );
+        mapping.insert(
+            "**/project/src/**/*.rs".to_string(),
+            "custom-rust".to_string(),
+        );
+        mapping.insert(
+            "**/project/tests/**/*".to_string(),
+            "custom-tests".to_string(),
+        );
+        config.collection_mapping = Some(mapping);
+
+        let ops = VectorOperations::new(vector_store, embedding_manager, config);
+
+        // Collection mapping should take priority over known patterns
+        assert_eq!(
+            ops.determine_collection_name(&PathBuf::from("/project/docs/guide.md")),
+            "custom-docs"
+        );
+        assert_eq!(
+            ops.determine_collection_name(&PathBuf::from("/project/src/main.rs")),
+            "custom-rust"
+        );
+        assert_eq!(
+            ops.determine_collection_name(&PathBuf::from("/project/tests/test.rs")),
+            "custom-tests"
+        );
+
+        // Paths that don't match mapping should fall back to known patterns or default
+        assert_eq!(
+            ops.determine_collection_name(&PathBuf::from("/docs/architecture/design.md")),
+            "docs-architecture" // Known pattern, not in mapping
+        );
+    }
+
+    #[test]
+    fn test_collection_mapping_windows_paths_normalized() {
+        let vector_store = Arc::new(crate::VectorStore::new_cpu_only());
+        let embedding_manager = Arc::new(RwLock::new(crate::embedding::EmbeddingManager::new()));
+        let mut config = FileWatcherConfig::default();
+
+        // Configure collection mapping with forward slashes (will be normalized)
+        let mut mapping = std::collections::HashMap::new();
+        mapping.insert("*/docs/**/*.md".to_string(), "documentation".to_string());
+        mapping.insert("*/src/**/*.rs".to_string(), "rust-code".to_string());
+        config.collection_mapping = Some(mapping);
+
+        let ops = VectorOperations::new(vector_store, embedding_manager, config);
+
+        // Windows paths with backslashes should be normalized and match patterns
+        assert_eq!(
+            ops.determine_collection_name(&PathBuf::from(r"C:\project\docs\guide.md")),
+            "documentation"
+        );
+        assert_eq!(
+            ops.determine_collection_name(&PathBuf::from(r"D:\work\src\main.rs")),
+            "rust-code"
+        );
     }
 
     #[test]

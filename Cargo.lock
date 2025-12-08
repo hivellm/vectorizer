@@ -4504,6 +4504,18 @@ dependencies = [
 
 [[package]]
 name = "nix"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
+dependencies = [
+ "bitflags 2.9.4",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+]
+
+[[package]]
+name = "nix"
 version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
@@ -8024,9 +8036,9 @@ dependencies = [
 
 [[package]]
 name = "transmutation"
-version = "0.1.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a05965d78ed1b4bb8d677ef25e49993916f519cd28fdb545e858cc99508befa"
+checksum = "e58e1986afced27128485bbae045506a212f479ae746865976aec297912ed0f9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8452,7 +8464,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer"
-version = "1.8.6"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -8496,6 +8508,7 @@ dependencies = [
  "memmap2",
  "memory-stats",
  "ndarray 0.17.1",
+ "nix 0.29.0",
  "notify",
  "num_cpus",
  "once_cell",
@@ -8519,6 +8532,7 @@ dependencies = [
  "rrf",
  "rust-tfidf",
  "rustls",
+ "rustls-pemfile",
  "scopeguard",
  "serde",
  "serde_json",

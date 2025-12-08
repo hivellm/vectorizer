@@ -133,6 +133,18 @@ impl DistributedShardRouter {
         node_to_shards.keys().cloned().collect()
     }
 
+    /// Get all shards across all nodes
+    pub fn get_all_shards(&self) -> Vec<ShardId> {
+        let shard_to_node = self.shard_to_node.read();
+        shard_to_node.keys().copied().collect()
+    }
+
+    /// Get the total number of shards
+    pub fn shard_count(&self) -> usize {
+        let shard_to_node = self.shard_to_node.read();
+        shard_to_node.len()
+    }
+
     /// Rebalance shards across nodes (simple round-robin for now)
     pub fn rebalance(&self, shard_ids: &[ShardId], node_ids: &[NodeId]) {
         if node_ids.is_empty() {

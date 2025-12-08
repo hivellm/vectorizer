@@ -300,8 +300,99 @@ Example: 1M vectors × 512 dim × 0.5 bytes = 256 MB (8x reduction)
 3. **Check vector count**: Ensure vectors are actually quantized
 4. **Monitor memory**: Use `/collections/{name}/stats` endpoint
 
+## Quantization Cache
+
+Vectorizer implements a quantization cache to speed up repeated searches with the same quantized vectors.
+
+### Cache Architecture
+
+```
+Query → Check Cache → [Hit] → Return cached result
+                   → [Miss] → Dequantize → Search → Cache result → Return
+```
+
+### Cache Metrics
+
+Monitor cache performance via the metrics endpoint:
+
+```bash
+GET /metrics
+```
+
+**Relevant metrics:**
+
+```
+# Quantization cache hit ratio
+quantization_cache_hit_ratio 0.85
+
+# Cache hits
+quantization_cache_hits_total 85000
+
+# Cache misses
+quantization_cache_misses_total 15000
+
+# Cache size
+quantization_cache_size_bytes 104857600
+```
+
+### Cache Configuration
+
+Configure cache settings in `config.yml`:
+
+```yaml
+quantization:
+  cache:
+    enabled: true
+    max_size_mb: 512
+    ttl_seconds: 3600
+```
+
+### Cache Hit Tracking
+
+The cache tracks hits/misses per collection:
+
+```bash
+GET /collections/{name}/stats
+```
+
+**Response includes:**
+
+```json
+{
+  "name": "my_collection",
+  "vector_count": 1000000,
+  "quantization": {
+    "type": "scalar",
+    "bits": 8,
+    "cache": {
+      "enabled": true,
+      "hit_ratio": 0.85,
+      "hits": 85000,
+      "misses": 15000,
+      "size_bytes": 104857600
+    }
+  }
+}
+```
+
+### HNSW Cache Integration
+
+When using HNSW with quantization, cache hits are tracked during graph traversal:
+
+- **Node visits**: Cached quantized vectors speed up neighbor comparisons
+- **Distance calculations**: Cached results reduce redundant dequantization
+- **Beam search**: Hot nodes remain in cache for faster exploration
+
+### Best Practices
+
+1. **Size appropriately**: Cache size should accommodate hot vectors
+2. **Monitor hit ratio**: Target >80% hit ratio for optimal performance
+3. **Adjust TTL**: Lower TTL for frequently updated collections
+4. **Clear on reindex**: Cache is invalidated when quantization changes
+
 ## Related Topics
 
 - [Collection Configuration](../collections/CONFIGURATION.md) - Collection settings
 - [Performance Guide](../configuration/PERFORMANCE_TUNING.md) - Performance optimization
 - [Memory Optimization](../configuration/PERFORMANCE_TUNING.md) - Memory tuning
+- [Monitoring](../operations/MONITORING.md) - Metrics and monitoring

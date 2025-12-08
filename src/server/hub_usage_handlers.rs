@@ -183,7 +183,7 @@ pub async fn get_usage_statistics(
         total_collections: filtered_collections.len(),
         total_vectors,
         total_storage,
-        api_requests: None, // TODO: Implement API request tracking
+        api_requests: Some(METRICS.get_tenant_api_requests(&query.user_id.to_string())),
         collections: if query.collection_id.is_some() || !collection_stats.is_empty() {
             Some(collection_stats)
         } else {
@@ -330,6 +330,8 @@ pub async fn validate_api_key(
         .hub_api_requests_total
         .with_label_values(&[&tenant_context.tenant_id, &endpoint, &method, &status])
         .inc();
+    // Also record for fast tenant lookup
+    METRICS.record_tenant_api_request(&tenant_context.tenant_id);
 
     // Return validation result with tenant info
     let response = serde_json::json!({

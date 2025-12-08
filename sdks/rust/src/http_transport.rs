@@ -107,3 +107,52 @@ impl Transport for HttpTransport {
         Protocol::Http
     }
 }
+
+impl HttpTransport {
+    /// Upload a file using multipart/form-data (not part of Transport trait)
+    pub async fn post_multipart(
+        &self,
+        path: &str,
+        file_bytes: Vec<u8>,
+        filename: &str,
+        form_fields: std::collections::HashMap<String, String>,
+    ) -> Result<String> {
+        let url = format!("{}{}", self.base_url, path);
+
+        // Create multipart form
+        let mut form = reqwest::multipart::Form::new();
+
+        // Add file
+        let file_part = reqwest::multipart::Part::bytes(file_bytes).file_name(filename.to_string());
+        form = form.part("file", file_part);
+
+        // Add other form fields
+        for (key, value) in form_fields {
+            form = form.text(key, value);
+        }
+
+        let response = self
+            .client
+            .post(&url)
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| VectorizerError::network(format!("File upload failed: {e}")))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            return Err(VectorizerError::server(format!(
+                "HTTP {status}: {error_text}"
+            )));
+        }
+
+        response
+            .text()
+            .await
+            .map_err(|e| VectorizerError::network(format!("Failed to read response: {e}")))
+    }
+}

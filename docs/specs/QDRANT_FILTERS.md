@@ -724,6 +724,112 @@ All filter types are fully compatible with Qdrant's API. Simply change the base 
 2. **Geo Calculations**: Uses Haversine formula (same as Qdrant)
 3. **Text Match**: Supports all 4 types (exact, prefix, suffix, contains)
 
+## Filter-Based Operations
+
+Beyond search, filters can be used for bulk operations on vectors and payloads.
+
+### Filter-Based Deletion
+
+Delete all vectors matching a filter:
+
+```bash
+POST /collections/{collection}/points/delete
+{
+  "filter": {
+    "must": [
+      {"type": "match", "key": "status", "match_value": "archived"}
+    ]
+  }
+}
+```
+
+**Use Case**: Clean up old or archived data
+
+### Filter-Based Payload Update
+
+Update payloads on vectors matching a filter:
+
+```bash
+POST /collections/{collection}/points/payload
+{
+  "filter": {
+    "must": [
+      {"type": "match", "key": "category", "match_value": "electronics"}
+    ]
+  },
+  "payload": {
+    "on_sale": true,
+    "discount": 0.2
+  }
+}
+```
+
+**Use Case**: Apply bulk updates to matching vectors
+
+### Filter-Based Payload Overwrite
+
+Completely replace payloads on matching vectors:
+
+```bash
+PUT /collections/{collection}/points/payload
+{
+  "filter": {
+    "must": [
+      {"type": "range", "key": "updated_at", "range": {"lt": 1700000000}}
+    ]
+  },
+  "payload": {
+    "migrated": true,
+    "version": 2
+  }
+}
+```
+
+**Use Case**: Migration or schema updates
+
+### Filter-Based Payload Delete
+
+Remove specific payload fields from matching vectors:
+
+```bash
+POST /collections/{collection}/points/payload/delete
+{
+  "filter": {
+    "must": [
+      {"type": "match", "key": "pii_data", "match_value": true}
+    ]
+  },
+  "keys": ["email", "phone", "address"]
+}
+```
+
+**Use Case**: GDPR compliance, PII removal
+
+### Filter-Based Payload Clear
+
+Remove all payload data from matching vectors:
+
+```bash
+POST /collections/{collection}/points/payload/clear
+{
+  "filter": {
+    "must": [
+      {"type": "match", "key": "cleanup_required", "match_value": true}
+    ]
+  }
+}
+```
+
+**Use Case**: Reset payload data
+
+### Best Practices for Filter Operations
+
+1. **Test filters first**: Use search with the same filter to see what will be affected
+2. **Backup data**: Before bulk operations, ensure you have backups
+3. **Use specific filters**: Avoid overly broad filters that affect too many vectors
+4. **Monitor progress**: Large operations may take time; monitor logs for progress
+5. **Batch wisely**: For very large datasets, consider batching operations
+
 ## See Also
 
 - [Qdrant Collections Management](./QDRANT_COLLECTIONS.md)

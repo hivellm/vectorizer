@@ -80,5 +80,94 @@ public partial class VectorizerClient
         return await RequestAsync<Dictionary<string, object>>(
             "POST", "/file/search_by_type", request, cancellationToken);
     }
+
+    /// <summary>
+    /// Upload a file for automatic text extraction, chunking, and indexing
+    /// </summary>
+    /// <param name="fileStream">File stream to upload</param>
+    /// <param name="filename">Name of the file</param>
+    /// <param name="collectionName">Target collection name</param>
+    /// <param name="chunkSize">Optional chunk size in characters</param>
+    /// <param name="chunkOverlap">Optional chunk overlap in characters</param>
+    /// <param name="metadata">Optional metadata to attach to all chunks</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>File upload response</returns>
+    public async Task<FileUploadResponse> UploadFileAsync(
+        Stream fileStream,
+        string filename,
+        string collectionName,
+        int? chunkSize = null,
+        int? chunkOverlap = null,
+        Dictionary<string, object>? metadata = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var content = new MultipartFormDataContent();
+
+        // Add file
+        var streamContent = new StreamContent(fileStream);
+        content.Add(streamContent, "file", filename);
+
+        // Add collection name
+        content.Add(new StringContent(collectionName), "collection_name");
+
+        // Add optional parameters
+        if (chunkSize.HasValue)
+            content.Add(new StringContent(chunkSize.Value.ToString()), "chunk_size");
+
+        if (chunkOverlap.HasValue)
+            content.Add(new StringContent(chunkOverlap.Value.ToString()), "chunk_overlap");
+
+        if (metadata != null)
+        {
+            var metadataJson = System.Text.Json.JsonSerializer.Serialize(metadata);
+            content.Add(new StringContent(metadataJson), "metadata");
+        }
+
+        var response = await _httpClient.PostAsync("/files/upload", content, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+        return System.Text.Json.JsonSerializer.Deserialize<FileUploadResponse>(responseJson)
+            ?? throw new InvalidOperationException("Failed to deserialize upload response");
+    }
+
+    /// <summary>
+    /// Upload file content directly as a string
+    /// </summary>
+    /// <param name="content">File content as string</param>
+    /// <param name="filename">Name of the file (used for extension detection)</param>
+    /// <param name="collectionName">Target collection name</param>
+    /// <param name="chunkSize">Optional chunk size in characters</param>
+    /// <param name="chunkOverlap">Optional chunk overlap in characters</param>
+    /// <param name="metadata">Optional metadata to attach to all chunks</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>File upload response</returns>
+    public async Task<FileUploadResponse> UploadFileContentAsync(
+        string content,
+        string filename,
+        string collectionName,
+        int? chunkSize = null,
+        int? chunkOverlap = null,
+        Dictionary<string, object>? metadata = null,
+        CancellationToken cancellationToken = default)
+    {
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        return await UploadFileAsync(
+            stream, filename, collectionName,
+            chunkSize, chunkOverlap, metadata,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Get file upload configuration from server
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>File upload configuration</returns>
+    public async Task<FileUploadConfig> GetUploadConfigAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<FileUploadConfig>(
+            "GET", "/files/config", null, cancellationToken);
+    }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@hivehub/vectorizer-sdk-js",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "JavaScript SDK for Vectorizer - High-performance vector database",
   "main": "dist/index.js",

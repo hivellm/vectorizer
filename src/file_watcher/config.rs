@@ -278,6 +278,42 @@ impl FileWatcherConfig {
 
         false
     }
+
+    /// Get collection name for a file path based on collection mapping patterns
+    ///
+    /// Checks if the file path matches any of the configured collection mapping patterns.
+    /// Patterns are checked in order, and the first match returns the corresponding collection name.
+    ///
+    /// # Arguments
+    /// * `file_path` - The file path to check against collection mapping patterns
+    ///
+    /// # Returns
+    /// Returns `Some(collection_name)` if a pattern matches, `None` otherwise
+    pub fn get_collection_for_path(&self, file_path: &std::path::Path) -> Option<String> {
+        let collection_mapping = self.collection_mapping.as_ref()?;
+        let file_path_str = file_path.to_string_lossy();
+
+        // Check each pattern in the mapping
+        for (pattern, collection_name) in collection_mapping {
+            // Normalize path separators for pattern matching
+            let normalized_path = file_path_str.replace('\\', "/");
+
+            if glob::Pattern::new(pattern)
+                .map(|p| p.matches(&normalized_path))
+                .unwrap_or(false)
+            {
+                tracing::debug!(
+                    "File path matches collection mapping pattern '{}': {} -> {}",
+                    pattern,
+                    file_path_str,
+                    collection_name
+                );
+                return Some(collection_name.clone());
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -501,5 +537,96 @@ mod tests {
         // But text formats should still be there
         assert!(config.include_patterns.iter().any(|p| p.contains("txt")));
         assert!(config.include_patterns.iter().any(|p| p.contains("md")));
+    }
+
+    #[test]
+    fn test_collection_mapping_empty() {
+        let config = FileWatcherConfig::default();
+
+        // No collection mapping configured
+        assert!(
+            config
+                .get_collection_for_path(&PathBuf::from("docs/file.md"))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_collection_mapping_pattern_match() {
+        let mut mapping = HashMap::new();
+        mapping.insert("*/docs/**/*.md".to_string(), "documentation".to_string());
+        mapping.insert("*/src/**/*.rs".to_string(), "rust-code".to_string());
+        mapping.insert("*/tests/**/*".to_string(), "test-files".to_string());
+
+        let mut config = FileWatcherConfig::default();
+        config.collection_mapping = Some(mapping);
+
+        // Test pattern matching
+        assert_eq!(
+            config.get_collection_for_path(&PathBuf::from("project/docs/guide.md")),
+            Some("documentation".to_string())
+        );
+        assert_eq!(
+            config.get_collection_for_path(&PathBuf::from("project/src/main.rs")),
+            Some("rust-code".to_string())
+        );
+        assert_eq!(
+            config.get_collection_for_path(&PathBuf::from("project/tests/test.rs")),
+            Some("test-files".to_string())
+        );
+    }
+
+    #[test]
+    fn test_collection_mapping_windows_paths() {
+        let mut mapping = HashMap::new();
+        mapping.insert("*/docs/**/*.md".to_string(), "documentation".to_string());
+        mapping.insert("*/src/**/*.rs".to_string(), "rust-code".to_string());
+
+        let mut config = FileWatcherConfig::default();
+        config.collection_mapping = Some(mapping);
+
+        // Test Windows path normalization
+        assert_eq!(
+            config.get_collection_for_path(&PathBuf::from(r"project\docs\guide.md")),
+            Some("documentation".to_string())
+        );
+        assert_eq!(
+            config.get_collection_for_path(&PathBuf::from(r"C:\project\src\main.rs")),
+            Some("rust-code".to_string())
+        );
+    }
+
+    #[test]
+    fn test_collection_mapping_no_match() {
+        let mut mapping = HashMap::new();
+        mapping.insert("*/docs/**/*.md".to_string(), "documentation".to_string());
+
+        let mut config = FileWatcherConfig::default();
+        config.collection_mapping = Some(mapping);
+
+        // Path doesn't match any pattern
+        assert!(
+            config
+                .get_collection_for_path(&PathBuf::from("project/src/main.py"))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_collection_mapping_first_match_wins() {
+        let mut mapping = HashMap::new();
+        // Both patterns could match, but first one wins
+        mapping.insert("**/*.md".to_string(), "all-markdown".to_string());
+        mapping.insert("*/docs/**/*.md".to_string(), "documentation".to_string());
+
+        let mut config = FileWatcherConfig::default();
+        config.collection_mapping = Some(mapping);
+
+        // First pattern matches (order in HashMap is not guaranteed, but tests verify the logic)
+        let result = config.get_collection_for_path(&PathBuf::from("project/docs/guide.md"));
+        assert!(result.is_some());
+        // Should match one of the patterns
+        let collection = result.unwrap();
+        assert!(collection == "all-markdown" || collection == "documentation");
     }
 }

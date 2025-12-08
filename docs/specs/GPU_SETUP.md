@@ -451,6 +451,77 @@ tail -f vectorizer.log | grep -i gpu
 4. **`gpu_batch_operations_total`**: Track batch operation usage
 5. **`gpu_memory_usage_bytes`**: Monitor GPU memory consumption
 
+## Multi-Tenant GPU Collections
+
+GPU collections support multi-tenancy through owner_id assignment, enabling secure data isolation in HiveHub cluster mode.
+
+### Creating Tenant-Owned Collections
+
+```rust
+use vectorizer::db::hive_gpu_collection::HiveGpuCollection;
+use uuid::Uuid;
+
+// Create a GPU collection with owner assignment
+let owner_id = Uuid::new_v4();
+let collection = HiveGpuCollection::new_with_owner(
+    "tenant_collection",
+    config,
+    gpu_context,
+    backend_type,
+    owner_id,
+)?;
+```
+
+### Owner Management Methods
+
+```rust
+// Get the owner ID
+let owner: Option<Uuid> = collection.owner_id();
+
+// Set or update the owner ID
+collection.set_owner_id(Some(new_owner_id));
+
+// Check ownership
+if collection.belongs_to(&tenant_id) {
+    // Tenant has access
+}
+```
+
+### Multi-Tenant Use Cases
+
+1. **SaaS Applications**: Each customer has isolated GPU collections
+2. **HiveHub Cluster**: Distributed tenant data with GPU acceleration
+3. **Enterprise Deployments**: Department-level data isolation
+
+### Access Control Pattern
+
+```rust
+// Validate tenant access before operations
+fn search_vectors(
+    collection: &HiveGpuCollection,
+    tenant_id: &Uuid,
+    query: &[f32],
+) -> Result<Vec<SearchResult>> {
+    // Verify ownership
+    if !collection.belongs_to(tenant_id) {
+        return Err(VectorizerError::AccessDenied);
+    }
+
+    // Perform GPU-accelerated search
+    collection.search(query, 10)
+}
+```
+
+### REST API Integration
+
+Multi-tenant collections work seamlessly with authentication:
+
+```bash
+# Collections are automatically filtered by tenant
+curl -H "Authorization: Bearer <jwt_token>" \
+     http://localhost:15002/collections
+```
+
 ## FAQ
 
 ### Q: Can I run Vectorizer without GPU?

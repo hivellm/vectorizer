@@ -3,7 +3,9 @@
 //! This module implements the VectorizerService trait generated from the protobuf definitions.
 
 use std::sync::Arc;
+use std::time::Instant;
 
+use once_cell::sync::Lazy;
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
@@ -13,7 +15,40 @@ use super::vectorizer::vectorizer_service_server::VectorizerService;
 use crate::db::hybrid_search::HybridScoringAlgorithm;
 use crate::db::{HybridSearchConfig, VectorStore};
 use crate::error::VectorizerError;
-use crate::models::{CollectionConfig, Payload, SparseVector, Vector};
+use crate::models::{CollectionConfig, Payload, QuantizationConfig, SparseVector, Vector};
+
+/// Server start time for uptime tracking
+static SERVER_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);
+
+/// Convert internal QuantizationConfig to proto QuantizationConfig
+fn quantization_config_to_proto(
+    config: &QuantizationConfig,
+) -> Option<vectorizer::QuantizationConfig> {
+    match config {
+        QuantizationConfig::None => None,
+        QuantizationConfig::SQ { bits } => Some(vectorizer::QuantizationConfig {
+            config: Some(vectorizer::quantization_config::Config::Scalar(
+                vectorizer::ScalarQuantization { bits: *bits as u32 },
+            )),
+        }),
+        QuantizationConfig::PQ {
+            n_centroids,
+            n_subquantizers,
+        } => Some(vectorizer::QuantizationConfig {
+            config: Some(vectorizer::quantization_config::Config::Product(
+                vectorizer::ProductQuantization {
+                    subvectors: *n_subquantizers as u32,
+                    centroids: *n_centroids as u32,
+                },
+            )),
+        }),
+        QuantizationConfig::Binary => Some(vectorizer::QuantizationConfig {
+            config: Some(vectorizer::quantization_config::Config::Binary(
+                vectorizer::BinaryQuantization {},
+            )),
+        }),
+    }
+}
 
 /// Vectorizer gRPC service implementation
 #[derive(Clone)]
@@ -24,7 +59,14 @@ pub struct VectorizerGrpcService {
 impl VectorizerGrpcService {
     /// Create a new gRPC service instance
     pub fn new(store: Arc<VectorStore>) -> Self {
+        // Initialize the start time on first service creation
+        let _ = *SERVER_START_TIME;
         Self { store }
+    }
+
+    /// Get server uptime in seconds
+    pub fn uptime_seconds() -> u64 {
+        SERVER_START_TIME.elapsed().as_secs()
     }
 }
 
@@ -107,7 +149,7 @@ impl VectorizerService for VectorizerGrpcService {
                 ef: config.hnsw_config.ef_search as u32, // model uses 'ef_search', proto uses 'ef'
                 seed: config.hnsw_config.seed.unwrap_or(0),
             }),
-            quantization: None, // TODO: Convert quantization config
+            quantization: quantization_config_to_proto(&config.quantization),
             storage_type: match config.storage_type {
                 Some(crate::models::StorageType::Memory) => vectorizer::StorageType::Memory as i32,
                 Some(crate::models::StorageType::Mmap) => vectorizer::StorageType::Mmap as i32,
@@ -460,8 +502,8 @@ impl VectorizerService for VectorizerGrpcService {
             .map(|r| vectorizer::HybridSearchResult {
                 id: r.id.clone(),
                 hybrid_score: r.score as f64,
-                dense_score: r.score as f64, // TODO: Extract actual dense/sparse scores
-                sparse_score: 0.0,
+                dense_score: r.dense_score.unwrap_or(0.0) as f64,
+                sparse_score: r.sparse_score.unwrap_or(0.0) as f64,
                 vector: r.vector.as_ref().map(|v| v.clone()).unwrap_or_default(),
                 payload: r
                     .payload
@@ -516,7 +558,7 @@ impl VectorizerService for VectorizerGrpcService {
         Ok(Response::new(vectorizer::GetStatsResponse {
             collections_count: collections.len() as u32,
             total_vectors: total_vectors as u64,
-            uptime_seconds: 0, // TODO: Track uptime
+            uptime_seconds: Self::uptime_seconds() as i64,
             version: env!("CARGO_PKG_VERSION").to_string(),
         }))
     }

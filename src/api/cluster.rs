@@ -274,17 +274,125 @@ async fn get_shard_distribution(
 /// Trigger shard rebalancing
 async fn trigger_rebalance(
     State(state): State<ClusterApiState>,
-    Json(_request): Json<RebalanceRequest>,
+    Json(request): Json<RebalanceRequest>,
 ) -> Result<Json<RebalanceResponse>, (StatusCode, Json<serde_json::Value>)> {
-    info!("REST: Trigger shard rebalancing");
+    info!(
+        "REST: Trigger shard rebalancing (force: {:?})",
+        request.force
+    );
 
-    // TODO: Implement actual rebalancing logic
-    // For now, just return success
-    warn!("Shard rebalancing not yet fully implemented");
+    // Get current cluster state
+    let nodes = state.cluster_manager.get_nodes();
+    let active_nodes: Vec<_> = nodes
+        .iter()
+        .filter(|n| matches!(n.status, crate::cluster::NodeStatus::Active))
+        .collect();
+
+    if active_nodes.is_empty() {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({
+                "error": "No active nodes available for rebalancing"
+            })),
+        ));
+    }
+
+    // Get all shards from the shard router
+    let shard_router = state.cluster_manager.shard_router();
+    let current_distribution = get_current_shard_distribution(&shard_router, &nodes);
+
+    // Calculate target distribution (balanced)
+    let total_shards: usize = current_distribution.values().map(|v| v.len()).sum();
+    let num_active_nodes = active_nodes.len();
+
+    if total_shards == 0 {
+        return Ok(Json(RebalanceResponse {
+            success: true,
+            message: "No shards to rebalance".to_string(),
+            shards_moved: Some(0),
+        }));
+    }
+
+    // Calculate ideal shards per node
+    let shards_per_node = total_shards / num_active_nodes;
+    let extra_shards = total_shards % num_active_nodes;
+
+    // Check if rebalancing is needed
+    let mut imbalanced = false;
+    for (i, node) in active_nodes.iter().enumerate() {
+        let current_count = current_distribution
+            .get(&node.id.as_str().to_string())
+            .map(|v| v.len())
+            .unwrap_or(0);
+        let target_count = shards_per_node + if i < extra_shards { 1 } else { 0 };
+
+        // Allow 1 shard difference without triggering rebalance (unless forced)
+        if (current_count as isize - target_count as isize).abs() > 1
+            || request.force.unwrap_or(false)
+        {
+            imbalanced = true;
+            break;
+        }
+    }
+
+    if !imbalanced {
+        return Ok(Json(RebalanceResponse {
+            success: true,
+            message: "Cluster is already balanced".to_string(),
+            shards_moved: Some(0),
+        }));
+    }
+
+    // Perform rebalancing
+    let mut shards_moved = 0;
+
+    // Collect all shards
+    let all_shards: Vec<crate::db::sharding::ShardId> = current_distribution
+        .values()
+        .flat_map(|shards| shards.iter().cloned())
+        .collect();
+
+    // Get active node IDs
+    let active_node_ids: Vec<NodeId> = active_nodes.iter().map(|n| n.id.clone()).collect();
+
+    // Use the router's rebalance function
+    shard_router.rebalance(&all_shards, &active_node_ids);
+
+    // Count how many shards moved
+    let new_distribution = get_current_shard_distribution(&shard_router, &nodes);
+    for (node_id, old_shards) in &current_distribution {
+        if let Some(new_shards) = new_distribution.get(node_id) {
+            let old_set: std::collections::HashSet<_> = old_shards.iter().collect();
+            let new_set: std::collections::HashSet<_> = new_shards.iter().collect();
+
+            // Count shards that are no longer on this node
+            shards_moved += old_set.difference(&new_set).count();
+        }
+    }
+
+    info!("Rebalancing complete: {} shards moved", shards_moved);
 
     Ok(Json(RebalanceResponse {
         success: true,
-        message: "Rebalancing triggered (not yet fully implemented)".to_string(),
-        shards_moved: None,
+        message: format!(
+            "Rebalancing completed successfully. {} shards redistributed across {} nodes.",
+            shards_moved, num_active_nodes
+        ),
+        shards_moved: Some(shards_moved),
     }))
+}
+
+/// Get current shard distribution across nodes
+fn get_current_shard_distribution(
+    shard_router: &std::sync::Arc<crate::cluster::DistributedShardRouter>,
+    nodes: &[crate::cluster::ClusterNode],
+) -> std::collections::HashMap<String, Vec<crate::db::sharding::ShardId>> {
+    let mut distribution = std::collections::HashMap::new();
+
+    for node in nodes {
+        let shards = shard_router.get_shards_for_node(&node.id);
+        distribution.insert(node.id.as_str().to_string(), shards);
+    }
+
+    distribution
 }

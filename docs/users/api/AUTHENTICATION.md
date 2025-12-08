@@ -318,14 +318,89 @@ ApiUser:
 
 ## Rate Limiting
 
-API keys are subject to rate limiting to prevent abuse.
+API keys are subject to rate limiting to prevent abuse. Vectorizer supports per-API-key rate limiting with configurable tiers and overrides.
+
+### Rate Limiting Architecture
+
+```
+Request → Extract API Key → Check Tier/Override → Apply Limits → Allow/Deny
+```
 
 ### Default Limits
 
 | Limit Type | Default Value |
 |------------|---------------|
-| Per minute | 100 requests |
-| Per hour | 1000 requests |
+| Requests per second | 100 |
+| Burst size | 200 |
+
+### Rate Limit Tiers
+
+Configure different rate limits for different API key tiers:
+
+```yaml
+# config.yml
+rate_limit:
+  enabled: true
+  default_requests_per_second: 100
+  default_burst_size: 200
+
+  tiers:
+    default:
+      requests_per_second: 100
+      burst_size: 200
+
+    premium:
+      requests_per_second: 500
+      burst_size: 1000
+
+    enterprise:
+      requests_per_second: 1000
+      burst_size: 2000
+
+  key_tiers:
+    "vz_premium_key_123": "premium"
+    "vz_enterprise_key_456": "enterprise"
+
+  key_overrides:
+    "vz_special_key_789":
+      requests_per_second: 2000
+      burst_size: 5000
+```
+
+### Assigning Keys to Tiers
+
+Assign API keys to tiers in configuration:
+
+```yaml
+rate_limit:
+  key_tiers:
+    "vz_abc123": "premium"
+    "vz_xyz789": "enterprise"
+```
+
+Or programmatically via API (admin only):
+
+```http
+POST /auth/keys/{key_id}/tier
+Authorization: Bearer <admin-jwt-token>
+Content-Type: application/json
+
+{
+  "tier": "premium"
+}
+```
+
+### Per-Key Overrides
+
+Set custom limits for specific keys:
+
+```yaml
+rate_limit:
+  key_overrides:
+    "vz_special_key":
+      requests_per_second: 5000
+      burst_size: 10000
+```
 
 ### Rate Limit Headers
 
@@ -335,6 +410,7 @@ Responses include rate limit information:
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
 X-RateLimit-Reset: 1699999999
+X-RateLimit-Tier: premium
 ```
 
 ### Rate Limit Exceeded
@@ -343,15 +419,44 @@ When limits are exceeded:
 
 ```http
 HTTP/1.1 429 Too Many Requests
-Retry-After: 60
+Retry-After: 1
 
 {
   "error": "Rate limit exceeded",
-  "limit_type": "per_minute",
-  "limit": 100,
-  "retry_after": 60
+  "requests_per_second": 100,
+  "burst_size": 200,
+  "tier": "default",
+  "retry_after": 1
 }
 ```
+
+### Get Rate Limit Info
+
+Check rate limit status for your API key:
+
+```http
+GET /auth/rate-limit
+X-API-Key: vz_xxxxx
+```
+
+Response:
+
+```json
+{
+  "tier": "premium",
+  "requests_per_second": 500,
+  "burst_size": 1000,
+  "current_usage": 45,
+  "remaining": 455
+}
+```
+
+### Best Practices
+
+1. **Use appropriate tiers**: Assign higher tiers to production workloads
+2. **Monitor usage**: Track rate limit headers to avoid hitting limits
+3. **Implement backoff**: Use exponential backoff when rate limited
+4. **Request tier upgrades**: Contact admin for higher limits if needed
 
 ## SDK Authentication
 

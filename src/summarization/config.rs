@@ -32,6 +32,11 @@ impl Default for SummarizationConfig {
         methods.insert("keyword".to_string(), MethodConfig::default());
         methods.insert("sentence".to_string(), MethodConfig::default());
 
+        // Abstractive summarization (disabled by default, requires OpenAI API key)
+        let mut abstractive_config = MethodConfig::default();
+        abstractive_config.enabled = false; // Disabled by default - requires API key
+        methods.insert("abstractive".to_string(), abstractive_config);
+
         let mut languages = HashMap::new();
         languages.insert("en".to_string(), LanguageConfig::default());
         languages.insert("pt".to_string(), LanguageConfig::default());

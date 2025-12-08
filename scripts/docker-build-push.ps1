@@ -1,5 +1,5 @@
 # Script to build and push Docker image with attestations (for Docker Scout Grade A)
-# Usage: .\scripts\docker-build-push.ps1 -Tag 1.5.2
+# Usage: .\scripts\docker-build-push.ps1 -Tag 2.0.0
 
 param(
     [Parameter(Mandatory=$false)]

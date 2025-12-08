@@ -338,21 +338,67 @@ impl ClusterServiceTrait for ClusterGrpcService {
         request: Request<RemoteCreateCollectionRequest>,
     ) -> Result<Response<RemoteCreateCollectionResponse>, Status> {
         let req = request.into_inner();
-        debug!(
+        info!(
             "gRPC: RemoteCreateCollection request for collection '{}'",
             req.collection_name
         );
 
-        // Note: Collection creation should be coordinated, not done via remote call
-        // This is a placeholder for future implementation
-        warn!("Remote collection creation not fully implemented");
-
-        let response = RemoteCreateCollectionResponse {
-            success: false,
-            message: "Remote collection creation not yet supported".to_string(),
+        // Extract config from request
+        let config = match req.config {
+            Some(cfg) => crate::models::CollectionConfig {
+                dimension: cfg.dimension as usize,
+                metric: match cfg.metric.as_str() {
+                    "cosine" => crate::models::DistanceMetric::Cosine,
+                    "euclidean" => crate::models::DistanceMetric::Euclidean,
+                    "dot" => crate::models::DistanceMetric::DotProduct,
+                    _ => crate::models::DistanceMetric::Cosine,
+                },
+                ..Default::default()
+            },
+            None => {
+                // Use default config if not provided
+                crate::models::CollectionConfig::default()
+            }
         };
 
-        Ok(Response::new(response))
+        // Extract owner_id from tenant context if provided (for multi-tenant isolation)
+        let owner_id = req.tenant.and_then(|t| {
+            use uuid::Uuid;
+            Uuid::parse_str(&t.tenant_id).ok()
+        });
+
+        // Create the collection on this node
+        let result = if let Some(owner) = owner_id {
+            self.store
+                .create_collection_with_owner(&req.collection_name, config, owner)
+        } else {
+            self.store.create_collection(&req.collection_name, config)
+        };
+
+        match result {
+            Ok(_) => {
+                info!(
+                    "Successfully created collection '{}' on remote node",
+                    req.collection_name
+                );
+                let response = RemoteCreateCollectionResponse {
+                    success: true,
+                    message: format!("Collection '{}' created successfully", req.collection_name),
+                };
+                Ok(Response::new(response))
+            }
+            Err(e) => {
+                error!(
+                    "Failed to create collection '{}' on remote node: {}",
+                    req.collection_name, e
+                );
+                let response = RemoteCreateCollectionResponse {
+                    success: false,
+                    message: format!("Failed to create collection: {}", e),
+                };
+                Ok(Response::new(response))
+            }
+        }
     }
 
     /// Remote get collection info
@@ -371,7 +417,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
                 let info = CollectionInfo {
                     name: req.collection_name.clone(),
                     vector_count: collection.vector_count() as u64,
-                    document_count: 0, // TODO: Add document count if available
+                    document_count: collection.document_count() as u64,
                 };
 
                 let response = RemoteGetCollectionInfoResponse {
@@ -400,20 +446,75 @@ impl ClusterServiceTrait for ClusterGrpcService {
         request: Request<RemoteDeleteCollectionRequest>,
     ) -> Result<Response<RemoteDeleteCollectionResponse>, Status> {
         let req = request.into_inner();
-        debug!(
+        info!(
             "gRPC: RemoteDeleteCollection request for collection '{}'",
             req.collection_name
         );
 
-        // Note: Collection deletion should be coordinated, not done via remote call
-        warn!("Remote collection deletion not fully implemented");
+        // Extract owner_id from tenant context if provided (for multi-tenant isolation)
+        let owner_id = req.tenant.and_then(|t| {
+            use uuid::Uuid;
+            Uuid::parse_str(&t.tenant_id).ok()
+        });
 
-        let response = RemoteDeleteCollectionResponse {
-            success: false,
-            message: "Remote collection deletion not yet supported".to_string(),
-        };
+        // Verify ownership if owner_id is provided
+        if let Some(owner) = owner_id {
+            match self.store.get_collection(&req.collection_name) {
+                Ok(collection) => {
+                    // Check if collection belongs to this owner
+                    if let Some(col_owner) = collection.owner_id() {
+                        if col_owner != owner {
+                            warn!(
+                                "Attempted to delete collection '{}' by non-owner (owner: {}, requester: {})",
+                                req.collection_name, col_owner, owner
+                            );
+                            let response = RemoteDeleteCollectionResponse {
+                                success: false,
+                                message: "Collection not owned by this tenant".to_string(),
+                            };
+                            return Ok(Response::new(response));
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to verify ownership for collection '{}': {}",
+                        req.collection_name, e
+                    );
+                    let response = RemoteDeleteCollectionResponse {
+                        success: false,
+                        message: format!("Collection not found: {}", e),
+                    };
+                    return Ok(Response::new(response));
+                }
+            }
+        }
 
-        Ok(Response::new(response))
+        // Delete the collection on this node
+        match self.store.delete_collection(&req.collection_name) {
+            Ok(_) => {
+                info!(
+                    "Successfully deleted collection '{}' on remote node",
+                    req.collection_name
+                );
+                let response = RemoteDeleteCollectionResponse {
+                    success: true,
+                    message: format!("Collection '{}' deleted successfully", req.collection_name),
+                };
+                Ok(Response::new(response))
+            }
+            Err(e) => {
+                error!(
+                    "Failed to delete collection '{}' on remote node: {}",
+                    req.collection_name, e
+                );
+                let response = RemoteDeleteCollectionResponse {
+                    success: false,
+                    message: format!("Failed to delete collection: {}", e),
+                };
+                Ok(Response::new(response))
+            }
+        }
     }
 
     /// Health check

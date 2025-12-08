@@ -21,7 +21,9 @@ use std::sync::Arc;
 
 pub use auth::{HubAuth, HubAuthResult, TenantContext, TenantPermission};
 pub use backup::{BackupConfig, RestoreResult, UserBackupInfo, UserBackupManager};
-pub use client::{HubClient, HubClientConfig};
+pub use client::{
+    HubClient, HubClientConfig, OperationLogEntry, OperationLogsRequest, OperationLogsResponse,
+};
 pub use ip_whitelist::{
     IpAccessResult, IpPolicy, IpWhitelist, IpWhitelistConfig, IpWhitelistStats,
 };

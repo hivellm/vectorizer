@@ -105,15 +105,33 @@ Extracts the most important sentences from the original text.
 
 ### Abstractive Summarization
 
-Generates new text that captures the essence of the original.
+Generates new text that captures the essence of the original using OpenAI's GPT models.
 
+**Requirements:**
+- OpenAI API key (configure via `api_key` in method config or `OPENAI_API_KEY` environment variable)
+- OpenAI API access (internet connection required)
+
+**Configuration:**
+```yaml
+summarization:
+  methods:
+    abstractive:
+      enabled: true
+      api_key: "sk-..."  # Or use OPENAI_API_KEY env var
+      model: "gpt-4o-mini"  # Default: gpt-4o-mini (latest GPT model)
+      max_tokens: 150
+      temperature: 0.7
+```
+
+**Usage:**
 ```json
 {
   "method": "abstractive",
+  "text": "Long document text...",
   "options": {
-    "model": "default",
+    "model": "gpt-4o-mini",
     "temperature": 0.7,
-    "focus": "key_points"
+    "max_tokens": 150
   }
 }
 ```
@@ -122,11 +140,21 @@ Generates new text that captures the essence of the original.
 - More natural language
 - Better compression
 - Can rephrase complex concepts
+- Produces fluent, coherent summaries
+
+**Limitations:**
+- Requires OpenAI API key (costs apply)
+- Requires internet connection
+- Slower than extractive methods (API call overhead)
+- Disabled by default
 
 **Use Cases:**
 - User-facing summaries
 - Executive briefings
 - Content previews
+- Marketing materials
+
+**Note:** If no API key is configured, abstractive summarization will return an error. Use extractive, keyword, or sentence methods for local-only summarization.
 
 ### Hybrid Summarization
 
