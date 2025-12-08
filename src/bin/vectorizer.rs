@@ -32,12 +32,12 @@ struct Cli {
 
     /// Root user username for dashboard authentication (default: "root")
     /// If no admin users exist, this user will be created on startup
-    #[arg(long, env = "ROOT_USER")]
+    #[arg(long, env = "VECTORIZER_ADMIN_USERNAME")]
     root_user: Option<String>,
 
     /// Root user password for dashboard authentication
     /// If not provided, a secure random password will be generated
-    #[arg(long, env = "ROOT_PASSWORD")]
+    #[arg(long, env = "VECTORIZER_ADMIN_PASSWORD")]
     root_password: Option<String>,
 }
 

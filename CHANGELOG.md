@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.3] - 2025-12-08
+
+### Fixed
+- **CRITICAL: Docker Environment Variables**: Fixed authentication routes returning 404 Not Found in Docker containers
+  - CLI now reads `VECTORIZER_ADMIN_USERNAME` and `VECTORIZER_ADMIN_PASSWORD` environment variables (was looking for `ROOT_USER` and `ROOT_PASSWORD`)
+  - Consistent naming with other VECTORIZER_* environment variables (VECTORIZER_AUTH_ENABLED, VECTORIZER_JWT_SECRET, etc.)
+  - Authentication system now properly initializes with root user credentials from Docker environment
+  - Fixes issue where auth routes were not being registered despite authentication being enabled
+
 ## [2.0.2] - 2025-12-08
 
 ### Fixed
