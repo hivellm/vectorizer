@@ -196,9 +196,68 @@ let embedding = minilm.embed("text")?;
 - Produces hash-based embeddings (not semantically meaningful)
 - Included only for API compatibility testing
 
-### Why Placeholders?
+### Real Model Implementation (Feature-Gated)
 
-The BERT and MiniLM providers exist as placeholders because:
+**NEW in v2.0.0**: BERT and MiniLM now support real model inference via the `real-models` feature flag!
+
+#### Using Real Models
+
+Build with the `real-models` feature to enable actual BERT/MiniLM inference:
+
+```bash
+cargo build --release --features real-models
+```
+
+```rust
+use vectorizer::embedding::BertEmbedding;
+
+// Load real BERT model from HuggingFace
+let mut bert = BertEmbedding::new(768);
+bert.load_model_with_id("bert-base-uncased", false)?; // false = CPU, true = GPU
+
+// Real semantic embeddings!
+let embedding = bert.embed("This is a test sentence")?;
+```
+
+```rust
+use vectorizer::embedding::MiniLmEmbedding;
+
+// Load real MiniLM model from HuggingFace
+let mut minilm = MiniLmEmbedding::new(384);
+minilm.load_model_with_id("sentence-transformers/all-MiniLM-L6-v2", false)?;
+
+// Real semantic embeddings with mean pooling!
+let embedding = minilm.embed("This is a test sentence")?;
+```
+
+**Features:**
+- ✅ Real model loading from HuggingFace Hub
+- ✅ Automatic model download and caching
+- ✅ CPU and GPU (CUDA) support
+- ✅ BERT: [CLS] token embedding extraction (768 dimensions)
+- ✅ MiniLM: Mean pooling with attention mask (384 dimensions)
+- ✅ SafeTensors and PyTorch weights support
+- ✅ Fallback to placeholders when feature not enabled
+
+#### Implementation Details
+
+**BERT Implementation:**
+- Uses Candle framework for inference
+- Extracts [CLS] token embedding
+- Default model: `bert-base-uncased` (768 dimensions)
+- Supports any BERT-compatible model from HuggingFace
+
+**MiniLM Implementation:**
+- Uses Candle framework for inference
+- Mean pooling over all token embeddings
+- Attention mask weighting for quality
+- Default model: `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions)
+
+### Placeholder Mode (Default)
+
+Without the `real-models` feature, BERT and MiniLM use hash-based placeholders:
+
+**Why Placeholders?**
 
 1. **Dependency Size**: Full ML inference (candle, ort, onnxruntime) adds significant binary size (~100MB+ per model)
 2. **FastEmbed Alternative**: The `fastembed` feature provides production-ready MiniLM and other models with optimized inference
@@ -206,12 +265,19 @@ The BERT and MiniLM providers exist as placeholders because:
 4. **Lightweight Testing**: Useful for development/testing where semantic quality isn't critical
 
 **Important Notes:**
-- **NOT for Production**: Placeholder embeddings are NOT semantically meaningful
+- **NOT Semantic**: Placeholder embeddings are NOT semantically meaningful
 - **Deterministic**: Hash-based embeddings are deterministic (same text = same embedding)
 - **Testing Only**: Use only for API compatibility testing, not for real semantic search
-- **Alternative**: Always use FastEmbed for production semantic embeddings
 
-**For production semantic embeddings, always use FastEmbed or OpenAI embeddings.**
+### Recommendations
+
+**For Production:**
+1. **Best Choice**: Use `fastembed` feature (optimized, lightweight, production-ready)
+2. **Alternative**: Use `real-models` feature for BERT/MiniLM if needed
+3. **Cloud Option**: Use OpenAI embeddings API
+
+**For Development/Testing:**
+- Use placeholder mode (default) for fast iteration without model downloads
 
 ## Hybrid Search
 

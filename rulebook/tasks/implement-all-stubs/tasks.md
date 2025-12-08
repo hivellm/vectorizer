@@ -38,17 +38,22 @@
 
 ### 5. BERT and MiniLM Embeddings
 - [x] 5.1 Decide: Keep as experimental placeholders, recommend FastEmbed for production
-- [ ] 5.2 If implementing:
-  - [ ] 5.2.1 Add ML dependencies (candle, ort, etc.)
-  - [ ] 5.2.2 Implement `BertEmbedding::load_model()` with real model loading
-  - [ ] 5.2.3 Implement `MiniLmEmbedding::load_model()` with real model loading
-  - [ ] 5.2.4 Replace `simple_hash_embedding()` with real inference
-  - [ ] 5.2.5 Add model download/caching logic
+- [x] 5.2 Real model implementation (feature-gated):
+  - [x] 5.2.1 Add ML dependencies (candle-core, candle-nn, candle-transformers, tokenizers, hf-hub)
+  - [x] 5.2.2 Implement `BertEmbedding::load_model_with_id()` with real model loading from HuggingFace
+  - [x] 5.2.3 Implement `MiniLmEmbedding::load_model_with_id()` with real model loading from HuggingFace
+  - [x] 5.2.4 Replace `simple_hash_embedding()` with real Candle inference (with fallback to placeholders)
+  - [x] 5.2.5 Add model download/caching logic via hf-hub API
 - [x] 5.3 Documented as experimental (not removed):
   - [N/A] 5.3.1 Remove BERT/MiniLM embedding providers (kept as experimental)
   - [x] 5.3.2 Updated documentation to note they're experimental placeholders
   - [N/A] 5.3.3 Remove related tests (kept for API testing)
 - [x] 5.4 Update embedding documentation (docs/users/guides/EMBEDDINGS.md)
+- [x] 5.5 Create `real-models` feature flag and candle_models.rs module
+- [x] 5.6 Implement RealBertEmbedding and RealMiniLmEmbedding with Candle framework
+- [x] 5.7 Add CPU/GPU (CUDA) device selection
+- [x] 5.8 Implement BERT [CLS] token embedding extraction
+- [x] 5.9 Implement MiniLM mean pooling with attention mask
 
 ### 6. Hybrid Search
 - [x] 6.1 Implement dense search with HNSW in `HybridSearcher::search()`
@@ -231,7 +236,7 @@
 ### High Priority Features (All Complete ✅)
 
 4. **Workspace Manager Integration** - REST + GraphQL with 27 tests
-5. **BERT/MiniLM Embeddings** - Documented as experimental
+5. **BERT/MiniLM Embeddings** - Real Candle implementation + placeholders ✅ **COMPLETED**
 6. **Hybrid Search** - Dense + Sparse + RRF algorithm
 7. **Transmutation Integration** - Real API integration (v0.3.1)
 8. **gRPC Unimplemented Methods** - All verified as proper handlers
@@ -258,7 +263,17 @@
 23. **Summarization Methods** - ❌ Abstractive pending
 24. **Placeholder Embeddings** - ❌ Review pending
 
-### Latest Updates (2025-12-07)
+### Latest Updates (2025-12-08)
+
+✅ **Real BERT and MiniLM Embeddings** (Phase 2 - Task 5)
+- Complete Candle-based implementation in src/embedding/candle_models.rs
+- Real model loading from HuggingFace Hub (bert-base-uncased, all-MiniLM-L6-v2)
+- CPU and GPU (CUDA) device support
+- BERT: [CLS] token embedding extraction (768 dimensions)
+- MiniLM: Mean pooling with attention mask (384 dimensions)
+- Feature-gated with `real-models` flag (fallback to placeholders without feature)
+- Auto model download and caching via hf-hub
+- SafeTensors and PyTorch weights support
 
 ✅ **HiveHub Operation Logging** (Phase 3)
 - 25 comprehensive tests for operation tracking

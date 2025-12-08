@@ -8,6 +8,10 @@ use tracing::warn;
 
 use crate::error::{Result, VectorizerError};
 
+// Real models implementation (only when real-models feature is enabled)
+#[cfg(feature = "real-models")]
+pub mod candle_models;
+
 /// Trait for embedding providers
 pub trait EmbeddingProvider: Send + Sync {
     /// Generate embeddings for a batch of texts
@@ -73,6 +77,9 @@ pub struct BertEmbedding {
     max_seq_len: usize,
     /// Whether the model is loaded (placeholder for actual BERT integration)
     loaded: bool,
+    /// Real BERT model (only when real-models feature is enabled)
+    #[cfg(feature = "real-models")]
+    real_model: Option<candle_models::RealBertEmbedding>,
 }
 
 #[derive(Debug)]
@@ -84,6 +91,9 @@ pub struct MiniLmEmbedding {
     max_seq_len: usize,
     /// Whether the model is loaded
     loaded: bool,
+    /// Real MiniLM model (only when real-models feature is enabled)
+    #[cfg(feature = "real-models")]
+    real_model: Option<candle_models::RealMiniLmEmbedding>,
 }
 
 impl Bm25Embedding {
@@ -449,15 +459,46 @@ impl BertEmbedding {
             dimension,
             max_seq_len: 512,
             loaded: false,
+            #[cfg(feature = "real-models")]
+            real_model: None,
         }
     }
 
-    /// Load BERT model (placeholder for actual implementation)
+    /// Load BERT model
+    ///
+    /// When "real-models" feature is enabled, this loads the actual BERT model from HuggingFace.
+    /// Otherwise, it just marks the model as loaded (uses placeholder embeddings).
     pub fn load_model(&mut self) -> Result<()> {
-        // TODO: Implement actual BERT model loading
-        // For now, just mark as loaded
-        self.loaded = true;
-        Ok(())
+        self.load_model_with_id("bert-base-uncased", false)
+    }
+
+    /// Load BERT model with custom model ID
+    ///
+    /// # Arguments
+    /// * `model_id` - HuggingFace model ID (e.g., "bert-base-uncased")
+    /// * `use_gpu` - Whether to use GPU acceleration if available
+    pub fn load_model_with_id(&mut self, model_id: &str, use_gpu: bool) -> Result<()> {
+        #[cfg(feature = "real-models")]
+        {
+            use tracing::info;
+            info!("Loading real BERT model: {}", model_id);
+            let model = candle_models::RealBertEmbedding::load_model(model_id, use_gpu)?;
+            self.dimension = model.dimension();
+            self.real_model = Some(model);
+            self.loaded = true;
+            Ok(())
+        }
+
+        #[cfg(not(feature = "real-models"))]
+        {
+            warn!(
+                "real-models feature not enabled. Using placeholder embeddings for BERT. Model ID '{}' ignored.",
+                model_id
+            );
+            let _ = use_gpu; // Suppress unused warning
+            self.loaded = true;
+            Ok(())
+        }
     }
 
     /// Simple hash-based embedding simulation (placeholder)
@@ -496,6 +537,14 @@ impl EmbeddingProvider for BertEmbedding {
             ));
         }
 
+        #[cfg(feature = "real-models")]
+        {
+            if let Some(ref model) = self.real_model {
+                return model.embed_batch(texts);
+            }
+        }
+
+        // Fallback to placeholder
         texts.iter().map(|text| self.embed(text)).collect()
     }
 
@@ -506,7 +555,18 @@ impl EmbeddingProvider for BertEmbedding {
             ));
         }
 
-        // TODO: Replace with actual BERT inference
+        #[cfg(feature = "real-models")]
+        {
+            if let Some(ref model) = self.real_model {
+                return model.embed_batch(&[text]).and_then(|mut results| {
+                    results.pop().ok_or_else(|| {
+                        VectorizerError::Other("Failed to generate embedding".to_string())
+                    })
+                });
+            }
+        }
+
+        // Fallback to placeholder
         Ok(self.simple_hash_embedding(text))
     }
 
@@ -531,14 +591,46 @@ impl MiniLmEmbedding {
             dimension,
             max_seq_len: 256,
             loaded: false,
+            #[cfg(feature = "real-models")]
+            real_model: None,
         }
     }
 
-    /// Load MiniLM model (placeholder for actual implementation)
+    /// Load MiniLM model
+    ///
+    /// When "real-models" feature is enabled, this loads the actual MiniLM model from HuggingFace.
+    /// Otherwise, it just marks the model as loaded (uses placeholder embeddings).
     pub fn load_model(&mut self) -> Result<()> {
-        // TODO: Implement actual MiniLM model loading
-        self.loaded = true;
-        Ok(())
+        self.load_model_with_id("sentence-transformers/all-MiniLM-L6-v2", false)
+    }
+
+    /// Load MiniLM model with custom model ID
+    ///
+    /// # Arguments
+    /// * `model_id` - HuggingFace model ID (e.g., "sentence-transformers/all-MiniLM-L6-v2")
+    /// * `use_gpu` - Whether to use GPU acceleration if available
+    pub fn load_model_with_id(&mut self, model_id: &str, use_gpu: bool) -> Result<()> {
+        #[cfg(feature = "real-models")]
+        {
+            use tracing::info;
+            info!("Loading real MiniLM model: {}", model_id);
+            let model = candle_models::RealMiniLmEmbedding::load_model(model_id, use_gpu)?;
+            self.dimension = model.dimension();
+            self.real_model = Some(model);
+            self.loaded = true;
+            Ok(())
+        }
+
+        #[cfg(not(feature = "real-models"))]
+        {
+            warn!(
+                "real-models feature not enabled. Using placeholder embeddings for MiniLM. Model ID '{}' ignored.",
+                model_id
+            );
+            let _ = use_gpu; // Suppress unused warning
+            self.loaded = true;
+            Ok(())
+        }
     }
 
     /// Simple hash-based embedding simulation (placeholder)
@@ -576,6 +668,14 @@ impl EmbeddingProvider for MiniLmEmbedding {
             ));
         }
 
+        #[cfg(feature = "real-models")]
+        {
+            if let Some(ref model) = self.real_model {
+                return model.embed_batch(texts);
+            }
+        }
+
+        // Fallback to placeholder
         texts.iter().map(|text| self.embed(text)).collect()
     }
 
@@ -586,7 +686,18 @@ impl EmbeddingProvider for MiniLmEmbedding {
             ));
         }
 
-        // TODO: Replace with actual MiniLM inference
+        #[cfg(feature = "real-models")]
+        {
+            if let Some(ref model) = self.real_model {
+                return model.embed_batch(&[text]).and_then(|mut results| {
+                    results.pop().ok_or_else(|| {
+                        VectorizerError::Other("Failed to generate embedding".to_string())
+                    })
+                });
+            }
+        }
+
+        // Fallback to placeholder
         Ok(self.simple_hash_embedding(text))
     }
 

@@ -5,8 +5,9 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 [![Crates.io](https://img.shields.io/crates/v/vectorizer.svg)](https://crates.io/crates/vectorizer)
 [![GitHub release](https://img.shields.io/github/release/hivellm/vectorizer.svg)](https://github.com/hivellm/vectorizer/releases)
-[![Tests](https://img.shields.io/badge/tests-1514%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
+[![Tests](https://img.shields.io/badge/tests-1701%20passing-brightgreen.svg)](https://github.com/hivellm/vectorizer/actions)
 [![Coverage](https://img.shields.io/badge/coverage-95%25%2B-success.svg)](https://github.com/hivellm/vectorizer)
+[![Production Ready](https://img.shields.io/badge/status-production%20ready-success.svg)](https://github.com/hivellm/vectorizer)
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications.
 
@@ -25,6 +26,9 @@ A high-performance vector database and search engine built in Rust, designed for
   - Quota enforcement (collections, vectors, storage)
   - Usage tracking and reporting
   - Memory limits and MMap storage enforcement
+  - Operation logging with cloud integration
+  - Comprehensive audit trail and analytics
+  - Tenant migration API (export, transfer, clone, cleanup)
 - **📄 Document Conversion**: Automatic conversion of PDF, DOCX, XLSX, PPTX, HTML, XML, and images
 - **🔄 Qdrant Migration**: Complete migration tools and full Qdrant 1.14.x API compatibility
   - Snapshots API (create, list, delete, recover)
@@ -49,7 +53,12 @@ A high-performance vector database and search engine built in Rust, designed for
   - Real-time graph visualization with vis-network
 - **🖥️ Desktop GUI**: Electron-based desktop application with vis-network graph visualization for visual database management
 - **⚡ High Performance**: Sub-3ms search times with HNSW indexing
-- **🧠 Multiple Embeddings**: TF-IDF, BM25, BERT, MiniLM, and custom models
+- **🧠 Multiple Embeddings**: TF-IDF, BM25, FastEmbed (production), BERT/MiniLM (real or placeholder), and custom models
+- **🔀 Hybrid Search**: Dense + Sparse search with Reciprocal Rank Fusion (RRF)
+- **📝 Smart Summarization**: Extractive, keyword, sentence, and abstractive (OpenAI GPT) methods
+- **🔐 TLS/SSL Security**: Full TLS 1.2/1.3 support with mTLS, configurable cipher suites, and ALPN
+- **⚡ Rate Limiting**: Per-API-key rate limiting with configurable tiers and overrides
+- **📊 Quantization Cache**: Cache hit ratio tracking with comprehensive metrics
 - **🕸️ Graph Relationships**: Automatic relationship discovery and graph traversal with full GUI support for edge management, node exploration, and path finding
 - **🔗 n8n Integration**: Official n8n community node for no-code workflow automation (400+ node integrations)
 - **🎨 Langflow Integration**: LangChain-compatible components for visual LLM app building

@@ -311,10 +311,6 @@ hf-hub = ["dep:hf-hub"]
 ort = ["dep:ort"]
 arrow = ["dep:arrow"]
 parquet = ["dep:parquet", "arrow"]
-real-models = [
-    "tokenizers",
-    "hf-hub"
-]
 onnx-models = [
     "ort",
     "tokenizers",
@@ -327,6 +323,9 @@ candle-models = [
     "tokenizers",
     "hf-hub"
 ]
+
+# Real BERT and MiniLM embeddings (requires candle)
+real-models = ["candle-models"]
 transmutation = ["dep:transmutation"]
 full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
 
