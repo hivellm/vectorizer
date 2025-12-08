@@ -797,7 +797,7 @@ impl VectorizerServer {
         // Initialize auth handler state if auth is enabled
         let auth_handler_state = {
             // Try to load auth config from config.yml
-            let auth_config = std::fs::read_to_string("config.yml")
+            let mut auth_config = std::fs::read_to_string("config.yml")
                 .ok()
                 .and_then(|content| {
                     serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -805,6 +805,14 @@ impl VectorizerServer {
                         .map(|config| config.auth)
                 })
                 .unwrap_or_default();
+
+            // Override with environment variables if set (for Docker)
+            if let Ok(enabled) = std::env::var("VECTORIZER_AUTH_ENABLED") {
+                auth_config.enabled = enabled.to_lowercase() == "true";
+            }
+            if let Ok(secret) = std::env::var("VECTORIZER_JWT_SECRET") {
+                auth_config.jwt_secret = secret;
+            }
 
             if auth_config.enabled {
                 info!("🔐 Initializing authentication system...");

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2025-12-08
+
+### Fixed
+- **Docker Authentication**: Fixed authentication not working in Docker containers by adding support for `VECTORIZER_AUTH_ENABLED` and `VECTORIZER_JWT_SECRET` environment variables
+  - Authentication config now reads from environment variables when running in Docker
+  - Fixes login issues when using the Docker image with `ROOT_USER` and `ROOT_PASSWORD` environment variables
+  - Dashboard login now works correctly with credentials shown on container startup
+
 ## [2.0.0] - 2025-12-07
 
 ### 🎉 Major Release - Production Ready (100% Complete)
