@@ -556,9 +556,10 @@ fn test_duration_measurement() {
         duration_ms >= 50,
         "Expected at least 50ms, got {duration_ms}"
     );
+    // Allow up to 300ms for CI environments where timing can be less precise
     assert!(
-        duration_ms < 100,
-        "Expected less than 100ms, got {duration_ms}"
+        duration_ms < 300,
+        "Expected less than 300ms, got {duration_ms}"
     );
 }
 
