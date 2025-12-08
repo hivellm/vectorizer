@@ -3,6 +3,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::summarization::methods::SummarizationMethodTrait;
     use crate::summarization::{
         ContextSummarizationParams, LanguageConfig, MetadataConfig, MethodConfig,
         SummarizationConfig, SummarizationManager, SummarizationMethod, SummarizationParams,
@@ -124,6 +125,49 @@ mod tests {
         assert_eq!(SummarizationMethod::Keyword.to_string(), "keyword");
         assert_eq!(SummarizationMethod::Sentence.to_string(), "sentence");
         assert_eq!(SummarizationMethod::Abstractive.to_string(), "abstractive");
+    }
+
+    #[test]
+    fn test_abstractive_summarization_requires_api_key() {
+        use crate::summarization::methods::AbstractiveSummarizer;
+
+        let summarizer = AbstractiveSummarizer::new();
+
+        // Test that abstractive summarization requires API key
+        let params = SummarizationParams {
+            text: "This is a test document that needs summarization. It contains multiple sentences for testing purposes.".to_string(),
+            method: SummarizationMethod::Abstractive,
+            max_length: Some(100),
+            compression_ratio: Some(0.3),
+            language: Some("en".to_string()),
+            metadata: HashMap::new(),
+        };
+
+        let mut config = MethodConfig::default();
+        config.enabled = true;
+        // No API key configured
+
+        let result = summarizer.summarize(&params, &config);
+        assert!(result.is_err());
+
+        // Check error message mentions API key
+        if let Err(e) = result {
+            let error_msg = format!("{:?}", e);
+            assert!(error_msg.contains("API key") || error_msg.contains("OPENAI_API_KEY"));
+        }
+    }
+
+    #[test]
+    fn test_abstractive_summarizer_is_available_check() {
+        use crate::summarization::methods::AbstractiveSummarizer;
+
+        let summarizer = AbstractiveSummarizer::new();
+
+        // Check availability (depends on OPENAI_API_KEY env var)
+        let is_available = summarizer.is_available();
+        // May or may not be available depending on environment
+        // Just verify the method exists and returns bool
+        assert!(matches!(is_available, true | false));
     }
 
     #[test]

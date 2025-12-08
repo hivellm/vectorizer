@@ -242,18 +242,26 @@ This document lists all stub implementations, TODOs, and incomplete functionalit
 - **Documentation**: `docs/users/qdrant/API_COMPATIBILITY.md` (Cross-Collection Lookup section)
 - **Remaining**: Tests
 
-### 23. Summarization Methods ⚠️ **PARTIALLY IMPLEMENTED**
+### 23. Summarization Methods ✅ **COMPLETED**
 **File**: `src/summarization/methods.rs`
-- **Status**: ⚠️ Extractive summarization works, abstractive is placeholder
-- **Issue**: Abstractive summarization needs LLM integration
-- **Impact**: Only extractive summarization available
+- **Status**: ✅ **FULLY IMPLEMENTED**
+- **Implementation**: 
+  - Abstractive summarization using OpenAI API (GPT-3.5-turbo)
+  - Requires OpenAI API key (via config or OPENAI_API_KEY env var)
+  - All four methods now available: extractive, keyword, sentence, abstractive
+- **Documentation**: `docs/users/guides/SUMMARIZATION.md` - Complete abstractive section
+- **Tests**: Abstractive summarization tests added
 
-### 24. Placeholder Embeddings ⚠️ **PLACEHOLDER**
+### 24. Placeholder Embeddings ✅ **DOCUMENTED**
 **Files**:
+- `src/embedding/mod.rs` - BERT and MiniLM placeholders
 - `src/embedding/real_models.rs` - Placeholder when Candle not available
 - `src/embedding/onnx_models.rs` - Compatibility placeholder
-- **Impact**: Some embedding models may use placeholders
-- **Recommendation**: Use `fastembed` feature for real embeddings
+- **Status**: ✅ **FULLY DOCUMENTED**
+- **Decision**: Keep as placeholders for API compatibility testing
+- **Documentation**: `docs/users/guides/EMBEDDINGS.md` - Comprehensive placeholder documentation
+- **Recommendation**: Use `fastembed` feature for production semantic embeddings
+- **Impact**: Placeholder embeddings are deterministic but NOT semantically meaningful
 
 ## Summary Statistics
 

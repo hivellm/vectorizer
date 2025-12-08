@@ -200,11 +200,18 @@ let embedding = minilm.embed("text")?;
 
 The BERT and MiniLM providers exist as placeholders because:
 
-1. **Dependency Size**: Full ML inference (candle, ort, onnxruntime) adds significant binary size
-2. **FastEmbed Alternative**: The `fastembed` feature provides production-ready MiniLM and other models
+1. **Dependency Size**: Full ML inference (candle, ort, onnxruntime) adds significant binary size (~100MB+ per model)
+2. **FastEmbed Alternative**: The `fastembed` feature provides production-ready MiniLM and other models with optimized inference
 3. **API Compatibility**: Allows testing embedding provider switching without full ML dependencies
+4. **Lightweight Testing**: Useful for development/testing where semantic quality isn't critical
 
-**For production semantic embeddings, always use FastEmbed.**
+**Important Notes:**
+- **NOT for Production**: Placeholder embeddings are NOT semantically meaningful
+- **Deterministic**: Hash-based embeddings are deterministic (same text = same embedding)
+- **Testing Only**: Use only for API compatibility testing, not for real semantic search
+- **Alternative**: Always use FastEmbed for production semantic embeddings
+
+**For production semantic embeddings, always use FastEmbed or OpenAI embeddings.**
 
 ## Hybrid Search
 
