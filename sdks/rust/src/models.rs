@@ -13,6 +13,10 @@ pub use hybrid_search::*;
 pub mod graph;
 pub use graph::*;
 
+// Re-export file upload models
+pub mod file_upload;
+pub use file_upload::*;
+
 // ===== CLIENT-SIDE REPLICATION CONFIGURATION =====
 
 /// Read preference for routing read operations.

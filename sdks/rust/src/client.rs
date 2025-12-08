@@ -1834,4 +1834,153 @@ impl VectorizerClient {
         })?;
         Ok(result)
     }
+
+    // ============== FILE UPLOAD METHODS ==============
+
+    /// Upload a file for automatic text extraction, chunking, and indexing.
+    ///
+    /// # Arguments
+    /// * `file_bytes` - File content as bytes
+    /// * `filename` - Name of the file (used for extension detection)
+    /// * `collection_name` - Target collection name
+    /// * `options` - Upload options (chunk size, overlap, metadata)
+    ///
+    /// # Example
+    /// ```no_run
+    /// use vectorizer_sdk::{VectorizerClient, ClientConfig, UploadFileOptions};
+    /// use std::collections::HashMap;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let config = ClientConfig::default();
+    ///     let client = VectorizerClient::new(config)?;
+    ///
+    ///     let file_bytes = std::fs::read("document.pdf")?;
+    ///     let options = UploadFileOptions::default();
+    ///
+    ///     let response = client.upload_file(
+    ///         file_bytes,
+    ///         "document.pdf",
+    ///         "my-docs",
+    ///         options
+    ///     ).await?;
+    ///
+    ///     println!("Uploaded: {} chunks created", response.chunks_created);
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn upload_file(
+        &self,
+        file_bytes: Vec<u8>,
+        filename: &str,
+        collection_name: &str,
+        options: UploadFileOptions,
+    ) -> Result<FileUploadResponse> {
+        let mut form_fields = std::collections::HashMap::new();
+        form_fields.insert("collection_name".to_string(), collection_name.to_string());
+
+        if let Some(chunk_size) = options.chunk_size {
+            form_fields.insert("chunk_size".to_string(), chunk_size.to_string());
+        }
+
+        if let Some(chunk_overlap) = options.chunk_overlap {
+            form_fields.insert("chunk_overlap".to_string(), chunk_overlap.to_string());
+        }
+
+        if let Some(metadata) = options.metadata {
+            let metadata_json = serde_json::to_string(&metadata).map_err(|e| {
+                VectorizerError::validation(format!("Failed to serialize metadata: {e}"))
+            })?;
+            form_fields.insert("metadata".to_string(), metadata_json);
+        }
+
+        // Use HttpTransport's multipart method
+        let http_transport = crate::http_transport::HttpTransport::new(
+            &self.base_url,
+            self.config.api_key.as_deref(),
+            self.config.timeout_secs.unwrap_or(30),
+        )?;
+
+        let response = http_transport
+            .post_multipart("/files/upload", file_bytes, filename, form_fields)
+            .await?;
+
+        let result: FileUploadResponse = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse upload response: {e}"))
+        })?;
+
+        Ok(result)
+    }
+
+    /// Upload file content directly as a string.
+    ///
+    /// This is a convenience method that accepts text content directly instead of file bytes.
+    ///
+    /// # Arguments
+    /// * `content` - File content as string
+    /// * `filename` - Name of the file (used for extension detection)
+    /// * `collection_name` - Target collection name
+    /// * `options` - Upload options (chunk size, overlap, metadata)
+    ///
+    /// # Example
+    /// ```no_run
+    /// use vectorizer_sdk::{VectorizerClient, ClientConfig, UploadFileOptions};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let config = ClientConfig::default();
+    ///     let client = VectorizerClient::new(config)?;
+    ///
+    ///     let code = r#"fn main() { println!("Hello!"); }"#;
+    ///     let options = UploadFileOptions::default();
+    ///
+    ///     let response = client.upload_file_content(
+    ///         code,
+    ///         "main.rs",
+    ///         "rust-code",
+    ///         options
+    ///     ).await?;
+    ///
+    ///     println!("Uploaded: {} vectors created", response.vectors_created);
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn upload_file_content(
+        &self,
+        content: &str,
+        filename: &str,
+        collection_name: &str,
+        options: UploadFileOptions,
+    ) -> Result<FileUploadResponse> {
+        let file_bytes = content.as_bytes().to_vec();
+        self.upload_file(file_bytes, filename, collection_name, options)
+            .await
+    }
+
+    /// Get file upload configuration from the server.
+    ///
+    /// Returns the maximum file size, allowed extensions, and default chunk settings.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use vectorizer_sdk::{VectorizerClient, ClientConfig};
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let config = ClientConfig::default();
+    ///     let client = VectorizerClient::new(config)?;
+    ///
+    ///     let upload_config = client.get_upload_config().await?;
+    ///     println!("Max file size: {}MB", upload_config.max_file_size_mb);
+    ///     println!("Allowed extensions: {:?}", upload_config.allowed_extensions);
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn get_upload_config(&self) -> Result<FileUploadConfig> {
+        let response = self.make_request("GET", "/files/config", None).await?;
+        let result: FileUploadConfig = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse upload config: {e}"))
+        })?;
+        Ok(result)
+    }
 }

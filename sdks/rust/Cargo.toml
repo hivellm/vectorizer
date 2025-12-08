@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-sdk"
-version = "1.8.0"
+version = "2.0.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "Rust SDK for Vectorizer - High-performance vector database"
@@ -20,7 +20,7 @@ anyhow = { version = "1.0", features = ["backtrace"] }
 tracing = "0.1"
 
 # HTTP client
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "multipart"] }
 
 # Async trait for transport abstraction
 async-trait = "0.1"

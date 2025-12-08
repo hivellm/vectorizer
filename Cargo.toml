@@ -329,7 +329,9 @@ real-models = ["candle-models"]
 transmutation = ["dep:transmutation"]
 full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
 
-
+# Unix-specific dependencies (for signal handling)
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["signal"] }
 
 # [[bin]]
 # name = "gpu_scale_benchmark"

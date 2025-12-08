@@ -80,3 +80,42 @@ public class SearchByFileTypeRequest
     public bool? ReturnFullFiles { get; set; }
 }
 
+/// <summary>
+/// File upload request
+/// </summary>
+public class FileUploadRequest
+{
+    public string CollectionName { get; set; } = string.Empty;
+    public int? ChunkSize { get; set; }
+    public int? ChunkOverlap { get; set; }
+    public Dictionary<string, object>? Metadata { get; set; }
+}
+
+/// <summary>
+/// File upload response
+/// </summary>
+public class FileUploadResponse
+{
+    public bool Success { get; set; }
+    public string Filename { get; set; } = string.Empty;
+    public string CollectionName { get; set; } = string.Empty;
+    public int ChunksCreated { get; set; }
+    public int VectorsCreated { get; set; }
+    public long FileSize { get; set; }
+    public string Language { get; set; } = string.Empty;
+    public long ProcessingTimeMs { get; set; }
+}
+
+/// <summary>
+/// File upload configuration
+/// </summary>
+public class FileUploadConfig
+{
+    public long MaxFileSize { get; set; }
+    public int MaxFileSizeMb { get; set; }
+    public List<string> AllowedExtensions { get; set; } = new();
+    public bool RejectBinary { get; set; }
+    public int DefaultChunkSize { get; set; }
+    public int DefaultChunkOverlap { get; set; }
+}
+
