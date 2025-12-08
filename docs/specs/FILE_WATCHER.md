@@ -35,11 +35,60 @@ file_watcher:
   enabled: true
   watch_paths:
     - "/path/to/project"
-  debounce_ms: 300
+  debounce_delay_ms: 1000
   auto_discovery: true
   hot_reload: true
   batch_size: 100
+  collection_name: "workspace-files"
+  collection_mapping:
+    "*/docs/**/*.md": "documentation"
+    "*/src/**/*.rs": "rust-code"
+    "*/src/**/*.py": "python-code"
+    "*/tests/**/*": "test-files"
 ```
+
+### Collection Mapping
+
+The `collection_mapping` option allows you to configure custom path-to-collection mappings using glob patterns. This gives you fine-grained control over which collection each file is indexed into based on its path.
+
+**Priority Order**:
+1. Collection mapping patterns (from `collection_mapping` config)
+2. Known project patterns (from workspace.yml)
+3. Default collection (from `default_collection` or `collection_name`)
+
+**Example Configuration**:
+
+```yaml
+file_watcher:
+  enabled: true
+  collection_mapping:
+    # Documentation files go to docs collection
+    "*/docs/**/*.md": "documentation"
+    "*/docs/**/*.rst": "documentation"
+    
+    # Source code by language
+    "*/src/**/*.rs": "rust-code"
+    "*/src/**/*.py": "python-code"
+    "*/src/**/*.js": "javascript-code"
+    "*/src/**/*.ts": "typescript-code"
+    
+    # Tests go to separate collection
+    "*/tests/**/*": "test-files"
+    "*/test/**/*": "test-files"
+    
+    # Configuration files
+    "**/*.yml": "configuration"
+    "**/*.yaml": "configuration"
+    "**/*.toml": "configuration"
+    
+    # Default fallback (use default_collection if no pattern matches)
+```
+
+**Pattern Matching**:
+- Patterns use glob syntax (same as include/exclude patterns)
+- Patterns are checked in order, first match wins
+- Path separators are normalized (`\` → `/`) for cross-platform compatibility
+- Patterns support wildcards: `*`, `**`, `?`, `[...]`
 
 ---
 
@@ -127,6 +176,16 @@ file_watcher:
     - "**/node_modules/**"
     - "**/target/**"
     - "**/.git/**"
+```
+
+**Collection Mapping**:
+```yaml
+file_watcher:
+  enabled: true
+  collection_mapping:
+    "*/docs/**/*.md": "documentation"
+    "*/src/**/*.rs": "rust-code"
+    "*/tests/**/*": "test-files"
 ```
 
 ---

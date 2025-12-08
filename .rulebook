@@ -1,7 +1,7 @@
 {
-  "version": "1.1.3",
-  "installedAt": "2025-11-23T21:41:12.413Z",
-  "updatedAt": "2025-11-24T05:39:49.813Z",
+  "version": "2.0.0",
+  "installedAt": "2025-11-24T05:39:49.805Z",
+  "updatedAt": "2025-12-07T23:41:18.513Z",
   "projectId": "vectorizer",
   "mode": "full",
   "features": {
@@ -29,10 +29,5 @@
     "taskExecution": 3600000,
     "cliResponse": 180000,
     "testRun": 600000
-  },
-  "mcp": {
-    "enabled": true,
-    "tasksDir": "rulebook/tasks",
-    "archiveDir": "rulebook/archive"
   }
 }

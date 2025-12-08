@@ -8024,9 +8024,9 @@ dependencies = [
 
 [[package]]
 name = "transmutation"
-version = "0.1.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a05965d78ed1b4bb8d677ef25e49993916f519cd28fdb545e858cc99508befa"
+checksum = "e58e1986afced27128485bbae045506a212f479ae746865976aec297912ed0f9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8452,7 +8452,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer"
-version = "1.8.6"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",

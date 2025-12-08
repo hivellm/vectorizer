@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "1.8.6"
+version = "2.0.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -160,7 +160,7 @@ prost = "0.13"
 prost-types = "0.13"
 
 # Transmutation - Document conversion engine (optional)
-transmutation = { version = "0.1.2", optional = true, features = ["office", "pdf-to-image"] }
+transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
 
 [build-dependencies]
 cc = { version = "1.2.48", features = ["parallel"] }

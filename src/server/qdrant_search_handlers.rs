@@ -22,6 +22,7 @@ fn extract_tenant_id(tenant_ctx: &Option<Extension<RequestTenantContext>>) -> Op
         .as_ref()
         .and_then(|ctx| Uuid::parse_str(&ctx.0.0.tenant_id).ok())
 }
+use crate::models::qdrant::point::QdrantPointStruct;
 use crate::models::qdrant::{
     FilterProcessor, QdrantBatchRecommendRequest, QdrantBatchRecommendResponse,
     QdrantBatchSearchRequest, QdrantBatchSearchResponse, QdrantDistancePair, QdrantGroupsResult,
@@ -29,8 +30,8 @@ use crate::models::qdrant::{
     QdrantRecommendResponse, QdrantRecommendStrategy, QdrantScoredPoint, QdrantSearchGroupsRequest,
     QdrantSearchGroupsResponse, QdrantSearchMatrixOffsetsRequest,
     QdrantSearchMatrixOffsetsResponse, QdrantSearchMatrixPairsRequest,
-    QdrantSearchMatrixPairsResponse, QdrantSearchRequest, QdrantSearchResponse, QdrantWithPayload,
-    QdrantWithVector,
+    QdrantSearchMatrixPairsResponse, QdrantSearchRequest, QdrantSearchResponse, QdrantWithLookup,
+    QdrantWithPayload, QdrantWithVector,
 };
 use crate::models::{Payload, SearchResult, Vector};
 
@@ -58,6 +59,77 @@ fn json_value_to_qdrant_value(value: serde_json::Value) -> QdrantValue {
         ),
         serde_json::Value::Null => QdrantValue::Null,
     }
+}
+
+/// Perform a with_lookup operation to fetch a point from another collection
+///
+/// The with_lookup feature allows fetching additional data from another collection
+/// using the group_id as the point ID to look up.
+fn perform_with_lookup(
+    state: &VectorizerServer,
+    with_lookup: &Option<QdrantWithLookup>,
+    group_id: &str,
+    tenant_id: Option<&Uuid>,
+) -> Option<QdrantPointStruct> {
+    let lookup_config = with_lookup.as_ref()?;
+
+    // Extract collection name and configuration from the lookup config
+    let (lookup_collection_name, with_payload, with_vector) = match lookup_config {
+        QdrantWithLookup::Collection(name) => (name.clone(), true, false),
+        QdrantWithLookup::Config(config) => {
+            let with_payload = match &config.with_payload {
+                Some(QdrantWithPayload::Bool(b)) => *b,
+                Some(_) => true,
+                None => true,
+            };
+            let with_vector = match &config.with_vector {
+                Some(QdrantWithVector::Bool(b)) => *b,
+                Some(QdrantWithVector::Include(_)) => true,
+                None => false,
+            };
+            (config.collection.clone(), with_payload, with_vector)
+        }
+    };
+
+    // Get the lookup collection
+    let lookup_collection = state
+        .store
+        .get_collection_with_owner(&lookup_collection_name, tenant_id)
+        .ok()?;
+
+    // Look up the point by group_id
+    let point = lookup_collection.get_vector(group_id).ok()?;
+
+    // Build the QdrantPointStruct response
+    let id = match group_id.parse::<u64>() {
+        Ok(numeric_id) => QdrantPointId::Numeric(numeric_id),
+        Err(_) => QdrantPointId::Uuid(group_id.to_string()),
+    };
+
+    let vector = if with_vector {
+        QdrantVector::Dense(point.data.clone())
+    } else {
+        QdrantVector::Dense(vec![])
+    };
+
+    let payload = if with_payload {
+        point.payload.as_ref().map(|p| {
+            p.data
+                .as_object()
+                .unwrap_or(&serde_json::Map::new())
+                .iter()
+                .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
+                .collect()
+        })
+    } else {
+        None
+    };
+
+    Some(QdrantPointStruct {
+        id,
+        vector,
+        payload,
+    })
 }
 
 /// Search points in a collection
@@ -820,14 +892,20 @@ pub async fn search_points_groups(
         });
     }
 
-    // Convert groups_map to response format
+    // Convert groups_map to response format with optional lookup
     let groups: Vec<QdrantPointGroup> = groups_map
         .into_iter()
         .take(group_limit)
-        .map(|(group_id, hits)| QdrantPointGroup {
-            id: serde_json::Value::String(group_id),
-            hits,
-            lookup: None, // with_lookup not implemented yet
+        .map(|(group_id, hits)| {
+            // Perform lookup if with_lookup is specified
+            let lookup =
+                perform_with_lookup(&state, &request.with_lookup, &group_id, tenant_id.as_ref());
+
+            QdrantPointGroup {
+                id: serde_json::Value::String(group_id),
+                hits,
+                lookup,
+            }
         })
         .collect();
 

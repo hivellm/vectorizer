@@ -82,7 +82,7 @@ impl CollectionType {
         match self {
             CollectionType::Cpu(c) => c.owner_id(),
             #[cfg(feature = "hive-gpu")]
-            CollectionType::HiveGpu(_) => None, // GPU collections don't support multi-tenancy yet
+            CollectionType::HiveGpu(c) => c.owner_id(),
             CollectionType::Sharded(c) => c.owner_id(),
             #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(_) => None, // Distributed collections don't support multi-tenancy yet
@@ -94,7 +94,7 @@ impl CollectionType {
         match self {
             CollectionType::Cpu(c) => c.belongs_to(owner_id),
             #[cfg(feature = "hive-gpu")]
-            CollectionType::HiveGpu(_) => false, // GPU collections don't support multi-tenancy yet
+            CollectionType::HiveGpu(c) => c.belongs_to(owner_id),
             CollectionType::Sharded(c) => c.belongs_to(owner_id),
             #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(_) => false, // Distributed collections don't support multi-tenancy yet
@@ -270,6 +270,17 @@ impl CollectionType {
         }
     }
 
+    /// Get the number of documents in the collection
+    /// This may differ from vector_count if documents have multiple vectors
+    pub fn document_count(&self) -> usize {
+        match self {
+            CollectionType::Cpu(c) => c.document_count(),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.vector_count(), // GPU collections treat vectors as documents
+            CollectionType::Sharded(c) => c.document_count(),
+        }
+    }
+
     /// Get estimated memory usage
     pub fn estimated_memory_usage(&self) -> usize {
         match self {
@@ -325,11 +336,9 @@ impl CollectionType {
             CollectionType::Cpu(c) => c.requantize_existing_vectors(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.requantize_existing_vectors(),
-            CollectionType::Sharded(_) => {
-                // Sharded collections handle quantization at shard level
-                // TODO: Implement requantization for sharded collections
-                Ok(())
-            }
+            CollectionType::Sharded(c) => c.requantize_existing_vectors(),
+            #[cfg(feature = "cluster")]
+            CollectionType::DistributedSharded(c) => c.requantize_existing_vectors(),
         }
     }
 
@@ -773,19 +782,17 @@ impl VectorStore {
                         let context = Arc::new(std::sync::Mutex::new(context));
 
                         // Create Hive-GPU collection
-                        let hive_gpu_collection = HiveGpuCollection::new(
+                        let mut hive_gpu_collection = HiveGpuCollection::new(
                             name.to_string(),
                             config.clone(),
                             context,
                             backend,
                         )?;
 
-                        // TODO: Add owner_id support to HiveGpuCollection for multi-tenant mode
-                        // For now, GPU collections don't support multi-tenancy
-                        if owner_id.is_some() {
-                            warn!(
-                                "GPU collections don't support multi-tenancy yet, owner_id ignored"
-                            );
+                        // Set owner_id for multi-tenancy support
+                        if let Some(id) = owner_id {
+                            hive_gpu_collection.set_owner_id(Some(id));
+                            debug!("GPU collection '{}' assigned to owner {}", name, id);
                         }
 
                         let collection = CollectionType::HiveGpu(hive_gpu_collection);

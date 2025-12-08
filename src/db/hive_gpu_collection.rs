@@ -31,6 +31,8 @@ pub struct HiveGpuCollection {
     vector_count: usize,
     backend_type: GpuBackendType,
     vector_ids: Arc<Mutex<Vec<String>>>, // Track vector IDs for get_all_vectors
+    /// Owner ID (tenant/user ID for multi-tenancy in HiveHub cluster mode)
+    owner_id: Option<uuid::Uuid>,
 }
 
 impl HiveGpuCollection {
@@ -77,7 +79,21 @@ impl HiveGpuCollection {
             vector_count: 0,
             backend_type,
             vector_ids: Arc::new(Mutex::new(Vec::new())),
+            owner_id: None,
         })
+    }
+
+    /// Create a new Hive-GPU collection with an owner ID for multi-tenancy
+    pub fn new_with_owner(
+        name: String,
+        config: CollectionConfig,
+        context: Arc<Mutex<Box<dyn GpuContext + Send>>>,
+        backend_type: GpuBackendType,
+        owner_id: uuid::Uuid,
+    ) -> Result<Self> {
+        let mut collection = Self::new(name, config, context, backend_type)?;
+        collection.owner_id = Some(owner_id);
+        Ok(collection)
     }
 
     /// Get collection name
@@ -98,6 +114,21 @@ impl HiveGpuCollection {
     /// Get vector count
     pub fn vector_count(&self) -> usize {
         self.vector_count
+    }
+
+    /// Get the owner ID (tenant/user ID for multi-tenancy)
+    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+        self.owner_id
+    }
+
+    /// Set the owner ID (tenant/user ID for multi-tenancy)
+    pub fn set_owner_id(&mut self, owner_id: Option<uuid::Uuid>) {
+        self.owner_id = owner_id;
+    }
+
+    /// Check if this collection belongs to the specified owner
+    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+        self.owner_id.map(|id| &id == owner_id).unwrap_or(false)
     }
 
     /// Add a single vector to the collection
@@ -213,6 +244,8 @@ impl HiveGpuCollection {
             .map(|result| SearchResult {
                 id: result.id,
                 score: result.score,
+                dense_score: Some(result.score), // GPU uses dense search
+                sparse_score: None,
                 vector: None,  // GPU doesn't return full vectors by default
                 payload: None, // Will be populated if needed
             })

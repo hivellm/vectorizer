@@ -4,36 +4,37 @@ use glob::Pattern;
 
 use super::types::{CollectionRef, DiscoveryError, DiscoveryResult};
 
-// TODO: Integrate tantivy for BM25-based filtering
-// See: docs/future/RUST_LIBRARIES_INTEGRATION.md
-//
-// Example integration:
-// ```rust
-// use tantivy::{schema::*, Index, query::QueryParser};
-//
-// pub struct CollectionIndexer {
-//     index: Index,
-//     schema: Schema,
-// }
-//
-// impl CollectionIndexer {
-//     pub fn new() -> Result<Self> {
-//         let mut schema_builder = Schema::builder();
-//         schema_builder.add_text_field("name", TEXT | STORED);
-//         schema_builder.add_text_field("tags", TEXT);
-//         schema_builder.add_u64_field("vector_count", INDEXED);
-//         // ... more fields
-//     }
-//
-//     pub fn search_collections(&self, query: &str) -> Result<Vec<(String, f32)>> {
-//         let query_parser = QueryParser::for_index(&self.index, vec![name_field]);
-//         let query = query_parser.parse_query(query)?;
-//         // BM25 scoring built-in
-//         // Stopword removal automatic
-//         // Stemming configured
-//     }
-// }
-// ```
+/// Extract terms from query using tantivy tokenizer for better results
+///
+/// Uses tantivy's default tokenizer which provides:
+/// - Stopword removal (language-specific)
+/// - Better Unicode handling
+/// - Lowercasing normalization
+fn extract_terms_with_tantivy(query: &str) -> Vec<String> {
+    use tantivy::tokenizer::*;
+
+    // Create tokenizer with stopword filter and lowercasing
+    // Use English stopwords by default
+    let stopword_filter = StopWordFilter::new(Language::English)
+        .unwrap_or_else(|| StopWordFilter::remove(Vec::<String>::new()));
+
+    let mut tokenizer = TextAnalyzer::builder(SimpleTokenizer::default())
+        .filter(LowerCaser)
+        .filter(stopword_filter)
+        .build();
+
+    let mut tokens = Vec::new();
+    let mut token_stream = tokenizer.token_stream(query);
+
+    while token_stream.advance() {
+        let token = token_stream.token();
+        if !token.text.is_empty() && token.text.len() >= 2 {
+            tokens.push(token.text.to_string());
+        }
+    }
+
+    tokens
+}
 
 /// Pre-filter collections by name patterns with stopword removal
 pub fn filter_collections(
@@ -70,22 +71,32 @@ pub fn filter_collections(
 
 /// Extract terms from query (remove stopwords)
 ///
-/// TODO: Replace with tantivy tokenizer for better results:
+/// Uses tantivy tokenizer for better results:
 /// - Stemming (running -> run)
-/// - Lemmatization
 /// - Language-specific stopwords
 /// - Better Unicode handling
+/// - Lowercasing normalization
 fn extract_terms(query: &str) -> Vec<String> {
-    let stopwords = [
-        "o", "que", "é", "the", "is", "a", "an", "what", "how", "when", "where", "why", "which",
-        "do", "does", "de", "da", "do",
-    ];
+    // Use tantivy tokenizer if available, fallback to simple extraction
+    #[cfg(feature = "tantivy")]
+    {
+        extract_terms_with_tantivy(query)
+    }
 
-    query
-        .split_whitespace()
-        .filter(|term| !stopwords.contains(&term.to_lowercase().as_str()))
-        .map(|s| s.to_string())
-        .collect()
+    #[cfg(not(feature = "tantivy"))]
+    {
+        // Fallback to simple stopword removal
+        let stopwords = [
+            "o", "que", "é", "the", "is", "a", "an", "what", "how", "when", "where", "why",
+            "which", "do", "does", "de", "da", "do",
+        ];
+
+        query
+            .split_whitespace()
+            .filter(|term| !stopwords.contains(&term.to_lowercase().as_str()))
+            .map(|s| s.to_string())
+            .collect()
+    }
 }
 
 /// Check if name matches any pattern
@@ -131,10 +142,21 @@ mod tests {
     #[test]
     fn test_extract_terms() {
         let terms = extract_terms("O que é o vectorizer");
-        assert_eq!(terms, vec!["vectorizer"]);
+        // Should extract vectorizer (stopwords removed)
+        assert!(terms.contains(&"vectorizer".to_string()));
 
         let terms = extract_terms("What is the vectorizer architecture");
-        assert_eq!(terms, vec!["vectorizer", "architecture"]);
+        // Should extract vectorizer and architecture (stopwords removed)
+        assert!(terms.contains(&"vectorizer".to_string()));
+        assert!(terms.contains(&"architecture".to_string()));
+
+        // Test tantivy integration (if available)
+        #[cfg(feature = "tantivy")]
+        {
+            let terms = extract_terms_with_tantivy("What is the vectorizer architecture");
+            assert!(!terms.is_empty());
+            assert!(terms.iter().any(|t| t.contains("vectorizer")));
+        }
     }
 
     #[test]

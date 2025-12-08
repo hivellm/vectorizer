@@ -336,10 +336,93 @@ cluster:
       grpc_port: 15003
 ```
 
+## Distributed Collection Features
+
+### Shard Router
+
+The shard router provides automatic routing of operations to the correct cluster node:
+
+```rust
+// Get all shards across the cluster
+let all_shards = shard_router.get_all_shards();
+
+// Route a vector operation to the correct node
+let node_id = shard_router.route_vector(&vector_id);
+```
+
+### Document Count
+
+Track document counts across distributed collections:
+
+```bash
+# Get collection info including document count
+curl "http://localhost:15002/collections/my_collection"
+```
+
+Response includes distributed counts:
+```json
+{
+  "name": "my_collection",
+  "vector_count": 1000000,
+  "document_count": 50000,
+  "shards": {
+    "total": 6,
+    "active": 6
+  }
+}
+```
+
+### Remote Operations
+
+The cluster service supports remote operations via gRPC:
+
+| Operation | Status | Description |
+|-----------|--------|-------------|
+| RemoteInsertVector | Implemented | Insert vector on remote node |
+| RemoteUpdateVector | Implemented | Update vector on remote node |
+| RemoteDeleteVector | Implemented | Delete vector on remote node |
+| RemoteSearchVectors | Implemented | Search across remote shards |
+| RemoteGetCollectionInfo | Implemented | Get collection info from remote node |
+| RemoteCreateCollection | Planned | Create collection on remote node |
+| RemoteDeleteCollection | Planned | Delete collection on remote node |
+
+### Multi-Tenant Cluster Operations
+
+All cluster operations support tenant context for multi-tenant deployments:
+
+```protobuf
+message TenantContext {
+    string tenant_id = 1;          // Tenant/user ID
+    optional string username = 2;  // For logging
+    repeated string permissions = 3; // read, write, admin
+    optional string trace_id = 4;  // Distributed tracing
+}
+```
+
+### Quota Management
+
+The cluster service includes distributed quota checking:
+
+```bash
+# Check quota across cluster
+curl "http://localhost:15002/api/v1/cluster/quota?tenant_id=<uuid>&type=vectors"
+```
+
+Response:
+```json
+{
+  "allowed": true,
+  "current_usage": 50000,
+  "limit": 100000,
+  "remaining": 50000
+}
+```
+
 ## Related Documentation
 
 - [Sharding Guide](../collections/SHARDING.md) - Detailed sharding documentation
 - [Server Configuration](./SERVER.md) - Network and server settings
 - [Performance Tuning](./PERFORMANCE_TUNING.md) - Optimization tips
 - [API Documentation](../api/API_REFERENCE.md) - Cluster API endpoints
+- [gRPC API](../api/GRPC.md) - Cluster gRPC service documentation
 

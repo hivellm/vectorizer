@@ -526,8 +526,15 @@ pub enum CompressionAlgorithm {
 pub struct SearchResult {
     /// Vector ID
     pub id: String,
-    /// Similarity score
+    /// Combined similarity score (for regular search this is the main score,
+    /// for hybrid search this is the fused score)
     pub score: f32,
+    /// Dense vector similarity score (used in hybrid search)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dense_score: Option<f32>,
+    /// Sparse vector similarity score (used in hybrid search)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sparse_score: Option<f32>,
     /// Vector data (optional)
     pub vector: Option<Vec<f32>>,
     /// Associated payload

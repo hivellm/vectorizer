@@ -148,6 +148,8 @@ http://localhost:15002/qdrant
 | `score_threshold` | ✅     | ✅         | ✅ Compatible | Minimum score               |
 | `using`           | ✅     | ⚠️         | ⚠️ Partial    | Single vector extracted     |
 | `prefetch`        | ✅     | ✅         | ✅ Compatible | Recursive prefetch support  |
+| `with_lookup`     | ✅     | ✅         | ✅ Compatible | Cross-collection lookup     |
+| `lookup_from`     | ✅     | ✅         | ✅ Compatible | Lookup source collection    |
 
 ### Filter Parameters
 
@@ -266,6 +268,72 @@ All responses use Qdrant-compatible format:
   "time": 0.001
 }
 ```
+
+## Cross-Collection Lookup (with_lookup)
+
+Vectorizer supports the `with_lookup` feature for search groups and recommend groups operations. This allows you to fetch additional data from another collection using the group_id as the point ID.
+
+### Usage
+
+**Search Groups with Lookup:**
+
+```json
+POST /qdrant/collections/{name}/points/search/groups
+{
+  "vector": [0.1, 0.2, 0.3, ...],
+  "group_by": "category",
+  "group_size": 3,
+  "limit": 10,
+  "with_lookup": {
+    "collection": "products",
+    "with_payload": true,
+    "with_vector": false
+  }
+}
+```
+
+**Recommend Groups with Lookup:**
+
+```json
+POST /qdrant/collections/{name}/points/recommend/groups
+{
+  "positive": ["point-1", "point-2"],
+  "group_by": "brand",
+  "group_size": 5,
+  "limit": 10,
+  "with_lookup": "product_details"
+}
+```
+
+### Configuration Options
+
+The `with_lookup` parameter accepts either a collection name string or a configuration object:
+
+**Simple (collection name only):**
+```json
+"with_lookup": "other_collection"
+```
+
+**Full configuration:**
+```json
+"with_lookup": {
+  "collection": "other_collection",
+  "with_payload": true,
+  "with_vector": false
+}
+```
+
+### How It Works
+
+1. Groups are formed based on the `group_by` field
+2. For each group, the group_id is used to look up a point in the specified collection
+3. The looked-up point's payload and/or vector is included in the group result
+
+### Use Cases
+
+- **Product recommendations**: Group search results by product category, then fetch full product details from a products collection
+- **Document retrieval**: Group documents by author, then fetch author information from an authors collection
+- **Multi-tenant search**: Group results by tenant, then fetch tenant metadata from a tenants collection
 
 ## Compatibility Notes
 

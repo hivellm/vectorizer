@@ -7,13 +7,16 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use tonic::{Request, Response, Status};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::VectorStore;
 use crate::grpc::qdrant_proto::collections_server::Collections;
+use crate::grpc::qdrant_proto::r#match::MatchValue;
 use crate::grpc::qdrant_proto::points_server::Points;
 use crate::grpc::qdrant_proto::snapshots_server::Snapshots;
 use crate::grpc::qdrant_proto::*;
+use crate::models::qdrant::filter::{QdrantCondition, QdrantFilter, QdrantMatchValue, QdrantRange};
+use crate::models::qdrant::filter_processor::FilterProcessor;
 use crate::models::{Payload, Vector};
 
 /// Qdrant-compatible gRPC service
@@ -40,6 +43,205 @@ impl QdrantGrpcService {
             snapshot_manager: Some(snapshot_manager),
         }
     }
+}
+
+// ============================================================================
+// Filter Conversion Functions
+// ============================================================================
+
+/// Convert gRPC Filter to internal QdrantFilter
+fn convert_grpc_filter(filter: &Filter) -> QdrantFilter {
+    let must = if filter.must.is_empty() {
+        None
+    } else {
+        Some(
+            filter
+                .must
+                .iter()
+                .filter_map(convert_grpc_condition)
+                .collect(),
+        )
+    };
+
+    let must_not = if filter.must_not.is_empty() {
+        None
+    } else {
+        Some(
+            filter
+                .must_not
+                .iter()
+                .filter_map(convert_grpc_condition)
+                .collect(),
+        )
+    };
+
+    let should = if filter.should.is_empty() {
+        None
+    } else {
+        Some(
+            filter
+                .should
+                .iter()
+                .filter_map(convert_grpc_condition)
+                .collect(),
+        )
+    };
+
+    QdrantFilter {
+        must,
+        must_not,
+        should,
+    }
+}
+
+/// Convert gRPC Condition to internal QdrantCondition
+fn convert_grpc_condition(condition: &Condition) -> Option<QdrantCondition> {
+    use condition::ConditionOneOf;
+
+    match &condition.condition_one_of {
+        Some(ConditionOneOf::Field(field)) => convert_field_condition(field),
+        Some(ConditionOneOf::Filter(nested_filter)) => Some(QdrantCondition::Nested {
+            filter: Box::new(convert_grpc_filter(nested_filter)),
+        }),
+        Some(ConditionOneOf::IsEmpty(is_empty)) => {
+            // IsEmpty checks if field is empty/doesn't exist
+            Some(QdrantCondition::Match {
+                key: is_empty.key.clone(),
+                match_value: QdrantMatchValue::Any,
+            })
+        }
+        Some(ConditionOneOf::IsNull(is_null)) => {
+            // IsNull checks if field is null
+            Some(QdrantCondition::Match {
+                key: is_null.key.clone(),
+                match_value: QdrantMatchValue::Any,
+            })
+        }
+        Some(ConditionOneOf::HasId(_has_id)) => {
+            // HasId is handled separately in the calling code
+            None
+        }
+        Some(ConditionOneOf::Nested(nested)) => {
+            nested.filter.as_ref().map(|f| QdrantCondition::Nested {
+                filter: Box::new(convert_grpc_filter(f)),
+            })
+        }
+        Some(ConditionOneOf::HasVector(_)) => {
+            // HasVector condition - not applicable for filter-based operations
+            None
+        }
+        None => None,
+    }
+}
+
+/// Convert gRPC FieldCondition to internal QdrantCondition
+fn convert_field_condition(field: &FieldCondition) -> Option<QdrantCondition> {
+    let key = field.key.clone();
+
+    // Check match field first
+    if let Some(m) = &field.r#match {
+        if let Some(match_value) = &m.match_value {
+            return match match_value {
+                MatchValue::Keyword(s) => Some(QdrantCondition::Match {
+                    key,
+                    match_value: QdrantMatchValue::String(s.clone()),
+                }),
+                MatchValue::Integer(i) => Some(QdrantCondition::Match {
+                    key,
+                    match_value: QdrantMatchValue::Integer(*i),
+                }),
+                MatchValue::Boolean(b) => Some(QdrantCondition::Match {
+                    key,
+                    match_value: QdrantMatchValue::Bool(*b),
+                }),
+                MatchValue::Text(t) => Some(QdrantCondition::Match {
+                    key,
+                    match_value: QdrantMatchValue::String(t.clone()),
+                }),
+                MatchValue::Keywords(kw) => {
+                    // Match any of the keywords
+                    kw.strings.first().map(|first| QdrantCondition::Match {
+                        key,
+                        match_value: QdrantMatchValue::String(first.clone()),
+                    })
+                }
+                MatchValue::Integers(ints) => {
+                    ints.integers.first().map(|first| QdrantCondition::Match {
+                        key,
+                        match_value: QdrantMatchValue::Integer(*first),
+                    })
+                }
+                MatchValue::ExceptIntegers(_) => None,
+                MatchValue::ExceptKeywords(_) => None,
+                MatchValue::Phrase(p) => Some(QdrantCondition::Match {
+                    key,
+                    match_value: QdrantMatchValue::String(p.clone()),
+                }),
+                MatchValue::TextAny(t) => Some(QdrantCondition::Match {
+                    key,
+                    match_value: QdrantMatchValue::String(t.clone()),
+                }),
+            };
+        }
+    }
+
+    // Check range field
+    if let Some(r) = &field.range {
+        return Some(QdrantCondition::Range {
+            key,
+            range: QdrantRange {
+                lt: r.lt,
+                lte: r.lte,
+                gt: r.gt,
+                gte: r.gte,
+            },
+        });
+    }
+
+    // Geo conditions not yet fully supported
+    if field.geo_bounding_box.is_some() || field.geo_radius.is_some() || field.geo_polygon.is_some()
+    {
+        return None;
+    }
+
+    // Values count not yet fully supported
+    if field.values_count.is_some() {
+        return None;
+    }
+
+    // Datetime range not yet fully supported
+    if field.datetime_range.is_some() {
+        return None;
+    }
+
+    None
+}
+
+/// Get vector IDs that match a filter from collection
+fn get_matching_vector_ids(
+    collection: &crate::db::vector_store::CollectionType,
+    filter: &QdrantFilter,
+) -> Vec<String> {
+    let all_vectors = collection.get_all_vectors();
+    let total_count = all_vectors.len();
+    let mut matching_ids = Vec::new();
+
+    for vector in all_vectors {
+        let payload = vector.payload.as_ref().cloned().unwrap_or_else(|| Payload {
+            data: serde_json::json!({}),
+        });
+
+        if FilterProcessor::apply_filter(filter, &payload) {
+            matching_ids.push(vector.id.clone());
+        }
+    }
+
+    debug!(
+        "Filter matched {} vectors out of {}",
+        matching_ids.len(),
+        total_count
+    );
+    matching_ids
 }
 
 // ============================================================================
@@ -522,8 +724,16 @@ impl Points for QdrantGrpcService {
                         let _ = collection.delete_vector(&id);
                     }
                 }
-                Some(points_selector::PointsSelectorOneOf::Filter(_filter)) => {
-                    info!("Filter-based deletion not fully implemented in gRPC");
+                Some(points_selector::PointsSelectorOneOf::Filter(filter)) => {
+                    let internal_filter = convert_grpc_filter(&filter);
+                    let matching_ids = get_matching_vector_ids(&*collection, &internal_filter);
+                    info!(
+                        "Filter-based deletion: {} vectors matched",
+                        matching_ids.len()
+                    );
+                    for id in matching_ids {
+                        let _ = collection.delete_vector(&id);
+                    }
                 }
                 None => {}
             }
@@ -730,8 +940,37 @@ impl Points for QdrantGrpcService {
                         }
                     }
                 }
-                Some(points_selector::PointsSelectorOneOf::Filter(_)) => {
-                    info!("Filter-based payload update not fully implemented in gRPC");
+                Some(points_selector::PointsSelectorOneOf::Filter(filter)) => {
+                    let internal_filter = convert_grpc_filter(&filter);
+                    let matching_ids = get_matching_vector_ids(&*collection, &internal_filter);
+                    info!(
+                        "Filter-based payload update: {} vectors matched",
+                        matching_ids.len()
+                    );
+                    for id in matching_ids {
+                        if let Ok(vec) = collection.get_vector(&id) {
+                            let mut merged = vec
+                                .payload
+                                .as_ref()
+                                .map(|p| p.data.clone())
+                                .unwrap_or(serde_json::json!({}));
+
+                            if let serde_json::Value::Object(m1) = &mut merged {
+                                if let serde_json::Value::Object(m2) = &new_payload_json {
+                                    for (k, v) in m2 {
+                                        m1.insert(k.clone(), v.clone());
+                                    }
+                                }
+                            }
+
+                            let updated = Vector::with_payload(
+                                id,
+                                vec.data.clone(),
+                                Payload { data: merged },
+                            );
+                            let _ = collection.update_vector(updated);
+                        }
+                    }
                 }
                 None => {}
             }
@@ -784,8 +1023,25 @@ impl Points for QdrantGrpcService {
                         }
                     }
                 }
-                Some(points_selector::PointsSelectorOneOf::Filter(_)) => {
-                    info!("Filter-based payload overwrite not fully implemented in gRPC");
+                Some(points_selector::PointsSelectorOneOf::Filter(filter)) => {
+                    let internal_filter = convert_grpc_filter(&filter);
+                    let matching_ids = get_matching_vector_ids(&*collection, &internal_filter);
+                    info!(
+                        "Filter-based payload overwrite: {} vectors matched",
+                        matching_ids.len()
+                    );
+                    for id in matching_ids {
+                        if let Ok(vec) = collection.get_vector(&id) {
+                            let updated = Vector::with_payload(
+                                id,
+                                vec.data.clone(),
+                                Payload {
+                                    data: new_payload.clone(),
+                                },
+                            );
+                            let _ = collection.update_vector(updated);
+                        }
+                    }
                 }
                 None => {}
             }
@@ -845,8 +1101,34 @@ impl Points for QdrantGrpcService {
                         }
                     }
                 }
-                Some(points_selector::PointsSelectorOneOf::Filter(_)) => {
-                    info!("Filter-based payload deletion not fully implemented in gRPC");
+                Some(points_selector::PointsSelectorOneOf::Filter(filter)) => {
+                    let internal_filter = convert_grpc_filter(&filter);
+                    let matching_ids = get_matching_vector_ids(&*collection, &internal_filter);
+                    info!(
+                        "Filter-based payload key deletion: {} vectors matched",
+                        matching_ids.len()
+                    );
+                    for id in matching_ids {
+                        if let Ok(vec) = collection.get_vector(&id) {
+                            let mut payload = vec
+                                .payload
+                                .as_ref()
+                                .map(|p| p.data.clone())
+                                .unwrap_or(serde_json::json!({}));
+
+                            if let serde_json::Value::Object(ref mut map) = payload {
+                                for key in &req.keys {
+                                    map.remove(key);
+                                }
+                            }
+                            let updated = Vector::with_payload(
+                                id,
+                                vec.data.clone(),
+                                Payload { data: payload },
+                            );
+                            let _ = collection.update_vector(updated);
+                        }
+                    }
                 }
                 None => {}
             }
@@ -891,8 +1173,19 @@ impl Points for QdrantGrpcService {
                         }
                     }
                 }
-                Some(points_selector::PointsSelectorOneOf::Filter(_)) => {
-                    info!("Filter-based payload clear not fully implemented in gRPC");
+                Some(points_selector::PointsSelectorOneOf::Filter(filter)) => {
+                    let internal_filter = convert_grpc_filter(&filter);
+                    let matching_ids = get_matching_vector_ids(&*collection, &internal_filter);
+                    info!(
+                        "Filter-based payload clear: {} vectors matched",
+                        matching_ids.len()
+                    );
+                    for id in matching_ids {
+                        if let Ok(vec) = collection.get_vector(&id) {
+                            let updated = Vector::new(id, vec.data.clone());
+                            let _ = collection.update_vector(updated);
+                        }
+                    }
                 }
                 None => {}
             }

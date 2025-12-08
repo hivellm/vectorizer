@@ -272,11 +272,12 @@ fn test_sharding_consistency_after_operations() {
     }
 
     // Verify consistency
+    // Deleted 25 odd vectors (1,3,5,...,49) from 100 total = 75 remaining
     let final_count = store
         .get_collection("consistency_test")
         .unwrap()
         .vector_count();
-    assert_eq!(final_count, 50); // 50 deleted, 50 remaining
+    assert_eq!(final_count, 75); // 25 deleted (odd indices 1-49), 75 remaining
 
     // Verify updated vectors
     for i in (0..50).step_by(2) {

@@ -574,6 +574,109 @@ For testing with actual running servers:
    curl http://127.0.0.1:15002/api/v1/cluster/shard-distribution
    ```
 
+## Advanced Sharded Collection Features
+
+### Batch Insert
+
+Sharded collections support efficient batch insert operations that automatically route vectors to the correct shard:
+
+```rust
+let vectors = vec![
+    Vector { id: "v1".to_string(), data: vec![0.1, 0.2, 0.3, 0.4], ... },
+    Vector { id: "v2".to_string(), data: vec![0.5, 0.6, 0.7, 0.8], ... },
+    // ... more vectors
+];
+
+// Batch insert routes vectors to appropriate shards
+sharded_collection.insert_batch(vectors)?;
+```
+
+**REST API:**
+```bash
+POST /collections/{name}/batch_insert
+Content-Type: application/json
+
+{
+  "vectors": [
+    {"id": "v1", "data": [0.1, 0.2, 0.3, 0.4]},
+    {"id": "v2", "data": [0.5, 0.6, 0.7, 0.8]}
+  ]
+}
+```
+
+### Hybrid Search
+
+Sharded collections support hybrid search combining dense (semantic) and sparse (keyword) search:
+
+```rust
+let results = sharded_collection.hybrid_search(
+    &query_vector,
+    Some(&query_text),
+    k,
+    alpha,  // 0.0 = sparse only, 1.0 = dense only, 0.5 = balanced
+    None,   // filter
+)?;
+
+// Results include both scores
+for result in results {
+    println!("ID: {}, Score: {}", result.id, result.score);
+    println!("  Dense: {:?}, Sparse: {:?}", result.dense_score, result.sparse_score);
+}
+```
+
+**REST API:**
+```bash
+POST /collections/{name}/hybrid_search
+Content-Type: application/json
+
+{
+  "query": [0.1, 0.2, 0.3, 0.4],
+  "query_text": "search query",
+  "k": 10,
+  "alpha": 0.5
+}
+```
+
+### Document Count
+
+Track document counts across all shards:
+
+```rust
+let total_count = sharded_collection.document_count();
+println!("Total documents: {}", total_count);
+
+// Per-shard counts
+let shard_counts = sharded_collection.shard_counts();
+for (shard_id, count) in shard_counts {
+    println!("Shard {}: {} documents", shard_id, count);
+}
+```
+
+### Requantization
+
+Change quantization settings for a sharded collection without re-indexing:
+
+```rust
+use vectorizer::quantization::QuantizationConfig;
+
+// Apply new quantization across all shards
+let new_config = QuantizationConfig::SQ { bits: 4 };
+sharded_collection.requantize(new_config)?;
+```
+
+**REST API:**
+```bash
+POST /collections/{name}/requantize
+Content-Type: application/json
+
+{
+  "quantization": {
+    "type": "scalar",
+    "bits": 4
+  }
+}
+```
+
 ## Summary
 
 Sharding is a powerful feature for scaling large collections. Key points:

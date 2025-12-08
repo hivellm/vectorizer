@@ -465,6 +465,138 @@ prompt = await client.render_llm_prompt(
 )
 ```
 
+## Hybrid Search
+
+Discovery uses hybrid search to combine dense (semantic) and sparse (keyword) search for better results.
+
+### How Hybrid Search Works
+
+1. **Dense Search**: HNSW-based vector similarity search using embeddings
+2. **Sparse Search**: BM25/Tantivy full-text search for keyword matching
+   - Uses Tantivy tokenizer for improved term extraction
+   - Automatic stopword removal and lowercasing
+   - Better Unicode handling
+3. **Reciprocal Rank Fusion (RRF)**: Combines results from both searches
+
+### Evidence Compression
+
+Discovery uses intelligent evidence compression to extract the most relevant sentences from search results:
+
+1. **Keyword Extraction**: Uses Tantivy tokenizer to extract keyphrases from text
+   - Filters stopwords automatically
+   - Scores terms by frequency (TF-IDF-like)
+   - Identifies most important keywords
+
+2. **Sentence Scoring**: Sentences are scored by keyword density
+   - Higher scores for sentences containing important keywords
+   - Prioritizes relevant content over filler text
+
+3. **Sentence Extraction**: Improved sentence boundary detection
+   - Handles multiple sentence-ending punctuation (. ! ?)
+   - Proper Unicode-aware segmentation
+   - Filters by minimum/maximum word count
+
+### Collection Filtering
+
+Collection filtering uses Tantivy's tokenizer for improved query processing:
+
+- **Stopword Removal**: Language-specific stopwords are automatically removed
+- **Term Normalization**: Lowercasing and Unicode normalization
+- **Better Matching**: Improved matching accuracy for collection names
+
+### Hybrid Search Endpoint
+
+**Endpoint:** `POST /collections/{name}/hybrid_search`
+
+**Request Body:**
+
+```json
+{
+  "query": "vector database implementation",
+  "k": 10,
+  "alpha": 0.5
+}
+```
+
+**Parameters:**
+
+| Parameter | Type   | Required | Description                                    |
+| --------- | ------ | -------- | ---------------------------------------------- |
+| `query`   | string | Yes      | Search query                                   |
+| `k`       | number | No       | Number of results (default: 10)                |
+| `alpha`   | number | No       | Dense/sparse weight (0.0-1.0, default: 0.5)    |
+
+- `alpha = 1.0`: Pure dense (semantic) search
+- `alpha = 0.0`: Pure sparse (keyword) search
+- `alpha = 0.5`: Balanced hybrid search
+
+**Response:**
+
+```json
+{
+  "results": [
+    {
+      "id": "doc_001",
+      "score": 0.92,
+      "dense_score": 0.85,
+      "sparse_score": 0.95,
+      "vector": [...],
+      "payload": { "title": "..." }
+    }
+  ]
+}
+```
+
+### RRF Algorithm
+
+The Reciprocal Rank Fusion algorithm combines rankings from dense and sparse search:
+
+```
+RRF_score(d) = Σ (1 / (k + rank_i(d)))
+```
+
+Where:
+- `k` is a constant (default: 60)
+- `rank_i(d)` is the rank of document `d` in ranking `i`
+
+### Example Usage
+
+```python
+# Balanced hybrid search
+result = await client.hybrid_search(
+    collection="docs",
+    query="async programming in Rust",
+    k=10,
+    alpha=0.5
+)
+
+# Semantic-focused (good for conceptual queries)
+result = await client.hybrid_search(
+    collection="docs",
+    query="how does memory management work",
+    k=10,
+    alpha=0.8
+)
+
+# Keyword-focused (good for specific terms)
+result = await client.hybrid_search(
+    collection="code",
+    query="fn async fn tokio spawn",
+    k=10,
+    alpha=0.2
+)
+```
+
+### When to Use Hybrid Search
+
+| Use Case | Recommended Alpha |
+|----------|-------------------|
+| Conceptual questions | 0.7-0.9 |
+| Code search | 0.3-0.5 |
+| Documentation search | 0.5-0.6 |
+| Exact term matching | 0.1-0.3 |
+| General discovery | 0.5 |
+
 ## Best Practices
 
 1. **Use appropriate collection filtering**: Include/exclude collections to focus search
@@ -472,6 +604,8 @@ prompt = await client.render_llm_prompt(
 3. **Set max_bullets**: Control output size for better performance
 4. **Combine discovery steps**: Use individual endpoints for fine-grained control
 5. **Cache results**: Discovery can be expensive, cache when possible
+6. **Use hybrid search**: Combine semantic and keyword search for better results
+7. **Tune alpha parameter**: Adjust based on query type for optimal results
 
 ## Related Topics
 

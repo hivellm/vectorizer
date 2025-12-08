@@ -960,6 +960,8 @@ impl Collection {
             results.push(SearchResult {
                 id: id.clone(),
                 score,
+                dense_score: Some(score), // Dense-only search
+                sparse_score: None,
                 vector: Some(vector.data.clone()),
                 payload: normalized_payload,
             });
@@ -1073,6 +1075,8 @@ impl Collection {
             results.push(SearchResult {
                 id: hybrid_result.id.clone(),
                 score: hybrid_result.hybrid_score,
+                dense_score: hybrid_result.dense_score,
+                sparse_score: hybrid_result.sparse_score,
                 vector: Some(vector.data.clone()),
                 payload: normalized_payload,
             });

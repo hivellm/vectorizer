@@ -401,6 +401,79 @@ impl ShardedCollection {
     pub fn get_shard_metadata(&self, shard_id: &ShardId) -> Option<super::sharding::ShardMetadata> {
         self.router.get_shard_metadata(shard_id)
     }
+
+    /// Requantize existing vectors across all shards
+    ///
+    /// This method iterates over all shards and calls `requantize_existing_vectors`
+    /// on each shard's collection. This is useful when quantization configuration
+    /// is changed or when migrating existing vectors to quantized storage.
+    ///
+    /// # Returns
+    /// - `Ok(())` if all shards were successfully requantized
+    /// - `Err(VectorizerError)` if any shard fails to requantize
+    pub fn requantize_existing_vectors(&self) -> Result<()> {
+        info!(
+            "Starting requantization for sharded collection '{}' with {} shards",
+            self.name,
+            self.shards.len()
+        );
+
+        let mut total_vectors = 0;
+        let mut errors = Vec::new();
+
+        for entry in self.shards.iter() {
+            let shard_id = *entry.key();
+            let shard = entry.value();
+
+            debug!(
+                "Requantizing shard {} of collection '{}'",
+                shard_id, self.name
+            );
+
+            match shard.requantize_existing_vectors() {
+                Ok(()) => {
+                    let shard_count = shard.vector_count();
+                    total_vectors += shard_count;
+                    debug!(
+                        "Successfully requantized shard {} ({} vectors)",
+                        shard_id, shard_count
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to requantize shard {} of collection '{}': {}",
+                        shard_id, self.name, e
+                    );
+                    errors.push((shard_id, e));
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            let error_msg = errors
+                .iter()
+                .map(|(id, e)| format!("shard {}: {}", id, e))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            return Err(VectorizerError::InvalidConfiguration {
+                message: format!(
+                    "Failed to requantize {} shards: {}",
+                    errors.len(),
+                    error_msg
+                ),
+            });
+        }
+
+        info!(
+            "✅ Successfully requantized {} vectors across {} shards in collection '{}'",
+            total_vectors,
+            self.shards.len(),
+            self.name
+        );
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

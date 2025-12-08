@@ -443,13 +443,8 @@ impl DistributedShardedCollection {
         let shard_ids = if let Some(keys) = shard_keys {
             keys.to_vec()
         } else {
-            // Get all shards - for now, get from all nodes
-            // TODO: Get all shards from router when method is available
-            let mut all_shards = Vec::new();
-            for node in self.cluster_manager.get_active_nodes() {
-                all_shards.extend(self.shard_router.get_shards_for_node(&node.id));
-            }
-            all_shards
+            // Get all shards from the router
+            self.shard_router.get_all_shards()
         };
 
         if shard_ids.is_empty() {
@@ -875,5 +870,84 @@ impl DistributedShardedCollection {
         }
 
         Ok(total)
+    }
+
+    /// Requantize existing vectors in local shards
+    ///
+    /// This method requantizes vectors in local shards only. For remote shards,
+    /// the requantization should be triggered on their respective nodes.
+    ///
+    /// # Returns
+    /// - `Ok(())` if all local shards were successfully requantized
+    /// - `Err(VectorizerError)` if any local shard fails to requantize
+    pub fn requantize_existing_vectors(&self) -> Result<()> {
+        let local_shards = self.local_shards.read();
+
+        if local_shards.is_empty() {
+            info!(
+                "No local shards to requantize in distributed collection '{}'",
+                self.name
+            );
+            return Ok(());
+        }
+
+        info!(
+            "Starting requantization for {} local shards in distributed collection '{}'",
+            local_shards.len(),
+            self.name
+        );
+
+        let mut total_vectors = 0;
+        let mut errors = Vec::new();
+
+        for (shard_id, shard) in local_shards.iter() {
+            debug!(
+                "Requantizing local shard {} of collection '{}'",
+                shard_id, self.name
+            );
+
+            match shard.requantize_existing_vectors() {
+                Ok(()) => {
+                    let shard_count = shard.vector_count();
+                    total_vectors += shard_count;
+                    debug!(
+                        "Successfully requantized local shard {} ({} vectors)",
+                        shard_id, shard_count
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to requantize local shard {} of collection '{}': {}",
+                        shard_id, self.name, e
+                    );
+                    errors.push((*shard_id, e));
+                }
+            }
+        }
+
+        if !errors.is_empty() {
+            let error_msg = errors
+                .iter()
+                .map(|(id, e)| format!("shard {}: {}", id, e))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            return Err(VectorizerError::InvalidConfiguration {
+                message: format!(
+                    "Failed to requantize {} local shards: {}",
+                    errors.len(),
+                    error_msg
+                ),
+            });
+        }
+
+        info!(
+            "✅ Successfully requantized {} vectors across {} local shards in distributed collection '{}'",
+            total_vectors,
+            local_shards.len(),
+            self.name
+        );
+
+        Ok(())
     }
 }

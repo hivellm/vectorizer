@@ -2,6 +2,114 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0] - 2025-12-07
+
+### Major Release - Production Ready
+
+This is a major release with comprehensive stub implementations, making Vectorizer production-ready with all critical features fully implemented.
+
+### Added
+
+#### TLS/SSL Support (Phase 1)
+- **Certificate Loading**: Full implementation of certificate loading from PEM files in `create_server_config()`
+- **Cipher Suites**: Configurable cipher suite presets (Modern, Compatible, Custom)
+  - Modern: TLS 1.3 only with AES-256-GCM, AES-128-GCM, ChaCha20-Poly1305
+  - Compatible: TLS 1.2 + TLS 1.3 for broader client support
+  - Custom: User-defined cipher suite list
+- **ALPN Configuration**: Application-Layer Protocol Negotiation (HTTP/1.1, HTTP/2, Both, Custom)
+- **mTLS Support**: Mutual TLS with client certificate validation
+- **Integration Tests**: 12 TLS tests covering server config, cipher suites, ALPN, and mTLS
+- **Documentation**: Comprehensive TLS documentation at `docs/users/configuration/TLS.md`
+
+#### Tenant Migration API (Phase 1)
+- **Export Functionality**: Export all tenant collections to JSON files
+- **Transfer Ownership**: Transfer collections between tenants
+- **Clone Data**: Clone tenant data to new tenants
+- **Move Storage**: Move data between storage backends
+- **Cleanup**: Secure tenant data deletion with confirmation
+- **Statistics**: Tenant collection and vector count statistics
+- **Migration Tools**: Scan, plan, and execute migrations from standalone to multi-tenant
+- **Integration Tests**: 16 tests for tenant migration operations
+- **Documentation**: Full API documentation at `docs/users/api/TENANT_MIGRATION.md`
+
+#### Hybrid Search (Phase 2)
+- **Dense Search**: HNSW-based vector similarity search
+- **Sparse Search**: BM25/Tantivy full-text search
+- **RRF Algorithm**: Reciprocal Rank Fusion for result merging
+- **Alpha Parameter**: Configurable dense/sparse weight ratio
+- **Score Extraction**: Actual dense_score and sparse_score in SearchResult
+
+#### Sharded Collection Features (Phase 3)
+- **Batch Insert**: Distributed batch operations for sharded collections
+- **Hybrid Search**: Cross-shard hybrid search support
+- **Document Count**: Accurate document counting across shards
+- **Requantization**: Support for requantizing sharded collections
+
+#### Qdrant Filter Operations (Phase 3)
+- **Filter-based Deletion**: Delete vectors matching filter criteria
+- **Payload Update**: Update payloads with filters
+- **Payload Overwrite**: Replace payloads using filters
+- **Payload Delete**: Remove specific payload fields
+- **Payload Clear**: Clear all payload data with filters
+
+#### Rate Limiting (Phase 3)
+- **Per-API-Key Limits**: Individual rate limits per API key
+- **Tier System**: Configurable rate limit tiers (default, premium, enterprise)
+- **Key Overrides**: Per-key rate limit overrides
+- **YAML Configuration**: Full rate limiting config in workspace.yml
+- **Integration Tests**: 20+ tests for rate limiting functionality
+
+#### Quantization Cache Tracking (Phase 3)
+- **Hit Ratio Tracking**: Cache hit/miss ratio monitoring
+- **HNSW Integration**: Cache tracking in HNSW search operations
+- **Statistics API**: Cache statistics via monitoring endpoints
+- **Metrics Export**: Prometheus-compatible cache metrics
+
+#### Graceful Shutdown (Phase 4)
+- **Signal Handling**: Proper Ctrl+C and SIGTERM handling
+- **In-flight Requests**: Complete pending requests before shutdown
+- **Axum Integration**: `with_graceful_shutdown` for clean termination
+
+#### GPU Multi-Tenant Support (Phase 4)
+- **Owner ID**: `owner_id` field support in HiveGpuCollection
+- **Tenant Isolation**: Proper tenant data isolation on GPU
+
+#### HiveHub Operation Logging (Phase 3)
+- **Operation Tracking**: Comprehensive logging of all MCP operations
+- **Log Buffering**: In-memory buffering with automatic flushing (default: 1,000 entries)
+- **Cloud Integration**: Send logs to HiveHub Cloud logging endpoint
+- **Usage Metrics**: Track API requests, searches, inserts, and other operations
+- **Audit Trail**: Complete audit log for compliance and analytics
+- **Integration Tests**: 25 tests covering operation types, logging, and tracking
+- **Documentation**: Operation logging section in `docs/HUB_INTEGRATION.md`
+
+#### Distributed Collection Improvements (Phase 4)
+- **Shard Router**: `get_all_shards()` and `shard_count()` methods
+- **Document Count**: Cross-node document count aggregation
+- **Remote Collection Creation**: Full implementation with owner_id support for multi-tenant
+- **Remote Collection Deletion**: Implementation with ownership verification
+- **Tenant Isolation**: Proper multi-tenant support in distributed mode
+
+#### gRPC Improvements (Phase 4)
+- **Quantization Config**: Full quantization config conversion
+- **Uptime Tracking**: Server uptime in gRPC health checks
+- **Score Extraction**: Dense/sparse scores in gRPC search results
+- **with_lookup**: Qdrant with_lookup feature for group queries
+
+### Changed
+
+- **Transmutation**: Updated from 0.1.2 to 0.3.1 (bug fixes and improvements)
+
+### Documentation
+
+- **TLS Guide**: `docs/users/configuration/TLS.md` - Complete TLS/SSL configuration guide
+- **Tenant Migration API**: `docs/users/api/TENANT_MIGRATION.md` - Full API reference
+- **Configuration Guide**: Updated to reference TLS documentation
+
+### Breaking Changes
+
+- **SearchResult**: Added `dense_score` and `sparse_score` fields (Optional<f32>)
+
 ## [1.8.6] - 2025-12-06
 
 ### Changed

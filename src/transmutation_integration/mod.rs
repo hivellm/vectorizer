@@ -13,7 +13,7 @@ use std::path::Path;
 
 use tracing::{debug, info, warn};
 #[cfg(feature = "transmutation")]
-use transmutation::{ConversionOptions, Converter, OutputFormat};
+use transmutation::{Converter, OutputFormat};
 use types::{ConvertedDocument, PageInfo};
 
 use crate::error::{Result, VectorizerError};
@@ -61,16 +61,11 @@ impl TransmutationProcessor {
 
     /// Convert a document to markdown
     ///
-    /// NOTE: This is a placeholder implementation. The actual transmutation API
-    /// from crates.io may have a different interface. This code compiles but
-    /// returns placeholder data. To use with real documents, update this method
-    /// to match the actual transmutation::Converter API from the published crate.
+    /// Uses the transmutation crate to convert various document formats (PDF, DOCX, XLSX, etc.)
+    /// to Markdown format optimized for LLM processing.
     #[cfg(feature = "transmutation")]
     pub async fn convert_to_markdown(&self, file_path: &Path) -> Result<ConvertedDocument> {
         info!("🔄 Converting document: {:?}", file_path);
-        warn!("⚠️ Using placeholder transmutation implementation - update to match actual API");
-
-        let file_path_str = file_path.to_string_lossy().to_string();
 
         // Determine if this is a paginated format
         let is_paginated = if let Some(ext) = file_path.extension() {
@@ -82,40 +77,50 @@ impl TransmutationProcessor {
             false
         };
 
-        // Set conversion options
-        let options = ConversionOptions {
+        // Set output format with page splitting for paginated documents
+        let output_format = OutputFormat::Markdown {
             split_pages: is_paginated,
             optimize_for_llm: true,
-            preserve_layout: false,
-            extract_tables: true,
-            extract_images: false,
-            include_metadata: true,
-            normalize_whitespace: true,
-            ..Default::default()
         };
 
         // Perform the conversion
-        // Note: OutputFormat API may vary - this is a placeholder
         let result = self
             .converter
-            .convert(&file_path_str)
+            .convert(file_path)
+            .to(output_format)
             .execute()
             .await
             .map_err(|e| VectorizerError::TransmutationError(e.to_string()))?;
 
+        // Extract content from ConversionResult
+        // Each ConversionOutput has data: Vec<u8> which is the converted content
+        let content = if result.content.is_empty() {
+            String::new()
+        } else if result.content.len() == 1 {
+            // Single output - convert bytes to string
+            String::from_utf8_lossy(&result.content[0].data).to_string()
+        } else {
+            // Multiple outputs (split by pages) - join with page markers
+            result
+                .content
+                .iter()
+                .enumerate()
+                .map(|(i, output)| {
+                    let page_content = String::from_utf8_lossy(&output.data);
+                    format!("--- Page {} ---\n{}", i + 1, page_content)
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        };
+
         // Extract page information for paginated documents
-        let page_info = if is_paginated {
-            Self::extract_page_info(&result)
+        let page_info = if is_paginated && result.content.len() > 1 {
+            Self::extract_page_info_from_result(&result, &content)
         } else {
             None
         };
 
-        // Get the converted markdown content
-        // Note: Transmutation's ConversionResult API may vary by version
-        // This is a placeholder implementation that will work with the basic API
-        let content = format!("{:?}", result); // Temporary: will be replaced with actual content extraction
-
-        // Build metadata
+        // Build metadata from ConversionResult
         let mut metadata = std::collections::HashMap::new();
 
         if let Some(ext) = file_path.extension() {
@@ -126,10 +131,41 @@ impl TransmutationProcessor {
         }
         metadata.insert("converted_via".to_string(), "transmutation".to_string());
 
-        // Page count may not be available in all versions
-        let page_count = 0_usize; // Placeholder
+        // Add page count from result metadata
+        let page_count = result.metadata.page_count;
         if page_count > 0 {
             metadata.insert("page_count".to_string(), page_count.to_string());
+        }
+
+        // Add document metadata if available
+        if let Some(ref title) = result.metadata.title {
+            metadata.insert("title".to_string(), title.clone());
+        }
+        if let Some(ref author) = result.metadata.author {
+            metadata.insert("author".to_string(), author.clone());
+        }
+        if let Some(ref language) = result.metadata.language {
+            metadata.insert("language".to_string(), language.clone());
+        }
+
+        // Add conversion statistics
+        metadata.insert(
+            "input_size_bytes".to_string(),
+            result.statistics.input_size_bytes.to_string(),
+        );
+        metadata.insert(
+            "output_size_bytes".to_string(),
+            result.statistics.output_size_bytes.to_string(),
+        );
+        metadata.insert(
+            "conversion_duration_ms".to_string(),
+            result.statistics.duration.as_millis().to_string(),
+        );
+        if result.statistics.tables_extracted > 0 {
+            metadata.insert(
+                "tables_extracted".to_string(),
+                result.statistics.tables_extracted.to_string(),
+            );
         }
 
         let mut converted_doc = if let Some(pages) = page_info {
@@ -144,8 +180,9 @@ impl TransmutationProcessor {
         }
 
         info!(
-            "✅ Conversion complete: {} characters",
-            converted_doc.content.len()
+            "✅ Conversion complete: {} characters, {} pages",
+            converted_doc.content.len(),
+            page_count
         );
         Ok(converted_doc)
     }
@@ -163,69 +200,66 @@ impl TransmutationProcessor {
     }
 
     /// Extract page information from conversion result
+    ///
+    /// Uses the ConversionResult's content array and metadata to build PageInfo entries
+    /// with accurate character positions based on the merged content string.
     #[cfg(feature = "transmutation")]
-    fn extract_page_info(result: &transmutation::ConversionResult) -> Option<Vec<PageInfo>> {
-        // If the result contains page boundaries
-        let page_count = 0_usize; // Placeholder: actual page count extraction depends on transmutation API
-        if page_count > 0 {
-            let mut pages: Vec<PageInfo> = Vec::new();
-            let content = String::new(); // Placeholder: actual content extraction
+    fn extract_page_info_from_result(
+        result: &transmutation::ConversionResult,
+        merged_content: &str,
+    ) -> Option<Vec<PageInfo>> {
+        let page_count = result.content.len();
+        if page_count <= 1 {
+            return None;
+        }
 
-            // Try to detect page breaks in the markdown
-            // Transmutation typically uses "--- Page N ---" markers
-            let mut current_pos = 0;
-            let mut page_num = 1;
+        let mut pages: Vec<PageInfo> = Vec::new();
+        let mut current_pos: usize = 0;
 
-            for (idx, line) in content.lines().enumerate() {
-                let line_start = current_pos;
-                let line_end = current_pos + line.len() + 1; // +1 for newline
+        // Parse page markers in the merged content to get accurate positions
+        for line in merged_content.lines() {
+            let line_start: usize = current_pos;
+            let line_len: usize = line.len() + 1; // +1 for newline
 
-                // Check if this is a page marker
-                if line.starts_with("--- Page") || line.starts_with("# Page") {
-                    if page_num > 1 {
-                        // Close the previous page
+            // Check if this is a page marker we inserted
+            if line.starts_with("--- Page ") {
+                // Extract page number from marker
+                if let Some(page_num_str) = line
+                    .strip_prefix("--- Page ")
+                    .and_then(|s| s.strip_suffix(" ---"))
+                {
+                    if let Ok(page_num) = page_num_str.parse::<usize>() {
+                        // Close the previous page if exists
                         if let Some(last_page) = pages.last_mut() {
-                            last_page.end_char = line_start;
+                            last_page.end_char = line_start.saturating_sub(2); // -2 for \n\n between pages
                         }
+
+                        // Start a new page (content starts after the marker line)
+                        pages.push(PageInfo {
+                            page_number: page_num,
+                            start_char: line_start + line_len,
+                            end_char: merged_content.len(), // Will be updated for non-last pages
+                        });
                     }
-
-                    // Start a new page
-                    pages.push(PageInfo {
-                        page_number: page_num,
-                        start_char: line_start,
-                        end_char: content.len(),
-                    });
-
-                    page_num += 1;
                 }
-
-                current_pos = line_end;
             }
 
-            // If we found page markers, return them
-            if !pages.is_empty() {
-                return Some(pages);
-            }
+            current_pos += line_len;
+        }
 
-            // Fallback: estimate equal page distribution
-            let chars_per_page = content.len() / page_count;
-            let mut pages = Vec::new();
+        // Finalize the last page's end position
+        if let Some(last_page) = pages.last_mut() {
+            last_page.end_char = merged_content.len();
+        }
 
-            for i in 0..page_count {
-                pages.push(PageInfo {
-                    page_number: i + 1,
-                    start_char: i * chars_per_page,
-                    end_char: if i == page_count - 1 {
-                        content.len()
-                    } else {
-                        (i + 1) * chars_per_page
-                    },
-                });
-            }
-
-            Some(pages)
-        } else {
+        if pages.is_empty() {
             None
+        } else {
+            debug!(
+                "Extracted {} page boundaries from converted document",
+                pages.len()
+            );
+            Some(pages)
         }
     }
 }

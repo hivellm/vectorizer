@@ -214,10 +214,7 @@ mod rate_limiting_tests {
 
     #[test]
     fn test_per_key_rate_limiter_creation() {
-        let config = RateLimitConfig {
-            requests_per_second: 10,
-            burst_size: 20,
-        };
+        let config = RateLimitConfig::with_defaults(10, 20);
         let limiter = RateLimiter::new(config);
 
         // First request should pass
@@ -226,10 +223,7 @@ mod rate_limiting_tests {
 
     #[test]
     fn test_per_key_rate_limiter_isolation() {
-        let config = RateLimitConfig {
-            requests_per_second: 5,
-            burst_size: 5,
-        };
+        let config = RateLimitConfig::with_defaults(5, 5);
         let limiter = RateLimiter::new(config);
 
         // Exhaust key1's limit
@@ -243,10 +237,7 @@ mod rate_limiting_tests {
 
     #[test]
     fn test_combined_rate_limit_check() {
-        let config = RateLimitConfig {
-            requests_per_second: 100,
-            burst_size: 200,
-        };
+        let config = RateLimitConfig::with_defaults(100, 200);
         let limiter = RateLimiter::new(config);
 
         // Combined check with API key
@@ -267,10 +258,7 @@ mod rate_limiting_tests {
 
     #[test]
     fn test_rate_limiter_burst_capacity() {
-        let config = RateLimitConfig {
-            requests_per_second: 1,
-            burst_size: 10,
-        };
+        let config = RateLimitConfig::with_defaults(1, 10);
         let limiter = RateLimiter::new(config);
 
         // Should allow burst of 10 requests
@@ -287,10 +275,7 @@ mod rate_limiting_tests {
 
     #[test]
     fn test_rate_limiter_multiple_keys() {
-        let config = RateLimitConfig {
-            requests_per_second: 100,
-            burst_size: 100,
-        };
+        let config = RateLimitConfig::with_defaults(100, 100);
         let limiter = RateLimiter::new(config);
 
         // Test multiple keys
@@ -298,6 +283,30 @@ mod rate_limiting_tests {
             let key = format!("key_{i}");
             assert!(limiter.check_key(&key));
         }
+    }
+
+    #[test]
+    fn test_rate_limiter_key_override() {
+        let mut config = RateLimitConfig::default();
+        config.add_key_override("premium_key".to_string(), 500, 1000);
+        let limiter = RateLimiter::new(config);
+
+        // Check that premium key gets custom limits
+        let info = limiter.get_key_info("premium_key").unwrap();
+        assert_eq!(info.0, 500); // requests_per_second
+        assert_eq!(info.1, 1000); // burst_size
+    }
+
+    #[test]
+    fn test_rate_limiter_tier_assignment() {
+        let mut config = RateLimitConfig::default();
+        config.assign_key_to_tier("enterprise_key".to_string(), "enterprise".to_string());
+        let limiter = RateLimiter::new(config);
+
+        // Check that enterprise key gets enterprise tier limits
+        let info = limiter.get_key_info("enterprise_key").unwrap();
+        assert_eq!(info.0, 1000); // enterprise tier requests_per_second
+        assert_eq!(info.1, 2000); // enterprise tier burst_size
     }
 }
 

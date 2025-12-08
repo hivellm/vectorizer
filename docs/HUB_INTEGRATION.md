@@ -301,6 +301,186 @@ Key SDK types:
 - `QuotaCheckResponse`: Response with `allowed`, `remaining`, `limit`
 - `UsageReportRequest`: Request to report usage metrics
 
+## Operation Logging and Tracking
+
+HiveHub integration includes comprehensive operation logging and tracking for analytics, auditing, and monitoring purposes.
+
+### Tracked Operations
+
+The MCP Gateway automatically logs all operations performed through the MCP protocol:
+
+| Operation Type | Description | Requires Write Permission |
+|----------------|-------------|---------------------------|
+| `ListCollections` | List all collections | No |
+| `CreateCollection` | Create a new collection | Yes |
+| `DeleteCollection` | Delete a collection | Yes |
+| `GetCollectionInfo` | Get collection metadata | No |
+| `Insert` | Insert vectors/documents | Yes |
+| `Search` | Search operations (all types) | No |
+| `GetVector` | Get vector by ID | No |
+| `UpdateVector` | Update vector data | Yes |
+| `DeleteVector` | Delete vectors | Yes |
+| `GraphOperation` | Graph-related operations | No |
+| `ClusterOperation` | Cluster management | No |
+| `FileOperation` | File discovery operations | No |
+| `Discovery` | Discovery features | No |
+
+### Operation Log Structure
+
+Each operation is logged with the following information:
+
+```rust
+{
+    "operation_id": "uuid-v4",           // Unique operation identifier
+    "tenant_id": "user_123",             // Tenant/user ID
+    "operation": "search",               // Tool/operation name
+    "operation_type": "search",          // Categorized operation type
+    "collection": "documents",           // Collection name (if applicable)
+    "timestamp": 1234567890,             // Unix timestamp (milliseconds)
+    "duration_ms": 50,                   // Operation duration
+    "success": true,                     // Whether operation succeeded
+    "error": null,                       // Error message (if failed)
+    "metadata": {                        // Additional operation metadata
+        "query": "search term",
+        "limit": 10
+    }
+}
+```
+
+### Automatic Log Flushing
+
+Operation logs are buffered in memory and automatically flushed to HiveHub Cloud when:
+
+- Buffer reaches 1,000 entries (default)
+- Periodic flush interval triggers (every 5 minutes by default)
+- Server gracefully shuts down
+
+```rust
+// Manual flush (if needed)
+mcp_gateway.flush_logs().await?;
+```
+
+### Cloud Logging Endpoint
+
+Logs are sent to the HiveHub Cloud logging endpoint:
+
+```
+POST https://api.hivehub.cloud/api/v1/vectorizer/logs
+```
+
+Request format:
+```json
+{
+    "service_id": "vec-abc123",
+    "logs": [
+        {
+            "operation_id": "uuid",
+            "tenant_id": "user_123",
+            "operation": "search",
+            "operation_type": "search",
+            "collection": "docs",
+            "timestamp": 1234567890,
+            "duration_ms": 50,
+            "success": true,
+            "error": null,
+            "metadata": {}
+        }
+    ]
+}
+```
+
+Response format:
+```json
+{
+    "accepted": true,
+    "processed": 10,
+    "error": null
+}
+```
+
+### Usage Metrics Tracking
+
+In addition to operation logs, the system tracks aggregate usage metrics per tenant:
+
+```rust
+UsageMetrics {
+    vectors_inserted: 1000,      // Total vectors inserted
+    vectors_deleted: 50,         // Total vectors deleted
+    search_count: 500,           // Number of search operations
+    storage_added: 1048576,      // Bytes added
+    storage_freed: 102400,       // Bytes freed
+    collections_created: 5,      // Collections created
+    collections_deleted: 1,      // Collections deleted
+    api_requests: 5000,          // Total API requests
+}
+```
+
+These metrics are periodically synced to HiveHub Cloud for billing and quota management.
+
+### Authorization and Quota Checks
+
+Before executing operations, the MCP Gateway performs authorization and quota checks:
+
+```rust
+// Check if tenant can perform operation
+mcp_gateway.authorize_operation(
+    &tenant,
+    McpOperationType::CreateCollection,
+    Some("new_collection")
+).await?;
+
+// Check quota for resource-intensive operations
+hub_manager.check_quota(
+    tenant_id,
+    QuotaType::VectorCount,
+    vector_count
+).await?;
+```
+
+### Log Buffer Configuration
+
+Configure the log buffer size via code (default: 1,000 entries):
+
+```rust
+let mcp_gateway = McpHubGateway::with_buffer_size(
+    hub_manager,
+    5000  // Custom buffer size
+);
+```
+
+### Error Handling
+
+Operation logging is designed to be non-blocking:
+
+- If cloud logging fails, operations continue normally
+- Failed log transmissions are logged but don't impact user operations
+- Logs are cleared after flush attempts to prevent unbounded memory growth
+
+### Monitoring and Analytics
+
+Operation logs enable:
+
+- **Usage Analytics**: Track which operations are most common
+- **Performance Monitoring**: Identify slow operations via `duration_ms`
+- **Error Tracking**: Monitor operation failures and error patterns
+- **Tenant Activity**: See per-tenant operation patterns
+- **Audit Trail**: Complete audit log of all operations
+
+### Example: Querying Operation Logs
+
+While logs are sent to HiveHub Cloud, you can query them via the HiveHub dashboard or API:
+
+```bash
+# Get operation logs for a tenant
+curl https://api.hivehub.cloud/api/v1/tenants/user_123/logs \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "start_time": "2024-01-01T00:00:00Z",
+    "end_time": "2024-01-02T00:00:00Z",
+    "operation_type": "search"
+  }'
+```
+
 ## User-Scoped Backup System
 
 HiveHub cluster mode includes a user-scoped backup system that allows creating, downloading, and restoring backups isolated per user.

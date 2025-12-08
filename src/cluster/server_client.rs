@@ -285,6 +285,8 @@ impl ClusterClient {
                                 crate::models::SearchResult {
                                     id: r.id,
                                     score: r.score,
+                                    dense_score: None,
+                                    sparse_score: None,
                                     vector: Some(r.vector),
                                     payload,
                                 }

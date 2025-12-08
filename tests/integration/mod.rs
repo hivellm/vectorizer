@@ -7,6 +7,7 @@
 //! - Query caching
 //! - Binary quantization
 //! - New implementations (batch insert, hybrid search, rate limiting, etc.)
+//! - TLS/SSL security
 
 pub mod binary_quantization;
 pub mod cluster;
@@ -20,6 +21,7 @@ pub mod cluster_scale;
 pub mod distributed_search;
 pub mod distributed_sharding;
 pub mod graph;
+pub mod hub_logging;
 pub mod hybrid_search;
 pub mod multi_tenancy;
 pub mod multi_tenancy_comprehensive;
@@ -33,3 +35,4 @@ pub mod sharding;
 pub mod sharding_comprehensive;
 pub mod sharding_validation;
 pub mod sparse_vector;
+pub mod tls_security;

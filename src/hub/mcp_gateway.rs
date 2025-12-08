@@ -344,17 +344,68 @@ impl McpHubGateway {
         self.operation_logs.read().len()
     }
 
-    /// Flush operation logs
+    /// Flush operation logs to HiveHub Cloud
     ///
-    /// In production, this would send logs to HiveHub Cloud.
+    /// Sends buffered operation logs to the HiveHub Cloud logging endpoint.
+    /// Logs are cleared after successful or failed transmission to avoid
+    /// unbounded memory growth.
     pub async fn flush_logs(&self) -> Result<usize> {
-        let mut logs = self.operation_logs.write();
-        let count = logs.len();
+        let logs_to_send: Vec<McpOperationLog> = {
+            let mut logs = self.operation_logs.write();
+            if logs.is_empty() {
+                return Ok(0);
+            }
+            std::mem::take(&mut *logs)
+        };
 
-        if count > 0 {
-            debug!("Flushing {} MCP operation logs", count);
-            // TODO: Send to HiveHub Cloud logging endpoint
-            logs.clear();
+        let count = logs_to_send.len();
+        debug!("Flushing {} MCP operation logs to HiveHub Cloud", count);
+
+        // Convert to cloud log format
+        let log_entries: Vec<super::OperationLogEntry> = logs_to_send
+            .into_iter()
+            .map(|log| super::OperationLogEntry {
+                operation_id: log.operation_id,
+                tenant_id: log.tenant_id,
+                operation: log.tool_name,
+                operation_type: format!("{:?}", log.operation_type).to_lowercase(),
+                collection: log.collection,
+                timestamp: log.timestamp,
+                duration_ms: log.duration_ms,
+                success: log.success,
+                error: log.error,
+                metadata: if log.metadata.is_null() {
+                    None
+                } else {
+                    Some(log.metadata)
+                },
+            })
+            .collect();
+
+        // Send to HiveHub Cloud
+        let request = super::OperationLogsRequest {
+            service_id: self.hub_manager.client().service_id(),
+            logs: log_entries,
+        };
+
+        match self.hub_manager.client().send_operation_logs(request).await {
+            Ok(response) => {
+                if response.accepted {
+                    info!(
+                        "Successfully sent {} operation logs to HiveHub Cloud",
+                        response.processed
+                    );
+                } else {
+                    warn!(
+                        "HiveHub Cloud rejected logs: {}",
+                        response.error.unwrap_or_default()
+                    );
+                }
+            }
+            Err(e) => {
+                // Log error but don't fail - cloud logging should not block operations
+                error!("Failed to send operation logs to HiveHub Cloud: {}", e);
+            }
         }
 
         Ok(count)
