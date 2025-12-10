@@ -39,6 +39,7 @@ async fn test_vector_store_wal_integration() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     assert!(store.create_collection("test_collection", config).is_ok());
@@ -121,6 +122,7 @@ async fn test_wal_recover_all_collections_with_data() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     // Create multiple collections

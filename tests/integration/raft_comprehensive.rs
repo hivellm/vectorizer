@@ -27,6 +27,7 @@ fn create_test_config() -> CollectionConfig {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     }
 }
 

@@ -280,6 +280,7 @@ async fn handle_create_collection(
         storage_type: Some(crate::models::StorageType::Memory),
         graph: graph_config,
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection(name, config).map_err(|e| {

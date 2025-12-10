@@ -94,6 +94,7 @@ mod integration_tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             graph: None,
+            encryption: None,
         };
 
         store.create_collection("concurrent", config).unwrap();
@@ -199,6 +200,7 @@ mod integration_tests {
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
                     graph: None,
+                    encryption: None,
                 },
             ),
             (
@@ -222,6 +224,7 @@ mod integration_tests {
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
                     graph: None,
+                    encryption: None,
                 },
             ),
         ];

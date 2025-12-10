@@ -3517,6 +3517,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             graph: None,
+            encryption: None,
         };
 
         // Get initial collection count
@@ -3555,6 +3556,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             graph: None,
+            encryption: None,
         };
 
         // Create collection
@@ -3582,6 +3584,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             graph: None,
+            encryption: None,
         };
 
         // Get initial collection count
@@ -3620,6 +3623,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             graph: None,
+            encryption: None,
         };
 
         // Get initial stats
@@ -3664,6 +3668,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             graph: None,
+            encryption: None,
         };
 
         // Create collection from main thread
@@ -3718,6 +3723,7 @@ mod tests {
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             graph: None,
+            encryption: None,
         };
 
         store

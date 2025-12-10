@@ -748,6 +748,7 @@ pub async fn create_collection(
         storage_type: Some(crate::models::StorageType::Memory),
         sharding: None,
         graph: graph_config,
+        encryption: None,
     };
 
     // Actually create the collection in the store
@@ -3202,6 +3203,7 @@ pub async fn restore_backup(
                 storage_type: Some(crate::models::StorageType::Memory),
                 sharding: None,
                 graph: None,
+                encryption: None,
             };
 
             state

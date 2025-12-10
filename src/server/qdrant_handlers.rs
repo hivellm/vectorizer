@@ -569,5 +569,6 @@ fn convert_from_qdrant_config(
         storage_type: Some(crate::models::StorageType::Memory),
         sharding: None,
         graph: None,
+        encryption: None,
     })
 }

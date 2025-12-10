@@ -47,6 +47,7 @@ mod hive_gpu_integration_tests {
                 quantization: vectorizer::models::QuantizationConfig::default(),
                 compression: vectorizer::models::CompressionConfig::default(),
                 normalization: None,
+                encryption: None,
             };
 
             store
@@ -95,6 +96,7 @@ mod hive_gpu_integration_tests {
             quantization: vectorizer::models::QuantizationConfig::default(),
             compression: vectorizer::models::CompressionConfig::default(),
             normalization: None,
+            encryption: None,
         };
 
         store
@@ -146,6 +148,7 @@ mod no_hive_gpu_tests {
             quantization: vectorizer::models::QuantizationConfig::default(),
             compression: vectorizer::models::CompressionConfig::default(),
             normalization: None,
+            encryption: None,
         };
 
         store

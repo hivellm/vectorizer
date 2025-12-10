@@ -490,6 +490,7 @@ mod tests {
             quantization: QuantizationConfig::None,
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
+            encryption: None,
             storage_type: None,
             sharding: Some(crate::models::ShardingConfig {
                 shard_count: 4,

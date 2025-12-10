@@ -21,6 +21,7 @@ async fn test_mmap_collection_creation() {
         normalization: None,
         storage_type: Some(StorageType::Mmap),
         sharding: None,
+        encryption: None,
     };
 
     // Create collection with MMAP storage
@@ -48,6 +49,7 @@ async fn test_mmap_insert_and_retrieve() {
         normalization: None,
         storage_type: Some(StorageType::Mmap),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("mmap_collection", config).unwrap();
@@ -111,6 +113,7 @@ async fn test_mmap_large_dataset() {
         normalization: None,
         storage_type: Some(StorageType::Mmap),
         sharding: None,
+        encryption: None,
     };
 
     store
@@ -162,6 +165,7 @@ async fn test_mmap_update_and_delete() {
         normalization: None,
         storage_type: Some(StorageType::Mmap),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("mmap_collection", config).unwrap();
@@ -228,6 +232,7 @@ async fn test_mmap_search() {
         normalization: None,
         storage_type: Some(StorageType::Mmap),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("mmap_collection", config).unwrap();

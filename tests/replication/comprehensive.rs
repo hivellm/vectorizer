@@ -200,6 +200,7 @@ async fn test_basic_master_replica_sync() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -246,6 +247,7 @@ async fn test_incremental_replication() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -287,6 +289,7 @@ async fn test_multiple_replicas() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -342,6 +345,7 @@ async fn test_stress_high_volume_replication() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     };
     master_store
         .create_collection("stress_test", config)
@@ -410,6 +414,7 @@ async fn test_snapshot_with_large_vectors() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     };
     store1.create_collection("large_dims", config).unwrap();
 

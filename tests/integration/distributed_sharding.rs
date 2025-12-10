@@ -42,6 +42,7 @@ fn create_test_collection_config() -> CollectionConfig {
             virtual_nodes_per_shard: 100,
             rebalance_threshold: 0.2,
         }),
+        encryption: None,
     }
 }
 

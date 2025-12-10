@@ -66,6 +66,14 @@ pub enum VectorizerError {
     #[error("Authorization error: {0}")]
     AuthorizationError(String),
 
+    /// Encryption required error
+    #[error("Encryption required: {0}")]
+    EncryptionRequired(String),
+
+    /// Encryption error
+    #[error("Encryption error: {0}")]
+    EncryptionError(String),
+
     /// Rate limit exceeded
     #[error("Rate limit exceeded: {limit_type} limit of {limit}")]
     RateLimitExceeded { limit_type: String, limit: u32 },

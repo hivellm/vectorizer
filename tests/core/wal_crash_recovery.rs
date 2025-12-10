@@ -37,6 +37,7 @@ async fn test_wal_crash_recovery_insert() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     store
         .create_collection("test_collection", config.clone())
@@ -130,6 +131,7 @@ async fn test_wal_crash_recovery_update() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     store
         .create_collection("test_collection", config.clone())
@@ -224,6 +226,7 @@ async fn test_wal_crash_recovery_delete() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     store
         .create_collection("test_collection", config.clone())
@@ -298,6 +301,7 @@ async fn test_wal_recover_all_collections() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     // Create multiple collections

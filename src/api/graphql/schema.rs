@@ -1400,6 +1400,7 @@ impl MutationRoot {
                 storage_type: Some(crate::models::StorageType::Memory),
                 sharding: None,
                 graph: None,
+                encryption: None,
             };
 
             if let Err(e) = gql_ctx

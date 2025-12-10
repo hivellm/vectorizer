@@ -61,6 +61,7 @@ impl TryFrom<&vectorizer::CollectionConfig> for crate::models::CollectionConfig 
                     .unwrap_or(vectorizer::StorageType::Memory);
                 Some(StorageType::from(storage_enum))
             },
+            encryption: None,
         })
     }
 }

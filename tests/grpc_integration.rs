@@ -39,6 +39,7 @@ fn create_test_config() -> CollectionConfig {
         storage_type: None,
         sharding: None,
         graph: None, // Graph disabled for tests
+        encryption: None,
     }
 }
 

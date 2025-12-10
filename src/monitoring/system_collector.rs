@@ -144,6 +144,7 @@ mod tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
         let _ = store.create_collection("test_metrics", config);
 

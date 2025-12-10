@@ -37,6 +37,7 @@ fn create_sharded_config(
             virtual_nodes_per_shard: virtual_nodes,
             rebalance_threshold,
         }),
+        encryption: None,
     }
 }
 
@@ -247,6 +248,7 @@ fn test_sharded_collection_creation_no_sharding() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     };
 
     let result = ShardedCollection::new("test".to_string(), config);

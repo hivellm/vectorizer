@@ -21,6 +21,7 @@ fn test_collection_config_creation() {
         sharding: None,
         normalization: None,
         storage_type: None,
+        encryption: None,
     };
 
     assert_eq!(config.dimension, 384);

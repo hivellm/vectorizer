@@ -750,6 +750,7 @@ mod tests {
             quantization: QuantizationConfig::default(),
             compression: CompressionConfig::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 

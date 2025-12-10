@@ -16,6 +16,7 @@ fn test_binary_quantization_collection_creation() {
     let config = CollectionConfig {
         dimension: 128,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 
@@ -37,6 +38,7 @@ fn test_binary_quantization_vector_insertion() {
     let config = CollectionConfig {
         dimension: 128,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 
@@ -58,6 +60,7 @@ fn test_binary_quantization_vector_retrieval() {
     let config = CollectionConfig {
         dimension: 128,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 
@@ -91,6 +94,7 @@ fn test_binary_quantization_search() {
         dimension: 128,
         quantization: QuantizationConfig::Binary,
         metric: DistanceMetric::Cosine,
+        encryption: None,
         ..Default::default()
     };
 
@@ -121,6 +125,7 @@ fn test_binary_quantization_memory_efficiency() {
     let config_binary = CollectionConfig {
         dimension: 512,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
     store
@@ -131,6 +136,7 @@ fn test_binary_quantization_memory_efficiency() {
     let config_none = CollectionConfig {
         dimension: 512,
         quantization: QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
     store
@@ -166,6 +172,7 @@ fn test_binary_quantization_with_payloads() {
     let config = CollectionConfig {
         dimension: 128,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 
@@ -208,6 +215,7 @@ fn test_binary_quantization_vector_update() {
     let config = CollectionConfig {
         dimension: 128,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 
@@ -238,6 +246,7 @@ fn test_binary_quantization_vector_deletion() {
     let config = CollectionConfig {
         dimension: 128,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 
@@ -270,6 +279,7 @@ fn test_binary_quantization_batch_operations() {
     let config = CollectionConfig {
         dimension: 256,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 
@@ -299,6 +309,7 @@ fn test_binary_quantization_compression_ratio() {
     let config = CollectionConfig {
         dimension: 512,
         quantization: QuantizationConfig::Binary,
+        encryption: None,
         ..Default::default()
     };
 

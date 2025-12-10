@@ -17,6 +17,7 @@ async fn test_scalar_quantization_8bit() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("sq8_collection", config).unwrap();
@@ -64,6 +65,7 @@ async fn test_product_quantization() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("pq_collection", config).unwrap();
@@ -104,6 +106,7 @@ async fn test_binary_quantization() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store
@@ -148,6 +151,7 @@ async fn test_quantization_search_quality() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("quantized_search", config).unwrap();
@@ -187,6 +191,7 @@ async fn test_quantization_memory_efficiency() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store
@@ -204,6 +209,7 @@ async fn test_quantization_memory_efficiency() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("sq8", config_sq8).unwrap();

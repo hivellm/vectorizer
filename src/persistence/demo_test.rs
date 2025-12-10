@@ -31,6 +31,7 @@ async fn test_persistence_demo() {
         compression: CompressionConfig::default(),
         normalization: None,
         storage_type: Some(crate::models::StorageType::Memory),
+        encryption: None,
     };
 
     info!(

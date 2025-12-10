@@ -716,6 +716,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         let metadata = persistence
@@ -747,6 +748,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         // Collection doesn't exist yet
@@ -776,6 +778,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         // Initially empty
@@ -811,6 +814,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         let metadata = persistence
@@ -853,6 +857,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         // Create collection
@@ -888,6 +893,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         // Create some collections

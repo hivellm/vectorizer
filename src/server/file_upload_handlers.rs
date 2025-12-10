@@ -215,6 +215,7 @@ pub async fn upload_file(
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
             graph: None,
+            encryption: None,
         };
 
         state

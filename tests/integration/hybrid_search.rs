@@ -15,6 +15,7 @@ async fn test_hybrid_search_basic() {
         dimension: 128,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -73,6 +74,7 @@ async fn test_hybrid_search_weighted_combination() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -125,6 +127,7 @@ async fn test_hybrid_search_alpha_blending() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -171,6 +174,7 @@ async fn test_hybrid_search_pure_dense() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -232,6 +236,7 @@ async fn test_hybrid_search_pure_sparse() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -283,6 +288,7 @@ async fn test_hybrid_search_with_payloads() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -331,6 +337,7 @@ async fn test_hybrid_search_empty_results() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -360,6 +367,7 @@ async fn test_hybrid_search_different_alphas() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -409,6 +417,7 @@ async fn test_hybrid_search_large_collection() {
         dimension: 128,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 
@@ -464,6 +473,7 @@ async fn test_hybrid_search_scoring_algorithms() {
         dimension: 64,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 

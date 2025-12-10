@@ -39,6 +39,7 @@ fn create_test_collection(
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     store.create_collection(name, config)?;
     Ok(())

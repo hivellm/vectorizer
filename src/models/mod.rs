@@ -202,10 +202,44 @@ pub struct Payload {
 }
 
 impl Payload {
+    /// Check if this payload is encrypted
+    /// A payload is considered encrypted if it has the encrypted payload structure
+    pub fn is_encrypted(&self) -> bool {
+        if let serde_json::Value::Object(map) = &self.data {
+            map.contains_key("version")
+                && map.contains_key("nonce")
+                && map.contains_key("tag")
+                && map.contains_key("encrypted_data")
+                && map.contains_key("ephemeral_public_key")
+                && map.contains_key("algorithm")
+        } else {
+            false
+        }
+    }
+
+    /// Create a Payload from an EncryptedPayload
+    pub fn from_encrypted(encrypted: crate::security::EncryptedPayload) -> Self {
+        Self {
+            data: serde_json::to_value(encrypted).unwrap_or_default(),
+        }
+    }
+
+    /// Try to parse this payload as an EncryptedPayload
+    pub fn as_encrypted(&self) -> Option<crate::security::EncryptedPayload> {
+        if self.is_encrypted() {
+            serde_json::from_value(self.data.clone()).ok()
+        } else {
+            None
+        }
+    }
+
     /// Normalize text content in payload using proper normalization pipeline
     /// This applies conservative normalization (CRLF->LF) to preserve structure
+    /// Note: This only works for unencrypted payloads
     pub fn normalize(&mut self) {
-        Self::normalize_value(&mut self.data);
+        if !self.is_encrypted() {
+            Self::normalize_value(&mut self.data);
+        }
     }
 
     /// Recursively normalize text values in JSON
@@ -281,6 +315,37 @@ pub struct CollectionConfig {
     /// If set, the collection will maintain a graph of relationships between documents
     #[serde(default)]
     pub graph: Option<GraphConfig>,
+    /// Encryption configuration (optional, disabled by default)
+    /// If set, payload encryption will be enforced for this collection
+    #[serde(default)]
+    pub encryption: Option<EncryptionConfig>,
+}
+
+/// Encryption configuration for a collection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EncryptionConfig {
+    /// Whether to require encryption for all payloads in this collection
+    /// If true, all vector insertions must include a public key
+    #[serde(default)]
+    pub required: bool,
+
+    /// Whether to allow mixed encrypted and unencrypted payloads
+    /// Only used if `required` is false
+    #[serde(default = "default_allow_mixed")]
+    pub allow_mixed: bool,
+}
+
+fn default_allow_mixed() -> bool {
+    true
+}
+
+impl Default for EncryptionConfig {
+    fn default() -> Self {
+        Self {
+            required: false,
+            allow_mixed: true,
+        }
+    }
 }
 
 /// Storage backend type
@@ -359,8 +424,9 @@ impl Default for CollectionConfig {
             compression: CompressionConfig::default(),
             normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
             storage_type: Some(StorageType::Memory),
-            sharding: None, // Sharding disabled by default
-            graph: None,    // Graph disabled by default
+            sharding: None,   // Sharding disabled by default
+            graph: None,      // Graph disabled by default
+            encryption: None, // Encryption disabled by default
         }
     }
 }

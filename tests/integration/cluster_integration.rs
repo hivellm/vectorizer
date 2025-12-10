@@ -57,6 +57,7 @@ async fn test_distributed_sharding_with_quantization() {
             virtual_nodes_per_shard: 100,
             rebalance_threshold: 0.2,
         }),
+        encryption: None,
     };
 
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
@@ -120,6 +121,7 @@ async fn test_distributed_sharding_with_compression() {
             virtual_nodes_per_shard: 100,
             rebalance_threshold: 0.2,
         }),
+        encryption: None,
     };
 
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
@@ -183,6 +185,7 @@ async fn test_distributed_sharding_with_payload() {
             virtual_nodes_per_shard: 100,
             rebalance_threshold: 0.2,
         }),
+        encryption: None,
     };
 
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
@@ -257,6 +260,7 @@ async fn test_distributed_sharding_with_sparse() {
             virtual_nodes_per_shard: 100,
             rebalance_threshold: 0.2,
         }),
+        encryption: None,
     };
 
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(

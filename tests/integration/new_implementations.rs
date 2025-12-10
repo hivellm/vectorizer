@@ -38,6 +38,7 @@ mod document_count_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -62,6 +63,7 @@ mod document_count_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(4)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -116,6 +118,7 @@ mod sharded_hybrid_search_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -150,6 +153,7 @@ mod sharded_hybrid_search_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -169,6 +173,7 @@ mod sharded_hybrid_search_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(4)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -422,6 +427,7 @@ mod batch_insert_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(4)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -450,6 +456,7 @@ mod batch_insert_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(4)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -487,6 +494,7 @@ mod batch_insert_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -503,6 +511,7 @@ mod batch_insert_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -520,6 +529,7 @@ mod batch_insert_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(8)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -568,6 +578,7 @@ mod collection_metadata_tests {
         let config = CollectionConfig {
             dimension: 8,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -587,6 +598,7 @@ mod collection_metadata_tests {
                 virtual_nodes_per_shard: 150,
                 rebalance_threshold: 0.3,
             }),
+            encryption: None,
             ..Default::default()
         };
 
@@ -603,6 +615,7 @@ mod collection_metadata_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -651,6 +664,7 @@ mod search_result_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(4)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -686,6 +700,7 @@ mod search_result_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -714,6 +729,7 @@ mod search_result_tests {
         let config = CollectionConfig {
             dimension: 4,
             sharding: Some(create_sharding_config(2)),
+            encryption: None,
             ..Default::default()
         };
 
@@ -751,6 +767,7 @@ mod rebalancing_tests {
                 virtual_nodes_per_shard: 100,
                 rebalance_threshold: 0.2,
             }),
+            encryption: None,
             ..Default::default()
         };
 
@@ -769,6 +786,7 @@ mod rebalancing_tests {
                 virtual_nodes_per_shard: 100,
                 rebalance_threshold: 0.2,
             }),
+            encryption: None,
             ..Default::default()
         };
 
