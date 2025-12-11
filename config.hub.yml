@@ -1,0 +1,273 @@
+# Vectorizer Configuration for HiveHub Integration
+# Multi-tenant mode with HiveHub.Cloud
+
+# =============================================================================
+# SERVER CONFIGURATION
+# =============================================================================
+server:
+  host: "0.0.0.0"
+  port: 15002
+  mcp_port: 15002
+
+# =============================================================================
+# LOGGING CONFIGURATION
+# =============================================================================
+logging:
+  level: "info"
+  format: "json"
+  log_requests: true
+  log_responses: false
+  log_errors: true
+  correlation_id_enabled: true
+
+# =============================================================================
+# MONITORING & TELEMETRY
+# =============================================================================
+monitoring:
+  prometheus:
+    enabled: true
+    endpoint: "/prometheus/metrics"
+
+  system_metrics:
+    enabled: true
+    interval_secs: 15
+
+  metrics:
+    search_enabled: true
+    indexing_enabled: true
+    system_enabled: true
+
+# =============================================================================
+# API CONFIGURATION
+# =============================================================================
+api:
+  rest:
+    enabled: true
+    cors_enabled: true
+    max_request_size_mb: 10
+    timeout_seconds: 30
+
+  mcp:
+    enabled: true
+    port: 15002
+    max_connections: 100
+
+  grpc:
+    enabled: true
+    port: 15003
+    max_concurrent_streams: 100
+    max_message_size_mb: 10
+
+# =============================================================================
+# AUTHENTICATION - ENABLED (Local auth with root user)
+# =============================================================================
+auth:
+  enabled: true  # Enable local authentication with admin/admin
+
+# =============================================================================
+# HIVEHUB CLOUD INTEGRATION
+# =============================================================================
+hub:
+  # Enable HiveHub integration
+  enabled: true
+
+  # HiveHub API URL (production)
+  api_url: "https://api.hivehub.cloud"
+
+  # Service API key (set via environment variable HIVEHUB_SERVICE_API_KEY)
+  # This authenticates the Vectorizer server with HiveHub
+
+  # Request timeout
+  timeout_seconds: 30
+
+  # Retries for failed requests
+  retries: 3
+
+  # Usage reporting interval (5 minutes)
+  usage_report_interval: 300
+
+  # Tenant isolation mode
+  # "collection" = Collection-level isolation with user_ prefix
+  # "storage" = Full storage-level isolation with separate paths
+  tenant_isolation: "collection"
+
+  # Cache configuration
+  cache:
+    enabled: true
+    api_key_ttl_seconds: 300   # 5 minutes
+    quota_ttl_seconds: 60       # 1 minute
+    max_entries: 10000
+
+  # Connection pool
+  connection_pool:
+    max_idle_per_host: 10
+    pool_timeout_seconds: 30
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATION
+# =============================================================================
+performance:
+  cpu:
+    max_threads: 8
+    enable_simd: true
+    memory_pool_size_mb: 1024
+
+  simd:
+    enabled: true
+
+  batch:
+    default_size: 100
+    max_size: 1000
+    parallel_processing: true
+
+  query_cache:
+    enabled: true
+    max_size: 1000
+    ttl_seconds: 300
+    warmup_enabled: false
+
+# =============================================================================
+# STORAGE CONFIGURATION
+# =============================================================================
+storage:
+  mmap:
+    enabled: true
+    default_for_new_collections: true
+
+  wal:
+    enabled: true
+    checkpoint_interval: 1000
+    checkpoint_interval_secs: 300
+    max_wal_size_mb: 100
+    wal_dir: "./data/wal"
+
+  quantization:
+    pq:
+      enabled: false
+      default_subquantizers: 8
+      default_centroids: 256
+
+  sharding:
+    enabled: false
+    default_shard_count: 4
+    default_virtual_nodes: 100
+    default_rebalance_threshold: 0.2
+
+# =============================================================================
+# SECURITY CONFIGURATION
+# =============================================================================
+security:
+  rate_limiting:
+    enabled: true
+    requests_per_second: 100
+    burst_size: 200
+
+  tls:
+    enabled: false
+
+  audit:
+    enabled: true
+    max_entries: 10000
+    log_auth_attempts: true
+    log_failed_requests: true
+    log_admin_actions: true
+
+  rbac:
+    enabled: false
+    default_role: "Viewer"
+
+# =============================================================================
+# DEFAULT COLLECTION CONFIGURATION
+# =============================================================================
+collections:
+  defaults:
+    dimension: 512
+    metric: "cosine"
+
+    quantization:
+      type: "sq"
+      sq:
+        bits: 8
+
+    embedding:
+      model: "bm25"
+      bm25:
+        k1: 1.5
+        b: 0.75
+
+    index:
+      type: "hnsw"
+      hnsw:
+        m: 16
+        ef_construction: 200
+        ef_search: 64
+
+# =============================================================================
+# FILE WATCHER - DISABLED for multi-tenant
+# =============================================================================
+file_watcher:
+  enabled: false
+
+# =============================================================================
+# WORKSPACE - DISABLED for multi-tenant
+# =============================================================================
+workspace:
+  enabled: false
+
+# =============================================================================
+# TRANSMUTATION
+# =============================================================================
+transmutation:
+  enabled: true
+  max_file_size_mb: 50
+  conversion_timeout_secs: 300
+  preserve_images: false
+
+# =============================================================================
+# TEXT NORMALIZATION
+# =============================================================================
+normalization:
+  enabled: true
+  level: "conservative"
+
+  line_endings:
+    normalize_crlf: true
+    normalize_cr: true
+    collapse_multiple_newlines: true
+    trim_trailing_whitespace: true
+
+  content_detection:
+    enabled: true
+    preserve_code_structure: true
+    preserve_markdown_format: true
+
+  cache:
+    enabled: true
+    max_entries: 10000
+    ttl_seconds: 3600
+
+  stages:
+    on_file_read: true
+    on_chunk_creation: true
+    on_payload_return: true
+    on_cache_load: true
+
+# =============================================================================
+# GPU CONFIGURATION (disabled in cloud)
+# =============================================================================
+gpu:
+  enabled: false
+  fallback_to_cpu: true
+
+# =============================================================================
+# CLUSTER MODE - DISABLED (single instance with HiveHub)
+# =============================================================================
+cluster:
+  enabled: false
+
+# =============================================================================
+# REPLICATION - DISABLED (HiveHub handles HA)
+# =============================================================================
+replication:
+  enabled: false
+  role: "standalone"

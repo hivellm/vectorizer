@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  vectorizer:
+    image: hivehub/vectorizer:latest
+    container_name: vectorizer-hub
+    ports:
+      - "15002:15002" # REST API + MCP
+      - "15003:15003" # gRPC
+
+    volumes:
+      # Persistent data
+      - ./data:/vectorizer/data
+
+      # Custom config for HiveHub
+      - ./config.hub.yml:/vectorizer/config.yml:ro
+
+    environment:
+      - VECTORIZER_HOST=0.0.0.0
+      - VECTORIZER_PORT=15002
+      - TZ=America/Sao_Paulo
+      - RUN_MODE=production
+
+      # HiveHub Integration
+      - HIVEHUB_SERVICE_API_KEY=${HIVEHUB_SERVICE_API_KEY:-your-service-api-key-here}
+
+      # Authentication enabled - creates root user (admin/admin)
+      # HiveHub middleware allows public dashboard access
+
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:15002/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          cpus: "2.0"
+          memory: 2G
+
+networks:
+  default:
+    name: vectorizer-network

@@ -138,6 +138,20 @@ pub async fn hub_auth_middleware(
         return next.run(req).await;
     }
 
+    // Skip authentication for public routes (local dev)
+    let path = req.uri().path();
+    if path.starts_with("/dashboard")
+        || path.starts_with("/health")
+        || path.starts_with("/auth")
+        || path.starts_with("/collections")
+        || path.starts_with("/vectors")
+        || path.starts_with("/search")
+        || path == "/"
+    {
+        trace!("Public route - skipping HiveHub authentication: {}", path);
+        return next.run(req).await;
+    }
+
     // Skip authentication for internal HiveHub service requests
     // but extract user_id if provided
     if HubAuthMiddleware::is_internal_request(&req) {
