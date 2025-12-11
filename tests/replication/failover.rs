@@ -94,6 +94,7 @@ async fn test_replica_reconnect_after_disconnect() {
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -155,6 +156,7 @@ async fn test_partial_sync_after_brief_disconnect() {
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -239,6 +241,7 @@ async fn test_full_sync_when_offset_too_old() {
         normalization: None,
         storage_type: None,
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", col_config).unwrap();
 
@@ -301,6 +304,7 @@ async fn test_multiple_replicas_recovery() {
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", config).unwrap();
 
@@ -393,6 +397,7 @@ async fn test_data_consistency_after_multiple_disconnects() {
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
     master_store.create_collection("test", config).unwrap();
 

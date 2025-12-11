@@ -37,6 +37,7 @@
  * @property {number} [chunkSize] - Chunk size in characters
  * @property {number} [chunkOverlap] - Chunk overlap in characters
  * @property {Object} [metadata] - Additional metadata to attach to all chunks
+ * @property {string} [publicKey] - Optional ECC public key for payload encryption (PEM/hex/base64 format)
  */
 
 /**

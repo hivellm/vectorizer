@@ -25,6 +25,7 @@ fn test_vector_creation() {
         id: "test_vector_1".to_string(),
         data: data.clone(),
         metadata: metadata.clone(),
+        public_key: None,
     };
 
     assert_eq!(vector.id, "test_vector_1");
@@ -40,6 +41,7 @@ fn test_vector_validation() {
         id: "valid_vector".to_string(),
         data: valid_data,
         metadata: None,
+        public_key: None,
     };
     assert_eq!(vector.data.len(), 5);
     assert!(vector.data.iter().all(|&x| x.is_finite()));
@@ -50,6 +52,7 @@ fn test_vector_validation() {
         id: "invalid_vector".to_string(),
         data: invalid_data,
         metadata: None,
+        public_key: None,
     };
     // Note: In Rust, we can't prevent NaN at compile time, but we can validate at runtime
     assert!(vector.data.iter().any(|&x| x.is_nan()));
@@ -60,6 +63,7 @@ fn test_vector_validation() {
         id: "infinity_vector".to_string(),
         data: infinity_data,
         metadata: None,
+        public_key: None,
     };
     assert!(vector.data.iter().any(|&x| x.is_infinite()));
 }
@@ -367,6 +371,7 @@ fn test_serialization_deserialization() {
         id: "test_serialization".to_string(),
         data: vec![0.1, 0.2, 0.3],
         metadata: None,
+        public_key: None,
     };
 
     let json = serde_json::to_string(&vector).unwrap();
@@ -447,6 +452,7 @@ fn test_model_validation_edge_cases() {
         id: "empty".to_string(),
         data: vec![],
         metadata: None,
+        public_key: None,
     };
     assert!(empty_vector.data.is_empty());
 
@@ -456,6 +462,7 @@ fn test_model_validation_edge_cases() {
         id: "large".to_string(),
         data: large_data.clone(),
         metadata: None,
+        public_key: None,
     };
     assert_eq!(large_vector.data.len(), 1000);
     assert_eq!(large_vector.data[0], 0.0);
@@ -466,6 +473,7 @@ fn test_model_validation_edge_cases() {
         id: "zero".to_string(),
         data: vec![0.0, 0.0, 0.0],
         metadata: None,
+        public_key: None,
     };
     assert!(zero_vector.data.iter().all(|&x| x == 0.0));
 }

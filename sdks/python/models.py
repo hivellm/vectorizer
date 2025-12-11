@@ -52,6 +52,8 @@ class Vector:
     id: str
     data: List[float]
     metadata: Optional[Dict[str, Any]] = None
+    public_key: Optional[str] = None
+    """Optional ECC public key for payload encryption (PEM, base64, or hex format)"""
 
     def __post_init__(self):
         """Validate vector data after initialization."""
@@ -1073,6 +1075,9 @@ class FileUploadRequest:
 
     metadata: Optional[Dict[str, Any]] = None
     """Additional metadata to attach to all chunks"""
+
+    public_key: Optional[str] = None
+    """Optional ECC public key for payload encryption (PEM, base64, or hex format)"""
 
     def __post_init__(self):
         """Validate file upload request data."""

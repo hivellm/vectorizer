@@ -68,6 +68,7 @@ async fn test_sparse_vector_insertion() {
         dimension: 128,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None, // Disable quantization for this test
+        encryption: None,
         ..Default::default()
     };
 
@@ -377,6 +378,7 @@ async fn test_sparse_vector_update() {
         dimension: 128,
         metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::None,
+        encryption: None,
         ..Default::default()
     };
 

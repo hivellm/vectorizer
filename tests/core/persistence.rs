@@ -55,6 +55,7 @@ async fn test_auto_save_manager_mark_changed() {
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("autosave_test", config).unwrap();

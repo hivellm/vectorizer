@@ -425,7 +425,7 @@ export class VectorizerClient {
    * Insert vectors into a collection.
    * (Write operation - always routed to master)
    */
-  public async insertVectors(collectionName: string, vectors: CreateVectorRequest[]): Promise<{ inserted: number }> {
+  public async insertVectors(collectionName: string, vectors: CreateVectorRequest[], publicKey?: string): Promise<{ inserted: number }> {
     try {
       vectors.forEach(validateCreateVectorRequest);
       const transport = this.getWriteTransport();
@@ -435,11 +435,17 @@ export class VectorizerClient {
         vector: v.data,
         payload: v.metadata ?? {}
       }));
+      const payload: any = { points };
+      // Use publicKey from parameter or from first vector that has it
+      const effectivePublicKey = publicKey || vectors.find(v => v.publicKey)?.publicKey;
+      if (effectivePublicKey) {
+        payload.public_key = effectivePublicKey;
+      }
       await transport.put<{ status?: string; result?: { operation_id?: number; status?: string } }>(
         `/qdrant/collections/${collectionName}/points`,
-        { points }
+        payload
       );
-      this.logger.info('Vectors inserted', { collectionName, count: vectors.length });
+      this.logger.info('Vectors inserted', { collectionName, count: vectors.length, encrypted: !!effectivePublicKey });
       return { inserted: vectors.length };
     } catch (error) {
       this.logger.error('Failed to insert vectors', { collectionName, count: vectors.length, error });
@@ -471,12 +477,17 @@ export class VectorizerClient {
   public async updateVector(collectionName: string, vectorId: string, request: UpdateVectorRequest): Promise<Vector> {
     try {
       const transport = this.getWriteTransport();
+      const payload: any = { ...request };
+      if (request.publicKey) {
+        payload.public_key = request.publicKey;
+        delete payload.publicKey;
+      }
       const response = await transport.put<Vector>(
         `/collections/${collectionName}/vectors/${vectorId}`,
-        request
+        payload
       );
       validateVector(response);
-      this.logger.info('Vector updated', { collectionName, vectorId });
+      this.logger.info('Vector updated', { collectionName, vectorId, encrypted: !!request.publicKey });
       return response;
     } catch (error) {
       this.logger.error('Failed to update vector', { collectionName, vectorId, request, error });
@@ -1800,6 +1811,10 @@ export class VectorizerClient {
 
     if (options.metadata !== undefined) {
       formData.append('metadata', JSON.stringify(options.metadata));
+    }
+
+    if (options.publicKey !== undefined) {
+      formData.append('public_key', options.publicKey);
     }
 
     const response = await this.transport.postFormData<FileUploadResponse>('/files/upload', formData);

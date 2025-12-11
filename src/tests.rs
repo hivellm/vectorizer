@@ -99,6 +99,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         assert_eq!(config.dimension, 128);

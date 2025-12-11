@@ -18,6 +18,9 @@ pub struct FileUploadRequest {
     /// Additional metadata to attach to all chunks
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, serde_json::Value>>,
+    /// Optional ECC public key for payload encryption (PEM, base64, or hex format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
 }
 
 /// Response from file upload operation
@@ -67,4 +70,6 @@ pub struct UploadFileOptions {
     pub chunk_overlap: Option<u32>,
     /// Additional metadata to attach to all chunks
     pub metadata: Option<HashMap<String, serde_json::Value>>,
+    /// Optional ECC public key for payload encryption (PEM, base64, or hex format)
+    pub public_key: Option<String>,
 }

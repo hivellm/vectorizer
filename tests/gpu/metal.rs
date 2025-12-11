@@ -125,6 +125,7 @@ mod metal_tests {
             storage_type: None,
             sharding: None,
             graph: None,
+            encryption: None,
         };
 
         let collection_name = "metal_test_collection";

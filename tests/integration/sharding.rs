@@ -22,6 +22,7 @@ fn create_sharded_config(shard_count: u32) -> CollectionConfig {
             virtual_nodes_per_shard: 10, // Lower for tests
             rebalance_threshold: 0.2,
         }),
+        encryption: None,
     }
 }
 

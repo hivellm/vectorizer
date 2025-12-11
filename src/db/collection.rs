@@ -551,6 +551,36 @@ impl Collection {
             }
         }
 
+        // Validate encryption requirements
+        if let Some(encryption_config) = &self.config.encryption {
+            if encryption_config.required {
+                // All payloads must be encrypted
+                for vector in &vectors {
+                    if let Some(payload) = &vector.payload {
+                        if !payload.is_encrypted() {
+                            return Err(VectorizerError::EncryptionRequired(
+                                "Collection requires encrypted payloads, but received unencrypted payload".to_string()
+                            ));
+                        }
+                    }
+                }
+            } else if !encryption_config.allow_mixed {
+                // Cannot mix encrypted and unencrypted
+                let has_encrypted = vectors
+                    .iter()
+                    .any(|v| v.payload.as_ref().map_or(false, |p| p.is_encrypted()));
+                let has_unencrypted = vectors
+                    .iter()
+                    .any(|v| v.payload.as_ref().map_or(true, |p| !p.is_encrypted()));
+                if has_encrypted && has_unencrypted {
+                    return Err(VectorizerError::EncryptionRequired(
+                        "Collection does not allow mixed encrypted and unencrypted payloads"
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+
         // Insert vectors and update index
         let vectors_len = vectors.len();
         let index = self.index.write();
@@ -1813,6 +1843,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
         Collection::new("test".to_string(), config)
@@ -1893,6 +1924,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::SQ { bits: 8 }, // QUANTIZED!
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
         let collection = Collection::new("quantized_test".to_string(), config);
@@ -1934,6 +1966,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
         let collection_quantized = Collection::new("quantized".to_string(), config_quantized);
@@ -1948,6 +1981,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
         let collection_normal = Collection::new("normal".to_string(), config_normal);
@@ -1993,6 +2027,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: None,
         };
 
@@ -2014,6 +2049,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2036,6 +2072,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2062,6 +2099,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2089,6 +2127,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2109,6 +2148,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2142,6 +2182,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2172,6 +2213,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2205,6 +2247,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2232,6 +2275,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: None,
         };
 
@@ -2255,6 +2299,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
         let coll_cosine = Collection::new("cosine".to_string(), config_cosine);
@@ -2270,6 +2315,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
         let coll_euclidean = Collection::new("euclidean".to_string(), config_euclidean);
@@ -2285,6 +2331,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
         let coll_dot = Collection::new("dot".to_string(), config_dot);
@@ -2302,6 +2349,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: None,
         };
 
@@ -2332,6 +2380,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2353,6 +2402,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2373,6 +2423,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2396,6 +2447,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2426,6 +2478,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: None,
         };
 
@@ -2446,6 +2499,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2472,6 +2526,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: None,
         };
 
@@ -2511,6 +2566,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2542,6 +2598,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 
@@ -2568,6 +2625,7 @@ mod tests {
             quantization: crate::models::QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),
         };
 

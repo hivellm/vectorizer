@@ -30,6 +30,7 @@ async fn test_wal_multiple_operations() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -83,6 +84,7 @@ async fn test_wal_with_payload() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -143,6 +145,7 @@ async fn test_wal_update_sequence() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -207,6 +210,7 @@ async fn test_wal_delete_sequence() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -270,6 +274,7 @@ async fn test_wal_multiple_collections() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     // Create multiple collections
@@ -337,6 +342,7 @@ async fn test_wal_checkpoint() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -384,6 +390,7 @@ async fn test_wal_error_handling() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("test_collection", config).unwrap();
@@ -413,6 +420,7 @@ async fn test_wal_without_enabling() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     store.create_collection("test_collection", config).unwrap();

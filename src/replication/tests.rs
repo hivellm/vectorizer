@@ -87,6 +87,7 @@ mod tests {
             compression: Default::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
         store1.create_collection("test", config).unwrap();
 

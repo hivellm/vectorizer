@@ -76,6 +76,7 @@ fn create_test_config() -> CollectionConfig {
         storage_type: None,
         sharding: None,
         graph: None,
+        encryption: None,
     }
 }
 

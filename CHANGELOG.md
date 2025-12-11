@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2024-12-10
+
+### Added
+- **ECC-AES Payload Encryption**: Optional end-to-end encryption for vector payloads
+  - ECC-P256 (NIST P-256) elliptic curve cryptography
+  - AES-256-GCM authenticated encryption
+  - ECDH key exchange for secure key derivation
+  - Zero-knowledge architecture - server never has decryption keys
+  - Support for multiple key formats (PEM, Base64, Hexadecimal)
+  - Optional `public_key` parameter on all insert/upsert endpoints:
+    - REST API: `/insert_text`, `/files/upload`
+    - Qdrant-compatible: `/collections/{name}/points`
+    - MCP tools: `insert_text`, `update_vector`
+    - GraphQL: `upsertVector`, `upsertVectors`, `updatePayload`, `uploadFile`
+  - Collection-level encryption policies (optional, required, mixed)
+  - Comprehensive test coverage (32 tests: 26 REST + 6 GraphQL)
+  - Full SDK support across all 6 official SDKs
+  - Complete documentation in `docs/features/encryption/`
+
 ## [2.0.3] - 2025-12-08
 
 ### Fixed

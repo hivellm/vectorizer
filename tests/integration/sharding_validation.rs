@@ -37,6 +37,7 @@ fn create_sharded_config(shard_count: u32) -> CollectionConfig {
             rebalance_threshold: 0.2,
         }),
         graph: None,
+        encryption: None,
     }
 }
 

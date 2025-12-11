@@ -20,6 +20,8 @@ export interface CreateVectorRequest {
   data: number[];
   /** Optional metadata associated with the vector */
   metadata?: Record<string, unknown>;
+  /** Optional ECC public key for payload encryption (PEM/hex/base64 format) */
+  publicKey?: string;
 }
 
 export interface UpdateVectorRequest {
@@ -27,6 +29,8 @@ export interface UpdateVectorRequest {
   data?: number[];
   /** Optional metadata associated with the vector */
   metadata?: Record<string, unknown>;
+  /** Optional ECC public key for payload encryption (PEM/hex/base64 format) */
+  publicKey?: string;
 }
 
 /**

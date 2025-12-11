@@ -1369,6 +1369,7 @@ export class VectorizerClient {
    * @param {number} [options.chunkSize] - Chunk size in characters
    * @param {number} [options.chunkOverlap] - Chunk overlap in characters
    * @param {Object} [options.metadata] - Additional metadata to attach to all chunks
+   * @param {string} [options.publicKey] - Optional ECC public key for payload encryption (PEM/hex/base64 format)
    * @returns {Promise<Object>} File upload response
    */
   async uploadFile(collectionName, file, filename, options = {}) {
@@ -1396,6 +1397,10 @@ export class VectorizerClient {
 
       if (options.metadata !== undefined) {
         formData.append('metadata', JSON.stringify(options.metadata));
+      }
+
+      if (options.publicKey !== undefined) {
+        formData.append('public_key', options.publicKey);
       }
 
       const transport = this._getWriteTransport();
@@ -1426,6 +1431,7 @@ export class VectorizerClient {
    * @param {number} [options.chunkSize] - Chunk size in characters
    * @param {number} [options.chunkOverlap] - Chunk overlap in characters
    * @param {Object} [options.metadata] - Additional metadata to attach to all chunks
+   * @param {string} [options.publicKey] - Optional ECC public key for payload encryption (PEM/hex/base64 format)
    * @returns {Promise<Object>} File upload response
    */
   async uploadFileContent(collectionName, content, filename, options = {}) {

@@ -312,6 +312,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         normalization: None,
         storage_type: None,
         graph: None, // Graph disabled for benchmarks
+        encryption: None,
     };
     rest_store
         .create_collection(rest_collection, rest_config)
@@ -333,6 +334,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         normalization: None,
         storage_type: None,
         graph: None, // Graph disabled for benchmarks
+        encryption: None,
     };
     grpc_store
         .create_collection(grpc_collection, grpc_config)

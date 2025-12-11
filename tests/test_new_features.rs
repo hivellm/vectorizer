@@ -51,6 +51,7 @@ async fn test_wal_integration_basic() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     assert!(store.create_collection("test_collection", config).is_ok());
@@ -110,6 +111,7 @@ async fn test_collection_with_wal_disabled() {
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,
+        encryption: None,
     };
 
     assert!(store.create_collection("test_collection", config).is_ok());

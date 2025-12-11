@@ -27,6 +27,7 @@ fn create_test_collection_config() -> CollectionConfig {
             enabled: true,
             auto_relationship: Default::default(),
         }),
+        encryption: None,
     }
 }
 

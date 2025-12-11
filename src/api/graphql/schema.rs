@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 use async_graphql::{Context, EmptySubscription, Object, Schema};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use super::types::*;
 use crate::config::FileUploadConfig;
@@ -884,13 +884,30 @@ impl MutationRoot {
             }
         }
 
-        let payload = input.payload.map(|p| Payload::new(p.0));
+        let payload = if let Some(payload_json) = input.payload {
+            if let Some(ref key) = input.public_key {
+                // Encrypt payload
+                let encrypted =
+                    crate::security::payload_encryption::encrypt_payload(&payload_json.0, key)
+                        .map_err(|e| {
+                            async_graphql::Error::new(format!("Failed to encrypt payload: {e}"))
+                        })?;
+                Some(Payload::from_encrypted(encrypted))
+            } else {
+                Some(Payload::new(payload_json.0))
+            }
+        } else {
+            None
+        };
 
         let vector = if let Some(p) = payload {
             Vector::with_payload(input.id.clone(), input.data.clone(), p)
         } else {
             Vector::new(input.id.clone(), input.data.clone())
         };
+
+        // True upsert: delete if exists, then insert
+        let _ = gql_ctx.store.delete(&collection, &input.id); // Ignore error if doesn't exist
 
         gql_ctx
             .store
@@ -939,20 +956,47 @@ impl MutationRoot {
             }
         }
 
-        let vectors: Vec<Vector> = input
+        let request_public_key = input.public_key.clone();
+        let vectors: Result<Vec<Vector>, async_graphql::Error> = input
             .vectors
             .into_iter()
             .map(|v_input| {
-                let payload = v_input.payload.map(|p| Payload::new(p.0));
-                if let Some(p) = payload {
+                let payload = if let Some(payload_json) = v_input.payload {
+                    // Use vector-level public_key if present, otherwise request-level
+                    let public_key_to_use = v_input.public_key.or(request_public_key.clone());
+
+                    if let Some(ref key) = public_key_to_use {
+                        // Encrypt payload
+                        let encrypted = crate::security::payload_encryption::encrypt_payload(
+                            &payload_json.0,
+                            key,
+                        )
+                        .map_err(|e| {
+                            async_graphql::Error::new(format!("Failed to encrypt payload: {e}"))
+                        })?;
+                        Some(Payload::from_encrypted(encrypted))
+                    } else {
+                        Some(Payload::new(payload_json.0))
+                    }
+                } else {
+                    None
+                };
+
+                Ok(if let Some(p) = payload {
                     Vector::with_payload(v_input.id, v_input.data, p)
                 } else {
                     Vector::new(v_input.id, v_input.data)
-                }
+                })
             })
             .collect();
 
+        let vectors = vectors?;
         let count = vectors.len() as i32;
+
+        // True upsert: delete all existing vectors first
+        for vector in &vectors {
+            let _ = gql_ctx.store.delete(&input.collection, &vector.id); // Ignore error if doesn't exist
+        }
 
         gql_ctx
             .store
@@ -1005,6 +1049,7 @@ impl MutationRoot {
         collection: String,
         id: String,
         payload: async_graphql::Json<serde_json::Value>,
+        #[graphql(default)] public_key: Option<String>,
     ) -> async_graphql::Result<MutationResult> {
         let gql_ctx = ctx.data::<GraphQLContext>()?;
         let tenant_ctx = ctx.data_opt::<TenantContext>();
@@ -1018,13 +1063,29 @@ impl MutationRoot {
             .get_vector(&collection, &id)
             .map_err(|e| async_graphql::Error::new(format!("Vector not found: {e}")))?;
 
+        // Create payload with optional encryption
+        let new_payload = if let Some(ref key) = public_key {
+            let encrypted = crate::security::payload_encryption::encrypt_payload(&payload.0, key)
+                .map_err(|e| {
+                async_graphql::Error::new(format!("Failed to encrypt payload: {e}"))
+            })?;
+            Payload::from_encrypted(encrypted)
+        } else {
+            Payload::new(payload.0)
+        };
+
         // Update with new payload
-        let updated = Vector::with_payload(existing.id, existing.data, Payload::new(payload.0));
+        let updated = Vector::with_payload(existing.id, existing.data, new_payload);
 
         gql_ctx
             .store
-            .insert(&collection, vec![updated])
+            .update(&collection, updated)
             .map_err(|e| async_graphql::Error::new(format!("Failed to update payload: {e}")))?;
+
+        // Mark changes for auto-save
+        if let Some(ref auto_save) = gql_ctx.auto_save_manager {
+            auto_save.mark_changed();
+        }
 
         Ok(MutationResult::ok_with_message("Payload updated"))
     }
@@ -1400,6 +1461,7 @@ impl MutationRoot {
                 storage_type: Some(crate::models::StorageType::Memory),
                 sharding: None,
                 graph: None,
+                encryption: None,
             };
 
             if let Err(e) = gql_ctx
@@ -1500,7 +1562,18 @@ impl MutationRoot {
                 }
             }
 
-            let mut payload = Payload { data: payload_data };
+            // Create payload with optional encryption
+            let mut payload = if let Some(ref key) = input.public_key {
+                match crate::security::payload_encryption::encrypt_payload(&payload_data, key) {
+                    Ok(encrypted) => Payload::from_encrypted(encrypted),
+                    Err(e) => {
+                        warn!("GraphQL: Failed to encrypt chunk payload: {}", e);
+                        continue;
+                    }
+                }
+            } else {
+                Payload { data: payload_data }
+            };
             payload.normalize();
 
             let vector = Vector {

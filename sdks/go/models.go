@@ -58,9 +58,10 @@ type Collection struct {
 
 // Vector represents a vector
 type Vector struct {
-	ID      string                 `json:"id"`
-	Data    []float32              `json:"data"`
-	Payload map[string]interface{} `json:"payload,omitempty"`
+	ID        string                 `json:"id"`
+	Data      []float32              `json:"data"`
+	Payload   map[string]interface{} `json:"payload,omitempty"`
+	PublicKey string                 `json:"publicKey,omitempty"` // Optional ECC public key for payload encryption
 }
 
 // SearchOptions represents search options

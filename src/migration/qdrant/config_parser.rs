@@ -212,6 +212,7 @@ impl QdrantConfigParser {
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
             graph: None,
+            encryption: None,
         })
     }
 

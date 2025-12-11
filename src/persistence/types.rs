@@ -383,6 +383,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         let metadata = EnhancedCollectionMetadata::new_workspace(
@@ -411,6 +412,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         let metadata = EnhancedCollectionMetadata::new_dynamic(
@@ -439,6 +441,7 @@ mod tests {
             compression: crate::models::CompressionConfig::default(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
+            encryption: None,
         };
 
         let mut metadata = EnhancedCollectionMetadata::new_dynamic(

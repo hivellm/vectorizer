@@ -294,11 +294,13 @@ mod unit_tests {
             id: "vec-1".to_string(),
             data: vec![0.1, 0.2, 0.3],
             payload: None,
+            public_key: None,
         };
 
         assert_eq!(input.id, "vec-1");
         assert_eq!(input.data, vec![0.1, 0.2, 0.3]);
         assert!(input.payload.is_none());
+        assert!(input.public_key.is_none());
     }
 
     #[test]
