@@ -42,6 +42,7 @@ fn test_vector_model_validation() {
         id: "test_vector_1".to_string(),
         data: valid_data.clone(),
         metadata: metadata.clone(),
+        public_key: None,
     };
 
     // Validate vector properties
@@ -275,6 +276,7 @@ fn test_data_transformation_consistency() {
         id: "transform_test".to_string(),
         data: vec![0.1, 0.2, 0.3],
         metadata: None,
+        public_key: None,
     };
 
     // Serialize and deserialize
@@ -296,6 +298,7 @@ fn test_model_edge_cases() {
         id: "empty".to_string(),
         data: vec![],
         metadata: None,
+        public_key: None,
     };
     assert!(empty_vector.data.is_empty());
 
@@ -305,6 +308,7 @@ fn test_model_edge_cases() {
         id: "large".to_string(),
         data: large_data.clone(),
         metadata: None,
+        public_key: None,
     };
     assert_eq!(large_vector.data.len(), 1000);
 
@@ -313,6 +317,7 @@ fn test_model_edge_cases() {
         id: "zero".to_string(),
         data: vec![0.0, 0.0, 0.0],
         metadata: None,
+        public_key: None,
     };
     assert!(zero_vector.data.iter().all(|&x| x == 0.0));
 
@@ -321,6 +326,7 @@ fn test_model_edge_cases() {
         id: "special".to_string(),
         data: vec![f32::NAN, f32::INFINITY, f32::NEG_INFINITY],
         metadata: None,
+        public_key: None,
     };
     assert!(special_vector.data[0].is_nan());
     assert!(special_vector.data[1].is_infinite());
@@ -438,6 +444,7 @@ fn test_comprehensive_model_integration() {
             );
             meta
         }),
+        public_key: None,
     };
 
     let collection = Collection {
