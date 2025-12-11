@@ -3,13 +3,12 @@
 //! This example demonstrates how to use end-to-end encryption for vector payloads
 //! using ECC P-256 + AES-256-GCM encryption.
 
+use std::collections::HashMap;
+
 use p256::ecdh::EphemeralSecret;
 use p256::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
 use rand_core::OsRng;
-use std::collections::HashMap;
-use vectorizer_sdk::{
-    ClientConfig, UploadFileOptions, Vector, VectorizerClient,
-};
+use vectorizer_sdk::{ClientConfig, UploadFileOptions, Vector, VectorizerClient};
 
 /// Generate an ECC P-256 key pair for encryption.
 /// In production, store the private key securely (e.g., in a key vault).
@@ -105,7 +104,10 @@ async fn insert_encrypted_vectors() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     println!("\nInserting encrypted vectors...");
-    println!("Successfully configured {} vectors with encryption", vectors.len());
+    println!(
+        "Successfully configured {} vectors with encryption",
+        vectors.len()
+    );
 
     println!("\nNote: Payloads are encrypted in the database.");
     println!("In production, you would decrypt them client-side using your private key.");
@@ -125,7 +127,10 @@ async fn upload_encrypted_file() -> Result<(), Box<dyn std::error::Error>> {
     let (public_key, _) = generate_key_pair()?;
 
     let collection_name = "encrypted-files";
-    match client.create_collection(collection_name, 384, "cosine").await {
+    match client
+        .create_collection(collection_name, 384, "cosine")
+        .await
+    {
         Ok(_) => (),
         Err(_) => (), // Collection already exists
     }
