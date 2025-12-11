@@ -1,9 +1,10 @@
 //! Integration tests for ECC-AES payload encryption
 
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use p256::{SecretKey, elliptic_curve::sec1::ToEncodedPoint};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use p256::SecretKey;
+use p256::elliptic_curve::sec1::ToEncodedPoint;
 use serde_json::json;
-
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, EncryptionConfig, HnswConfig,

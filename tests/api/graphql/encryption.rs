@@ -2,9 +2,12 @@
 //!
 //! Tests for optional ECC-AES payload encryption via GraphQL API
 
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use p256::{SecretKey, elliptic_curve::sec1::ToEncodedPoint};
 use std::sync::Arc;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use p256::SecretKey;
+use p256::elliptic_curve::sec1::ToEncodedPoint;
 use vectorizer::api::graphql::create_schema;
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;

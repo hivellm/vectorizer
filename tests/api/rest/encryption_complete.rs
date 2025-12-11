@@ -1,10 +1,12 @@
 //! Complete integration tests for ECC-AES payload encryption across all API endpoints
 
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use p256::{SecretKey, elliptic_curve::sec1::ToEncodedPoint};
-use serde_json::json;
 use std::sync::Arc;
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use p256::SecretKey;
+use p256::elliptic_curve::sec1::ToEncodedPoint;
+use serde_json::json;
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::models::{

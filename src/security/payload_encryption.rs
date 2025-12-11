@@ -25,16 +25,13 @@
 //! 3. Client derives the same AES-256-GCM key
 //! 4. Client decrypts the payload
 
-use aes_gcm::{
-    Aes256Gcm, Nonce,
-    aead::{Aead, AeadCore, KeyInit, OsRng},
-};
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
-use p256::{
-    EncodedPoint, PublicKey, SecretKey,
-    ecdh::diffie_hellman,
-    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
-};
+use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
+use aes_gcm::{Aes256Gcm, Nonce};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use p256::ecdh::diffie_hellman;
+use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
+use p256::{EncodedPoint, PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -293,8 +290,9 @@ pub fn validate_encrypted_payload(payload: &EncryptedPayload) -> Result<(), Encr
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
