@@ -53,7 +53,7 @@ function BackupsPage() {
     setError(null);
     try {
       const [backupsData, collectionsData] = await Promise.all([
-        api.get<any>('/api/backups'),
+        api.get<any>('/backups'),
         listCollections(),
       ]);
       
@@ -95,7 +95,7 @@ function BackupsPage() {
 
     setCreating(true);
     try {
-      await api.post('/api/backups/create', {
+      await api.post('/backups/create', {
         name: createForm.name,
         collections: createForm.collections,
       });
@@ -126,7 +126,7 @@ function BackupsPage() {
 
     setRestoring(true);
     try {
-      await api.post('/api/backups/restore', {
+      await api.post('/backups/restore', {
         backup_id: selectedBackup.id,
         collection: restoreForm.collection || selectedBackup.collections[0],
       });
