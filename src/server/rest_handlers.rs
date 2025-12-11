@@ -986,9 +986,13 @@ pub async fn insert_text(
         })
         .unwrap_or_default();
 
+    let public_key = payload.get("public_key").and_then(|k| k.as_str());
+
     info!(
-        "Inserting text into collection '{}': {}",
-        collection_name, text
+        "Inserting text into collection '{}': {} (encrypted: {})",
+        collection_name,
+        text,
+        public_key.is_some()
     );
 
     // Verify collection exists (drop the reference immediately to avoid deadlock with DashMap)
@@ -1040,12 +1044,21 @@ pub async fn insert_text(
     let embedding_len = embedding.len(); // Save length before move
 
     // Create payload with metadata
-    let payload_data = crate::models::Payload::new(serde_json::Value::Object(
+    let payload_json = serde_json::Value::Object(
         metadata
             .into_iter()
             .map(|(k, v)| (k, serde_json::Value::String(v)))
             .collect(),
-    ));
+    );
+
+    // Encrypt payload if public_key is provided
+    let payload_data = if let Some(key) = public_key {
+        let encrypted = crate::security::payload_encryption::encrypt_payload(&payload_json, key)
+            .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
+        crate::models::Payload::from_encrypted(encrypted)
+    } else {
+        crate::models::Payload::new(payload_json)
+    };
 
     // Create vector with generated ID
     let vector_id = format!("{}", uuid::Uuid::new_v4());

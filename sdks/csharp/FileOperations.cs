@@ -90,6 +90,7 @@ public partial class VectorizerClient
     /// <param name="chunkSize">Optional chunk size in characters</param>
     /// <param name="chunkOverlap">Optional chunk overlap in characters</param>
     /// <param name="metadata">Optional metadata to attach to all chunks</param>
+    /// <param name="publicKey">Optional ECC public key for payload encryption (PEM, base64, or hex format)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>File upload response</returns>
     public async Task<FileUploadResponse> UploadFileAsync(
@@ -99,6 +100,7 @@ public partial class VectorizerClient
         int? chunkSize = null,
         int? chunkOverlap = null,
         Dictionary<string, object>? metadata = null,
+        string? publicKey = null,
         CancellationToken cancellationToken = default)
     {
         using var content = new MultipartFormDataContent();
@@ -123,6 +125,9 @@ public partial class VectorizerClient
             content.Add(new StringContent(metadataJson), "metadata");
         }
 
+        if (publicKey != null)
+            content.Add(new StringContent(publicKey), "public_key");
+
         var response = await _httpClient.PostAsync("/files/upload", content, cancellationToken);
         response.EnsureSuccessStatusCode();
 
@@ -140,6 +145,7 @@ public partial class VectorizerClient
     /// <param name="chunkSize">Optional chunk size in characters</param>
     /// <param name="chunkOverlap">Optional chunk overlap in characters</param>
     /// <param name="metadata">Optional metadata to attach to all chunks</param>
+    /// <param name="publicKey">Optional ECC public key for payload encryption (PEM, base64, or hex format)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>File upload response</returns>
     public async Task<FileUploadResponse> UploadFileContentAsync(
@@ -149,12 +155,13 @@ public partial class VectorizerClient
         int? chunkSize = null,
         int? chunkOverlap = null,
         Dictionary<string, object>? metadata = null,
+        string? publicKey = null,
         CancellationToken cancellationToken = default)
     {
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
         return await UploadFileAsync(
             stream, filename, collectionName,
-            chunkSize, chunkOverlap, metadata,
+            chunkSize, chunkOverlap, metadata, publicKey,
             cancellationToken);
     }
 

@@ -83,4 +83,7 @@ export interface UploadFileOptions {
 
   /** Additional metadata to attach to all chunks */
   metadata?: Record<string, unknown>;
+
+  /** Optional ECC public key for payload encryption (PEM/hex/base64 format) */
+  publicKey?: string;
 }

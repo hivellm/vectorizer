@@ -129,6 +129,7 @@ fn perform_with_lookup(
         id,
         vector,
         payload,
+        public_key: None,
     })
 }
 

@@ -378,6 +378,7 @@ async fn handle_insert_text(
         .ok_or_else(|| ErrorData::invalid_params("Missing text", None))?;
 
     let metadata = args.get("metadata").cloned();
+    let public_key = args.get("public_key").and_then(|v| v.as_str());
 
     // Generate embedding
     let embedding = embedding_manager
@@ -385,10 +386,20 @@ async fn handle_insert_text(
         .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
 
     let vector_id = uuid::Uuid::new_v4().to_string();
-    let payload = if let Some(meta) = metadata {
-        crate::models::Payload::new(meta)
+
+    let payload_json = if let Some(meta) = metadata {
+        meta
     } else {
-        crate::models::Payload::new(json!({}))
+        json!({})
+    };
+
+    // Encrypt payload if public_key is provided
+    let payload = if let Some(key) = public_key {
+        let encrypted = crate::security::payload_encryption::encrypt_payload(&payload_json, key)
+            .map_err(|e| ErrorData::internal_error(format!("Encryption failed: {}", e), None))?;
+        crate::models::Payload::from_encrypted(encrypted)
+    } else {
+        crate::models::Payload::new(payload_json)
     };
 
     store
@@ -405,7 +416,8 @@ async fn handle_insert_text(
     let response = json!({
         "status": "inserted",
         "vector_id": vector_id,
-        "collection": collection_name
+        "collection": collection_name,
+        "encrypted": public_key.is_some()
     });
     Ok(CallToolResult::success(vec![Content::text(
         response.to_string(),
@@ -510,16 +522,28 @@ async fn handle_update_vector(
 
     let text = args.get("text").and_then(|v| v.as_str());
     let metadata = args.get("metadata").cloned();
+    let public_key = args.get("public_key").and_then(|v| v.as_str());
 
     if let Some(text) = text {
         let embedding = embedding_manager
             .embed(text)
             .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
 
-        let payload = if let Some(meta) = metadata {
-            crate::models::Payload::new(meta)
+        let payload_json = if let Some(meta) = metadata {
+            meta
         } else {
-            crate::models::Payload::new(json!({}))
+            json!({})
+        };
+
+        // Encrypt payload if public_key is provided
+        let payload = if let Some(key) = public_key {
+            let encrypted =
+                crate::security::payload_encryption::encrypt_payload(&payload_json, key).map_err(
+                    |e| ErrorData::internal_error(format!("Encryption failed: {}", e), None),
+                )?;
+            crate::models::Payload::from_encrypted(encrypted)
+        } else {
+            crate::models::Payload::new(payload_json)
         };
 
         store
@@ -533,7 +557,8 @@ async fn handle_update_vector(
     let response = json!({
         "status": "updated",
         "vector_id": vector_id,
-        "collection": collection
+        "collection": collection,
+        "encrypted": public_key.is_some()
     });
     Ok(CallToolResult::success(vec![Content::text(
         response.to_string(),

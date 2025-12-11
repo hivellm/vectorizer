@@ -5,7 +5,7 @@ info:
     High-performance vector database engine with semantic search capabilities.
     Supports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and
     provides real-time indexing with HNSW optimization.
-  version: 1.6.0
+  version: 2.1.0
   contact:
     name: Vectorizer Team
     url: https://github.com/hivellm/vectorizer
@@ -1180,6 +1180,10 @@ paths:
                 metadata:
                   type: string
                   description: JSON-encoded metadata to attach to all chunks
+                public_key:
+                  type: string
+                  description: Optional ECC public key for payload encryption (PEM/hex/base64 format). When provided, all chunk payloads will be encrypted using ECC-P256 + AES-256-GCM before storage. Supports PEM, base64, hexadecimal, and 0x-prefixed hex formats.
+                  example: "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----"
       responses:
         "200":
           description: File uploaded and indexed successfully
@@ -1777,6 +1781,10 @@ components:
           items:
             $ref: "#/components/schemas/TextData"
           description: Array of texts to insert
+        public_key:
+          type: string
+          description: Optional ECC public key for payload encryption (PEM/hex/base64 format). Enables zero-knowledge encryption where payloads are encrypted client-side before storage.
+          example: "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----"
 
     TextData:
       type: object

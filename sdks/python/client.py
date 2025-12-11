@@ -545,18 +545,20 @@ class VectorizerClient:
     async def insert_texts(
         self,
         collection: str,
-        vectors: List[Vector]
+        vectors: List[Vector],
+        public_key: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Insert vectors into a collection.
-        
+
         Args:
             collection: Collection name
             vectors: List of vectors to insert
-            
+            public_key: Optional ECC public key for payload encryption (PEM, base64, or hex format)
+
         Returns:
             Insert operation result
-            
+
         Raises:
             CollectionNotFoundError: If collection doesn't exist
             ValidationError: If vectors are invalid
@@ -565,11 +567,16 @@ class VectorizerClient:
         """
         if not vectors:
             raise ValidationError("Vectors list cannot be empty")
-            
+
         payload = {
             "collection": collection,
             "vectors": [asdict(vector) for vector in vectors]
         }
+
+        # Use publicKey from parameter or from first vector that has it
+        effective_public_key = public_key or next((v.public_key for v in vectors if v.public_key), None)
+        if effective_public_key:
+            payload["public_key"] = effective_public_key
         
         try:
             async with self._transport.post(
@@ -1803,18 +1810,19 @@ class VectorizerClient:
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to create collection: {e}")
     
-    async def qdrant_upsert_points(self, collection: str, points: List[Dict[str, Any]], wait: bool = False) -> Dict[str, Any]:
+    async def qdrant_upsert_points(self, collection: str, points: List[Dict[str, Any]], wait: bool = False, public_key: Optional[str] = None) -> Dict[str, Any]:
         """
         Upsert points to collection (Qdrant-compatible API).
-        
+
         Args:
             collection: Collection name
             points: List of Qdrant point structures
             wait: Wait for operation completion
-            
+            public_key: Optional ECC public key for payload encryption (PEM, base64, or hex format)
+
         Returns:
             Qdrant operation result
-            
+
         Raises:
             CollectionNotFoundError: If collection doesn't exist
             ValidationError: If points are invalid
@@ -1822,9 +1830,13 @@ class VectorizerClient:
             ServerError: If service returns error
         """
         try:
+            payload_data = {"points": points, "wait": wait}
+            if public_key:
+                payload_data["public_key"] = public_key
+
             async with self._transport.put(
                 f"{self.base_url}/qdrant/collections/{collection}/points",
-                json={"points": points, "wait": wait}
+                json=payload_data
             ) as response:
                 if response.status == 200:
                     return await response.json()
@@ -2651,7 +2663,8 @@ class VectorizerClient:
         collection_name: str,
         chunk_size: Optional[int] = None,
         chunk_overlap: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        public_key: Optional[str] = None
     ) -> FileUploadResponse:
         """
         Upload a file for indexing.
@@ -2665,6 +2678,7 @@ class VectorizerClient:
             chunk_size: Chunk size in characters (uses server default if not specified)
             chunk_overlap: Chunk overlap in characters (uses server default if not specified)
             metadata: Additional metadata to attach to all chunks
+            public_key: Optional ECC public key for payload encryption (PEM, base64, or hex format)
 
         Returns:
             FileUploadResponse with upload results
@@ -2721,6 +2735,9 @@ class VectorizerClient:
             if metadata is not None:
                 form_data.add_field('metadata', json.dumps(metadata))
 
+            if public_key is not None:
+                form_data.add_field('public_key', public_key)
+
             async with self._transport.post(
                 f"{self.base_url}/files/upload",
                 data=form_data
@@ -2757,7 +2774,8 @@ class VectorizerClient:
         collection_name: str,
         chunk_size: Optional[int] = None,
         chunk_overlap: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        public_key: Optional[str] = None
     ) -> FileUploadResponse:
         """
         Upload file content directly for indexing.
@@ -2771,6 +2789,7 @@ class VectorizerClient:
             chunk_size: Chunk size in characters (uses server default if not specified)
             chunk_overlap: Chunk overlap in characters (uses server default if not specified)
             metadata: Additional metadata to attach to all chunks
+            public_key: Optional ECC public key for payload encryption (PEM, base64, or hex format)
 
         Returns:
             FileUploadResponse with upload results
@@ -2818,6 +2837,9 @@ class VectorizerClient:
 
             if metadata is not None:
                 form_data.add_field('metadata', json.dumps(metadata))
+
+            if public_key is not None:
+                form_data.add_field('public_key', public_key)
 
             async with self._transport.post(
                 f"{self.base_url}/files/upload",

@@ -89,6 +89,11 @@ public class FileUploadRequest
     public int? ChunkSize { get; set; }
     public int? ChunkOverlap { get; set; }
     public Dictionary<string, object>? Metadata { get; set; }
+
+    /// <summary>
+    /// Optional ECC public key for payload encryption (PEM, base64, or hex format)
+    /// </summary>
+    public string? PublicKey { get; set; }
 }
 
 /// <summary>

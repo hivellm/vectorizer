@@ -1894,6 +1894,10 @@ impl VectorizerClient {
             form_fields.insert("metadata".to_string(), metadata_json);
         }
 
+        if let Some(public_key) = options.public_key {
+            form_fields.insert("public_key".to_string(), public_key);
+        }
+
         // Use HttpTransport's multipart method
         let http_transport = crate::http_transport::HttpTransport::new(
             &self.base_url,

@@ -15,6 +15,7 @@ type FileUploadRequest struct {
 	ChunkSize      *int                   `json:"chunk_size,omitempty"`
 	ChunkOverlap   *int                   `json:"chunk_overlap,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	PublicKey      string                 `json:"public_key,omitempty"` // Optional ECC public key for payload encryption
 }
 
 // FileUploadResponse represents the response from file upload
@@ -44,6 +45,7 @@ type UploadFileOptions struct {
 	ChunkSize    *int
 	ChunkOverlap *int
 	Metadata     map[string]interface{}
+	PublicKey    string // Optional ECC public key for payload encryption (PEM, base64, or hex format)
 }
 
 // UploadFile uploads a file for automatic text extraction, chunking, and indexing
@@ -87,6 +89,12 @@ func (c *Client) UploadFile(fileContent []byte, filename, collectionName string,
 			}
 			if err := writer.WriteField("metadata", string(metadataJSON)); err != nil {
 				return nil, fmt.Errorf("failed to write metadata: %w", err)
+			}
+		}
+
+		if options.PublicKey != "" {
+			if err := writer.WriteField("public_key", options.PublicKey); err != nil {
+				return nil, fmt.Errorf("failed to write public_key: %w", err)
 			}
 		}
 	}

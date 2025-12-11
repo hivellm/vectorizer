@@ -71,6 +71,9 @@ pub struct Vector {
     pub data: Vec<f32>,
     /// Optional metadata associated with the vector
     pub metadata: Option<HashMap<String, serde_json::Value>>,
+    /// Optional ECC public key for payload encryption (PEM, base64, or hex format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
 }
 
 /// Collection representation

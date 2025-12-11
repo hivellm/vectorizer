@@ -505,6 +505,9 @@ pub struct UpsertVectorInput {
     /// Optional payload as JSON
     #[graphql(default)]
     pub payload: Option<async_graphql::Json<JsonValue>>,
+    /// Optional ECC public key for payload encryption (PEM/hex/base64 format)
+    #[graphql(default, name = "publicKey")]
+    pub public_key: Option<String>,
 }
 
 /// Input for batch upserting vectors
@@ -514,6 +517,9 @@ pub struct UpsertVectorsInput {
     pub collection: String,
     /// Vectors to upsert
     pub vectors: Vec<UpsertVectorInput>,
+    /// Optional ECC public key for payload encryption (applies to all vectors unless overridden)
+    #[graphql(default, name = "publicKey")]
+    pub public_key: Option<String>,
 }
 
 /// Input for semantic search
@@ -703,6 +709,9 @@ pub struct UploadFileInput {
     /// Additional metadata as JSON
     #[graphql(default)]
     pub metadata: Option<async_graphql::Json<JsonValue>>,
+    /// Optional ECC public key for payload encryption (PEM/hex/base64 format)
+    #[graphql(default, name = "publicKey")]
+    pub public_key: Option<String>,
 }
 
 /// Result of file upload operation

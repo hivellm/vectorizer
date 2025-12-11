@@ -63,6 +63,17 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔗 n8n Integration**: Official n8n community node for no-code workflow automation (400+ node integrations)
 - **🎨 Langflow Integration**: LangChain-compatible components for visual LLM app building
 - **🔒 Security**: JWT + API Key authentication with RBAC
+- **🔐 Payload Encryption**: Optional ECC-P256 + AES-256-GCM payload encryption with zero-knowledge architecture ([docs](docs/features/encryption/README.md))
+
+## 🎉 Latest Release: v2.1.0 - Payload Encryption
+
+**New in v2.1.0:**
+- Added optional ECC-AES payload encryption with zero-knowledge architecture
+- ECC-P256 + AES-256-GCM for end-to-end encrypted vector payloads
+- Collection-level encryption policies (optional, required, mixed)
+- Full support across all APIs (REST, GraphQL, MCP, Qdrant-compatible)
+- Complete SDK support for all 6 official SDKs
+- See [encryption documentation](docs/features/encryption/README.md) for details
 
 ## 🚀 Quick Start
 

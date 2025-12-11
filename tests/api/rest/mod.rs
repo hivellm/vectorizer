@@ -3,6 +3,12 @@
 #[cfg(test)]
 pub mod dashboard_spa;
 #[cfg(test)]
+pub mod encryption;
+#[cfg(test)]
+pub mod encryption_complete;
+#[cfg(test)]
+pub mod encryption_extended;
+#[cfg(test)]
 pub mod file_upload;
 #[cfg(test)]
 pub mod graph_integration;

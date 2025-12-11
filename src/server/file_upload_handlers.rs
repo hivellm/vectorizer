@@ -98,6 +98,7 @@ pub async fn upload_file(
     let mut chunk_size: Option<usize> = None;
     let mut chunk_overlap: Option<usize> = None;
     let mut extra_metadata: Option<HashMap<String, Value>> = None;
+    let mut public_key: Option<String> = None;
 
     while let Some(field) = multipart
         .next_field()
@@ -144,6 +145,12 @@ pub async fn upload_file(
                 if let Ok(parsed) = serde_json::from_str::<HashMap<String, Value>>(&text) {
                     extra_metadata = Some(parsed);
                 }
+            }
+            "public_key" => {
+                let text = field.text().await.map_err(|e| {
+                    create_bad_request_error(&format!("Failed to read public_key: {}", e))
+                })?;
+                public_key = Some(text);
             }
             _ => {
                 debug!("Ignoring unknown field: {}", field_name);
@@ -197,10 +204,11 @@ pub async fn upload_file(
         })?;
 
     info!(
-        "Processing file upload: {} ({} bytes, language: {})",
+        "Processing file upload: {} ({} bytes, language: {}, encrypted: {})",
         validated_file.filename,
         validated_file.size,
-        validated_file.language()
+        validated_file.language(),
+        public_key.is_some()
     );
 
     // Check if collection exists, create if not
@@ -323,8 +331,33 @@ pub async fn upload_file(
             }
         }
 
-        let mut payload = Payload { data: payload_data };
-        payload.normalize();
+        // Normalize and optionally encrypt payload
+        let mut payload_value = payload_data;
+        if let Some(obj) = payload_value.as_object_mut() {
+            // Normalize values
+            for (_k, v) in obj.iter_mut() {
+                if let Some(s) = v.as_str() {
+                    *v = json!(s.to_lowercase());
+                }
+            }
+        }
+
+        // Encrypt payload if public_key is provided
+        let payload = if let Some(ref key) = public_key {
+            let encrypted =
+                match crate::security::payload_encryption::encrypt_payload(&payload_value, key) {
+                    Ok(enc) => enc,
+                    Err(e) => {
+                        warn!("Failed to encrypt payload: {}", e);
+                        continue;
+                    }
+                };
+            Payload::from_encrypted(encrypted)
+        } else {
+            Payload {
+                data: payload_value,
+            }
+        };
 
         let vector = Vector {
             id: uuid::Uuid::new_v4().to_string(),

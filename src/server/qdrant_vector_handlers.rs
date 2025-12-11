@@ -22,6 +22,7 @@ use crate::models::qdrant::{
     QdrantScrollPointsResponse, QdrantUpsertPointsRequest, QdrantValue, QdrantVector,
 };
 use crate::models::{Payload, Vector};
+use crate::security::payload_encryption::encrypt_payload;
 
 /// Convert QdrantValue to serde_json::Value
 fn qdrant_value_to_json_value(value: QdrantValue) -> serde_json::Value {
@@ -144,6 +145,9 @@ pub async fn upsert_points(
     let mut vectors = Vec::new();
 
     let points_count = request.points.len();
+    // Extract request-level public key if provided
+    let request_public_key = request.public_key.clone();
+
     for (idx, point) in request.points.into_iter().enumerate() {
         // Log vector dimension before conversion
         let vector_dim = match &point.vector {
@@ -156,13 +160,16 @@ pub async fn upsert_points(
         );
 
         // Convert Qdrant point to Vectorizer vector
-        let vector = convert_qdrant_point_to_vector(point, &config).map_err(|e| {
-            error!(
-                "Failed to convert point {}: dimension mismatch or invalid format",
-                idx
-            );
-            e
-        })?;
+        // Use point-level public_key if present, otherwise use request-level public_key
+        let public_key_to_use = point.public_key.clone().or(request_public_key.clone());
+        let vector =
+            convert_qdrant_point_to_vector(point, &config, public_key_to_use).map_err(|e| {
+                error!(
+                    "Failed to convert point {}: dimension mismatch or invalid format",
+                    idx
+                );
+                e
+            })?;
         vectors.push(vector);
     }
 
@@ -472,6 +479,7 @@ pub async fn scroll_points(
                         .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
                         .collect()
                 }),
+                public_key: None,
             })
             .collect();
 
@@ -549,6 +557,7 @@ pub async fn count_points(
 fn convert_qdrant_point_to_vector(
     point: QdrantPointStruct,
     config: &crate::models::CollectionConfig,
+    public_key: Option<String>,
 ) -> Result<Vector, ErrorResponse> {
     // Extract vector data - support both Dense and Named formats
     let vector_data = match point.vector {
@@ -600,12 +609,28 @@ fn convert_qdrant_point_to_vector(
 
     // Convert payload
     let payload = if let Some(payload_data) = point.payload {
-        Some(Payload::new(serde_json::Value::Object(
+        let payload_json = serde_json::Value::Object(
             payload_data
                 .into_iter()
                 .map(|(k, v)| (k, qdrant_value_to_json_value(v)))
                 .collect(),
-        )))
+        );
+
+        // Encrypt payload if public_key is provided
+        if let Some(ref key) = public_key {
+            debug!("Encrypting payload with provided public key");
+            let encrypted = encrypt_payload(&payload_json, key).map_err(|e| {
+                error!("Payload encryption failed: {}", e);
+                create_error_response(
+                    "encryption_error",
+                    &format!("Failed to encrypt payload: {}", e),
+                    StatusCode::BAD_REQUEST,
+                )
+            })?;
+            Some(Payload::from_encrypted(encrypted))
+        } else {
+            Some(Payload::new(payload_json))
+        }
     } else {
         None
     };
@@ -654,5 +679,6 @@ fn convert_vector_to_qdrant_point(
         id,
         vector: vector_data.unwrap_or(QdrantVector::Dense(vec![])),
         payload,
+        public_key: None,
     }
 }

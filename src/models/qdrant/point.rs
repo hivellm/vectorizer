@@ -16,6 +16,10 @@ pub struct QdrantPointStruct {
     pub vector: QdrantVector,
     /// Point payload
     pub payload: Option<HashMap<String, QdrantValue>>,
+    /// Optional ECC public key for payload encryption (PEM/hex/base64 format)
+    /// If provided, the payload will be encrypted using ECC-AES before storage
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
 }
 
 /// Point ID
@@ -65,6 +69,10 @@ pub struct QdrantUpsertPointsRequest {
     pub points: Vec<QdrantPointStruct>,
     /// Wait for completion
     pub wait: Option<bool>,
+    /// Optional ECC public key for payload encryption (PEM/hex/base64 format)
+    /// If provided, all payloads will be encrypted unless overridden per-point
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub public_key: Option<String>,
 }
 
 /// Point delete request
@@ -352,6 +360,7 @@ mod tests {
             id: QdrantPointId::Uuid("test-id".to_string()),
             vector: QdrantVector::Dense(vec![0.1, 0.2, 0.3]),
             payload: None,
+            public_key: None,
         };
 
         let json = serde_json::to_string(&point).unwrap();
@@ -377,6 +386,7 @@ mod tests {
             id: QdrantPointId::Numeric(42),
             vector: QdrantVector::Named(named),
             payload: Some(payload),
+            public_key: None,
         };
 
         let json = serde_json::to_string(&point).unwrap();
@@ -407,14 +417,17 @@ mod tests {
                     id: QdrantPointId::Uuid("point-1".to_string()),
                     vector: QdrantVector::Named(named.clone()),
                     payload: None,
+                    public_key: None,
                 },
                 QdrantPointStruct {
                     id: QdrantPointId::Numeric(2),
                     vector: QdrantVector::Dense(vec![0.5, 0.6, 0.7, 0.8]),
                     payload: None,
+                    public_key: None,
                 },
             ],
             wait: Some(true),
+            public_key: None,
         };
 
         let json = serde_json::to_string(&request).unwrap();

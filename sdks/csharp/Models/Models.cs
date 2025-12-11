@@ -45,6 +45,11 @@ public class Vector
     public string Id { get; set; } = string.Empty;
     public float[] Data { get; set; } = Array.Empty<float>();
     public Dictionary<string, object>? Payload { get; set; }
+
+    /// <summary>
+    /// Optional ECC public key for payload encryption (PEM, base64, or hex format)
+    /// </summary>
+    public string? PublicKey { get; set; }
 }
 
 /// <summary>
