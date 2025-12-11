@@ -906,6 +906,9 @@ impl MutationRoot {
             Vector::new(input.id.clone(), input.data.clone())
         };
 
+        // True upsert: delete if exists, then insert
+        let _ = gql_ctx.store.delete(&collection, &input.id); // Ignore error if doesn't exist
+
         gql_ctx
             .store
             .insert(&collection, vec![vector.clone()])
@@ -990,6 +993,11 @@ impl MutationRoot {
         let vectors = vectors?;
         let count = vectors.len() as i32;
 
+        // True upsert: delete all existing vectors first
+        for vector in &vectors {
+            let _ = gql_ctx.store.delete(&input.collection, &vector.id); // Ignore error if doesn't exist
+        }
+
         gql_ctx
             .store
             .insert(&input.collection, vectors)
@@ -1071,8 +1079,13 @@ impl MutationRoot {
 
         gql_ctx
             .store
-            .insert(&collection, vec![updated])
+            .update(&collection, updated)
             .map_err(|e| async_graphql::Error::new(format!("Failed to update payload: {e}")))?;
+
+        // Mark changes for auto-save
+        if let Some(ref auto_save) = gql_ctx.auto_save_manager {
+            auto_save.mark_changed();
+        }
 
         Ok(MutationResult::ok_with_message("Payload updated"))
     }
