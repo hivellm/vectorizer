@@ -12,7 +12,7 @@ services:
       # Persistent data
       - ./data:/vectorizer/data
 
-      # Custom config for HiveHub
+      # Override embedded config with HiveHub config
       - ./config.hub.yml:/vectorizer/config.yml:ro
 
     environment:
@@ -24,7 +24,10 @@ services:
       # HiveHub Integration
       - HIVEHUB_SERVICE_API_KEY=${HIVEHUB_SERVICE_API_KEY:-your-service-api-key-here}
 
-      # Authentication enabled - creates root user (admin/admin)
+      # Authentication - root user credentials
+      - VECTORIZER_ADMIN_USERNAME=admin
+      - VECTORIZER_ADMIN_PASSWORD=admin
+
       # HiveHub middleware allows public dashboard access
 
     restart: unless-stopped
