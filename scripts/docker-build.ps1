@@ -1,5 +1,5 @@
 # Script to build Docker image
-# Usage: .\scripts\docker-build.ps1 -Tag 2.0.0
+# Usage: .\scripts\docker-build.ps1 -Tag 2.1.0
 
 param(
     [Parameter(Mandatory=$false)]

@@ -10,7 +10,7 @@ services:
 
     volumes:
       # Persistent data
-      - ./vectorizer-data:/vectorizer/data
+      - ./data:/vectorizer/data
       - ./../../:/workspace:ro
 
       # Workspace configuration for Docker (paths are /workspace/*)
@@ -53,9 +53,3 @@ services:
         reservations:
           cpus: "2.0"
           memory: 2G
-# Create named volumes (optional, for better management)
-# volumes:
-#   vectorizer-data:
-#   vectorizer-storage:
-#   vectorizer-snapshots:
-
