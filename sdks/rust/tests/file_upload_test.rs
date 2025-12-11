@@ -30,6 +30,7 @@ async fn test_upload_file_content() {
         chunk_size: Some(100),
         chunk_overlap: Some(20),
         metadata: None,
+        public_key: None,
     };
 
     // Upload file content
@@ -114,6 +115,7 @@ fn test_upload_file_options_serialization() {
         chunk_size: Some(512),
         chunk_overlap: Some(50),
         metadata: Some(metadata),
+        public_key: None,
     };
 
     assert_eq!(options.chunk_size, Some(512));
