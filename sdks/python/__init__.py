@@ -41,7 +41,7 @@ from models import (
     FileUploadConfig,
 )
 
-__version__ = "1.6.0"
+__version__ = "2.2.0"
 __author__ = "HiveLLM Team"
 __email__ = "team@hivellm.org"
 

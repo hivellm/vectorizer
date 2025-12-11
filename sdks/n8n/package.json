@@ -1,6 +1,6 @@
 {
   "name": "@vectorizer/n8n-nodes-vectorizer",
-  "version": "1.8.0",
+  "version": "2.2.0",
   "description": "n8n node to interact with Vectorizer vector database",
   "keywords": [
     "n8n-community-node-package",

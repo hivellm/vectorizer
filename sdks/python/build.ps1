@@ -56,10 +56,16 @@ if (Test-Path "hive_vectorizer.egg-info") { Remove-Item -Recurse -Force hive_vec
 
 # Run syntax check
 Write-Host "🔍 Running syntax check..." -ForegroundColor Blue
-python -m py_compile client.py models.py exceptions.py utils\*.py
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Syntax check failed!" -ForegroundColor Red
-    exit 1
+$filesToCheck = @("client.py", "models.py", "exceptions.py", "__init__.py")
+$filesToCheck += Get-ChildItem -Path "utils" -Filter "*.py" -Recurse | ForEach-Object { $_.FullName }
+foreach ($file in $filesToCheck) {
+    if (Test-Path $file) {
+        python -m py_compile $file
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Syntax check failed for $file!" -ForegroundColor Red
+            exit 1
+        }
+    }
 }
 
 # Run tests

@@ -1,12 +1,12 @@
 # Vectorizer JavaScript SDK
 
-[![npm version](https://badge.fury.io/js/%40hivellm%2Fvectorizer-sdk-js.svg)](https://www.npmjs.com/package/@hivellm/vectorizer-sdk-js)
+[![npm version](https://badge.fury.io/js/%40hivehub%2Fvectorizer-sdk-js.svg)](https://www.npmjs.com/package/@hivehub/vectorizer-sdk-js)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 High-performance JavaScript SDK for Vectorizer vector database.
 
-**Package**: `@hivellm/vectorizer-sdk-js`  
-**Version**: 1.5.1
+**Package**: `@hivehub/vectorizer-sdk-js`  
+**Version**: 2.2.0
 
 ## Features
 
@@ -47,13 +47,13 @@ High-performance JavaScript SDK for Vectorizer vector database.
 ## Installation
 
 ```bash
-npm install @hivellm/vectorizer-sdk-js
+npm install @hivehub/vectorizer-sdk-js
 ```
 
 ## Quick Start
 
 ```javascript
-import { VectorizerClient } from '@hivellm/vectorizer-sdk-js';
+import { VectorizerClient } from '@hivehub/vectorizer-sdk-js';
 
 // Create client
 const client = new VectorizerClient({
@@ -299,7 +299,7 @@ Vectorizer supports **Master-Replica replication** for high availability and rea
 #### Basic Setup
 
 ```javascript
-const { VectorizerClient } = require('@hivellm/vectorizer-sdk');
+const { VectorizerClient } = require('@hivehub/vectorizer-sdk-js');
 
 // Configure with master and replicas - SDK handles routing automatically
 const client = new VectorizerClient({
@@ -474,7 +474,7 @@ import {
   ValidationError,
   NetworkError,
   ServerError
-} from '@hivellm/vectorizer-sdk-js';
+} from '@hivehub/vectorizer-sdk-js';
 
 try {
   await client.createCollection({
@@ -506,19 +506,19 @@ The SDK is available in multiple formats:
 ### Node.js (CommonJS)
 
 ```javascript
-const { VectorizerClient } = require('@hivellm/vectorizer-sdk-js');
+const { VectorizerClient } = require('@hivehub/vectorizer-sdk-js');
 ```
 
 ### ES Modules
 
 ```javascript
-import { VectorizerClient } from '@hivellm/vectorizer-sdk-js';
+import { VectorizerClient } from '@hivehub/vectorizer-sdk-js';
 ```
 
 ### Browser (UMD)
 
 ```html
-<script src="https://unpkg.com/@hivellm/vectorizer-sdk-js/dist/index.umd.min.js"></script>
+<script src="https://unpkg.com/@hivehub/vectorizer-sdk-js/dist/index.umd.min.js"></script>
 <script>
   const client = new VectorizerClient.VectorizerClient({
     baseURL: 'http://localhost:15001'

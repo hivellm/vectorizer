@@ -65,9 +65,15 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔒 Security**: JWT + API Key authentication with RBAC
 - **🔐 Payload Encryption**: Optional ECC-P256 + AES-256-GCM payload encryption with zero-knowledge architecture ([docs](docs/features/encryption/README.md))
 
-## 🎉 Latest Release: v2.1.0 - Payload Encryption
+## 🎉 Latest Release: v2.2.0 - Version Synchronization
 
-**New in v2.1.0:**
+**New in v2.2.0:**
+- Synchronized all SDKs and server to version 2.2.0
+- Updated package names: TypeScript/JavaScript SDKs now use `@hivehub` scope
+- Comprehensive documentation updates across all SDKs
+- All SDKs fully synchronized and tested
+
+**Previous Release (v2.1.0):**
 - Added optional ECC-AES payload encryption with zero-knowledge architecture
 - ECC-P256 + AES-256-GCM for end-to-end encrypted vector payloads
 - Collection-level encryption policies (optional, required, mixed)
@@ -381,9 +387,9 @@ Comprehensive feature comparison with major vector database solutions:
 - **Milvus**: Large-scale deployments requiring advanced scalability features
 - **Chroma**: Python-first applications with simple setup requirements
 
-## 🔧 Recent Improvements (v1.8.x)
+## 🔧 Recent Improvements (v2.0.0 - v2.2.0)
 
-### New Features (v1.8.3+)
+### New Features (v2.0.0+)
 
 - **✅ Dashboard Authentication**: Complete authentication system for the dashboard
   - Login page with username/password form and modern UI
@@ -401,7 +407,7 @@ Comprehensive feature comparison with major vector database solutions:
   - Removed internal `Arc<RwLock<>>` wrapper for proper lock management
   - Stable concurrent insert operations without blocking
 
-### Quality Improvements (v1.8.1+)
+### Quality Improvements (v2.0.0+)
 
 - **✅ Dashboard SPA Routing Fix**: Browser refresh now works on all dashboard routes
 - **✅ File Watcher Improvements**: Uses default collection instead of creating empty collections
@@ -466,14 +472,14 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-All SDKs are synchronized with server version **1.8.5**:
+All SDKs are synchronized with server version **2.2.0**:
 
-- **Python**: `pip install vectorizer-sdk` (v1.8.5)
-- **TypeScript**: `npm install @hivellm/vectorizer-sdk` (v1.8.5)
-- **Rust**: `cargo add vectorizer-sdk` (v1.8.5)
-- **JavaScript**: `npm install @hivellm/vectorizer-sdk-js` (v1.8.5)
-- **C#**: `dotnet add package Vectorizer.SDK` (v1.8.5)
-- **Go**: `go get github.com/hivellm/vectorizer/sdks/go` (v1.8.5)
+- **Python**: `pip install vectorizer-sdk` (v2.2.0)
+- **TypeScript**: `npm install @hivehub/vectorizer-sdk` (v2.2.0)
+- **Rust**: `cargo add vectorizer-sdk` (v2.2.0)
+- **JavaScript**: `npm install @hivehub/vectorizer-sdk-js` (v2.2.0)
+- **C#**: `dotnet add package Vectorizer.Sdk` (v2.2.0)
+- **Go**: `go get github.com/hivellm/vectorizer-sdk-go` (v2.2.0)
 
 ## 🔗 Workflow & LLM Integrations
 
