@@ -37,7 +37,7 @@ public class EncryptionExample
         // Initialize client
         var client = new VectorizerClient(new ClientConfig
         {
-            BaseURL = "http://localhost:15002"
+            BaseUrl = "http://localhost:15002"
         });
 
         // Generate encryption key pair
@@ -109,7 +109,7 @@ public class EncryptionExample
     {
         var client = new VectorizerClient(new ClientConfig
         {
-            BaseURL = "http://localhost:15002"
+            BaseUrl = "http://localhost:15002"
         });
 
         // Generate encryption key pair
