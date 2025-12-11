@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2025-12-11
+
+### Changed
+- **Version Synchronization**: Updated all SDKs and server to version 2.2.0
+  - Python SDK: `vectorizer-sdk` v2.2.0
+  - TypeScript SDK: `@hivehub/vectorizer-sdk` v2.2.0
+  - JavaScript SDK: `@hivehub/vectorizer-sdk-js` v2.2.0
+  - Rust SDK: `vectorizer-sdk` v2.2.0
+  - C# SDK: `Vectorizer.Sdk` v2.2.0
+  - Go SDK: `github.com/hivellm/vectorizer-sdk-go` v2.2.0
+  - n8n Integration: v2.2.0
+  - LangChain.js Integration: v2.2.0
+  - Langflow Integration: v2.2.0
+- **Documentation Updates**: Updated all SDK READMEs with correct version numbers and package names
+  - Fixed package name references (@hivellm → @hivehub for TypeScript/JavaScript SDKs)
+  - Updated installation commands with latest versions
+  - Synchronized version information across all documentation
+
 ## [2.1.0] - 2024-12-10
 
 ### Added

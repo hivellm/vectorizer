@@ -7,7 +7,7 @@
 High-performance Rust SDK for Vectorizer vector database.
 
 **Package**: `vectorizer-sdk`  
-**Version**: 1.5.1
+**Version**: 2.2.0
 
 ## ✅ Status: Ready for Crate Publication
 
@@ -25,7 +25,7 @@ High-performance Rust SDK for Vectorizer vector database.
 
 ```toml
 [dependencies]
-vectorizer-sdk = "1.8.0"
+vectorizer-sdk = "2.2.0"
 ```
 
 ```rust
@@ -226,7 +226,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-vectorizer-sdk = "0.4.0"
+vectorizer-sdk = "2.2.0"
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```
@@ -237,7 +237,7 @@ Enable the UMICP feature for high-performance protocol support:
 
 ```toml
 [dependencies]
-vectorizer-sdk = { version = "0.4.0", features = ["umicp"] }
+vectorizer-sdk = { version = "2.1.0", features = ["umicp"] }
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```

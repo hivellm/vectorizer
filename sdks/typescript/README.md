@@ -1,12 +1,12 @@
 # Vectorizer TypeScript SDK
 
-[![npm version](https://badge.fury.io/js/%40hivellm%2Fvectorizer-sdk.svg)](https://www.npmjs.com/package/@hivellm/vectorizer-sdk)
+[![npm version](https://badge.fury.io/js/%40hivehub%2Fvectorizer-sdk.svg)](https://www.npmjs.com/package/@hivehub/vectorizer-sdk)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 High-performance TypeScript SDK for Vectorizer vector database.
 
-**Package**: `@hivellm/vectorizer-sdk`  
-**Version**: 1.5.1
+**Package**: `@hivehub/vectorizer-sdk`  
+**Version**: 2.2.0
 
 ## Features
 
@@ -46,16 +46,16 @@ High-performance TypeScript SDK for Vectorizer vector database.
 ## Installation
 
 ```bash
-npm install @hivellm/vectorizer-sdk
+npm install @hivehub/vectorizer-sdk
 
 # Or specific version
-npm install @hivellm/vectorizer-sdk@1.5.1
+npm install @hivehub/vectorizer-sdk@2.2.0
 ```
 
 ## Quick Start
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 // Create client
 const client = new VectorizerClient({
@@ -274,7 +274,7 @@ Vectorizer supports **Master-Replica replication** for high availability and rea
 #### Basic Setup
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 // Configure with master and replicas - SDK handles routing automatically
 const client = new VectorizerClient({
@@ -672,7 +672,7 @@ import {
   ValidationError,
   NetworkError,
   ServerError,
-} from "@hivellm/vectorizer-sdk";
+} from "@hivehub/vectorizer-sdk";
 
 try {
   await client.createCollection({
