@@ -85,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download test reports
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         continue-on-error: true
         with:
           pattern: junit-*.xml
@@ -148,7 +148,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - name: Download test report
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         continue-on-error: true
         with:
           name: junit-${{ matrix.os }}.xml
