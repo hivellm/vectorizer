@@ -12,14 +12,14 @@ import { Input } from '@/components/ui/Input';
 import { Select, SelectOption } from '@/components/ui/Select';
 import { useToastContext } from '@/providers/ToastProvider';
 import LoadingState from '@/components/LoadingState';
-import { 
-  RefreshCw01, 
-  Settings01, 
-  Code01, 
-  Folder, 
-  Zap, 
-  Eye, 
-  AlignLeft, 
+import {
+  RefreshCw01,
+  Settings01,
+  Code01,
+  Folder,
+  Zap,
+  Eye,
+  AlignLeft,
   Database01
 } from '@untitledui/icons';
 
@@ -202,9 +202,9 @@ function ConfigurationPage() {
     setLoading(true);
     setError(null);
     try {
-      const configData = await api.get<ConfigData>('/api/config');
+      const configData = await api.get<ConfigData>('/config');
       setConfig(configData);
-      
+
       // Convert to YAML for the YAML editor
       try {
         // Try to use js-yaml if available, otherwise use JSON
@@ -214,7 +214,7 @@ function ConfigurationPage() {
         // Fallback to JSON if js-yaml is not available
         setYamlContent(JSON.stringify(configData, null, 2));
       }
-      
+
       setIsDirty(false);
     } catch (err) {
       console.error('Error loading configuration:', err);
@@ -244,7 +244,7 @@ function ConfigurationPage() {
         payload = config;
       }
 
-      await api.post('/api/config', payload);
+      await api.post('/config', payload);
       setIsDirty(false);
       toast.success('Configuration saved successfully! Restart server for changes to take effect.');
       // Reload to sync all tabs
@@ -261,14 +261,14 @@ function ConfigurationPage() {
   const updateConfig = (path: string[], value: any) => {
     const newConfig = { ...config };
     let current: any = newConfig;
-    
+
     for (let i = 0; i < path.length - 1; i++) {
       if (!current[path[i]]) {
         current[path[i]] = {};
       }
       current = current[path[i]];
     }
-    
+
     current[path[path.length - 1]] = value;
     setConfig(newConfig);
     markDirty();
@@ -290,11 +290,10 @@ function ConfigurationPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded transition-colors ${
-                    activeTab === tab.id
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded transition-colors ${activeTab === tab.id
                       ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-900'
-                  }`}
+                    }`}
                 >
                   <IconComponent className="w-4 h-4" />
                   <span>{tab.label}</span>
@@ -547,7 +546,7 @@ function ConfigurationPage() {
                     label="Enable File Watcher"
                   />
                 </div>
-                
+
                 {config.file_watcher?.enabled && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -672,7 +671,7 @@ function ConfigurationPage() {
                     label="Enable Transmutation"
                   />
                 </div>
-                
+
                 {config.transmutation?.enabled && (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">

@@ -725,7 +725,28 @@ impl VectorStore {
 
     /// Create a new collection
     pub fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
-        self.create_collection_internal(name, config, true, None)
+        // Check GPU config - respect gpu.enabled setting
+        let allow_gpu = {
+            // Try to load config from config.yml
+            let config_path = std::path::PathBuf::from("config.yml");
+            if config_path.exists() {
+                if let Ok(config_content) = std::fs::read_to_string(&config_path) {
+                    if let Ok(vectorizer_config) = serde_yaml::from_str::<crate::config::VectorizerConfig>(&config_content) {
+                        vectorizer_config.gpu.enabled
+                    } else {
+                        // If parsing fails, default to false (safer for persistence)
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                // No config file, default to false (safer for persistence)
+                false
+            }
+        };
+        
+        self.create_collection_internal(name, config, allow_gpu, None)
     }
 
     /// Create a new collection with an owner (for multi-tenant mode)
