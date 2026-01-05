@@ -58,6 +58,22 @@ enum Commands {
     Uninstall,
     /// Run legacy CLI commands
     Cli,
+    /// Run interactive setup wizard to configure workspace
+    Setup {
+        /// Path to project directory to analyze
+        #[arg(short, long, default_value = ".")]
+        path: std::path::PathBuf,
+
+        /// Open web-based setup wizard in browser instead of CLI
+        #[arg(long)]
+        wizard: bool,
+    },
+    /// Open API documentation in browser
+    Docs {
+        /// Open API sandbox instead of documentation
+        #[arg(long)]
+        sandbox: bool,
+    },
 }
 
 #[tokio::main]
@@ -90,6 +106,25 @@ async fn main() {
         }
         Commands::Uninstall => {
             uninstall_service().await;
+        }
+        Commands::Setup { path, wizard } => {
+            if wizard {
+                if let Err(e) = vectorizer::cli::setup::run_wizard().await {
+                    error!("Setup wizard failed: {e}");
+                    std::process::exit(1);
+                }
+            } else {
+                if let Err(e) = vectorizer::cli::setup::run(path).await {
+                    error!("Setup failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        Commands::Docs { sandbox } => {
+            if let Err(e) = vectorizer::cli::setup::run_docs(sandbox).await {
+                error!("Failed to open docs: {e}");
+                std::process::exit(1);
+            }
         }
         Commands::Cli => {
             // Run legacy CLI

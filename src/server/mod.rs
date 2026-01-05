@@ -21,6 +21,7 @@ mod qdrant_snapshot_handlers;
 mod qdrant_vector_handlers;
 pub mod replication_handlers;
 pub mod rest_handlers;
+mod setup_handlers;
 
 // Re-export main server types from the original implementation
 use std::sync::Arc;
@@ -1102,6 +1103,13 @@ impl VectorizerServer {
                 "/workspace/config",
                 post(rest_handlers::update_workspace_config),
             )
+            // Setup Wizard routes
+            .route("/setup/status", get(setup_handlers::get_setup_status))
+            .route("/setup/analyze", post(setup_handlers::analyze_project_directory))
+            .route("/setup/apply", post(setup_handlers::apply_setup_config))
+            .route("/setup/verify", get(setup_handlers::verify_setup))
+            .route("/setup/templates", get(setup_handlers::get_configuration_templates))
+            .route("/setup/templates/:id", get(setup_handlers::get_configuration_template_by_id))
             .route("/config", get(rest_handlers::get_config))
             .route("/config", post(rest_handlers::update_config))
             .route("/admin/restart", post(rest_handlers::restart_server))
@@ -1834,6 +1842,10 @@ impl VectorizerServer {
             "✅ MCP server (StreamableHTTP) with REST API listening on {}:{}",
             host, port
         );
+
+        // Display first-start guidance if setup is needed
+        let collection_count = self.store.list_collections().len();
+        setup_handlers::display_first_start_guidance(host, port, collection_count);
 
         // Create shutdown signal for axum graceful shutdown
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
