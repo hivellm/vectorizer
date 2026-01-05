@@ -1727,6 +1727,7 @@ impl VectorizerServer {
                         || path == "/umicp/health"
                         || path == "/umicp/discover"
                         || path.starts_with("/dashboard")
+                        || path.starts_with("/setup")
                     {
                         return next.run(req).await;
                     }
