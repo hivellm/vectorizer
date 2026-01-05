@@ -26,6 +26,8 @@ const navItems: NavItem[] = [
   { path: '/backups', label: 'Backups' },
   { path: '/users', label: 'Users' },
   { path: '/api-keys', label: 'API Keys' },
+  { path: '/docs', label: 'API Docs' },
+  { path: '/setup', label: 'Setup Wizard' },
 ];
 
 interface SidebarProps {

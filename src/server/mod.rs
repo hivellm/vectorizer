@@ -1109,7 +1109,7 @@ impl VectorizerServer {
             .route("/setup/apply", post(setup_handlers::apply_setup_config))
             .route("/setup/verify", get(setup_handlers::verify_setup))
             .route("/setup/templates", get(setup_handlers::get_configuration_templates))
-            .route("/setup/templates/:id", get(setup_handlers::get_configuration_template_by_id))
+            .route("/setup/templates/{id}", get(setup_handlers::get_configuration_template_by_id))
             .route("/config", get(rest_handlers::get_config))
             .route("/config", post(rest_handlers::update_config))
             .route("/admin/restart", post(rest_handlers::restart_server))

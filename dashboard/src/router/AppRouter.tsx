@@ -26,6 +26,7 @@ const TestPage = lazy(() => import('@/pages/TestPage'));
 const UsersPage = lazy(() => import('@/pages/UsersPage'));
 const ApiKeysPage = lazy(() => import('@/pages/ApiKeysPage'));
 const SetupWizardPage = lazy(() => import('@/pages/SetupWizardPage'));
+const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -112,6 +113,7 @@ function AppRouter() {
           <Route path="users" element={<UsersPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
           <Route path="setup" element={<SetupWizardPage />} />
+          <Route path="docs" element={<ApiDocsPage />} />
         </Route>
       </Routes>
     </Suspense>
