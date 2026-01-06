@@ -3,9 +3,10 @@
 //! Analyzes project directories to detect project types, languages,
 //! and generate appropriate collection configurations for the setup wizard.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
 
 /// Result of analyzing a project directory
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -366,26 +367,24 @@ fn get_collection_templates(project_type: &ProjectType) -> Vec<SuggestedCollecti
                 estimated_file_count: 0,
             },
         ],
-        _ => vec![
-            SuggestedCollection {
-                name: "all".to_string(),
-                description: "All project files".to_string(),
-                include_patterns: vec![
-                    "**/*.md".to_string(),
-                    "**/*.txt".to_string(),
-                    "**/*.json".to_string(),
-                    "**/*.yaml".to_string(),
-                    "**/*.yml".to_string(),
-                ],
-                exclude_patterns: vec![
-                    "node_modules/**".to_string(),
-                    "target/**".to_string(),
-                    ".git/**".to_string(),
-                ],
-                content_type: "mixed".to_string(),
-                estimated_file_count: 0,
-            },
-        ],
+        _ => vec![SuggestedCollection {
+            name: "all".to_string(),
+            description: "All project files".to_string(),
+            include_patterns: vec![
+                "**/*.md".to_string(),
+                "**/*.txt".to_string(),
+                "**/*.json".to_string(),
+                "**/*.yaml".to_string(),
+                "**/*.yml".to_string(),
+            ],
+            exclude_patterns: vec![
+                "node_modules/**".to_string(),
+                "target/**".to_string(),
+                ".git/**".to_string(),
+            ],
+            content_type: "mixed".to_string(),
+            estimated_file_count: 0,
+        }],
     }
 }
 
@@ -539,11 +538,7 @@ fn walk_directory(
 
     for entry in entries.flatten() {
         let entry_path = entry.path();
-        let file_name = entry
-            .file_name()
-            .to_str()
-            .unwrap_or_default()
-            .to_string();
+        let file_name = entry.file_name().to_str().unwrap_or_default().to_string();
 
         // Skip hidden files/directories (except .git for detection)
         if file_name.starts_with('.') && file_name != ".git" {
@@ -627,7 +622,10 @@ fn walk_directory(
             // Count by extension
             if let Some(ext) = entry_path.extension().and_then(|e| e.to_str()) {
                 let ext_lower = ext.to_lowercase();
-                *stats.files_by_extension.entry(ext_lower.clone()).or_insert(0) += 1;
+                *stats
+                    .files_by_extension
+                    .entry(ext_lower.clone())
+                    .or_insert(0) += 1;
 
                 // Detect language from extension
                 if let Some(lang) = extension_to_language(&ext_lower) {
@@ -639,7 +637,11 @@ fn walk_directory(
 }
 
 /// Detect JavaScript/TypeScript frameworks from package.json content
-fn detect_js_frameworks(content: &str, frameworks: &mut Vec<String>, project_types: &mut Vec<ProjectType>) {
+fn detect_js_frameworks(
+    content: &str,
+    frameworks: &mut Vec<String>,
+    project_types: &mut Vec<ProjectType>,
+) {
     // Common frameworks to detect
     let framework_markers = [
         ("react", "React"),
@@ -658,7 +660,10 @@ fn detect_js_frameworks(content: &str, frameworks: &mut Vec<String>, project_typ
     for (marker, name) in framework_markers {
         if content.contains(&format!("\"{}\"", marker)) {
             frameworks.push(name.to_string());
-            if matches!(name, "React" | "Vue" | "Angular" | "Svelte" | "Next.js" | "Nuxt" | "Gatsby") {
+            if matches!(
+                name,
+                "React" | "Vue" | "Angular" | "Svelte" | "Next.js" | "Nuxt" | "Gatsby"
+            ) {
                 project_types.push(ProjectType::WebFrontend);
             }
         }
@@ -710,8 +715,14 @@ mod tests {
     #[test]
     fn test_extension_to_language() {
         assert_eq!(extension_to_language("rs"), Some(ProgrammingLanguage::Rust));
-        assert_eq!(extension_to_language("ts"), Some(ProgrammingLanguage::TypeScript));
-        assert_eq!(extension_to_language("py"), Some(ProgrammingLanguage::Python));
+        assert_eq!(
+            extension_to_language("ts"),
+            Some(ProgrammingLanguage::TypeScript)
+        );
+        assert_eq!(
+            extension_to_language("py"),
+            Some(ProgrammingLanguage::Python)
+        );
         assert_eq!(extension_to_language("unknown"), None);
     }
 
@@ -733,10 +744,10 @@ mod tests {
     fn test_detect_js_frameworks() {
         let mut frameworks = Vec::new();
         let mut project_types = Vec::new();
-        
+
         let package_json = r#"{"dependencies": {"react": "^18.0.0", "next": "^13.0.0"}}"#;
         detect_js_frameworks(package_json, &mut frameworks, &mut project_types);
-        
+
         assert!(frameworks.contains(&"React".to_string()));
         assert!(frameworks.contains(&"Next.js".to_string()));
         assert!(project_types.contains(&ProjectType::WebFrontend));

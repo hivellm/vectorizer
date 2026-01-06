@@ -100,6 +100,9 @@ unicode-normalization = { version = "0.1", default-features = false }
 # Note: regex is expensive - consider using simpler string matching where possible
 regex = { version = "1.10", default-features = false, features = ["std", "unicode-perl"] }
 
+# OpenSSL vendored for musl cross-compilation (hf-hub uses native-tls)
+openssl = { version = "0.10", features = ["vendored"], optional = true }
+
 # Authentication and security
 jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
 uuid = { version = "1.19", features = ["v4", "serde"] }
@@ -298,6 +301,9 @@ path = "scripts/test_routes.rs"
 [features]
 default = ["hive-gpu", "fastembed"]
 fastembed = ["dep:fastembed"]
+
+# OpenSSL vendored for musl cross-compilation
+vendored-openssl = ["dep:openssl"]
 
 # GPU acceleration via external hive-gpu crate only (Metal-only currently)
 # Future: CUDA, ROCm, WebGPU support when hive-gpu implements them

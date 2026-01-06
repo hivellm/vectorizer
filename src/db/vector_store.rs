@@ -731,7 +731,9 @@ impl VectorStore {
             let config_path = std::path::PathBuf::from("config.yml");
             if config_path.exists() {
                 if let Ok(config_content) = std::fs::read_to_string(&config_path) {
-                    if let Ok(vectorizer_config) = serde_yaml::from_str::<crate::config::VectorizerConfig>(&config_content) {
+                    if let Ok(vectorizer_config) =
+                        serde_yaml::from_str::<crate::config::VectorizerConfig>(&config_content)
+                    {
                         vectorizer_config.gpu.enabled
                     } else {
                         // If parsing fails, default to false (safer for persistence)
@@ -745,7 +747,7 @@ impl VectorStore {
                 false
             }
         };
-        
+
         self.create_collection_internal(name, config, allow_gpu, None)
     }
 

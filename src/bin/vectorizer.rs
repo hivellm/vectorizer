@@ -44,13 +44,16 @@ struct Cli {
 /// Load configuration from config.yml, creating with defaults if not exists
 fn load_config(config_path: &str) -> VectorizerConfig {
     let path = std::path::Path::new(config_path);
-    
+
     // If config doesn't exist, create it with defaults
     if !path.exists() {
-        info!("📝 Config file {} not found, creating with default values...", config_path);
-        
+        info!(
+            "📝 Config file {} not found, creating with default values...",
+            config_path
+        );
+
         let default_config = VectorizerConfig::default();
-        
+
         // Try to serialize and write the default config
         match serde_yaml::to_string(&default_config) {
             Ok(yaml_content) => {
@@ -59,10 +62,10 @@ fn load_config(config_path: &str) -> VectorizerConfig {
                     "# Vectorizer Configuration File\n\
                      # Generated automatically with default values\n\
                      # See config.example.yml for full documentation\n\n\
-                     {}", 
+                     {}",
                     yaml_content
                 );
-                
+
                 match std::fs::write(config_path, &content) {
                     Ok(_) => {
                         info!("✅ Created default config file: {}", config_path);
@@ -77,10 +80,10 @@ fn load_config(config_path: &str) -> VectorizerConfig {
                 warn!("⚠️  Could not serialize default config: {}", e);
             }
         }
-        
+
         return default_config;
     }
-    
+
     // Config exists, try to load it
     match std::fs::read_to_string(config_path) {
         Ok(content) => match serde_yaml::from_str::<VectorizerConfig>(&content) {
@@ -104,7 +107,7 @@ fn load_config(config_path: &str) -> VectorizerConfig {
 /// Validate write permissions for data directory and config
 fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result<(), String> {
     let mut errors = Vec::new();
-    
+
     // 1. Check data directory
     let data_dir = std::path::Path::new("./data");
     if !data_dir.exists() {
@@ -129,7 +132,7 @@ fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result
             }
         }
     }
-    
+
     // 2. Check snapshots directory if enabled
     let snapshots_dir = std::path::Path::new("./data/snapshots");
     if !snapshots_dir.exists() {
@@ -143,19 +146,23 @@ fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result
             }
         }
     }
-    
+
     // 3. Check config file is writable (for updates)
     let config_path = std::path::Path::new(config_path);
     if config_path.exists() {
         match std::fs::OpenOptions::new().write(true).open(config_path) {
             Ok(_) => {}
             Err(e) => {
-                warn!("⚠️  Config file {} is not writable: {}", config_path.display(), e);
+                warn!(
+                    "⚠️  Config file {} is not writable: {}",
+                    config_path.display(),
+                    e
+                );
                 // This is a warning, not an error - we can still run
             }
         }
     }
-    
+
     // 4. Check workspace.yml parent directory
     let workspace_dir = std::path::Path::new(".");
     let test_workspace = workspace_dir.join(".workspace_write_test");
@@ -164,10 +171,13 @@ fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result
             let _ = std::fs::remove_file(&test_workspace);
         }
         Err(e) => {
-            errors.push(format!("No write permission for workspace.yml in current directory: {}", e));
+            errors.push(format!(
+                "No write permission for workspace.yml in current directory: {}",
+                e
+            ));
         }
     }
-    
+
     // 5. Check logs directory
     let logs_dir = std::path::Path::new("./.logs");
     if !logs_dir.exists() {
@@ -176,12 +186,15 @@ fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result
                 info!("📁 Created logs directory: ./.logs");
             }
             Err(e) => {
-                warn!("⚠️  Cannot create logs directory: {} (logging to console only)", e);
+                warn!(
+                    "⚠️  Cannot create logs directory: {} (logging to console only)",
+                    e
+                );
                 // Not critical, just warn
             }
         }
     }
-    
+
     if errors.is_empty() {
         Ok(())
     } else {

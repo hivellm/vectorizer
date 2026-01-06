@@ -1008,37 +1008,53 @@ pub async fn insert_text(
                     "Collection '{}' not found, creating automatically with default config",
                     collection_name
                 );
-                
+
                 // Try to load defaults from config.yml
                 let default_config = {
                     if let Ok(config_content) = std::fs::read_to_string("config.yml") {
-                        if let Ok(yaml_value) = serde_yaml::from_str::<serde_json::Value>(&config_content) {
+                        if let Ok(yaml_value) =
+                            serde_yaml::from_str::<serde_json::Value>(&config_content)
+                        {
                             // Extract collections.defaults if available
                             if let Some(collections) = yaml_value.get("collections") {
                                 if let Some(defaults) = collections.get("defaults") {
-                                    let dimension = defaults.get("dimension")
+                                    let dimension = defaults
+                                        .get("dimension")
                                         .and_then(|d| d.as_u64())
                                         .map(|d| d as usize)
                                         .unwrap_or(512);
-                                    
-                                    let metric = defaults.get("metric")
+
+                                    let metric = defaults
+                                        .get("metric")
                                         .and_then(|m| m.as_str())
                                         .unwrap_or("cosine");
-                                    
+
                                     let metric_enum = match metric {
                                         "cosine" => crate::models::DistanceMetric::Cosine,
                                         "euclidean" => crate::models::DistanceMetric::Euclidean,
                                         "dot" => crate::models::DistanceMetric::DotProduct,
                                         _ => crate::models::DistanceMetric::Cosine,
                                     };
-                                    
+
                                     // Extract HNSW config
                                     let hnsw_config = if let Some(index) = defaults.get("index") {
                                         if let Some(hnsw) = index.get("hnsw") {
                                             crate::models::HnswConfig {
-                                                m: hnsw.get("m").and_then(|m| m.as_u64()).map(|m| m as usize).unwrap_or(16),
-                                                ef_construction: hnsw.get("ef_construction").and_then(|e| e.as_u64()).map(|e| e as usize).unwrap_or(200),
-                                                ef_search: hnsw.get("ef_search").and_then(|e| e.as_u64()).map(|e| e as usize).unwrap_or(64),
+                                                m: hnsw
+                                                    .get("m")
+                                                    .and_then(|m| m.as_u64())
+                                                    .map(|m| m as usize)
+                                                    .unwrap_or(16),
+                                                ef_construction: hnsw
+                                                    .get("ef_construction")
+                                                    .and_then(|e| e.as_u64())
+                                                    .map(|e| e as usize)
+                                                    .unwrap_or(200),
+                                                ef_search: hnsw
+                                                    .get("ef_search")
+                                                    .and_then(|e| e.as_u64())
+                                                    .map(|e| e as usize)
+                                                    .unwrap_or(64),
                                                 seed: None,
                                             }
                                         } else {
@@ -1047,27 +1063,31 @@ pub async fn insert_text(
                                     } else {
                                         crate::models::HnswConfig::default()
                                     };
-                                    
+
                                     // Extract quantization config
-                                    let quantization = if let Some(quant) = defaults.get("quantization") {
-                                        if let Some(typ) = quant.get("type").and_then(|t| t.as_str()) {
-                                            if typ == "sq" {
-                                                let bits = quant.get("sq")
-                                                    .and_then(|s| s.get("bits"))
-                                                    .and_then(|b| b.as_u64())
-                                                    .map(|b| b as usize)
-                                                    .unwrap_or(8);
-                                                crate::models::QuantizationConfig::SQ { bits }
+                                    let quantization =
+                                        if let Some(quant) = defaults.get("quantization") {
+                                            if let Some(typ) =
+                                                quant.get("type").and_then(|t| t.as_str())
+                                            {
+                                                if typ == "sq" {
+                                                    let bits = quant
+                                                        .get("sq")
+                                                        .and_then(|s| s.get("bits"))
+                                                        .and_then(|b| b.as_u64())
+                                                        .map(|b| b as usize)
+                                                        .unwrap_or(8);
+                                                    crate::models::QuantizationConfig::SQ { bits }
+                                                } else {
+                                                    crate::models::QuantizationConfig::None
+                                                }
                                             } else {
                                                 crate::models::QuantizationConfig::None
                                             }
                                         } else {
-                                            crate::models::QuantizationConfig::None
-                                        }
-                                    } else {
-                                        crate::models::QuantizationConfig::SQ { bits: 8 }
-                                    };
-                                    
+                                            crate::models::QuantizationConfig::SQ { bits: 8 }
+                                        };
+
                                     crate::models::CollectionConfig {
                                         dimension,
                                         metric: metric_enum,
@@ -1093,14 +1113,17 @@ pub async fn insert_text(
                         crate::models::CollectionConfig::default()
                     }
                 };
-                
+
                 // Create collection
                 state
                     .store
                     .create_collection(collection_name, default_config)
                     .map_err(|e| ErrorResponse::from(e))?;
-                
-                info!("Collection '{}' created successfully with auto-creation", collection_name);
+
+                info!(
+                    "Collection '{}' created successfully with auto-creation",
+                    collection_name
+                );
             }
             Err(e) => {
                 // Other error, return it

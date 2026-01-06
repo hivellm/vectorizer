@@ -248,7 +248,9 @@ fn get_documentation_template() -> ConfigTemplate {
     ConfigTemplate {
         id: "documentation".to_string(),
         name: "Documentation".to_string(),
-        description: "Index and search documentation files. Great for wikis, guides, and knowledge bases.".to_string(),
+        description:
+            "Index and search documentation files. Great for wikis, guides, and knowledge bases."
+                .to_string(),
         icon: "📚".to_string(),
         use_cases: vec![
             "Wiki search".to_string(),
@@ -256,30 +258,25 @@ fn get_documentation_template() -> ConfigTemplate {
             "User guides".to_string(),
             "API documentation".to_string(),
         ],
-        collections: vec![
-            TemplateCollection {
-                name_suffix: "docs".to_string(),
-                description: "All documentation files".to_string(),
-                include_patterns: vec![
-                    "**/*.md".to_string(),
-                    "**/*.txt".to_string(),
-                    "**/*.rst".to_string(),
-                    "**/*.adoc".to_string(),
-                    "**/*.org".to_string(),
-                    "**/docs/**/*".to_string(),
-                ],
-                exclude_patterns: vec![
-                    "**/node_modules/**".to_string(),
-                    "**/.git/**".to_string(),
-                ],
-                content_type: "documentation".to_string(),
-                settings: CollectionSettings {
-                    chunk_size: 512,
-                    chunk_overlap: 50,
-                    embedding_model: "default".to_string(),
-                },
+        collections: vec![TemplateCollection {
+            name_suffix: "docs".to_string(),
+            description: "All documentation files".to_string(),
+            include_patterns: vec![
+                "**/*.md".to_string(),
+                "**/*.txt".to_string(),
+                "**/*.rst".to_string(),
+                "**/*.adoc".to_string(),
+                "**/*.org".to_string(),
+                "**/docs/**/*".to_string(),
+            ],
+            exclude_patterns: vec!["**/node_modules/**".to_string(), "**/.git/**".to_string()],
+            content_type: "documentation".to_string(),
+            settings: CollectionSettings {
+                chunk_size: 512,
+                chunk_overlap: 50,
+                embedding_model: "default".to_string(),
             },
-        ],
+        }],
     }
 }
 
@@ -288,7 +285,9 @@ fn get_custom_template() -> ConfigTemplate {
     ConfigTemplate {
         id: "custom".to_string(),
         name: "Custom".to_string(),
-        description: "Full control over your configuration. Start from scratch and customize everything.".to_string(),
+        description:
+            "Full control over your configuration. Start from scratch and customize everything."
+                .to_string(),
         icon: "⚙️".to_string(),
         use_cases: vec![
             "Custom file types".to_string(),
@@ -334,6 +333,11 @@ mod tests {
     fn test_code_search_template_has_collections() {
         let code_search = get_code_search_template();
         assert!(!code_search.collections.is_empty());
-        assert!(code_search.collections.iter().any(|c| c.name_suffix == "source"));
+        assert!(
+            code_search
+                .collections
+                .iter()
+                .any(|c| c.name_suffix == "source")
+        );
     }
 }

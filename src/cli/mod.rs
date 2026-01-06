@@ -4,8 +4,8 @@
 
 pub mod commands;
 pub mod config;
-pub mod utils;
 pub mod setup;
+pub mod utils;
 
 use std::path::PathBuf;
 

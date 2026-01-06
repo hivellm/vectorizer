@@ -48,6 +48,18 @@ jobs:
         shell: bash
       - name: Install nextest
         uses: taiki-e/install-action@nextest
+      - name: Setup Node.js for dashboard build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Build dashboard (required for rust-embed)
+        run: |
+          cd dashboard
+          pnpm install --frozen-lockfile
+          pnpm build
+        shell: bash
       - name: Build
         run: cargo build --tests --workspace
         env:

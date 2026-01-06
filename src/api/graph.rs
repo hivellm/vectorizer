@@ -56,6 +56,9 @@ pub fn create_graph_router() -> Router<GraphApiState> {
             "/graph/discover/{collection}/status",
             get(get_discovery_status),
         )
+        // Enable graph for a collection
+        .route("/graph/enable/{collection}", post(enable_graph))
+        .route("/graph/status/{collection}", get(graph_status))
 }
 
 /// Request/Response types
@@ -166,6 +169,109 @@ pub struct DiscoveryStatusResponse {
     pub nodes_with_edges: usize,
     pub total_edges: usize,
     pub progress_percentage: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnableGraphResponse {
+    pub success: bool,
+    pub collection: String,
+    pub message: String,
+    pub node_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GraphStatusResponse {
+    pub collection: String,
+    pub enabled: bool,
+    pub node_count: usize,
+    pub edge_count: usize,
+}
+
+/// POST /graph/enable/{collection}
+/// Enable graph for a collection
+pub async fn enable_graph(
+    State(state): State<GraphApiState>,
+    axum::extract::Path(collection_name): axum::extract::Path<String>,
+) -> Result<Json<EnableGraphResponse>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("POST /graph/enable/{}", collection_name);
+
+    // Try to enable graph for the collection
+    match state.store.enable_graph_for_collection(&collection_name) {
+        Ok(_) => {
+            // Get node count
+            let node_count = if let Ok(collection) = state.store.get_collection(&collection_name) {
+                if let Some(graph) = get_collection_graph_from_type(&collection) {
+                    graph.get_all_nodes().len()
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+
+            info!(
+                "Graph enabled for collection '{}' with {} nodes",
+                collection_name, node_count
+            );
+            Ok(Json(EnableGraphResponse {
+                success: true,
+                collection: collection_name,
+                message: "Graph enabled successfully".to_string(),
+                node_count,
+            }))
+        }
+        Err(e) => {
+            error!(
+                "Failed to enable graph for collection '{}': {}",
+                collection_name, e
+            );
+            Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": format!("Failed to enable graph: {}", e)
+                })),
+            ))
+        }
+    }
+}
+
+/// GET /graph/status/{collection}
+/// Get graph status for a collection
+pub async fn graph_status(
+    State(state): State<GraphApiState>,
+    axum::extract::Path(collection_name): axum::extract::Path<String>,
+) -> Result<Json<GraphStatusResponse>, (StatusCode, Json<serde_json::Value>)> {
+    debug!("GET /graph/status/{}", collection_name);
+
+    let collection = state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection '{}' not found: {}", collection_name, e);
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": format!("Collection '{}' not found", collection_name)
+            })),
+        )
+    })?;
+
+    // Check if graph is enabled
+    if let Some(graph) = get_collection_graph_from_type(&collection) {
+        let node_count = graph.get_all_nodes().len();
+        let edge_count = graph.edge_count();
+
+        Ok(Json(GraphStatusResponse {
+            collection: collection_name,
+            enabled: true,
+            node_count,
+            edge_count,
+        }))
+    } else {
+        Ok(Json(GraphStatusResponse {
+            collection: collection_name,
+            enabled: false,
+            node_count: 0,
+            edge_count: 0,
+        }))
+    }
 }
 
 /// GET /graph/nodes/{collection}

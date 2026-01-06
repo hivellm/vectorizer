@@ -7,13 +7,42 @@ on:
     types: [published]
 
 jobs:
+  # Build dashboard first - shared by all jobs
+  build-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Build dashboard
+        run: |
+          cd dashboard
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Upload dashboard artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
+          retention-days: 1
+
   # Separated Linux builds - each runs independently
   # If one fails, others continue
 
   build-linux-x86_64-gnu:
+    needs: build-dashboard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -34,9 +63,15 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux-x86_64-musl:
+    needs: build-dashboard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -48,7 +83,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
       - name: Build musl binaries with cross
         run: |
-          cross build --release --target x86_64-unknown-linux-musl --no-default-features
+          cross build --release --target x86_64-unknown-linux-musl --no-default-features --features vendored-openssl
           mkdir -p dist
           cp target/x86_64-unknown-linux-musl/release/vectorizer dist/vectorizer-x86_64-unknown-linux-musl
           cp target/x86_64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-x86_64-unknown-linux-musl
@@ -63,7 +98,7 @@ jobs:
       - name: Build Debian Package
         run: |
           cargo install cargo-deb
-          cross build --release --target x86_64-unknown-linux-musl --no-default-features
+          cross build --release --target x86_64-unknown-linux-musl --no-default-features --features vendored-openssl
           cargo deb --no-build --no-strip --target x86_64-unknown-linux-musl
       - name: Upload Debian package
         uses: svenstaro/upload-release-action@v2
@@ -75,9 +110,15 @@ jobs:
           file_glob: true
 
   build-linux-aarch64-musl:
+    needs: build-dashboard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -89,7 +130,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
       - name: Build musl binaries with cross
         run: |
-          cross build --release --target aarch64-unknown-linux-musl --no-default-features
+          cross build --release --target aarch64-unknown-linux-musl --no-default-features --features vendored-openssl
           mkdir -p dist
           cp target/aarch64-unknown-linux-musl/release/vectorizer dist/vectorizer-aarch64-unknown-linux-musl
           cp target/aarch64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-aarch64-unknown-linux-musl
@@ -103,6 +144,7 @@ jobs:
           file_glob: true
 
   build-mac-binaries:
+    needs: build-dashboard
     strategy:
       matrix:
         include:
@@ -112,6 +154,12 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           brew update-reset
@@ -120,7 +168,6 @@ jobs:
           rustup update
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v6
       - name: Build and publish vectorizer
         uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -135,6 +182,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-mac-metal-binaries:
+    needs: build-dashboard
     name: Build macOS ARM with Metal GPU support
     strategy:
       matrix:
@@ -143,6 +191,12 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           brew update-reset
@@ -152,7 +206,6 @@ jobs:
           rustup target add ${{ matrix.target }}
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v6
       - name: Build vectorizer with Metal support
         uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -171,6 +224,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows-binaries:
+    needs: build-dashboard
     strategy:
       matrix:
         include:
@@ -180,6 +234,11 @@ jobs:
       - name: Install minimal stable
         uses: dtolnay/rust-toolchain@stable
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - uses: Swatinem/rust-cache@v2
       - name: Install protoc
         shell: pwsh
@@ -197,42 +256,3 @@ jobs:
         with:
           bin: vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
-
-  # Temporarily disabled - MSI build has issues
-  # build-windows-msi:
-  #   strategy:
-  #     matrix:
-  #       include:
-  #         - os: windows-latest
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Install minimal stable
-  #       uses: dtolnay/rust-toolchain@stable
-  #     - uses: actions/checkout@v5
-  #     - uses: Swatinem/rust-cache@v2
-  #
-  #     - name: Build release binaries
-  #       run: cargo build --release
-  #
-  #     - name: Install WiX Toolset
-  #       run: |
-  #         dotnet tool install --global wix --version 5.0.2
-  #         wix extension add -g WixToolset.UI.wixext
-  #         wix extension list
-  #         wix --version
-  #
-  #     - name: Build MSI installer
-  #       shell: pwsh
-  #       env:
-  #         CargoTargetBinDir: ${{ github.workspace }}\target\release
-  #       run: |
-  #         wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
-  #
-  #     - name: Upload MSI
-  #       uses: svenstaro/upload-release-action@v2
-  #       with:
-  #         repo_token: ${{ secrets.GITHUB_TOKEN }}
-  #         file: vectorizer.msi
-  #         asset_name: vectorizer-x86_64.msi
-  #         tag: ${{ github.ref }}
-  #         overwrite: true

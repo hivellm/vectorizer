@@ -1106,11 +1106,20 @@ impl VectorizerServer {
             )
             // Setup Wizard routes
             .route("/setup/status", get(setup_handlers::get_setup_status))
-            .route("/setup/analyze", post(setup_handlers::analyze_project_directory))
+            .route(
+                "/setup/analyze",
+                post(setup_handlers::analyze_project_directory),
+            )
             .route("/setup/apply", post(setup_handlers::apply_setup_config))
             .route("/setup/verify", get(setup_handlers::verify_setup))
-            .route("/setup/templates", get(setup_handlers::get_configuration_templates))
-            .route("/setup/templates/{id}", get(setup_handlers::get_configuration_template_by_id))
+            .route(
+                "/setup/templates",
+                get(setup_handlers::get_configuration_templates),
+            )
+            .route(
+                "/setup/templates/{id}",
+                get(setup_handlers::get_configuration_template_by_id),
+            )
             .route("/setup/browse", post(setup_handlers::browse_directory))
             .route("/config", get(rest_handlers::get_config))
             .route("/config", post(rest_handlers::update_config))
@@ -1482,7 +1491,10 @@ impl VectorizerServer {
             // 2. SPA fallback - any other route returns index.html for React Router
             .route("/dashboard", get(embedded_assets::dashboard_root_handler))
             .route("/dashboard/", get(embedded_assets::dashboard_root_handler))
-            .route("/dashboard/{*path}", get(embedded_assets::dashboard_handler))
+            .route(
+                "/dashboard/{*path}",
+                get(embedded_assets::dashboard_handler),
+            )
             .layer(axum::middleware::from_fn(
                 crate::monitoring::correlation_middleware,
             ))

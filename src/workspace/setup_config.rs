@@ -3,9 +3,11 @@
 //! Provides structures and functions for applying the initial setup configuration,
 //! shared between the REST API and CLI.
 
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use std::path::Path;
+
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+
 use crate::workspace::project_analyzer::ProjectAnalysis;
 
 /// Apply configuration request (simplified workspace config for setup)
@@ -52,13 +54,17 @@ pub struct SetupFileWatcherSettings {
 impl ApplyConfigRequest {
     /// Create a setup configuration from a project analysis result
     pub fn from_analysis(analysis: &ProjectAnalysis) -> Self {
-        let collections = analysis.suggested_collections.iter().map(|c| SetupCollection {
-            name: c.name.clone(),
-            description: c.description.clone(),
-            include_patterns: c.include_patterns.clone(),
-            exclude_patterns: c.exclude_patterns.clone(),
-            enable_graph: None, // Graph relationships disabled by default
-        }).collect();
+        let collections = analysis
+            .suggested_collections
+            .iter()
+            .map(|c| SetupCollection {
+                name: c.name.clone(),
+                description: c.description.clone(),
+                include_patterns: c.include_patterns.clone(),
+                exclude_patterns: c.exclude_patterns.clone(),
+                enable_graph: None, // Graph relationships disabled by default
+            })
+            .collect();
 
         let project = SetupProject {
             name: analysis.project_name.clone(),
@@ -83,7 +89,9 @@ impl ApplyConfigRequest {
 }
 
 /// Generate workspace.yml content from the setup configuration
-pub fn generate_workspace_yaml(config: &ApplyConfigRequest) -> Result<String, Box<dyn std::error::Error>> {
+pub fn generate_workspace_yaml(
+    config: &ApplyConfigRequest,
+) -> Result<String, Box<dyn std::error::Error>> {
     // Build workspace.yml content
     let mut projects_yaml: Vec<Value> = Vec::new();
 
@@ -97,12 +105,12 @@ pub fn generate_workspace_yaml(config: &ApplyConfigRequest) -> Result<String, Bo
                 "include_patterns": collection.include_patterns,
                 "exclude_patterns": collection.exclude_patterns,
             });
-            
+
             // Add enable_graph if set to true
             if collection.enable_graph == Some(true) {
                 collection_json["enable_graph"] = json!(true);
             }
-            
+
             collections_yaml.push(collection_json);
         }
 
@@ -131,7 +139,8 @@ pub fn generate_workspace_yaml(config: &ApplyConfigRequest) -> Result<String, Bo
                 global_settings_yaml["file_watcher"]["auto_discovery"] = json!(auto_discovery);
             }
             if let Some(enable_auto_update) = fw.enable_auto_update {
-                global_settings_yaml["file_watcher"]["enable_auto_update"] = json!(enable_auto_update);
+                global_settings_yaml["file_watcher"]["enable_auto_update"] =
+                    json!(enable_auto_update);
             }
             if let Some(hot_reload) = fw.hot_reload {
                 global_settings_yaml["file_watcher"]["hot_reload"] = json!(hot_reload);
@@ -163,7 +172,10 @@ pub fn generate_workspace_yaml(config: &ApplyConfigRequest) -> Result<String, Bo
 }
 
 /// Write the workspace configuration to a file
-pub fn write_workspace_config(config: &ApplyConfigRequest, path: impl AsRef<Path>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_workspace_config(
+    config: &ApplyConfigRequest,
+    path: impl AsRef<Path>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let content = generate_workspace_yaml(config)?;
     std::fs::write(path, content)?;
     Ok(())
@@ -171,9 +183,12 @@ pub fn write_workspace_config(config: &ApplyConfigRequest, path: impl AsRef<Path
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::workspace::project_analyzer::{ProjectAnalysis, ProjectType, ProgrammingLanguage, SuggestedCollection, DirectoryStats};
     use std::collections::HashMap;
+
+    use super::*;
+    use crate::workspace::project_analyzer::{
+        DirectoryStats, ProgrammingLanguage, ProjectAnalysis, ProjectType, SuggestedCollection,
+    };
 
     #[test]
     fn test_from_analysis() {
@@ -183,16 +198,14 @@ mod tests {
             project_types: vec![ProjectType::Rust],
             languages: vec![ProgrammingLanguage::Rust],
             frameworks: vec![],
-            suggested_collections: vec![
-                SuggestedCollection {
-                    name: "source".to_string(),
-                    description: "Source code".to_string(),
-                    include_patterns: vec!["src/**/*.rs".to_string()],
-                    exclude_patterns: vec![],
-                    content_type: "rust".to_string(),
-                    estimated_file_count: 10,
-                }
-            ],
+            suggested_collections: vec![SuggestedCollection {
+                name: "source".to_string(),
+                description: "Source code".to_string(),
+                include_patterns: vec!["src/**/*.rs".to_string()],
+                exclude_patterns: vec![],
+                content_type: "rust".to_string(),
+                estimated_file_count: 10,
+            }],
             statistics: DirectoryStats {
                 total_files: 10,
                 total_directories: 2,
@@ -204,7 +217,7 @@ mod tests {
         };
 
         let config = ApplyConfigRequest::from_analysis(&analysis);
-        
+
         assert_eq!(config.projects.len(), 1);
         let project = &config.projects[0];
         assert_eq!(project.name, "test-project");

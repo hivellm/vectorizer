@@ -113,11 +113,9 @@ async fn main() {
                     error!("Setup wizard failed: {e}");
                     std::process::exit(1);
                 }
-            } else {
-                if let Err(e) = vectorizer::cli::setup::run(path).await {
-                    error!("Setup failed: {e}");
-                    std::process::exit(1);
-                }
+            } else if let Err(e) = vectorizer::cli::setup::run(path).await {
+                error!("Setup failed: {e}");
+                std::process::exit(1);
             }
         }
         Commands::Docs { sandbox } => {

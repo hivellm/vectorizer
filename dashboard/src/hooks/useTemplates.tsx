@@ -133,14 +133,14 @@ export function getTemplateIcon(templateId: string): React.ReactElement {
 }
 
 /**
- * Get template color based on ID
+ * Get template color based on ID - using neutral color palette
  */
 export function getTemplateColor(templateId: string): string {
   const colors: Record<string, string> = {
-    rag: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-    code_search: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    documentation: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-    custom: 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400',
+    rag: 'bg-neutral-700/50 text-neutral-300',
+    code_search: 'bg-neutral-700/50 text-neutral-300',
+    documentation: 'bg-neutral-700/50 text-neutral-300',
+    custom: 'bg-neutral-800/50 text-neutral-400',
   };
   return colors[templateId] || colors.custom;
 }

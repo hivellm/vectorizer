@@ -30,6 +30,17 @@ jobs:
         run: sudo apt-get update
       - name: Install dependencies
         run: sudo apt-get install -y clang protobuf-compiler
+      - name: Setup Node.js for dashboard build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Build dashboard (required for rust-embed)
+        run: |
+          cd dashboard
+          pnpm install --frozen-lockfile
+          pnpm build
       - name: Check code formatting
         run: cargo +nightly fmt --all -- --check
       - name: Check cargo clippy warnings

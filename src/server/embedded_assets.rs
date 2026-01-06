@@ -3,11 +3,9 @@
 //! This module embeds the dashboard static files into the binary using rust-embed.
 //! This allows distributing a single binary without external dependencies.
 
-use axum::{
-    body::Body,
-    http::{header, Response, StatusCode},
-    response::IntoResponse,
-};
+use axum::body::Body;
+use axum::http::{Response, StatusCode, header};
+use axum::response::IntoResponse;
 use rust_embed::Embed;
 
 /// Embedded dashboard assets from dashboard/dist
@@ -35,24 +33,18 @@ fn serve_file(path: &str) -> Response<Body> {
             // Add cache headers based on file type
             if path.starts_with("assets/") {
                 // Fingerprinted assets: cache for 1 year
-                builder = builder.header(
-                    header::CACHE_CONTROL,
-                    "public, max-age=31536000, immutable",
-                );
+                builder =
+                    builder.header(header::CACHE_CONTROL, "public, max-age=31536000, immutable");
             } else if path == "index.html" || path.is_empty() {
                 // HTML: no cache
-                builder = builder.header(
-                    header::CACHE_CONTROL,
-                    "no-cache, no-store, must-revalidate",
-                );
+                builder =
+                    builder.header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate");
             } else {
                 // Other files: cache for 1 hour
                 builder = builder.header(header::CACHE_CONTROL, "public, max-age=3600");
             }
 
-            builder
-                .body(Body::from(content.data.into_owned()))
-                .unwrap()
+            builder.body(Body::from(content.data.into_owned())).unwrap()
         }
         None => {
             // File not found - for SPA routing, return index.html

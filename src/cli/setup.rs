@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use crate::workspace::project_analyzer::analyze_directory;
 use crate::workspace::setup_config::{ApplyConfigRequest, write_workspace_config};
-use crate::workspace::templates::{get_templates, get_template_by_id, ConfigTemplate};
+use crate::workspace::templates::{ConfigTemplate, get_template_by_id, get_templates};
 
 /// Run the interactive setup wizard
 pub async fn run(path: PathBuf) -> anyhow::Result<()> {
@@ -46,16 +46,39 @@ pub async fn run(path: PathBuf) -> anyhow::Result<()> {
     println!("   💻 Languages:    {:?}", analysis.languages);
     println!();
     println!("   📊 Statistics:");
-    println!("      • Total Files:       {}", analysis.statistics.total_files);
-    println!("      • Total Directories: {}", analysis.statistics.total_directories);
-    println!("      • Total Size:        {} bytes", analysis.statistics.total_size_bytes);
-    println!("      • Has Git:           {}", if analysis.statistics.has_git { "Yes" } else { "No" });
-    println!("      • Has Docs:          {}", if analysis.statistics.has_docs { "Yes" } else { "No" });
+    println!(
+        "      • Total Files:       {}",
+        analysis.statistics.total_files
+    );
+    println!(
+        "      • Total Directories: {}",
+        analysis.statistics.total_directories
+    );
+    println!(
+        "      • Total Size:        {} bytes",
+        analysis.statistics.total_size_bytes
+    );
+    println!(
+        "      • Has Git:           {}",
+        if analysis.statistics.has_git {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
+    println!(
+        "      • Has Docs:          {}",
+        if analysis.statistics.has_docs {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
     println!();
 
     // Ask about template
     let template = prompt_for_template()?;
-    
+
     // Determine collections based on template
     let collections = if let Some(ref t) = template {
         if t.id == "custom" {
@@ -63,16 +86,19 @@ pub async fn run(path: PathBuf) -> anyhow::Result<()> {
             analysis.suggested_collections.clone()
         } else {
             // Convert template collections
-            t.collections.iter().map(|tc| {
-                crate::workspace::project_analyzer::SuggestedCollection {
-                    name: format!("{}-{}", analysis.project_name, tc.name_suffix),
-                    description: tc.description.clone(),
-                    include_patterns: tc.include_patterns.clone(),
-                    exclude_patterns: tc.exclude_patterns.clone(),
-                    content_type: tc.content_type.clone(),
-                    estimated_file_count: 0,
-                }
-            }).collect()
+            t.collections
+                .iter()
+                .map(
+                    |tc| crate::workspace::project_analyzer::SuggestedCollection {
+                        name: format!("{}-{}", analysis.project_name, tc.name_suffix),
+                        description: tc.description.clone(),
+                        include_patterns: tc.include_patterns.clone(),
+                        exclude_patterns: tc.exclude_patterns.clone(),
+                        content_type: tc.content_type.clone(),
+                        estimated_file_count: 0,
+                    },
+                )
+                .collect()
         }
     } else {
         analysis.suggested_collections.clone()
@@ -93,16 +119,16 @@ pub async fn run(path: PathBuf) -> anyhow::Result<()> {
     println!();
     print!("❓ Apply this configuration and create workspace.yml? [Y/n]: ");
     io::stdout().flush()?;
-    
+
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     let input = input.trim().to_lowercase();
-    
+
     if input == "y" || input == "yes" || input.is_empty() {
         // Create modified analysis with selected collections
         let mut modified_analysis = analysis.clone();
         modified_analysis.suggested_collections = collections;
-        
+
         let config = ApplyConfigRequest::from_analysis(&modified_analysis);
         match write_workspace_config(&config, "workspace.yml") {
             Ok(_) => {
@@ -139,30 +165,30 @@ pub async fn run_wizard() -> anyhow::Result<()> {
     println!();
     println!("   URL: http://localhost:15002/setup");
     println!();
-    
+
     // Try to open the browser
     let url = "http://localhost:15002/setup";
-    
+
     #[cfg(target_os = "macos")]
     {
         let _ = std::process::Command::new("open").arg(url).spawn();
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let _ = std::process::Command::new("xdg-open").arg(url).spawn();
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         let _ = std::process::Command::new("cmd")
             .args(["/C", "start", url])
             .spawn();
     }
-    
+
     println!("   If the browser doesn't open automatically, please visit the URL above.");
     println!();
-    
+
     Ok(())
 }
 
@@ -173,33 +199,33 @@ pub async fn run_docs(sandbox: bool) -> anyhow::Result<()> {
     } else {
         "http://localhost:15002/docs"
     };
-    
+
     println!();
     println!("🌐 Opening API Documentation...");
     println!();
     println!("   URL: {}", url);
     println!();
-    
+
     #[cfg(target_os = "macos")]
     {
         let _ = std::process::Command::new("open").arg(url).spawn();
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         let _ = std::process::Command::new("xdg-open").arg(url).spawn();
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         let _ = std::process::Command::new("cmd")
             .args(["/C", "start", url])
             .spawn();
     }
-    
+
     println!("   If the browser doesn't open automatically, please visit the URL above.");
     println!();
-    
+
     Ok(())
 }
 
@@ -207,11 +233,11 @@ pub async fn run_docs(sandbox: bool) -> anyhow::Result<()> {
 fn prompt_for_path() -> io::Result<PathBuf> {
     print!("📁 Enter project path [.]: ");
     io::stdout().flush()?;
-    
+
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     let input = input.trim();
-    
+
     if input.is_empty() {
         Ok(PathBuf::from("."))
     } else {
@@ -222,29 +248,29 @@ fn prompt_for_path() -> io::Result<PathBuf> {
 /// Prompt user for template selection
 fn prompt_for_template() -> io::Result<Option<ConfigTemplate>> {
     let templates = get_templates();
-    
+
     println!();
     println!("╭─────────────────────────────────────────────────────────────────╮");
     println!("│                    Select a Template                           │");
     println!("╰─────────────────────────────────────────────────────────────────╯");
     println!();
-    
+
     for (i, template) in templates.iter().enumerate() {
         println!("   {}. {} {}", i + 1, template.icon, template.name);
         println!("      {}", template.description);
         println!();
     }
-    
+
     println!("   0. Skip (use auto-detected collections)");
     println!();
-    
+
     print!("   Enter choice [0]: ");
     io::stdout().flush()?;
-    
+
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
     let input = input.trim();
-    
+
     if input.is_empty() || input == "0" {
         Ok(None)
     } else if let Ok(choice) = input.parse::<usize>() {

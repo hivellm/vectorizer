@@ -9,6 +9,7 @@ mod metal_tests {
     use vectorizer::db::gpu_detection::{GpuBackendType, GpuDetector};
 
     // Initialize tracing for tests
+    #[allow(dead_code)]
     fn init_tracing() {
         let _ = tracing_subscriber::fmt::try_init();
     }
