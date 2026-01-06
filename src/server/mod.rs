@@ -1,5 +1,6 @@
 mod auth_handlers;
 mod discovery_handlers;
+mod embedded_assets;
 mod error_middleware;
 pub mod file_operations_handlers;
 mod file_upload_handlers;
@@ -39,7 +40,7 @@ pub use mcp_handlers::handle_mcp_tool;
 pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::{ServeDir, ServeFile};
+// Note: ServeDir/ServeFile no longer needed - dashboard is embedded in binary
 use tower_http::set_header::SetResponseHeaderLayer;
 use tracing::{debug, error, info, warn};
 
@@ -1110,6 +1111,7 @@ impl VectorizerServer {
             .route("/setup/verify", get(setup_handlers::verify_setup))
             .route("/setup/templates", get(setup_handlers::get_configuration_templates))
             .route("/setup/templates/{id}", get(setup_handlers::get_configuration_template_by_id))
+            .route("/setup/browse", post(setup_handlers::browse_directory))
             .route("/config", get(rest_handlers::get_config))
             .route("/config", post(rest_handlers::update_config))
             .route("/admin/restart", post(rest_handlers::restart_server))
@@ -1471,56 +1473,16 @@ impl VectorizerServer {
                 "/qdrant/cluster/metadata/keys/{key}",
                 put(qdrant_cluster_handlers::update_metadata_key),
             )
-            // Dashboard - serve static files from dist directory (production build)
-            // Use ServeDir with fallback to index.html for SPA routing support
-            // This ensures that direct URL access (e.g., /dashboard/collections) works on refresh
+            // Dashboard - serve embedded static files (production build)
+            // All dashboard assets are embedded in the binary using rust-embed
+            // This allows distributing a single binary without external dependencies
             //
             // Route priority for /dashboard/*:
             // 1. Exact file match (assets/, favicon.ico, etc.) - served with cache headers
             // 2. SPA fallback - any other route returns index.html for React Router
-            .nest_service(
-                "/dashboard",
-                ServeDir::new("dashboard/dist")
-                    .fallback(ServeFile::new("dashboard/dist/index.html")),
-            )
-            // Add cache headers for dashboard assets
-            // Assets in /dashboard/assets/* are fingerprinted, so max-age=1year is safe
-            // index.html should not be cached to ensure updates are picked up
-            .layer(axum::middleware::from_fn(
-                |req: axum::extract::Request, next: axum::middleware::Next| async move {
-                    let path = req.uri().path().to_string();
-                    let mut response = next.run(req).await;
-
-                    // Only apply cache headers to dashboard routes
-                    if path.starts_with("/dashboard") {
-                        // Log dashboard requests at debug level
-                        tracing::debug!("📊 Dashboard request: {}", path);
-
-                        let headers = response.headers_mut();
-                        if path.starts_with("/dashboard/assets/") {
-                            // Fingerprinted assets: cache for 1 year
-                            headers.insert(
-                                axum::http::header::CACHE_CONTROL,
-                                "public, max-age=31536000, immutable".parse().unwrap(),
-                            );
-                        } else if path == "/dashboard/" || path == "/dashboard" {
-                            // index.html: no cache to ensure updates
-                            headers.insert(
-                                axum::http::header::CACHE_CONTROL,
-                                "no-cache, no-store, must-revalidate".parse().unwrap(),
-                            );
-                        } else {
-                            // SPA routes (fallback to index.html): no cache
-                            headers.insert(
-                                axum::http::header::CACHE_CONTROL,
-                                "no-cache, no-store, must-revalidate".parse().unwrap(),
-                            );
-                        }
-                    }
-
-                    response
-                },
-            ))
+            .route("/dashboard", get(embedded_assets::dashboard_root_handler))
+            .route("/dashboard/", get(embedded_assets::dashboard_root_handler))
+            .route("/dashboard/{*path}", get(embedded_assets::dashboard_handler))
             .layer(axum::middleware::from_fn(
                 crate::monitoring::correlation_middleware,
             ))
@@ -1693,9 +1655,9 @@ impl VectorizerServer {
         // 1. Public routes first (health check, prometheus metrics) - no auth required
         // 2. UMICP routes (most specific)
         // 3. MCP routes
-        // 4. REST API routes (including /api/*, dashboard with SPA fallback via ServeDir)
+        // 4. REST API routes (including /api/*, dashboard with embedded assets)
         // 5. Metrics routes
-        // Note: Dashboard SPA routing is handled by ServeDir with not_found_service in rest_routes
+        // Note: Dashboard assets are embedded in the binary using rust-embed
         let app = Router::new()
             .merge(public_routes) // Health check and prometheus - always public
             .merge(umicp_routes)

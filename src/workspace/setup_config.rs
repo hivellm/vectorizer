@@ -31,6 +31,9 @@ pub struct SetupCollection {
     pub description: String,
     pub include_patterns: Vec<String>,
     pub exclude_patterns: Vec<String>,
+    /// Enable automatic graph relationship discovery (GraphRAG)
+    #[serde(default)]
+    pub enable_graph: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +57,7 @@ impl ApplyConfigRequest {
             description: c.description.clone(),
             include_patterns: c.include_patterns.clone(),
             exclude_patterns: c.exclude_patterns.clone(),
+            enable_graph: None, // Graph relationships disabled by default
         }).collect();
 
         let project = SetupProject {
@@ -87,12 +91,19 @@ pub fn generate_workspace_yaml(config: &ApplyConfigRequest) -> Result<String, Bo
         let mut collections_yaml: Vec<Value> = Vec::new();
 
         for collection in &project.collections {
-            collections_yaml.push(json!({
+            let mut collection_json = json!({
                 "name": collection.name,
                 "description": collection.description,
                 "include_patterns": collection.include_patterns,
                 "exclude_patterns": collection.exclude_patterns,
-            }));
+            });
+            
+            // Add enable_graph if set to true
+            if collection.enable_graph == Some(true) {
+                collection_json["enable_graph"] = json!(true);
+            }
+            
+            collections_yaml.push(collection_json);
         }
 
         projects_yaml.push(json!({

@@ -51,6 +51,7 @@ export interface SetupProject {
     description: string;
     include_patterns: string[];
     exclude_patterns: string[];
+    enable_graph?: boolean; // Enable automatic graph relationship discovery
   }>;
 }
 

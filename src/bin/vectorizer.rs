@@ -41,8 +41,47 @@ struct Cli {
     root_password: Option<String>,
 }
 
-/// Load configuration from config.yml, falling back to defaults
+/// Load configuration from config.yml, creating with defaults if not exists
 fn load_config(config_path: &str) -> VectorizerConfig {
+    let path = std::path::Path::new(config_path);
+    
+    // If config doesn't exist, create it with defaults
+    if !path.exists() {
+        info!("📝 Config file {} not found, creating with default values...", config_path);
+        
+        let default_config = VectorizerConfig::default();
+        
+        // Try to serialize and write the default config
+        match serde_yaml::to_string(&default_config) {
+            Ok(yaml_content) => {
+                // Add helpful header comment
+                let content = format!(
+                    "# Vectorizer Configuration File\n\
+                     # Generated automatically with default values\n\
+                     # See config.example.yml for full documentation\n\n\
+                     {}", 
+                    yaml_content
+                );
+                
+                match std::fs::write(config_path, &content) {
+                    Ok(_) => {
+                        info!("✅ Created default config file: {}", config_path);
+                    }
+                    Err(e) => {
+                        warn!("⚠️  Could not create config file {}: {}", config_path, e);
+                        warn!("   Using in-memory defaults. Check write permissions.");
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("⚠️  Could not serialize default config: {}", e);
+            }
+        }
+        
+        return default_config;
+    }
+    
+    // Config exists, try to load it
     match std::fs::read_to_string(config_path) {
         Ok(content) => match serde_yaml::from_str::<VectorizerConfig>(&content) {
             Ok(config) => {
@@ -50,14 +89,103 @@ fn load_config(config_path: &str) -> VectorizerConfig {
                 config
             }
             Err(e) => {
-                warn!("⚠️  Failed to parse {}: {}, using defaults", config_path, e);
+                warn!("⚠️  Failed to parse {}: {}", config_path, e);
+                warn!("   Using defaults. Please fix the config file syntax.");
                 VectorizerConfig::default()
             }
         },
-        Err(_) => {
-            warn!("⚠️  Config file {} not found, using defaults", config_path);
+        Err(e) => {
+            warn!("⚠️  Cannot read config file {}: {}", config_path, e);
             VectorizerConfig::default()
         }
+    }
+}
+
+/// Validate write permissions for data directory and config
+fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result<(), String> {
+    let mut errors = Vec::new();
+    
+    // 1. Check data directory
+    let data_dir = std::path::Path::new("./data");
+    if !data_dir.exists() {
+        // Try to create it
+        match std::fs::create_dir_all(data_dir) {
+            Ok(_) => {
+                info!("📁 Created data directory: ./data");
+            }
+            Err(e) => {
+                errors.push(format!("Cannot create data directory ./data: {}", e));
+            }
+        }
+    } else {
+        // Check write permissions by creating a test file
+        let test_file = data_dir.join(".write_test");
+        match std::fs::write(&test_file, "test") {
+            Ok(_) => {
+                let _ = std::fs::remove_file(&test_file);
+            }
+            Err(e) => {
+                errors.push(format!("No write permission in ./data: {}", e));
+            }
+        }
+    }
+    
+    // 2. Check snapshots directory if enabled
+    let snapshots_dir = std::path::Path::new("./data/snapshots");
+    if !snapshots_dir.exists() {
+        match std::fs::create_dir_all(snapshots_dir) {
+            Ok(_) => {
+                info!("📁 Created snapshots directory: ./data/snapshots");
+            }
+            Err(e) => {
+                warn!("⚠️  Could not create snapshots directory: {}", e);
+                // Not critical
+            }
+        }
+    }
+    
+    // 3. Check config file is writable (for updates)
+    let config_path = std::path::Path::new(config_path);
+    if config_path.exists() {
+        match std::fs::OpenOptions::new().write(true).open(config_path) {
+            Ok(_) => {}
+            Err(e) => {
+                warn!("⚠️  Config file {} is not writable: {}", config_path.display(), e);
+                // This is a warning, not an error - we can still run
+            }
+        }
+    }
+    
+    // 4. Check workspace.yml parent directory
+    let workspace_dir = std::path::Path::new(".");
+    let test_workspace = workspace_dir.join(".workspace_write_test");
+    match std::fs::write(&test_workspace, "test") {
+        Ok(_) => {
+            let _ = std::fs::remove_file(&test_workspace);
+        }
+        Err(e) => {
+            errors.push(format!("No write permission for workspace.yml in current directory: {}", e));
+        }
+    }
+    
+    // 5. Check logs directory
+    let logs_dir = std::path::Path::new("./.logs");
+    if !logs_dir.exists() {
+        match std::fs::create_dir_all(logs_dir) {
+            Ok(_) => {
+                info!("📁 Created logs directory: ./.logs");
+            }
+            Err(e) => {
+                warn!("⚠️  Cannot create logs directory: {} (logging to console only)", e);
+                // Not critical, just warn
+            }
+        }
+    }
+    
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors.join("\n"))
     }
 }
 
@@ -106,12 +234,34 @@ async fn main() -> anyhow::Result<()> {
     // Load configuration from config.yml first
     let config = load_config(&cli.config);
 
+    // Validate write permissions for data directories
+    info!("🔍 Validating directory permissions...");
+    match validate_permissions(&config, &cli.config) {
+        Ok(_) => {
+            info!("✅ All directory permissions validated");
+        }
+        Err(errors) => {
+            error!("❌ PERMISSION ERRORS:");
+            for line in errors.lines() {
+                error!("   • {}", line);
+            }
+            error!("");
+            error!("💡 To fix permission issues:");
+            error!("   • Linux/macOS: sudo chown -R $(whoami) ./data ./.logs");
+            error!("   • Windows: Run as Administrator or check folder permissions");
+            error!("   • Docker: Ensure volume mounts have correct permissions");
+            std::process::exit(1);
+        }
+    }
+
     // CLI arguments override config.yml values
-    let host = cli.host.unwrap_or(config.server.host);
+    let host = cli.host.clone().unwrap_or(config.server.host.clone());
     let port = cli.port.unwrap_or(config.server.port);
 
     info!("🚀 Starting Vectorizer Server");
     info!("🌐 Server: {}:{}", host, port);
+    info!("📁 Data directory: ./data");
+    info!("📄 Config file: {}", cli.config);
 
     // Create root user configuration from CLI arguments
     let root_config = RootUserConfig {

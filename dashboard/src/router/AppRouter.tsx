@@ -5,6 +5,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
+import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,7 +89,19 @@ function AppRouter() {
           }
         />
 
-        {/* Protected routes */}
+        {/* Setup Wizard - Full screen layout without sidebar */}
+        <Route
+          path="/setup"
+          element={
+            <ProtectedRoute>
+              <WizardLayout>
+                <SetupWizardPage />
+              </WizardLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Protected routes with main layout */}
         <Route
           path="/"
           element={
@@ -112,7 +125,6 @@ function AppRouter() {
           <Route path="test" element={<TestPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
-          <Route path="setup" element={<SetupWizardPage />} />
           <Route path="docs" element={<ApiDocsPage />} />
         </Route>
       </Routes>

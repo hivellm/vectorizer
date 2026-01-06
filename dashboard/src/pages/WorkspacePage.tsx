@@ -10,7 +10,8 @@ import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToastContext } from '@/providers/ToastProvider';
 import LoadingState from '@/components/LoadingState';
-import { Plus, Trash01, RefreshCw01 } from '@untitledui/icons';
+import FileBrowser from '@/components/FileBrowser';
+import { Plus, Trash01, RefreshCw01, FolderSearch } from '@untitledui/icons';
 
 interface Collection {
   name: string;
@@ -32,6 +33,7 @@ function WorkspacePage() {
   const [saving, setSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
+  const [browsingProject, setBrowsingProject] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -359,13 +361,23 @@ function WorkspacePage() {
                       <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
                         Path
                       </label>
-                      <Input
-                        type="text"
-                        value={project.path || ''}
-                        onChange={(e) => handleProjectFieldChange(project.name, 'path', e.target.value)}
-                        placeholder="../project-path"
-                        className="text-sm font-mono"
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          value={project.path || ''}
+                          onChange={(e) => handleProjectFieldChange(project.name, 'path', e.target.value)}
+                          placeholder="../project-path"
+                          className="text-sm font-mono flex-1"
+                        />
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setBrowsingProject(project.name)}
+                          title="Browse folders"
+                        >
+                          <FolderSearch className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
@@ -539,6 +551,18 @@ function WorkspacePage() {
           </div>
         )}
       </Card>
+
+      {/* File Browser Modal */}
+      {browsingProject && (
+        <FileBrowser
+          initialPath={config?.projects?.find(p => p.name === browsingProject)?.path || ''}
+          onSelect={(path) => {
+            handleProjectFieldChange(browsingProject, 'path', path);
+            setBrowsingProject(null);
+          }}
+          onCancel={() => setBrowsingProject(null)}
+        />
+      )}
     </div>
   );
 }
