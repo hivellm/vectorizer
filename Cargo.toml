@@ -174,7 +174,7 @@ prost-types = "0.13"
 transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
 
 [build-dependencies]
-cc = { version = "1.2.49", features = ["parallel"] }
+cc = { version = "1.2.51", features = ["parallel"] }
 winres = "0.1"
 tonic-build = "0.12"
 
