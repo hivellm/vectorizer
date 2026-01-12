@@ -149,7 +149,7 @@ parquet = { version = "57", optional = true }
 rmcp = { version = "0.10", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
-lru = "0.16.1"
+lru = "0.16.3"
 hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1.19", features = ["tokio", "server", "server-auto"] }
 
