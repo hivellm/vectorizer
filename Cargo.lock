@@ -8755,7 +8755,7 @@ dependencies = [
  "crossbeam",
  "ctrlc",
  "dashmap",
- "dirs 5.0.1",
+ "dirs 6.0.0",
  "fastembed",
  "fastrand",
  "flate2",
