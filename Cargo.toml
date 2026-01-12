@@ -155,7 +155,7 @@ hyper-util = { version = "0.1.19", features = ["tokio", "server", "server-auto"]
 
 # GraphQL API
 async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
-async-graphql-axum = "7.0"
+async-graphql-axum = "7.1"
 
 # Monitoring and Observability
 prometheus = "0.14"
