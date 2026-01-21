@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "2.3.0"
+version = "2.4.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -299,7 +299,7 @@ path = "scripts/test_routes.rs"
 # required-features = ["hive-gpu-wgpu"]
 
 [features]
-default = ["hive-gpu", "fastembed"]
+default = ["hive-gpu", "fastembed", "transmutation"]
 fastembed = ["dep:fastembed"]
 
 # OpenSSL vendored for musl cross-compilation
