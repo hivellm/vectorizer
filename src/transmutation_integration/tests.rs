@@ -11,8 +11,8 @@
 
 use std::path::PathBuf;
 
-use super::types::{ConvertedDocument, PageInfo};
 use super::TransmutationProcessor;
+use super::types::{ConvertedDocument, PageInfo};
 
 // ============================================================================
 // FORMAT DETECTION TESTS
@@ -376,8 +376,7 @@ mod converted_document {
 
     #[test]
     fn test_unicode_content() {
-        let unicode_content =
-            "Hello 世界 🌍 مرحبا Привет Γειά σου こんにちは".to_string();
+        let unicode_content = "Hello 世界 🌍 مرحبا Привет Γειά σου こんにちは".to_string();
         let doc = ConvertedDocument::new(unicode_content.clone());
 
         assert_eq!(doc.content, unicode_content);
@@ -618,8 +617,9 @@ mod page_marker_parsing {
             let line_len = line.len() + 1; // +1 for newline
 
             if line.starts_with("--- Page ") && line.ends_with(" ---") {
-                if let Some(page_num_str) =
-                    line.strip_prefix("--- Page ").and_then(|s| s.strip_suffix(" ---"))
+                if let Some(page_num_str) = line
+                    .strip_prefix("--- Page ")
+                    .and_then(|s| s.strip_suffix(" ---"))
                 {
                     if let Ok(page_num) = page_num_str.parse::<usize>() {
                         // Close previous page
@@ -693,10 +693,7 @@ mod metadata_extraction {
         );
         assert_eq!(doc.metadata.get("author"), Some(&"John Doe".to_string()));
         assert_eq!(doc.metadata.get("language"), Some(&"en".to_string()));
-        assert_eq!(
-            doc.metadata.get("tables_extracted"),
-            Some(&"5".to_string())
-        );
+        assert_eq!(doc.metadata.get("tables_extracted"), Some(&"5".to_string()));
     }
 
     #[test]
@@ -717,7 +714,10 @@ mod metadata_extraction {
         let doc = ConvertedDocument::new("Content".to_string())
             .with_metadata("title".to_string(), "Report: Q1 2024 (Draft)".to_string())
             .with_metadata("author".to_string(), "José García-López".to_string())
-            .with_metadata("notes".to_string(), "Contains \"quotes\" and 'apostrophes'".to_string());
+            .with_metadata(
+                "notes".to_string(),
+                "Contains \"quotes\" and 'apostrophes'".to_string(),
+            );
 
         assert_eq!(
             doc.metadata.get("title"),
@@ -813,10 +813,7 @@ mod serialization {
 
         assert_eq!(doc.content, "Deserialized content");
         assert_eq!(doc.total_pages(), Some(1));
-        assert_eq!(
-            doc.metadata.get("source_format"),
-            Some(&"docx".to_string())
-        );
+        assert_eq!(doc.metadata.get("source_format"), Some(&"docx".to_string()));
     }
 
     #[test]

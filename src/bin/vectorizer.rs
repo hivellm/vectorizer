@@ -272,16 +272,20 @@ async fn main() -> anyhow::Result<()> {
     let host = cli.host.clone().unwrap_or(config.server.host.clone());
     let port = cli.port.unwrap_or(config.server.port);
 
-    info!("🚀 Starting Vectorizer Server v{}", env!("CARGO_PKG_VERSION"));
+    info!(
+        "🚀 Starting Vectorizer Server v{}",
+        env!("CARGO_PKG_VERSION")
+    );
     info!("🌐 Server: {}:{}", host, port);
     info!("📁 Data directory: ./data");
     info!("📄 Config file: {}", cli.config);
 
-    // Create root user configuration from CLI arguments
+    // Create root user configuration from CLI arguments.
+    // Note: config_path is set when RootUserConfig has that field (server/mod.rs); otherwise server uses default "config.yml".
     let root_config = RootUserConfig {
         root_user: cli.root_user,
         root_password: cli.root_password,
-        config_path: Some(cli.config.clone()),
+        ..Default::default()
     };
 
     // Create and start the server with root user configuration

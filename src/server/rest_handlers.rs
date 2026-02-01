@@ -991,7 +991,7 @@ pub async fn insert_text(
         .unwrap_or_default();
 
     let public_key = payload.get("public_key").and_then(|k| k.as_str());
-    
+
     // Get chunking parameters (optional)
     let auto_chunk = payload
         .get("auto_chunk")
@@ -1174,7 +1174,11 @@ pub async fn insert_text(
             .map(|ctx| ctx.0.0.tenant_id.as_str())
             .unwrap_or("default");
         match hub_manager
-            .check_quota(tenant_id, crate::hub::QuotaType::VectorCount, estimated_vectors as u64)
+            .check_quota(
+                tenant_id,
+                crate::hub::QuotaType::VectorCount,
+                estimated_vectors as u64,
+            )
             .await
         {
             Ok(allowed) => {
@@ -1185,7 +1189,10 @@ pub async fn insert_text(
                     );
                     return Err(ErrorResponse::new(
                         "QUOTA_EXCEEDED".to_string(),
-                        format!("Vector quota exceeded. Estimated {} vectors needed. Please upgrade your plan or delete unused vectors.", estimated_vectors),
+                        format!(
+                            "Vector quota exceeded. Estimated {} vectors needed. Please upgrade your plan or delete unused vectors.",
+                            estimated_vectors
+                        ),
                         StatusCode::TOO_MANY_REQUESTS,
                     ));
                 }
@@ -1218,7 +1225,7 @@ pub async fn insert_text(
         };
 
         let chunker = Chunker::new(loader_config);
-        
+
         // Use filename from metadata if available, otherwise use a default
         let file_path = metadata
             .get("filename")
@@ -1241,10 +1248,9 @@ pub async fn insert_text(
         // Create vectors for each chunk
         for chunk in &chunks {
             // Generate embedding for the chunk
-            let embedding = state
-                .embedding_manager
-                .embed(&chunk.content)
-                .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
+            let embedding = state.embedding_manager.embed(&chunk.content).map_err(|e| {
+                create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+            })?;
             let embedding_len = embedding.len();
 
             // Build payload with chunk metadata
@@ -1265,8 +1271,11 @@ pub async fn insert_text(
 
             // Encrypt payload if public_key is provided
             let payload = if let Some(key) = public_key {
-                let encrypted = crate::security::payload_encryption::encrypt_payload(&payload_data, key)
-                    .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
+                let encrypted =
+                    crate::security::payload_encryption::encrypt_payload(&payload_data, key)
+                        .map_err(|e| {
+                            create_bad_request_error(&format!("Encryption failed: {}", e))
+                        })?;
                 crate::models::Payload::from_encrypted(encrypted)
             } else {
                 crate::models::Payload::new(payload_data)
@@ -1303,10 +1312,9 @@ pub async fn insert_text(
         }
     } else {
         // Single vector for small texts (original behavior)
-        let embedding = state
-            .embedding_manager
-            .embed(text)
-            .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
+        let embedding = state.embedding_manager.embed(text).map_err(|e| {
+            create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+        })?;
         let embedding_len = embedding.len();
 
         // Create payload with metadata
@@ -1319,8 +1327,9 @@ pub async fn insert_text(
 
         // Encrypt payload if public_key is provided
         let payload_data = if let Some(key) = public_key {
-            let encrypted = crate::security::payload_encryption::encrypt_payload(&payload_json, key)
-                .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
+            let encrypted =
+                crate::security::payload_encryption::encrypt_payload(&payload_json, key)
+                    .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
             crate::models::Payload::from_encrypted(encrypted)
         } else {
             crate::models::Payload::new(payload_json)

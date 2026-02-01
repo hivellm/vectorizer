@@ -65,11 +65,7 @@ pub struct FileUploadResponse {
 /// Load file upload config from config.yml
 /// Tries multiple paths to find config.yml
 fn load_file_upload_config() -> FileUploadConfig {
-    let possible_paths = vec![
-        "./config.yml",
-        "config.yml",
-        "../config.yml",
-    ];
+    let possible_paths = vec!["./config.yml", "config.yml", "../config.yml"];
 
     for path in &possible_paths {
         match std::fs::read_to_string(path) {
@@ -77,8 +73,12 @@ fn load_file_upload_config() -> FileUploadConfig {
                 match serde_yaml::from_str::<crate::config::VectorizerConfig>(&content) {
                     Ok(config) => {
                         let max_size_mb = config.file_upload.max_file_size / (1024 * 1024);
-                        info!("✅ Loaded file upload config from {}: max_file_size={}MB, allowed_extensions={}", 
-                            path, max_size_mb, config.file_upload.allowed_extensions.len());
+                        info!(
+                            "✅ Loaded file upload config from {}: max_file_size={}MB, allowed_extensions={}",
+                            path,
+                            max_size_mb,
+                            config.file_upload.allowed_extensions.len()
+                        );
                         return config.file_upload;
                     }
                     Err(e) => {
@@ -145,24 +145,20 @@ pub async fn upload_file(
         effective_max_size / (1024 * 1024)
     );
 
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| {
-            error!("Failed to parse multipart field: {}", e);
-            // Provide more helpful error messages
-            let error_msg = if e.to_string().contains("limit") || e.to_string().contains("too large") {
-                format!(
-                    "Request too large. Maximum file size is {}MB. Error: {}",
-                    effective_max_size / (1024 * 1024),
-                    e
-                )
-            } else {
-                format!("Failed to parse multipart: {}", e)
-            };
-            create_bad_request_error(&error_msg)
-        })?
-    {
+    while let Some(field) = multipart.next_field().await.map_err(|e| {
+        error!("Failed to parse multipart field: {}", e);
+        // Provide more helpful error messages
+        let error_msg = if e.to_string().contains("limit") || e.to_string().contains("too large") {
+            format!(
+                "Request too large. Maximum file size is {}MB. Error: {}",
+                effective_max_size / (1024 * 1024),
+                e
+            )
+        } else {
+            format!("Failed to parse multipart: {}", e)
+        };
+        create_bad_request_error(&error_msg)
+    })? {
         let field_name = field.name().unwrap_or("").to_string();
 
         match field_name.as_str() {
@@ -177,15 +173,16 @@ pub async fn upload_file(
                 // Read file data with size checking
                 let data = field.bytes().await.map_err(|e| {
                     error!("Failed to read file bytes: {}", e);
-                    let error_msg = if e.to_string().contains("limit") || e.to_string().contains("too large") {
-                        format!(
-                            "File too large. Maximum size is {}MB. Error: {}",
-                            effective_max_size / (1024 * 1024),
-                            e
-                        )
-                    } else {
-                        format!("Failed to read file: {}", e)
-                    };
+                    let error_msg =
+                        if e.to_string().contains("limit") || e.to_string().contains("too large") {
+                            format!(
+                                "File too large. Maximum size is {}MB. Error: {}",
+                                effective_max_size / (1024 * 1024),
+                                e
+                            )
+                        } else {
+                            format!("Failed to read file: {}", e)
+                        };
                     create_bad_request_error(&error_msg)
                 })?;
 
@@ -341,14 +338,22 @@ pub async fn upload_file(
     #[cfg(feature = "transmutation")]
     {
         if use_transmutation && TransmutationProcessor::is_supported_format(&file_path) {
-            info!("🔄 Using transmutation to convert: {}", validated_file.filename);
-            
+            info!(
+                "🔄 Using transmutation to convert: {}",
+                validated_file.filename
+            );
+
             // Create temporary file for transmutation
             let temp_dir = std::env::temp_dir();
-            let temp_file = temp_dir.join(format!("vectorizer_upload_{}.{}", 
-                Uuid::new_v4(), 
-                file_path.extension().and_then(|e| e.to_str()).unwrap_or("tmp")));
-            
+            let temp_file = temp_dir.join(format!(
+                "vectorizer_upload_{}.{}",
+                Uuid::new_v4(),
+                file_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("tmp")
+            ));
+
             // Write file bytes to temp file
             if let Err(e) = std::fs::write(&temp_file, &file_bytes) {
                 warn!("Failed to write temp file for transmutation: {}", e);
@@ -359,49 +364,54 @@ pub async fn upload_file(
                         match processor.convert_to_markdown(&temp_file).await {
                             Ok(converted_doc) => {
                                 content_to_chunk = converted_doc.content;
-                                
+
                                 // Add transmutation metadata
-                                transmutation_metadata.insert(
-                                    "converted_via".to_string(),
-                                    json!("transmutation")
-                                );
-                                
+                                transmutation_metadata
+                                    .insert("converted_via".to_string(), json!("transmutation"));
+
                                 if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
                                     transmutation_metadata.insert(
                                         "source_format".to_string(),
-                                        json!(ext.to_lowercase())
+                                        json!(ext.to_lowercase()),
                                     );
                                 }
-                                
+
                                 // Add page count if available
                                 if let Some(page_count) = converted_doc.metadata.get("page_count") {
-                                    transmutation_metadata.insert(
-                                        "page_count".to_string(),
-                                        json!(page_count)
-                                    );
+                                    transmutation_metadata
+                                        .insert("page_count".to_string(), json!(page_count));
                                 }
-                                
+
                                 // Add other metadata from conversion
                                 for (key, value) in converted_doc.metadata {
                                     if !transmutation_metadata.contains_key(&key) {
                                         transmutation_metadata.insert(key, json!(value));
                                     }
                                 }
-                                
-                                info!("✅ Transmutation conversion successful: {} characters", content_to_chunk.len());
+
+                                info!(
+                                    "✅ Transmutation conversion successful: {} characters",
+                                    content_to_chunk.len()
+                                );
                             }
                             Err(e) => {
-                                warn!("Transmutation conversion failed: {}, using original content", e);
+                                warn!(
+                                    "Transmutation conversion failed: {}, using original content",
+                                    e
+                                );
                                 // Fall back to original content
                             }
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to initialize transmutation processor: {}, using original content", e);
+                        warn!(
+                            "Failed to initialize transmutation processor: {}, using original content",
+                            e
+                        );
                         // Fall back to original content
                     }
                 }
-                
+
                 // Clean up temp file
                 if let Err(e) = std::fs::remove_file(&temp_file) {
                     debug!("Failed to remove temp file: {}", e);

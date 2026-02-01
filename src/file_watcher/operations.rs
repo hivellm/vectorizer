@@ -390,7 +390,6 @@ impl VectorOperations {
             }
         }
 
-
         Ok(())
     }
 

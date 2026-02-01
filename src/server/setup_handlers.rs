@@ -49,17 +49,17 @@ type ApiResult<T> = Result<T, ErrorResponse>;
 /// Check if initial setup is needed and return current status
 pub async fn get_setup_status(State(state): State<VectorizerServer>) -> Json<SetupStatus> {
     let workspace_exists = std::path::Path::new("workspace.yml").exists();
-    
+
     // Check if running in Docker
     let in_docker =
         std::env::var("VECTORIZER_DOCKER").is_ok() || std::path::Path::new("/.dockerenv").exists();
-    
+
     let deployment_type = if in_docker {
         "docker".to_string()
     } else {
         "binary".to_string()
     };
-    
+
     // Get project count from workspace
     let project_count = if workspace_exists {
         std::fs::read_to_string("workspace.yml")
@@ -74,13 +74,13 @@ pub async fn get_setup_status(State(state): State<VectorizerServer>) -> Json<Set
     } else {
         0
     };
-    
+
     let collection_count = state.store.list_collections().len();
-    
+
     // Needs setup if no workspace config (regardless of collections)
     // This ensures the setup wizard is shown even if some default collections exist
     let needs_setup = !workspace_exists;
-    
+
     Json(SetupStatus {
         needs_setup,
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -98,7 +98,7 @@ pub async fn analyze_project_directory(
     Json(payload): Json<AnalyzeRequest>,
 ) -> ApiResult<Json<ProjectAnalysis>> {
     info!("🔍 Analyzing directory: {}", payload.path);
-    
+
     match analyze_directory(&payload.path) {
         Ok(analysis) => {
             info!(
@@ -131,7 +131,7 @@ pub async fn apply_setup_config(
         "📝 Applying setup configuration with {} projects",
         payload.projects.len()
     );
-    
+
     // 1. Write workspace.yml first
     if let Err(e) = write_workspace_config(&payload, "workspace.yml") {
         error!("❌ Failed to write workspace.yml: {}", e);
@@ -142,29 +142,29 @@ pub async fn apply_setup_config(
         ));
     }
     info!("✅ workspace.yml created successfully");
-    
+
     // 2. Create collections and index files
     let mut created_collections = Vec::new();
     let mut errors = Vec::new();
     let mut total_vectors = 0;
-    
+
     for project in &payload.projects {
         info!(
             "📁 Processing project: {} at {}",
             project.name, project.path
         );
-        
+
         let project_path = std::path::Path::new(&project.path);
         if !project_path.exists() {
             error!("❌ Project path does not exist: {}", project.path);
             errors.push(format!("Project path does not exist: {}", project.path));
             continue;
         }
-        
+
         for collection in &project.collections {
             let collection_name = &collection.name;
             info!("📦 Processing collection: {}", collection_name);
-            
+
             // Check if collection already exists
             let existing_collections = state.store.list_collections();
             if existing_collections.contains(&collection_name.to_string()) {
@@ -173,7 +173,7 @@ pub async fn apply_setup_config(
                     collection_name
                 );
             }
-            
+
             // Index project files using FileLoader
             match index_project_with_loader(
                 &state.store,
@@ -228,10 +228,10 @@ pub async fn apply_setup_config(
             }
         }
     }
-    
+
     let success = errors.is_empty();
     let collections_created = created_collections.len();
-    
+
     let message = if success {
         format!(
             "Setup completed successfully. Indexed {} collections with {} vectors.",
@@ -240,14 +240,14 @@ pub async fn apply_setup_config(
     } else {
         format!("Setup completed with {} errors", errors.len())
     };
-    
+
     info!(
         "✅ Setup apply completed: {} collections, {} vectors, {} errors",
         collections_created,
         total_vectors,
         errors.len()
     );
-    
+
     Ok(Json(json!({
         "success": success,
         "message": message,
@@ -270,12 +270,12 @@ async fn index_project_with_loader(
 ) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
     use crate::embedding::{Bm25Embedding, EmbeddingManager};
     use crate::file_loader::{FileLoader, LoaderConfig};
-    
+
     info!(
         "🔄 Indexing project {} into collection {}",
         project_path, collection_name
     );
-    
+
     // Build include patterns - if empty, use default patterns for common code/docs
     let effective_include = if include_patterns.is_empty() {
         vec![
@@ -297,7 +297,7 @@ async fn index_project_with_loader(
     } else {
         include_patterns.to_vec()
     };
-    
+
     // Build exclude patterns - add default excludes
     let mut effective_exclude = exclude_patterns.to_vec();
     let default_excludes = vec![
@@ -321,7 +321,7 @@ async fn index_project_with_loader(
             effective_exclude.push(pattern);
         }
     }
-    
+
     // Create loader config
     let mut loader_config = LoaderConfig {
         max_chunk_size: 2048,
@@ -333,10 +333,10 @@ async fn index_project_with_loader(
         collection_name: collection_name.to_string(),
         max_file_size: 5 * 1024 * 1024, // 5MB
     };
-    
+
     // Ensure hardcoded excludes are applied
     loader_config.ensure_hardcoded_excludes();
-    
+
     // Create embedding manager
     let mut embedding_manager = EmbeddingManager::new();
     let bm25 = Bm25Embedding::new(512);
@@ -348,10 +348,10 @@ async fn index_project_with_loader(
             format!("Failed to set embedding provider: {}", e),
         )));
     }
-    
+
     // Create FileLoader
     let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
-    
+
     // Index the project
     match loader.load_and_index_project(project_path, store).await {
         Ok(vector_count) => {
@@ -377,10 +377,10 @@ async fn index_project_with_loader(
 pub async fn verify_setup(State(state): State<VectorizerServer>) -> Json<Value> {
     let workspace_exists = std::path::Path::new("workspace.yml").exists();
     let collection_count = state.store.list_collections().len();
-    
+
     // Check health endpoint internally
     let health_ok = true; // Server is running if this endpoint responds
-    
+
     // Parse workspace config for verification
     let workspace_status = if workspace_exists {
         match std::fs::read_to_string("workspace.yml") {
@@ -411,9 +411,9 @@ pub async fn verify_setup(State(state): State<VectorizerServer>) -> Json<Value> 
             "error": "workspace.yml not found",
         })
     };
-    
+
     let setup_complete = workspace_exists && health_ok;
-    
+
     Json(json!({
         "setup_complete": setup_complete,
         "health": {
@@ -440,7 +440,7 @@ pub async fn verify_setup(State(state): State<VectorizerServer>) -> Json<Value> 
 }
 
 /// GET /workspace/config
-/// 
+///
 /// Get the current workspace configuration
 pub async fn get_workspace_config() -> Json<Value> {
     if let Ok(content) = std::fs::read_to_string("workspace.yml") {
@@ -448,7 +448,7 @@ pub async fn get_workspace_config() -> Json<Value> {
             return Json(config);
         }
     }
-    
+
     // Return default empty config
     Json(json!({
         "global_settings": {
@@ -476,7 +476,7 @@ pub async fn update_workspace_config(Json(payload): Json<Value>) -> ApiResult<Js
                 chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"),
                 yaml_content
             );
-            
+
             match std::fs::write("workspace.yml", yaml_with_header) {
                 Ok(_) => {
                     info!("✅ workspace.yml updated successfully");
@@ -541,14 +541,14 @@ pub async fn get_configuration_template_by_id(
 pub fn display_first_start_guidance(host: &str, port: u16, collection_count: usize) {
     let workspace_exists = std::path::Path::new("workspace.yml").exists();
     let needs_setup = !workspace_exists && collection_count == 0;
-    
+
     if needs_setup {
         let base_url = if host == "0.0.0.0" {
             format!("http://localhost:{}", port)
         } else {
             format!("http://{}:{}", host, port)
         };
-        
+
         println!();
         println!("╔══════════════════════════════════════════════════════════════════╗");
         println!("║                                                                  ║");
@@ -634,7 +634,7 @@ pub async fn browse_directory(
     Json(payload): Json<BrowseDirectoryRequest>,
 ) -> Json<BrowseDirectoryResponse> {
     use std::path::{Path, PathBuf};
-    
+
     // Determine the path to browse
     let path_str = payload.path.unwrap_or_default();
     let browse_path: PathBuf = if path_str.is_empty() || path_str == "/" || path_str == "~" {
@@ -647,7 +647,7 @@ pub async fn browse_directory(
     } else {
         PathBuf::from(&path_str)
     };
-    
+
     // Verify path exists and is a directory
     if !browse_path.exists() {
         return Json(BrowseDirectoryResponse {
@@ -658,7 +658,7 @@ pub async fn browse_directory(
             error: Some("Path does not exist".to_string()),
         });
     }
-    
+
     if !browse_path.is_dir() {
         return Json(BrowseDirectoryResponse {
             current_path: path_str,
@@ -668,36 +668,36 @@ pub async fn browse_directory(
             error: Some("Path is not a directory".to_string()),
         });
     }
-    
+
     // Get parent path
     let parent_path = browse_path
         .parent()
         .map(|p| p.to_string_lossy().to_string());
-    
+
     // Read directory entries
     let mut entries: Vec<DirectoryEntry> = Vec::new();
-    
+
     if let Ok(read_dir) = std::fs::read_dir(&browse_path) {
         for entry_result in read_dir {
             if let Ok(entry) = entry_result {
                 let entry_path = entry.path();
                 let name = entry.file_name().to_string_lossy().to_string();
-                
+
                 // Skip hidden files (start with .)
                 if name.starts_with('.') {
                     continue;
                 }
-                
+
                 let is_dir = entry_path.is_dir();
                 let metadata = entry.metadata().ok();
-                
+
                 // Check if this looks like a project folder
                 let is_project = if is_dir {
                     check_is_project_folder(&entry_path)
                 } else {
                     false
                 };
-                
+
                 entries.push(DirectoryEntry {
                     name,
                     path: entry_path.to_string_lossy().to_string(),
@@ -708,14 +708,14 @@ pub async fn browse_directory(
             }
         }
     }
-    
+
     // Sort: directories first, then alphabetically
     entries.sort_by(|a, b| match (a.is_directory, b.is_directory) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
-    
+
     Json(BrowseDirectoryResponse {
         current_path: browse_path.to_string_lossy().to_string(),
         parent_path,
@@ -744,12 +744,12 @@ fn check_is_project_folder(path: &std::path::Path) -> bool {
         "README.rst",
         "Makefile",
     ];
-    
+
     for file in project_files.iter() {
         if path.join(file).exists() {
             return true;
         }
     }
-    
+
     false
 }
