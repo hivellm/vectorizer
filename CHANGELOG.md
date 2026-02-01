@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.1] - 2026-02-01
+
+### Added
+- **Release workflow**: Docker image publish to Docker Hub on each release
+  - Job `publish-docker` builds and pushes multi-platform image (linux/amd64, linux/arm64)
+  - Tags: `{version}` and `latest` (requires secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`)
+- **Version visibility**: Version shown in binary, web, and console
+  - Server binary: `vectorizer --version` and startup log "Starting Vectorizer Server vX.Y.Z"
+  - CLI: `vectorizer-cli --version` and admin CLI version from Cargo
+  - Dashboard: version from `/health` and `/setup/status`, fallback and API docs updated to 2.4.1
+  - Release build: `VITE_APP_VERSION` set from release tag so dashboard build embeds correct version
+
+### Changed
+- **Version source**: All version display uses `CARGO_PKG_VERSION` (single source: `Cargo.toml`)
+- **CLI version**: `src/cli/mod.rs` uses `env!("CARGO_PKG_VERSION")` instead of hardcoded "0.1.0"
+
+---
+
 ## [2.3.0] - 2026-01-06
 
 ### Added

@@ -41,7 +41,7 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     path: '/health',
     description: 'Check server health status',
     category: 'Health',
-    responseExample: { status: 'healthy', version: '2.2.0' },
+    responseExample: { status: 'healthy', version: '2.4.1' },
   },
   {
     method: 'GET',
@@ -50,7 +50,7 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     category: 'Setup',
     responseExample: {
       needs_setup: false,
-      version: '2.2.0',
+      version: '2.4.1',
       deployment_type: 'binary',
       has_workspace_config: true,
       project_count: 1,

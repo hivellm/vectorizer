@@ -77,7 +77,7 @@ function WizardLayout({ children }: WizardLayoutProps) {
           <div className="mx-4 mb-4 sm:mx-6 lg:mx-8 max-w-4xl lg:mx-auto">
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
               <div className="flex items-center justify-center h-12 text-xs text-neutral-500">
-                <span>Vectorizer v{import.meta.env.VITE_APP_VERSION || '2.3.0'}</span>
+                <span>Vectorizer v{import.meta.env.VITE_APP_VERSION || '2.4.1'}</span>
                 <span className="mx-2">•</span>
                 <a 
                   href="https://github.com/hivellm/vectorizer" 

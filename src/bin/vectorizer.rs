@@ -13,6 +13,7 @@ use vectorizer::server::{RootUserConfig, VectorizerServer};
 #[derive(Parser)]
 #[command(name = "vectorizer")]
 #[command(about = "Vectorizer Server - MCP + REST API")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
 struct Cli {
     /// Server host (overrides config.yml)
     #[arg(long)]
@@ -271,7 +272,7 @@ async fn main() -> anyhow::Result<()> {
     let host = cli.host.clone().unwrap_or(config.server.host.clone());
     let port = cli.port.unwrap_or(config.server.port);
 
-    info!("🚀 Starting Vectorizer Server");
+    info!("🚀 Starting Vectorizer Server v{}", env!("CARGO_PKG_VERSION"));
     info!("🌐 Server: {}:{}", host, port);
     info!("📁 Data directory: ./data");
     info!("📄 Config file: {}", cli.config);
@@ -280,6 +281,7 @@ async fn main() -> anyhow::Result<()> {
     let root_config = RootUserConfig {
         root_user: cli.root_user,
         root_password: cli.root_password,
+        config_path: Some(cli.config.clone()),
     };
 
     // Create and start the server with root user configuration
