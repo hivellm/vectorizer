@@ -1015,9 +1015,11 @@ mod edge_cases {
 
 #[cfg(feature = "transmutation")]
 mod integration {
-    use super::*;
     use std::io::Write;
+
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_html_conversion() {

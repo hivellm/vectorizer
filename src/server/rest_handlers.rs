@@ -1,6 +1,7 @@
 //! REST API handlers
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use axum::Extension;
 use axum::extract::{Path, Query, State};
@@ -23,7 +24,6 @@ use crate::file_loader::chunker::Chunker;
 use crate::file_loader::config::LoaderConfig;
 use crate::hub::middleware::RequestTenantContext;
 use crate::models::SparseVector;
-use std::path::PathBuf;
 
 /// Extract tenant ID as UUID from request extensions (if present)
 ///

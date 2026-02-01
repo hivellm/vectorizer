@@ -13,6 +13,7 @@ use axum::response::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use super::VectorizerServer;
 use super::error_middleware::{ErrorResponse, create_bad_request_error, create_not_found_error};
@@ -26,7 +27,6 @@ use crate::models::{
 };
 #[cfg(feature = "transmutation")]
 use crate::transmutation_integration::TransmutationProcessor;
-use uuid::Uuid;
 
 /// Request for file upload with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
