@@ -189,15 +189,19 @@ When `optimize_for_llm=true`, the output is optimized for language model process
 
 ## Integration with File Upload
 
-Document conversion is automatically applied during file upload when appropriate:
+Document conversion is automatically applied during file upload when the `use_transmutation` field is set to `"true"`:
 
 ```bash
 # Upload and convert PDF
 curl -X POST http://localhost:15002/files/upload \
   -F "file=@document.pdf" \
-  -F "collection=documents" \
-  -F "convert=true"
+  -F "collection_name=documents" \
+  -F "use_transmutation=true"
 ```
+
+**Important:** The field name is `use_transmutation` (not `convert`). Set it to `"true"` (as a string) to enable conversion. When enabled, supported formats are automatically converted to Markdown before chunking and indexing.
+
+For more details on file upload with transmutation, see [File Upload API](./API_REFERENCE.md#upload-file) and [File Upload with Transmutation](../../api/FILE_UPLOAD_TRANSMUTATION.md).
 
 ## SDK Examples
 

@@ -995,10 +995,21 @@ impl EmbeddingProvider for Bm25Embedding {
 
         // If vocabulary is empty, use fallback immediately
         if self.vocabulary.is_empty() {
+            // Safely truncate text for logging (handle Unicode properly)
+            let preview = if text.len() > 100 {
+                // Find the last char boundary before 100 bytes
+                let mut boundary = 100;
+                while boundary > 0 && !text.is_char_boundary(boundary) {
+                    boundary -= 1;
+                }
+                &text[..boundary]
+            } else {
+                text
+            };
             warn!(
                 "BM25 vocabulary is empty for text '{}' (first {} chars), using hash-based fallback",
-                if text.len() > 100 { &text[..100] } else { text },
-                text.len().min(100)
+                preview,
+                text.chars().count().min(100)
             );
             let fallback = self.fallback_hash_embedding(text);
             // Normalize fallback
@@ -1033,9 +1044,20 @@ impl EmbeddingProvider for Bm25Embedding {
         // If embedding is all zeros (no vocab matches), build deterministic feature-hashed embedding from tokens
         let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
         if non_zero_count == 0 {
+            // Safely truncate text for logging (handle Unicode properly)
+            let preview = if text.len() > 100 {
+                // Find the last char boundary before 100 bytes
+                let mut boundary = 100;
+                while boundary > 0 && !text.is_char_boundary(boundary) {
+                    boundary -= 1;
+                }
+                &text[..boundary]
+            } else {
+                text
+            };
             warn!(
                 "BM25 produced all-zero embedding for text '{}' (vocab size: {}), using hash-based fallback",
-                if text.len() > 100 { &text[..100] } else { text },
+                preview,
                 self.vocabulary.len()
             );
             use std::collections::hash_map::DefaultHasher;

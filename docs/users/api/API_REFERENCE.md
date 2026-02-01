@@ -1627,6 +1627,8 @@ Upload a file for automatic indexing into a collection.
 | `chunk_size` | integer | No | Chunk size in characters (default: 2048) |
 | `chunk_overlap` | integer | No | Chunk overlap in characters (default: 256) |
 | `metadata` | string | No | JSON-encoded metadata to attach to all chunks |
+| `use_transmutation` | string | No | Enable document conversion (`"true"` or `"false"`, default: `"false"`). When enabled, PDF, DOCX, XLSX, PPTX, HTML, XML, and images are automatically converted to Markdown before chunking. |
+| `public_key` | string | No | Public key for payload encryption (optional) |
 
 **Response:**
 
@@ -1662,11 +1664,24 @@ curl -X POST http://localhost:15002/files/upload \
   -F 'metadata={"project":"vectorizer","version":"1.6.0"}'
 ```
 
+**Example (with transmutation for PDF):**
+
+```bash
+curl -X POST http://localhost:15002/files/upload \
+  -F "file=@document.pdf" \
+  -F "collection_name=documents" \
+  -F "use_transmutation=true"
+```
+
+When `use_transmutation=true`, supported formats (PDF, DOCX, XLSX, PPTX, HTML, XML, and images) are automatically converted to Markdown before chunking. This enables proper text extraction from binary document formats. See [Document Conversion API](./DOCUMENT_CONVERSION.md) for more details.
+
 **Supported File Extensions:**
 
 Code files: `.rs`, `.py`, `.js`, `.ts`, `.tsx`, `.jsx`, `.go`, `.java`, `.c`, `.cpp`, `.h`, `.hpp`, `.cs`, `.rb`, `.php`, `.swift`, `.kt`, `.scala`, `.r`, `.jl`, `.lua`, `.pl`, `.sh`, `.bash`, `.zsh`, `.fish`, `.ps1`, `.bat`, `.cmd`
 
 Documentation: `.md`, `.txt`, `.rst`, `.adoc`, `.org`, `.tex`, `.html`, `.xml`, `.json`, `.yaml`, `.yml`, `.toml`, `.ini`, `.cfg`, `.conf`, `.csv`, `.tsv`
+
+**Transmutation-supported formats** (use `use_transmutation=true`): `.pdf`, `.docx`, `.xlsx`, `.pptx`, `.html`, `.htm`, `.xml`, `.jpg`, `.jpeg`, `.png`, `.tiff`, `.tif`, `.bmp`, `.gif`, `.webp`
 
 **Error Responses:**
 

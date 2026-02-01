@@ -114,8 +114,8 @@ async fn main() {
                     std::process::exit(1);
                 }
             } else if let Err(e) = vectorizer::cli::setup::run(path).await {
-                error!("Setup failed: {e}");
-                std::process::exit(1);
+                    error!("Setup failed: {e}");
+                    std::process::exit(1);
             }
         }
         Commands::Docs { sandbox } => {

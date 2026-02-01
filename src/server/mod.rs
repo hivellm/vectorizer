@@ -107,6 +107,8 @@ pub struct RootUserConfig {
     pub root_user: Option<String>,
     /// Root password (generates random if not set)
     pub root_password: Option<String>,
+    /// Path to config file (defaults to "config.yml" if not set)
+    pub config_path: Option<String>,
 }
 
 impl VectorizerServer {
@@ -118,6 +120,11 @@ impl VectorizerServer {
     /// Create a new vectorizer server with root user configuration
     pub async fn new_with_root_config(root_config: RootUserConfig) -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
+
+        // Get config path from root_config or use default
+        let config_path = root_config
+            .config_path
+            .unwrap_or_else(|| "config.yml".to_string());
 
         // Initialize monitoring system
         if let Err(e) = crate::monitoring::init() {
@@ -134,7 +141,7 @@ impl VectorizerServer {
         let store_arc = Arc::new(vector_store);
 
         // Check if we should cleanup empty collections on startup
-        let should_cleanup = std::fs::read_to_string("config.yml")
+        let should_cleanup = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
                 serde_yaml::from_str::<crate::config::VectorizerConfig>(&content).ok()
@@ -193,7 +200,7 @@ impl VectorizerServer {
         info!("🔍 STEP 4: Checking if file watcher is enabled...");
 
         // Load cluster config for file watcher check
-        let cluster_config_for_watcher = std::fs::read_to_string("config.yml")
+        let cluster_config_for_watcher = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
                 serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -204,7 +211,7 @@ impl VectorizerServer {
 
         // Check if file watcher is enabled in config before starting
         // Also check if cluster mode requires file watcher to be disabled
-        let file_watcher_enabled = std::fs::read_to_string("config.yml")
+        let file_watcher_enabled = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
             .and_then(|config| {
@@ -314,7 +321,9 @@ impl VectorizerServer {
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
         let watcher_system_for_loading = watcher_system_arc.clone();
+        let config_path_for_background = config_path.clone();
         let background_handle = tokio::task::spawn(async move {
+            let config_path = config_path_for_background;
             info!("📦 Background task started - loading collections and checking workspace...");
 
             // Check for cancellation before starting
@@ -335,7 +344,7 @@ impl VectorizerServer {
                 true
             } else {
                 // No .vecdb - check config for raw file loading
-                std::fs::read_to_string("config.yml")
+                std::fs::read_to_string(&config_path)
                     .ok()
                     .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
                     .and_then(|config| {
@@ -698,7 +707,7 @@ impl VectorizerServer {
         // Initialize cluster manager if cluster is enabled
         let (cluster_manager, cluster_client_pool, cluster_config_ref) = {
             // Try to load cluster config from config.yml or use default
-            let cluster_config = std::fs::read_to_string("config.yml")
+            let cluster_config = std::fs::read_to_string(&config_path)
                 .ok()
                 .and_then(|content| {
                     serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -714,7 +723,7 @@ impl VectorizerServer {
                 let validator = crate::cluster::ClusterConfigValidator::new();
 
                 // Also load file watcher config for validation
-                let file_watcher_config = std::fs::read_to_string("config.yml")
+                let file_watcher_config = std::fs::read_to_string(&config_path)
                     .ok()
                     .and_then(|content| {
                         serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -778,7 +787,7 @@ impl VectorizerServer {
         let _cluster_config = cluster_config_ref;
 
         // Load API config for max request size
-        let max_request_size_mb = std::fs::read_to_string("config.yml")
+        let max_request_size_mb = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
                 serde_yaml::from_str::<serde_yaml::Value>(&content)
@@ -799,7 +808,7 @@ impl VectorizerServer {
         // Initialize auth handler state if auth is enabled
         let auth_handler_state = {
             // Try to load auth config from config.yml
-            let mut auth_config = std::fs::read_to_string("config.yml")
+            let mut auth_config = std::fs::read_to_string(&config_path)
                 .ok()
                 .and_then(|content| {
                     serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -845,7 +854,7 @@ impl VectorizerServer {
         // Initialize HiveHub manager if hub integration is enabled
         let hub_manager = {
             // Try to load hub config from config.yml
-            let hub_config = match std::fs::read_to_string("config.yml") {
+            let hub_config = match std::fs::read_to_string(&config_path) {
                 Ok(content) => {
                     match serde_yaml::from_str::<crate::config::VectorizerConfig>(&content) {
                         Ok(config) => {
@@ -1304,6 +1313,8 @@ impl VectorizerServer {
                 post(rest_handlers::search_by_file_type),
             )
             // File Upload routes
+            // Note: Axum has a default 2MB limit for multipart. This is increased via
+            // DefaultBodyLimit layer (configured via max_request_size_mb in config.yml).
             .route("/files/upload", post(file_upload_handlers::upload_file))
             .route(
                 "/files/config",
@@ -1675,7 +1686,12 @@ impl VectorizerServer {
             .merge(umicp_routes)
             .merge(mcp_router)
             .merge(rest_routes)
-            .merge(metrics_router);
+            .merge(metrics_router)
+            // Apply DefaultBodyLimit to increase multipart upload limit beyond Axum's default 2MB
+            // This allows file uploads up to max_request_size_mb (configured in config.yml)
+            .layer(axum::extract::DefaultBodyLimit::max(
+                self.max_request_size_mb * 1024 * 1024,
+            ));
 
         // In production mode, apply global auth middleware BEFORE CORS
         // This middleware handles both standard auth (JWT/API key) and HiveHub integration

@@ -344,24 +344,52 @@ impl VectorOperations {
             vectors_to_insert.push(vector);
         }
 
-        // Insert all vectors at once
+        // Insert all vectors at once (filter out duplicates first)
         if !vectors_to_insert.is_empty() {
-            let chunk_count = vectors_to_insert.len();
-            if let Err(e) = self
-                .vector_store
-                .insert(&collection_name, vectors_to_insert)
-            {
-                tracing::warn!("Failed to insert vectors for {:?}: {}", original_path, e);
-                return Ok(());
+            // Filter out vectors that already exist to avoid duplicate errors
+            let mut vectors_to_insert_filtered = Vec::new();
+            for vector in vectors_to_insert {
+                // Check if vector already exists
+                match self.vector_store.get_vector(&collection_name, &vector.id) {
+                    Ok(_) => {
+                        // Vector already exists, skip it
+                        tracing::debug!(
+                            "Skipping duplicate vector '{}' for file {:?}",
+                            vector.id,
+                            original_path
+                        );
+                    }
+                    Err(_) => {
+                        // Vector doesn't exist, add it
+                        vectors_to_insert_filtered.push(vector);
+                    }
+                }
             }
 
-            tracing::info!(
-                "Successfully indexed file {:?} with {} chunks into collection '{}'",
-                original_path,
-                chunk_count,
-                collection_name
-            );
+            if !vectors_to_insert_filtered.is_empty() {
+                let chunk_count = vectors_to_insert_filtered.len();
+                if let Err(e) = self
+                    .vector_store
+                    .insert(&collection_name, vectors_to_insert_filtered)
+                {
+                    tracing::warn!("Failed to insert vectors for {:?}: {}", original_path, e);
+                    return Ok(());
+                }
+
+                tracing::info!(
+                    "Successfully indexed file {:?} with {} chunks into collection '{}'",
+                    original_path,
+                    chunk_count,
+                    collection_name
+                );
+            } else {
+                tracing::debug!(
+                    "All vectors for file {:?} already exist, skipping insertion",
+                    original_path
+                );
+            }
         }
+
 
         Ok(())
     }

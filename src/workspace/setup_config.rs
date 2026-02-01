@@ -58,10 +58,10 @@ impl ApplyConfigRequest {
             .suggested_collections
             .iter()
             .map(|c| SetupCollection {
-                name: c.name.clone(),
-                description: c.description.clone(),
-                include_patterns: c.include_patterns.clone(),
-                exclude_patterns: c.exclude_patterns.clone(),
+            name: c.name.clone(),
+            description: c.description.clone(),
+            include_patterns: c.include_patterns.clone(),
+            exclude_patterns: c.exclude_patterns.clone(),
                 enable_graph: None, // Graph relationships disabled by default
             })
             .collect();
@@ -199,12 +199,12 @@ mod tests {
             languages: vec![ProgrammingLanguage::Rust],
             frameworks: vec![],
             suggested_collections: vec![SuggestedCollection {
-                name: "source".to_string(),
-                description: "Source code".to_string(),
-                include_patterns: vec!["src/**/*.rs".to_string()],
-                exclude_patterns: vec![],
-                content_type: "rust".to_string(),
-                estimated_file_count: 10,
+                    name: "source".to_string(),
+                    description: "Source code".to_string(),
+                    include_patterns: vec!["src/**/*.rs".to_string()],
+                    exclude_patterns: vec![],
+                    content_type: "rust".to_string(),
+                    estimated_file_count: 10,
             }],
             statistics: DirectoryStats {
                 total_files: 10,
@@ -217,7 +217,7 @@ mod tests {
         };
 
         let config = ApplyConfigRequest::from_analysis(&analysis);
-
+        
         assert_eq!(config.projects.len(), 1);
         let project = &config.projects[0];
         assert_eq!(project.name, "test-project");

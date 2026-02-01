@@ -755,13 +755,40 @@ impl VectorStore {
     ///
     /// In HiveHub cluster mode, each collection is owned by a specific user/tenant.
     /// This method creates the collection and associates it with the given owner_id.
+    ///
+    /// Note: Respects GPU config from config.yml (same as create_collection) to ensure
+    /// collections can be persisted. GPU collections are not yet supported for persistence.
     pub fn create_collection_with_owner(
         &self,
         name: &str,
         config: CollectionConfig,
         owner_id: uuid::Uuid,
     ) -> Result<()> {
-        self.create_collection_internal(name, config, true, Some(owner_id))
+        // Check GPU config - respect gpu.enabled setting (same logic as create_collection)
+        // This ensures collections can be persisted, as GPU collections are not yet supported
+        let allow_gpu = {
+            // Try to load config from config.yml
+            let config_path = std::path::PathBuf::from("config.yml");
+            if config_path.exists() {
+                if let Ok(config_content) = std::fs::read_to_string(&config_path) {
+                    if let Ok(vectorizer_config) =
+                        serde_yaml::from_str::<crate::config::VectorizerConfig>(&config_content)
+                    {
+                        vectorizer_config.gpu.enabled
+                    } else {
+                        // If parsing fails, default to false (safer for persistence)
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                // No config file, default to false (safer for persistence)
+                false
+            }
+        };
+
+        self.create_collection_internal(name, config, allow_gpu, Some(owner_id))
     }
 
     /// Create a collection with option to disable GPU (for testing)
@@ -2947,8 +2974,43 @@ impl VectorStore {
                                         }
                                     }
                                 }
+                                #[cfg(feature = "hive-gpu")]
+                                CollectionType::HiveGpu(c) => {
+                                    // GPU collections are now supported for auto-save
+                                    let config = c.config();
+                                    let vectors = c.get_all_vectors();
+
+                                    let persisted_vectors: Vec<crate::persistence::PersistedVector> = vectors
+                                        .into_iter()
+                                        .map(crate::persistence::PersistedVector::from)
+                                        .collect();
+
+                                    let persisted_collection = crate::persistence::PersistedCollection {
+                                        name: collection_name.clone(),
+                                        config: Some(config.clone()),
+                                        vectors: persisted_vectors,
+                                        hnsw_dump_basename: None,
+                                    };
+
+                                    let data_dir = VectorStore::get_data_dir();
+                                    let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
+
+                                    let persisted_store = crate::persistence::PersistedVectorStore {
+                                        version: 1,
+                                        collections: vec![persisted_collection],
+                                    };
+
+                                    if let Ok(json_data) = serde_json::to_string(&persisted_store) {
+                                        if let Ok(mut file) = std::fs::File::create(&vector_store_path) {
+                                            use std::io::Write;
+                                            let _ = file.write_all(json_data.as_bytes());
+                                            debug!("✅ Saved GPU collection '{}' to raw format", collection_name);
+                                            saved_count += 1;
+                                        }
+                                    }
+                                }
                                 _ => {
-                                    debug!("⚠️  GPU collections not yet supported for auto-save");
+                                    debug!("⚠️  Collection type not supported for auto-save: '{}'", collection_name);
                                 }
                             }
                         }
@@ -2983,6 +3045,38 @@ impl VectorStore {
                                         let persisted_collection = crate::persistence::PersistedCollection {
                                             name: collection_name.clone(),
                                             config: Some(metadata.config),
+                                            vectors: persisted_vectors,
+                                            hnsw_dump_basename: None,
+                                        };
+
+                                        let vector_store_path = data_dir.join(format!("{}_vector_store.bin", collection_name));
+
+                                        let persisted_store = crate::persistence::PersistedVectorStore {
+                                            version: 1,
+                                            collections: vec![persisted_collection],
+                                        };
+
+                                        if let Ok(json_data) = serde_json::to_string(&persisted_store) {
+                                            if let Ok(mut file) = std::fs::File::create(&vector_store_path) {
+                                                use std::io::Write;
+                                                let _ = file.write_all(json_data.as_bytes());
+                                            }
+                                        }
+                                    }
+                                    #[cfg(feature = "hive-gpu")]
+                                    CollectionType::HiveGpu(c) => {
+                                        // GPU collections are now supported for auto-save
+                                        let config = c.config();
+                                        let vectors = c.get_all_vectors();
+
+                                        let persisted_vectors: Vec<crate::persistence::PersistedVector> = vectors
+                                            .into_iter()
+                                            .map(crate::persistence::PersistedVector::from)
+                                            .collect();
+
+                                        let persisted_collection = crate::persistence::PersistedCollection {
+                                            name: collection_name.clone(),
+                                            config: Some(config.clone()),
                                             vectors: persisted_vectors,
                                             hnsw_dump_basename: None,
                                         };

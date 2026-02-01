@@ -127,6 +127,12 @@ swagger-cli bundle vectorizer/docs/api/openapi.yaml -o vectorizer/docs/api/opena
 - `GET /summaries` - List summaries
 - `GET /summaries/{id}` - Get specific summary
 
+### 📤 File Upload
+- `POST /files/upload` - Upload files for automatic indexing
+- `GET /files/config` - Get upload configuration
+
+**📖 See [File Upload with Transmutation](./FILE_UPLOAD_TRANSMUTATION.md) for detailed documentation on uploading PDFs, DOCX, XLSX, PPTX, and images with automatic conversion to Markdown.**
+
 ### 🕸️ Graph Operations
 - `GET /graph/nodes/{collection}` - List all nodes in a collection
 - `GET /graph/nodes/{collection}/{node_id}/neighbors` - Get neighbors of a node

@@ -14,6 +14,7 @@ import { Dropdown } from '@/components/ui/Dropdown';
 import CreateCollectionModal from '@/components/modals/CreateCollectionModal';
 import CollectionDetailsModal from '@/components/modals/CollectionDetailsModal';
 import DeleteCollectionModal from '@/components/modals/DeleteCollectionModal';
+import FileUploadModal from '@/components/modals/FileUploadModal';
 import { formatNumber, formatDate } from '@/utils/formatters';
 
 function CollectionsPage() {
@@ -24,6 +25,7 @@ function CollectionsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<any>(null);
   const [collectionToDelete, setCollectionToDelete] = useState<string>('');
 
@@ -106,9 +108,14 @@ function CollectionsPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">Collections</h1>
           <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 mt-1">Manage your vector collections</p>
         </div>
-        <Button variant="primary" onClick={() => setCreateModalOpen(true)} className="w-full sm:w-auto">
-          Create Collection
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="secondary" onClick={() => setUploadModalOpen(true)} className="flex-1 sm:flex-none">
+            Upload File
+          </Button>
+          <Button variant="primary" onClick={() => setCreateModalOpen(true)} className="flex-1 sm:flex-none">
+            Create Collection
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -346,6 +353,17 @@ function CollectionsPage() {
           setCollectionToDelete('');
         }}
         collectionName={collectionToDelete}
+      />
+      <FileUploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onSuccess={() => {
+          // Refresh collections after successful upload
+          listCollections().then(data => {
+            const collectionsArray = Array.isArray(data) ? data : [];
+            setCollections(collectionsArray);
+          });
+        }}
       />
     </div>
   );

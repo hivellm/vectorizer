@@ -89,15 +89,18 @@ impl StorageCompactor {
                 Ok(collection_ref) => {
                     // Get all vectors from collection
                     use crate::db::CollectionType;
-                    let vectors = match collection_ref.deref() {
-                        CollectionType::Cpu(c) => c.get_all_vectors(),
+                    let (vectors, config) = match collection_ref.deref() {
+                        CollectionType::Cpu(c) => (c.get_all_vectors(), c.config().clone()),
                         #[cfg(feature = "hive-gpu")]
-                        CollectionType::HiveGpu(_) => {
-                            warn!(
-                                "⚠️  GPU collections not yet supported for memory compaction, skipping '{}'",
-                                name
+                        CollectionType::HiveGpu(c) => {
+                            // GPU collections are now supported for persistence
+                            let vectors = c.get_all_vectors();
+                            info!(
+                                "   GPU collection '{}': {} vectors (persisting to disk)",
+                                name,
+                                vectors.len()
                             );
-                            continue;
+                            (vectors, c.config().clone())
                         }
                         CollectionType::Sharded(_) => {
                             warn!(
@@ -115,33 +118,6 @@ impl StorageCompactor {
                         .into_iter()
                         .map(|v| crate::persistence::PersistedVector::from(v))
                         .collect();
-
-                    let config = match collection_ref.deref() {
-                        CollectionType::Cpu(c) => c.config().clone(),
-                        #[cfg(feature = "hive-gpu")]
-                        CollectionType::HiveGpu(c) => {
-                            warn!(
-                                "⚠️  GPU collections not yet supported for memory compaction, skipping '{}'",
-                                name
-                            );
-                            c.config().clone()
-                        }
-                        CollectionType::Sharded(c) => {
-                            warn!(
-                                "⚠️  Sharded collections not yet supported for memory compaction, skipping '{}'",
-                                name
-                            );
-                            c.config().clone()
-                        }
-                        #[cfg(not(feature = "hive-gpu"))]
-                        _ => {
-                            warn!(
-                                "⚠️  Unknown collection type for memory compaction, skipping '{}'",
-                                name
-                            );
-                            continue;
-                        }
-                    };
 
                     let persisted = crate::persistence::PersistedCollection {
                         name: name.clone(),
