@@ -64,55 +64,6 @@ jobs:
           target: x86_64-unknown-linux-gnu
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-linux-x86_64-musl:
-    needs: build-dashboard
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dashboard-dist
-          path: dashboard/dist
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler musl-tools
-          rustup default stable
-          rustup update
-          rustup target add x86_64-unknown-linux-musl
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-      - name: Build musl binaries with cross
-        run: |
-          cross build --release --target x86_64-unknown-linux-musl --no-default-features --features vendored-openssl
-          mkdir -p dist
-          cp target/x86_64-unknown-linux-musl/release/vectorizer dist/vectorizer-x86_64-unknown-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-x86_64-unknown-linux-musl
-      - name: Upload musl binaries
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/*
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
-      - name: Build Debian Package
-        run: |
-          cargo install cargo-deb
-          cross build --release --target x86_64-unknown-linux-musl --no-default-features --features vendored-openssl
-          # config.yml is gitignored; cargo-deb needs it for etc/vectorizer/config.yml (we use config.example.yml in Cargo.toml; copy ensures CI has a fallback)
-          cp config.example.yml config.yml
-          cargo deb --no-build --no-strip --target x86_64-unknown-linux-musl
-      - name: Upload Debian package
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/x86_64-unknown-linux-musl/debian/*.deb
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
-
   build-linux-aarch64-musl:
     needs: build-dashboard
     runs-on: ubuntu-latest
@@ -266,7 +217,6 @@ jobs:
   publish-docker:
     needs:
       - build-linux-x86_64-gnu
-      - build-linux-x86_64-musl
       - build-linux-aarch64-musl
       - build-mac-binaries
       - build-mac-metal-binaries
