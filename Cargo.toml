@@ -464,7 +464,7 @@ assets = [
     ["target/release/vectorizer", "usr/bin/", "755"],
     ["target/release/vectorizer-cli", "usr/bin/", "755"],
     ["README.md", "usr/share/doc/vectorizer/README", "644"],
-    ["config.yml", "etc/vectorizer/config.yml", "644"],
+    ["config.example.yml", "etc/vectorizer/config.yml", "644"],
     ["config.example.yml", "etc/vectorizer/", "644"],
     ["workspace.example.yml", "etc/vectorizer/", "644"],
     ["dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],
