@@ -248,5 +248,6 @@ jobs:
             GIT_COMMIT_ID=${{ steps.version.outputs.VERSION }}
             NO_DEFAULT_FEATURES=1
             FEATURES=vendored-openssl
+            RUSTFLAGS=-C lto=off -C codegen-units=16
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -219,7 +219,11 @@ RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
 
 # Build application
 COPY . .
+# Embed dashboard at compile time (rust-embed requires dashboard/dist to exist)
+COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
 ARG GIT_COMMIT_ID
+# Limit parallel jobs to reduce peak memory (avoids OOM in cross-build / low-memory env)
+ENV CARGO_BUILD_JOBS=2
 RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
     PATH="$PATH:/opt/mold/bin" \
     RUSTFLAGS="${LINKER:+-C link-arg=-fuse-ld=}$LINKER $RUSTFLAGS" \
