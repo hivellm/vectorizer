@@ -101,6 +101,8 @@ jobs:
         run: |
           cargo install cargo-deb
           cross build --release --target x86_64-unknown-linux-musl --no-default-features --features vendored-openssl
+          # config.yml is gitignored; cargo-deb needs it for etc/vectorizer/config.yml (we use config.example.yml in Cargo.toml; copy ensures CI has a fallback)
+          cp config.example.yml config.yml
           cargo deb --no-build --no-strip --target x86_64-unknown-linux-musl
       - name: Upload Debian package
         uses: svenstaro/upload-release-action@v2
