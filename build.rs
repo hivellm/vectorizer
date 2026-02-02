@@ -2,11 +2,11 @@
 // use tracing::{info, error, warn, debug};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Use vendored protoc when PROTOC is not set (e.g. cross-compilation in CI)
-    if std::env::var("PROTOC").is_err() {
-        if let Ok(path) = protoc_bin_vendored::protoc_bin_path() {
-            // SAFETY: build script runs in isolated process; no other threads read env
-            unsafe { std::env::set_var("PROTOC", path) };
-        }
+    if std::env::var("PROTOC").is_err()
+        && let Ok(path) = protoc_bin_vendored::protoc_bin_path()
+    {
+        // SAFETY: build script runs in isolated process; no other threads read env
+        unsafe { std::env::set_var("PROTOC", path) };
     }
 
     // Compile protobuf definitions with tonic-build
