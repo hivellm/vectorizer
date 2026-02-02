@@ -198,8 +198,11 @@ RUN xx-apt-get install -y pkg-config gcc g++ libc6-dev libssl-dev
 # Select Cargo profile (e.g., release, dev or ci)
 ARG PROFILE=release
 
-# Enable crate features
+# Enable crate features (empty = use default features; set to disable defaults)
 ARG FEATURES
+
+# Build without default features when set (avoids hive-gpu/fastembed/transmutation in Docker)
+ARG NO_DEFAULT_FEATURES=0
 
 # Pass custom RUSTFLAGS
 ARG RUSTFLAGS
@@ -212,7 +215,7 @@ COPY --from=planner /vectorizer/recipe.json recipe.json
 RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
     PATH="$PATH:/opt/mold/bin" \
     RUSTFLAGS="${LINKER:+-C link-arg=-fuse-ld=}$LINKER $RUSTFLAGS" \
-    xx-cargo chef cook --profile $PROFILE ${FEATURES:+--features} $FEATURES --recipe-path recipe.json
+    xx-cargo chef cook --profile $PROFILE ${NO_DEFAULT_FEATURES:+--no-default-features} ${FEATURES:+--features} $FEATURES --recipe-path recipe.json
 
 # Build application
 COPY . .
@@ -220,7 +223,7 @@ ARG GIT_COMMIT_ID
 RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
     PATH="$PATH:/opt/mold/bin" \
     RUSTFLAGS="${LINKER:+-C link-arg=-fuse-ld=}$LINKER $RUSTFLAGS" \
-    xx-cargo build --profile $PROFILE ${FEATURES:+--features} $FEATURES --bin vectorizer \
+    xx-cargo build --profile $PROFILE ${NO_DEFAULT_FEATURES:+--no-default-features} ${FEATURES:+--features} $FEATURES --bin vectorizer \
     && PROFILE_DIR=$(if [ "$PROFILE" = dev ]; then echo debug; else echo $PROFILE; fi) \
     && mv target/$(xx-cargo --print-target-triple)/$PROFILE_DIR/vectorizer /vectorizer/vectorizer
 
@@ -249,17 +252,13 @@ WORKDIR /vectorizer
 # Distroless runs as nonroot (UID 65532) by default - no need to create user
 # This is more secure than custom UID as it's a well-known unprivileged user
 
-# Authentication configuration
-# Default admin credentials (override with environment variables in production)
-# SECURITY: Change VECTORIZER_ADMIN_PASSWORD in production!
+# Non-sensitive defaults only (do not bake secrets into image; pass at runtime)
+# For auth, set at run: -e VECTORIZER_AUTH_ENABLED -e VECTORIZER_ADMIN_PASSWORD -e VECTORIZER_JWT_SECRET
 ENV TZ=Etc/UTC \
     RUN_MODE=production \
     VECTORIZER_HOST=0.0.0.0 \
     VECTORIZER_PORT=15002 \
-    VECTORIZER_AUTH_ENABLED=true \
-    VECTORIZER_ADMIN_USERNAME=admin \
-    VECTORIZER_ADMIN_PASSWORD=admin \
-    VECTORIZER_JWT_SECRET=change-this-secret-in-production
+    VECTORIZER_ADMIN_USERNAME=admin
 
 EXPOSE 15002
 

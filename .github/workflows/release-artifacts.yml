@@ -213,7 +213,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # Docker: build and push image to Docker Hub (public) for each release.
-  # Repo visibility = public on Docker Hub. Secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN.
+  # Requires repo secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN.
   publish-docker:
     needs:
       - build-linux-x86_64-gnu
@@ -246,5 +246,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:latest
           build-args: |
             GIT_COMMIT_ID=${{ steps.version.outputs.VERSION }}
+            NO_DEFAULT_FEATURES=1
+            FEATURES=vendored-openssl
           cache-from: type=gha
           cache-to: type=gha,mode=max
