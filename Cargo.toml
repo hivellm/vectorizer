@@ -83,7 +83,7 @@ whoami = "1.5"
 libc = "0.2.178"
 
 # Embedded dashboard assets
-rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
+rust-embed = { version = "8.11", features = ["compression", "mime-guess"] }
 mime_guess = "2.0"
 
 # Compression and caching
