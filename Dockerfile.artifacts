@@ -11,12 +11,16 @@
 #
 # Build (CI): docker buildx build -f Dockerfile.artifacts --platform linux/amd64,linux/arm64 .
 
-# Stage: fix binary permissions (artifacts may lose execute bit; distroless has no shell for chmod)
+# Stage: fix binary permissions + create writable data dir for nonroot (65532)
 ARG TARGETARCH
 FROM debian:bookworm-slim AS binary-with-perms
 ARG TARGETARCH
 COPY binaries/linux-${TARGETARCH}/vectorizer /vectorizer/vectorizer
 RUN chmod +x /vectorizer/vectorizer
+
+# Stage: writable dirs for distroless nonroot (no shell in final image to mkdir/chown)
+FROM debian:bookworm-slim AS writable-dirs
+RUN mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
 
 # ============================================================================
 # RUNTIME IMAGE - Google Distroless (minimal attack surface)
@@ -32,6 +36,8 @@ ARG GIT_COMMIT_ID
 COPY --from=binary-with-perms /vectorizer/vectorizer /vectorizer/vectorizer
 COPY dashboard/dist /vectorizer/dashboard/dist
 COPY config.example.yml /vectorizer/config.yml
+# Writable data dir for nonroot (binary creates ./data on startup; without this it exits)
+COPY --from=writable-dirs --chown=65532:65532 /vectorizer/data /vectorizer/data
 
 WORKDIR /vectorizer
 

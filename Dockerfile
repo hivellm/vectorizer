@@ -234,6 +234,10 @@ RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
 RUN xx-cargo install cargo-sbom && \
     cargo sbom > vectorizer.spdx.json
 
+# Writable data dir for distroless nonroot (binary needs ./data writable or it exits on startup)
+FROM debian:bookworm-slim AS writable-dirs
+RUN mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
+
 # ============================================================================
 # RUNTIME IMAGE - Google Distroless (minimal attack surface, near-zero CVEs)
 # ============================================================================
@@ -249,6 +253,7 @@ COPY --from=builder /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=builder /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json
 COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder /vectorizer/config.example.yml /vectorizer/config.yml
+COPY --from=writable-dirs --chown=65532:65532 /vectorizer/data /vectorizer/data
 
 WORKDIR /vectorizer
 

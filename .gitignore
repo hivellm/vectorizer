@@ -141,6 +141,7 @@ logs/
 target/
 temp/
 tmp/
+scripts/.vectorizer-sim/
 
 # Claude AI settings (local only, should not be in git)
 .claude/
