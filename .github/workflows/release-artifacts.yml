@@ -64,7 +64,7 @@ jobs:
           target: x86_64-unknown-linux-gnu
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Linux glibc binaries for Docker: amd64 em ubuntu-latest, arm64 em runner ARM nativo (evita Cross/glibc)
+  # Linux glibc binaries for Docker: amd64 em ubuntu-latest, arm64 em ubuntu-22.04-arm (glibc 2.35 = compatível com distroless Debian 12 / glibc 2.36)
   build-linux-gnu-for-docker:
     needs: build-dashboard
     strategy:
@@ -75,7 +75,7 @@ jobs:
             runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
           - arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.runner }}
     steps:
