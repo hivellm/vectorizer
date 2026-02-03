@@ -280,12 +280,11 @@ async fn main() -> anyhow::Result<()> {
     info!("📁 Data directory: ./data");
     info!("📄 Config file: {}", cli.config);
 
-    // Create root user configuration from CLI arguments.
-    // Note: config_path is set when RootUserConfig has that field (server/mod.rs); otherwise server uses default "config.yml".
+    // Create root user configuration from CLI arguments (config path so server uses same file we loaded).
     let root_config = RootUserConfig {
         root_user: cli.root_user,
         root_password: cli.root_password,
-        ..Default::default()
+        config_path: Some(cli.config.clone()),
     };
 
     // Create and start the server with root user configuration

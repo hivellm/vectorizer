@@ -207,8 +207,7 @@ ARG NO_DEFAULT_FEATURES=0
 # Pass custom RUSTFLAGS
 ARG RUSTFLAGS
 
-# Select linker (e.g., mold, lld or empty for default)
-ARG LINKER=mold
+
 
 # Build dependencies with cargo-chef (cached layer)
 COPY --from=planner /vectorizer/recipe.json recipe.json
