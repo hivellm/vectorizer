@@ -64,6 +64,42 @@ jobs:
           target: x86_64-unknown-linux-gnu
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  # Linux glibc binaries for Docker (no compile inside Docker = no OOM/linker issues)
+  build-linux-gnu-for-docker:
+    needs: build-dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          rustup default stable
+          rustup update
+          rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Build x86_64 (gnu)
+        run: cargo build --release --target x86_64-unknown-linux-gnu --no-default-features --features vendored-openssl --bin vectorizer
+      - name: Build aarch64 (gnu)
+        run: cross build --release --target aarch64-unknown-linux-gnu --no-default-features --features vendored-openssl --bin vectorizer
+      - name: Prepare binaries layout
+        run: |
+          mkdir -p binaries/linux-amd64 binaries/linux-arm64
+          cp target/x86_64-unknown-linux-gnu/release/vectorizer binaries/linux-amd64/
+          cp target/aarch64-unknown-linux-gnu/release/vectorizer binaries/linux-arm64/
+      - name: Upload linux binaries for Docker
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: binaries
+          retention-days: 1
+
   build-linux-aarch64-musl:
     needs: build-dashboard
     runs-on: ubuntu-latest
@@ -161,13 +197,14 @@ jobs:
           rustup target add ${{ matrix.target }}
           rustup show
           cargo -Vv
+      # Tag separado para Mac com Metal: asset nomeado vectorizer-*-metal (resto = manifesto automático)
       - name: Build vectorizer with Metal support
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
           features: hive-gpu
-          archive: vectorizer-$target-metal
+          archive: vectorizer-${{ matrix.target }}-metal
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build vectorizer-cli with Metal support
         uses: taiki-e/upload-rust-binary-action@v1
@@ -175,7 +212,7 @@ jobs:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
           features: hive-gpu
-          archive: vectorizer-cli-$target-metal
+          archive: vectorizer-cli-${{ matrix.target }}-metal
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows-binaries:
@@ -212,18 +249,26 @@ jobs:
           bin: vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Docker: build and push image to Docker Hub (public) for each release.
-  # Requires repo secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN.
+  # Docker: uma tag (version + latest), manifesto multi-plataforma (linux/amd64 + linux/arm64).
+  # Mac Metal: tag separada no release (asset vectorizer-*-metal).
+  # Requer secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN.
   publish-docker:
     needs:
-      - build-linux-x86_64-gnu
-      - build-linux-aarch64-musl
-      - build-mac-binaries
-      - build-mac-metal-binaries
-      - build-windows-binaries
+      - build-dashboard
+      - build-linux-gnu-for-docker
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
+      - name: Download Linux binaries for Docker
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries
+          path: binaries
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Set version from tag
@@ -234,11 +279,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push Docker image
+      - name: Build and push Docker image (from artifacts)
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: ./Dockerfile.artifacts
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -246,8 +291,6 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:latest
           build-args: |
             GIT_COMMIT_ID=${{ steps.version.outputs.VERSION }}
-            NO_DEFAULT_FEATURES=1
-            FEATURES=vendored-openssl
-            RUSTFLAGS=-C lto=off -C codegen-units=16
+            BUILD_DATE=${{ github.event.release.published_at }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
