@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] - 2026-02-03
+
+### Fixed
+- **Docker image**: Binary execute permission in artifact-based image
+  - Added intermediate stage in `Dockerfile.artifacts` to `chmod +x` the binary (artifacts can lose execute bit)
+  - Workflow `build-linux-gnu-for-docker`: `chmod +x` on binary before upload so artifact has correct permissions
+  - Fixes "permission denied" when running `docker run` with image from Docker Hub
+
+---
+
 ## [2.4.1] - 2026-02-01
 
 ### Added

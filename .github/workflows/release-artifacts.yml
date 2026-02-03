@@ -98,6 +98,7 @@ jobs:
         run: |
           mkdir -p binaries/linux-${{ matrix.arch }}
           cp target/${{ matrix.target }}/release/vectorizer binaries/linux-${{ matrix.arch }}/
+          chmod +x binaries/linux-${{ matrix.arch }}/vectorizer
       - name: Upload linux binary for Docker
         uses: actions/upload-artifact@v4
         with:
@@ -254,13 +255,14 @@ jobs:
           bin: vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Docker: uma tag (version + latest), manifesto multi-plataforma (linux/amd64 + linux/arm64).
-  # Mac Metal: tag separada no release (asset vectorizer-*-metal).
+  # Docker só roda após dashboard + binários para Docker + build do backend (release) ok.
+  # Uma tag (version + latest), manifesto multi-plataforma (linux/amd64 + linux/arm64).
   # Requer secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN.
   publish-docker:
     needs:
       - build-dashboard
       - build-linux-gnu-for-docker
+      - build-linux-x86_64-gnu
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
