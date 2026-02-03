@@ -29,7 +29,7 @@ sha2 = "0.10"
 walkdir = "2.5"
 notify = "8.2"
 fastrand = "2.3"
-sysinfo = "0.37"
+sysinfo = "0.38"
 
 # Index and vector operations
 hnsw_rs = "0.3"
