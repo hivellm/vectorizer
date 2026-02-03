@@ -10,34 +10,33 @@
 #   config.example.yml (from repo)
 #
 # Build (CI): docker buildx build -f Dockerfile.artifacts --platform linux/amd64,linux/arm64 .
+#
+# Runtime uses debian:bookworm-slim (same as Dockerfile.test) so the same binary that
+# works in the test container works in CI/CD; avoids glibc/distroless compatibility issues.
 
-# Stage: fix binary permissions + create writable data dir for nonroot (65532)
+# Stage: binary + permissions + writable data dir
 ARG TARGETARCH
-FROM debian:bookworm-slim AS binary-with-perms
+FROM debian:bookworm-slim AS base
 ARG TARGETARCH
 COPY binaries/linux-${TARGETARCH}/vectorizer /vectorizer/vectorizer
-RUN chmod +x /vectorizer/vectorizer
-
-# Stage: writable dirs for distroless nonroot (no shell in final image to mkdir/chown)
-FROM debian:bookworm-slim AS writable-dirs
-RUN mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
+RUN chmod +x /vectorizer/vectorizer && \
+    mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
 
 # ============================================================================
-# RUNTIME IMAGE - Google Distroless (minimal attack surface)
+# RUNTIME IMAGE - Debian slim (same base as Dockerfile.test, proven to work)
 # ============================================================================
-FROM gcr.io/distroless/cc-debian12:nonroot AS vectorizer
+FROM debian:bookworm-slim AS vectorizer
 
-# Buildx sets TARGETARCH (amd64, arm64)
-ARG TARGETARCH
 ARG BUILD_DATE
 ARG GIT_COMMIT_ID
 
-# Copy binary with execute permission from intermediate stage
-COPY --from=binary-with-perms /vectorizer/vectorizer /vectorizer/vectorizer
+COPY --from=base /vectorizer/vectorizer /vectorizer/vectorizer
+COPY --from=base /vectorizer/data /vectorizer/data
 COPY dashboard/dist /vectorizer/dashboard/dist
 COPY config.example.yml /vectorizer/config.yml
-# Writable data dir for nonroot (binary creates ./data on startup; without this it exits)
-COPY --from=writable-dirs --chown=65532:65532 /vectorizer/data /vectorizer/data
+
+# Ensure data dir stays writable by nonroot (COPY from base keeps ownership)
+RUN chown -R 65532:65532 /vectorizer/data
 
 WORKDIR /vectorizer
 
@@ -45,6 +44,7 @@ ENV TZ=Etc/UTC \
     RUN_MODE=production \
     VECTORIZER_HOST=0.0.0.0 \
     VECTORIZER_PORT=15002 \
+    VECTORIZER_MCP_PORT=15002 \
     VECTORIZER_ADMIN_USERNAME=admin
 
 EXPOSE 15002
@@ -58,9 +58,9 @@ LABEL org.opencontainers.image.version="${GIT_COMMIT_ID:-latest}"
 LABEL org.opencontainers.image.revision="${GIT_COMMIT_ID:-unknown}"
 LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL org.opencontainers.image.base.name="gcr.io/distroless/cc-debian12:nonroot"
-LABEL security.scan.enabled="true"
 LABEL security.non-root-user="nonroot"
 LABEL security.user-id="65532"
+
+USER 65532:65532
 
 ENTRYPOINT ["/vectorizer/vectorizer"]
