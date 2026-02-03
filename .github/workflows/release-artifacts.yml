@@ -64,10 +64,20 @@ jobs:
           target: x86_64-unknown-linux-gnu
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Linux glibc binaries for Docker (no compile inside Docker = no OOM/linker issues)
+  # Linux glibc binaries for Docker: amd64 em ubuntu-latest, arm64 em runner ARM nativo (evita Cross/glibc)
   build-linux-gnu-for-docker:
     needs: build-dashboard
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
@@ -81,23 +91,18 @@ jobs:
           sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
           rustup default stable
           rustup update
-          rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-      - name: Build x86_64 (gnu)
-        run: cargo build --release --target x86_64-unknown-linux-gnu --no-default-features --features vendored-openssl --bin vectorizer
-      - name: Build aarch64 (gnu)
-        run: cross build --release --target aarch64-unknown-linux-gnu --no-default-features --features vendored-openssl --bin vectorizer
-      - name: Prepare binaries layout
+          rustup target add ${{ matrix.target }}
+      - name: Build (gnu)
+        run: cargo build --release --target ${{ matrix.target }} --no-default-features --features vendored-openssl --bin vectorizer
+      - name: Prepare binary for artifact
         run: |
-          mkdir -p binaries/linux-amd64 binaries/linux-arm64
-          cp target/x86_64-unknown-linux-gnu/release/vectorizer binaries/linux-amd64/
-          cp target/aarch64-unknown-linux-gnu/release/vectorizer binaries/linux-arm64/
-      - name: Upload linux binaries for Docker
+          mkdir -p binaries/linux-${{ matrix.arch }}
+          cp target/${{ matrix.target }}/release/vectorizer binaries/linux-${{ matrix.arch }}/
+      - name: Upload linux binary for Docker
         uses: actions/upload-artifact@v4
         with:
-          name: linux-binaries
-          path: binaries
+          name: linux-binaries-${{ matrix.arch }}
+          path: binaries/linux-${{ matrix.arch }}
           retention-days: 1
 
   build-linux-aarch64-musl:
@@ -264,11 +269,16 @@ jobs:
         with:
           name: dashboard-dist
           path: dashboard/dist
-      - name: Download Linux binaries for Docker
+      - name: Download Linux binary (amd64)
         uses: actions/download-artifact@v4
         with:
-          name: linux-binaries
-          path: binaries
+          name: linux-binaries-amd64
+          path: binaries/linux-amd64
+      - name: Download Linux binary (arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries-arm64
+          path: binaries/linux-arm64
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Set version from tag
