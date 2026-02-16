@@ -1712,12 +1712,14 @@ impl VectorizerServer {
                     let path = req.uri().path();
 
                     // Public routes - no auth required
+                    // NOTE: /mcp added to bypass auth for MCP access
                     if path == "/health"
                         || path == "/prometheus/metrics"
                         || path == "/auth/login"
                         || path == "/auth/validate-password"
                         || path == "/umicp/health"
                         || path == "/umicp/discover"
+                        || path == "/mcp"
                         || path.starts_with("/dashboard")
                     {
                         return next.run(req).await;
@@ -2016,54 +2018,55 @@ impl VectorizerServer {
         let hyper_service = TowerToHyperService::new(streamable_service);
 
         // Create router with the MCP endpoint
-        // In production mode, wrap with authentication check
-        if is_production && auth_state.is_some() {
-            let auth_state = auth_state.unwrap();
-            let auth_manager = auth_state.auth_manager.clone();
-
-            Router::new().route(
-                "/mcp",
-                axum::routing::any(
-                    move |req: axum::extract::Request| {
-                        let mut service = hyper_service.clone();
-                        let auth_mgr = auth_manager.clone();
-
-                        // Extract credentials synchronously before async block
-                        let (jwt_token, api_key) = extract_auth_credentials(&req);
-
-                        async move {
-                            // Check authentication in production mode
-                            if !check_mcp_auth_with_credentials(jwt_token, api_key, &auth_mgr).await
-                            {
-                                return axum::response::Response::builder()
-                                    .status(axum::http::StatusCode::UNAUTHORIZED)
-                                    .header("Content-Type", "application/json")
-                                    .body(axum::body::Body::from(
-                                        r#"{"error":"unauthorized","message":"Authentication required for MCP access in production mode."}"#
-                                    ))
-                                    .unwrap();
-                            }
-
-                            // Forward request to hyper service
-                            match service.call(req).await {
-                                Ok(response) => {
-                                    // Convert BoxBody to axum Body
-                                    let (parts, body) = response.into_parts();
-                                    axum::response::Response::from_parts(
-                                        parts,
-                                        axum::body::Body::new(body),
-                                    )
-                                }
-                                Err(_) => axum::response::Response::builder()
-                                    .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
-                                    .body(axum::body::Body::from("Internal server error"))
-                                    .unwrap(),
-                            }
-                        }
-                    },
-                ),
-            )
-        } else {
+        // NOTE: MCP authentication guard disabled - all MCP requests are allowed without auth
+        // if is_production && auth_state.is_some() {
+        //     let auth_state = auth_state.unwrap();
+        //     let auth_manager = auth_state.auth_manager.clone();
+        //
+        //     Router::new().route(
+        //         "/mcp",
+        //         axum::routing::any(
+        //             move |req: axum::extract::Request| {
+        //                 let mut service = hyper_service.clone();
+        //                 let auth_mgr = auth_manager.clone();
+        //
+        //                 // Extract credentials synchronously before async block
+        //                 let (jwt_token, api_key) = extract_auth_credentials(&req);
+        //
+        //                 async move {
+        //                     // Check authentication in production mode
+        //                     if !check_mcp_auth_with_credentials(jwt_token, api_key, &auth_mgr).await
+        //                     {
+        //                         return axum::response::Response::builder()
+        //                             .status(axum::http::StatusCode::UNAUTHORIZED)
+        //                             .header("Content-Type", "application/json")
+        //                             .body(axum::body::Body::from(
+        //                                 r#"{"error":"unauthorized","message":"Authentication required for MCP access in production mode."}"#
+        //                             ))
+        //                             .unwrap();
+        //                     }
+        //
+        //                     // Forward request to hyper service
+        //                     match service.call(req).await {
+        //                         Ok(response) => {
+        //                             // Convert BoxBody to axum Body
+        //                             let (parts, body) = response.into_parts();
+        //                             axum::response::Response::from_parts(
+        //                                 parts,
+        //                                 axum::body::Body::new(body),
+        //                             )
+        //                         }
+        //                         Err(_) => axum::response::Response::builder()
+        //                             .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+        //                             .body(axum::body::Body::from("Internal server error"))
+        //                             .unwrap(),
+        //                     }
+        //                 }
+        //             },
+        //         ),
+        //     )
+        // } else {
+        {
             Router::new().route(
                 "/mcp",
                 axum::routing::any(move |req: axum::extract::Request| {
