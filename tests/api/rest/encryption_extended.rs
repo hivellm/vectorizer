@@ -22,7 +22,8 @@ fn create_test_keypair() -> (SecretKey, String) {
     (secret_key, public_key_base64)
 }
 
-/// Helper to create a test collection
+/// Helper to create a test collection.
+/// Uses CPU-only creation so encryption validation runs (GPU/sharded paths may not validate).
 fn create_test_collection(
     store: &VectorStore,
     name: &str,
@@ -41,7 +42,7 @@ fn create_test_collection(
         graph: None,
         encryption,
     };
-    store.create_collection(name, config).unwrap();
+    store.create_collection_cpu_only(name, config).unwrap();
 }
 
 #[test]

@@ -11,6 +11,7 @@ import LoadingState from '@/components/LoadingState';
 import StatCard from '@/components/ui/StatCard';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import WelcomeBanner from '@/components/WelcomeBanner';
 import { formatNumber, formatDate } from '@/utils/formatters';
 import { SearchLg, BarChart01, Code01 } from '@untitledui/icons';
 import type { Collection } from '@/hooks/useCollections';
@@ -90,6 +91,9 @@ function OverviewPage() {
           <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
         </div>
       )}
+
+      {/* Welcome Banner - Show for first-time users */}
+      <WelcomeBanner />
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -189,17 +193,19 @@ function OverviewPage() {
               </div>
             </div>
           </Link>
-          <div className="p-4 border border-neutral-200 dark:border-neutral-800/50 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors opacity-50">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center">
-                <Code01 className="w-5 h-5 text-neutral-600 dark:text-neutral-300" />
-              </div>
-              <div>
-                <h3 className="font-medium text-neutral-900 dark:text-white">API Console</h3>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">Coming soon</p>
+          <Link to="/docs">
+            <div className="p-4 border border-neutral-200 dark:border-neutral-800/50 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center">
+                  <Code01 className="w-5 h-5 text-neutral-600 dark:text-neutral-300" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-neutral-900 dark:text-white">API Playground</h3>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Test API endpoints</p>
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
       </Card>
 

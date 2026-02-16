@@ -15,7 +15,7 @@ debian/
 gui/
 qdrant/
 dashboard/node_modules/
-dashboard/dist/
+# dashboard/dist/ — não ignorar: Dockerfile.artifacts usa o dist baixado pelo CI
 dashboard/.vite/
 scripts/
 docs/

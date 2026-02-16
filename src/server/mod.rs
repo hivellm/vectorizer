@@ -1,5 +1,6 @@
 mod auth_handlers;
 mod discovery_handlers;
+mod embedded_assets;
 mod error_middleware;
 pub mod file_operations_handlers;
 mod file_upload_handlers;
@@ -21,6 +22,7 @@ mod qdrant_snapshot_handlers;
 mod qdrant_vector_handlers;
 pub mod replication_handlers;
 pub mod rest_handlers;
+mod setup_handlers;
 
 // Re-export main server types from the original implementation
 use std::sync::Arc;
@@ -38,7 +40,7 @@ pub use mcp_handlers::handle_mcp_tool;
 pub use mcp_tools::get_mcp_tools;
 use tokio::sync::RwLock;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::{ServeDir, ServeFile};
+// Note: ServeDir/ServeFile no longer needed - dashboard is embedded in binary
 use tower_http::set_header::SetResponseHeaderLayer;
 use tracing::{debug, error, info, warn};
 
@@ -105,6 +107,8 @@ pub struct RootUserConfig {
     pub root_user: Option<String>,
     /// Root password (generates random if not set)
     pub root_password: Option<String>,
+    /// Path to config file (defaults to "config.yml" if not set)
+    pub config_path: Option<String>,
 }
 
 impl VectorizerServer {
@@ -116,6 +120,11 @@ impl VectorizerServer {
     /// Create a new vectorizer server with root user configuration
     pub async fn new_with_root_config(root_config: RootUserConfig) -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
+
+        // Get config path from root_config or use default
+        let config_path = root_config
+            .config_path
+            .unwrap_or_else(|| "config.yml".to_string());
 
         // Initialize monitoring system
         if let Err(e) = crate::monitoring::init() {
@@ -132,7 +141,7 @@ impl VectorizerServer {
         let store_arc = Arc::new(vector_store);
 
         // Check if we should cleanup empty collections on startup
-        let should_cleanup = std::fs::read_to_string("config.yml")
+        let should_cleanup = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
                 serde_yaml::from_str::<crate::config::VectorizerConfig>(&content).ok()
@@ -191,7 +200,7 @@ impl VectorizerServer {
         info!("🔍 STEP 4: Checking if file watcher is enabled...");
 
         // Load cluster config for file watcher check
-        let cluster_config_for_watcher = std::fs::read_to_string("config.yml")
+        let cluster_config_for_watcher = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
                 serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -202,7 +211,7 @@ impl VectorizerServer {
 
         // Check if file watcher is enabled in config before starting
         // Also check if cluster mode requires file watcher to be disabled
-        let file_watcher_enabled = std::fs::read_to_string("config.yml")
+        let file_watcher_enabled = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
             .and_then(|config| {
@@ -312,7 +321,9 @@ impl VectorizerServer {
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
         let watcher_system_for_loading = watcher_system_arc.clone();
+        let config_path_for_background = config_path.clone();
         let background_handle = tokio::task::spawn(async move {
+            let config_path = config_path_for_background;
             info!("📦 Background task started - loading collections and checking workspace...");
 
             // Check for cancellation before starting
@@ -333,7 +344,7 @@ impl VectorizerServer {
                 true
             } else {
                 // No .vecdb - check config for raw file loading
-                std::fs::read_to_string("config.yml")
+                std::fs::read_to_string(&config_path)
                     .ok()
                     .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
                     .and_then(|config| {
@@ -696,7 +707,7 @@ impl VectorizerServer {
         // Initialize cluster manager if cluster is enabled
         let (cluster_manager, cluster_client_pool, cluster_config_ref) = {
             // Try to load cluster config from config.yml or use default
-            let cluster_config = std::fs::read_to_string("config.yml")
+            let cluster_config = std::fs::read_to_string(&config_path)
                 .ok()
                 .and_then(|content| {
                     serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -712,7 +723,7 @@ impl VectorizerServer {
                 let validator = crate::cluster::ClusterConfigValidator::new();
 
                 // Also load file watcher config for validation
-                let file_watcher_config = std::fs::read_to_string("config.yml")
+                let file_watcher_config = std::fs::read_to_string(&config_path)
                     .ok()
                     .and_then(|content| {
                         serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -776,7 +787,7 @@ impl VectorizerServer {
         let _cluster_config = cluster_config_ref;
 
         // Load API config for max request size
-        let max_request_size_mb = std::fs::read_to_string("config.yml")
+        let max_request_size_mb = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
                 serde_yaml::from_str::<serde_yaml::Value>(&content)
@@ -797,7 +808,7 @@ impl VectorizerServer {
         // Initialize auth handler state if auth is enabled
         let auth_handler_state = {
             // Try to load auth config from config.yml
-            let mut auth_config = std::fs::read_to_string("config.yml")
+            let mut auth_config = std::fs::read_to_string(&config_path)
                 .ok()
                 .and_then(|content| {
                     serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
@@ -843,7 +854,7 @@ impl VectorizerServer {
         // Initialize HiveHub manager if hub integration is enabled
         let hub_manager = {
             // Try to load hub config from config.yml
-            let hub_config = match std::fs::read_to_string("config.yml") {
+            let hub_config = match std::fs::read_to_string(&config_path) {
                 Ok(content) => {
                     match serde_yaml::from_str::<crate::config::VectorizerConfig>(&content) {
                         Ok(config) => {
@@ -1102,6 +1113,23 @@ impl VectorizerServer {
                 "/workspace/config",
                 post(rest_handlers::update_workspace_config),
             )
+            // Setup Wizard routes
+            .route("/setup/status", get(setup_handlers::get_setup_status))
+            .route(
+                "/setup/analyze",
+                post(setup_handlers::analyze_project_directory),
+            )
+            .route("/setup/apply", post(setup_handlers::apply_setup_config))
+            .route("/setup/verify", get(setup_handlers::verify_setup))
+            .route(
+                "/setup/templates",
+                get(setup_handlers::get_configuration_templates),
+            )
+            .route(
+                "/setup/templates/{id}",
+                get(setup_handlers::get_configuration_template_by_id),
+            )
+            .route("/setup/browse", post(setup_handlers::browse_directory))
             .route("/config", get(rest_handlers::get_config))
             .route("/config", post(rest_handlers::update_config))
             .route("/admin/restart", post(rest_handlers::restart_server))
@@ -1285,6 +1313,8 @@ impl VectorizerServer {
                 post(rest_handlers::search_by_file_type),
             )
             // File Upload routes
+            // Note: Axum has a default 2MB limit for multipart. This is increased via
+            // DefaultBodyLimit layer (configured via max_request_size_mb in config.yml).
             .route("/files/upload", post(file_upload_handlers::upload_file))
             .route(
                 "/files/config",
@@ -1463,56 +1493,19 @@ impl VectorizerServer {
                 "/qdrant/cluster/metadata/keys/{key}",
                 put(qdrant_cluster_handlers::update_metadata_key),
             )
-            // Dashboard - serve static files from dist directory (production build)
-            // Use ServeDir with fallback to index.html for SPA routing support
-            // This ensures that direct URL access (e.g., /dashboard/collections) works on refresh
+            // Dashboard - serve embedded static files (production build)
+            // All dashboard assets are embedded in the binary using rust-embed
+            // This allows distributing a single binary without external dependencies
             //
             // Route priority for /dashboard/*:
             // 1. Exact file match (assets/, favicon.ico, etc.) - served with cache headers
             // 2. SPA fallback - any other route returns index.html for React Router
-            .nest_service(
-                "/dashboard",
-                ServeDir::new("dashboard/dist")
-                    .fallback(ServeFile::new("dashboard/dist/index.html")),
+            .route("/dashboard", get(embedded_assets::dashboard_root_handler))
+            .route("/dashboard/", get(embedded_assets::dashboard_root_handler))
+            .route(
+                "/dashboard/{*path}",
+                get(embedded_assets::dashboard_handler),
             )
-            // Add cache headers for dashboard assets
-            // Assets in /dashboard/assets/* are fingerprinted, so max-age=1year is safe
-            // index.html should not be cached to ensure updates are picked up
-            .layer(axum::middleware::from_fn(
-                |req: axum::extract::Request, next: axum::middleware::Next| async move {
-                    let path = req.uri().path().to_string();
-                    let mut response = next.run(req).await;
-
-                    // Only apply cache headers to dashboard routes
-                    if path.starts_with("/dashboard") {
-                        // Log dashboard requests at debug level
-                        tracing::debug!("📊 Dashboard request: {}", path);
-
-                        let headers = response.headers_mut();
-                        if path.starts_with("/dashboard/assets/") {
-                            // Fingerprinted assets: cache for 1 year
-                            headers.insert(
-                                axum::http::header::CACHE_CONTROL,
-                                "public, max-age=31536000, immutable".parse().unwrap(),
-                            );
-                        } else if path == "/dashboard/" || path == "/dashboard" {
-                            // index.html: no cache to ensure updates
-                            headers.insert(
-                                axum::http::header::CACHE_CONTROL,
-                                "no-cache, no-store, must-revalidate".parse().unwrap(),
-                            );
-                        } else {
-                            // SPA routes (fallback to index.html): no cache
-                            headers.insert(
-                                axum::http::header::CACHE_CONTROL,
-                                "no-cache, no-store, must-revalidate".parse().unwrap(),
-                            );
-                        }
-                    }
-
-                    response
-                },
-            ))
             .layer(axum::middleware::from_fn(
                 crate::monitoring::correlation_middleware,
             ))
@@ -1685,15 +1678,20 @@ impl VectorizerServer {
         // 1. Public routes first (health check, prometheus metrics) - no auth required
         // 2. UMICP routes (most specific)
         // 3. MCP routes
-        // 4. REST API routes (including /api/*, dashboard with SPA fallback via ServeDir)
+        // 4. REST API routes (including /api/*, dashboard with embedded assets)
         // 5. Metrics routes
-        // Note: Dashboard SPA routing is handled by ServeDir with not_found_service in rest_routes
+        // Note: Dashboard assets are embedded in the binary using rust-embed
         let app = Router::new()
             .merge(public_routes) // Health check and prometheus - always public
             .merge(umicp_routes)
             .merge(mcp_router)
             .merge(rest_routes)
-            .merge(metrics_router);
+            .merge(metrics_router)
+            // Apply DefaultBodyLimit to increase multipart upload limit beyond Axum's default 2MB
+            // This allows file uploads up to max_request_size_mb (configured in config.yml)
+            .layer(axum::extract::DefaultBodyLimit::max(
+                self.max_request_size_mb * 1024 * 1024,
+            ));
 
         // In production mode, apply global auth middleware BEFORE CORS
         // This middleware handles both standard auth (JWT/API key) and HiveHub integration
@@ -1721,6 +1719,7 @@ impl VectorizerServer {
                         || path == "/umicp/discover"
                         || path == "/mcp"
                         || path.starts_with("/dashboard")
+                        || path.starts_with("/setup")
                     {
                         return next.run(req).await;
                     }
@@ -1836,6 +1835,10 @@ impl VectorizerServer {
             "✅ MCP server (StreamableHTTP) with REST API listening on {}:{}",
             host, port
         );
+
+        // Display first-start guidance if setup is needed
+        let collection_count = self.store.list_collections().len();
+        setup_handlers::display_first_start_guidance(host, port, collection_count);
 
         // Create shutdown signal for axum graceful shutdown
         let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();

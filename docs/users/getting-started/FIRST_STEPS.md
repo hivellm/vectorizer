@@ -11,6 +11,40 @@ tags: [getting-started, tutorial, first-steps, setup]
 
 Complete guide to getting started with Vectorizer after installation.
 
+## Option 1: Setup Wizard (Recommended)
+
+The easiest way to configure Vectorizer is using the **Setup Wizard**:
+
+```
+http://localhost:15002/setup
+```
+
+On first start, you'll see terminal guidance:
+
+```
+╔══════════════════════════════════════════════════════════════════╗
+║  🚀 Welcome to Vectorizer!                                       ║
+║                                                                  ║
+║  First time setup detected.                                      ║
+║  Configure your workspace using the Setup Wizard:                ║
+║                                                                  ║
+║  👉 http://localhost:15002/setup                                 ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+The wizard will:
+1. **Detect your project** structure automatically
+2. **Suggest collections** based on file types
+3. **Create workspace.yml** with optimal settings
+
+👉 **[Setup Wizard Guide](./SETUP_WIZARD.md)** - Complete wizard documentation
+
+---
+
+## Option 2: Manual Configuration
+
+If you prefer manual setup, follow the steps below.
+
 ## Verify Installation
 
 ### Check Service Status
@@ -241,6 +275,7 @@ Get-Service Vectorizer
 
 ## Related Topics
 
+- [Setup Wizard Guide](./SETUP_WIZARD.md) - ⭐ Guided first-time configuration
 - [Quick Start Guide](./QUICK_START.md) - Quick start tutorial
 - [Installation Guide](./INSTALLATION.md) - Installation details
 - [Troubleshooting Guide](../operations/TROUBLESHOOTING.md) - Common issues

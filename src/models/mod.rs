@@ -204,10 +204,11 @@ pub struct Payload {
 impl Payload {
     /// Check if this payload is encrypted
     /// A payload is considered encrypted if it has the encrypted payload structure
+    /// (nonce, tag, encrypted_data, ephemeral_public_key, algorithm).
+    /// Note: "version" is optional as it may be omitted in some storage round-trips.
     pub fn is_encrypted(&self) -> bool {
         if let serde_json::Value::Object(map) = &self.data {
-            map.contains_key("version")
-                && map.contains_key("nonce")
+            map.contains_key("nonce")
                 && map.contains_key("tag")
                 && map.contains_key("encrypted_data")
                 && map.contains_key("ephemeral_public_key")

@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "2.2.0"
+version = "2.4.2"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -11,6 +11,7 @@ categories = ["database", "science"]
 
 [dependencies]
 ctrlc = { version = "3.5", optional = true }
+dirs = "5.0"
 # Core dependencies
 # Optimized: Use only needed tokio features instead of "full" (saves ~30% compile time)
 tokio = { version = "1.48", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
@@ -81,6 +82,10 @@ umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
 whoami = "1.5"
 libc = "0.2.178"
 
+# Embedded dashboard assets
+rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
+mime_guess = "2.0"
+
 # Compression and caching
 lz4_flex = "0.12.0"
 memmap2 = "0.9"
@@ -94,6 +99,9 @@ blake3 = { version = "1.5", default-features = false }
 unicode-normalization = { version = "0.1", default-features = false }
 # Note: regex is expensive - consider using simpler string matching where possible
 regex = { version = "1.10", default-features = false, features = ["std", "unicode-perl"] }
+
+# OpenSSL vendored for musl cross-compilation (hf-hub uses native-tls)
+openssl = { version = "0.10", features = ["vendored"], optional = true }
 
 # Authentication and security
 jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
@@ -169,6 +177,8 @@ transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf
 cc = { version = "1.2.49", features = ["parallel"] }
 winres = "0.1"
 tonic-build = "0.12"
+# Vendored protoc for cross-compilation (e.g. aarch64-unknown-linux-musl in CI where container has no protoc)
+protoc-bin-vendored = "3.2"
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
@@ -291,8 +301,11 @@ path = "scripts/test_routes.rs"
 # required-features = ["hive-gpu-wgpu"]
 
 [features]
-default = ["hive-gpu", "fastembed"]
+default = ["hive-gpu", "fastembed", "transmutation"]
 fastembed = ["dep:fastembed"]
+
+# OpenSSL vendored for musl cross-compilation
+vendored-openssl = ["dep:openssl"]
 
 # GPU acceleration via external hive-gpu crate only (Metal-only currently)
 # Future: CUDA, ROCm, WebGPU support when hive-gpu implements them
@@ -451,7 +464,7 @@ assets = [
     ["target/release/vectorizer", "usr/bin/", "755"],
     ["target/release/vectorizer-cli", "usr/bin/", "755"],
     ["README.md", "usr/share/doc/vectorizer/README", "644"],
-    ["config.yml", "etc/vectorizer/config.yml", "644"],
+    ["config.example.yml", "etc/vectorizer/config.yml", "644"],
     ["config.example.yml", "etc/vectorizer/", "644"],
     ["workspace.example.yml", "etc/vectorizer/", "644"],
     ["dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],

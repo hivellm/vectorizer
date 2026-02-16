@@ -78,6 +78,20 @@ export interface DiscoveryStatusResponse {
   discovery_progress?: number;
 }
 
+export interface EnableGraphResponse {
+  success: boolean;
+  collection: string;
+  message: string;
+  node_count: number;
+}
+
+export interface GraphStatusResponse {
+  collection: string;
+  enabled: boolean;
+  node_count: number;
+  edge_count: number;
+}
+
 /**
  * Hook for graph operations
  */
@@ -349,6 +363,47 @@ export function useGraph() {
     [apiClient]
   );
 
+  /**
+   * Enable graph for a collection
+   */
+  const enableGraph = useCallback(
+    async (collection: string): Promise<EnableGraphResponse> => {
+      try {
+        const response = await apiClient.post<EnableGraphResponse>(
+          `/graph/enable/${encodeURIComponent(collection)}`,
+          {}
+        );
+        return response;
+      } catch (error) {
+        if (error instanceof ApiClientError) {
+          throw new Error(`Failed to enable graph: ${error.message}`);
+        }
+        throw error;
+      }
+    },
+    [apiClient]
+  );
+
+  /**
+   * Get graph status for a collection
+   */
+  const getGraphStatus = useCallback(
+    async (collection: string): Promise<GraphStatusResponse> => {
+      try {
+        const response = await apiClient.get<GraphStatusResponse>(
+          `/graph/status/${encodeURIComponent(collection)}`
+        );
+        return response;
+      } catch (error) {
+        if (error instanceof ApiClientError) {
+          throw new Error(`Failed to get graph status: ${error.message}`);
+        }
+        throw error;
+      }
+    },
+    [apiClient]
+  );
+
   return {
     listNodes,
     listEdges,
@@ -360,6 +415,8 @@ export function useGraph() {
     discoverEdges,
     discoverEdgesForNode,
     getDiscoveryStatus,
+    enableGraph,
+    getGraphStatus,
   };
 }
 

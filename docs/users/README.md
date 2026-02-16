@@ -21,6 +21,7 @@ Installation and quick start guides:
 - [Docker Installation](./getting-started/DOCKER.md) - Complete Docker deployment guide
 - [Building from Source](./getting-started/BUILD_FROM_SOURCE.md) - Build from source code
 - [Quick Start Guide](./getting-started/QUICK_START.md) - Get up and running in minutes
+- [**Setup Wizard Guide**](./getting-started/SETUP_WIZARD.md) - ⭐ Guided first-time configuration
 - [First Steps](./getting-started/FIRST_STEPS.md) - Complete guide after installation
 - [Quick Start (Windows)](./getting-started/QUICK_START_WINDOWS.md) - Windows-specific guide
 
@@ -132,9 +133,10 @@ Advanced features and optimizations:
 New to Vectorizer? Start here:
 
 1. **[Install Vectorizer](./getting-started/INSTALLATION.md)** - Get Vectorizer running
-2. **[Quick Start Guide](./getting-started/QUICK_START.md)** - Create your first collection
-3. **[Creating Collections](./collections/CREATING.md)** - Learn about collections
-4. **[Basic Search](./search/BASIC.md)** - Start searching
+2. **[Setup Wizard](./getting-started/SETUP_WIZARD.md)** - ⭐ Use the guided setup wizard (recommended)
+3. **[Quick Start Guide](./getting-started/QUICK_START.md)** - Create your first collection manually
+4. **[Creating Collections](./collections/CREATING.md)** - Learn about collections
+5. **[Basic Search](./search/BASIC.md)** - Start searching
 
 ## 📖 Additional Resources
 

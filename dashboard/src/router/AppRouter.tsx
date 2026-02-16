@@ -2,9 +2,10 @@
  * Application router with persistent navigation and code splitting
  */
 
-import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
+import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +26,8 @@ const BackupsPage = lazy(() => import('@/pages/BackupsPage'));
 const TestPage = lazy(() => import('@/pages/TestPage'));
 const UsersPage = lazy(() => import('@/pages/UsersPage'));
 const ApiKeysPage = lazy(() => import('@/pages/ApiKeysPage'));
+const SetupWizardPage = lazy(() => import('@/pages/SetupWizardPage'));
+const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -33,8 +36,47 @@ const PageLoader = () => (
   </div>
 );
 
+// Hook to check setup status and auto-redirect
+function useSetupAutoRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    // Skip if already checked or on excluded paths
+    if (checked) return;
+    
+    const excludedPaths = ['/setup', '/login'];
+    if (excludedPaths.some(path => location.pathname.startsWith(path))) {
+      setChecked(true);
+      return;
+    }
+
+    const checkSetup = async () => {
+      try {
+        const response = await fetch('/setup/status');
+        if (response.ok) {
+          const status = await response.json();
+          if (status.needs_setup) {
+            navigate('/setup', { replace: true });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check setup status:', error);
+      } finally {
+        setChecked(true);
+      }
+    };
+
+    checkSetup();
+  }, [navigate, location.pathname, checked]);
+}
+
 function AppRouter() {
   const { isAuthenticated } = useAuth();
+  
+  // Check for setup redirect
+  useSetupAutoRedirect();
 
   return (
     <Suspense fallback={<PageLoader />}>
@@ -47,7 +89,19 @@ function AppRouter() {
           }
         />
 
-        {/* Protected routes */}
+        {/* Setup Wizard - Full screen layout without sidebar */}
+        <Route
+          path="/setup"
+          element={
+            <ProtectedRoute>
+              <WizardLayout>
+                <SetupWizardPage />
+              </WizardLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Protected routes with main layout */}
         <Route
           path="/"
           element={
@@ -71,6 +125,7 @@ function AppRouter() {
           <Route path="test" element={<TestPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="api-keys" element={<ApiKeysPage />} />
+          <Route path="docs" element={<ApiDocsPage />} />
         </Route>
       </Routes>
     </Suspense>

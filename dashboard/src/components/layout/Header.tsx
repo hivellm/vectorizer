@@ -2,8 +2,10 @@
  * Header component - Untitled UI style
  */
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSetupStatus } from '@/hooks/useSetupRedirect';
+import { Settings02 } from '@untitledui/icons';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -11,7 +13,9 @@ interface HeaderProps {
 
 function Header({ onMenuClick }: HeaderProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout, authRequired } = useAuth();
+  const { needsSetup, loading: setupLoading } = useSetupStatus();
 
   // Get page title from path
   const getPageTitle = () => {
@@ -55,6 +59,16 @@ function Header({ onMenuClick }: HeaderProps) {
         </h2>
       </div>
       <div className="flex items-center gap-4">
+        {/* Setup Wizard Button - Show when not configured */}
+        {!setupLoading && needsSetup && location.pathname !== '/setup' && (
+          <button
+            onClick={() => navigate('/setup')}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+          >
+            <Settings02 className="w-4 h-4" />
+            <span className="hidden sm:inline">Setup Wizard</span>
+          </button>
+        )}
         {/* User info and logout */}
         {authRequired && user && (
           <div className="flex items-center gap-3">

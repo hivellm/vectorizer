@@ -2,6 +2,152 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.2] - 2026-02-03
+
+### Fixed
+- **Docker image**: Binary execute permission in artifact-based image
+  - Added intermediate stage in `Dockerfile.artifacts` to `chmod +x` the binary (artifacts can lose execute bit)
+  - Workflow `build-linux-gnu-for-docker`: `chmod +x` on binary before upload so artifact has correct permissions
+  - Fixes "permission denied" when running `docker run` with image from Docker Hub
+
+---
+
+## [2.4.1] - 2026-02-01
+
+### Added
+- **Release workflow**: Docker image publish to Docker Hub on each release
+  - Job `publish-docker` builds and pushes multi-platform image (linux/amd64, linux/arm64)
+  - Tags: `{version}` and `latest` (requires secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`)
+- **Version visibility**: Version shown in binary, web, and console
+  - Server binary: `vectorizer --version` and startup log "Starting Vectorizer Server vX.Y.Z"
+  - CLI: `vectorizer-cli --version` and admin CLI version from Cargo
+  - Dashboard: version from `/health` and `/setup/status`, fallback and API docs updated to 2.4.1
+  - Release build: `VITE_APP_VERSION` set from release tag so dashboard build embeds correct version
+
+### Changed
+- **Version source**: All version display uses `CARGO_PKG_VERSION` (single source: `Cargo.toml`)
+- **CLI version**: `src/cli/mod.rs` uses `env!("CARGO_PKG_VERSION")` instead of hardcoded "0.1.0"
+
+---
+
+## [2.3.0] - 2026-01-06
+
+### Added
+
+#### Embedded Dashboard (Single Binary Distribution)
+- **rust-embed Integration**: All dashboard assets are now embedded in the binary
+  - No external `dashboard/dist` folder required for distribution
+  - Single executable file (~26MB) contains everything
+  - Automatic MIME type detection for all file types
+  - Optimized cache headers (1 year for fingerprinted assets, no-cache for HTML)
+  - SPA fallback routing for React Router support
+- **Zero Dependencies**: Binary can be copied anywhere and run immediately
+  - No Node.js, npm, or build tools required on target machine
+  - Simplified deployment for production environments
+  - Perfect for containerized deployments
+
+#### Setup Wizard Visual Improvements
+- **Glassmorphism Design**: Modern glass-effect UI with depth and blur
+  - Dark gradient background with animated color orbs
+  - Frosted glass cards with `backdrop-blur-xl` effect
+  - Translucent borders and shadows for depth perception
+  - Grid overlay pattern for visual texture
+- **Animated Progress Indicators**: Enhanced step progression visualization
+  - Glowing shadows on active/completed steps
+  - Scale animation on current step
+  - Smooth color transitions between states
+- **Floating Navigation**: Header and footer with glass effect
+  - Fixed position with backdrop blur
+  - Rounded corners for modern aesthetic
+  - Responsive design for all screen sizes
+
+#### Setup Wizard UX Enhancements
+- **Skip Setup Option**: Allow users to bypass wizard and configure later
+  - Confirmation modal with impact explanation
+  - Direct navigation to dashboard overview
+- **GraphRAG Toggle**: Enable graph relationships per collection
+  - Checkbox in collection review step
+  - Persisted to workspace.yml configuration
+  - Semantic relationship discovery for enhanced search
+
+### Changed
+- **WizardLayout Component**: Dedicated full-screen layout for setup wizard
+  - Isolated from main dashboard layout
+  - Theme toggle in header
+  - Version info in footer
+- **Dashboard Routes**: Setup wizard uses separate route without sidebar
+- **Removed ServeDir**: Dashboard no longer served from filesystem
+
+---
+
+## [2.2.1] - 2026-01-05
+
+### Added
+
+#### Setup Wizard & First-Time Experience
+- **Interactive Setup Wizard**: Multi-step wizard for first-time configuration
+  - Welcome screen with server status and version info
+  - Template selection (RAG, Code Search, Documentation, Custom)
+  - Project folder analysis with automatic language/framework detection
+  - Collection suggestions based on project structure
+  - Configuration review with YAML preview before applying
+  - Success screen with celebratory animations
+- **Quick Setup**: One-click setup buttons for common templates
+  - RAG: Optimized for retrieval-augmented generation
+  - Code Search: Semantic search across source code
+  - Documentation: Index and search documentation files
+- **First-Time Detection**: Automatic detection when setup is needed
+  - Terminal guidance message with wizard URL on first start
+  - Auto-redirect to setup wizard in dashboard
+  - Setup Wizard button in header when unconfigured
+  - Welcome banner on Overview page for first-time users
+- **Real-Time Validation Feedback**: Live validation in Setup Wizard
+  - Path validation with debounced API checks
+  - Visual indicators (✓/✗/⚠) for path validity
+  - Project type detection badges (Git, Node.js, Rust, Python)
+  - Collection name validation with inline error messages
+  - Disabled navigation when validation errors exist
+- **File Browser**: Visual directory browser for folder selection
+  - Navigate directories with double-click
+  - Project folder detection with highlighted icons
+  - Quick navigation (Home, Parent, Refresh)
+  - Current path display with editing support
+
+#### Startup Improvements
+- **Auto-Create Config**: Automatically creates `config.yml` with sensible defaults if not found
+- **Permission Validation**: Validates write permissions for data, logs, and config directories on startup
+- **Clear Error Messages**: Helpful error messages with fix suggestions for permission issues
+- **Directory Auto-Creation**: Automatically creates required directories (data, logs, snapshots)
+
+#### Setup Wizard Backend Improvements
+- **Full Indexing Pipeline**: Setup wizard now indexes all project files automatically using FileLoader
+- **Collection Auto-Creation**: Setup wizard creates collections and indexes them in one step
+- **Workspace.yml Generation**: Creates properly formatted workspace.yml with all project and collection definitions
+- **Setup Detection**: Shows setup wizard whenever workspace.yml is missing (regardless of existing collections)
+- **Smart Pattern Defaults**: If no include patterns specified, uses sensible defaults for code and docs
+- **Exclude Pattern Defaults**: Automatically excludes node_modules, target, .git, venv, etc.
+- **Detailed Response**: Returns vector counts, collection status, and indexed file information
+- **CLI Setup Command**: Terminal-based setup workflow
+  - `vectorizer setup /path/to/project` - Interactive setup
+  - `vectorizer setup --wizard` - Opens web browser to wizard
+  - `vectorizer docs` - Opens API documentation
+
+#### API Documentation & Sandbox
+- **API Documentation Page**: Interactive documentation in dashboard
+  - Endpoint categorization (Health, Collections, Vectors, Search, Discovery, Setup, Workspace)
+  - Search and filter functionality
+  - Expandable endpoint details with path parameters, request body, and response examples
+- **API Sandbox**: Test API endpoints directly from the dashboard
+  - Request builder with method, URL, path parameters, and body
+  - Response viewer with syntax highlighting and timing
+  - Code examples generator (cURL, TypeScript, Python, Rust, Go)
+  - "Try it in Sandbox" button on each endpoint
+
+### Changed
+- **Dashboard Header**: Added Setup Wizard button when server needs configuration
+- **Overview Page**: Added Welcome Banner component for first-time users
+- **OpenAPI Spec**: Updated with latest endpoints and improved documentation
+
 ## [2.2.0] - 2025-12-11
 
 ### Changed

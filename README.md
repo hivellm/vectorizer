@@ -65,10 +65,32 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔒 Security**: JWT + API Key authentication with RBAC
 - **🔐 Payload Encryption**: Optional ECC-P256 + AES-256-GCM payload encryption with zero-knowledge architecture ([docs](docs/features/encryption/README.md))
 
-## 🎉 Latest Release: v2.2.0 - Version Synchronization
+## 🎉 Latest Release: v2.4.0 - Transmutation Default & Enhanced File Upload
 
-**New in v2.2.0:**
+**New in v2.4.0:**
+- **Transmutation enabled by default**: Document conversion (PDF, DOCX, XLSX, PPTX, images) now included in default build
+- **Increased file upload limits**: Support for files up to 200MB (previously 100MB)
+- **Enhanced file upload configuration**: Improved config loading with better error handling and logging
+- **Extended file format support**: Added PDF, DOCX, XLSX, PPTX, and image formats to allowed extensions
+- **Improved upload validation**: Better error messages and config path detection
+
+**Previous Release (v2.3.0):**
+- **Embedded Dashboard**: All dashboard assets now embedded in binary (single executable, ~26MB)
+  - No external `dashboard/dist` folder required for distribution
+  - Zero dependencies: binary can be copied anywhere and run immediately
+  - Perfect for containerized deployments
+- **Setup Wizard Visual Improvements**: Modern glassmorphism design with animated progress indicators
+  - Dark gradient background with animated color orbs
+  - Frosted glass cards with backdrop blur effects
+  - Enhanced step progression visualization
+- **Setup Wizard UX Enhancements**: Skip setup option and GraphRAG toggle per collection
+  - Allow users to bypass wizard and configure later
+  - Enable graph relationships per collection for semantic relationship discovery
+- **API Sandbox**: Test API endpoints directly from dashboard with code examples generator
+
+**Previous Release (v2.2.0):**
 - Synchronized all SDKs and server to version 2.2.0
+- Previous improvements and SDK synchronization
 - Updated package names: TypeScript/JavaScript SDKs now use `@hivehub` scope
 - Comprehensive documentation updates across all SDKs
 - All SDKs fully synchronized and tested
@@ -387,7 +409,7 @@ Comprehensive feature comparison with major vector database solutions:
 - **Milvus**: Large-scale deployments requiring advanced scalability features
 - **Chroma**: Python-first applications with simple setup requirements
 
-## 🔧 Recent Improvements (v2.0.0 - v2.2.0)
+## 🔧 Recent Improvements (v2.0.0 - v2.4.0)
 
 ### New Features (v2.0.0+)
 
@@ -472,14 +494,14 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-All SDKs are synchronized with server version **2.2.0**:
+All SDKs are synchronized with server version **2.4.0**:
 
-- **Python**: `pip install vectorizer-sdk` (v2.2.0)
-- **TypeScript**: `npm install @hivehub/vectorizer-sdk` (v2.2.0)
-- **Rust**: `cargo add vectorizer-sdk` (v2.2.0)
-- **JavaScript**: `npm install @hivehub/vectorizer-sdk-js` (v2.2.0)
-- **C#**: `dotnet add package Vectorizer.Sdk` (v2.2.0)
-- **Go**: `go get github.com/hivellm/vectorizer-sdk-go` (v2.2.0)
+- **Python**: `pip install vectorizer-sdk` (v2.4.0)
+- **TypeScript**: `npm install @hivehub/vectorizer-sdk` (v2.4.0)
+- **Rust**: `cargo add vectorizer-sdk` (v2.4.0)
+- **JavaScript**: `npm install @hivehub/vectorizer-sdk-js` (v2.4.0)
+- **C#**: `dotnet add package Vectorizer.Sdk` (v2.4.0)
+- **Go**: `go get github.com/hivellm/vectorizer-sdk-go` (v2.4.0)
 
 ## 🔗 Workflow & LLM Integrations
 

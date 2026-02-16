@@ -58,10 +58,16 @@ pub enum EncryptionError {
     SerializationError(#[from] serde_json::Error),
 }
 
+fn default_encryption_version() -> u8 {
+    1
+}
+
 /// Encrypted payload structure containing all necessary metadata for decryption
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptedPayload {
     /// Version of the encryption scheme (for future compatibility)
+    /// Defaults to 1 when missing (e.g. after some storage round-trips).
+    #[serde(default = "default_encryption_version")]
     pub version: u8,
 
     /// Base64-encoded nonce used for AES-256-GCM (96 bits / 12 bytes)

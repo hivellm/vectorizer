@@ -13,6 +13,7 @@ use axum::response::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use super::VectorizerServer;
 use super::error_middleware::{ErrorResponse, create_bad_request_error, create_not_found_error};
@@ -24,6 +25,8 @@ use crate::hub::middleware::RequestTenantContext;
 use crate::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
 };
+#[cfg(feature = "transmutation")]
+use crate::transmutation_integration::TransmutationProcessor;
 
 /// Request for file upload with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,20 +63,49 @@ pub struct FileUploadResponse {
 }
 
 /// Load file upload config from config.yml
+/// Tries multiple paths to find config.yml
 fn load_file_upload_config() -> FileUploadConfig {
-    std::fs::read_to_string("config.yml")
-        .ok()
-        .and_then(|content| {
-            serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
-                .ok()
-                .map(|config| config.file_upload)
-        })
-        .unwrap_or_default()
+    let possible_paths = vec!["./config.yml", "config.yml", "../config.yml"];
+
+    for path in &possible_paths {
+        match std::fs::read_to_string(path) {
+            Ok(content) => {
+                match serde_yaml::from_str::<crate::config::VectorizerConfig>(&content) {
+                    Ok(config) => {
+                        let max_size_mb = config.file_upload.max_file_size / (1024 * 1024);
+                        info!(
+                            "✅ Loaded file upload config from {}: max_file_size={}MB, allowed_extensions={}",
+                            path,
+                            max_size_mb,
+                            config.file_upload.allowed_extensions.len()
+                        );
+                        return config.file_upload;
+                    }
+                    Err(e) => {
+                        warn!("Failed to parse config.yml from {}: {}", path, e);
+                        continue;
+                    }
+                }
+            }
+            Err(e) => {
+                debug!("Failed to read config.yml from {}: {}", path, e);
+                continue;
+            }
+        }
+    }
+
+    warn!("⚠️ Failed to load file upload config from any path, using defaults (10MB limit)");
+    FileUploadConfig::default()
 }
 
 /// Handle file upload via multipart/form-data
 ///
 /// POST /files/upload
+///
+/// **IMPORTANT:** Axum has a default 2MB limit for multipart requests.
+/// For larger files, consider using the `/api/v1/insert` endpoint with
+/// manual chunking, or configure a reverse proxy (nginx) to handle
+/// larger uploads.
 ///
 /// Multipart fields:
 /// - file: The file to upload (required)
@@ -99,12 +131,34 @@ pub async fn upload_file(
     let mut chunk_overlap: Option<usize> = None;
     let mut extra_metadata: Option<HashMap<String, Value>> = None;
     let mut public_key: Option<String> = None;
+    let mut use_transmutation: bool = false;
 
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| create_bad_request_error(&format!("Failed to parse multipart: {}", e)))?
-    {
+    // Get max file size from config (use max_request_size_mb from state if available)
+    let max_file_size_bytes = upload_config.max_file_size;
+    let max_request_size_bytes = state.max_request_size_mb * 1024 * 1024;
+    let effective_max_size = max_file_size_bytes.min(max_request_size_bytes);
+
+    debug!(
+        "File upload limits: config={}MB, request={}MB, effective={}MB",
+        max_file_size_bytes / (1024 * 1024),
+        state.max_request_size_mb,
+        effective_max_size / (1024 * 1024)
+    );
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| {
+        error!("Failed to parse multipart field: {}", e);
+        // Provide more helpful error messages
+        let error_msg = if e.to_string().contains("limit") || e.to_string().contains("too large") {
+            format!(
+                "Request too large. Maximum file size is {}MB. Error: {}",
+                effective_max_size / (1024 * 1024),
+                e
+            )
+        } else {
+            format!("Failed to parse multipart: {}", e)
+        };
+        create_bad_request_error(&error_msg)
+    })? {
         let field_name = field.name().unwrap_or("").to_string();
 
         match field_name.as_str() {
@@ -114,10 +168,39 @@ pub async fn upload_file(
                     .map(|s| s.to_string())
                     .ok_or_else(|| create_bad_request_error("Missing filename"))?;
 
+                debug!("Reading file field: {}", filename);
+
+                // Read file data with size checking
                 let data = field.bytes().await.map_err(|e| {
-                    create_bad_request_error(&format!("Failed to read file: {}", e))
+                    error!("Failed to read file bytes: {}", e);
+                    let error_msg =
+                        if e.to_string().contains("limit") || e.to_string().contains("too large") {
+                            format!(
+                                "File too large. Maximum size is {}MB. Error: {}",
+                                effective_max_size / (1024 * 1024),
+                                e
+                            )
+                        } else {
+                            format!("Failed to read file: {}", e)
+                        };
+                    create_bad_request_error(&error_msg)
                 })?;
 
+                // Check size before storing
+                if data.len() > effective_max_size {
+                    return Err(ErrorResponse::new(
+                        "file_too_large".to_string(),
+                        format!(
+                            "File size {} bytes exceeds maximum of {} bytes ({}MB)",
+                            data.len(),
+                            effective_max_size,
+                            effective_max_size / (1024 * 1024)
+                        ),
+                        StatusCode::PAYLOAD_TOO_LARGE,
+                    ));
+                }
+
+                debug!("File read successfully: {} bytes", data.len());
                 file_data = Some((filename, data.to_vec()));
             }
             "collection_name" => {
@@ -151,6 +234,12 @@ pub async fn upload_file(
                     create_bad_request_error(&format!("Failed to read public_key: {}", e))
                 })?;
                 public_key = Some(text);
+            }
+            "use_transmutation" => {
+                let text = field.text().await.map_err(|e| {
+                    create_bad_request_error(&format!("Failed to read use_transmutation: {}", e))
+                })?;
+                use_transmutation = text.parse().unwrap_or(false);
             }
             _ => {
                 debug!("Ignoring unknown field: {}", field_name);
@@ -241,6 +330,96 @@ pub async fn upload_file(
         info!("Created new collection: {}", collection_name);
     }
 
+    // Process file content - use transmutation if enabled and supported
+    let file_path = PathBuf::from(&validated_file.filename);
+    let mut content_to_chunk = validated_file.content.clone();
+    let mut transmutation_metadata: HashMap<String, Value> = HashMap::new();
+
+    #[cfg(feature = "transmutation")]
+    {
+        if use_transmutation && TransmutationProcessor::is_supported_format(&file_path) {
+            info!(
+                "🔄 Using transmutation to convert: {}",
+                validated_file.filename
+            );
+
+            // Create temporary file for transmutation
+            let temp_dir = std::env::temp_dir();
+            let temp_file = temp_dir.join(format!(
+                "vectorizer_upload_{}.{}",
+                Uuid::new_v4(),
+                file_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("tmp")
+            ));
+
+            // Write file bytes to temp file
+            if let Err(e) = std::fs::write(&temp_file, &file_bytes) {
+                warn!("Failed to write temp file for transmutation: {}", e);
+            } else {
+                // Convert using transmutation
+                match TransmutationProcessor::new() {
+                    Ok(processor) => {
+                        match processor.convert_to_markdown(&temp_file).await {
+                            Ok(converted_doc) => {
+                                content_to_chunk = converted_doc.content;
+
+                                // Add transmutation metadata
+                                transmutation_metadata
+                                    .insert("converted_via".to_string(), json!("transmutation"));
+
+                                if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+                                    transmutation_metadata.insert(
+                                        "source_format".to_string(),
+                                        json!(ext.to_lowercase()),
+                                    );
+                                }
+
+                                // Add page count if available
+                                if let Some(page_count) = converted_doc.metadata.get("page_count") {
+                                    transmutation_metadata
+                                        .insert("page_count".to_string(), json!(page_count));
+                                }
+
+                                // Add other metadata from conversion
+                                for (key, value) in converted_doc.metadata {
+                                    if !transmutation_metadata.contains_key(&key) {
+                                        transmutation_metadata.insert(key, json!(value));
+                                    }
+                                }
+
+                                info!(
+                                    "✅ Transmutation conversion successful: {} characters",
+                                    content_to_chunk.len()
+                                );
+                            }
+                            Err(e) => {
+                                warn!(
+                                    "Transmutation conversion failed: {}, using original content",
+                                    e
+                                );
+                                // Fall back to original content
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to initialize transmutation processor: {}, using original content",
+                            e
+                        );
+                        // Fall back to original content
+                    }
+                }
+
+                // Clean up temp file
+                if let Err(e) = std::fs::remove_file(&temp_file) {
+                    debug!("Failed to remove temp file: {}", e);
+                }
+            }
+        }
+    }
+
     // Create chunks using the file loader chunker
     let loader_config = LoaderConfig {
         max_chunk_size: chunk_size.unwrap_or(upload_config.default_chunk_size),
@@ -254,10 +433,9 @@ pub async fn upload_file(
     };
 
     let chunker = Chunker::new(loader_config);
-    let file_path = PathBuf::from(&validated_file.filename);
 
     let chunks = chunker
-        .chunk_text(&validated_file.content, &file_path)
+        .chunk_text(&content_to_chunk, &file_path)
         .map_err(|e| {
             error!("Failed to chunk file: {}", e);
             ErrorResponse::new(
@@ -323,6 +501,11 @@ pub async fn upload_file(
                 obj.insert(k.clone(), v.clone());
             }
 
+            // Merge transmutation metadata if available
+            for (k, v) in &transmutation_metadata {
+                obj.insert(k.clone(), v.clone());
+            }
+
             // Merge extra metadata if provided
             if let Some(ref extra) = extra_metadata {
                 for (k, v) in extra {
@@ -360,7 +543,7 @@ pub async fn upload_file(
         };
 
         let vector = Vector {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: Uuid::new_v4().to_string(),
             data: embedding,
             sparse: None,
             payload: Some(payload),

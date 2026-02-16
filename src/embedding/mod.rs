@@ -311,9 +311,15 @@ impl Bm25Embedding {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
-        let mut hasher = DefaultHasher::new();
-        text.hash(&mut hasher);
-        let seed = hasher.finish();
+        // Use text hash as seed, or use dimension as seed if text is empty
+        let seed = if text.is_empty() {
+            // Use dimension as seed for empty text to ensure non-zero
+            self.dimension as u64
+        } else {
+            let mut hasher = DefaultHasher::new();
+            text.hash(&mut hasher);
+            hasher.finish()
+        };
 
         // Generate pseudo-random but deterministic embedding
         let mut embedding = Vec::with_capacity(self.dimension);
@@ -324,10 +330,34 @@ impl Bm25Embedding {
             embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
         }
 
-        // L2 normalize
+        // L2 normalize - ensure norm is never zero
         let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
-        for value in &mut embedding {
-            *value /= norm;
+        if norm > 0.0 {
+            for value in &mut embedding {
+                *value /= norm;
+            }
+        } else {
+            // If somehow norm is zero (shouldn't happen), set first element to 1.0
+            warn!("BM25 fallback embedding had zero norm, setting first element to 1.0");
+            if !embedding.is_empty() {
+                embedding[0] = 1.0;
+            }
+        }
+
+        // Final check: ensure at least one non-zero value
+        let has_non_zero = embedding.iter().any(|&v| v != 0.0);
+        if !has_non_zero {
+            warn!("BM25 fallback embedding still all zeros, forcing non-zero values");
+            for (i, v) in embedding.iter_mut().enumerate() {
+                *v = (i as f32 / self.dimension as f32) * 0.1; // Small non-zero values
+            }
+            // Normalize again
+            let norm = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if norm > 0.0 {
+                for value in &mut embedding {
+                    *value /= norm;
+                }
+            }
         }
 
         embedding
@@ -963,6 +993,37 @@ impl EmbeddingProvider for Bm25Embedding {
             *term_freq.entry(token).or_insert(0) += 1;
         }
 
+        // If vocabulary is empty, use fallback immediately
+        if self.vocabulary.is_empty() {
+            // Safely truncate text for logging (handle Unicode properly)
+            let preview = if text.len() > 100 {
+                // Find the last char boundary before 100 bytes
+                let mut boundary = 100;
+                while boundary > 0 && !text.is_char_boundary(boundary) {
+                    boundary -= 1;
+                }
+                &text[..boundary]
+            } else {
+                text
+            };
+            warn!(
+                "BM25 vocabulary is empty for text '{}' (first {} chars), using hash-based fallback",
+                preview,
+                text.chars().count().min(100)
+            );
+            let fallback = self.fallback_hash_embedding(text);
+            // Normalize fallback
+            let norm: f32 = fallback.iter().map(|x| x * x).sum::<f32>().sqrt();
+            if norm > 0.0 {
+                let mut normalized = fallback;
+                for v in &mut normalized {
+                    *v /= norm;
+                }
+                return Ok(normalized);
+            }
+            return Ok(fallback);
+        }
+
         // Calculate BM25 scores for each term in vocabulary
         let mut embedding = vec![0.0; self.dimension];
         let mut _matched_terms = 0;
@@ -983,6 +1044,22 @@ impl EmbeddingProvider for Bm25Embedding {
         // If embedding is all zeros (no vocab matches), build deterministic feature-hashed embedding from tokens
         let non_zero_count = embedding.iter().filter(|&&x| x != 0.0).count();
         if non_zero_count == 0 {
+            // Safely truncate text for logging (handle Unicode properly)
+            let preview = if text.len() > 100 {
+                // Find the last char boundary before 100 bytes
+                let mut boundary = 100;
+                while boundary > 0 && !text.is_char_boundary(boundary) {
+                    boundary -= 1;
+                }
+                &text[..boundary]
+            } else {
+                text
+            };
+            warn!(
+                "BM25 produced all-zero embedding for text '{}' (vocab size: {}), using hash-based fallback",
+                preview,
+                self.vocabulary.len()
+            );
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{Hash, Hasher};
 

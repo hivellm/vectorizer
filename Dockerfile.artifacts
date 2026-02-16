@@ -1,0 +1,66 @@
+# Dockerfile.artifacts - Build image from pre-built binaries (no Rust compile in Docker)
+#
+# Use when binaries are built in CI and passed as build context.
+# Faster and more reliable than compiling inside Docker (no OOM, no mold/linker issues).
+#
+# Expected context layout (from release-artifacts workflow):
+#   binaries/linux-amd64/vectorizer
+#   binaries/linux-arm64/vectorizer
+#   dashboard/dist/   (from build-dashboard artifact)
+#   config.example.yml (from repo)
+#
+# Build (CI): docker buildx build -f Dockerfile.artifacts --platform linux/amd64,linux/arm64 .
+#
+# Runtime uses debian:bookworm-slim (same as Dockerfile.test) so the same binary that
+# works in the test container works in CI/CD; avoids glibc/distroless compatibility issues.
+
+# Stage: binary + permissions + writable data dir
+ARG TARGETARCH
+FROM debian:bookworm-slim AS base
+ARG TARGETARCH
+COPY binaries/linux-${TARGETARCH}/vectorizer /vectorizer/vectorizer
+RUN chmod +x /vectorizer/vectorizer && \
+    mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
+
+# ============================================================================
+# RUNTIME IMAGE - Debian slim (same base as Dockerfile.test, proven to work)
+# ============================================================================
+FROM debian:bookworm-slim AS vectorizer
+
+ARG BUILD_DATE
+ARG GIT_COMMIT_ID
+
+COPY --from=base /vectorizer/vectorizer /vectorizer/vectorizer
+COPY --from=base /vectorizer/data /vectorizer/data
+COPY dashboard/dist /vectorizer/dashboard/dist
+COPY config.example.yml /vectorizer/config.yml
+
+# Ensure data dir stays writable by nonroot (COPY from base keeps ownership)
+RUN chown -R 65532:65532 /vectorizer/data
+
+WORKDIR /vectorizer
+
+ENV TZ=Etc/UTC \
+    RUN_MODE=production \
+    VECTORIZER_HOST=0.0.0.0 \
+    VECTORIZER_PORT=15002 \
+    VECTORIZER_MCP_PORT=15002 \
+    VECTORIZER_ADMIN_USERNAME=admin
+
+EXPOSE 15002
+
+LABEL org.opencontainers.image.title="Vectorizer"
+LABEL org.opencontainers.image.description="Official Vectorizer image - High-Performance Vector Database"
+LABEL org.opencontainers.image.url="https://github.com/hivellm/vectorizer"
+LABEL org.opencontainers.image.source="https://github.com/hivellm/vectorizer"
+LABEL org.opencontainers.image.vendor="HiveLLM"
+LABEL org.opencontainers.image.version="${GIT_COMMIT_ID:-latest}"
+LABEL org.opencontainers.image.revision="${GIT_COMMIT_ID:-unknown}"
+LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL security.non-root-user="nonroot"
+LABEL security.user-id="65532"
+
+USER 65532:65532
+
+ENTRYPOINT ["/vectorizer/vectorizer"]

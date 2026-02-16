@@ -7,13 +7,44 @@ on:
     types: [published]
 
 jobs:
+  # Build dashboard first - shared by all jobs
+  build-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Set version from release tag
+        run: echo "VITE_APP_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+      - name: Build dashboard
+        run: |
+          cd dashboard
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: Upload dashboard artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
+          retention-days: 1
+
   # Separated Linux builds - each runs independently
   # If one fails, others continue
 
   build-linux-x86_64-gnu:
+    needs: build-dashboard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -33,51 +64,58 @@ jobs:
           target: x86_64-unknown-linux-gnu
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-linux-x86_64-musl:
-    runs-on: ubuntu-latest
+  # Linux glibc binaries for Docker: amd64 em ubuntu-latest, arm64 em ubuntu-22.04-arm (glibc 2.35 = compatível com distroless Debian 12 / glibc 2.36)
+  build-linux-gnu-for-docker:
+    needs: build-dashboard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler musl-tools
+          sudo apt-get install -y gcc clang cmake protobuf-compiler
           rustup default stable
           rustup update
-          rustup target add x86_64-unknown-linux-musl
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-      - name: Build musl binaries with cross
+          rustup target add ${{ matrix.target }}
+      - name: Build (gnu)
+        run: cargo build --release --target ${{ matrix.target }} --no-default-features --features vendored-openssl --bin vectorizer
+      - name: Prepare binary for artifact
         run: |
-          cross build --release --target x86_64-unknown-linux-musl --no-default-features
-          mkdir -p dist
-          cp target/x86_64-unknown-linux-musl/release/vectorizer dist/vectorizer-x86_64-unknown-linux-musl
-          cp target/x86_64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-x86_64-unknown-linux-musl
-      - name: Upload musl binaries
-        uses: svenstaro/upload-release-action@v2
+          mkdir -p binaries/linux-${{ matrix.arch }}
+          cp target/${{ matrix.target }}/release/vectorizer binaries/linux-${{ matrix.arch }}/
+          chmod +x binaries/linux-${{ matrix.arch }}/vectorizer
+      - name: Upload linux binary for Docker
+        uses: actions/upload-artifact@v4
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/*
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
-      - name: Build Debian Package
-        run: |
-          cargo install cargo-deb
-          cross build --release --target x86_64-unknown-linux-musl --no-default-features
-          cargo deb --no-build --no-strip --target x86_64-unknown-linux-musl
-      - name: Upload Debian package
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/x86_64-unknown-linux-musl/debian/*.deb
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
+          name: linux-binaries-${{ matrix.arch }}
+          path: binaries/linux-${{ matrix.arch }}
+          retention-days: 1
 
   build-linux-aarch64-musl:
+    needs: build-dashboard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -89,7 +127,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
       - name: Build musl binaries with cross
         run: |
-          cross build --release --target aarch64-unknown-linux-musl --no-default-features
+          cross build --release --target aarch64-unknown-linux-musl --no-default-features --features vendored-openssl
           mkdir -p dist
           cp target/aarch64-unknown-linux-musl/release/vectorizer dist/vectorizer-aarch64-unknown-linux-musl
           cp target/aarch64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-aarch64-unknown-linux-musl
@@ -103,6 +141,7 @@ jobs:
           file_glob: true
 
   build-mac-binaries:
+    needs: build-dashboard
     strategy:
       matrix:
         include:
@@ -112,6 +151,12 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           brew update-reset
@@ -120,7 +165,6 @@ jobs:
           rustup update
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v6
       - name: Build and publish vectorizer
         uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -135,6 +179,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-mac-metal-binaries:
+    needs: build-dashboard
     name: Build macOS ARM with Metal GPU support
     strategy:
       matrix:
@@ -143,6 +188,12 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - name: Install dependencies
         run: |
           brew update-reset
@@ -152,14 +203,14 @@ jobs:
           rustup target add ${{ matrix.target }}
           rustup show
           cargo -Vv
-      - uses: actions/checkout@v6
+      # Tag separado para Mac com Metal: asset nomeado vectorizer-*-metal (resto = manifesto automático)
       - name: Build vectorizer with Metal support
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
           features: hive-gpu
-          archive: vectorizer-$target-metal
+          archive: vectorizer-${{ matrix.target }}-metal
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build vectorizer-cli with Metal support
         uses: taiki-e/upload-rust-binary-action@v1
@@ -167,10 +218,11 @@ jobs:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
           features: hive-gpu
-          archive: vectorizer-cli-$target-metal
+          archive: vectorizer-cli-${{ matrix.target }}-metal
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows-binaries:
+    needs: build-dashboard
     strategy:
       matrix:
         include:
@@ -180,6 +232,11 @@ jobs:
       - name: Install minimal stable
         uses: dtolnay/rust-toolchain@stable
       - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
       - uses: Swatinem/rust-cache@v2
       - name: Install protoc
         shell: pwsh
@@ -198,41 +255,54 @@ jobs:
           bin: vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Temporarily disabled - MSI build has issues
-  # build-windows-msi:
-  #   strategy:
-  #     matrix:
-  #       include:
-  #         - os: windows-latest
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Install minimal stable
-  #       uses: dtolnay/rust-toolchain@stable
-  #     - uses: actions/checkout@v5
-  #     - uses: Swatinem/rust-cache@v2
-  #
-  #     - name: Build release binaries
-  #       run: cargo build --release
-  #
-  #     - name: Install WiX Toolset
-  #       run: |
-  #         dotnet tool install --global wix --version 5.0.2
-  #         wix extension add -g WixToolset.UI.wixext
-  #         wix extension list
-  #         wix --version
-  #
-  #     - name: Build MSI installer
-  #       shell: pwsh
-  #       env:
-  #         CargoTargetBinDir: ${{ github.workspace }}\target\release
-  #       run: |
-  #         wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
-  #
-  #     - name: Upload MSI
-  #       uses: svenstaro/upload-release-action@v2
-  #       with:
-  #         repo_token: ${{ secrets.GITHUB_TOKEN }}
-  #         file: vectorizer.msi
-  #         asset_name: vectorizer-x86_64.msi
-  #         tag: ${{ github.ref }}
-  #         overwrite: true
+  # Docker só roda após dashboard + binários para Docker + build do backend (release) ok.
+  # Uma tag (version + latest), manifesto multi-plataforma (linux/amd64 + linux/arm64).
+  # Requer secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN.
+  publish-docker:
+    needs:
+      - build-dashboard
+      - build-linux-gnu-for-docker
+      - build-linux-x86_64-gnu
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download dashboard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-dist
+          path: dashboard/dist
+      - name: Download Linux binary (amd64)
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries-amd64
+          path: binaries/linux-amd64
+      - name: Download Linux binary (arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries-arm64
+          path: binaries/linux-arm64
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Set version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push Docker image (from artifacts)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.artifacts
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${{ steps.version.outputs.VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:latest
+          build-args: |
+            GIT_COMMIT_ID=${{ steps.version.outputs.VERSION }}
+            BUILD_DATE=${{ github.event.release.published_at }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

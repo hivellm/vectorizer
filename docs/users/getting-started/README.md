@@ -35,6 +35,13 @@ Build Vectorizer from source code:
 
 ## Quick Start Guides
 
+### ⭐ [Setup Wizard Guide](./SETUP_WIZARD.md) (Recommended)
+Guided first-time configuration:
+- Automatic project detection
+- Template-based configuration
+- Collection suggestions
+- Workspace generation
+
 ### [Quick Start Guide](./QUICK_START.md)
 Get up and running in minutes:
 - Create your first collection
@@ -71,10 +78,11 @@ powershell -c "irm https://raw.githubusercontent.com/hivellm/vectorizer/main/scr
 ## Next Steps
 
 After installation:
-1. **[First Steps](./FIRST_STEPS.md)** - Verify and setup
-2. **[Creating Collections](../collections/CREATING.md)** - Create collections
-3. **[Basic Search](../search/BASIC.md)** - Start searching
-4. **[Use Cases](../use-cases/)** - See examples
+1. **[Setup Wizard](./SETUP_WIZARD.md)** - ⭐ Guided configuration (recommended)
+2. **[First Steps](./FIRST_STEPS.md)** - Manual verification and setup
+3. **[Creating Collections](../collections/CREATING.md)** - Create collections
+4. **[Basic Search](../search/BASIC.md)** - Start searching
+5. **[Use Cases](../use-cases/)** - See examples
 
 ## Related Topics
 

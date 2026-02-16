@@ -17,6 +17,26 @@ Get up and running with Vectorizer in minutes!
 - Service running on `http://localhost:15002`
 - `curl` or similar HTTP client (or use the SDKs)
 
+## Recommended: Use the Setup Wizard
+
+For first-time users, we recommend using the **Setup Wizard** for guided configuration:
+
+```
+http://localhost:15002/setup
+```
+
+The wizard will:
+- ✅ Automatically detect your project structure
+- ✅ Suggest optimal collections
+- ✅ Configure workspace settings
+- ✅ Generate `workspace.yml`
+
+👉 **[Setup Wizard Guide](./SETUP_WIZARD.md)** - Complete wizard documentation
+
+---
+
+## Manual Setup (Alternative)
+
 ## Step 1: Create Your First Collection
 
 ```bash
@@ -88,10 +108,11 @@ let results = client.search("my_docs", "vector database", 5).await?;
 
 ## Next Steps
 
-1. **[First Steps](./FIRST_STEPS.md)** - Complete guide after installation
-2. **[Collections Guide](../collections/CREATING.md)** - Learn how to create collections
-3. **[Basic Search](../search/BASIC.md)** - Start searching your data
-4. **[Use Cases](../use-cases/)** - See real-world examples
+1. **[Setup Wizard](./SETUP_WIZARD.md)** - ⭐ Use guided configuration (recommended)
+2. **[First Steps](./FIRST_STEPS.md)** - Complete guide after installation
+3. **[Collections Guide](../collections/CREATING.md)** - Learn how to create collections
+4. **[Basic Search](../search/BASIC.md)** - Start searching your data
+5. **[Use Cases](../use-cases/)** - See real-world examples
 
 ## Additional Resources
 

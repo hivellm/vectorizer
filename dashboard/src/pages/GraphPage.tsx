@@ -50,7 +50,8 @@ function GraphPage() {
     getNeighbors,
     findRelated,
     findPath,
-    // getDiscoveryStatus, // TODO: Use for discovery status indicator
+    enableGraph,
+    getGraphStatus,
   } = useGraph();
   const { listCollections } = useCollections();
   const toast = useToastContext();
@@ -65,6 +66,8 @@ function GraphPage() {
   const [relationshipFilter, setRelationshipFilter] = useState<string>('all');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<GraphEdge | null>(null);
+  const [graphEnabled, setGraphEnabled] = useState<boolean | null>(null);
+  const [enablingGraph, setEnablingGraph] = useState(false);
 
   // Modal states
   const [showEdgeCreateModal, setShowEdgeCreateModal] = useState(false);
@@ -106,6 +109,25 @@ function GraphPage() {
     let cancelled = false;
 
     const fetchGraphData = async (forceRefresh = false) => {
+      // First check if graph is enabled for this collection
+      try {
+        const status = await getGraphStatus(selectedCollection);
+        if (cancelled) return;
+        
+        setGraphEnabled(status.enabled);
+        
+        if (!status.enabled) {
+          console.log(`[GraphPage] Graph not enabled for collection '${selectedCollection}'`);
+          setNodes([]);
+          setEdges([]);
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.warn('[GraphPage] Could not get graph status, trying to load data anyway:', error);
+        // Continue trying to load data - maybe the status endpoint failed but data is available
+      }
+
       // Check cache first
       const cacheKey = selectedCollection;
       const cached = graphCache.get(cacheKey);
@@ -152,6 +174,7 @@ function GraphPage() {
           timestamp: now,
         });
 
+        setGraphEnabled(true);
         setNodes(nodesResponse.nodes);
         setEdges(edgesResponse.edges);
       } catch (error) {
@@ -162,7 +185,11 @@ function GraphPage() {
           errorMessage = error.message;
           // Check if it's a "Graph not enabled" error
           if (errorMessage.includes('Graph not enabled') || errorMessage.includes('not enabled')) {
-            errorMessage = `Graph is not enabled for collection "${selectedCollection}". Please enable graph support in the collection configuration.`;
+            setGraphEnabled(false);
+            setNodes([]);
+            setEdges([]);
+            setLoading(false);
+            return; // Don't show toast for this case - we'll show the enable button instead
           } else if (errorMessage.includes('not found')) {
             errorMessage = `Collection "${selectedCollection}" not found or graph data is not available.`;
           }
@@ -786,9 +813,55 @@ function GraphPage() {
             <div className="text-center py-12">
               <p className="text-neutral-500 dark:text-neutral-400">Select a collection to view graph</p>
             </div>
+          ) : graphEnabled === false ? (
+            <div className="text-center py-12 space-y-4">
+              <div className="w-16 h-16 mx-auto bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-neutral-900 dark:text-white">Graph Not Enabled</h3>
+                <p className="text-neutral-500 dark:text-neutral-400 mt-1">
+                  Graph relationships are not enabled for collection "{selectedCollection}"
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                onClick={async () => {
+                  setEnablingGraph(true);
+                  try {
+                    await enableGraph(selectedCollection);
+                    toast.success(`Graph enabled for collection "${selectedCollection}"`);
+                    setGraphEnabled(true);
+                    // Trigger reload
+                    graphCache.delete(selectedCollection);
+                    handleRefresh();
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Unknown error';
+                    toast.error(`Failed to enable graph: ${message}`);
+                  } finally {
+                    setEnablingGraph(false);
+                  }
+                }}
+                disabled={enablingGraph}
+              >
+                {enablingGraph ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Enabling...
+                  </>
+                ) : (
+                  'Enable Graph'
+                )}
+              </Button>
+            </div>
           ) : nodes.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-neutral-500 dark:text-neutral-400">No graph data available for this collection</p>
+              <p className="text-sm text-neutral-400 dark:text-neutral-500 mt-2">
+                Try discovering edges using the "Discover Edges" button
+              </p>
             </div>
           ) : (
             <div

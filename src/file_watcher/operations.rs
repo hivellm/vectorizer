@@ -210,48 +210,31 @@ impl VectorOperations {
         // Determine collection name based on file path
         let collection_name = self.determine_collection_name(path);
 
-        // For large/binary-safe handling, avoid read_to_string; copy file to temp dir
-        // and process via DocumentLoader
-        let temp_dir = std::env::temp_dir().join(format!("temp_single_{}", uuid::Uuid::new_v4()));
-        if let Err(e) = tokio::fs::create_dir_all(&temp_dir).await {
-            tracing::warn!("Failed to create temp dir {:?}: {}", temp_dir, e);
+        // Store the original path for metadata
+        let original_path = path.to_path_buf();
+        let original_path_str = original_path.to_string_lossy().to_string();
+
+        // Read file content directly (more efficient for single files)
+        let content = match tokio::fs::read_to_string(path).await {
+            Ok(c) => c,
+            Err(e) => {
+                // For binary files or encoding issues, skip silently
+                tracing::debug!("Skipping file {:?} (cannot read as text): {}", path, e);
+                return Ok(());
+            }
+        };
+
+        // Check file size
+        if content.len() > self.config.max_file_size as usize {
+            tracing::debug!(
+                "Skipping file {:?} (too large: {} bytes)",
+                path,
+                content.len()
+            );
             return Ok(());
         }
 
-        // Destination file keeps original filename
-        let dest_file = temp_dir.join(
-            path.file_name()
-                .unwrap_or_else(|| std::ffi::OsStr::new("file")),
-        );
-        match tokio::fs::copy(path, &dest_file).await {
-            Ok(_) => {}
-            Err(e) => {
-                tracing::warn!(
-                    "Failed to copy file {:?} to temp {:?}: {}",
-                    path,
-                    dest_file,
-                    e
-                );
-                let _ = tokio::fs::remove_dir_all(&temp_dir).await;
-                return Ok(());
-            }
-        }
-
-        // Build loader config
-        let mut loader_config = LoaderConfig {
-            max_chunk_size: 2048,
-            chunk_overlap: 256,
-            include_patterns: vec!["*".to_string()],
-            exclude_patterns: vec![],
-            embedding_dimension: 512,
-            embedding_type: "bm25".to_string(),
-            collection_name: collection_name.clone(),
-            max_file_size: self.config.max_file_size as usize,
-        };
-
-        // CRITICAL: Always enforce hardcoded exclusions (Python cache, binaries, etc.)
-        loader_config.ensure_hardcoded_excludes();
-
+        // Create embedding manager
         let embedding_manager = {
             let mut em = EmbeddingManager::new();
             let bm25 = crate::embedding::Bm25Embedding::new(512);
@@ -259,21 +242,153 @@ impl VectorOperations {
             em.set_default_provider("bm25").unwrap();
             em
         };
-        let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
-        match loader
-            .load_and_index_project(&temp_dir.to_string_lossy(), &self.vector_store)
-            .await
+
+        // Get file extension for metadata
+        let file_extension = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        // Ensure collection exists
+        if !self
+            .vector_store
+            .list_collections()
+            .contains(&collection_name)
         {
-            Ok(_) => {
-                tracing::info!("Successfully indexed file via temp copy: {:?}", path);
-            }
-            Err(e) => {
-                tracing::warn!("Failed to index file via temp copy {:?}: {}", path, e);
+            let config = crate::models::CollectionConfig::default();
+            if let Err(e) = self
+                .vector_store
+                .create_collection(&collection_name, config)
+            {
+                tracing::warn!("Failed to create collection {}: {}", collection_name, e);
+                return Ok(());
             }
         }
 
-        // Cleanup temp dir
-        let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+        // Chunk the content manually (simple approach)
+        let max_chunk_size = 2048;
+        let chunk_overlap = 256;
+        let mut chunks: Vec<String> = Vec::new();
+        let mut start = 0;
+
+        while start < content.len() {
+            let mut end = std::cmp::min(start + max_chunk_size, content.len());
+
+            // Ensure we're at a UTF-8 character boundary
+            while end > start && !content.is_char_boundary(end) {
+                end -= 1;
+            }
+
+            // Try to break at a word boundary
+            if end < content.len() {
+                if let Some(pos) =
+                    content[start..end].rfind(|c: char| c.is_whitespace() || c == '.' || c == '\n')
+                {
+                    let new_end = start + pos + 1;
+                    if content.is_char_boundary(new_end) {
+                        end = new_end;
+                    }
+                }
+            }
+
+            let chunk_text = content[start..end].trim();
+            if !chunk_text.is_empty() {
+                chunks.push(chunk_text.to_string());
+            }
+
+            // Move start with overlap
+            start = if end >= content.len() {
+                content.len()
+            } else {
+                end.saturating_sub(chunk_overlap)
+            };
+        }
+
+        // Build vectors to insert
+        let mut vectors_to_insert: Vec<crate::models::Vector> = Vec::new();
+
+        // Index each chunk with ORIGINAL path in metadata
+        for (chunk_idx, chunk_content) in chunks.iter().enumerate() {
+            // Generate embedding
+            let embedding = match embedding_manager.embed(chunk_content) {
+                Ok(e) => e,
+                Err(e) => {
+                    tracing::warn!("Failed to embed chunk: {}", e);
+                    continue;
+                }
+            };
+
+            // Create payload data with ORIGINAL file path (not temp path)
+            let payload_data = serde_json::json!({
+                "content": chunk_content,
+                "file_path": original_path_str,
+                "file_extension": file_extension,
+                "chunk_index": chunk_idx,
+                "chunk_size": chunk_content.len()
+            });
+
+            // Generate unique ID
+            let vector_id = format!("{}_{}", original_path_str, chunk_idx);
+
+            // Create vector with payload
+            let payload = crate::models::Payload { data: payload_data };
+
+            let vector = crate::models::Vector {
+                id: vector_id,
+                data: embedding,
+                sparse: None,
+                payload: Some(payload),
+            };
+
+            vectors_to_insert.push(vector);
+        }
+
+        // Insert all vectors at once (filter out duplicates first)
+        if !vectors_to_insert.is_empty() {
+            // Filter out vectors that already exist to avoid duplicate errors
+            let mut vectors_to_insert_filtered = Vec::new();
+            for vector in vectors_to_insert {
+                // Check if vector already exists
+                match self.vector_store.get_vector(&collection_name, &vector.id) {
+                    Ok(_) => {
+                        // Vector already exists, skip it
+                        tracing::debug!(
+                            "Skipping duplicate vector '{}' for file {:?}",
+                            vector.id,
+                            original_path
+                        );
+                    }
+                    Err(_) => {
+                        // Vector doesn't exist, add it
+                        vectors_to_insert_filtered.push(vector);
+                    }
+                }
+            }
+
+            if !vectors_to_insert_filtered.is_empty() {
+                let chunk_count = vectors_to_insert_filtered.len();
+                if let Err(e) = self
+                    .vector_store
+                    .insert(&collection_name, vectors_to_insert_filtered)
+                {
+                    tracing::warn!("Failed to insert vectors for {:?}: {}", original_path, e);
+                    return Ok(());
+                }
+
+                tracing::info!(
+                    "Successfully indexed file {:?} with {} chunks into collection '{}'",
+                    original_path,
+                    chunk_count,
+                    collection_name
+                );
+            } else {
+                tracing::debug!(
+                    "All vectors for file {:?} already exist, skipping insertion",
+                    original_path
+                );
+            }
+        }
 
         Ok(())
     }
