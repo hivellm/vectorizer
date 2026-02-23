@@ -80,7 +80,7 @@ umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
 
 # System utilities
 whoami = "1.5"
-libc = "0.2.178"
+libc = "0.2.182"
 
 # Embedded dashboard assets
 rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
