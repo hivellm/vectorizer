@@ -98,7 +98,7 @@ crc32fast = "1.4" # For replication checksums
 blake3 = { version = "1.5", default-features = false }
 unicode-normalization = { version = "0.1", default-features = false }
 # Note: regex is expensive - consider using simpler string matching where possible
-regex = { version = "1.10", default-features = false, features = ["std", "unicode-perl"] }
+regex = { version = "1.12", default-features = false, features = ["std", "unicode-perl"] }
 
 # OpenSSL vendored for musl cross-compilation (hf-hub uses native-tls)
 openssl = { version = "0.10", features = ["vendored"], optional = true }
