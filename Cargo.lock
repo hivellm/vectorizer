@@ -6697,9 +6697,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.32"
+version = "0.23.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd3c25631629d034ce7cd9940adc9d45762d46de2b0f57193c4443b92c6d4d40"
+checksum = "c665f33d38cea657d9614f766881e4d510e0eda4239891eea56b4cadcf01801b"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -8794,7 +8794,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer"
-version = "2.4.1"
+version = "2.4.2"
 dependencies = [
  "aes-gcm",
  "anyhow",
