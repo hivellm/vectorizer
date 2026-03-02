@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dashboard-dist
           path: dashboard/dist
@@ -81,7 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dashboard-dist
           path: dashboard/dist
@@ -112,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dashboard-dist
           path: dashboard/dist
@@ -153,7 +153,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dashboard-dist
           path: dashboard/dist
@@ -190,7 +190,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dashboard-dist
           path: dashboard/dist
@@ -233,7 +233,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dashboard-dist
           path: dashboard/dist
@@ -267,17 +267,17 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: dashboard-dist
           path: dashboard/dist
       - name: Download Linux binary (amd64)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-binaries-amd64
           path: binaries/linux-amd64
       - name: Download Linux binary (arm64)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-binaries-arm64
           path: binaries/linux-arm64
