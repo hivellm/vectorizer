@@ -26,7 +26,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
       - name: Upload dashboard artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dashboard-dist
           path: dashboard/dist
@@ -100,7 +100,7 @@ jobs:
           cp target/${{ matrix.target }}/release/vectorizer binaries/linux-${{ matrix.arch }}/
           chmod +x binaries/linux-${{ matrix.arch }}/vectorizer
       - name: Upload linux binary for Docker
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-binaries-${{ matrix.arch }}
           path: binaries/linux-${{ matrix.arch }}
