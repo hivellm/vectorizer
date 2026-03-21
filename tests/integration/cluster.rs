@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use vectorizer::cluster::{
-    ClusterClientPool, ClusterConfig, ClusterManager, DiscoveryMethod, NodeId, ServerConfig,
+    ClusterClientPool, ClusterConfig, ClusterManager, NodeId, ServerConfig,
 };
 use vectorizer::db::sharding::ShardId;
 

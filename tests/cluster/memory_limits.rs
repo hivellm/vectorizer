@@ -7,7 +7,7 @@
 use vectorizer::cache::{AllocationResult, CacheMemoryManager, CacheMemoryManagerConfig};
 use vectorizer::cluster::{
     ClusterConfig, ClusterConfigValidator, ClusterMemoryConfig, ClusterValidationError,
-    DiscoveryMethod, ServerConfig,
+    ServerConfig,
 };
 use vectorizer::models::StorageType;
 

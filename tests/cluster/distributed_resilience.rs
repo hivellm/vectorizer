@@ -6,13 +6,11 @@
 //! - Collection consistency (quorum)
 //! - DNS discovery
 
-use std::sync::Arc;
 
 use vectorizer::cluster::shard_migrator::MigrationStatus;
 use vectorizer::cluster::{
     ClusterConfig, ClusterManager, ClusterNode, DistributedShardRouter, NodeId,
 };
-use vectorizer::db::VectorStore;
 use vectorizer::db::sharding::ShardId;
 use vectorizer::replication::durable_log::DurableReplicationLog;
 use vectorizer::replication::types::{VectorOperation, WriteConcern};
@@ -102,8 +100,8 @@ fn test_epoch_survives_rebalance() {
     for shard in &shards {
         assert!(
             router.get_shard_epoch(shard).is_some(),
-            "Shard {:?} should have an epoch after rebalance",
-            shard
+            "Shard {shard:?} should have an epoch after rebalance",
+
         );
     }
 
@@ -147,7 +145,7 @@ fn test_durable_log_with_wal() {
     for i in 0..10 {
         let op = VectorOperation::InsertVector {
             collection: "test".to_string(),
-            id: format!("vec_{}", i),
+            id: format!("vec_{i}"),
             vector: vec![i as f32; 3],
             payload: None,
             owner_id: None,
@@ -177,7 +175,7 @@ fn test_durable_log_recovery() {
         let log = DurableReplicationLog::new(100, Some(wal_path.clone())).unwrap();
         for i in 0..5 {
             let op = VectorOperation::CreateCollection {
-                name: format!("col_{}", i),
+                name: format!("col_{i}"),
                 config: vectorizer::replication::CollectionConfigData {
                     dimension: 128,
                     metric: "cosine".to_string(),
@@ -329,14 +327,14 @@ fn test_dns_discovery_method_configured() {
 #[test]
 fn test_consistent_routing_with_epochs() {
     let router = DistributedShardRouter::new(100);
-    let nodes: Vec<NodeId> = (0..3).map(|i| NodeId::new(format!("node-{}", i))).collect();
+    let nodes: Vec<NodeId> = (0..3).map(|i| NodeId::new(format!("node-{i}"))).collect();
     let shards: Vec<ShardId> = (0..6).map(ShardId::new).collect();
 
     // Initial assignment
     router.rebalance(&shards, &nodes);
 
     // Record initial assignments
-    let initial: Vec<_> = shards
+    let _initial: Vec<_> = shards
         .iter()
         .map(|s| router.get_node_for_shard(s).unwrap())
         .collect();
@@ -348,7 +346,7 @@ fn test_consistent_routing_with_epochs() {
 
     // Different IDs can route to different shards
     let shard_a = router.get_shard_for_vector("aaa");
-    let shard_b = router.get_shard_for_vector("zzz");
+    let _shard_b = router.get_shard_for_vector("zzz");
     // They might be the same shard, but routing should be consistent
     let shard_a2 = router.get_shard_for_vector("aaa");
     assert_eq!(shard_a, shard_a2);
@@ -357,14 +355,14 @@ fn test_consistent_routing_with_epochs() {
 #[test]
 fn test_tenant_aware_routing_with_epochs() {
     let router = DistributedShardRouter::new(100);
-    let nodes: Vec<NodeId> = (0..3).map(|i| NodeId::new(format!("node-{}", i))).collect();
+    let nodes: Vec<NodeId> = (0..3).map(|i| NodeId::new(format!("node-{i}"))).collect();
     let shards: Vec<ShardId> = (0..6).map(ShardId::new).collect();
 
     router.rebalance(&shards, &nodes);
 
     // Same vector ID but different tenants → possibly different shards
     let shard_t1 = router.get_shard_for_tenant_vector("tenant-A", "doc-1");
-    let shard_t2 = router.get_shard_for_tenant_vector("tenant-B", "doc-1");
+    let _shard_t2 = router.get_shard_for_tenant_vector("tenant-B", "doc-1");
 
     // Same tenant + same vector → same shard (deterministic)
     let shard_t1_again = router.get_shard_for_tenant_vector("tenant-A", "doc-1");
