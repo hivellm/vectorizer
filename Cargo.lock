@@ -1613,6 +1613,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "cookie"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
+dependencies = [
+ "percent-encoding",
+ "time",
+ "version_check",
+]
+
+[[package]]
+name = "cookie_store"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3fc4bff745c9b4c7fb1e97b25d13153da2bc7796260141df62378998d070207f"
+dependencies = [
+ "cookie",
+ "document-features",
+ "idna",
+ "indexmap 2.11.4",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "time",
+ "url",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2189,6 +2218,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
+name = "document-features"
+version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
+dependencies = [
+ "litrs",
+]
+
+[[package]]
 name = "docx-rs"
 version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2513,7 +2551,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0d719825156b62586040fd0e5653a4f7bc0ad9caf6c7ec38cb18f1a08ee0384"
 dependencies = [
  "anyhow",
- "hf-hub",
+ "hf-hub 0.4.3",
  "image 0.25.8",
  "ndarray 0.16.1",
  "ort",
@@ -3316,9 +3354,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "629d8f3bbeda9d148036d6b0de0a3ab947abd08ce90626327fc3547a49d59d97"
 dependencies = [
  "dirs 6.0.0",
- "futures",
  "http",
  "indicatif 0.17.11",
+ "libc",
+ "log",
+ "native-tls",
+ "rand 0.9.2",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "ureq 2.12.1",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "hf-hub"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aef3982638978efa195ff11b305f51f1f22f4f0a6cabee7af79b383ebee6a213"
+dependencies = [
+ "dirs 6.0.0",
+ "futures",
+ "http",
+ "indicatif 0.18.3",
  "libc",
  "log",
  "native-tls",
@@ -3329,8 +3388,8 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "ureq 2.12.1",
- "windows-sys 0.60.2",
+ "ureq 3.1.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4275,6 +4334,12 @@ name = "litemap"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
+
+[[package]]
+name = "litrs"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "lock_api"
@@ -8998,16 +9063,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99ba1025f18a4a3fc3e9b48c868e9beb4f24f4b4b1a325bada26bd4119f46537"
 dependencies = [
  "base64 0.22.1",
+ "cookie_store",
  "der",
+ "flate2",
  "log",
  "native-tls",
  "percent-encoding",
+ "rustls",
  "rustls-pemfile",
  "rustls-pki-types",
+ "serde",
+ "serde_json",
  "socks",
  "ureq-proto",
  "utf-8",
  "webpki-root-certs",
+ "webpki-roots 1.0.3",
 ]
 
 [[package]]
@@ -9161,7 +9232,7 @@ dependencies = [
  "glob",
  "governor",
  "hex",
- "hf-hub",
+ "hf-hub 0.5.0",
  "hive-gpu",
  "hivehub-internal-sdk",
  "hmac",
