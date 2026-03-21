@@ -28,9 +28,6 @@ fn create_test_cluster_config() -> ClusterConfig {
                 grpc_port: 15005,
             },
         ],
-        discovery: DiscoveryMethod::Static,
-        timeout_ms: 5000,
-        retry_count: 3,
         memory: ClusterMemoryConfig {
             max_cache_memory_bytes: 1024 * 1024 * 1024, // 1GB
             enforce_mmap_storage: true,
@@ -38,6 +35,7 @@ fn create_test_cluster_config() -> ClusterConfig {
             cache_warning_threshold: 80,
             strict_validation: true,
         },
+        ..Default::default()
     }
 }
 

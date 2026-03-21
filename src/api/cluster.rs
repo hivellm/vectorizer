@@ -105,6 +105,8 @@ pub fn create_cluster_router() -> Router<ClusterApiState> {
             get(get_shard_distribution),
         )
         .route("/api/v1/cluster/rebalance", post(trigger_rebalance))
+        .route("/api/v1/cluster/leader", get(get_cluster_leader))
+        .route("/api/v1/cluster/role", get(get_cluster_role))
 }
 
 /// List all cluster nodes
@@ -379,6 +381,32 @@ async fn trigger_rebalance(
             shards_moved, num_active_nodes
         ),
         shards_moved: Some(shards_moved),
+    }))
+}
+
+/// GET /api/v1/cluster/leader
+///
+/// Returns the current Raft leader information. When Raft HA is not enabled,
+/// returns a standalone placeholder response.
+pub async fn get_cluster_leader(State(_state): State<ClusterApiState>) -> Json<serde_json::Value> {
+    // HA manager integration will be wired in when the Raft node is available.
+    // For now, return a stable standalone response so callers can rely on the shape.
+    Json(serde_json::json!({
+        "mode": "standalone",
+        "message": "Raft HA not enabled. Enable cluster.raft.enabled in config."
+    }))
+}
+
+/// GET /api/v1/cluster/role
+///
+/// Returns the current role of this node within the cluster. When Raft HA is
+/// not enabled, returns a standalone placeholder response.
+pub async fn get_cluster_role(State(_state): State<ClusterApiState>) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "role": "standalone",
+        "node_id": null,
+        "leader_id": null,
+        "leader_url": null
     }))
 }
 

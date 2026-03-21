@@ -323,6 +323,167 @@ impl ClusterClient {
         Err(last_error.unwrap_or_else(|| VectorizerError::Storage("Unknown error".to_string())))
     }
 
+    /// Fetch a batch of vectors from a remote shard for migration purposes.
+    ///
+    /// Returns `(vectors, total_count, has_more)`.
+    pub async fn get_shard_vectors(
+        &self,
+        collection_name: &str,
+        shard_id: u32,
+        offset: u32,
+        limit: u32,
+        tenant: Option<&crate::hub::TenantContext>,
+    ) -> Result<(Vec<cluster_proto::VectorData>, u32, bool)> {
+        let mut client = self.client.clone();
+
+        let request = tonic::Request::new(cluster_proto::GetShardVectorsRequest {
+            collection_name: collection_name.to_string(),
+            shard_id,
+            offset,
+            limit,
+            tenant: tenant_to_proto(tenant),
+        });
+
+        match client.get_shard_vectors(request).await {
+            Ok(response) => {
+                let resp = response.into_inner();
+                debug!(
+                    "GetShardVectors from node {}: got {} vectors (total={}, has_more={})",
+                    self.node_id,
+                    resp.vectors.len(),
+                    resp.total_count,
+                    resp.has_more,
+                );
+                Ok((resp.vectors, resp.total_count, resp.has_more))
+            }
+            Err(e) => {
+                error!(
+                    "Failed to get shard vectors from node {}: {}",
+                    self.node_id, e
+                );
+                Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
+            }
+        }
+    }
+
+    /// Create a collection on the remote node.
+    ///
+    /// Wraps the `RemoteCreateCollection` gRPC call.  `owner_id`, when
+    /// provided, is forwarded as the tenant ID for multi-tenant isolation.
+    pub async fn remote_create_collection(
+        &self,
+        collection_name: &str,
+        config: &crate::models::CollectionConfig,
+        owner_id: Option<uuid::Uuid>,
+    ) -> Result<cluster_proto::RemoteCreateCollectionResponse> {
+        let mut client = self.client.clone();
+
+        let tenant = owner_id.map(|id| cluster_proto::TenantContext {
+            tenant_id: id.to_string(),
+            username: None,
+            permissions: Vec::new(),
+            trace_id: None,
+        });
+
+        let proto_config = cluster_proto::CollectionConfig {
+            dimension: config.dimension as u32,
+            metric: format!("{:?}", config.metric).to_lowercase(),
+        };
+
+        let request = tonic::Request::new(cluster_proto::RemoteCreateCollectionRequest {
+            collection_name: collection_name.to_string(),
+            config: Some(proto_config),
+            tenant,
+        });
+
+        match client.remote_create_collection(request).await {
+            Ok(response) => {
+                let resp = response.into_inner();
+                debug!(
+                    "remote_create_collection '{}' on node {}: success={}",
+                    collection_name, self.node_id, resp.success
+                );
+                Ok(resp)
+            }
+            Err(e) => {
+                error!(
+                    "remote_create_collection '{}' on node {} failed: {}",
+                    collection_name, self.node_id, e
+                );
+                Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
+            }
+        }
+    }
+
+    /// Delete a collection on the remote node.
+    ///
+    /// Wraps the `RemoteDeleteCollection` gRPC call without tenant scoping so
+    /// that rollback operations during quorum failures can always proceed.
+    pub async fn remote_delete_collection(
+        &self,
+        collection_name: &str,
+    ) -> Result<cluster_proto::RemoteDeleteCollectionResponse> {
+        let mut client = self.client.clone();
+
+        let request = tonic::Request::new(cluster_proto::RemoteDeleteCollectionRequest {
+            collection_name: collection_name.to_string(),
+            tenant: None,
+        });
+
+        match client.remote_delete_collection(request).await {
+            Ok(response) => {
+                let resp = response.into_inner();
+                debug!(
+                    "remote_delete_collection '{}' on node {}: success={}",
+                    collection_name, self.node_id, resp.success
+                );
+                Ok(resp)
+            }
+            Err(e) => {
+                error!(
+                    "remote_delete_collection '{}' on node {} failed: {}",
+                    collection_name, self.node_id, e
+                );
+                Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
+            }
+        }
+    }
+
+    /// Probe whether a collection exists on the remote node.
+    ///
+    /// Wraps the `RemoteGetCollectionInfo` gRPC call.  Returns the raw
+    /// response so callers can inspect the `success` flag to distinguish
+    /// "collection absent" from a hard transport error.
+    pub async fn remote_get_collection_info(
+        &self,
+        collection_name: &str,
+    ) -> Result<cluster_proto::RemoteGetCollectionInfoResponse> {
+        let mut client = self.client.clone();
+
+        let request = tonic::Request::new(cluster_proto::RemoteGetCollectionInfoRequest {
+            collection_name: collection_name.to_string(),
+            tenant: None,
+        });
+
+        match client.remote_get_collection_info(request).await {
+            Ok(response) => {
+                let resp = response.into_inner();
+                debug!(
+                    "remote_get_collection_info '{}' on node {}: success={}",
+                    collection_name, self.node_id, resp.success
+                );
+                Ok(resp)
+            }
+            Err(e) => {
+                error!(
+                    "remote_get_collection_info '{}' on node {} failed: {}",
+                    collection_name, self.node_id, e
+                );
+                Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
+            }
+        }
+    }
+
     /// Get cluster state from remote server
     pub async fn get_cluster_state(&self) -> Result<cluster_proto::GetClusterStateResponse> {
         let mut client = self.client.clone();

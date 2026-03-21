@@ -41,6 +41,8 @@ async fn create_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::Socket
         replica_timeout: 10,
         log_size: 10000,
         reconnect_interval: 1,
+        wal_enabled: false,
+        wal_dir: None,
     };
 
     let store = Arc::new(VectorStore::new());
@@ -67,6 +69,8 @@ async fn create_replica(master_addr: std::net::SocketAddr) -> (Arc<ReplicaNode>,
         replica_timeout: 10,
         log_size: 10000,
         reconnect_interval: 1,
+        wal_enabled: false,
+        wal_dir: None,
     };
 
     let store = Arc::new(VectorStore::new());

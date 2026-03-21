@@ -15,6 +15,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use super::config::ReplicationConfig;
 use super::types::{
@@ -27,6 +28,9 @@ use crate::db::VectorStore;
 pub struct ReplicaNode {
     config: ReplicationConfig,
     vector_store: Arc<VectorStore>,
+
+    /// Stable identifier for this replica instance across reconnects
+    replica_id: String,
 
     /// Current replication state
     state: Arc<RwLock<ReplicaState>>,
@@ -64,6 +68,7 @@ impl ReplicaNode {
         Self {
             config,
             vector_store,
+            replica_id: Uuid::new_v4().to_string(),
             state: Arc::new(RwLock::new(ReplicaState::default())),
         }
     }
@@ -164,9 +169,10 @@ impl ReplicaNode {
                         self.apply_operation(&op.operation).await?;
 
                         // Update state
+                        let new_offset = op.offset;
                         {
                             let mut state = self.state.write();
-                            state.offset = op.offset;
+                            state.offset = new_offset;
                             state.total_replicated += 1;
                         }
                     }
@@ -179,11 +185,24 @@ impl ReplicaNode {
                     // Apply operation
                     self.apply_operation(&op.operation).await?;
 
-                    // Update state
+                    // Update state and capture offset for ACK
+                    let confirmed_offset = op.offset;
                     {
                         let mut state = self.state.write();
-                        state.offset = op.offset;
+                        state.offset = confirmed_offset;
                         state.total_replicated += 1;
+                    }
+
+                    // Send ACK back to master on the same stream
+                    if let Err(e) =
+                        Self::send_ack(&mut stream, &self.replica_id, confirmed_offset).await
+                    {
+                        warn!(
+                            "Failed to send ACK to master for offset {}: {}",
+                            confirmed_offset, e
+                        );
+                    } else {
+                        debug!("Sent ACK to master for offset {}", confirmed_offset);
                     }
                 }
                 ReplicationCommand::Heartbeat {
@@ -207,6 +226,27 @@ impl ReplicaNode {
                 }
             }
         }
+    }
+
+    /// Send an ACK frame back to master on the shared TCP stream.
+    ///
+    /// Called after each `Operation` is successfully applied so the master can
+    /// track which offset each replica has confirmed.
+    async fn send_ack(
+        stream: &mut TcpStream,
+        replica_id: &str,
+        offset: u64,
+    ) -> ReplicationResult<()> {
+        let ack = ReplicationCommand::Ack {
+            replica_id: replica_id.to_string(),
+            offset,
+        };
+        let data = bincode::serialize(&ack)?;
+        let len = (data.len() as u32).to_be_bytes();
+        stream.write_all(&len).await?;
+        stream.write_all(&data).await?;
+        stream.flush().await?;
+        Ok(())
     }
 
     /// Receive a command from master
@@ -435,6 +475,8 @@ mod tests {
             replica_timeout: 30,
             log_size: 1000,
             reconnect_interval: 5,
+            wal_enabled: false,
+            wal_dir: None,
         };
 
         let replica = ReplicaNode::new(config, store);

@@ -3,20 +3,33 @@
 //! This module provides cluster membership management, server discovery,
 //! and distributed shard routing across multiple Vectorizer server instances.
 
+pub mod collection_sync;
+pub mod dns_discovery;
 mod grpc_service;
+pub mod ha_manager;
+pub mod leader_router;
 mod manager;
 mod node;
+pub mod raft_node;
 mod server_client;
+pub mod shard_migrator;
 mod shard_router;
 mod state_sync;
 pub mod validator;
 
 use std::sync::Arc;
 
+pub use collection_sync::{CollectionSynchronizer, QuorumError, QuorumResult, SyncReport};
+pub use dns_discovery::DnsDiscovery;
 pub use grpc_service::ClusterGrpcService;
+pub use ha_manager::HaManager;
+pub use leader_router::{LeaderInfo, LeaderRouter, NodeRole as HaNodeRole};
 pub use manager::ClusterManager;
 pub use node::{ClusterNode, NodeId, NodeStatus};
 use parking_lot::RwLock;
+pub use raft_node::{
+    ClusterCommand, ClusterResponse, ClusterStateMachine, RaftManager, TypeConfig,
+};
 pub use server_client::{ClusterClient, ClusterClientPool};
 pub use shard_router::DistributedShardRouter;
 pub use state_sync::ClusterStateSynchronizer;
@@ -47,6 +60,24 @@ pub struct ClusterConfig {
     /// Memory limits configuration for cluster mode
     #[serde(default)]
     pub memory: ClusterMemoryConfig,
+    /// Current cluster epoch (monotonic, persisted).
+    ///
+    /// Incremented each time a shard assignment changes. Used for
+    /// epoch-based conflict resolution after network partitions.
+    #[serde(default)]
+    pub current_epoch: u64,
+    /// DNS name for headless service discovery (e.g., "vectorizer-headless.default.svc.cluster.local")
+    #[serde(default)]
+    pub dns_name: Option<String>,
+    /// How often to re-resolve DNS in seconds (default: 30)
+    #[serde(default = "default_dns_resolve_interval")]
+    pub dns_resolve_interval: u64,
+    /// Explicit Raft node ID (u64). If not set, derived from hash of node_id string.
+    #[serde(default)]
+    pub raft_node_id: Option<u64>,
+    /// gRPC port to use for discovered nodes (default: 15003)
+    #[serde(default = "default_dns_grpc_port")]
+    pub dns_grpc_port: u16,
 }
 
 /// Memory configuration for cluster mode
@@ -133,6 +164,14 @@ fn default_discovery() -> DiscoveryMethod {
     DiscoveryMethod::Static
 }
 
+fn default_dns_resolve_interval() -> u64 {
+    30
+}
+
+fn default_dns_grpc_port() -> u16 {
+    15003
+}
+
 fn default_timeout_ms() -> u64 {
     5000 // 5 seconds
 }
@@ -151,6 +190,11 @@ impl Default for ClusterConfig {
             timeout_ms: 5000,
             retry_count: 3,
             memory: ClusterMemoryConfig::default(),
+            current_epoch: 0,
+            dns_name: None,
+            dns_resolve_interval: default_dns_resolve_interval(),
+            dns_grpc_port: default_dns_grpc_port(),
+            raft_node_id: None,
         }
     }
 }

@@ -25,16 +25,31 @@ pub struct DistributedShardRouter {
     node_to_shards: Arc<RwLock<HashMap<NodeId, HashSet<ShardId>>>>,
     /// Virtual nodes per shard (for better distribution)
     virtual_nodes_per_shard: usize,
+    /// Config epoch per shard assignment
+    shard_epochs: Arc<RwLock<HashMap<ShardId, u64>>>,
+    /// Global current epoch counter
+    current_epoch: Arc<RwLock<u64>>,
 }
 
 impl DistributedShardRouter {
-    /// Create a new distributed shard router
+    /// Create a new distributed shard router.
+    ///
+    /// `initial_epoch` should be 0 for a new cluster. When restoring persisted
+    /// state pass the last known epoch so that newly generated epochs are always
+    /// strictly higher than any epoch seen before the restart.
     pub fn new(virtual_nodes_per_shard: usize) -> Self {
+        Self::with_epoch(virtual_nodes_per_shard, 0)
+    }
+
+    /// Create a new distributed shard router starting from a given epoch.
+    pub fn with_epoch(virtual_nodes_per_shard: usize, initial_epoch: u64) -> Self {
         Self {
             ring: Arc::new(RwLock::new(BTreeMap::new())),
             shard_to_node: Arc::new(RwLock::new(HashMap::new())),
             node_to_shards: Arc::new(RwLock::new(HashMap::new())),
             virtual_nodes_per_shard,
+            shard_epochs: Arc::new(RwLock::new(HashMap::new())),
+            current_epoch: Arc::new(RwLock::new(initial_epoch)),
         }
     }
 
@@ -69,35 +84,136 @@ impl DistributedShardRouter {
         }
     }
 
-    /// Assign a shard to a node
-    pub fn assign_shard(&self, shard_id: ShardId, node_id: NodeId) {
-        let mut shard_to_node = self.shard_to_node.write();
-        let mut node_to_shards = self.node_to_shards.write();
-        let mut ring = self.ring.write();
+    /// Assign a shard to a node, incrementing the global epoch.
+    ///
+    /// Returns the new epoch that was stamped on this assignment. Callers that
+    /// do not care about the epoch may discard the return value.
+    pub fn assign_shard(&self, shard_id: ShardId, node_id: NodeId) -> u64 {
+        // Increment the global epoch first so every assignment gets a unique,
+        // strictly-increasing number even under concurrent writes.
+        let new_epoch = {
+            let mut epoch = self.current_epoch.write();
+            *epoch += 1;
+            *epoch
+        };
 
-        // Remove old assignment if exists
-        if let Some(old_node) = shard_to_node.get(&shard_id) {
-            if let Some(shards) = node_to_shards.get_mut(old_node) {
-                shards.remove(&shard_id);
+        {
+            let mut shard_to_node = self.shard_to_node.write();
+            let mut node_to_shards = self.node_to_shards.write();
+            let mut ring = self.ring.write();
+
+            // Remove old assignment if exists
+            if let Some(old_node) = shard_to_node.get(&shard_id) {
+                if let Some(shards) = node_to_shards.get_mut(old_node) {
+                    shards.remove(&shard_id);
+                }
+                // Remove from ring
+                ring.retain(|_, (s, _)| *s != shard_id);
             }
-            // Remove from ring
-            ring.retain(|_, (s, _)| *s != shard_id);
+
+            // Add new assignment
+            shard_to_node.insert(shard_id, node_id.clone());
+            node_to_shards
+                .entry(node_id.clone())
+                .or_insert_with(HashSet::new)
+                .insert(shard_id);
+
+            // Add virtual nodes to ring
+            for i in 0..self.virtual_nodes_per_shard {
+                let hash = Self::hash_shard_vnode(&shard_id, i);
+                ring.insert(hash, (shard_id, node_id.clone()));
+            }
         }
 
-        // Add new assignment
-        shard_to_node.insert(shard_id, node_id.clone());
-        node_to_shards
-            .entry(node_id.clone())
-            .or_insert_with(HashSet::new)
-            .insert(shard_id);
+        // Record the epoch for this shard assignment
+        self.shard_epochs.write().insert(shard_id, new_epoch);
 
-        // Add virtual nodes to ring
-        for i in 0..self.virtual_nodes_per_shard {
-            let hash = Self::hash_shard_vnode(&shard_id, i);
-            ring.insert(hash, (shard_id, node_id.clone()));
+        info!(
+            "Assigned shard {} to node {} at epoch {}",
+            shard_id.as_u32(),
+            node_id,
+            new_epoch
+        );
+
+        new_epoch
+    }
+
+    /// Get the config epoch for a shard assignment.
+    ///
+    /// Returns `None` when the shard has no tracked epoch (not yet assigned or
+    /// assigned before epoch tracking was introduced).
+    pub fn get_shard_epoch(&self, shard_id: &ShardId) -> Option<u64> {
+        self.shard_epochs.read().get(shard_id).copied()
+    }
+
+    /// Get a snapshot of all per-shard epochs.
+    pub fn get_all_shard_epochs(&self) -> HashMap<ShardId, u64> {
+        self.shard_epochs.read().clone()
+    }
+
+    /// Get the current global epoch counter.
+    pub fn current_epoch(&self) -> u64 {
+        *self.current_epoch.read()
+    }
+
+    /// Apply a remote shard assignment only if its epoch is strictly higher
+    /// than the locally recorded epoch for that shard.
+    ///
+    /// Unlike `assign_shard`, this method accepts the remote epoch verbatim and
+    /// does **not** increment the global counter (we are adopting their epoch,
+    /// not creating a new one). Returns `true` when the remote assignment was
+    /// applied, `false` when the local epoch was equal or higher.
+    pub fn apply_if_higher_epoch(
+        &self,
+        shard_id: ShardId,
+        node_id: NodeId,
+        remote_epoch: u64,
+    ) -> bool {
+        let local_epoch = self.get_shard_epoch(&shard_id).unwrap_or(0);
+        if remote_epoch <= local_epoch {
+            return false;
         }
 
-        info!("Assigned shard {} to node {}", shard_id.as_u32(), node_id);
+        // Update shard-to-node and node-to-shards mappings plus the ring
+        {
+            let mut shard_to_node = self.shard_to_node.write();
+            let mut node_to_shards = self.node_to_shards.write();
+            let mut ring = self.ring.write();
+
+            // Remove old assignment
+            if let Some(old_node) = shard_to_node.get(&shard_id) {
+                if let Some(shards) = node_to_shards.get_mut(old_node) {
+                    shards.remove(&shard_id);
+                }
+                ring.retain(|_, (s, _)| *s != shard_id);
+            }
+
+            // Insert the remote assignment
+            shard_to_node.insert(shard_id, node_id.clone());
+            node_to_shards
+                .entry(node_id.clone())
+                .or_insert_with(HashSet::new)
+                .insert(shard_id);
+
+            for i in 0..self.virtual_nodes_per_shard {
+                let hash = Self::hash_shard_vnode(&shard_id, i);
+                ring.insert(hash, (shard_id, node_id.clone()));
+            }
+        }
+
+        // Stamp the remote epoch and advance global counter if needed
+        {
+            let mut epochs = self.shard_epochs.write();
+            epochs.insert(shard_id, remote_epoch);
+        }
+        {
+            let mut global = self.current_epoch.write();
+            if remote_epoch > *global {
+                *global = remote_epoch;
+            }
+        }
+
+        true
     }
 
     /// Remove shard assignment

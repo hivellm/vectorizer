@@ -98,6 +98,10 @@ pub struct VectorizerServer {
     pub backup_manager: Option<Arc<crate::hub::UserBackupManager>>,
     /// MCP Hub Gateway for multi-tenant MCP operations
     pub mcp_hub_gateway: Option<Arc<crate::hub::McpHubGateway>>,
+    /// Raft consensus manager (optional, for HA mode)
+    pub raft_manager: Option<Arc<crate::cluster::raft_node::RaftManager>>,
+    /// HA lifecycle manager (optional, for HA mode)
+    pub ha_manager: Option<Arc<crate::cluster::HaManager>>,
 }
 
 /// Configuration for root user credentials
@@ -786,6 +790,188 @@ impl VectorizerServer {
         // Store cluster config for later use (e.g., storage type enforcement)
         let _cluster_config = cluster_config_ref;
 
+        // Initialize replication if configured
+        let (master_node, replica_node) = {
+            let repl_yaml = std::fs::read_to_string(&config_path)
+                .ok()
+                .and_then(|content| {
+                    serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                        .ok()
+                        .map(|c| c.replication)
+                })
+                .unwrap_or_default();
+
+            if repl_yaml.enabled || repl_yaml.role == "master" || repl_yaml.role == "replica" {
+                let repl_config = repl_yaml.to_replication_config();
+                match repl_config.role {
+                    crate::replication::NodeRole::Master => {
+                        info!("🔄 Initializing replication as MASTER...");
+                        match crate::replication::MasterNode::new(repl_config, store_arc.clone()) {
+                            Ok(master) => {
+                                let master = Arc::new(master);
+                                let master_clone = master.clone();
+                                tokio::spawn(async move {
+                                    if let Err(e) = master_clone.start().await {
+                                        error!("❌ Master replication failed: {}", e);
+                                    }
+                                });
+                                info!("✅ Replication master started");
+                                (Some(master), None)
+                            }
+                            Err(e) => {
+                                error!("❌ Failed to initialize master: {}", e);
+                                (None, None)
+                            }
+                        }
+                    }
+                    crate::replication::NodeRole::Replica => {
+                        info!("🔄 Initializing replication as REPLICA...");
+                        let replica = Arc::new(crate::replication::ReplicaNode::new(
+                            repl_config,
+                            store_arc.clone(),
+                        ));
+                        let replica_clone = replica.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = replica_clone.start().await {
+                                error!("❌ Replica replication failed: {}", e);
+                            }
+                        });
+                        info!("✅ Replication replica started (connecting to master...)");
+                        (None, Some(replica))
+                    }
+                    _ => {
+                        info!("ℹ️  Replication mode: standalone");
+                        (None, None)
+                    }
+                }
+            } else {
+                (None, None)
+            }
+        };
+
+        // Initialize Raft HA automatically when cluster mode is enabled
+        let (raft_manager, ha_manager) = {
+            let cluster_enabled = std::fs::read_to_string(&config_path)
+                .ok()
+                .and_then(|content| {
+                    serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                        .ok()
+                        .map(|c| c.cluster.enabled)
+                })
+                .unwrap_or(false);
+
+            if cluster_enabled {
+                info!("🗳️  Initializing Raft consensus (cluster mode active)...");
+
+                // Derive node_id: use configured raft_node_id, or hash the string node_id, or default to 1
+                let node_id = std::fs::read_to_string(&config_path)
+                    .ok()
+                    .and_then(|content| {
+                        serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                            .ok()
+                            .and_then(|c| {
+                                // Prefer explicit raft_node_id
+                                c.cluster.raft_node_id.or_else(|| {
+                                    // Hash the string node_id to u64
+                                    c.cluster.node_id.map(|s| {
+                                        use std::hash::{Hash, Hasher};
+                                        let mut hasher =
+                                            std::collections::hash_map::DefaultHasher::new();
+                                        s.hash(&mut hasher);
+                                        hasher.finish()
+                                    })
+                                })
+                            })
+                    })
+                    .unwrap_or(1);
+
+                match crate::cluster::raft_node::RaftManager::new(node_id).await {
+                    Ok(mgr) => {
+                        let mgr = Arc::new(mgr);
+
+                        // Load replication config for HA role transitions
+                        let repl_yaml = std::fs::read_to_string(&config_path)
+                            .ok()
+                            .and_then(|content| {
+                                serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                                    .ok()
+                                    .map(|c| c.replication)
+                            })
+                            .unwrap_or_default();
+                        let repl_config = repl_yaml.to_replication_config();
+
+                        let ha = Arc::new(crate::cluster::HaManager::new(
+                            node_id,
+                            store_arc.clone(),
+                            repl_config.clone(),
+                        ));
+
+                        // Set initial role based on replication config
+                        match repl_config.role {
+                            crate::replication::NodeRole::Master => {
+                                ha.leader_router
+                                    .set_leader(node_id, format!("http://127.0.0.1:15002"));
+                                info!("✅ Raft initialized as LEADER (node_id={})", node_id);
+                            }
+                            crate::replication::NodeRole::Replica => {
+                                // Follower: will redirect writes to leader
+                                let leader_url = repl_config
+                                    .master_address
+                                    .map(|addr| format!("http://{}:{}", addr.ip(), 15002))
+                                    .unwrap_or_default();
+                                if !leader_url.is_empty() {
+                                    ha.leader_router.set_leader(0, leader_url.clone());
+                                    // Override: this node is follower, not leader
+                                    ha.leader_router.clear_leader();
+                                }
+                                info!("✅ Raft initialized as FOLLOWER (node_id={})", node_id);
+                            }
+                            _ => {
+                                info!("✅ Raft initialized as STANDALONE (node_id={})", node_id);
+                            }
+                        }
+
+                        (Some(mgr), Some(ha))
+                    }
+                    Err(e) => {
+                        error!("❌ Failed to initialize Raft: {}", e);
+                        (None, None)
+                    }
+                }
+            } else {
+                // Even without cluster mode, create HaManager if replication is active
+                // This enforces read-only on replicas
+                let repl_yaml = std::fs::read_to_string(&config_path)
+                    .ok()
+                    .and_then(|content| {
+                        serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                            .ok()
+                            .map(|c| c.replication)
+                    })
+                    .unwrap_or_default();
+
+                if repl_yaml.role == "replica" {
+                    let repl_config = repl_yaml.to_replication_config();
+                    // Use node_id=999 so set_leader with id=0 marks us as Follower
+                    let ha = Arc::new(crate::cluster::HaManager::new(
+                        999,
+                        store_arc.clone(),
+                        repl_config.clone(),
+                    ));
+                    // Set leader as remote node (id=0) → this node becomes Follower
+                    let leader_url = repl_config
+                        .master_address
+                        .map(|addr| format!("http://{}:{}", addr.ip(), 15002))
+                        .unwrap_or_else(|| "http://leader:15002".to_string());
+                    ha.leader_router.set_leader(0, leader_url);
+                    info!("🔒 Replica mode: writes will be redirected to leader");
+                    (None, Some(ha))
+                } else {
+                    (None, None)
+                }
+            }
+        };
+
         // Load API config for max request size
         let max_request_size_mb = std::fs::read_to_string(&config_path)
             .ok()
@@ -934,8 +1120,8 @@ impl VectorizerServer {
             file_watcher_system: watcher_system_for_server,
             metrics_collector: Arc::new(MetricsCollector::new()),
             auto_save_manager: Some(auto_save_manager),
-            master_node: None,
-            replica_node: None,
+            master_node,
+            replica_node,
             query_cache,
             background_task: Arc::new(tokio::sync::Mutex::new(Some((
                 background_handle,
@@ -963,7 +1149,20 @@ impl VectorizerServer {
             hub_manager,
             backup_manager,
             mcp_hub_gateway,
+            raft_manager,
+            ha_manager,
         })
+    }
+
+    /// Check if a request is a write operation that should be redirected to the leader
+    fn is_write_request(method: &axum::http::Method) -> bool {
+        matches!(
+            method,
+            &axum::http::Method::POST
+                | &axum::http::Method::PUT
+                | &axum::http::Method::DELETE
+                | &axum::http::Method::PATCH
+        )
     }
 
     /// Check if authentication should be required based on host binding
@@ -1020,6 +1219,7 @@ impl VectorizerServer {
         let grpc_store = self.store.clone();
         let grpc_cluster_manager = self.cluster_manager.clone();
         let grpc_snapshot_manager = self.snapshot_manager.clone();
+        let grpc_raft_manager = self.raft_manager.clone();
         let grpc_handle = tokio::spawn(async move {
             if let Err(e) = Self::start_grpc_server(
                 &grpc_host,
@@ -1027,6 +1227,7 @@ impl VectorizerServer {
                 grpc_store,
                 grpc_cluster_manager,
                 grpc_snapshot_manager,
+                grpc_raft_manager,
             )
             .await
             {
@@ -1807,6 +2008,49 @@ impl VectorizerServer {
                 .layer(axum::middleware::from_fn(security_headers_middleware))
         };
 
+        // Apply write-redirect middleware if this node is a replica
+        // Replicas redirect POST/PUT/DELETE/PATCH to the leader with HTTP 307
+        let app = if let Some(ref ha) = self.ha_manager {
+            let leader_router = ha.leader_router.clone();
+            app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let lr = leader_router.clone();
+                async move {
+                    // Skip redirect for health/metrics/auth endpoints
+                    let path = req.uri().path();
+                    if path.starts_with("/health")
+                        || path.starts_with("/prometheus")
+                        || path.starts_with("/auth")
+                        || path.starts_with("/api/v1/cluster")
+                    {
+                        return next.run(req).await;
+                    }
+
+                    // Only redirect write operations on follower nodes
+                    if !lr.is_leader() && Self::is_write_request(req.method()) {
+                        if let Some(leader_url) = lr.leader_redirect_url() {
+                            let redirect_path = req.uri().path_and_query()
+                                .map(|pq| pq.as_str())
+                                .unwrap_or("/");
+                            let location = format!("{}{}", leader_url, redirect_path);
+                            tracing::info!("Redirecting write to leader: {}", location);
+                            return axum::response::Response::builder()
+                                .status(axum::http::StatusCode::TEMPORARY_REDIRECT)
+                                .header("Location", &location)
+                                .header("X-Vectorizer-Leader", &leader_url)
+                                .header("X-Vectorizer-Role", "follower")
+                                .body(axum::body::Body::from(
+                                    format!("{{\"redirect\":\"write operations must go to leader\",\"leader_url\":\"{}\"}}", leader_url)
+                                ))
+                                .unwrap_or_else(|_| axum::response::Response::new(axum::body::Body::empty()));
+                        }
+                    }
+                    next.run(req).await
+                }
+            }))
+        } else {
+            app
+        };
+
         info!("🌐 Vectorizer Server available at:");
         info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
         info!("   🔌 REST API: http://{}:{}", host, port);
@@ -2103,6 +2347,7 @@ impl VectorizerServer {
         store: Arc<VectorStore>,
         cluster_manager: Option<Arc<crate::cluster::ClusterManager>>,
         snapshot_manager: Option<Arc<crate::storage::SnapshotManager>>,
+        raft_manager: Option<Arc<crate::cluster::raft_node::RaftManager>>,
     ) -> anyhow::Result<()> {
         use tonic::transport::Server;
 
@@ -2123,7 +2368,8 @@ impl VectorizerServer {
             use crate::grpc::cluster::cluster_service_server::ClusterServiceServer;
 
             info!("🔗 Adding Cluster gRPC service");
-            let cluster_service = ClusterGrpcService::new(store.clone(), cluster_mgr);
+            let cluster_service =
+                ClusterGrpcService::new(store.clone(), cluster_mgr, raft_manager.clone());
             server_builder = server_builder.add_service(ClusterServiceServer::new(cluster_service));
         }
 

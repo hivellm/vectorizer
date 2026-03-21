@@ -105,6 +105,13 @@ config:
     interval_seconds: 300
     min_operations: 1000
 
+cluster:
+  enabled: false
+  discovery: static
+  dns_name: ""  # Auto-set when using DNS discovery
+  dns_resolve_interval: 30
+  dns_grpc_port: 15003
+
 replication:
   enabled: false
   role: "standalone"

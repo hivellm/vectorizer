@@ -45,6 +45,10 @@ spec:
               value: {{ .Values.config.logging.level | quote }}
             - name: DATA_DIR
               value: {{ .Values.config.server.data_dir | quote }}
+            {{- if eq .Values.cluster.discovery "dns" }}
+            - name: VECTORIZER_CLUSTER_DNS
+              value: "{{ include "vectorizer.fullname" . }}-headless.{{ .Release.Namespace }}.svc.cluster.local"
+            {{- end }}
           volumeMounts:
             - name: data
               mountPath: {{ .Values.config.server.data_dir }}

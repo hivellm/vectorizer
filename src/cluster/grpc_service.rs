@@ -20,14 +20,24 @@ pub struct ClusterGrpcService {
     store: Arc<VectorStore>,
     /// Cluster manager
     cluster_manager: Arc<ClusterManager>,
+    /// Optional Raft consensus manager (present only when HA mode is active)
+    raft: Option<Arc<crate::cluster::raft_node::RaftManager>>,
 }
 
 impl ClusterGrpcService {
-    /// Create a new cluster gRPC service
-    pub fn new(store: Arc<VectorStore>, cluster_manager: Arc<ClusterManager>) -> Self {
+    /// Create a new cluster gRPC service.
+    ///
+    /// Pass `raft = Some(...)` to enable the Raft RPC endpoints (vote,
+    /// append-entries, snapshot).  Pass `None` when Raft HA is not enabled.
+    pub fn new(
+        store: Arc<VectorStore>,
+        cluster_manager: Arc<ClusterManager>,
+        raft: Option<Arc<crate::cluster::raft_node::RaftManager>>,
+    ) -> Self {
         Self {
             store,
             cluster_manager,
+            raft,
         }
     }
 }
@@ -86,9 +96,20 @@ impl ClusterServiceTrait for ClusterGrpcService {
             }
         }
 
+        // Include per-shard epochs and the global epoch in the response so
+        // remote nodes can perform epoch-based conflict resolution.
+        let shard_epochs: std::collections::HashMap<u32, u64> = shard_router
+            .get_all_shard_epochs()
+            .into_iter()
+            .map(|(shard_id, epoch)| (shard_id.as_u32(), epoch))
+            .collect();
+        let current_epoch = shard_router.current_epoch();
+
         let response = GetClusterStateResponse {
             nodes: proto_nodes,
             shard_to_node,
+            current_epoch,
+            shard_epochs,
         };
 
         Ok(Response::new(response))
@@ -130,12 +151,29 @@ impl ClusterServiceTrait for ClusterGrpcService {
             self.cluster_manager.update_node_heartbeat(&node_id);
         }
 
-        // Update shard assignments if provided
-        for assignment in req.shard_assignments {
-            let shard_id = crate::db::sharding::ShardId::new(assignment.shard_id);
-            let node_id = NodeId::new(assignment.node_id);
-            // Note: Shard router will be updated during rebalancing
-            // This is just for state synchronization
+        // Apply incoming shard assignments using epoch-based conflict resolution.
+        // Each assignment carries a config_epoch; we only adopt it when its
+        // epoch is strictly higher than our locally recorded epoch for that shard.
+        if !req.shard_assignments.is_empty() {
+            let shard_router = self.cluster_manager.shard_router();
+            for assignment in req.shard_assignments {
+                let shard_id = crate::db::sharding::ShardId::new(assignment.shard_id);
+                let node_id = NodeId::new(assignment.node_id);
+                let remote_epoch = assignment.config_epoch;
+
+                if shard_router.apply_if_higher_epoch(shard_id, node_id.clone(), remote_epoch) {
+                    debug!(
+                        "UpdateClusterState: applied remote assignment shard {} -> {} at epoch {}",
+                        assignment.shard_id, node_id, remote_epoch
+                    );
+                } else {
+                    debug!(
+                        "UpdateClusterState: skipped shard {} assignment (remote epoch {} \
+                         not higher than local)",
+                        assignment.shard_id, remote_epoch
+                    );
+                }
+            }
         }
 
         let response = UpdateClusterStateResponse {
@@ -558,6 +596,64 @@ impl ClusterServiceTrait for ClusterGrpcService {
         Ok(Response::new(response))
     }
 
+    /// Fetch shard vectors in paginated batches for shard data migration
+    async fn get_shard_vectors(
+        &self,
+        request: Request<GetShardVectorsRequest>,
+    ) -> Result<Response<GetShardVectorsResponse>, Status> {
+        let req = request.into_inner();
+        debug!(
+            "gRPC: GetShardVectors request for collection '{}', shard {}, offset={}, limit={}",
+            req.collection_name, req.shard_id, req.offset, req.limit
+        );
+
+        let collection = self
+            .store
+            .get_collection(&req.collection_name)
+            .map_err(|e| Status::not_found(e.to_string()))?;
+
+        let all_vectors = collection.get_all_vectors();
+        let total_count = all_vectors.len() as u32;
+
+        let offset = req.offset as usize;
+        let limit = if req.limit == 0 {
+            500
+        } else {
+            req.limit as usize
+        };
+
+        let batch: Vec<VectorData> = all_vectors
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .map(|v| {
+                let payload_json = v
+                    .payload
+                    .as_ref()
+                    .and_then(|p| serde_json::to_string(p).ok());
+                VectorData {
+                    id: v.id,
+                    vector: v.data,
+                    payload_json,
+                }
+            })
+            .collect();
+
+        let fetched = batch.len() as u32;
+        let has_more = (offset as u32 + fetched) < total_count;
+
+        debug!(
+            "gRPC: GetShardVectors returning {} vectors (total={}, has_more={})",
+            fetched, total_count, has_more
+        );
+
+        Ok(Response::new(GetShardVectorsResponse {
+            vectors: batch,
+            total_count,
+            has_more,
+        }))
+    }
+
     /// Check quota across cluster
     ///
     /// This allows distributed quota checking by aggregating usage from all nodes.
@@ -635,5 +731,102 @@ impl ClusterServiceTrait for ClusterGrpcService {
         };
 
         Ok(Response::new(response))
+    }
+
+    /// Raft vote RPC — forwards the request to the local Raft node.
+    async fn raft_vote(
+        &self,
+        request: Request<RaftVoteRequest>,
+    ) -> Result<Response<RaftVoteResponse>, Status> {
+        let raft = self
+            .raft
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("Raft HA is not enabled on this node"))?;
+
+        let data = request.into_inner().data;
+        let vote_req: openraft::raft::VoteRequest<crate::cluster::raft_node::TypeConfig> =
+            bincode::deserialize(&data)
+                .map_err(|e| Status::invalid_argument(format!("deserialize vote: {}", e)))?;
+
+        let resp = raft
+            .raft
+            .vote(vote_req)
+            .await
+            .map_err(|e| Status::internal(format!("raft vote: {}", e)))?;
+
+        let resp_data = bincode::serialize(&resp)
+            .map_err(|e| Status::internal(format!("serialize vote response: {}", e)))?;
+
+        Ok(Response::new(RaftVoteResponse { data: resp_data }))
+    }
+
+    /// Raft append-entries RPC — forwards the request to the local Raft node.
+    async fn raft_append_entries(
+        &self,
+        request: Request<RaftAppendEntriesRequest>,
+    ) -> Result<Response<RaftAppendEntriesResponse>, Status> {
+        let raft = self
+            .raft
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("Raft HA is not enabled on this node"))?;
+
+        let data = request.into_inner().data;
+        let append_req: openraft::raft::AppendEntriesRequest<
+            crate::cluster::raft_node::TypeConfig,
+        > = bincode::deserialize(&data)
+            .map_err(|e| Status::invalid_argument(format!("deserialize append_entries: {}", e)))?;
+
+        let resp = raft
+            .raft
+            .append_entries(append_req)
+            .await
+            .map_err(|e| Status::internal(format!("raft append_entries: {}", e)))?;
+
+        let resp_data = bincode::serialize(&resp)
+            .map_err(|e| Status::internal(format!("serialize append_entries response: {}", e)))?;
+
+        Ok(Response::new(RaftAppendEntriesResponse { data: resp_data }))
+    }
+
+    /// Raft snapshot RPC — forwards the snapshot to the local Raft node.
+    async fn raft_snapshot(
+        &self,
+        request: Request<RaftSnapshotRequest>,
+    ) -> Result<Response<RaftSnapshotResponse>, Status> {
+        use std::io::Cursor;
+
+        let raft = self
+            .raft
+            .as_ref()
+            .ok_or_else(|| Status::unavailable("Raft HA is not enabled on this node"))?;
+
+        let inner = request.into_inner();
+
+        let vote: openraft::alias::VoteOf<crate::cluster::raft_node::TypeConfig> =
+            bincode::deserialize(&inner.vote_data)
+                .map_err(|e| Status::invalid_argument(format!("deserialize vote: {}", e)))?;
+
+        let meta: openraft::alias::SnapshotMetaOf<crate::cluster::raft_node::TypeConfig> =
+            bincode::deserialize(&inner.snapshot_meta).map_err(|e| {
+                Status::invalid_argument(format!("deserialize snapshot meta: {}", e))
+            })?;
+
+        let snapshot_cursor = Cursor::new(inner.snapshot_data);
+
+        let snapshot = openraft::alias::SnapshotOf::<crate::cluster::raft_node::TypeConfig> {
+            meta,
+            snapshot: snapshot_cursor,
+        };
+
+        let resp = raft
+            .raft
+            .install_full_snapshot(vote, snapshot)
+            .await
+            .map_err(|e| Status::internal(format!("raft install_full_snapshot: {}", e)))?;
+
+        let resp_data = bincode::serialize(&resp)
+            .map_err(|e| Status::internal(format!("serialize snapshot response: {}", e)))?;
+
+        Ok(Response::new(RaftSnapshotResponse { data: resp_data }))
     }
 }

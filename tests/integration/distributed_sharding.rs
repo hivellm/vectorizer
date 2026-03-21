@@ -19,11 +19,7 @@ fn create_test_cluster_config() -> ClusterConfig {
     ClusterConfig {
         enabled: true,
         node_id: Some("test-node-1".to_string()),
-        servers: Vec::new(),
-        discovery: DiscoveryMethod::Static,
-        timeout_ms: 5000,
-        retry_count: 3,
-        memory: Default::default(),
+        ..Default::default()
     }
 }
 
