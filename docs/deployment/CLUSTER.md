@@ -6,6 +6,156 @@ Complete guide to deploying Vectorizer in a distributed cluster configuration.
 
 This guide covers deploying Vectorizer across multiple servers for horizontal scalability and high availability.
 
+## High Availability (HA) Mode
+
+Vectorizer v2.5.0 introduces a hybrid HA architecture combining Raft consensus for metadata and TCP streaming for vector data replication.
+
+### Architecture
+
+```
+                    ┌─────────────┐
+                    │ Load Balancer│
+                    │ (K8s Service)│
+                    └──────┬──────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+        ┌─────▼─────┐ ┌───▼───┐ ┌──────▼────┐
+        │  Leader   │ │Follower│ │  Follower │
+        │  (write)  │ │ (read) │ │   (read)  │
+        │  :15002   │ │ :15002 │ │  :15002   │
+        └─────┬─────┘ └───▲───┘ └─────▲────┘
+              │            │           │
+              └────────────┴───────────┘
+                   TCP Replication
+                     (port 7001)
+```
+
+- **Leader**: Accepts both reads and writes. Replicates data to followers via TCP.
+- **Followers**: Serve reads locally. Redirect writes to leader with HTTP 307.
+- **Raft consensus**: Handles leader election, metadata operations (collection creation, shard assignment, membership changes).
+- **TCP replication**: Streams vector data from leader to followers (full sync + incremental).
+
+### Configuring HA
+
+**Master node** (`config.yml`):
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 15002
+  mcp_port: 15002
+
+cluster:
+  enabled: true
+  node_id: "master"
+
+replication:
+  enabled: true
+  role: "master"
+  bind_address: "0.0.0.0:7001"
+  heartbeat_interval: 2
+  replica_timeout: 10
+  log_size: 100000
+  wal_enabled: true
+
+auth:
+  enabled: true
+  jwt_secret: "${VECTORIZER_JWT_SECRET}"  # Set via environment variable
+```
+
+**Replica node** (`config.yml`):
+```yaml
+server:
+  host: "0.0.0.0"
+  port: 15002
+  mcp_port: 15002
+
+replication:
+  enabled: true
+  role: "replica"
+  master_address: "master-hostname:7001"
+  heartbeat_interval: 2
+
+auth:
+  enabled: true
+  jwt_secret: "${VECTORIZER_JWT_SECRET}"  # Set via environment variable  # Same as master!
+```
+
+**Important**: All nodes must share the same `jwt_secret` so that JWT tokens work across the cluster.
+
+### Docker Compose HA
+
+Use `docker-compose.ha.yml` for a 3-node HA cluster:
+
+```bash
+# 1. Create .env with credentials
+echo "VECTORIZER_ADMIN_PASSWORD=your-secure-password" > .env
+echo "VECTORIZER_JWT_SECRET=your-secret-key-minimum-32-characters-long" >> .env
+
+# 2. Start cluster
+docker-compose -f docker-compose.ha.yml up -d
+```
+
+Connection URL (single entry point):
+```
+http://localhost:15002
+```
+
+All nodes share the same JWT secret. Writes are automatically routed to the leader via HTTP 307. Reads are served by any node.
+
+### Kubernetes HA
+
+Deploy with Helm:
+
+```bash
+helm install vectorizer ./helm/vectorizer \
+  --set replicaCount=3 \
+  --set cluster.enabled=true \
+  --set cluster.discovery=dns
+```
+
+Your application connects to **one URL**:
+```
+http://vectorizer.default.svc.cluster.local:15002
+```
+
+The K8s Service load-balances across all pods:
+- **Reads** (GET) are served by any pod directly
+- **Writes** (POST/PUT/DELETE) that land on a follower are automatically redirected to the leader via HTTP 307
+- Most HTTP clients (fetch, axios, requests) follow the redirect transparently
+
+### Write Routing (HTTP 307)
+
+When a write request (POST, PUT, DELETE, PATCH) hits a follower node:
+
+1. Follower detects it is not the leader
+2. Returns HTTP 307 Temporary Redirect with `Location: http://leader:15002/original/path`
+3. Client follows the redirect to the leader
+4. Leader processes the write and replicates to followers
+
+Most HTTP clients (fetch, axios, requests, reqwest) follow 307 redirects automatically.
+
+Read requests (GET, HEAD) are always served locally on any node.
+
+### Failover Behavior
+
+When the leader node goes down:
+
+1. Followers lose TCP replication connection
+2. Followers continue serving reads with their existing data
+3. Followers still redirect writes to the (dead) leader URL
+4. When leader recovers, followers automatically reconnect
+5. Leader sends a full or partial sync to bring followers up to date
+
+### Recovery
+
+When the old leader comes back:
+
+1. Node starts and resumes its configured role (master)
+2. Followers detect the leader is back and reconnect
+3. Replication resumes from the last known offset
+4. If offset is too old, a full snapshot sync is performed
+
 ## Prerequisites
 
 - Multiple servers (physical or virtual machines)

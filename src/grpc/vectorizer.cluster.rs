@@ -29,6 +29,12 @@ pub struct GetClusterStateResponse {
     /// shard_id -> node_id
     #[prost(map = "uint32, string", tag = "2")]
     pub shard_to_node: ::std::collections::HashMap<u32, ::prost::alloc::string::String>,
+    /// cluster's current epoch
+    #[prost(uint64, tag = "3")]
+    pub current_epoch: u64,
+    /// per-shard config epochs
+    #[prost(map = "uint32, uint64", tag = "4")]
+    pub shard_epochs: ::std::collections::HashMap<u32, u64>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UpdateClusterStateRequest {
@@ -79,6 +85,9 @@ pub struct ShardAssignment {
     pub shard_id: u32,
     #[prost(string, tag = "2")]
     pub node_id: ::prost::alloc::string::String,
+    /// epoch of this assignment
+    #[prost(uint64, tag = "3")]
+    pub config_epoch: u64,
 }
 /// Remote vector operation messages
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -273,6 +282,49 @@ pub struct CheckQuotaResponse {
     #[prost(string, tag = "5")]
     pub message: ::prost::alloc::string::String,
 }
+/// Shard vector migration messages
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetShardVectorsRequest {
+    /// Name of the collection to fetch vectors from
+    #[prost(string, tag = "1")]
+    pub collection_name: ::prost::alloc::string::String,
+    /// Shard ID to fetch (reserved for future shard-aware filtering)
+    #[prost(uint32, tag = "2")]
+    pub shard_id: u32,
+    /// Pagination offset (number of vectors to skip)
+    #[prost(uint32, tag = "3")]
+    pub offset: u32,
+    /// Maximum number of vectors to return in this batch
+    #[prost(uint32, tag = "4")]
+    pub limit: u32,
+    /// Optional tenant context for multi-tenant isolation
+    #[prost(message, optional, tag = "5")]
+    pub tenant: ::core::option::Option<TenantContext>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetShardVectorsResponse {
+    /// Vectors returned in this batch
+    #[prost(message, repeated, tag = "1")]
+    pub vectors: ::prost::alloc::vec::Vec<VectorData>,
+    /// Total number of vectors in the shard/collection
+    #[prost(uint32, tag = "2")]
+    pub total_count: u32,
+    /// Whether more vectors are available beyond this batch
+    #[prost(bool, tag = "3")]
+    pub has_more: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VectorData {
+    /// Vector ID
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    /// Dense vector values
+    #[prost(float, repeated, tag = "2")]
+    pub vector: ::prost::alloc::vec::Vec<f32>,
+    /// Optional payload as JSON string
+    #[prost(string, optional, tag = "3")]
+    pub payload_json: ::core::option::Option<::prost::alloc::string::String>,
+}
 /// Reused from vectorizer.proto (simplified for cluster service)
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CollectionConfig {
@@ -291,6 +343,44 @@ pub struct CollectionInfo {
     /// Add other fields as needed
     #[prost(uint64, tag = "3")]
     pub document_count: u64,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RaftVoteRequest {
+    /// bincode-serialized VoteRequest
+    #[prost(bytes = "vec", tag = "1")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RaftVoteResponse {
+    /// bincode-serialized VoteResponse
+    #[prost(bytes = "vec", tag = "1")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RaftAppendEntriesRequest {
+    /// bincode-serialized AppendEntriesRequest
+    #[prost(bytes = "vec", tag = "1")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RaftAppendEntriesResponse {
+    /// bincode-serialized AppendEntriesResponse
+    #[prost(bytes = "vec", tag = "1")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RaftSnapshotRequest {
+    #[prost(bytes = "vec", tag = "1")]
+    pub vote_data: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "vec", tag = "2")]
+    pub snapshot_meta: ::prost::alloc::vec::Vec<u8>,
+    #[prost(bytes = "vec", tag = "3")]
+    pub snapshot_data: ::prost::alloc::vec::Vec<u8>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RaftSnapshotResponse {
+    #[prost(bytes = "vec", tag = "1")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -764,6 +854,118 @@ pub mod cluster_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        /// Shard data migration: fetch vectors from a shard in paginated batches
+        pub async fn get_shard_vectors(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetShardVectorsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetShardVectorsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/vectorizer.cluster.ClusterService/GetShardVectors",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "vectorizer.cluster.ClusterService",
+                        "GetShardVectors",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        /// Raft consensus RPCs
+        pub async fn raft_vote(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RaftVoteRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RaftVoteResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/vectorizer.cluster.ClusterService/RaftVote",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("vectorizer.cluster.ClusterService", "RaftVote"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn raft_append_entries(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RaftAppendEntriesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RaftAppendEntriesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/vectorizer.cluster.ClusterService/RaftAppendEntries",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "vectorizer.cluster.ClusterService",
+                        "RaftAppendEntries",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn raft_snapshot(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RaftSnapshotRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RaftSnapshotResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/vectorizer.cluster.ClusterService/RaftSnapshot",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("vectorizer.cluster.ClusterService", "RaftSnapshot"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -860,6 +1062,36 @@ pub mod cluster_service_server {
             request: tonic::Request<super::CheckQuotaRequest>,
         ) -> std::result::Result<
             tonic::Response<super::CheckQuotaResponse>,
+            tonic::Status,
+        >;
+        /// Shard data migration: fetch vectors from a shard in paginated batches
+        async fn get_shard_vectors(
+            &self,
+            request: tonic::Request<super::GetShardVectorsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetShardVectorsResponse>,
+            tonic::Status,
+        >;
+        /// Raft consensus RPCs
+        async fn raft_vote(
+            &self,
+            request: tonic::Request<super::RaftVoteRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RaftVoteResponse>,
+            tonic::Status,
+        >;
+        async fn raft_append_entries(
+            &self,
+            request: tonic::Request<super::RaftAppendEntriesRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RaftAppendEntriesResponse>,
+            tonic::Status,
+        >;
+        async fn raft_snapshot(
+            &self,
+            request: tonic::Request<super::RaftSnapshotRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RaftSnapshotResponse>,
             tonic::Status,
         >;
     }
@@ -1443,6 +1675,188 @@ pub mod cluster_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = CheckQuotaSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/vectorizer.cluster.ClusterService/GetShardVectors" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetShardVectorsSvc<T: ClusterService>(pub Arc<T>);
+                    impl<
+                        T: ClusterService,
+                    > tonic::server::UnaryService<super::GetShardVectorsRequest>
+                    for GetShardVectorsSvc<T> {
+                        type Response = super::GetShardVectorsResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetShardVectorsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ClusterService>::get_shard_vectors(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetShardVectorsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/vectorizer.cluster.ClusterService/RaftVote" => {
+                    #[allow(non_camel_case_types)]
+                    struct RaftVoteSvc<T: ClusterService>(pub Arc<T>);
+                    impl<
+                        T: ClusterService,
+                    > tonic::server::UnaryService<super::RaftVoteRequest>
+                    for RaftVoteSvc<T> {
+                        type Response = super::RaftVoteResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RaftVoteRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ClusterService>::raft_vote(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RaftVoteSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/vectorizer.cluster.ClusterService/RaftAppendEntries" => {
+                    #[allow(non_camel_case_types)]
+                    struct RaftAppendEntriesSvc<T: ClusterService>(pub Arc<T>);
+                    impl<
+                        T: ClusterService,
+                    > tonic::server::UnaryService<super::RaftAppendEntriesRequest>
+                    for RaftAppendEntriesSvc<T> {
+                        type Response = super::RaftAppendEntriesResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RaftAppendEntriesRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ClusterService>::raft_append_entries(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RaftAppendEntriesSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/vectorizer.cluster.ClusterService/RaftSnapshot" => {
+                    #[allow(non_camel_case_types)]
+                    struct RaftSnapshotSvc<T: ClusterService>(pub Arc<T>);
+                    impl<
+                        T: ClusterService,
+                    > tonic::server::UnaryService<super::RaftSnapshotRequest>
+                    for RaftSnapshotSvc<T> {
+                        type Response = super::RaftSnapshotResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RaftSnapshotRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ClusterService>::raft_snapshot(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RaftSnapshotSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

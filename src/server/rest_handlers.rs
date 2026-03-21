@@ -769,6 +769,20 @@ pub async fn create_collection(
             .map_err(|e| ErrorResponse::from(e))?;
     }
 
+    // Replicate collection creation to replicas
+    if let Some(ref master) = state.master_node {
+        let op = crate::replication::VectorOperation::CreateCollection {
+            name: name.to_string(),
+            config: crate::replication::CollectionConfigData {
+                dimension,
+                metric: metric.to_string(),
+            },
+            owner_id: tenant_id.map(|id| id.to_string()),
+        };
+        master.replicate(op);
+        debug!("Replicated collection creation: {}", name);
+    }
+
     // Mark changes for auto-save
     if let Some(ref auto_save) = state.auto_save_manager {
         auto_save.mark_changed();

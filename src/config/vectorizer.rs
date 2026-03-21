@@ -46,6 +46,142 @@ pub struct VectorizerConfig {
     /// File upload configuration
     #[serde(default)]
     pub file_upload: FileUploadConfig,
+    /// Replication configuration (master-replica)
+    #[serde(default)]
+    pub replication: ReplicationYamlConfig,
+}
+
+/// YAML-friendly replication configuration
+/// Maps to `crate::replication::ReplicationConfig` at runtime
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplicationYamlConfig {
+    /// Enable replication
+    #[serde(default)]
+    pub enabled: bool,
+    /// Node role: "standalone", "master", "replica"
+    #[serde(default = "default_replication_role")]
+    pub role: String,
+    /// Master bind address for replicas to connect (e.g., "0.0.0.0:7001")
+    #[serde(default)]
+    pub bind_address: Option<String>,
+    /// Master address for replica to connect to (e.g., "master-host:7001")
+    #[serde(default)]
+    pub master_address: Option<String>,
+    /// Heartbeat interval in seconds
+    #[serde(default = "default_heartbeat", alias = "heartbeat_interval_secs")]
+    pub heartbeat_interval: u64,
+    /// Replica timeout in seconds
+    #[serde(default = "default_replica_timeout", alias = "replica_timeout_secs")]
+    pub replica_timeout: u64,
+    /// Replication log size
+    #[serde(default = "default_log_size")]
+    pub log_size: usize,
+    /// Reconnect interval in seconds
+    #[serde(default = "default_reconnect", alias = "reconnect_interval_secs")]
+    pub reconnect_interval: u64,
+    /// Enable WAL for durable replication
+    #[serde(default = "default_wal_enabled")]
+    pub wal_enabled: bool,
+    /// WAL directory
+    #[serde(default)]
+    pub wal_dir: Option<String>,
+}
+
+fn default_replication_role() -> String {
+    "standalone".to_string()
+}
+fn default_heartbeat() -> u64 {
+    5
+}
+fn default_replica_timeout() -> u64 {
+    30
+}
+fn default_log_size() -> usize {
+    1_000_000
+}
+fn default_reconnect() -> u64 {
+    5
+}
+fn default_wal_enabled() -> bool {
+    true
+}
+
+impl Default for ReplicationYamlConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            role: default_replication_role(),
+            bind_address: None,
+            master_address: None,
+            heartbeat_interval: default_heartbeat(),
+            replica_timeout: default_replica_timeout(),
+            log_size: default_log_size(),
+            reconnect_interval: default_reconnect(),
+            wal_enabled: default_wal_enabled(),
+            wal_dir: None,
+        }
+    }
+}
+
+impl ReplicationYamlConfig {
+    /// Convert to runtime ReplicationConfig.
+    ///
+    /// Addresses can be either `IP:port` or `hostname:port`.
+    /// DNS hostnames are resolved synchronously at config load time.
+    pub fn to_replication_config(&self) -> crate::replication::ReplicationConfig {
+        let role = match self.role.as_str() {
+            "master" => crate::replication::NodeRole::Master,
+            "replica" => crate::replication::NodeRole::Replica,
+            _ => crate::replication::NodeRole::Standalone,
+        };
+
+        let bind_address = self
+            .bind_address
+            .as_ref()
+            .and_then(|addr| resolve_address(addr));
+        let master_address = self
+            .master_address
+            .as_ref()
+            .and_then(|addr| resolve_address(addr));
+
+        crate::replication::ReplicationConfig {
+            role,
+            bind_address,
+            master_address,
+            heartbeat_interval: self.heartbeat_interval,
+            replica_timeout: self.replica_timeout,
+            log_size: self.log_size,
+            reconnect_interval: self.reconnect_interval,
+            wal_enabled: self.wal_enabled,
+            wal_dir: self.wal_dir.clone(),
+        }
+    }
+}
+
+/// Resolve an address string that may be `IP:port` or `hostname:port`.
+/// Tries `SocketAddr::parse` first (fast), falls back to DNS resolution.
+fn resolve_address(addr: &str) -> Option<std::net::SocketAddr> {
+    // Try direct parse first (e.g., "127.0.0.1:7001")
+    if let Ok(sock) = addr.parse::<std::net::SocketAddr>() {
+        return Some(sock);
+    }
+
+    // Try DNS resolution (e.g., "vz-ha-master:7001")
+    match std::net::ToSocketAddrs::to_socket_addrs(&addr) {
+        Ok(mut addrs) => {
+            if let Some(resolved) = addrs.next() {
+                tracing::info!("Resolved '{}' → {}", addr, resolved);
+                Some(resolved)
+            } else {
+                tracing::warn!("DNS resolution for '{}' returned no addresses", addr);
+                None
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Failed to resolve address '{}': {}", addr, e);
+            None
+        }
+    }
 }
 
 /// File upload configuration for direct file indexing
@@ -347,6 +483,7 @@ impl Default for VectorizerConfig {
             auth: AuthConfig::default(),
             hub: HubConfig::default(),
             file_upload: FileUploadConfig::default(),
+            replication: ReplicationYamlConfig::default(),
         }
     }
 }

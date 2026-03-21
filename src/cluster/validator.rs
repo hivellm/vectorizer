@@ -361,6 +361,11 @@ mod tests {
             timeout_ms: 5000,
             retry_count: 3,
             memory: ClusterMemoryConfig::default(),
+            current_epoch: 0,
+            dns_name: None,
+            dns_resolve_interval: 30,
+            dns_grpc_port: 15003,
+            raft_node_id: None,
         }
     }
 

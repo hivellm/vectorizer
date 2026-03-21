@@ -150,6 +150,8 @@ mod tests {
             replica_timeout: 30,
             log_size: 1000,
             reconnect_interval: 5,
+            wal_enabled: false,
+            wal_dir: None,
         };
 
         let master = MasterNode::new(config, store);
@@ -167,6 +169,8 @@ mod tests {
             replica_timeout: 30,
             log_size: 1000,
             reconnect_interval: 5,
+            wal_enabled: false,
+            wal_dir: None,
         };
 
         let replica = ReplicaNode::new(config, store);

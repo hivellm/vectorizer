@@ -181,8 +181,26 @@ pub async fn upsert_points(
     // Fire-and-forget: Return response immediately and process in background
     // This improves response time for large batches
     let store_clone = state.store.clone();
+    let master_node = state.master_node.clone();
     let collection_name_for_bg = collection_name.clone();
     let points_count_for_bg = points_count;
+
+    // Clone vector data for replication before moving into spawn_blocking
+    let repl_vectors: Vec<(String, Vec<f32>, Option<Vec<u8>>)> = if master_node.is_some() {
+        vectors
+            .iter()
+            .map(|v| {
+                let payload_bytes = v
+                    .payload
+                    .as_ref()
+                    .and_then(|p| serde_json::to_vec(&p.data).ok());
+                (v.id.clone(), v.data.clone(), payload_bytes)
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let repl_collection = collection_name.clone();
 
     // Spawn background task for insertion (fire-and-forget)
     tokio::spawn(async move {
@@ -204,6 +222,25 @@ pub async fn upsert_points(
                     collection_name_bg,
                     duration.as_secs_f64()
                 );
+
+                // Replicate to replicas if master mode is active
+                if let Some(ref master) = master_node {
+                    for (id, data, payload) in &repl_vectors {
+                        let op = crate::replication::VectorOperation::InsertVector {
+                            collection: repl_collection.clone(),
+                            id: id.clone(),
+                            vector: data.clone(),
+                            payload: payload.clone(),
+                            owner_id: None,
+                        };
+                        master.replicate(op);
+                    }
+                    debug!(
+                        "Replicated {} vectors for collection '{}'",
+                        repl_vectors.len(),
+                        repl_collection
+                    );
+                }
             }
             Ok(Err(e)) => {
                 error!(

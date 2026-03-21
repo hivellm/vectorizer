@@ -7,9 +7,11 @@ use parking_lot::RwLock;
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
 
+use super::collection_sync::CollectionSynchronizer;
 use super::manager::ClusterManager;
 use super::node::{ClusterNode, NodeId, NodeStatus};
 use super::server_client::ClusterClientPool;
+use crate::db::VectorStore;
 
 // Include generated cluster proto code
 mod cluster_proto {
@@ -23,6 +25,8 @@ pub struct ClusterStateSynchronizer {
     manager: Arc<ClusterManager>,
     /// Client pool for gRPC communication
     client_pool: Arc<ClusterClientPool>,
+    /// Vector store used for collection consistency repair
+    store: Arc<VectorStore>,
     /// Synchronization interval
     sync_interval: Duration,
     /// Whether synchronization is running
@@ -34,11 +38,13 @@ impl ClusterStateSynchronizer {
     pub fn new(
         manager: Arc<ClusterManager>,
         client_pool: Arc<ClusterClientPool>,
+        store: Arc<VectorStore>,
         sync_interval: Duration,
     ) -> Self {
         Self {
             manager,
             client_pool,
+            store,
             sync_interval,
             running: Arc::new(RwLock::new(false)),
         }
@@ -173,23 +179,87 @@ impl ClusterStateSynchronizer {
                                 self.manager.add_node(cluster_node);
                             }
 
-                            // Update shard assignments from remote state
+                            // Update shard assignments from remote state using epoch-based
+                            // conflict resolution. Higher epoch wins; ties are broken
+                            // lexicographically by node ID (smaller ID keeps its assignment),
+                            // mirroring Redis configEpoch semantics.
                             let shard_router = self.manager.shard_router();
                             for (shard_id_u32, node_id_str) in &remote_state.shard_to_node {
                                 let shard_id = crate::db::sharding::ShardId::new(*shard_id_u32);
                                 let assigned_node_id = NodeId::new(node_id_str.clone());
 
-                                // Update router if shard assignment is different
-                                if let Some(current_node) =
-                                    shard_router.get_node_for_shard(&shard_id)
-                                {
-                                    if current_node != assigned_node_id {
-                                        debug!(
-                                            "Shard {} assignment differs: local={}, remote={}",
-                                            shard_id_u32, current_node, assigned_node_id
+                                match shard_router.get_node_for_shard(&shard_id) {
+                                    None => {
+                                        // No local assignment yet — adopt the remote one
+                                        let remote_epoch = remote_state
+                                            .shard_epochs
+                                            .get(shard_id_u32)
+                                            .copied()
+                                            .unwrap_or(0);
+                                        shard_router.apply_if_higher_epoch(
+                                            shard_id,
+                                            assigned_node_id,
+                                            remote_epoch,
                                         );
-                                        // In a production system, we'd resolve this conflict
-                                        // For now, we'll trust the remote state if it's from a majority
+                                    }
+                                    Some(current_node) if current_node != assigned_node_id => {
+                                        let local_epoch =
+                                            shard_router.get_shard_epoch(&shard_id).unwrap_or(0);
+                                        let remote_epoch = remote_state
+                                            .shard_epochs
+                                            .get(shard_id_u32)
+                                            .copied()
+                                            .unwrap_or(0);
+
+                                        if remote_epoch > local_epoch {
+                                            info!(
+                                                "Shard {} conflict resolved: remote epoch {} > \
+                                                 local epoch {}, adopting remote assignment to {}",
+                                                shard_id_u32,
+                                                remote_epoch,
+                                                local_epoch,
+                                                assigned_node_id
+                                            );
+                                            shard_router.apply_if_higher_epoch(
+                                                shard_id,
+                                                assigned_node_id,
+                                                remote_epoch,
+                                            );
+                                        } else if remote_epoch == local_epoch {
+                                            // Tie-break: the node with the lexicographically
+                                            // smaller ID is authoritative and should eventually
+                                            // increment its epoch. Until then both sides keep
+                                            // their current assignment.
+                                            if assigned_node_id.as_str() < current_node.as_str() {
+                                                debug!(
+                                                    "Shard {} epoch tie at {}: remote node '{}' \
+                                                     has smaller ID — keeping local assignment \
+                                                     on '{}' until remote increments",
+                                                    shard_id_u32,
+                                                    local_epoch,
+                                                    assigned_node_id,
+                                                    current_node
+                                                );
+                                            } else {
+                                                debug!(
+                                                    "Shard {} epoch tie at {}: keeping local \
+                                                     assignment on '{}' (smaller ID wins)",
+                                                    shard_id_u32, local_epoch, current_node
+                                                );
+                                            }
+                                        } else {
+                                            debug!(
+                                                "Shard {} conflict resolved: local epoch {} > \
+                                                 remote epoch {}, keeping local assignment on {}",
+                                                shard_id_u32,
+                                                local_epoch,
+                                                remote_epoch,
+                                                current_node
+                                            );
+                                        }
+                                    }
+                                    Some(_) => {
+                                        // Assignments agree — nothing to do
                                     }
                                 }
                             }
@@ -214,6 +284,28 @@ impl ClusterStateSynchronizer {
         }
 
         debug!("Cluster state synchronization complete");
+
+        // Repair any collections that are missing from remote nodes
+        let collection_sync = CollectionSynchronizer::new(
+            self.manager.clone(),
+            self.client_pool.clone(),
+            self.store.clone(),
+        );
+        match collection_sync.sync_collections().await {
+            Ok(report) if report.repaired_count > 0 => {
+                info!(
+                    "Collection sync repaired {} collection(s) across cluster nodes",
+                    report.repaired_count
+                );
+            }
+            Ok(_) => {
+                debug!("Collection sync complete: no repairs needed");
+            }
+            Err(e) => {
+                error!("Collection sync encountered an error: {}", e);
+            }
+        }
+
         Ok(())
     }
 
@@ -277,11 +369,19 @@ impl ClusterStateSynchronizer {
                     // Use update_cluster_state to broadcast
                     use cluster_proto::{ShardAssignment, UpdateClusterStateRequest};
 
+                    let all_shard_epochs = shard_router.get_all_shard_epochs();
                     let shard_assignments: Vec<ShardAssignment> = shard_to_node
                         .iter()
-                        .map(|(shard_id, node_id)| ShardAssignment {
-                            shard_id: *shard_id,
-                            node_id: node_id.clone(),
+                        .map(|(shard_id, node_id)| {
+                            let epoch = all_shard_epochs
+                                .get(&crate::db::sharding::ShardId::new(*shard_id))
+                                .copied()
+                                .unwrap_or(0);
+                            ShardAssignment {
+                                shard_id: *shard_id,
+                                node_id: node_id.clone(),
+                                config_epoch: epoch,
+                            }
                         })
                         .collect();
 

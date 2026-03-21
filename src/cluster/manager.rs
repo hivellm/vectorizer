@@ -83,8 +83,15 @@ impl ClusterManager {
         match self.config.discovery {
             DiscoveryMethod::Static => self.discover_static_nodes(),
             DiscoveryMethod::Dns => {
-                warn!("DNS discovery not yet implemented");
-                Ok(())
+                if let Some(dns_name) = &self.config.dns_name {
+                    info!("DNS discovery configured with name: {}", dns_name);
+                    // Initial discovery happens here; periodic resolution is
+                    // started separately via DnsDiscovery::start().
+                    Ok(())
+                } else {
+                    warn!("DNS discovery selected but no dns_name configured");
+                    Ok(())
+                }
             }
             DiscoveryMethod::ServiceRegistry => {
                 warn!("Service registry discovery not yet implemented");

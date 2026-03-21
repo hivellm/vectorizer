@@ -32,6 +32,14 @@ pub struct ReplicationConfig {
     /// Auto-reconnect interval in seconds
     #[serde(default = "default_reconnect_interval")]
     pub reconnect_interval: u64,
+
+    /// Enable WAL for durable replication (default: true)
+    #[serde(default = "default_wal_enabled")]
+    pub wal_enabled: bool,
+
+    /// WAL directory path (default: data_dir/replication-wal)
+    #[serde(default)]
+    pub wal_dir: Option<String>,
 }
 
 fn default_heartbeat_interval() -> u64 {
@@ -50,6 +58,10 @@ fn default_reconnect_interval() -> u64 {
     5
 }
 
+fn default_wal_enabled() -> bool {
+    true
+}
+
 impl Default for ReplicationConfig {
     fn default() -> Self {
         Self {
@@ -60,6 +72,8 @@ impl Default for ReplicationConfig {
             replica_timeout: default_replica_timeout(),
             log_size: default_log_size(),
             reconnect_interval: default_reconnect_interval(),
+            wal_enabled: default_wal_enabled(),
+            wal_dir: None,
         }
     }
 }

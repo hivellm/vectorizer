@@ -19,7 +19,16 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🚀 GPU Acceleration**: Metal GPU support for macOS (Apple Silicon) with cross-platform compatibility
 - **📦 Product Quantization**: PQ compression for 64x memory reduction with minimal accuracy loss
 - **💾 Compact Storage**: Unified `.vecdb` format with 20-30% space savings and automatic snapshots
-- **🔄 Master-Replica Replication**: High availability with automatic failover and SDK routing support
+- **🗳️ Raft Consensus (HA)**: Production-grade high availability with automatic leader election via openraft
+  - Hybrid architecture: Raft for metadata consensus, TCP streaming for vector data
+  - Automatic failover: replicas detect leader failure and elect new leader in 1-5 seconds
+  - Write-redirect: follower nodes return HTTP 307 redirecting writes to the current leader
+  - Read scaling: any node can serve read requests locally
+  - WAL-backed durable replication with configurable write concern
+  - Epoch-based conflict resolution for shard assignments
+  - DNS discovery for Kubernetes headless services
+  - Docker Compose and Helm chart for HA deployment
+- **🔄 Master-Replica Replication**: TCP streaming replication with full/partial sync and auto-reconnect
 - **🔗 Distributed Sharding**: Horizontal scaling across multiple servers with automatic shard routing
 - **☁️ HiveHub Cluster Mode**: Multi-tenant cluster deployment with HiveHub.Cloud
   - Tenant isolation with user-scoped collections

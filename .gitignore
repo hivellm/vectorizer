@@ -145,3 +145,15 @@ scripts/.vectorizer-sim/
 
 # Claude AI settings (local only, should not be in git)
 .claude/
+
+# Rulebook - ignore runtime data, keep specs and tasks
+/.rulebook/*
+!/.rulebook/specs/
+!/.rulebook/tasks/
+!/.rulebook/tasks/**/*.md
+!/.rulebook/rulebook.json
+
+# Cluster config files (may contain secrets)
+config.cluster-*.yml
+config.ha-*.yml
+.env

@@ -1,0 +1,113 @@
+# ============================================================================
+# Vectorizer High Availability Cluster
+# ============================================================================
+#
+# Architecture: 1 Master (read/write) + 2 Replicas (read-only)
+# Replication: TCP streaming (master → replicas)
+# Auth: Shared JWT secret + same admin credentials across all nodes
+#
+# Setup:
+#   1. Create .env file with credentials:
+#      VECTORIZER_ADMIN_PASSWORD=your-secure-password
+#      VECTORIZER_JWT_SECRET=your-secret-key-minimum-32-characters-long
+#
+#   2. Start:  docker-compose -f docker-compose.ha.yml up -d
+#      Stop:   docker-compose -f docker-compose.ha.yml down -v
+#      Logs:   docker-compose -f docker-compose.ha.yml logs -f
+#
+# Connection URL (single entry point):
+#   http://localhost:15002
+#
+# Writes go to the leader automatically (HTTP 307 redirect).
+# Reads are served by any node.
+#
+# All nodes share the same JWT secret, so a token from one node works on all.
+
+x-shared-env: &shared-env
+  VECTORIZER_AUTH_ENABLED: "true"
+  VECTORIZER_ADMIN_USERNAME: "${VECTORIZER_ADMIN_USERNAME:-admin}"
+  VECTORIZER_ADMIN_PASSWORD: "${VECTORIZER_ADMIN_PASSWORD:?Set VECTORIZER_ADMIN_PASSWORD in .env}"
+  VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:?Set VECTORIZER_JWT_SECRET in .env (min 32 chars)}"
+
+services:
+  # ─────────────────────────────────────────────
+  # MASTER NODE (accepts writes, replicates to replicas)
+  # ─────────────────────────────────────────────
+  vectorizer-master:
+    image: vectorizer:raft
+    container_name: vz-ha-master
+    user: root
+    ports:
+      - "15002:15002"   # REST API + Dashboard
+      - "7001:7001"     # Replication port (internal)
+    environment:
+      <<: *shared-env
+      RUST_LOG: "info,vectorizer::replication=debug"
+    volumes:
+      - master-data:/vectorizer/data
+      - ./config.ha-master.yml:/vectorizer/config.yml:ro
+    command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config.yml"]
+    networks:
+      - ha-cluster
+    healthcheck:
+      test: ["CMD", "/vectorizer/vectorizer", "--version"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # REPLICA 1 (read-only, receives data from master)
+  # ─────────────────────────────────────────────
+  vectorizer-replica1:
+    image: vectorizer:raft
+    container_name: vz-ha-replica1
+    user: root
+    ports:
+      - "15012:15002"   # REST API
+    environment:
+      <<: *shared-env
+      RUST_LOG: "info,vectorizer::replication=debug"
+    volumes:
+      - replica1-data:/vectorizer/data
+      - ./config.ha-replica.yml:/vectorizer/config.yml:ro
+    command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config.yml"]
+    depends_on:
+      vectorizer-master:
+        condition: service_healthy
+    networks:
+      - ha-cluster
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # REPLICA 2 (read-only, receives data from master)
+  # ─────────────────────────────────────────────
+  vectorizer-replica2:
+    image: vectorizer:raft
+    container_name: vz-ha-replica2
+    user: root
+    ports:
+      - "15022:15002"   # REST API
+    environment:
+      <<: *shared-env
+      RUST_LOG: "info,vectorizer::replication=debug"
+    volumes:
+      - replica2-data:/vectorizer/data
+      - ./config.ha-replica.yml:/vectorizer/config.yml:ro
+    command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config.yml"]
+    depends_on:
+      vectorizer-master:
+        condition: service_healthy
+    networks:
+      - ha-cluster
+    restart: unless-stopped
+
+volumes:
+  master-data:
+  replica1-data:
+  replica2-data:
+
+networks:
+  ha-cluster:
+    driver: bridge

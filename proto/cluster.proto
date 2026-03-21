@@ -26,6 +26,14 @@ service ClusterService {
 
     // Quota check across cluster
     rpc CheckQuota(CheckQuotaRequest) returns (CheckQuotaResponse);
+
+    // Shard data migration: fetch vectors from a shard in paginated batches
+    rpc GetShardVectors(GetShardVectorsRequest) returns (GetShardVectorsResponse);
+
+    // Raft consensus RPCs
+    rpc RaftVote(RaftVoteRequest) returns (RaftVoteResponse);
+    rpc RaftAppendEntries(RaftAppendEntriesRequest) returns (RaftAppendEntriesResponse);
+    rpc RaftSnapshot(RaftSnapshotRequest) returns (RaftSnapshotResponse);
 }
 
 // Tenant context for multi-tenant operations
@@ -49,6 +57,8 @@ message GetClusterStateRequest {
 message GetClusterStateResponse {
     repeated ClusterNode nodes = 1;
     map<uint32, string> shard_to_node = 2; // shard_id -> node_id
+    uint64 current_epoch = 3;              // cluster's current epoch
+    map<uint32, uint64> shard_epochs = 4;  // per-shard config epochs
 }
 
 message UpdateClusterStateRequest {
@@ -88,6 +98,7 @@ message NodeMetadata {
 message ShardAssignment {
     uint32 shard_id = 1;
     string node_id = 2;
+    uint64 config_epoch = 3; // epoch of this assignment
 }
 
 // Remote vector operation messages
@@ -230,6 +241,38 @@ enum QuotaType {
     QUOTA_STORAGE = 2;
 }
 
+// Shard vector migration messages
+message GetShardVectorsRequest {
+    // Name of the collection to fetch vectors from
+    string collection_name = 1;
+    // Shard ID to fetch (reserved for future shard-aware filtering)
+    uint32 shard_id = 2;
+    // Pagination offset (number of vectors to skip)
+    uint32 offset = 3;
+    // Maximum number of vectors to return in this batch
+    uint32 limit = 4;
+    // Optional tenant context for multi-tenant isolation
+    optional TenantContext tenant = 5;
+}
+
+message GetShardVectorsResponse {
+    // Vectors returned in this batch
+    repeated VectorData vectors = 1;
+    // Total number of vectors in the shard/collection
+    uint32 total_count = 2;
+    // Whether more vectors are available beyond this batch
+    bool has_more = 3;
+}
+
+message VectorData {
+    // Vector ID
+    string id = 1;
+    // Dense vector values
+    repeated float vector = 2;
+    // Optional payload as JSON string
+    optional string payload_json = 3;
+}
+
 // Reused from vectorizer.proto (simplified for cluster service)
 message CollectionConfig {
     uint32 dimension = 1;
@@ -242,5 +285,33 @@ message CollectionInfo {
     uint64 vector_count = 2;
     uint64 document_count = 3;
     // Add other fields as needed
+}
+
+// Raft consensus messages
+
+message RaftVoteRequest {
+    bytes data = 1;  // bincode-serialized VoteRequest
+}
+
+message RaftVoteResponse {
+    bytes data = 1;  // bincode-serialized VoteResponse
+}
+
+message RaftAppendEntriesRequest {
+    bytes data = 1;  // bincode-serialized AppendEntriesRequest
+}
+
+message RaftAppendEntriesResponse {
+    bytes data = 1;  // bincode-serialized AppendEntriesResponse
+}
+
+message RaftSnapshotRequest {
+    bytes vote_data = 1;
+    bytes snapshot_meta = 2;
+    bytes snapshot_data = 3;
+}
+
+message RaftSnapshotResponse {
+    bytes data = 1;
 }
 

@@ -78,12 +78,18 @@ The release workflows will automatically:
 
 1. **`release-artifacts.yml`**
    - Triggered on: Release published
-   - Builds: All platform binaries, Debian packages, AppImage, MSI
-   - Outputs: Artifacts uploaded to GitHub release
+   - Builds: All platform binaries, Debian packages, AppImage, MSI, Docker images
+   - Outputs: Artifacts uploaded to GitHub release + Docker images pushed to Docker Hub
+   - **Docker Build Strategy**: Uses pre-built binaries (artifact-based) instead of compiling in Docker
+     - Builds binaries separately for linux/amd64 (gnu) and linux/arm64 (gnu)
+     - Builds dashboard assets separately
+     - Passes pre-built artifacts to Dockerfile.artifacts for final image creation
+     - Uses Debian Bookworm slim as runtime base (same as test containers)
+     - Benefits: Faster builds, no OOM errors, no linker issues, consistent environment
 
 2. **`docker-image.yml`**
    - Triggered on: Tags matching `v*.*.*`
-   - Builds: Multi-platform Docker images
+   - Builds: Multi-platform Docker images (legacy flow for non-release tags)
    - Outputs: Pushed to Docker Hub and GitHub Container Registry
 
 3. **`rust-lint.yml`**
@@ -208,6 +214,8 @@ wix build -arch x64 -ext WixToolset.UI.wixext wix\main.wxs -o vectorizer.msi
 
 ### Docker Build
 
+#### Standard Build (with Rust compilation in Docker)
+
 ```bash
 # Build for current platform
 docker build -t vectorizer:local .
@@ -220,6 +228,50 @@ docker buildx build --platform linux/amd64,linux/arm64 -t vectorizer:multi .
 docker buildx build --cache-from type=local,src=/tmp/.buildx-cache \
                     --cache-to type=local,dest=/tmp/.buildx-cache \
                     -t vectorizer:cached .
+```
+
+#### Artifact-Based Build (CI/CD approach - no Rust compilation in Docker)
+
+For releases, we use `Dockerfile.artifacts` which builds from pre-compiled binaries:
+
+```bash
+# 1. Build binaries locally or in CI
+cargo build --release --target x86_64-unknown-linux-gnu --bin vectorizer
+cargo build --release --target aarch64-unknown-linux-gnu --bin vectorizer
+
+# 2. Build dashboard
+cd dashboard && pnpm install && pnpm build && cd ..
+
+# 3. Prepare artifacts structure (as CI does)
+mkdir -p binaries/linux-amd64
+mkdir -p binaries/linux-arm64
+cp target/x86_64-unknown-linux-gnu/release/vectorizer binaries/linux-amd64/
+cp target/aarch64-unknown-linux-gnu/release/vectorizer binaries/linux-arm64/
+
+# 4. Build Docker image from artifacts
+docker buildx build -f Dockerfile.artifacts --platform linux/amd64,linux/arm64 \
+  -t vectorizer:artifact-build \
+  --build-arg GIT_COMMIT_ID=custom-build \
+  --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') .
+```
+
+**Advantages of artifact-based builds:**
+- Faster builds (no compilation in Docker)
+- No OOM errors from large compilations
+- No linker issues (mold/ld compatibility)
+- Consistent environment (same runtime base as test containers)
+- Better for CI/CD pipelines with separate build stages
+
+**Context layout for artifact builds:**
+```
+binaries/
+├── linux-amd64/
+│   └── vectorizer
+└── linux-arm64/
+    └── vectorizer
+dashboard/
+└── dist/
+config.example.yml
 ```
 
 ## Troubleshooting

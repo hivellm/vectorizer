@@ -13,6 +13,7 @@
 //! - Configurable replication modes
 
 pub mod config;
+pub mod durable_log;
 pub mod master;
 pub mod replica;
 pub mod replication_log;
@@ -26,10 +27,12 @@ mod tests;
 mod stats_tests;
 
 pub use config::ReplicationConfig;
+pub use durable_log::DurableReplicationLog;
 pub use master::MasterNode;
 pub use replica::ReplicaNode;
 pub use replication_log::ReplicationLog;
 pub use types::{
     CollectionConfigData, NodeRole, ReplicaInfo, ReplicaStatus, ReplicationCommand,
     ReplicationError, ReplicationOperation, ReplicationResult, ReplicationStats, VectorOperation,
+    WriteConcern,
 };

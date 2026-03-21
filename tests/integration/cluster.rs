@@ -3,9 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use vectorizer::cluster::{
-    ClusterClientPool, ClusterConfig, ClusterManager, DiscoveryMethod, NodeId, ServerConfig,
-};
+use vectorizer::cluster::{ClusterClientPool, ClusterConfig, ClusterManager, NodeId, ServerConfig};
 use vectorizer::db::sharding::ShardId;
 
 #[tokio::test]
@@ -13,11 +11,7 @@ async fn test_cluster_manager_initialization() {
     let config = ClusterConfig {
         enabled: true,
         node_id: Some("test-node-1".to_string()),
-        servers: Vec::new(),
-        discovery: DiscoveryMethod::Static,
-        timeout_ms: 5000,
-        retry_count: 3,
-        memory: Default::default(),
+        ..Default::default()
     };
 
     let manager = ClusterManager::new(config).unwrap();
@@ -30,11 +24,7 @@ async fn test_cluster_manager_add_remove_node() {
     let config = ClusterConfig {
         enabled: true,
         node_id: Some("test-node-1".to_string()),
-        servers: Vec::new(),
-        discovery: DiscoveryMethod::Static,
-        timeout_ms: 5000,
-        retry_count: 3,
-        memory: Default::default(),
+        ..Default::default()
     };
 
     let manager = Arc::new(ClusterManager::new(config).unwrap());
@@ -181,10 +171,7 @@ async fn test_cluster_config_serialization() {
                 grpc_port: 15004,
             },
         ],
-        discovery: DiscoveryMethod::Static,
-        timeout_ms: 5000,
-        retry_count: 3,
-        memory: Default::default(),
+        ..Default::default()
     };
 
     // Test serialization

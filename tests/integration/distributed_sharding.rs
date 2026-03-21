@@ -6,8 +6,7 @@
 use std::sync::Arc;
 
 use vectorizer::cluster::{
-    ClusterClientPool, ClusterConfig, ClusterManager, DiscoveryMethod, DistributedShardRouter,
-    NodeId,
+    ClusterClientPool, ClusterConfig, ClusterManager, DistributedShardRouter, NodeId,
 };
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::db::sharding::ShardId;
@@ -19,11 +18,7 @@ fn create_test_cluster_config() -> ClusterConfig {
     ClusterConfig {
         enabled: true,
         node_id: Some("test-node-1".to_string()),
-        servers: Vec::new(),
-        discovery: DiscoveryMethod::Static,
-        timeout_ms: 5000,
-        retry_count: 3,
-        memory: Default::default(),
+        ..Default::default()
     }
 }
 

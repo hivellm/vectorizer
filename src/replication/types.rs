@@ -258,6 +258,34 @@ impl ReplicaInfo {
     }
 }
 
+/// WAL entry for durable replication
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplicationWalEntry {
+    pub offset: u64,
+    pub timestamp: u64,
+    pub operation: VectorOperation,
+    /// true when all replicas have ACKed this entry
+    pub replicated: bool,
+}
+
+/// Write concern level for replication
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WriteConcern {
+    /// Fire and forget - don't wait for any replica (default)
+    None,
+    /// Wait for N replicas to confirm
+    Count(usize),
+    /// Wait for all connected replicas
+    All,
+}
+
+impl Default for WriteConcern {
+    fn default() -> Self {
+        WriteConcern::None
+    }
+}
+
 /// Replication errors
 #[derive(Error, Debug)]
 pub enum ReplicationError {
@@ -284,6 +312,15 @@ pub enum ReplicationError {
 
     #[error("Already connected: {0}")]
     AlreadyConnected(String),
+
+    #[error(
+        "Write concern timeout: required {required} replicas, got {confirmed} for offset {offset}"
+    )]
+    WriteConcernTimeout {
+        required: usize,
+        confirmed: usize,
+        offset: u64,
+    },
 }
 
 pub type ReplicationResult<T> = Result<T, ReplicationError>;

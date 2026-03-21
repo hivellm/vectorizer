@@ -37,6 +37,8 @@ async fn create_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net::Socket
         replica_timeout: 5,
         log_size: 1000,
         reconnect_interval: 1,
+        wal_enabled: false,
+        wal_dir: None,
     };
 
     let store = Arc::new(VectorStore::new());
@@ -60,6 +62,8 @@ async fn create_replica(master_addr: std::net::SocketAddr) -> (Arc<ReplicaNode>,
         replica_timeout: 5,
         log_size: 1000,
         reconnect_interval: 1,
+        wal_enabled: false,
+        wal_dir: None,
     };
 
     let store = Arc::new(VectorStore::new());
@@ -219,6 +223,8 @@ async fn test_full_sync_when_offset_too_old() {
         replica_timeout: 5,
         log_size: 5, // Very small log to force full sync
         reconnect_interval: 1,
+        wal_enabled: false,
+        wal_dir: None,
     };
 
     let master_store = Arc::new(VectorStore::new());

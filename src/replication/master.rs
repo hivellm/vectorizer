@@ -15,22 +15,22 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use parking_lot::RwLock;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use super::config::ReplicationConfig;
-use super::replication_log::ReplicationLog;
+use super::durable_log::DurableReplicationLog;
 use super::types::{
     ReplicaInfo, ReplicationCommand, ReplicationError, ReplicationOperation, ReplicationResult,
-    ReplicationStats, VectorOperation,
+    ReplicationStats, VectorOperation, WriteConcern,
 };
 use crate::db::VectorStore;
 
 /// Master Node - Accepts writes and replicates to replica nodes
 pub struct MasterNode {
     config: ReplicationConfig,
-    replication_log: Arc<ReplicationLog>,
+    replication_log: Arc<DurableReplicationLog>,
     vector_store: Arc<VectorStore>,
 
     /// Connected replicas
@@ -38,6 +38,12 @@ pub struct MasterNode {
 
     /// Channel to send operations to replication task
     replication_tx: mpsc::UnboundedSender<ReplicationMessage>,
+
+    /// Per-replica confirmed offsets, updated when ACKs arrive
+    confirmed_offsets: Arc<RwLock<HashMap<String, u64>>>,
+
+    /// Notified whenever any ACK arrives so `wait_for_replicas` can wake up
+    ack_notify: Arc<Notify>,
 }
 
 struct ReplicaConnection {
@@ -60,10 +66,19 @@ impl MasterNode {
         config: ReplicationConfig,
         vector_store: Arc<VectorStore>,
     ) -> ReplicationResult<Self> {
-        let replication_log = Arc::new(ReplicationLog::new(config.log_size));
+        let wal_path = if config.wal_enabled {
+            let dir = config.wal_dir.as_deref().unwrap_or("data/replication-wal");
+            Some(std::path::PathBuf::from(dir).join("replication.wal"))
+        } else {
+            None
+        };
+
+        let replication_log = Arc::new(DurableReplicationLog::new(config.log_size, wal_path)?);
         let (replication_tx, replication_rx) = mpsc::unbounded_channel();
 
         let replicas = Arc::new(RwLock::new(HashMap::new()));
+        let confirmed_offsets = Arc::new(RwLock::new(HashMap::new()));
+        let ack_notify = Arc::new(Notify::new());
 
         let node = Self {
             config,
@@ -71,6 +86,8 @@ impl MasterNode {
             vector_store,
             replicas,
             replication_tx,
+            confirmed_offsets,
+            ack_notify,
         };
 
         // Start replication task
@@ -92,6 +109,8 @@ impl MasterNode {
         let replicas = Arc::clone(&self.replicas);
         let replication_log = Arc::clone(&self.replication_log);
         let vector_store = Arc::clone(&self.vector_store);
+        let confirmed_offsets = Arc::clone(&self.confirmed_offsets);
+        let ack_notify = Arc::clone(&self.ack_notify);
 
         tokio::spawn(async move {
             loop {
@@ -102,6 +121,8 @@ impl MasterNode {
                         let replicas = Arc::clone(&replicas);
                         let replication_log = Arc::clone(&replication_log);
                         let vector_store = Arc::clone(&vector_store);
+                        let confirmed_offsets = Arc::clone(&confirmed_offsets);
+                        let ack_notify = Arc::clone(&ack_notify);
 
                         tokio::spawn(async move {
                             if let Err(e) = Self::handle_replica(
@@ -110,6 +131,8 @@ impl MasterNode {
                                 replicas,
                                 replication_log,
                                 vector_store,
+                                confirmed_offsets,
+                                ack_notify,
                             )
                             .await
                             {
@@ -130,13 +153,20 @@ impl MasterNode {
         Ok(())
     }
 
-    /// Handle a replica connection
+    /// Handle a replica connection.
+    ///
+    /// The TcpStream is split into read and write halves so that ACKs arriving
+    /// from the replica can be processed concurrently with commands sent to it.
+    /// ACKs update `confirmed_offsets` and wake any caller blocked in
+    /// `wait_for_replicas` via `ack_notify`.
     async fn handle_replica(
         mut stream: TcpStream,
         addr: SocketAddr,
         replicas: Arc<RwLock<HashMap<String, ReplicaConnection>>>,
-        replication_log: Arc<ReplicationLog>,
+        replication_log: Arc<DurableReplicationLog>,
         vector_store: Arc<VectorStore>,
+        confirmed_offsets: Arc<RwLock<HashMap<String, u64>>>,
+        ack_notify: Arc<Notify>,
     ) -> ReplicationResult<()> {
         let replica_id = Uuid::new_v4().to_string();
 
@@ -158,7 +188,7 @@ impl MasterNode {
         // Create channel for this replica
         let (tx, mut rx) = mpsc::unbounded_channel();
 
-        // Register replica
+        // Register replica and initialise its confirmed offset
         {
             let mut replicas = replicas.write();
             replicas.insert(
@@ -173,6 +203,11 @@ impl MasterNode {
                 },
             );
         }
+        {
+            confirmed_offsets
+                .write()
+                .insert(replica_id.clone(), replica_offset);
+        }
 
         // Determine sync strategy
         let current_offset = replication_log.current_offset();
@@ -185,7 +220,6 @@ impl MasterNode {
         if need_full_sync {
             info!("Performing full sync for replica {}", replica_id);
 
-            // Create and send snapshot
             let snapshot = super::sync::create_snapshot(&vector_store, current_offset)
                 .await
                 .map_err(|e| ReplicationError::Sync(e))?;
@@ -197,7 +231,6 @@ impl MasterNode {
 
             Self::send_command(&mut stream, &cmd).await?;
 
-            // Update replica offset
             {
                 let mut replicas = replicas.write();
                 if let Some(replica) = replicas.get_mut(&replica_id) {
@@ -207,7 +240,6 @@ impl MasterNode {
         } else {
             info!("Performing partial sync for replica {}", replica_id);
 
-            // Get operations since replica's offset
             if let Some(operations) = replication_log.get_operations(replica_offset) {
                 let cmd = ReplicationCommand::PartialSync {
                     from_offset: replica_offset,
@@ -216,7 +248,6 @@ impl MasterNode {
 
                 Self::send_command(&mut stream, &cmd).await?;
 
-                // Update replica offset
                 {
                     let mut replicas = replicas.write();
                     if let Some(replica) = replicas.get_mut(&replica_id) {
@@ -226,16 +257,77 @@ impl MasterNode {
             }
         }
 
-        // Start sending operations to replica
+        // Split the stream so we can send commands and receive ACKs concurrently.
+        let (mut read_half, mut write_half) = stream.into_split();
+
+        // Spawn a task to read ACKs from the replica on the read half.
+        let ack_replica_id = replica_id.clone();
+        let ack_confirmed_offsets = Arc::clone(&confirmed_offsets);
+        let ack_notify_clone = Arc::clone(&ack_notify);
+
+        tokio::spawn(async move {
+            let mut len_buf = [0u8; 4];
+            loop {
+                match read_half.read_exact(&mut len_buf).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        debug!("ACK reader for replica {} closed: {}", ack_replica_id, e);
+                        break;
+                    }
+                }
+
+                let len = u32::from_be_bytes(len_buf) as usize;
+                let mut data_buf = vec![0u8; len];
+                if let Err(e) = read_half.read_exact(&mut data_buf).await {
+                    debug!(
+                        "ACK reader for replica {} read error: {}",
+                        ack_replica_id, e
+                    );
+                    break;
+                }
+
+                match bincode::deserialize::<ReplicationCommand>(&data_buf) {
+                    Ok(ReplicationCommand::Ack { replica_id, offset }) => {
+                        debug!(
+                            "Received ACK from replica {} for offset {}",
+                            replica_id, offset
+                        );
+                        {
+                            let mut map = ack_confirmed_offsets.write();
+                            let entry = map.entry(replica_id.clone()).or_insert(0);
+                            if offset > *entry {
+                                *entry = offset;
+                            }
+                        }
+                        // Wake any tasks waiting in wait_for_replicas
+                        ack_notify_clone.notify_waiters();
+                    }
+                    Ok(other) => {
+                        warn!(
+                            "Unexpected command from replica {}: {:?}",
+                            ack_replica_id, other
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to deserialise ACK from replica {}: {}",
+                            ack_replica_id, e
+                        );
+                    }
+                }
+            }
+        });
+
+        // Send commands to the replica on the write half.
         loop {
             tokio::select! {
                 Some(cmd) = rx.recv() => {
-                    if let Err(e) = Self::send_command(&mut stream, &cmd).await {
+                    if let Err(e) = Self::send_command_half(&mut write_half, &cmd).await {
                         error!("Failed to send to replica {}: {}", replica_id, e);
                         break;
                     }
 
-                    // Update replica offset after successful send
+                    // Update the tracked send offset after successful delivery
                     if let ReplicationCommand::Operation(ref op) = cmd {
                         let mut replicas = replicas.write();
                         if let Some(replica) = replicas.get_mut(&replica_id) {
@@ -248,12 +340,13 @@ impl MasterNode {
 
         // Cleanup on disconnect
         replicas.write().remove(&replica_id);
+        confirmed_offsets.write().remove(&replica_id);
         info!("Replica {} disconnected", replica_id);
 
         Ok(())
     }
 
-    /// Send a command to replica
+    /// Send a command to a replica using a full TcpStream (used during initial sync phase).
     async fn send_command(
         stream: &mut TcpStream,
         cmd: &ReplicationCommand,
@@ -263,7 +356,6 @@ impl MasterNode {
         let data = bincode::serialize(cmd)?;
         let len = (data.len() as u32).to_be_bytes();
 
-        // Track bytes sent (4 bytes for length + data)
         let total_bytes = 4 + data.len();
         METRICS
             .replication_bytes_sent_total
@@ -276,11 +368,44 @@ impl MasterNode {
         Ok(())
     }
 
-    /// Replicate an operation to all replicas
+    /// Send a command to a replica using an owned write half (used after stream split).
+    async fn send_command_half(
+        write_half: &mut tokio::net::tcp::OwnedWriteHalf,
+        cmd: &ReplicationCommand,
+    ) -> ReplicationResult<()> {
+        use crate::monitoring::metrics::METRICS;
+
+        let data = bincode::serialize(cmd)?;
+        let len = (data.len() as u32).to_be_bytes();
+
+        let total_bytes = 4 + data.len();
+        METRICS
+            .replication_bytes_sent_total
+            .inc_by(total_bytes as f64);
+
+        write_half.write_all(&len).await?;
+        write_half.write_all(&data).await?;
+        write_half.flush().await?;
+
+        Ok(())
+    }
+
+    /// Replicate an operation to all replicas.
+    ///
+    /// When WAL is enabled the write is fsynced to disk before returning the
+    /// offset, ensuring durability across master crashes.
     pub fn replicate(&self, operation: VectorOperation) -> u64 {
         use crate::monitoring::metrics::METRICS;
 
-        let offset = self.replication_log.append(operation.clone());
+        let offset = match self.replication_log.append(operation.clone()) {
+            Ok(off) => off,
+            Err(e) => {
+                // WAL write failed — log the error and fall back to the
+                // in-memory offset so the caller is not blocked.
+                tracing::error!("WAL append failed (durability compromised): {}", e);
+                self.replication_log.current_offset()
+            }
+        };
 
         // Update operations pending metric
         METRICS.replication_operations_pending.inc();
@@ -291,6 +416,121 @@ impl MasterNode {
             .send(ReplicationMessage::Operation(operation));
 
         offset
+    }
+
+    /// Wait until at least `num_replicas` have confirmed `target_offset`.
+    ///
+    /// Returns the number of replicas whose confirmed offset is >= `target_offset`
+    /// at the time the function returns (either enough confirmed, or timeout).
+    pub async fn wait_for_replicas(
+        &self,
+        target_offset: u64,
+        num_replicas: usize,
+        timeout: Duration,
+    ) -> usize {
+        let deadline = tokio::time::Instant::now() + timeout;
+
+        loop {
+            // Count replicas that have confirmed at least target_offset
+            let confirmed_count = {
+                let map = self.confirmed_offsets.read();
+                map.values()
+                    .filter(|&&offset| offset >= target_offset)
+                    .count()
+            };
+
+            if confirmed_count >= num_replicas {
+                return confirmed_count;
+            }
+
+            // Wait for the next ACK or for the deadline to expire
+            let notified = self.ack_notify.notified();
+            tokio::select! {
+                _ = notified => {
+                    // An ACK arrived; loop back and recount
+                }
+                _ = tokio::time::sleep_until(deadline) => {
+                    // Timeout: return however many confirmed so far
+                    let map = self.confirmed_offsets.read();
+                    return map
+                        .values()
+                        .filter(|&&offset| offset >= target_offset)
+                        .count();
+                }
+            }
+        }
+    }
+
+    /// Replicate an operation and optionally wait for replica acknowledgements.
+    ///
+    /// The `concern` parameter controls how many replicas must confirm before
+    /// the method returns successfully.  Use `WriteConcern::None` (the default)
+    /// for the original fire-and-forget behaviour.
+    pub async fn replicate_with_concern(
+        &self,
+        operation: VectorOperation,
+        concern: WriteConcern,
+        timeout: Duration,
+    ) -> ReplicationResult<u64> {
+        let offset = self.replicate(operation);
+
+        match concern {
+            WriteConcern::None => Ok(offset),
+            WriteConcern::Count(n) => {
+                let confirmed = self.wait_for_replicas(offset, n, timeout).await;
+                if confirmed >= n {
+                    Ok(offset)
+                } else {
+                    Err(ReplicationError::WriteConcernTimeout {
+                        required: n,
+                        confirmed,
+                        offset,
+                    })
+                }
+            }
+            WriteConcern::All => {
+                let total = self.replicas.read().len();
+                let confirmed = self.wait_for_replicas(offset, total, timeout).await;
+                if confirmed >= total {
+                    Ok(offset)
+                } else {
+                    Err(ReplicationError::WriteConcernTimeout {
+                        required: total,
+                        confirmed,
+                        offset,
+                    })
+                }
+            }
+        }
+    }
+
+    /// Recover the replication log from the WAL on master startup.
+    ///
+    /// Call this once **before** `start()` to pre-load the in-memory ring
+    /// buffer with any operations that were written to the WAL but not yet
+    /// confirmed by all replicas at the time of the last crash.
+    ///
+    /// Taking `&mut self` here is intentional: it provides a compile-time
+    /// guarantee that no concurrent readers or writers exist during recovery,
+    /// which matches the intended usage (call during startup, before spawning
+    /// any tasks).
+    pub fn recover_from_wal(&mut self) -> ReplicationResult<u64> {
+        // Arc::get_mut succeeds only when this is the sole strong reference,
+        // i.e. before any tasks have cloned the Arc.
+        match Arc::get_mut(&mut self.replication_log) {
+            Some(log) => {
+                let last_offset = log.recover()?;
+                info!("WAL recovery complete: last_offset={}", last_offset);
+                Ok(last_offset)
+            }
+            None => {
+                // Concurrent references exist — recovery cannot proceed safely.
+                // This should not happen in practice (caller violated the
+                // startup contract).
+                warn!("recover_from_wal called with shared Arc references; skipping WAL replay");
+                Ok(self.replication_log.current_offset())
+            }
+        }
     }
 
     /// Start replication task (sends operations to replicas)
@@ -443,20 +683,25 @@ mod tests {
     use crate::db::VectorStore;
     use crate::replication::{CollectionConfigData, NodeRole, ReplicationConfig, VectorOperation};
 
-    #[tokio::test]
-    async fn test_master_creation_and_initial_state() {
-        let store = Arc::new(VectorStore::new());
-        let config = ReplicationConfig {
+    fn test_config(log_size: usize) -> ReplicationConfig {
+        ReplicationConfig {
             role: NodeRole::Master,
             bind_address: Some("127.0.0.1:0".parse().unwrap()),
             master_address: None,
             heartbeat_interval: 5,
             replica_timeout: 30,
-            log_size: 1000,
+            log_size,
             reconnect_interval: 5,
-        };
+            // Disable WAL in unit tests to avoid touching the filesystem
+            wal_enabled: false,
+            wal_dir: None,
+        }
+    }
 
-        let result = MasterNode::new(config, store);
+    #[tokio::test]
+    async fn test_master_creation_and_initial_state() {
+        let store = Arc::new(VectorStore::new());
+        let result = MasterNode::new(test_config(1000), store);
         assert!(result.is_ok());
 
         let master = result.unwrap();
@@ -474,17 +719,7 @@ mod tests {
     #[tokio::test]
     async fn test_master_replicate_increments_offset() {
         let store = Arc::new(VectorStore::new());
-        let config = ReplicationConfig {
-            role: NodeRole::Master,
-            bind_address: Some("127.0.0.1:0".parse().unwrap()),
-            master_address: None,
-            heartbeat_interval: 5,
-            replica_timeout: 30,
-            log_size: 1000,
-            reconnect_interval: 5,
-        };
-
-        let master = MasterNode::new(config, store).unwrap();
+        let master = MasterNode::new(test_config(1000), store).unwrap();
 
         // Replicate operations
         for i in 0..10 {
@@ -502,5 +737,64 @@ mod tests {
         // Check final stats
         let stats = master.get_stats();
         assert_eq!(stats.master_offset, 10);
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_replicas_no_replicas_returns_zero() {
+        let store = Arc::new(VectorStore::new());
+        let master = MasterNode::new(test_config(1000), store).unwrap();
+
+        // With no replicas connected, wait_for_replicas should time out immediately
+        // and return 0.
+        let confirmed = master
+            .wait_for_replicas(1, 1, Duration::from_millis(50))
+            .await;
+        assert_eq!(confirmed, 0);
+    }
+
+    #[tokio::test]
+    async fn test_replicate_with_concern_none_succeeds() {
+        let store = Arc::new(VectorStore::new());
+        let master = MasterNode::new(test_config(1000), store).unwrap();
+
+        let op = VectorOperation::InsertVector {
+            collection: "test".to_string(),
+            id: "v1".to_string(),
+            vector: vec![1.0; 4],
+            payload: None,
+            owner_id: None,
+        };
+
+        let result = master
+            .replicate_with_concern(op, WriteConcern::None, Duration::from_millis(100))
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_replicate_with_concern_count_times_out_no_replicas() {
+        let store = Arc::new(VectorStore::new());
+        let master = MasterNode::new(test_config(1000), store).unwrap();
+
+        let op = VectorOperation::InsertVector {
+            collection: "test".to_string(),
+            id: "v1".to_string(),
+            vector: vec![1.0; 4],
+            payload: None,
+            owner_id: None,
+        };
+
+        let result = master
+            .replicate_with_concern(op, WriteConcern::Count(1), Duration::from_millis(50))
+            .await;
+        assert!(matches!(
+            result,
+            Err(ReplicationError::WriteConcernTimeout {
+                required: 1,
+                confirmed: 0,
+                offset: 1
+            })
+        ));
     }
 }

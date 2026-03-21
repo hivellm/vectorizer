@@ -36,6 +36,8 @@ async fn create_running_master() -> (Arc<MasterNode>, Arc<VectorStore>, std::net
         replica_timeout: 10,
         log_size: 10000,
         reconnect_interval: 1,
+        wal_enabled: false,
+        wal_dir: None,
     };
 
     let store = Arc::new(VectorStore::new());
@@ -65,6 +67,8 @@ async fn create_running_replica(
         replica_timeout: 10,
         log_size: 10000,
         reconnect_interval: 1,
+        wal_enabled: false,
+        wal_dir: None,
     };
 
     let store = Arc::new(VectorStore::new());
