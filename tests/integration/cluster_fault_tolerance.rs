@@ -6,9 +6,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use vectorizer::cluster::{
-    ClusterClientPool, ClusterConfig, ClusterManager, NodeId,
-};
+use vectorizer::cluster::{ClusterClientPool, ClusterConfig, ClusterManager, NodeId};
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::error::VectorizerError;
 use vectorizer::models::{

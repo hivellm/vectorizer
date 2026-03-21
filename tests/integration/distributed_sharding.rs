@@ -6,8 +6,7 @@
 use std::sync::Arc;
 
 use vectorizer::cluster::{
-    ClusterClientPool, ClusterConfig, ClusterManager, DistributedShardRouter,
-    NodeId,
+    ClusterClientPool, ClusterConfig, ClusterManager, DistributedShardRouter, NodeId,
 };
 use vectorizer::db::distributed_sharded_collection::DistributedShardedCollection;
 use vectorizer::db::sharding::ShardId;

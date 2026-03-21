@@ -6,7 +6,6 @@
 //! - Collection consistency (quorum)
 //! - DNS discovery
 
-
 use vectorizer::cluster::shard_migrator::MigrationStatus;
 use vectorizer::cluster::{
     ClusterConfig, ClusterManager, ClusterNode, DistributedShardRouter, NodeId,
@@ -101,7 +100,6 @@ fn test_epoch_survives_rebalance() {
         assert!(
             router.get_shard_epoch(shard).is_some(),
             "Shard {shard:?} should have an epoch after rebalance",
-
         );
     }
 
