@@ -10,8 +10,6 @@ use std::io::Cursor;
 use std::ops::RangeBounds;
 use std::sync::Arc;
 
-// Re-export parking_lot for ClusterRaftNetwork's targets field.
-use parking_lot;
 
 use futures::Stream;
 use openraft::alias::{
@@ -24,6 +22,8 @@ use openraft::storage::{
     RaftStateMachine,
 };
 use openraft::{Config, EntryPayload, OptionalSend, Vote};
+// Re-export parking_lot for ClusterRaftNetwork targets field.
+use parking_lot;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::{debug, info};
