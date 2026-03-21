@@ -6,23 +6,28 @@
 # Replication: TCP streaming (master → replicas)
 # Auth: Shared JWT secret + same admin credentials across all nodes
 #
-# Start:  docker-compose -f docker-compose.ha.yml up -d
-# Stop:   docker-compose -f docker-compose.ha.yml down -v
-# Logs:   docker-compose -f docker-compose.ha.yml logs -f
+# Setup:
+#   1. Create .env file with credentials:
+#      VECTORIZER_ADMIN_PASSWORD=your-secure-password
+#      VECTORIZER_JWT_SECRET=your-secret-key-minimum-32-characters-long
 #
-# Endpoints:
-#   Master:   http://localhost:15002  (read + write)
-#   Replica1: http://localhost:15012  (read only)
-#   Replica2: http://localhost:15022  (read only)
-#   Dashboard: http://localhost:15002  (login: admin / ClusterAdmin2024!)
+#   2. Start:  docker-compose -f docker-compose.ha.yml up -d
+#      Stop:   docker-compose -f docker-compose.ha.yml down -v
+#      Logs:   docker-compose -f docker-compose.ha.yml logs -f
+#
+# Connection URL (single entry point):
+#   http://localhost:15002
+#
+# Writes go to the leader automatically (HTTP 307 redirect).
+# Reads are served by any node.
 #
 # All nodes share the same JWT secret, so a token from one node works on all.
 
 x-shared-env: &shared-env
   VECTORIZER_AUTH_ENABLED: "true"
-  VECTORIZER_ADMIN_USERNAME: "admin"
-  VECTORIZER_ADMIN_PASSWORD: "ClusterAdmin2024!"
-  VECTORIZER_JWT_SECRET: "vectorizer-ha-cluster-shared-jwt-secret-key-2024-minimum-32-chars"
+  VECTORIZER_ADMIN_USERNAME: "${VECTORIZER_ADMIN_USERNAME:-admin}"
+  VECTORIZER_ADMIN_PASSWORD: "${VECTORIZER_ADMIN_PASSWORD:?Set VECTORIZER_ADMIN_PASSWORD in .env}"
+  VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:?Set VECTORIZER_JWT_SECRET in .env (min 32 chars)}"
 
 services:
   # ─────────────────────────────────────────────

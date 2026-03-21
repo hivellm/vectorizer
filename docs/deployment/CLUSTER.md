@@ -60,7 +60,7 @@ replication:
 
 auth:
   enabled: true
-  jwt_secret: "your-shared-secret-minimum-32-characters"
+  jwt_secret: "${VECTORIZER_JWT_SECRET}"  # Set via environment variable
 ```
 
 **Replica node** (`config.yml`):
@@ -78,24 +78,30 @@ replication:
 
 auth:
   enabled: true
-  jwt_secret: "your-shared-secret-minimum-32-characters"  # Same as master!
+  jwt_secret: "${VECTORIZER_JWT_SECRET}"  # Set via environment variable  # Same as master!
 ```
 
 **Important**: All nodes must share the same `jwt_secret` so that JWT tokens work across the cluster.
 
 ### Docker Compose HA
 
-Use `docker-compose.ha.yml` for a 3-node local HA cluster:
+Use `docker-compose.ha.yml` for a 3-node HA cluster:
 
 ```bash
+# 1. Create .env with credentials
+echo "VECTORIZER_ADMIN_PASSWORD=your-secure-password" > .env
+echo "VECTORIZER_JWT_SECRET=your-secret-key-minimum-32-characters-long" >> .env
+
+# 2. Start cluster
 docker-compose -f docker-compose.ha.yml up -d
 ```
 
-Endpoints:
-- Master: http://localhost:15002 (read + write)
-- Replica 1: http://localhost:15012 (read only)
-- Replica 2: http://localhost:15022 (read only)
-- Login: admin / ClusterAdmin2024!
+Connection URL (single entry point):
+```
+http://localhost:15002
+```
+
+All nodes share the same JWT secret. Writes are automatically routed to the leader via HTTP 307. Reads are served by any node.
 
 ### Kubernetes HA
 
@@ -108,16 +114,15 @@ helm install vectorizer ./helm/vectorizer \
   --set cluster.discovery=dns
 ```
 
-Your application connects to a single Service URL:
+Your application connects to **one URL**:
 ```
 http://vectorizer.default.svc.cluster.local:15002
 ```
 
-The K8s Service load-balances across all pods. Write requests that land on a follower are automatically redirected to the leader via HTTP 307.
-
-For clients that don't follow redirects, use two Services:
-- `vectorizer-write` → routes only to the leader pod
-- `vectorizer-read` → routes to all pods
+The K8s Service load-balances across all pods:
+- **Reads** (GET) are served by any pod directly
+- **Writes** (POST/PUT/DELETE) that land on a follower are automatically redirected to the leader via HTTP 307
+- Most HTTP clients (fetch, axios, requests) follow the redirect transparently
 
 ### Write Routing (HTTP 307)
 
