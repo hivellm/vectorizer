@@ -1,6 +1,7 @@
 name: Build and publish release packages
 permissions:
   contents: write
+  packages: write
 on:
   release:
     # 'published' is triggered when publishing draft release, 'created' is not
@@ -255,9 +256,8 @@ jobs:
           bin: vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Docker só roda após dashboard + binários para Docker + build do backend (release) ok.
-  # Uma tag (version + latest), manifesto multi-plataforma (linux/amd64 + linux/arm64).
-  # Requer secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN.
+  # Docker: multi-platform image pushed to GitHub Container Registry (ghcr.io).
+  # Zero secrets — usa GITHUB_TOKEN automático.
   publish-docker:
     needs:
       - build-dashboard
@@ -285,12 +285,22 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Set version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-      - name: Login to Docker Hub
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
       - name: Build and push Docker image (from artifacts)
         uses: docker/build-push-action@v6
         with:
@@ -298,9 +308,8 @@ jobs:
           file: ./Dockerfile.artifacts
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:${{ steps.version.outputs.VERSION }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/vectorizer:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GIT_COMMIT_ID=${{ steps.version.outputs.VERSION }}
             BUILD_DATE=${{ github.event.release.published_at }}
