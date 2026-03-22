@@ -2,7 +2,7 @@
 replicaCount: 1
 
 image:
-  repository: vectorizer
+  repository: ghcr.io/hivellm/vectorizer
   pullPolicy: IfNotPresent
   tag: "latest"
 

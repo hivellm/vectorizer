@@ -1,0 +1,52 @@
+name: Release Helm Chart
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  release-helm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Set chart version from release tag
+        env:
+          REF_NAME: ${{ github.ref }}
+        run: |
+          VERSION="${REF_NAME#refs/tags/v}"
+          sed -i "s/^version:.*/version: $VERSION/" helm/vectorizer/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" helm/vectorizer/Chart.yaml
+
+      - name: Update Helm values with GHCR image
+        env:
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref }}
+        run: |
+          sed -i "s|repository:.*|repository: ghcr.io/$REPO|" helm/vectorizer/values.yaml
+          VERSION="${REF_NAME#refs/tags/v}"
+          sed -i "s|tag:.*|tag: \"$VERSION\"|" helm/vectorizer/values.yaml
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.0
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: helm
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
