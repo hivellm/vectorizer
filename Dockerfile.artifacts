@@ -11,21 +11,20 @@
 #
 # Build (CI): docker buildx build -f Dockerfile.artifacts --platform linux/amd64,linux/arm64 .
 #
-# Runtime uses debian:bookworm-slim (same as Dockerfile.test) so the same binary that
-# works in the test container works in CI/CD; avoids glibc/distroless compatibility issues.
+# Runtime uses debian:trixie-slim (Debian 13) for latest glibc and security patches.
 
 # Stage: binary + permissions + writable data dir
 ARG TARGETARCH
-FROM debian:bookworm-slim AS base
+FROM debian:trixie-slim AS base
 ARG TARGETARCH
 COPY binaries/linux-${TARGETARCH}/vectorizer /vectorizer/vectorizer
 RUN chmod +x /vectorizer/vectorizer && \
     mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
 
 # ============================================================================
-# RUNTIME IMAGE - Debian slim (same base as Dockerfile.test, proven to work)
+# RUNTIME IMAGE - Debian 13 (Trixie) slim
 # ============================================================================
-FROM debian:bookworm-slim AS vectorizer
+FROM debian:trixie-slim AS vectorizer
 
 ARG BUILD_DATE
 ARG GIT_COMMIT_ID
