@@ -168,7 +168,7 @@ impl WarmStore {
         }
 
         let index: HashMap<ContentHash, (PathBuf, u64, u64)> =
-            bincode::deserialize(&data).unwrap_or_default();
+            crate::codec::deserialize(&data).unwrap_or_default();
 
         *self.index.write() = index;
 
@@ -180,7 +180,7 @@ impl WarmStore {
         let index_path = self.base_path.join("index.bin");
 
         let index = self.index.read();
-        let data = bincode::serialize(&*index)?;
+        let data = crate::codec::serialize(&*index)?;
 
         let mut file = File::create(&index_path)?;
         file.write_all(&data)?;

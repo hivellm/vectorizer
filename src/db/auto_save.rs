@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::RwLock;
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::db::VectorStore;
 use crate::error::Result;
@@ -241,6 +241,18 @@ impl AutoSaveManager {
                                     let mut last = last_snapshot.write().await;
                                     *last = Instant::now();
                                 }
+                            } else if error_msg.contains("No data to snapshot")
+                                || error_msg.contains("no data")
+                                || error_msg.contains("does not exist")
+                            {
+                                // No .vecdb file yet — node is empty or still syncing.
+                                // Log as debug and reset timer to avoid spamming.
+                                debug!(
+                                    "📸 Snapshot: Skipped — no data to snapshot yet (data_dir: {:?})",
+                                    data_dir
+                                );
+                                let mut last = last_snapshot.write().await;
+                                *last = Instant::now();
                             } else {
                                 // Other errors are logged normally
                                 error!(

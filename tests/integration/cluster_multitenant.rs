@@ -175,8 +175,8 @@ fn test_replication_operation_serialization_with_owner() {
     };
 
     // Serialize and deserialize
-    let serialized = bincode::serialize(&op).unwrap();
-    let deserialized: VectorOperation = bincode::deserialize(&serialized).unwrap();
+    let serialized = vectorizer::codec::serialize(&op).unwrap();
+    let deserialized: VectorOperation = vectorizer::codec::deserialize(&serialized).unwrap();
 
     // Verify owner_id is preserved
     if let VectorOperation::CreateCollection { name, owner_id, .. } = deserialized {
@@ -200,8 +200,8 @@ fn test_replication_operation_without_owner_backward_compat() {
         owner_id: None,
     };
 
-    let serialized = bincode::serialize(&op).unwrap();
-    let deserialized: VectorOperation = bincode::deserialize(&serialized).unwrap();
+    let serialized = vectorizer::codec::serialize(&op).unwrap();
+    let deserialized: VectorOperation = vectorizer::codec::deserialize(&serialized).unwrap();
 
     if let VectorOperation::InsertVector { id, owner_id, .. } = deserialized {
         assert_eq!(id, "vec-1");
@@ -253,8 +253,8 @@ fn test_all_operation_types_with_owner() {
 
     // All should serialize/deserialize correctly
     for op in operations {
-        let serialized = bincode::serialize(&op).unwrap();
-        let _deserialized: VectorOperation = bincode::deserialize(&serialized).unwrap();
+        let serialized = vectorizer::codec::serialize(&op).unwrap();
+        let _deserialized: VectorOperation = vectorizer::codec::deserialize(&serialized).unwrap();
     }
 }
 

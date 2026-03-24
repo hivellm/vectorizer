@@ -178,7 +178,7 @@ impl MasterNode {
         let mut data_buf = vec![0u8; len];
         stream.read_exact(&mut data_buf).await?;
 
-        let replica_offset: u64 = bincode::deserialize(&data_buf)?;
+        let replica_offset: u64 = crate::codec::deserialize(&data_buf)?;
 
         info!(
             "Replica {} connected from {} with offset {}",
@@ -286,7 +286,7 @@ impl MasterNode {
                     break;
                 }
 
-                match bincode::deserialize::<ReplicationCommand>(&data_buf) {
+                match crate::codec::deserialize::<ReplicationCommand>(&data_buf) {
                     Ok(ReplicationCommand::Ack { replica_id, offset }) => {
                         debug!(
                             "Received ACK from replica {} for offset {}",
@@ -353,7 +353,7 @@ impl MasterNode {
     ) -> ReplicationResult<()> {
         use crate::monitoring::metrics::METRICS;
 
-        let data = bincode::serialize(cmd)?;
+        let data = crate::codec::serialize(cmd)?;
         let len = (data.len() as u32).to_be_bytes();
 
         let total_bytes = 4 + data.len();
@@ -375,7 +375,7 @@ impl MasterNode {
     ) -> ReplicationResult<()> {
         use crate::monitoring::metrics::METRICS;
 
-        let data = bincode::serialize(cmd)?;
+        let data = crate::codec::serialize(cmd)?;
         let len = (data.len() as u32).to_be_bytes();
 
         let total_bytes = 4 + data.len();

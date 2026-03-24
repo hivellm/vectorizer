@@ -10,10 +10,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Compile protobuf definitions with tonic-build
-    // Using tonic-build 0.12 for stable API compatibility
+    // Using tonic-prost-build 0.14 (prost extracted from tonic-build in 0.14)
     // Note: This will recompile if proto files change (expected behavior)
     // To avoid unnecessary rebuilds, proto files should be committed and only changed when needed
-    tonic_build::configure()
+    tonic_prost_build::configure()
         .build_server(true)
         .build_client(true) // Enable client generation for tests
         .out_dir("src/grpc")
@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compile Qdrant-compatible gRPC proto definitions
     println!("cargo:rerun-if-changed=proto/qdrant/");
     std::fs::create_dir_all("src/grpc/qdrant")?;
-    tonic_build::configure()
+    tonic_prost_build::configure()
         .build_server(true)
         .build_client(true)
         .out_dir("src/grpc/qdrant")

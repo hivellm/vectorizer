@@ -84,13 +84,33 @@ impl ReplicaNode {
             master_addr
         );
 
+        let base_interval = self.config.reconnect_duration();
+        let max_interval = Duration::from_secs(60); // Cap at 60 seconds
+        let mut current_interval = base_interval;
+        let mut consecutive_failures: u32 = 0;
+
         loop {
             match self.connect_and_sync(master_addr).await {
                 Ok(_) => {
                     info!("Disconnected from master, will reconnect...");
+                    // Reset backoff after a successful connection.
+                    current_interval = base_interval;
+                    consecutive_failures = 0;
                 }
                 Err(e) => {
-                    error!("Replication error: {}, will retry...", e);
+                    consecutive_failures = consecutive_failures.saturating_add(1);
+                    if consecutive_failures <= 3 {
+                        error!(
+                            "Replication error: {}, will retry in {:?}...",
+                            e, current_interval
+                        );
+                    } else if consecutive_failures % 12 == 0 {
+                        // Log every ~12 failures to reduce spam (roughly once per minute at max backoff).
+                        warn!(
+                            "Replication still failing after {} attempts: {} (retrying every {:?})",
+                            consecutive_failures, e, current_interval
+                        );
+                    }
                 }
             }
 
@@ -100,8 +120,9 @@ impl ReplicaNode {
                 state.connected = false;
             }
 
-            // Wait before reconnecting
-            sleep(self.config.reconnect_duration()).await;
+            // Wait with exponential backoff (base * 2^min(failures-1, 4), capped at max_interval).
+            sleep(current_interval).await;
+            current_interval = (current_interval * 2).min(max_interval);
         }
     }
 
@@ -109,7 +130,18 @@ impl ReplicaNode {
     async fn connect_and_sync(&self, master_addr: std::net::SocketAddr) -> ReplicationResult<()> {
         info!("Connecting to master at {}", master_addr);
 
-        let mut stream = TcpStream::connect(master_addr).await?;
+        // Use a 5-second connection timeout to fail fast when the master is
+        // unreachable (e.g., pod not ready in Kubernetes), instead of waiting
+        // for the OS TCP timeout which can be 30-120 seconds.
+        let mut stream =
+            tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(master_addr))
+                .await
+                .map_err(|_| {
+                    ReplicationError::Connection(format!(
+                        "Connection to master at {} timed out after 5s",
+                        master_addr
+                    ))
+                })??;
 
         // Update state
         {
@@ -120,7 +152,7 @@ impl ReplicaNode {
 
         // Send current offset to master
         let current_offset = self.state.read().offset;
-        let data = bincode::serialize(&current_offset)?;
+        let data = crate::codec::serialize(&current_offset)?;
         let len = (data.len() as u32).to_be_bytes();
 
         stream.write_all(&len).await?;
@@ -241,7 +273,7 @@ impl ReplicaNode {
             replica_id: replica_id.to_string(),
             offset,
         };
-        let data = bincode::serialize(&ack)?;
+        let data = crate::codec::serialize(&ack)?;
         let len = (data.len() as u32).to_be_bytes();
         stream.write_all(&len).await?;
         stream.write_all(&data).await?;
@@ -274,7 +306,7 @@ impl ReplicaNode {
         state.total_bytes += total_bytes as u64;
         drop(state);
 
-        let cmd: ReplicationCommand = bincode::deserialize(&data_buf)?;
+        let cmd: ReplicationCommand = crate::codec::deserialize(&data_buf)?;
 
         Ok(cmd)
     }

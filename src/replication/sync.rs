@@ -68,7 +68,7 @@ pub async fn create_snapshot(store: &VectorStore, offset: u64) -> Result<Vec<u8>
         collections: collection_snapshots,
     };
 
-    let data = bincode::serialize(&snapshot_data).map_err(|e| e.to_string())?;
+    let data = crate::codec::serialize(&snapshot_data).map_err(|e| e.to_string())?;
 
     // Calculate checksum
     let checksum = crc32fast::hash(&data);
@@ -92,7 +92,7 @@ pub async fn create_snapshot(store: &VectorStore, offset: u64) -> Result<Vec<u8>
     );
 
     // Combine metadata + data
-    let mut result = bincode::serialize(&metadata).map_err(|e| e.to_string())?;
+    let mut result = crate::codec::serialize(&metadata).map_err(|e| e.to_string())?;
     result.extend_from_slice(&data);
 
     Ok(result)
@@ -101,9 +101,11 @@ pub async fn create_snapshot(store: &VectorStore, offset: u64) -> Result<Vec<u8>
 /// Apply snapshot to vector store
 pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64, String> {
     // Deserialize metadata
-    let metadata: SnapshotMetadata = bincode::deserialize(snapshot).map_err(|e| e.to_string())?;
+    let metadata: SnapshotMetadata =
+        crate::codec::deserialize(snapshot).map_err(|e| e.to_string())?;
 
-    let metadata_size = bincode::serialized_size(&metadata).map_err(|e| e.to_string())? as usize;
+    let metadata_size =
+        crate::codec::serialized_size(&metadata).map_err(|e| e.to_string())? as usize;
     let data = &snapshot[metadata_size..];
 
     // Verify checksum
@@ -116,7 +118,7 @@ pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64,
     }
 
     // Deserialize snapshot data
-    let snapshot_data: SnapshotData = bincode::deserialize(data).map_err(|e| e.to_string())?;
+    let snapshot_data: SnapshotData = crate::codec::deserialize(data).map_err(|e| e.to_string())?;
 
     info!(
         "Applying snapshot: {} collections, {} vectors, offset: {}",
@@ -449,7 +451,7 @@ mod tests {
         let snapshot = create_snapshot(&store, 999).await.unwrap();
 
         // Deserialize metadata to verify fields
-        let metadata: SnapshotMetadata = bincode::deserialize(&snapshot).unwrap();
+        let metadata: SnapshotMetadata = crate::codec::deserialize(&snapshot).unwrap();
 
         assert_eq!(metadata.offset, 999);
         // Note: total_collections might include auto-loaded collections

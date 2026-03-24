@@ -85,7 +85,7 @@ impl DurableReplicationLog {
                 replicated: false,
             };
 
-            let encoded = bincode::serialize(&entry)
+            let encoded = crate::codec::serialize(&entry)
                 .map_err(|e| super::types::ReplicationError::Serialization(e))?;
 
             let len = encoded.len() as u32;
@@ -200,7 +200,7 @@ impl DurableReplicationLog {
                 }
             }
 
-            let entry: ReplicationWalEntry = match bincode::deserialize(&data_buf) {
+            let entry: ReplicationWalEntry = match crate::codec::deserialize(&data_buf) {
                 Ok(e) => e,
                 Err(e) => {
                     warn!("WAL: corrupt entry after offset {}: {}", last_offset, e);
@@ -260,7 +260,7 @@ impl DurableReplicationLog {
             }
 
             // Peek at the offset without a full decode when possible
-            let entry: ReplicationWalEntry = match bincode::deserialize(&data_buf) {
+            let entry: ReplicationWalEntry = match crate::codec::deserialize(&data_buf) {
                 Ok(e) => e,
                 Err(_) => break,
             };

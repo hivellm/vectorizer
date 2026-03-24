@@ -74,14 +74,17 @@ A high-performance vector database and search engine built in Rust, designed for
 - **🔒 Security**: JWT + API Key authentication with RBAC
 - **🔐 Payload Encryption**: Optional ECC-P256 + AES-256-GCM payload encryption with zero-knowledge architecture ([docs](docs/features/encryption/README.md))
 
-## 🎉 Latest Release: v2.4.0 - Transmutation Default & Enhanced File Upload
+## 🎉 Latest Release: v2.5.1 - HA Cluster Failover & Dependency Upgrades
 
-**New in v2.4.0:**
+**New in v2.5.1:**
+- **Automatic HA failover**: Raft leadership watcher bridges consensus elections to master/replica transitions in Kubernetes clusters
+- **Exponential backoff**: Replica reconnect uses 5s→60s backoff, reducing log noise when master is unreachable
+- **Dependency upgrades**: bincode 2.0, tonic 0.14, prost 0.14, and all Dependabot PRs resolved
+- **Bug fixes**: Snapshot spam on empty replicas, TCP connection timeout for faster failure detection
+
+**Previous Release (v2.5.0):**
+- **HA Cluster**: Hybrid Raft + TCP replication architecture for Kubernetes deployments
 - **Transmutation enabled by default**: Document conversion (PDF, DOCX, XLSX, PPTX, images) now included in default build
-- **Increased file upload limits**: Support for files up to 200MB (previously 100MB)
-- **Enhanced file upload configuration**: Improved config loading with better error handling and logging
-- **Extended file format support**: Added PDF, DOCX, XLSX, PPTX, and image formats to allowed extensions
-- **Improved upload validation**: Better error messages and config path detection
 
 **Previous Release (v2.3.0):**
 - **Embedded Dashboard**: All dashboard assets now embedded in binary (single executable, ~26MB)
@@ -418,7 +421,7 @@ Comprehensive feature comparison with major vector database solutions:
 - **Milvus**: Large-scale deployments requiring advanced scalability features
 - **Chroma**: Python-first applications with simple setup requirements
 
-## 🔧 Recent Improvements (v2.0.0 - v2.4.0)
+## 🔧 Recent Improvements (v2.0.0 - v2.5.1)
 
 ### New Features (v2.0.0+)
 
@@ -503,14 +506,14 @@ Cursor IDE configuration:
 
 ## 📦 Client SDKs
 
-All SDKs are synchronized with server version **2.4.0**:
+All SDKs are synchronized with server version **2.5.1**:
 
-- **Python**: `pip install vectorizer-sdk` (v2.4.0)
-- **TypeScript**: `npm install @hivehub/vectorizer-sdk` (v2.4.0)
-- **Rust**: `cargo add vectorizer-sdk` (v2.4.0)
-- **JavaScript**: `npm install @hivehub/vectorizer-sdk-js` (v2.4.0)
-- **C#**: `dotnet add package Vectorizer.Sdk` (v2.4.0)
-- **Go**: `go get github.com/hivellm/vectorizer-sdk-go` (v2.4.0)
+- **Python**: `pip install vectorizer-sdk` (v2.5.1)
+- **TypeScript**: `npm install @hivehub/vectorizer-sdk` (v2.5.1)
+- **Rust**: `cargo add vectorizer-sdk` (v2.5.1)
+- **JavaScript**: `npm install @hivehub/vectorizer-sdk-js` (v2.5.1)
+- **C#**: `dotnet add package Vectorizer.Sdk` (v2.5.1)
+- **Go**: `go get github.com/hivellm/vectorizer-sdk-go` (v2.5.1)
 
 ## 🔗 Workflow & LLM Integrations
 

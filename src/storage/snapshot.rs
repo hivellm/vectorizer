@@ -44,8 +44,23 @@ impl SnapshotManager {
         }
     }
 
-    /// Create a new snapshot
+    /// Create a new snapshot.
+    ///
+    /// Returns `Err` with a `Storage` variant containing "no data" if the
+    /// `.vecdb` file does not exist yet (e.g., fresh node with no vectors).
+    /// Callers should treat this as a non-fatal condition.
     pub fn create_snapshot(&self) -> Result<SnapshotInfo> {
+        // Early check: skip snapshot if there is no data file yet.
+        // This avoids creating empty snapshot directories on fresh/replica nodes
+        // that have not received any data.
+        let vecdb_src = self.data_dir.join(crate::storage::VECDB_FILE);
+        if !vecdb_src.exists() {
+            return Err(VectorizerError::Storage(format!(
+                "No data to snapshot — .vecdb file does not exist at {:?} (node may be empty or still syncing)",
+                vecdb_src
+            )));
+        }
+
         // Ensure data directory exists first (parent of snapshots)
         if let Some(parent) = self.snapshots_dir.parent() {
             fs::create_dir_all(parent).map_err(|e| {
@@ -131,44 +146,34 @@ impl SnapshotManager {
             ))
         })?;
 
-        // Copy .vecdb file
-        let vecdb_src = self.data_dir.join(crate::storage::VECDB_FILE);
+        // Copy .vecdb file (existence already verified at the top of this function).
         let vecdb_dst = snapshot_dir.join(crate::storage::VECDB_FILE);
 
-        if vecdb_src.exists() {
-            // Check source file size and permissions
-            let src_metadata = fs::metadata(&vecdb_src).map_err(|e| {
-                VectorizerError::Io(std::io::Error::new(
-                    e.kind(),
-                    format!(
-                        "Failed to read source file metadata {:?}: {} (kind: {:?})",
-                        vecdb_src,
-                        e,
-                        e.kind()
-                    ),
-                ))
-            })?;
+        let src_metadata = fs::metadata(&vecdb_src).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                e.kind(),
+                format!(
+                    "Failed to read source file metadata {:?}: {} (kind: {:?})",
+                    vecdb_src,
+                    e,
+                    e.kind()
+                ),
+            ))
+        })?;
 
-            // Copy with better error handling
-            fs::copy(&vecdb_src, &vecdb_dst).map_err(|e| {
-                VectorizerError::Io(std::io::Error::new(
+        fs::copy(&vecdb_src, &vecdb_dst).map_err(|e| {
+            VectorizerError::Io(std::io::Error::new(
+                e.kind(),
+                format!(
+                    "Failed to copy {:?} to {:?}: {} (kind: {:?}, src_size: {} bytes)",
+                    vecdb_src,
+                    vecdb_dst,
+                    e,
                     e.kind(),
-                    format!(
-                        "Failed to copy {:?} to {:?}: {} (kind: {:?}, src_size: {} bytes)",
-                        vecdb_src,
-                        vecdb_dst,
-                        e,
-                        e.kind(),
-                        src_metadata.len()
-                    ),
-                ))
-            })?;
-        } else {
-            return Err(VectorizerError::Storage(format!(
-                "No .vecdb file to snapshot at {:?}",
-                vecdb_src
-            )));
-        }
+                    src_metadata.len()
+                ),
+            ))
+        })?;
 
         // Copy .vecidx file
         let vecidx_src = self.data_dir.join(crate::storage::VECIDX_FILE);

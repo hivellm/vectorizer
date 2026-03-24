@@ -322,7 +322,7 @@ impl CacheShard {
         // Load existing index
         let entries = if index_file.exists() {
             let data = std::fs::read(&index_file)?;
-            bincode::deserialize(&data)?
+            crate::codec::deserialize(&data)?
         } else {
             HashMap::new()
         };
@@ -423,7 +423,7 @@ impl CacheShard {
 
     fn save_index(&self) -> Result<()> {
         let index_file = self.data_file.with_extension("idx");
-        let data = bincode::serialize(&self.entries)?;
+        let data = crate::codec::serialize(&self.entries)?;
         std::fs::write(&index_file, data)?;
         Ok(())
     }
