@@ -147,9 +147,13 @@ jobs:
       matrix:
         include:
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-15-intel
+            # ort-sys has no prebuilt binaries for macOS x86_64, so disable
+            # fastembed (which pulls ort/ONNX) on Intel Macs.
+            no_default_features: true
           - target: aarch64-apple-darwin
             os: macos-latest
+            no_default_features: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
@@ -171,12 +175,14 @@ jobs:
         with:
           bin: vectorizer
           target: ${{ matrix.target }}
+          no-default-features: ${{ matrix.no_default_features }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and publish vectorizer-cli
         uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: vectorizer-cli
           target: ${{ matrix.target }}
+          no-default-features: ${{ matrix.no_default_features }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build-mac-metal-binaries:
