@@ -303,14 +303,27 @@ impl Default for FileUploadConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     /// Host to bind to
+    #[serde(default = "default_host")]
     pub host: String,
     /// Port to listen on
+    #[serde(default = "default_port")]
     pub port: u16,
-    /// MCP port
+    /// MCP port (default: 15003)
+    #[serde(default = "default_mcp_port")]
     pub mcp_port: u16,
     /// Cleanup empty collections on startup
     #[serde(default)]
     pub startup_cleanup_empty: bool,
+}
+
+fn default_host() -> String {
+    "0.0.0.0".to_string()
+}
+fn default_port() -> u16 {
+    15002
+}
+fn default_mcp_port() -> u16 {
+    15003
 }
 
 impl Default for ServerConfig {

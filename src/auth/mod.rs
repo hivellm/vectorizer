@@ -30,17 +30,42 @@ use crate::error::{Result, VectorizerError};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
     /// JWT secret key for token signing
+    #[serde(default = "default_jwt_secret")]
     pub jwt_secret: String,
     /// JWT token expiration time in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_jwt_expiration")]
     pub jwt_expiration: u64,
     /// API key length (default: 32)
+    #[serde(default = "default_api_key_length")]
     pub api_key_length: usize,
     /// Rate limiting: requests per minute per API key
+    #[serde(default = "default_rate_limit_per_minute")]
     pub rate_limit_per_minute: u32,
     /// Rate limiting: requests per hour per API key
+    #[serde(default = "default_rate_limit_per_hour")]
     pub rate_limit_per_hour: u32,
     /// Enable authentication (default: true)
+    #[serde(default = "default_auth_enabled")]
     pub enabled: bool,
+}
+
+fn default_jwt_secret() -> String {
+    "vectorizer-default-secret-key-change-in-production".to_string()
+}
+fn default_jwt_expiration() -> u64 {
+    3600
+}
+fn default_api_key_length() -> usize {
+    32
+}
+fn default_rate_limit_per_minute() -> u32 {
+    100
+}
+fn default_rate_limit_per_hour() -> u32 {
+    1000
+}
+fn default_auth_enabled() -> bool {
+    true
 }
 
 impl Default for AuthConfig {
