@@ -14,10 +14,13 @@ use crate::summarization::SummarizationConfig;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VectorizerConfig {
     /// Server configuration
+    #[serde(default)]
     pub server: ServerConfig,
     /// File watcher configuration
+    #[serde(default)]
     pub file_watcher: FileWatcherYamlConfig,
     /// Logging configuration
+    #[serde(default)]
     pub logging: LoggingConfig,
     /// GPU configuration
     #[serde(default)]
@@ -341,13 +344,24 @@ impl Default for ServerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
     /// Log level
+    #[serde(default = "default_log_level")]
     pub level: String,
     /// Log requests
+    #[serde(default = "default_true")]
     pub log_requests: bool,
     /// Log responses
+    #[serde(default)]
     pub log_responses: bool,
     /// Log errors
+    #[serde(default = "default_true")]
     pub log_errors: bool,
+}
+
+fn default_log_level() -> String {
+    "info".to_string()
+}
+fn default_true() -> bool {
+    true
 }
 
 impl Default for LoggingConfig {
