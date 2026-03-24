@@ -906,7 +906,9 @@ impl VectorizerServer {
                             repl_config.clone(),
                         ));
 
-                        // Set initial role based on replication config
+                        // Set initial role based on replication config (before Raft
+                        // watcher kicks in — provides a sane default while the
+                        // first election is in progress).
                         match repl_config.role {
                             crate::replication::NodeRole::Master => {
                                 ha.leader_router
@@ -914,14 +916,12 @@ impl VectorizerServer {
                                 info!("✅ Raft initialized as LEADER (node_id={})", node_id);
                             }
                             crate::replication::NodeRole::Replica => {
-                                // Follower: will redirect writes to leader
                                 let leader_url = repl_config
                                     .master_address
                                     .map(|addr| format!("http://{}:{}", addr.ip(), 15002))
                                     .unwrap_or_default();
                                 if !leader_url.is_empty() {
                                     ha.leader_router.set_leader(0, leader_url.clone());
-                                    // Override: this node is follower, not leader
                                     ha.leader_router.clear_leader();
                                 }
                                 info!("✅ Raft initialized as FOLLOWER (node_id={})", node_id);
@@ -930,6 +930,12 @@ impl VectorizerServer {
                                 info!("✅ Raft initialized as STANDALONE (node_id={})", node_id);
                             }
                         }
+
+                        // Start Raft leadership watcher — bridges consensus
+                        // elections to HA role transitions (MasterNode ↔ ReplicaNode).
+                        let watcher = crate::cluster::RaftWatcher::new(mgr.clone(), ha.clone());
+                        let _watcher_handle = watcher.start();
+                        info!("🔭 Raft watcher started — automatic failover enabled");
 
                         (Some(mgr), Some(ha))
                     }

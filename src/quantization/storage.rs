@@ -159,7 +159,7 @@ impl QuantizedVectorStorage {
         })?;
 
         // Write metadata header
-        let metadata_bytes = bincode::serialize(&metadata).map_err(|e| {
+        let metadata_bytes = crate::codec::serialize(&metadata).map_err(|e| {
             QuantizationError::SerializationFailed(format!("Failed to serialize metadata: {}", e))
         })?;
 
@@ -222,12 +222,13 @@ impl QuantizedVectorStorage {
         file.read_exact(&mut metadata_bytes)
             .map_err(|e| QuantizationError::Internal(format!("Failed to read metadata: {}", e)))?;
 
-        let metadata: StorageMetadata = bincode::deserialize(&metadata_bytes).map_err(|e| {
-            QuantizationError::DeserializationFailed(format!(
-                "Failed to deserialize metadata: {}",
-                e
-            ))
-        })?;
+        let metadata: StorageMetadata =
+            crate::codec::deserialize(&metadata_bytes).map_err(|e| {
+                QuantizationError::DeserializationFailed(format!(
+                    "Failed to deserialize metadata: {}",
+                    e
+                ))
+            })?;
 
         // Read compressed data
         let mut compressed_data = Vec::new();
@@ -404,13 +405,13 @@ impl QuantizedVectorStorage {
     }
 
     fn serialize_vectors(&self, vectors: &QuantizedVectors) -> QuantizationResult<Vec<u8>> {
-        bincode::serialize(vectors).map_err(|e| {
+        crate::codec::serialize(vectors).map_err(|e| {
             QuantizationError::SerializationFailed(format!("Failed to serialize vectors: {}", e))
         })
     }
 
     fn deserialize_vectors(&self, data: &[u8]) -> QuantizationResult<QuantizedVectors> {
-        bincode::deserialize(data).map_err(|e| {
+        crate::codec::deserialize(data).map_err(|e| {
             QuantizationError::DeserializationFailed(format!(
                 "Failed to deserialize vectors: {}",
                 e

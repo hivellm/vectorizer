@@ -117,7 +117,7 @@ impl AdvancedStorage {
             .map_err(|e| VectorizerError::Io(e))?;
 
         // Serialize vectors
-        let serialized = bincode::serialize(vectors).map_err(|e| {
+        let serialized = crate::codec::serialize(vectors).map_err(|e| {
             VectorizerError::Serialization(format!("Failed to serialize vectors: {}", e))
         })?;
 
@@ -177,7 +177,7 @@ impl AdvancedStorage {
                 }
 
                 // Deserialize from memory-mapped file
-                let vectors: Vec<Vector> = bincode::deserialize(&**mmap).map_err(|e| {
+                let vectors: Vec<Vector> = crate::codec::deserialize(&**mmap).map_err(|e| {
                     VectorizerError::Deserialization(format!(
                         "Failed to deserialize vectors: {}",
                         e
@@ -213,7 +213,7 @@ impl AdvancedStorage {
         };
 
         // Deserialize from memory-mapped file
-        let vectors: Vec<Vector> = bincode::deserialize(&*mmap).map_err(|e| {
+        let vectors: Vec<Vector> = crate::codec::deserialize(&*mmap).map_err(|e| {
             VectorizerError::Deserialization(format!("Failed to deserialize vectors: {}", e))
         })?;
 

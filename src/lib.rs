@@ -11,6 +11,7 @@ pub mod batch;
 pub mod cache;
 pub mod cli;
 pub mod cluster;
+pub mod codec;
 pub mod config;
 pub mod db;
 pub mod discovery;

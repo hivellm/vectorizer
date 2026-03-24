@@ -219,10 +219,10 @@ mod tests {
         ];
 
         for op in operations {
-            let serialized = bincode::serialize(&op).unwrap();
-            let deserialized: VectorOperation = bincode::deserialize(&serialized).unwrap();
+            let serialized = crate::codec::serialize(&op).unwrap();
+            let deserialized: VectorOperation = crate::codec::deserialize(&serialized).unwrap();
             // Just verify it round-trips without error
-            let _ = bincode::serialize(&deserialized).unwrap();
+            let _ = crate::codec::serialize(&deserialized).unwrap();
         }
     }
 

@@ -512,7 +512,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
         _option: openraft::network::RPCOption,
     ) -> Result<openraft::raft::VoteResponse<TypeConfig>, openraft::error::RPCError<TypeConfig>>
     {
-        let data = bincode::serialize(&rpc).map_err(|e| {
+        let data = crate::codec::serialize(&rpc).map_err(|e| {
             openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
         })?;
 
@@ -539,7 +539,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let resp: openraft::raft::VoteResponse<TypeConfig> =
-            bincode::deserialize(&response.into_inner().data).map_err(|e| {
+            crate::codec::deserialize(&response.into_inner().data).map_err(|e| {
                 openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
             })?;
 
@@ -555,7 +555,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
         openraft::raft::AppendEntriesResponse<TypeConfig>,
         openraft::error::RPCError<TypeConfig>,
     > {
-        let data = bincode::serialize(&rpc).map_err(|e| {
+        let data = crate::codec::serialize(&rpc).map_err(|e| {
             openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
         })?;
 
@@ -582,7 +582,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let resp: openraft::raft::AppendEntriesResponse<TypeConfig> =
-            bincode::deserialize(&response.into_inner().data).map_err(|e| {
+            crate::codec::deserialize(&response.into_inner().data).map_err(|e| {
                 openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
             })?;
 
@@ -602,11 +602,11 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
         openraft::raft::SnapshotResponse<TypeConfig>,
         openraft::error::StreamingError<TypeConfig>,
     > {
-        let vote_data = bincode::serialize(&vote).map_err(|e| {
+        let vote_data = crate::codec::serialize(&vote).map_err(|e| {
             openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
         })?;
 
-        let snapshot_meta = bincode::serialize(&snapshot.meta).map_err(|e| {
+        let snapshot_meta = crate::codec::serialize(&snapshot.meta).map_err(|e| {
             openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
         })?;
 
@@ -640,7 +640,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let resp: openraft::raft::SnapshotResponse<TypeConfig> =
-            bincode::deserialize(&response.into_inner().data).map_err(|e| {
+            crate::codec::deserialize(&response.into_inner().data).map_err(|e| {
                 openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
             })?;
 

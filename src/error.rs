@@ -37,9 +37,9 @@ pub enum VectorizerError {
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
 
-    /// Serialization error
+    /// Serialization error (bincode encode/decode)
     #[error("Serialization error: {0}")]
-    SerializationError(#[from] bincode::Error),
+    SerializationError(#[from] crate::codec::Error),
 
     /// IO error
     #[error("IO error: {0}")]

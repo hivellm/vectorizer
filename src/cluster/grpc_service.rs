@@ -745,7 +745,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
 
         let data = request.into_inner().data;
         let vote_req: openraft::raft::VoteRequest<crate::cluster::raft_node::TypeConfig> =
-            bincode::deserialize(&data)
+            crate::codec::deserialize(&data)
                 .map_err(|e| Status::invalid_argument(format!("deserialize vote: {}", e)))?;
 
         let resp = raft
@@ -754,7 +754,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
             .await
             .map_err(|e| Status::internal(format!("raft vote: {}", e)))?;
 
-        let resp_data = bincode::serialize(&resp)
+        let resp_data = crate::codec::serialize(&resp)
             .map_err(|e| Status::internal(format!("serialize vote response: {}", e)))?;
 
         Ok(Response::new(RaftVoteResponse { data: resp_data }))
@@ -773,7 +773,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
         let data = request.into_inner().data;
         let append_req: openraft::raft::AppendEntriesRequest<
             crate::cluster::raft_node::TypeConfig,
-        > = bincode::deserialize(&data)
+        > = crate::codec::deserialize(&data)
             .map_err(|e| Status::invalid_argument(format!("deserialize append_entries: {}", e)))?;
 
         let resp = raft
@@ -782,7 +782,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
             .await
             .map_err(|e| Status::internal(format!("raft append_entries: {}", e)))?;
 
-        let resp_data = bincode::serialize(&resp)
+        let resp_data = crate::codec::serialize(&resp)
             .map_err(|e| Status::internal(format!("serialize append_entries response: {}", e)))?;
 
         Ok(Response::new(RaftAppendEntriesResponse { data: resp_data }))
@@ -803,11 +803,11 @@ impl ClusterServiceTrait for ClusterGrpcService {
         let inner = request.into_inner();
 
         let vote: openraft::alias::VoteOf<crate::cluster::raft_node::TypeConfig> =
-            bincode::deserialize(&inner.vote_data)
+            crate::codec::deserialize(&inner.vote_data)
                 .map_err(|e| Status::invalid_argument(format!("deserialize vote: {}", e)))?;
 
         let meta: openraft::alias::SnapshotMetaOf<crate::cluster::raft_node::TypeConfig> =
-            bincode::deserialize(&inner.snapshot_meta).map_err(|e| {
+            crate::codec::deserialize(&inner.snapshot_meta).map_err(|e| {
                 Status::invalid_argument(format!("deserialize snapshot meta: {}", e))
             })?;
 
@@ -824,7 +824,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
             .await
             .map_err(|e| Status::internal(format!("raft install_full_snapshot: {}", e)))?;
 
-        let resp_data = bincode::serialize(&resp)
+        let resp_data = crate::codec::serialize(&resp)
             .map_err(|e| Status::internal(format!("serialize snapshot response: {}", e)))?;
 
         Ok(Response::new(RaftSnapshotResponse { data: resp_data }))

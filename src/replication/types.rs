@@ -293,7 +293,7 @@ pub enum ReplicationError {
     Io(#[from] std::io::Error),
 
     #[error("Serialization error: {0}")]
-    Serialization(#[from] bincode::Error),
+    Serialization(#[from] crate::codec::Error),
 
     #[error("Connection error: {0}")]
     Connection(String),

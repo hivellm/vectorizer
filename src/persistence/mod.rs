@@ -311,7 +311,7 @@ impl PersistenceManager {
 
     /// Save data with optional compression
     pub fn save<T: Serialize, P: AsRef<Path>>(&self, data: &T, path: P) -> Result<()> {
-        let serialized = bincode::serialize(data)?;
+        let serialized = crate::codec::serialize(data)?;
 
         let final_data = if self.compress {
             debug!("Compressing data before saving");
@@ -345,7 +345,7 @@ impl PersistenceManager {
             data
         };
 
-        let deserialized = bincode::deserialize(&decompressed)?;
+        let deserialized = crate::codec::deserialize(&decompressed)?;
         Ok(deserialized)
     }
 }
