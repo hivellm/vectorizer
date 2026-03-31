@@ -11,8 +11,18 @@ pub struct ReplicationConfig {
     /// Node role (master, replica, standalone)
     pub role: super::types::NodeRole,
 
-    /// Master address (for replicas to connect to)
+    /// Master address (for replicas to connect to).
+    ///
+    /// Stored as the original string (`host:port`) so that DNS hostnames
+    /// (e.g. K8s headless service names) are re-resolved on each connection
+    /// attempt instead of being pinned to a single IP at config-load time.
     pub master_address: Option<SocketAddr>,
+
+    /// The raw master address string before DNS resolution.
+    /// When set, the replica will re-resolve this on every reconnect
+    /// instead of using the cached `master_address` SocketAddr.
+    #[serde(default)]
+    pub master_address_raw: Option<String>,
 
     /// Replication bind address (for master to listen on)
     pub bind_address: Option<SocketAddr>,
@@ -67,6 +77,7 @@ impl Default for ReplicationConfig {
         Self {
             role: super::types::NodeRole::Standalone,
             master_address: None,
+            master_address_raw: None,
             bind_address: None,
             heartbeat_interval: default_heartbeat_interval(),
             replica_timeout: default_replica_timeout(),
@@ -110,5 +121,39 @@ impl ReplicationConfig {
     /// Get reconnect interval as Duration
     pub fn reconnect_duration(&self) -> Duration {
         Duration::from_secs(self.reconnect_interval)
+    }
+
+    /// Resolve the master address, re-resolving DNS if a raw hostname was stored.
+    ///
+    /// In Kubernetes, pod IPs change on restart. By re-resolving the DNS name
+    /// on each reconnect attempt, replicas follow the master to its new IP.
+    pub async fn resolve_master_address(&self) -> Option<SocketAddr> {
+        // If we have the raw hostname, always re-resolve it
+        if let Some(ref raw) = self.master_address_raw {
+            // Try direct parse first (IP:port needs no resolution)
+            if let Ok(sock) = raw.parse::<SocketAddr>() {
+                return Some(sock);
+            }
+
+            // Resolve DNS asynchronously
+            match tokio::net::lookup_host(raw).await {
+                Ok(mut addrs) => {
+                    let resolved = addrs.next();
+                    if resolved.is_some() {
+                        return resolved;
+                    }
+                    tracing::warn!("DNS resolution for '{}' returned no addresses", raw);
+                    None
+                }
+                Err(e) => {
+                    tracing::warn!("DNS resolution for '{}' failed: {}", raw, e);
+                    // Fall back to cached address if DNS fails
+                    self.master_address
+                }
+            }
+        } else {
+            // No raw address — use the pre-resolved one
+            self.master_address
+        }
     }
 }

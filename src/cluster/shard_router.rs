@@ -5,7 +5,6 @@
 //! to ensure consistent shard assignment per tenant.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use parking_lot::RwLock;
@@ -298,39 +297,32 @@ impl DistributedShardRouter {
         info!("Rebalancing complete");
     }
 
-    /// Migrate a shard from one node to another
-    /// Returns the previous node ID if the shard was assigned
+    /// Migrate a shard from one node to another.
+    ///
+    /// Updates the consistent hash ring and increments the epoch so that
+    /// the change propagates correctly through state synchronization.
+    /// Returns the previous node ID if the shard was assigned.
     pub fn migrate_shard(
         &self,
         shard_id: ShardId,
         from_node: &NodeId,
         to_node: &NodeId,
     ) -> Option<NodeId> {
-        let mut shard_to_node = self.shard_to_node.write();
-        let mut node_to_shards = self.node_to_shards.write();
-
         // Verify the shard is currently on from_node
-        if shard_to_node.get(&shard_id) != Some(from_node) {
-            warn!(
-                "Shard {} is not on node {}, cannot migrate",
-                shard_id.0, from_node
-            );
-            return None;
+        {
+            let shard_to_node = self.shard_to_node.read();
+            if shard_to_node.get(&shard_id) != Some(from_node) {
+                warn!(
+                    "Shard {} is not on node {}, cannot migrate",
+                    shard_id.0, from_node
+                );
+                return None;
+            }
         }
 
-        // Remove shard from source node
-        if let Some(shards) = node_to_shards.get_mut(from_node) {
-            shards.retain(|&s| s != shard_id);
-        }
-
-        // Add shard to target node
-        node_to_shards
-            .entry(to_node.clone())
-            .or_insert_with(std::collections::HashSet::new)
-            .insert(shard_id);
-
-        // Update shard-to-node mapping
-        let previous_node = shard_to_node.insert(shard_id, to_node.clone());
+        // Use assign_shard which correctly updates ring, mappings, and epoch
+        let previous_node = self.get_node_for_shard(&shard_id);
+        self.assign_shard(shard_id, to_node.clone());
 
         info!(
             "Migrated shard {} from node {} to node {}",
@@ -409,21 +401,22 @@ impl DistributedShardRouter {
         migrations
     }
 
-    /// Hash a shard virtual node
+    /// Hash a shard virtual node.
+    ///
+    /// Uses xxh3 (deterministic across platforms and Rust versions) to ensure
+    /// consistent routing in heterogeneous clusters.
     fn hash_shard_vnode(shard_id: &ShardId, vnode_index: usize) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        let mut hasher = DefaultHasher::new();
-        shard_id.as_u32().hash(&mut hasher);
-        vnode_index.hash(&mut hasher);
-        hasher.finish()
+        let mut buf = [0u8; 12];
+        buf[..4].copy_from_slice(&shard_id.as_u32().to_le_bytes());
+        buf[4..12].copy_from_slice(&(vnode_index as u64).to_le_bytes());
+        xxhash_rust::xxh3::xxh3_64(&buf)
     }
 
-    /// Hash a vector ID
+    /// Hash a vector ID.
+    ///
+    /// Uses xxh3 for deterministic, cross-platform hashing.
     fn hash_vector_id(vector_id: &str) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        let mut hasher = DefaultHasher::new();
-        vector_id.hash(&mut hasher);
-        hasher.finish()
+        xxhash_rust::xxh3::xxh3_64(vector_id.as_bytes())
     }
 
     // ============================================
@@ -519,29 +512,27 @@ impl DistributedShardRouter {
         shards
     }
 
-    /// Hash a tenant ID with a vector ID for tenant-scoped routing
+    /// Hash a tenant ID with a vector ID for tenant-scoped routing.
+    ///
+    /// Uses xxh3 with a concatenated key to ensure deterministic routing.
     fn hash_tenant_vector(tenant_id: &str, vector_id: &str) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        let mut hasher = DefaultHasher::new();
-        tenant_id.hash(&mut hasher);
-        vector_id.hash(&mut hasher);
-        hasher.finish()
+        let mut buf = Vec::with_capacity(tenant_id.len() + 1 + vector_id.len());
+        buf.extend_from_slice(tenant_id.as_bytes());
+        buf.push(0xFF); // separator to avoid collisions like ("ab","c") vs ("a","bc")
+        buf.extend_from_slice(vector_id.as_bytes());
+        xxhash_rust::xxh3::xxh3_64(&buf)
     }
 
-    /// Hash a tenant ID alone
+    /// Hash a tenant ID alone.
     fn hash_tenant_id(tenant_id: &str) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        let mut hasher = DefaultHasher::new();
-        tenant_id.hash(&mut hasher);
-        hasher.finish()
+        xxhash_rust::xxh3::xxh3_64(tenant_id.as_bytes())
     }
 
-    /// Hash a tenant ID with a shard index for multi-shard tenant distribution
+    /// Hash a tenant ID with a shard index for multi-shard tenant distribution.
     fn hash_tenant_shard(tenant_id: &str, shard_index: usize) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        let mut hasher = DefaultHasher::new();
-        tenant_id.hash(&mut hasher);
-        shard_index.hash(&mut hasher);
-        hasher.finish()
+        let mut buf = Vec::with_capacity(tenant_id.len() + 8);
+        buf.extend_from_slice(tenant_id.as_bytes());
+        buf.extend_from_slice(&(shard_index as u64).to_le_bytes());
+        xxhash_rust::xxh3::xxh3_64(&buf)
     }
 }

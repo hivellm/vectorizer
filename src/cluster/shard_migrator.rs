@@ -227,7 +227,7 @@ impl ShardMigrator {
         }
 
         // Transition to InProgress
-        self.set_status(&migration_id, MigrationStatus::InProgress, None);
+        self.set_status(&migration_id, MigrationStatus::InProgress);
 
         let result = self
             .run_migration(
@@ -248,7 +248,7 @@ impl ShardMigrator {
                     vectors_transferred = res.vectors_transferred,
                     "Shard migration completed successfully",
                 );
-                self.set_status(&migration_id, MigrationStatus::Completed, None);
+                self.set_status(&migration_id, MigrationStatus::Completed);
             }
             Err(e) => {
                 error!(
@@ -256,7 +256,7 @@ impl ShardMigrator {
                     error = %e,
                     "Shard migration failed",
                 );
-                self.set_status(&migration_id, MigrationStatus::Failed(e.to_string()), None);
+                self.set_status(&migration_id, MigrationStatus::Failed(e.to_string()));
             }
         }
 
@@ -530,7 +530,7 @@ impl ShardMigrator {
     // Progress tracking helpers
     // ------------------------------------------------------------------
 
-    fn set_status(&self, migration_id: &str, status: MigrationStatus, message: Option<&str>) {
+    fn set_status(&self, migration_id: &str, status: MigrationStatus) {
         let mut migrations = self.active_migrations.write();
         if let Some(progress) = migrations.get_mut(migration_id) {
             progress.status = status;

@@ -26,6 +26,19 @@ fn tenant_to_proto(tenant: Option<&TenantContext>) -> Option<cluster_proto::Tena
     })
 }
 
+/// Plain data struct used by [`ClusterClient::broadcast_cluster_state`] to
+/// avoid proto type mismatches across module boundaries.
+#[derive(Debug, Clone)]
+pub struct BroadcastNode {
+    pub id: String,
+    pub address: String,
+    pub grpc_port: u32,
+    pub status: i32,
+    pub shards: Vec<u32>,
+    pub version: Option<String>,
+    pub capabilities: Vec<String>,
+}
+
 /// gRPC client for cluster inter-server communication
 #[derive(Debug, Clone)]
 pub struct ClusterClient {
@@ -484,6 +497,67 @@ impl ClusterClient {
         }
     }
 
+    /// Push local cluster state to a remote node.
+    ///
+    /// Wraps the `UpdateClusterState` gRPC call so that shard assignments and
+    /// node information are propagated eagerly (in addition to the periodic
+    /// pull-based sync).
+    ///
+    /// Accepts shard assignments as `(shard_id, node_id, epoch)` tuples and an
+    /// optional local node description to avoid cross-module proto type mismatches.
+    ///
+    /// Returns `(success, message)` from the remote node.
+    pub async fn broadcast_cluster_state(
+        &self,
+        local_node: Option<BroadcastNode>,
+        shard_assignments: &[(u32, String, u64)],
+    ) -> Result<(bool, String)> {
+        let mut client = self.client.clone();
+
+        let proto_node = local_node.map(|n| cluster_proto::ClusterNode {
+            id: n.id,
+            address: n.address,
+            grpc_port: n.grpc_port,
+            status: n.status,
+            shards: n.shards,
+            metadata: Some(cluster_proto::NodeMetadata {
+                version: n.version,
+                capabilities: n.capabilities,
+                vector_count: 0,
+                memory_usage: 0,
+                cpu_usage: 0.0,
+            }),
+        });
+
+        let proto_assignments: Vec<cluster_proto::ShardAssignment> = shard_assignments
+            .iter()
+            .map(|(shard_id, node_id, epoch)| cluster_proto::ShardAssignment {
+                shard_id: *shard_id,
+                node_id: node_id.clone(),
+                config_epoch: *epoch,
+            })
+            .collect();
+
+        let request = tonic::Request::new(cluster_proto::UpdateClusterStateRequest {
+            node: proto_node,
+            shard_assignments: proto_assignments,
+        });
+
+        match client.update_cluster_state(request).await {
+            Ok(response) => {
+                let resp = response.into_inner();
+                Ok((resp.success, resp.message))
+            }
+            Err(e) => {
+                error!(
+                    "Failed to update cluster state on node {}: {}",
+                    self.node_id, e
+                );
+                Err(VectorizerError::Storage(format!("gRPC error: {}", e)))
+            }
+        }
+    }
+
     /// Get cluster state from remote server
     pub async fn get_cluster_state(&self) -> Result<cluster_proto::GetClusterStateResponse> {
         let mut client = self.client.clone();
@@ -585,11 +659,21 @@ impl ClusterClient {
     }
 }
 
+/// How long a cached client is considered healthy without re-checking.
+const HEALTH_CHECK_GRACE_PERIOD: Duration = Duration::from_secs(30);
+
+/// A cached cluster client with a timestamp of last successful use.
+#[derive(Debug, Clone)]
+struct PooledClient {
+    client: ClusterClient,
+    last_healthy: std::time::Instant,
+}
+
 /// Connection pool for cluster clients
 #[derive(Debug, Clone)]
 pub struct ClusterClientPool {
     /// Clients by node ID
-    clients: std::sync::Arc<parking_lot::RwLock<std::collections::HashMap<NodeId, ClusterClient>>>,
+    clients: std::sync::Arc<parking_lot::RwLock<std::collections::HashMap<NodeId, PooledClient>>>,
     /// Default timeout
     timeout: Duration,
 }
@@ -605,18 +689,29 @@ impl ClusterClientPool {
         }
     }
 
-    /// Get or create a client for a node
+    /// Get or create a client for a node.
+    ///
+    /// Clients that were successfully used within [`HEALTH_CHECK_GRACE_PERIOD`]
+    /// are returned immediately without a health check RPC.
     pub async fn get_client(&self, node_id: &NodeId, address: &str) -> Result<ClusterClient> {
-        // Check if client already exists
+        // Check if client already exists and is fresh
         {
-            let client_opt = {
+            let pooled_opt = {
                 let clients = self.clients.read();
                 clients.get(node_id).cloned()
             };
-            if let Some(client) = client_opt {
-                // Check if connection is still healthy
-                if client.health_check().await.unwrap_or(false) {
-                    return Ok(client);
+            if let Some(pooled) = pooled_opt {
+                if pooled.last_healthy.elapsed() < HEALTH_CHECK_GRACE_PERIOD {
+                    return Ok(pooled.client);
+                }
+                // Grace period expired — verify health
+                if pooled.client.health_check().await.unwrap_or(false) {
+                    // Update timestamp
+                    let mut clients = self.clients.write();
+                    if let Some(entry) = clients.get_mut(node_id) {
+                        entry.last_healthy = std::time::Instant::now();
+                    }
+                    return Ok(pooled.client);
                 }
             }
         }
@@ -627,7 +722,13 @@ impl ClusterClientPool {
         // Store in pool
         {
             let mut clients = self.clients.write();
-            clients.insert(node_id.clone(), client.clone());
+            clients.insert(
+                node_id.clone(),
+                PooledClient {
+                    client: client.clone(),
+                    last_healthy: std::time::Instant::now(),
+                },
+            );
         }
 
         Ok(client)

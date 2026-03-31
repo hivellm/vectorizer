@@ -50,12 +50,15 @@ impl HaManager {
     pub async fn on_become_leader(&self) {
         info!("This node is now LEADER - starting MasterNode");
 
-        // Stop replica if running
+        // Stop replica if running.
+        // We take the Arc out first, then drop the lock before dropping the
+        // node itself. This ensures the TCP connection teardown happens
+        // outside the lock and avoids holding it during potentially slow I/O.
         {
-            let mut replica = self.replica_node.write();
-            if replica.is_some() {
+            let old_replica = self.replica_node.write().take();
+            if let Some(replica) = old_replica {
                 info!("Stopping ReplicaNode (transitioning to Leader)");
-                *replica = None; // Drop stops the replica
+                drop(replica);
             }
         }
 
@@ -88,12 +91,14 @@ impl HaManager {
     pub async fn on_become_follower(&self, leader_addr: Option<String>) {
         info!("This node is now FOLLOWER");
 
-        // Stop master if running
+        // Stop master if running.
+        // Take the Arc out before dropping so the TCP listener teardown
+        // happens outside the lock.
         {
-            let mut master = self.master_node.write();
-            if master.is_some() {
+            let old_master = self.master_node.write().take();
+            if let Some(master) = old_master {
                 info!("Stopping MasterNode (transitioning to Follower)");
-                *master = None;
+                drop(master);
             }
         }
 
@@ -101,6 +106,7 @@ impl HaManager {
         if let Some(addr) = leader_addr {
             let mut config = self.repl_config.clone();
             config.role = crate::replication::NodeRole::Replica;
+            config.master_address_raw = Some(addr.clone());
             config.master_address = addr.parse().ok();
 
             let replica = Arc::new(ReplicaNode::new(config, self.store.clone()));

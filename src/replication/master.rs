@@ -688,6 +688,7 @@ mod tests {
             role: NodeRole::Master,
             bind_address: Some("127.0.0.1:0".parse().unwrap()),
             master_address: None,
+            master_address_raw: None,
             heartbeat_interval: 5,
             replica_timeout: 30,
             log_size,

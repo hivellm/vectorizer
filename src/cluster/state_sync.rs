@@ -326,33 +326,42 @@ impl ClusterStateSynchronizer {
             }
         }
 
-        // Convert local nodes to proto format
-        let mut proto_nodes = Vec::new();
-        for node in &nodes {
-            use cluster_proto::{ClusterNode as ProtoClusterNode, NodeMetadata};
+        // Build local node description for broadcast
+        use super::server_client::BroadcastNode;
 
-            let status = match node.status {
-                NodeStatus::Active => cluster_proto::NodeStatus::Active as i32,
-                NodeStatus::Joining => cluster_proto::NodeStatus::Joining as i32,
-                NodeStatus::Leaving => cluster_proto::NodeStatus::Leaving as i32,
-                NodeStatus::Unavailable => cluster_proto::NodeStatus::Unavailable as i32,
-            };
-
-            proto_nodes.push(ProtoClusterNode {
-                id: node.id.as_str().to_string(),
-                address: node.address.clone(),
-                grpc_port: node.grpc_port as u32,
-                status,
-                shards: node.shards.iter().map(|s| s.as_u32()).collect(),
-                metadata: Some(NodeMetadata {
+        let local_broadcast_node = nodes
+            .iter()
+            .find(|n| n.id == local_node_id)
+            .map(|n| {
+                let status = match n.status {
+                    NodeStatus::Active => cluster_proto::NodeStatus::Active as i32,
+                    NodeStatus::Joining => cluster_proto::NodeStatus::Joining as i32,
+                    NodeStatus::Leaving => cluster_proto::NodeStatus::Leaving as i32,
+                    NodeStatus::Unavailable => cluster_proto::NodeStatus::Unavailable as i32,
+                };
+                BroadcastNode {
+                    id: n.id.as_str().to_string(),
+                    address: n.address.clone(),
+                    grpc_port: n.grpc_port as u32,
+                    status,
+                    shards: n.shards.iter().map(|s| s.as_u32()).collect(),
                     version: Some(env!("CARGO_PKG_VERSION").to_string()),
                     capabilities: vec!["vector_search".to_string(), "sharding".to_string()],
-                    vector_count: 0,
-                    memory_usage: 0,
-                    cpu_usage: 0.0,
-                }),
+                }
             });
-        }
+
+        // Build shard assignment tuples: (shard_id, node_id, epoch)
+        let all_shard_epochs = shard_router.get_all_shard_epochs();
+        let shard_assignment_tuples: Vec<(u32, String, u64)> = shard_to_node
+            .iter()
+            .map(|(shard_id, node_id)| {
+                let epoch = all_shard_epochs
+                    .get(&crate::db::sharding::ShardId::new(*shard_id))
+                    .copied()
+                    .unwrap_or(0);
+                (*shard_id, node_id.clone(), epoch)
+            })
+            .collect();
 
         // Broadcast to all remote nodes
         for node in &nodes {
@@ -366,39 +375,26 @@ impl ClusterStateSynchronizer {
                 .await
             {
                 Ok(client) => {
-                    // Use update_cluster_state to broadcast
-                    use cluster_proto::{ShardAssignment, UpdateClusterStateRequest};
-
-                    let all_shard_epochs = shard_router.get_all_shard_epochs();
-                    let shard_assignments: Vec<ShardAssignment> = shard_to_node
-                        .iter()
-                        .map(|(shard_id, node_id)| {
-                            let epoch = all_shard_epochs
-                                .get(&crate::db::sharding::ShardId::new(*shard_id))
-                                .copied()
-                                .unwrap_or(0);
-                            ShardAssignment {
-                                shard_id: *shard_id,
-                                node_id: node_id.clone(),
-                                config_epoch: epoch,
-                            }
-                        })
-                        .collect();
-
-                    // Get local node as proto
-                    let local_proto_node = proto_nodes
-                        .iter()
-                        .find(|n| n.id == local_node_id.as_str())
-                        .cloned();
-
-                    let request = tonic::Request::new(UpdateClusterStateRequest {
-                        node: local_proto_node,
-                        shard_assignments,
-                    });
-
-                    // Note: We need to add update_cluster_state to ClusterClient
-                    // For now, we'll just log that we would broadcast
-                    debug!("Would broadcast cluster state to node {}", node.id);
+                    match client
+                        .broadcast_cluster_state(
+                            local_broadcast_node.clone(),
+                            &shard_assignment_tuples,
+                        )
+                        .await
+                    {
+                        Ok((success, message)) => {
+                            debug!(
+                                "Broadcast cluster state to node {}: success={}, message={}",
+                                node.id, success, message
+                            );
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to broadcast cluster state to node {}: {}",
+                                node.id, e
+                            );
+                        }
+                    }
                 }
                 Err(e) => {
                     warn!(

@@ -144,10 +144,15 @@ impl ReplicationYamlConfig {
             .as_ref()
             .and_then(|addr| resolve_address(addr));
 
+        // Preserve the raw master address string so that DNS hostnames
+        // (e.g. K8s StatefulSet names) can be re-resolved on each reconnect.
+        let master_address_raw = self.master_address.clone();
+
         crate::replication::ReplicationConfig {
             role,
             bind_address,
             master_address,
+            master_address_raw,
             heartbeat_interval: self.heartbeat_interval,
             replica_timeout: self.replica_timeout,
             log_size: self.log_size,

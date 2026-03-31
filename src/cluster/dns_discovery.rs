@@ -1,9 +1,9 @@
 //! DNS-based node discovery for Kubernetes headless services
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use parking_lot::RwLock;
 use tokio::net::lookup_host;
@@ -13,11 +13,18 @@ use tracing::{debug, error, info, warn};
 use super::manager::ClusterManager;
 use super::node::{ClusterNode, NodeId};
 
+/// How long a node can remain `Unavailable` before being garbage-collected.
+const STALE_NODE_TTL: Duration = Duration::from_secs(5 * 60);
+
 /// DNS-based node discovery for Kubernetes headless services.
 ///
 /// Periodically resolves a DNS name (typically a K8s headless service) and
 /// reconciles the result against current cluster membership by adding newly
 /// discovered nodes and marking removed nodes as unavailable.
+///
+/// Nodes that have been `Unavailable` for longer than [`STALE_NODE_TTL`]
+/// are garbage-collected to prevent unbounded accumulation of stale entries
+/// (common when K8s pods restart with new IPs).
 pub struct DnsDiscovery {
     manager: Arc<ClusterManager>,
     dns_name: String,
@@ -25,6 +32,8 @@ pub struct DnsDiscovery {
     resolve_interval: Duration,
     /// Previously known IPs (to detect additions/removals)
     known_ips: Arc<RwLock<HashSet<IpAddr>>>,
+    /// Timestamp when each IP was first marked as removed (for TTL-based GC)
+    removed_at: Arc<RwLock<HashMap<IpAddr, Instant>>>,
     running: Arc<RwLock<bool>>,
 }
 
@@ -42,6 +51,7 @@ impl DnsDiscovery {
             grpc_port,
             resolve_interval,
             known_ips: Arc::new(RwLock::new(HashSet::new())),
+            removed_at: Arc::new(RwLock::new(HashMap::new())),
             running: Arc::new(RwLock::new(false)),
         }
     }
@@ -78,6 +88,7 @@ impl DnsDiscovery {
             grpc_port: self.grpc_port,
             resolve_interval: self.resolve_interval,
             known_ips: self.known_ips.clone(),
+            removed_at: self.removed_at.clone(),
             running: self.running.clone(),
         };
 
@@ -149,13 +160,42 @@ impl DnsDiscovery {
             self.manager.add_node(node);
         }
 
-        // Mark removed nodes as unavailable.
+        // Mark removed nodes as unavailable and track removal time for GC.
         let removed_ips: Vec<IpAddr> = previous_ips.difference(&resolved_ips).copied().collect();
-        for ip in &removed_ips {
-            let node_id = NodeId::new(format!("dns-{}", ip));
+        {
+            let mut removed_at = self.removed_at.write();
+            for ip in &removed_ips {
+                let node_id = NodeId::new(format!("dns-{}", ip));
 
-            info!("DNS discovery: node removed at {}", ip);
-            self.manager.mark_node_unavailable(&node_id);
+                info!("DNS discovery: node removed at {}", ip);
+                self.manager.mark_node_unavailable(&node_id);
+                removed_at.entry(*ip).or_insert_with(Instant::now);
+            }
+
+            // Clear removal timestamps for IPs that came back.
+            for ip in &new_ips {
+                removed_at.remove(ip);
+            }
+        }
+
+        // Garbage-collect nodes that have been unavailable beyond the TTL.
+        {
+            let mut removed_at = self.removed_at.write();
+            let stale: Vec<IpAddr> = removed_at
+                .iter()
+                .filter(|(_, ts)| ts.elapsed() > STALE_NODE_TTL)
+                .map(|(ip, _)| *ip)
+                .collect();
+
+            for ip in &stale {
+                let node_id = NodeId::new(format!("dns-{}", ip));
+                info!(
+                    "DNS discovery: garbage-collecting stale node {} (unavailable for > {:?})",
+                    ip, STALE_NODE_TTL
+                );
+                self.manager.remove_node(&node_id);
+                removed_at.remove(ip);
+            }
         }
 
         *self.known_ips.write() = resolved_ips;

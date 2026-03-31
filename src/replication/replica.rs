@@ -75,14 +75,20 @@ impl ReplicaNode {
 
     /// Start the replica node (connects to master and processes updates)
     pub async fn start(&self) -> ReplicationResult<()> {
-        let master_addr = self.config.master_address.ok_or_else(|| {
-            ReplicationError::Connection("No master address configured".to_string())
-        })?;
+        // Validate that we have a master address configured (either raw or resolved)
+        if self.config.master_address.is_none() && self.config.master_address_raw.is_none() {
+            return Err(ReplicationError::Connection(
+                "No master address configured".to_string(),
+            ));
+        }
 
-        info!(
-            "Replica node starting, connecting to master at {}",
-            master_addr
-        );
+        let display_addr = self
+            .config
+            .master_address_raw
+            .clone()
+            .or_else(|| self.config.master_address.map(|a| a.to_string()))
+            .unwrap_or_else(|| "unknown".to_string());
+        info!("Replica node starting, master address: {}", display_addr);
 
         let base_interval = self.config.reconnect_duration();
         let max_interval = Duration::from_secs(60); // Cap at 60 seconds
@@ -90,6 +96,19 @@ impl ReplicaNode {
         let mut consecutive_failures: u32 = 0;
 
         loop {
+            // Re-resolve DNS on each reconnect attempt so we follow the
+            // master to a new IP after a pod restart in Kubernetes.
+            let master_addr = match self.config.resolve_master_address().await {
+                Some(addr) => addr,
+                None => {
+                    error!("Failed to resolve master address, will retry...");
+                    sleep(current_interval).await;
+                    current_interval = (current_interval * 2).min(max_interval);
+                    consecutive_failures = consecutive_failures.saturating_add(1);
+                    continue;
+                }
+            };
+
             match self.connect_and_sync(master_addr).await {
                 Ok(_) => {
                     info!("Disconnected from master, will reconnect...");
@@ -503,6 +522,7 @@ mod tests {
             role: NodeRole::Replica,
             bind_address: None,
             master_address: Some("127.0.0.1:7000".parse().unwrap()),
+            master_address_raw: None,
             heartbeat_interval: 5,
             replica_timeout: 30,
             log_size: 1000,

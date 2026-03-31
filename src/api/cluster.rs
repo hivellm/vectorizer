@@ -97,9 +97,9 @@ pub struct RebalanceResponse {
 pub fn create_cluster_router() -> Router<ClusterApiState> {
     Router::new()
         .route("/api/v1/cluster/nodes", get(list_nodes))
-        .route("/api/v1/cluster/nodes/:node_id", get(get_node))
+        .route("/api/v1/cluster/nodes/{node_id}", get(get_node))
         .route("/api/v1/cluster/nodes", post(add_node))
-        .route("/api/v1/cluster/nodes/:node_id", delete(remove_node))
+        .route("/api/v1/cluster/nodes/{node_id}", delete(remove_node))
         .route(
             "/api/v1/cluster/shard-distribution",
             get(get_shard_distribution),
