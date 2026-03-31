@@ -101,15 +101,59 @@ volumeClaimTemplates:
           storage: 100Gi
 ```
 
-### Replication
+### High Availability with Raft (v2.5.4+)
 
-For high availability, deploy multiple replicas with replication enabled:
+For automatic failover, enable Raft consensus. All pods use the **same config template** — Raft elects a leader dynamically. No static master/replica roles needed.
 
 ```yaml
-replicas: 3
+# ConfigMap uses __NODE_ID__ placeholder replaced by init container
+cluster:
+  enabled: true                # Enables Raft leader election
+  node_id: "__NODE_ID__"       # Replaced per-pod by init container
+  discovery: "dns"
+  dns_name: "vectorizer-headless.<namespace>.svc.cluster.local"
+  dns_grpc_port: 15003
+
+replication:
+  enabled: true
+  bind_address: "0.0.0.0:7001"  # Role managed by Raft, not config
+
+file_watcher:
+  enabled: false                 # MUST be false in cluster mode
 ```
 
-Configure master-replica setup in ConfigMap.
+The init container injects each pod's hostname as `node_id`:
+```yaml
+initContainers:
+  - name: config-selector
+    image: busybox:1.36
+    command: ["sh", "-c"]
+    args:
+      - sed "s/__NODE_ID__/$HOSTNAME/g" /configs/config-template.yml > /active-config/config.yml
+```
+
+Required environment variables for cluster DNS:
+```yaml
+env:
+  - name: HOSTNAME
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+  - name: POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+  - name: VECTORIZER_SERVICE_NAME
+    value: "vectorizer-headless.<namespace>.svc.cluster.local"
+```
+
+Required services:
+- **Headless service** (`clusterIP: None`) with ports 15002, 7001, 15003
+- **ClusterIP service** for external access on port 15002
+
+See `k8s/configmap-ha.yaml` and `k8s/statefulset-ha.yaml` for complete production manifests.
+
+See [HA Cluster Guide](../users/guides/HA_CLUSTER.md) for detailed configuration and failover behavior.
 
 ## Scaling
 
@@ -238,13 +282,33 @@ kubectl get svc vectorizer -n vectorizer
 kubectl run -it --rm debug --image=busybox --restart=Never -- curl http://vectorizer:15002/api/status
 ```
 
+### Cluster / HA Issues
+
+**Replicas stuck on "No route to host" after pod restart:**
+- **v2.5.4+**: Fixed. Replicas re-resolve DNS on every reconnect attempt.
+- **Older versions**: The master IP was cached at startup. Upgrade to v2.5.4.
+
+**Pods crash with "Path segments must not start with `:`":**
+- **v2.5.4+**: Fixed. Cluster router path syntax was corrected for Axum 0.7.
+
+**No automatic failover when leader dies:**
+- Ensure `cluster.enabled: true` in your ConfigMap. Without Raft, roles are static and no election occurs.
+
+**File watcher warnings in cluster mode:**
+- Set `file_watcher.enabled: false`. It is incompatible with distributed clusters.
+
+See [HA Cluster Guide](../users/guides/HA_CLUSTER.md) for complete troubleshooting.
+
 ## Best Practices
 
-1. **Use StatefulSet**: For persistent storage
-2. **Set Resource Limits**: Prevent resource exhaustion
-3. **Enable Health Checks**: Liveness and readiness probes
-4. **Use ConfigMaps**: For configuration management
-5. **Enable Monitoring**: Prometheus metrics
-6. **Use Secrets**: For sensitive data
-7. **Enable TLS**: For secure communication
-8. **Regular Backups**: Automated backup jobs
+1. **Use StatefulSet**: For persistent storage and stable pod identity
+2. **Enable Raft** (`cluster.enabled: true`): For automatic failover
+3. **Disable file watcher**: `file_watcher.enabled: false` in cluster mode
+4. **Use headless service**: Required for pod-to-pod DNS discovery
+5. **Set Resource Limits**: Prevent resource exhaustion
+6. **Enable Health Checks**: Liveness and readiness probes
+7. **Use ConfigMap templates**: With `__NODE_ID__` placeholder and init container
+8. **Set `HOSTNAME`, `POD_IP`, `VECTORIZER_SERVICE_NAME`** env vars from K8s downward API
+9. **Expose all 3 ports**: REST (15002), replication (7001), gRPC (15003)
+10. **Enable Monitoring**: Prometheus metrics
+11. **Use Secrets**: For JWT secret and credentials (not in ConfigMap)

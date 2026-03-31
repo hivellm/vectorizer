@@ -105,6 +105,10 @@ All nodes share the same JWT secret. Writes are automatically routed to the lead
 
 ### Kubernetes HA
 
+> **v2.5.4 required** for production Kubernetes deployments. Earlier versions have critical bugs:
+> DNS was cached at startup (replicas connect to stale pod IPs after restart), and the cluster
+> router panics on startup due to Axum path syntax.
+
 Deploy with Helm:
 
 ```bash
@@ -114,15 +118,31 @@ helm install vectorizer ./helm/vectorizer \
   --set cluster.discovery=dns
 ```
 
+Or apply the production-ready manifests directly:
+
+```bash
+kubectl apply -f k8s/configmap-ha.yaml
+kubectl apply -f k8s/statefulset-ha.yaml
+```
+
+Key requirements:
+- **`cluster.enabled: true`** — without this, there is no Raft election and no automatic failover
+- **`file_watcher.enabled: false`** — incompatible with cluster mode
+- **Headless service** with ports 15002, 7001, 15003 — required for pod-to-pod DNS resolution
+- **`HOSTNAME`, `POD_IP`, `VECTORIZER_SERVICE_NAME`** env vars — required for leader URL routing
+- **Init container** that replaces `__NODE_ID__` with pod hostname in config template
+
 Your application connects to **one URL**:
 ```
-http://vectorizer.default.svc.cluster.local:15002
+http://vectorizer-svc.default.svc.cluster.local:15002
 ```
 
 The K8s Service load-balances across all pods:
 - **Reads** (GET) are served by any pod directly
 - **Writes** (POST/PUT/DELETE) that land on a follower are automatically redirected to the leader via HTTP 307
 - Most HTTP clients (fetch, axios, requests) follow the redirect transparently
+
+See [Kubernetes Deployment Guide](KUBERNETES.md) and [HA Cluster Guide](../users/guides/HA_CLUSTER.md) for full details.
 
 ### Write Routing (HTTP 307)
 
@@ -139,20 +159,39 @@ Read requests (GET, HEAD) are always served locally on any node.
 
 ### Failover Behavior
 
+#### With Raft consensus (`cluster.enabled: true`) — recommended
+
+When the leader node goes down:
+
+1. Raft detects missing heartbeat (~1-3 seconds)
+2. Remaining followers start a leader election
+3. One follower wins and becomes the new leader
+4. New leader starts accepting writes on port 7001
+5. Other followers connect to the new leader as replicas
+6. Writes are automatically redirected to the new leader via HTTP 307
+7. When the old leader recovers, it rejoins as a follower
+
+**This is the recommended mode for all production deployments.**
+
+#### Without Raft (static master/replica roles)
+
 When the leader node goes down:
 
 1. Followers lose TCP replication connection
 2. Followers continue serving reads with their existing data
-3. Followers still redirect writes to the (dead) leader URL
-4. When leader recovers, followers automatically reconnect
-5. Leader sends a full or partial sync to bring followers up to date
+3. Followers still redirect writes to the (dead) leader URL — **writes fail**
+4. **No automatic promotion** occurs
+5. An operator must manually reconfigure a replica as master
+6. When the old leader recovers, followers automatically reconnect
+
+> **Warning**: Static master/replica mode has **no automatic failover**. Use only for development or when an external orchestrator manages roles.
 
 ### Recovery
 
-When the old leader comes back:
+When the old leader comes back (Raft mode):
 
-1. Node starts and resumes its configured role (master)
-2. Followers detect the leader is back and reconnect
+1. Node starts and discovers the current leader via Raft
+2. Node joins as a follower and connects to the current leader
 3. Replication resumes from the last known offset
 4. If offset is too old, a full snapshot sync is performed
 

@@ -100,24 +100,119 @@ That's it. One URL for everything.
 
 ### Kubernetes (production)
 
-**1. Install with Helm:**
+> **Important (v2.5.4):** You must use `cluster.enabled: true` for automatic failover in Kubernetes.
+> Without it, replica roles are static and there is **no automatic leader promotion** when a pod restarts.
 
-```bash
-helm install vectorizer ./helm/vectorizer \
-  --set replicaCount=3 \
-  --set cluster.enabled=true \
-  --set cluster.discovery=dns \
-  --set auth.enabled=true \
-  --set auth.jwt_secret="your-secret-minimum-32-chars"
+**1. Deploy the ConfigMap with a template:**
+
+All pods share the same config. An init container replaces `__NODE_ID__` with each pod's hostname:
+
+```yaml
+# configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vectorizer-config
+data:
+  config-template.yml: |
+    server:
+      host: "0.0.0.0"
+      port: 15002
+
+    file_watcher:
+      enabled: false           # MUST be false in cluster mode
+
+    auth:
+      enabled: true
+      jwt_secret: "your-secret-minimum-32-chars"  # or use env var
+
+    cluster:
+      enabled: true            # Enables Raft consensus + automatic failover
+      node_id: "__NODE_ID__"   # Replaced by init container with pod hostname
+      discovery: "dns"
+      dns_name: "vectorizer-headless.default.svc.cluster.local"
+      dns_grpc_port: 15003
+      servers:
+        - id: "vectorizer-0"
+          address: "vectorizer-0.vectorizer-headless.default.svc.cluster.local"
+          grpc_port: 15003
+        - id: "vectorizer-1"
+          address: "vectorizer-1.vectorizer-headless.default.svc.cluster.local"
+          grpc_port: 15003
+        - id: "vectorizer-2"
+          address: "vectorizer-2.vectorizer-headless.default.svc.cluster.local"
+          grpc_port: 15003
+      memory:
+        max_cache_memory_bytes: 1073741824
+        enforce_mmap_storage: true
+        disable_file_watcher: true
+
+    replication:
+      enabled: true
+      bind_address: "0.0.0.0:7001"  # Raft manages the role automatically
+
+    api:
+      grpc:
+        enabled: true
+        port: 15003
 ```
 
-**2. Connect your application:**
+**2. StatefulSet with init container:**
+
+```yaml
+initContainers:
+  - name: config-selector
+    image: busybox:1.36
+    command: ["sh", "-c"]
+    args:
+      - sed "s/__NODE_ID__/$HOSTNAME/g" /configs/config-template.yml > /active-config/config.yml
+    volumeMounts:
+      - name: config-templates
+        mountPath: /configs
+      - name: active-config
+        mountPath: /active-config
+```
+
+**3. Required environment variables:**
+
+```yaml
+env:
+  - name: HOSTNAME
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+  - name: POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+  - name: VECTORIZER_SERVICE_NAME
+    value: "vectorizer-headless.default.svc.cluster.local"
+```
+
+**4. Required services:**
+
+- **Headless service** (`clusterIP: None`) for pod-to-pod DNS resolution (ports 15002, 7001, 15003)
+- **ClusterIP service** for client access (port 15002)
+
+See `k8s/configmap-ha.yaml` and `k8s/statefulset-ha.yaml` for complete production-ready manifests.
+
+**5. Connect your application:**
 
 ```
-http://vectorizer.default.svc.cluster.local:15002
+http://vectorizer-svc.default.svc.cluster.local:15002
 ```
 
 The K8s Service distributes requests across all pods. Writes that land on a follower are redirected to the leader automatically.
+
+### Common Kubernetes pitfalls (v2.5.4 fixes)
+
+| Problem | Cause | Fix in v2.5.4 |
+|---|---|---|
+| Replicas stuck on "No route to host" after master restart | DNS was resolved once at startup, cached as IP forever | Replicas now re-resolve DNS on every reconnect attempt |
+| Panic on startup with `cluster.enabled: true` | Cluster router used `:node_id` (Axum 0.6 syntax) | Fixed to `{node_id}` (Axum 0.7+) |
+| No automatic failover when master dies | Using static `role: "master"` without Raft | Use `cluster.enabled: true` for Raft-based automatic failover |
+| `file_watcher is still running` in cluster mode | `file_watcher.enabled: true` in config | Must be set to `false` in cluster mode |
+| Stale nodes accumulating after pod restarts | DNS-discovered nodes were never garbage collected | Nodes unavailable for >5 min are now automatically removed |
 
 ## How It Works
 
@@ -377,26 +472,38 @@ The **Cluster** page (sidebar → Cluster) shows:
 
 ## Failover Behavior
 
-### When the leader dies:
+### Automatic failover with Raft (recommended for production)
+
+When `cluster.enabled: true`, Raft consensus handles leader election automatically:
+
+1. Leader node goes down
+2. Raft detects missing heartbeat (~1-3 seconds)
+3. Remaining followers start a new election
+4. One follower is elected as the new leader
+5. New leader starts a `MasterNode` (accepts writes on port 7001)
+6. Other followers connect to the new leader as replicas
+7. Writes are automatically redirected to the new leader via HTTP 307
+8. When the old leader recovers, it rejoins as a follower
+
+**This is the recommended mode for Kubernetes deployments.** All pods use the same config; Raft decides roles dynamically.
+
+### Manual failover (static master/replica roles)
+
+When using static `replication.role: "master"` / `"replica"` without Raft:
 
 1. Followers lose the TCP replication connection
 2. Followers continue serving **reads** with their existing data
-3. Followers still **redirect writes** (307) to the leader URL
-4. When the leader recovers, followers automatically reconnect
-5. Leader sends full or partial sync to bring followers up to date
+3. Followers still **redirect writes** (307) to the (dead) leader URL
+4. **No automatic promotion** — an operator must manually reconfigure a replica as master
+5. When the old leader recovers, followers automatically reconnect
+
+This mode is simpler but has **no automatic failover**. Use only for development or when you have an external orchestrator managing roles.
 
 ### When a follower dies:
 
 1. Leader detects missing heartbeat after `replica_timeout_secs`
 2. Leader continues serving reads and writes normally
 3. When the follower recovers, it reconnects and receives missed data
-
-### When the leader recovers after downtime:
-
-1. Leader starts and resumes its configured role
-2. Followers detect the leader is back and reconnect
-3. Replication resumes from the last known offset
-4. If the offset is too old, a full snapshot sync is performed
 
 ## Troubleshooting
 
@@ -407,12 +514,38 @@ Your HTTP client may not be following redirects. Solutions:
 - Check that the leader URL in the 307 response is reachable from the client
 - In Docker/K8s, the redirect uses internal network addresses
 
-### Replica not connecting to master
+### Replica not connecting to master ("No route to host")
 
-Check:
-- `master_address` in replica config points to the correct host:port
-- Port 7001 is accessible between nodes (firewall/network policy)
-- Master is running and healthy
+**In Kubernetes (v2.5.4+):** The replica re-resolves DNS on every reconnect attempt, so it will automatically find the master after a pod restart. If you still see this error:
+
+1. Check that the headless service exists and includes port 7001:
+   ```bash
+   kubectl get svc <name>-headless -o jsonpath='{.spec.ports[*]}'
+   ```
+2. Verify DNS resolution works from the replica pod:
+   ```bash
+   kubectl exec <replica-pod> -- getent hosts <master-pod>.<headless-svc>.<ns>.svc.cluster.local
+   ```
+3. Check that port 7001 is declared in both the StatefulSet container ports and the headless service.
+
+**Versions before v2.5.4:** The master address was resolved to an IP once at startup and cached forever. If the master pod restarted with a new IP, replicas would be stuck connecting to the old IP. **Upgrade to v2.5.4** to fix this.
+
+### Pods crashing with "Path segments must not start with `:`"
+
+**Fixed in v2.5.4.** The cluster API router used Axum 0.6 path syntax (`:node_id`) instead of Axum 0.7+ syntax (`{node_id}`). This caused a panic at startup when `cluster.enabled: true`. Upgrade to v2.5.4.
+
+### No automatic failover when master dies
+
+If replicas keep trying to reconnect to the dead master instead of electing a new leader, check your config:
+
+- `cluster.enabled` must be `true` (enables Raft consensus)
+- Do NOT set a static `replication.role: "master"` or `"replica"` — Raft manages roles automatically
+- All pods must use the same config with `cluster.enabled: true` and `replication.enabled: true`
+- The `servers` list must include all nodes with correct addresses and gRPC ports
+
+### File watcher running in cluster mode
+
+If you see `🔍 File watcher is still running...` in logs, set `file_watcher.enabled: false` in your config. The file watcher is incompatible with cluster mode and wastes resources.
 
 ### Data not replicating
 
