@@ -863,7 +863,8 @@ impl VectorizerServer {
             if cluster_enabled {
                 info!("🗳️  Initializing Raft consensus (cluster mode active)...");
 
-                // Derive node_id: use configured raft_node_id, or hash the string node_id, or default to 1
+                // Derive node_id: use configured raft_node_id, or hash the string node_id, or default to 1.
+                // Uses xxh3 for deterministic cross-platform hashing.
                 let node_id = std::fs::read_to_string(&config_path)
                     .ok()
                     .and_then(|content| {
@@ -872,14 +873,10 @@ impl VectorizerServer {
                             .and_then(|c| {
                                 // Prefer explicit raft_node_id
                                 c.cluster.raft_node_id.or_else(|| {
-                                    // Hash the string node_id to u64
-                                    c.cluster.node_id.map(|s| {
-                                        use std::hash::{Hash, Hasher};
-                                        let mut hasher =
-                                            std::collections::hash_map::DefaultHasher::new();
-                                        s.hash(&mut hasher);
-                                        hasher.finish()
-                                    })
+                                    // Hash the string node_id to u64 (deterministic)
+                                    c.cluster
+                                        .node_id
+                                        .map(|s| xxhash_rust::xxh3::xxh3_64(s.as_bytes()))
                                 })
                             })
                     })
@@ -888,6 +885,47 @@ impl VectorizerServer {
                 match crate::cluster::raft_node::RaftManager::new(node_id).await {
                     Ok(mgr) => {
                         let mgr = Arc::new(mgr);
+
+                        // Bootstrap Raft cluster with all configured members.
+                        // Build the member map from the cluster.servers config so
+                        // all nodes participate in the initial election.
+                        let cluster_servers = std::fs::read_to_string(&config_path)
+                            .ok()
+                            .and_then(|content| {
+                                serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
+                                    .ok()
+                                    .map(|c| c.cluster.servers)
+                            })
+                            .unwrap_or_default();
+
+                        if cluster_servers.len() > 1 {
+                            let mut members = std::collections::BTreeMap::new();
+                            for server in &cluster_servers {
+                                let sid = xxhash_rust::xxh3::xxh3_64(server.id.as_bytes());
+                                members.insert(
+                                    sid,
+                                    crate::cluster::raft_node::RaftNodeInfo {
+                                        address: server.address.clone(),
+                                        grpc_port: server.grpc_port,
+                                    },
+                                );
+                            }
+
+                            // Every node attempts bootstrap — only the first to
+                            // succeed actually initializes; others get "already
+                            // initialized" which is silently ignored.
+                            if let Err(e) = mgr.initialize_cluster(members).await {
+                                warn!(
+                                    "Raft cluster bootstrap: {} (may be normal if already initialized)",
+                                    e
+                                );
+                            }
+                        } else {
+                            // Single-node cluster
+                            if let Err(e) = mgr.initialize_single().await {
+                                warn!("Raft single-node bootstrap: {}", e);
+                            }
+                        }
 
                         // Load replication config for HA role transitions
                         let repl_yaml = std::fs::read_to_string(&config_path)
@@ -903,33 +941,14 @@ impl VectorizerServer {
                         let ha = Arc::new(crate::cluster::HaManager::new(
                             node_id,
                             store_arc.clone(),
-                            repl_config.clone(),
+                            repl_config,
                         ));
 
-                        // Set initial role based on replication config (before Raft
-                        // watcher kicks in — provides a sane default while the
-                        // first election is in progress).
-                        match repl_config.role {
-                            crate::replication::NodeRole::Master => {
-                                ha.leader_router
-                                    .set_leader(node_id, format!("http://127.0.0.1:15002"));
-                                info!("✅ Raft initialized as LEADER (node_id={})", node_id);
-                            }
-                            crate::replication::NodeRole::Replica => {
-                                let leader_url = repl_config
-                                    .master_address
-                                    .map(|addr| format!("http://{}:{}", addr.ip(), 15002))
-                                    .unwrap_or_default();
-                                if !leader_url.is_empty() {
-                                    ha.leader_router.set_leader(0, leader_url.clone());
-                                    ha.leader_router.clear_leader();
-                                }
-                                info!("✅ Raft initialized as FOLLOWER (node_id={})", node_id);
-                            }
-                            _ => {
-                                info!("✅ Raft initialized as STANDALONE (node_id={})", node_id);
-                            }
-                        }
+                        info!(
+                            "✅ Raft node ready (node_id={}, members={})",
+                            node_id,
+                            cluster_servers.len()
+                        );
 
                         // Start Raft leadership watcher — bridges consensus
                         // elections to HA role transitions (MasterNode ↔ ReplicaNode).

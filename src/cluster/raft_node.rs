@@ -735,6 +735,43 @@ impl RaftManager {
         Ok(())
     }
 
+    /// Bootstrap a multi-node cluster with all members.
+    ///
+    /// Only the **first node** (lowest node_id) should call this. The other
+    /// nodes are included in the initial membership and will participate in
+    /// the first election once they can reach each other via gRPC.
+    ///
+    /// If the Raft state is already initialized (e.g. after a restart),
+    /// this is a no-op.
+    pub async fn initialize_cluster(
+        &self,
+        members: BTreeMap<u64, RaftNodeInfo>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        match self.raft.initialize(members.clone()).await {
+            Ok(_) => {
+                info!(
+                    node_id = self.node_id,
+                    member_count = members.len(),
+                    "Raft multi-node cluster initialized"
+                );
+                Ok(())
+            }
+            Err(e) => {
+                // "NotAllowed" means already initialized — safe to ignore
+                let err_str = format!("{}", e);
+                if err_str.contains("NotAllowed") || err_str.contains("already initialized") {
+                    debug!(
+                        node_id = self.node_id,
+                        "Raft already initialized, skipping bootstrap"
+                    );
+                    Ok(())
+                } else {
+                    Err(e.into())
+                }
+            }
+        }
+    }
+
     /// Propose a command to the Raft cluster. Must be called on the leader.
     pub async fn propose(
         &self,
