@@ -531,11 +531,13 @@ impl ClusterClient {
 
         let proto_assignments: Vec<cluster_proto::ShardAssignment> = shard_assignments
             .iter()
-            .map(|(shard_id, node_id, epoch)| cluster_proto::ShardAssignment {
-                shard_id: *shard_id,
-                node_id: node_id.clone(),
-                config_epoch: *epoch,
-            })
+            .map(
+                |(shard_id, node_id, epoch)| cluster_proto::ShardAssignment {
+                    shard_id: *shard_id,
+                    node_id: node_id.clone(),
+                    config_epoch: *epoch,
+                },
+            )
             .collect();
 
         let request = tonic::Request::new(cluster_proto::UpdateClusterStateRequest {

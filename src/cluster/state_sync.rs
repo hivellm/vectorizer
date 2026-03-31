@@ -329,26 +329,23 @@ impl ClusterStateSynchronizer {
         // Build local node description for broadcast
         use super::server_client::BroadcastNode;
 
-        let local_broadcast_node = nodes
-            .iter()
-            .find(|n| n.id == local_node_id)
-            .map(|n| {
-                let status = match n.status {
-                    NodeStatus::Active => cluster_proto::NodeStatus::Active as i32,
-                    NodeStatus::Joining => cluster_proto::NodeStatus::Joining as i32,
-                    NodeStatus::Leaving => cluster_proto::NodeStatus::Leaving as i32,
-                    NodeStatus::Unavailable => cluster_proto::NodeStatus::Unavailable as i32,
-                };
-                BroadcastNode {
-                    id: n.id.as_str().to_string(),
-                    address: n.address.clone(),
-                    grpc_port: n.grpc_port as u32,
-                    status,
-                    shards: n.shards.iter().map(|s| s.as_u32()).collect(),
-                    version: Some(env!("CARGO_PKG_VERSION").to_string()),
-                    capabilities: vec!["vector_search".to_string(), "sharding".to_string()],
-                }
-            });
+        let local_broadcast_node = nodes.iter().find(|n| n.id == local_node_id).map(|n| {
+            let status = match n.status {
+                NodeStatus::Active => cluster_proto::NodeStatus::Active as i32,
+                NodeStatus::Joining => cluster_proto::NodeStatus::Joining as i32,
+                NodeStatus::Leaving => cluster_proto::NodeStatus::Leaving as i32,
+                NodeStatus::Unavailable => cluster_proto::NodeStatus::Unavailable as i32,
+            };
+            BroadcastNode {
+                id: n.id.as_str().to_string(),
+                address: n.address.clone(),
+                grpc_port: n.grpc_port as u32,
+                status,
+                shards: n.shards.iter().map(|s| s.as_u32()).collect(),
+                version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                capabilities: vec!["vector_search".to_string(), "sharding".to_string()],
+            }
+        });
 
         // Build shard assignment tuples: (shard_id, node_id, epoch)
         let all_shard_epochs = shard_router.get_all_shard_epochs();

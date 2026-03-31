@@ -124,8 +124,7 @@ impl RaftWatcher {
 
                                 if let Some(ref addr) = leader_addr {
                                     let leader_id = current_leader.unwrap_or(0);
-                                    let leader_http_url =
-                                        format!("http://{}:{}", addr, http_port);
+                                    let leader_http_url = format!("http://{}:{}", addr, http_port);
                                     ha.leader_router.set_leader(leader_id, leader_http_url);
 
                                     info!(
