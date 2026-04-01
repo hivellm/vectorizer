@@ -39,7 +39,7 @@ spec:
               mountPath: /active-config
       containers:
         - name: vectorizer
-          image: ghcr.io/hivellm/vectorizer:2.5.4
+          image: ghcr.io/hivellm/vectorizer:2.5.5
           imagePullPolicy: Always
           ports:
             - name: rest
