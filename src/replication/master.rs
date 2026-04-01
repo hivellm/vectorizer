@@ -104,7 +104,17 @@ impl MasterNode {
 
         info!("Master node starting on {}", bind_addr);
 
-        let listener = TcpListener::bind(bind_addr).await?;
+        // Use SO_REUSEADDR so that rapid Leader→Follower→Leader transitions
+        // (common during Raft elections) don't fail with "Address already in use"
+        // when the previous MasterNode's socket is still in TIME_WAIT.
+        let socket = tokio::net::TcpSocket::new_v4().map_err(|e| ReplicationError::Io(e))?;
+        socket
+            .set_reuseaddr(true)
+            .map_err(|e| ReplicationError::Io(e))?;
+        socket
+            .bind(bind_addr)
+            .map_err(|e| ReplicationError::Io(e))?;
+        let listener = socket.listen(128).map_err(|e| ReplicationError::Io(e))?;
 
         let replicas = Arc::clone(&self.replicas);
         let replication_log = Arc::clone(&self.replication_log);

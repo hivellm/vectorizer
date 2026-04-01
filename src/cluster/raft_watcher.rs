@@ -182,9 +182,9 @@ impl RaftWatcher {
 
 /// Resolve the leader's IP/hostname from the Raft state machine.
 ///
-/// The state machine's `nodes` map stores `node_id → (address, grpc_port)`.
-/// We use the address portion to build both the HTTP URL and the replication
-/// TCP address.
+/// The `nodes` map is populated by `AddNode` commands proposed after bootstrap.
+/// During the initial election (before `AddNode` runs), this may return `None`
+/// — the RaftWatcher logs a warning and retries on the next state change.
 async fn resolve_leader_addr(
     state_machine: &Arc<super::raft_node::ClusterStateMachine>,
     leader_id: Option<u64>,

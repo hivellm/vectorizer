@@ -920,6 +920,37 @@ impl VectorizerServer {
                                     e
                                 );
                             }
+                            // Register all node addresses in the Raft state machine
+                            // so that resolve_leader_addr() can find them. Only the
+                            // leader can propose; followers get ForwardToLeader (ok).
+                            let mgr_clone = mgr.clone();
+                            let servers_clone = cluster_servers.clone();
+                            tokio::spawn(async move {
+                                // Wait briefly for the first election to settle
+                                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                                for server in &servers_clone {
+                                    let sid = xxhash_rust::xxh3::xxh3_64(server.id.as_bytes());
+                                    match mgr_clone
+                                        .propose(
+                                            crate::cluster::raft_node::ClusterCommand::AddNode {
+                                                node_id: sid,
+                                                address: server.address.clone(),
+                                                grpc_port: server.grpc_port,
+                                            },
+                                        )
+                                        .await
+                                    {
+                                        Ok(_) => info!(
+                                            "Registered node {} in Raft state machine",
+                                            server.id
+                                        ),
+                                        Err(e) => debug!(
+                                            "Could not register node {} (expected on followers): {}",
+                                            server.id, e
+                                        ),
+                                    }
+                                }
+                            });
                         } else {
                             // Single-node cluster
                             if let Err(e) = mgr.initialize_single().await {

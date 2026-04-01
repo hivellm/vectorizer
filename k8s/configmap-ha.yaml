@@ -24,6 +24,11 @@ data:
 
     auth:
       enabled: true
+      jwt_secret: "placeholder-overridden-by-env-VECTORIZER_JWT_SECRET"
+      jwt_expiration: 3600
+      api_key_length: 32
+      rate_limit_per_minute: 100
+      rate_limit_per_hour: 1000
 
     # Cluster mode with Raft consensus for automatic failover
     cluster:
