@@ -28,7 +28,7 @@ bincode = { version = "2.0", features = ["serde"] }
 glob = { version = "0.3", default-features = false }
 # Note: chrono is heavy but used in 166 places - consider migrating to time crate in future
 chrono = { version = "0.4", features = ["serde"], default-features = false }
-sha2 = "0.10"
+sha2 = "0.11"
 walkdir = "2.5"
 notify = "8.2"
 fastrand = "2.3"
