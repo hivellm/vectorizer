@@ -1,0 +1,50 @@
+---
+# Headless service — required for pod-to-pod DNS and Raft consensus
+apiVersion: v1
+kind: Service
+metadata:
+  name: ermes-vectorizer-headless
+  namespace: ermes
+  labels:
+    app: ermes-vectorizer
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: rest
+      port: 15002
+      targetPort: rest
+      protocol: TCP
+    - name: replication
+      port: 7001
+      targetPort: replication
+      protocol: TCP
+    - name: grpc
+      port: 15003
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app: ermes-vectorizer
+
+---
+# ClusterIP service — single entry point for clients
+apiVersion: v1
+kind: Service
+metadata:
+  name: ermes-vectorizer-svc
+  namespace: ermes
+  labels:
+    app: ermes-vectorizer
+spec:
+  type: ClusterIP
+  ports:
+    - name: rest
+      port: 15002
+      targetPort: rest
+      protocol: TCP
+    - name: grpc
+      port: 15003
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app: ermes-vectorizer

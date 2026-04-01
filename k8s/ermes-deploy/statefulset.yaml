@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ermes-vectorizer
+  namespace: ermes
+  labels:
+    app: ermes-vectorizer
+spec:
+  serviceName: ermes-vectorizer-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ermes-vectorizer
+  template:
+    metadata:
+      labels:
+        app: ermes-vectorizer
+    spec:
+      securityContext:
+        runAsUser: 0
+      initContainers:
+        - name: config-selector
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Setting node_id to $HOSTNAME"
+              sed "s/__NODE_ID__/$HOSTNAME/g" /configs/config-template.yml > /active-config/config.yml
+              echo "Config generated for $HOSTNAME"
+          volumeMounts:
+            - name: config-templates
+              mountPath: /configs
+            - name: active-config
+              mountPath: /active-config
+      containers:
+        - name: vectorizer
+          image: ghcr.io/hivellm/vectorizer:2.5.4
+          imagePullPolicy: Always
+          ports:
+            - name: rest
+              containerPort: 15002
+              protocol: TCP
+            - name: replication
+              containerPort: 7001
+              protocol: TCP
+            - name: grpc
+              containerPort: 15003
+              protocol: TCP
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: VECTORIZER_SERVICE_NAME
+              value: "ermes-vectorizer-headless.ermes.svc.cluster.local"
+            - name: VECTORIZER_AUTH_ENABLED
+              value: "true"
+            - name: VECTORIZER_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: ermes-vectorizer-credentials
+                  key: VECTORIZER_USERNAME
+            - name: VECTORIZER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ermes-vectorizer-credentials
+                  key: VECTORIZER_PASSWORD
+            - name: VECTORIZER_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ermes-vectorizer-credentials
+                  key: VECTORIZER_API_KEY
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: active-config
+              mountPath: /etc/vectorizer
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          # Startup probe: gives the app up to 5 min to start
+          # Raft election + node registration can take 30-60s
+          # Liveness/readiness probes do NOT run until startup passes
+          startupProbe:
+            httpGet:
+              path: /health
+              port: rest
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          # Liveness: restart if app hangs AFTER successful startup
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: rest
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness: remove from Service until ready
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: rest
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: config-templates
+          configMap:
+            name: vectorizer-config
+        - name: active-config
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: ermes-vectorizer
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
