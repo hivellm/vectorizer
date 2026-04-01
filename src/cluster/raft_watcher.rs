@@ -134,20 +134,65 @@ impl RaftWatcher {
                                         "📡 Following new leader"
                                     );
                                 } else if current_leader.is_some() {
-                                    warn!(
-                                        node_id,
-                                        ?current_leader,
-                                        "Leader elected but address not yet in state machine"
-                                    );
+                                    // Address not yet in state machine — AddNode
+                                    // commands may still be propagating. Retry a
+                                    // few times before giving up.
+                                    let mut resolved = false;
+                                    for attempt in 1..=6 {
+                                        info!(
+                                            node_id,
+                                            attempt,
+                                            "Waiting for leader address in state machine..."
+                                        );
+                                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                                        if let Some(addr) =
+                                            resolve_leader_addr(&state_machine, current_leader)
+                                                .await
+                                        {
+                                            let leader_id = current_leader.unwrap_or(0);
+                                            let leader_http_url =
+                                                format!("http://{}:{}", addr, http_port);
+                                            ha.leader_router.set_leader(leader_id, leader_http_url);
+
+                                            info!(
+                                                node_id,
+                                                leader_id,
+                                                leader_addr = %addr,
+                                                "📡 Following new leader (resolved after {}s)",
+                                                attempt * 2
+                                            );
+
+                                            let repl =
+                                                format!("{}:{}", addr, DEFAULT_REPLICATION_PORT);
+                                            ha.on_become_follower(Some(repl)).await;
+                                            resolved = true;
+                                            break;
+                                        }
+                                    }
+                                    if !resolved {
+                                        warn!(
+                                            node_id,
+                                            ?current_leader,
+                                            "Leader address not found after retries"
+                                        );
+                                    }
                                 } else {
                                     ha.leader_router.clear_leader();
                                 }
 
-                                // Build the master replication address for the ReplicaNode.
-                                let repl_addr = leader_addr
-                                    .map(|addr| format!("{}:{}", addr, DEFAULT_REPLICATION_PORT));
-
-                                ha.on_become_follower(repl_addr).await;
+                                // If leader_addr was resolved on the first try (not via
+                                // the retry loop above), start the ReplicaNode now.
+                                if leader_addr.is_some() {
+                                    let repl_addr = leader_addr.map(|addr| {
+                                        format!("{}:{}", addr, DEFAULT_REPLICATION_PORT)
+                                    });
+                                    ha.on_become_follower(repl_addr).await;
+                                } else if current_leader.is_none() {
+                                    // No leader at all — just transition to follower
+                                    ha.on_become_follower(None).await;
+                                }
+                                // If current_leader.is_some() but leader_addr was None,
+                                // the retry loop above already called on_become_follower.
                             }
                         }
                         ServerState::Candidate => {
