@@ -13,12 +13,22 @@ Complete guide to configuring Vectorizer cluster for distributed sharding across
 
 ## Overview
 
-Vectorizer supports distributed sharding, allowing you to distribute collections and vectors across multiple server instances for horizontal scalability. This enables:
+Vectorizer supports two cluster modes:
 
+### 1. Distributed Sharding (gRPC cluster)
+Distribute collections and vectors across multiple servers for horizontal scalability.
+
+### 2. High Availability with Raft (v2.5.4+, recommended for production)
+Automatic leader election and failover using Raft consensus. One leader accepts writes; followers serve reads and replicate data via TCP.
+
+Both modes use the same `cluster` config section. When `cluster.enabled: true`, both sharding and Raft are active.
+
+**Key features:**
 - **Horizontal Scaling**: Add more servers to handle increased load
-- **Fault Tolerance**: Continue operating if some servers fail
+- **Automatic Failover**: Raft elects a new leader if the current one dies (~1-3s)
 - **Load Distribution**: Automatically distribute shards across cluster nodes
-- **Automatic Routing**: Operations are automatically routed to the correct server
+- **Automatic Routing**: Writes are redirected to the leader via HTTP 307
+- **DNS Re-resolution**: Replicas reconnect to the master at its new IP after pod restarts (v2.5.4)
 
 ## Quick Start
 
@@ -84,12 +94,20 @@ curl -X POST "http://localhost:15002/collections" \
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enabled` | boolean | `false` | Enable cluster mode |
+| `enabled` | boolean | `false` | Enable cluster mode (Raft + sharding) |
 | `node_id` | string | auto-generated | Unique identifier for this node |
 | `discovery` | string | `"static"` | Discovery method: `"static"` or `"dns"` |
 | `timeout_ms` | integer | `5000` | gRPC request timeout in milliseconds |
 | `retry_count` | integer | `3` | Number of retries for failed requests |
-| `servers` | array | `[]` | List of cluster nodes |
+| `servers` | array | `[]` | List of cluster nodes (all must be listed for Raft) |
+| `dns_name` | string | `""` | Kubernetes headless service FQDN (for DNS discovery) |
+| `dns_resolve_interval` | integer | `30` | DNS re-resolution interval in seconds |
+| `dns_grpc_port` | integer | `15003` | gRPC port for DNS-discovered nodes |
+| `raft_node_id` | integer | auto | Explicit Raft node ID (auto-derived from `node_id` hash) |
+| `memory.enforce_mmap_storage` | boolean | `true` | Reject Memory storage in cluster mode |
+| `memory.disable_file_watcher` | boolean | `true` | File watcher incompatible with clusters |
+| `memory.max_cache_memory_bytes` | integer | `1073741824` | Global cache limit (1GB default) |
+| `memory.strict_validation` | boolean | `true` | Fail startup on config errors |
 
 ### Server Configuration
 
@@ -123,15 +141,98 @@ cluster:
       grpc_port: 15003
 ```
 
-#### DNS Discovery (Future)
+#### DNS Discovery (Kubernetes)
+
+Used with Kubernetes headless services for automatic pod discovery:
 
 ```yaml
 cluster:
   enabled: true
   discovery: "dns"
-  dns_name: "vectorizer-cluster.local"
-  dns_port: 15003
+  dns_name: "vectorizer-headless.<namespace>.svc.cluster.local"
+  dns_resolve_interval: 30   # Re-resolve DNS every 30s
+  dns_grpc_port: 15003
 ```
+
+> **v2.5.4:** Stale nodes that remain unavailable for >5 minutes are automatically garbage collected.
+
+## HA / Raft Configuration (v2.5.4+)
+
+When `cluster.enabled: true`, Raft consensus handles leader election automatically. Combined with replication, this provides full HA with automatic failover.
+
+### Required settings
+
+```yaml
+cluster:
+  enabled: true
+  node_id: "node-1"        # Unique per node (in K8s, use pod hostname)
+  servers:                  # ALL nodes must be listed
+    - id: "node-1"
+      address: "node-1.headless.svc.cluster.local"
+      grpc_port: 15003
+    - id: "node-2"
+      address: "node-2.headless.svc.cluster.local"
+      grpc_port: 15003
+    - id: "node-3"
+      address: "node-3.headless.svc.cluster.local"
+      grpc_port: 15003
+  memory:
+    enforce_mmap_storage: true
+    disable_file_watcher: true
+
+replication:
+  enabled: true
+  bind_address: "0.0.0.0:7001"
+  # Do NOT set role — Raft manages it automatically
+
+file_watcher:
+  enabled: false             # MUST be false in cluster mode
+
+auth:
+  enabled: true
+  jwt_secret: "min-32-chars"  # Required field — config parse fails without it
+  jwt_expiration: 3600
+  api_key_length: 32
+```
+
+### How it works
+
+1. All nodes start and bootstrap Raft with the configured members
+2. Raft elects a leader (~1-3s after all nodes are up)
+3. Leader starts `MasterNode` on port 7001 (TCP replication)
+4. Followers resolve the leader address and start `ReplicaNode`
+5. Replicas connect to leader, receive full sync, then heartbeats
+6. If leader dies, Raft elects a new leader automatically
+
+### Kubernetes-specific
+
+In Kubernetes, use an init container to inject the pod hostname as `node_id`:
+
+```yaml
+initContainers:
+  - name: config-selector
+    image: busybox:1.36
+    command: ["sh", "-c"]
+    args:
+      - sed "s/__NODE_ID__/$HOSTNAME/g" /configs/config-template.yml > /active-config/config.yml
+```
+
+Required environment variables:
+- `HOSTNAME` — from `fieldRef: metadata.name`
+- `POD_IP` — from `fieldRef: status.podIP`
+- `VECTORIZER_SERVICE_NAME` — headless service FQDN
+
+See [HA Cluster Guide](../guides/HA_CLUSTER.md) for complete Kubernetes deployment instructions.
+
+### Common pitfalls (fixed in v2.5.4)
+
+| Problem | Cause | Fix |
+|---|---|---|
+| Replicas stuck on stale IP | DNS resolved once at startup | Re-resolved on every reconnect |
+| Panic on startup | Axum 0.6 path syntax `:node_id` | Fixed to `{node_id}` |
+| No automatic failover | Static `role: "master"` | Use Raft (`cluster.enabled: true`) |
+| `Address already in use` on 7001 | Fast leader transitions | `SO_REUSEADDR` on TCP listener |
+| File watcher in cluster mode | `file_watcher.enabled: true` | Must be `false` |
 
 ## Sharding Configuration
 
@@ -165,15 +266,17 @@ Shards are automatically rebalanced when:
 
 Each node requires:
 
-- **REST API Port**: Default `15002` (configurable via `server.port`)
-- **gRPC Port**: Default `15003` (configurable via `cluster.servers[].grpc_port`)
+- **REST API Port**: Default `15002` (configurable via `server.port`) — client connections
+- **gRPC Port**: Default `15003` (configurable via `cluster.servers[].grpc_port`) — Raft consensus + cluster ops
+- **Replication Port**: Default `7001` (configurable via `replication.bind_address`) — TCP data replication
 
 ### Firewall Rules
 
-Ensure the following ports are open:
+Ensure the following ports are open between all cluster nodes:
 
-- REST API port (default: 15002) - for client connections
-- gRPC port (default: 15003) - for inter-server communication
+- REST API port (default: 15002) — client connections + write redirects
+- gRPC port (default: 15003) — Raft consensus, cluster state sync
+- Replication port (default: 7001) — master-replica TCP data streaming
 
 ### Example Firewall Configuration
 
