@@ -78,7 +78,8 @@ spec:
             - name: data
               mountPath: /data
             - name: active-config
-              mountPath: /etc/vectorizer
+              mountPath: /vectorizer/config.yml
+              subPath: config.yml
           resources:
             requests:
               cpu: "2"

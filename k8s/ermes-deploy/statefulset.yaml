@@ -79,11 +79,14 @@ spec:
                 secretKeyRef:
                   name: ermes-vectorizer-credentials
                   key: VECTORIZER_API_KEY
+          # Mount config directly to /vectorizer/config.yml where the app reads it
+          # (the default config in the image binds to 127.0.0.1 — we need 0.0.0.0)
           volumeMounts:
             - name: data
               mountPath: /data
             - name: active-config
-              mountPath: /etc/vectorizer
+              mountPath: /vectorizer/config.yml
+              subPath: config.yml
           resources:
             requests:
               cpu: 500m
