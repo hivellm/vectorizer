@@ -146,7 +146,7 @@ ort = { version = "2.0.0-rc.10", optional = true, features = ["half"] }
 
 # Additional serialization formats
 arrow = { version = "57", optional = true }
-parquet = { version = "57", optional = true }
+parquet = { version = "58", optional = true }
 
 # MCP SDK
 rmcp = { version = "0.10", features = ["server", "macros", "transport-streamable-http-server"] }
