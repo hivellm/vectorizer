@@ -74,10 +74,8 @@ impl StorageCompactor {
         let collection_names = store.list_collections();
 
         if collection_names.is_empty() {
-            error!("❌ No collections in memory to compact");
-            return Err(VectorizerError::Storage(
-                "No collections to compact".to_string(),
-            ));
+            info!("💾 No collections to compact — nothing to save (this is normal on fresh start)");
+            return Ok(StorageIndex::default());
         }
 
         info!("📦 Found {} collections in memory", collection_names.len());
