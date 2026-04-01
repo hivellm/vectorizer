@@ -736,6 +736,19 @@ pub async fn create_collection(
         }
     });
 
+    // Determine storage type: use MMap in cluster mode (enforce_mmap_storage),
+    // otherwise default to Memory for standalone deployments.
+    let storage_type = if let Some(ref cluster_mgr) = state.cluster_manager {
+        // In cluster mode, MMap is required for data persistence across pod restarts
+        info!(
+            "Cluster mode active — using MMap storage for collection '{}'",
+            name
+        );
+        Some(crate::models::StorageType::Mmap)
+    } else {
+        Some(crate::models::StorageType::Memory)
+    };
+
     // Create collection configuration
     let config = crate::models::CollectionConfig {
         dimension,
@@ -749,7 +762,7 @@ pub async fn create_collection(
         quantization: crate::models::QuantizationConfig::None,
         compression: crate::models::CompressionConfig::default(),
         normalization: None,
-        storage_type: Some(crate::models::StorageType::Memory),
+        storage_type,
         sharding: None,
         graph: graph_config,
         encryption: None,
@@ -769,8 +782,14 @@ pub async fn create_collection(
             .map_err(|e| ErrorResponse::from(e))?;
     }
 
-    // Replicate collection creation to replicas
-    if let Some(ref master) = state.master_node {
+    // Replicate collection creation to replicas.
+    // Check both static master_node and HA manager (Raft-managed master).
+    let active_master: Option<std::sync::Arc<crate::replication::MasterNode>> = state
+        .master_node
+        .clone()
+        .or_else(|| state.ha_manager.as_ref().and_then(|ha| ha.master_node()));
+
+    if let Some(ref master) = active_master {
         let op = crate::replication::VectorOperation::CreateCollection {
             name: name.to_string(),
             config: crate::replication::CollectionConfigData {
