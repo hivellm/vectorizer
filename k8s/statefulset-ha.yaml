@@ -8,6 +8,7 @@ metadata:
 spec:
   serviceName: ermes-vectorizer-headless
   replicas: 3
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: ermes-vectorizer

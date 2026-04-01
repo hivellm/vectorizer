@@ -8,6 +8,11 @@ metadata:
 spec:
   serviceName: ermes-vectorizer-headless
   replicas: 3
+  # Parallel is REQUIRED for Raft — all pods must start together
+  # for leader election. OrderedReady causes deadlock because pod-0
+  # waits for Raft quorum (needs pod-1/2) but K8s waits for pod-0
+  # to be Ready before creating pod-1.
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: ermes-vectorizer
