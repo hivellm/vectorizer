@@ -926,28 +926,56 @@ impl VectorizerServer {
                             let mgr_clone = mgr.clone();
                             let servers_clone = cluster_servers.clone();
                             tokio::spawn(async move {
-                                // Wait briefly for the first election to settle
-                                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                                for server in &servers_clone {
-                                    let sid = xxhash_rust::xxh3::xxh3_64(server.id.as_bytes());
-                                    match mgr_clone
-                                        .propose(
-                                            crate::cluster::raft_node::ClusterCommand::AddNode {
-                                                node_id: sid,
-                                                address: server.address.clone(),
-                                                grpc_port: server.grpc_port,
-                                            },
-                                        )
-                                        .await
-                                    {
-                                        Ok(_) => info!(
-                                            "Registered node {} in Raft state machine",
-                                            server.id
-                                        ),
-                                        Err(e) => debug!(
-                                            "Could not register node {} (expected on followers): {}",
-                                            server.id, e
-                                        ),
+                                // Retry registering nodes until this node becomes
+                                // leader and can propose. In a 3-node StatefulSet,
+                                // the election may take 30-60s as pods start sequentially.
+                                for attempt in 1..=12 {
+                                    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+                                    // Only the leader can propose — check first
+                                    if !mgr_clone.is_leader().await {
+                                        if attempt <= 3 {
+                                            tracing::debug!(
+                                                attempt,
+                                                "Not leader yet, will retry AddNode registration"
+                                            );
+                                        }
+                                        continue;
+                                    }
+
+                                    let mut all_ok = true;
+                                    for server in &servers_clone {
+                                        let sid = xxhash_rust::xxh3::xxh3_64(server.id.as_bytes());
+                                        match mgr_clone
+                                            .propose(
+                                                crate::cluster::raft_node::ClusterCommand::AddNode {
+                                                    node_id: sid,
+                                                    address: server.address.clone(),
+                                                    grpc_port: server.grpc_port,
+                                                },
+                                            )
+                                            .await
+                                        {
+                                            Ok(_) => tracing::info!(
+                                                "Registered node {} in Raft state machine",
+                                                server.id
+                                            ),
+                                            Err(e) => {
+                                                tracing::debug!(
+                                                    "Could not register node {}: {}",
+                                                    server.id,
+                                                    e
+                                                );
+                                                all_ok = false;
+                                            }
+                                        }
+                                    }
+                                    if all_ok {
+                                        tracing::info!(
+                                            "All {} nodes registered in Raft state machine",
+                                            servers_clone.len()
+                                        );
+                                        break;
                                     }
                                 }
                             });
