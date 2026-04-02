@@ -491,14 +491,12 @@ impl ClusterRaftNetwork {
 
 /// A single gRPC connection to a remote Raft node.
 ///
-/// Holds a lazily-connected tonic Channel that reuses HTTP/2 connections
-/// across multiple RPCs. The channel is created in `new_client` and kept
-/// alive for the lifetime of this connection object.
+/// Creates a fresh tonic Channel for each RPC to handle DNS resolution
+/// changes (pods restart with new IPs in Kubernetes). The `connect_timeout`
+/// prevents hanging when the peer isn't ready yet.
 pub struct ClusterRaftConnection {
     /// Full gRPC endpoint URL, e.g. "http://host:15003".
     target_addr: String,
-    /// Lazily-connected gRPC channel (reused across RPCs).
-    channel: tonic::transport::Channel,
 }
 
 impl openraft::network::RaftNetworkFactory<TypeConfig> for ClusterRaftNetwork {
@@ -511,18 +509,7 @@ impl openraft::network::RaftNetworkFactory<TypeConfig> for ClusterRaftNetwork {
             target_addr = %addr,
             "Raft: creating gRPC connection to peer"
         );
-
-        // Use connect_lazy so the HTTP/2 handshake happens on first RPC,
-        // not during connection creation. This avoids "transport error" when
-        // the peer's gRPC server isn't ready yet during Raft bootstrap.
-        let channel = tonic::transport::Channel::from_shared(addr.clone())
-            .expect("valid URI")
-            .connect_lazy();
-
-        ClusterRaftConnection {
-            target_addr: addr,
-            channel,
-        }
+        ClusterRaftConnection { target_addr: addr }
     }
 }
 
@@ -538,9 +525,20 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
         })?;
 
-        let mut client = crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(
-            self.channel.clone(),
-        );
+        let channel = tonic::transport::Channel::from_shared(self.target_addr.clone())
+            .map_err(|e| {
+                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+            })?
+            .connect_timeout(std::time::Duration::from_secs(3))
+            .connect()
+            .await
+            .map_err(|e| {
+                warn!("Raft vote: connect to {} failed: {:?}", self.target_addr, e);
+                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+            })?;
+
+        let mut client =
+            crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(channel);
 
         let response = client
             .raft_vote(tonic::Request::new(crate::grpc::cluster::RaftVoteRequest {
@@ -573,9 +571,19 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
         })?;
 
-        let mut client = crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(
-            self.channel.clone(),
-        );
+        let channel = tonic::transport::Channel::from_shared(self.target_addr.clone())
+            .map_err(|e| {
+                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+            })?
+            .connect_timeout(std::time::Duration::from_secs(3))
+            .connect()
+            .await
+            .map_err(|e| {
+                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+            })?;
+
+        let mut client =
+            crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(channel);
 
         let response = client
             .raft_append_entries(tonic::Request::new(
@@ -622,9 +630,19 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
         // Consume the cursor to get the raw snapshot bytes.
         let snapshot_data = snapshot.snapshot.into_inner();
 
-        let mut client = crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(
-            self.channel.clone(),
-        );
+        let channel = tonic::transport::Channel::from_shared(self.target_addr.clone())
+            .map_err(|e| {
+                openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+            })?
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .connect()
+            .await
+            .map_err(|e| {
+                openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+            })?;
+
+        let mut client =
+            crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(channel);
 
         let response = client
             .raft_snapshot(tonic::Request::new(
