@@ -24,7 +24,7 @@ use openraft::{Config, EntryPayload, OptionalSend, Vote};
 use parking_lot;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 // ---------------------------------------------------------------------------
 // Type configuration
@@ -498,8 +498,13 @@ pub struct ClusterRaftConnection {
 impl openraft::network::RaftNetworkFactory<TypeConfig> for ClusterRaftNetwork {
     type Network = ClusterRaftConnection;
 
-    async fn new_client(&mut self, _target: u64, node: &RaftNodeInfo) -> Self::Network {
+    async fn new_client(&mut self, target: u64, node: &RaftNodeInfo) -> Self::Network {
         let addr = format!("http://{}:{}", node.address, node.grpc_port);
+        info!(
+            target_node = target,
+            target_addr = %addr,
+            "Raft: creating gRPC connection to peer"
+        );
         ClusterRaftConnection { target_addr: addr }
     }
 }
@@ -518,11 +523,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
 
         let channel = tonic::transport::Channel::from_shared(self.target_addr.clone())
             .map_err(|e| {
+                warn!("Raft vote: invalid target addr {}: {}", self.target_addr, e);
                 openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
             })?
             .connect()
             .await
             .map_err(|e| {
+                warn!("Raft vote: connect to {} failed: {}", self.target_addr, e);
                 openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
             })?;
 
@@ -535,6 +542,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             }))
             .await
             .map_err(|e| {
+                warn!("Raft vote RPC to {} failed: {}", self.target_addr, e);
                 openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
             })?;
 
