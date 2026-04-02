@@ -899,6 +899,46 @@ impl VectorizerServer {
                             .unwrap_or_default();
 
                         if cluster_servers.len() > 1 {
+                            // Wait for at least 1 peer to be resolvable via DNS
+                            // before bootstrapping Raft. In Kubernetes, headless
+                            // service DNS takes a few seconds after pod creation.
+                            let my_id_str = std::fs::read_to_string(&config_path)
+                                .ok()
+                                .and_then(|c| {
+                                    serde_yaml::from_str::<crate::config::VectorizerConfig>(&c)
+                                        .ok()
+                                        .and_then(|c| c.cluster.node_id)
+                                })
+                                .unwrap_or_default();
+
+                            info!("⏳ Waiting for peer DNS resolution before Raft bootstrap...");
+                            for attempt in 1..=30 {
+                                let mut resolved = 0;
+                                for server in &cluster_servers {
+                                    if server.id == my_id_str {
+                                        continue; // Skip self
+                                    }
+                                    let addr = format!("{}:{}", server.address, server.grpc_port);
+                                    if tokio::net::lookup_host(&addr).await.is_ok() {
+                                        resolved += 1;
+                                    }
+                                }
+                                if resolved > 0 {
+                                    info!(
+                                        "✅ {} peer(s) resolvable via DNS (attempt {})",
+                                        resolved, attempt
+                                    );
+                                    break;
+                                }
+                                if attempt % 5 == 0 {
+                                    info!(
+                                        "⏳ Still waiting for peer DNS... (attempt {}/30)",
+                                        attempt
+                                    );
+                                }
+                                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            }
+
                             let mut members = std::collections::BTreeMap::new();
                             for server in &cluster_servers {
                                 let sid = xxhash_rust::xxh3::xxh3_64(server.id.as_bytes());
