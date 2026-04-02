@@ -529,7 +529,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             .connect()
             .await
             .map_err(|e| {
-                warn!("Raft vote: connect to {} failed: {}", self.target_addr, e);
+                warn!("Raft vote: connect to {} failed: {:?}", self.target_addr, e);
                 openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
             })?;
 
