@@ -522,19 +522,19 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
     ) -> Result<openraft::raft::VoteResponse<TypeConfig>, openraft::error::RPCError<TypeConfig>>
     {
         let data = crate::codec::serialize(&rpc).map_err(|e| {
-            openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+            openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
         })?;
 
         let channel = tonic::transport::Channel::from_shared(self.target_addr.clone())
             .map_err(|e| {
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?
             .connect_timeout(std::time::Duration::from_secs(3))
             .connect()
             .await
             .map_err(|e| {
                 warn!("Raft vote: connect to {} failed: {:?}", self.target_addr, e);
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         let mut client =
@@ -547,12 +547,12 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             .await
             .map_err(|e| {
                 warn!("Raft vote RPC to {} failed: {:?}", self.target_addr, e);
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         let resp: openraft::raft::VoteResponse<TypeConfig> =
             crate::codec::deserialize(&response.into_inner().data).map_err(|e| {
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         Ok(resp)
@@ -568,18 +568,18 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
         openraft::error::RPCError<TypeConfig>,
     > {
         let data = crate::codec::serialize(&rpc).map_err(|e| {
-            openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+            openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
         })?;
 
         let channel = tonic::transport::Channel::from_shared(self.target_addr.clone())
             .map_err(|e| {
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?
             .connect_timeout(std::time::Duration::from_secs(3))
             .connect()
             .await
             .map_err(|e| {
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         let mut client =
@@ -595,12 +595,12 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
                     "Raft append_entries RPC to {} failed: {:?}",
                     self.target_addr, e
                 );
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         let resp: openraft::raft::AppendEntriesResponse<TypeConfig> =
             crate::codec::deserialize(&response.into_inner().data).map_err(|e| {
-                openraft::error::RPCError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::RPCError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         Ok(resp)
@@ -620,11 +620,11 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
         openraft::error::StreamingError<TypeConfig>,
     > {
         let vote_data = crate::codec::serialize(&vote).map_err(|e| {
-            openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+            openraft::error::StreamingError::Network(openraft::error::NetworkError::new(&e))
         })?;
 
         let snapshot_meta = crate::codec::serialize(&snapshot.meta).map_err(|e| {
-            openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+            openraft::error::StreamingError::Network(openraft::error::NetworkError::new(&e))
         })?;
 
         // Consume the cursor to get the raw snapshot bytes.
@@ -632,13 +632,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
 
         let channel = tonic::transport::Channel::from_shared(self.target_addr.clone())
             .map_err(|e| {
-                openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::StreamingError::Network(openraft::error::NetworkError::new(&e))
             })?
             .connect_timeout(std::time::Duration::from_secs(5))
             .connect()
             .await
             .map_err(|e| {
-                openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::StreamingError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         let mut client =
@@ -654,12 +654,12 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             ))
             .await
             .map_err(|e| {
-                openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::StreamingError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         let resp: openraft::raft::SnapshotResponse<TypeConfig> =
             crate::codec::deserialize(&response.into_inner().data).map_err(|e| {
-                openraft::error::StreamingError::Unreachable(openraft::error::Unreachable::new(&e))
+                openraft::error::StreamingError::Network(openraft::error::NetworkError::new(&e))
             })?;
 
         Ok(resp)
