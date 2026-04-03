@@ -1010,12 +1010,13 @@ impl VectorizerServer {
 
                                     // Only the leader can propose — check first
                                     if !mgr_clone.is_leader().await {
-                                        if attempt <= 3 {
-                                            tracing::debug!(
-                                                attempt,
-                                                "Not leader yet, will retry AddNode registration"
-                                            );
-                                        }
+                                        // Force a new election attempt — openraft may
+                                        // have given up after initial DNS failures.
+                                        let _ = mgr_clone.raft().trigger().elect().await;
+                                        tracing::warn!(
+                                            attempt,
+                                            "Not leader yet, triggered election retry"
+                                        );
                                         continue;
                                     }
 
