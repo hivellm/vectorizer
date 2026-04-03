@@ -2181,12 +2181,19 @@ impl VectorizerServer {
             app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
                 let lr = leader_router.clone();
                 async move {
-                    // Skip redirect for health/metrics/auth endpoints
+                    // Skip redirect for read-only endpoints that use POST method.
+                    // Search uses POST but is a read operation — serve locally.
                     let path = req.uri().path();
                     if path.starts_with("/health")
                         || path.starts_with("/prometheus")
                         || path.starts_with("/auth")
                         || path.starts_with("/api/v1/cluster")
+                        || path.contains("/search")
+                        || path.contains("/scroll")
+                        || path.contains("/recommend")
+                        || path.contains("/count")
+                        || path.ends_with("/graphql")
+                        || path.ends_with("/graphiql")
                     {
                         return next.run(req).await;
                     }

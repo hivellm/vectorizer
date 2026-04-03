@@ -3,7 +3,7 @@ name: vectorizer
 description: A Helm chart for Vectorizer - High-performance vector database
 type: application
 version: 1.5.0
-appVersion: "2.5.15"
+appVersion: "2.5.16"
 keywords:
   - vector-database
   - semantic-search
