@@ -2,6 +2,27 @@ apiVersion: v1
 entries:
   vectorizer:
   - apiVersion: v2
+    appVersion: 2.5.10
+    created: "2026-04-03T01:11:22.932362102Z"
+    description: A Helm chart for Vectorizer - High-performance vector database
+    digest: 2d69db7eb54da2898342a6215a669f008f975332d94026c121edc4d97ed1ada3
+    home: https://github.com/hivellm/vectorizer
+    keywords:
+    - vector-database
+    - semantic-search
+    - embeddings
+    - hnsw
+    maintainers:
+    - email: support@hivellm.com
+      name: HiveLLM Team
+    name: vectorizer
+    sources:
+    - https://github.com/hivellm/vectorizer
+    type: application
+    urls:
+    - https://github.com/hivellm/vectorizer/releases/download/vectorizer-2.5.10/vectorizer-2.5.10.tgz
+    version: 2.5.10
+  - apiVersion: v2
     appVersion: 2.5.9
     created: "2026-04-02T23:06:32.078574197Z"
     description: A Helm chart for Vectorizer - High-performance vector database
@@ -211,4 +232,4 @@ entries:
     urls:
     - https://github.com/hivellm/vectorizer/releases/download/vectorizer-2.5.0/vectorizer-2.5.0.tgz
     version: 2.5.0
-generated: "2026-04-02T23:06:32.078608844Z"
+generated: "2026-04-03T01:11:22.932406415Z"
