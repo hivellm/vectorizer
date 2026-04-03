@@ -1410,6 +1410,35 @@ pub async fn insert_text(
         collection_name
     );
 
+    // Replicate vector insertions to followers (Raft HA mode)
+    let active_master: Option<std::sync::Arc<crate::replication::MasterNode>> = state
+        .master_node
+        .clone()
+        .or_else(|| state.ha_manager.as_ref().and_then(|ha| ha.master_node()));
+    if let Some(ref master) = active_master {
+        // Re-read the inserted vectors for replication
+        if let Ok(col) = state.store.get_collection(collection_name) {
+            for vid in &vector_ids {
+                if let Ok(v) = col.get_vector(vid) {
+                    let payload_bytes = v.payload.as_ref().and_then(|p| serde_json::to_vec(p).ok());
+                    let op = crate::replication::VectorOperation::InsertVector {
+                        collection: collection_name.to_string(),
+                        id: vid.clone(),
+                        vector: v.data.clone(),
+                        payload: payload_bytes,
+                        owner_id: None,
+                    };
+                    master.replicate(op);
+                }
+            }
+            debug!(
+                "Replicated {} vectors for collection '{}'",
+                vector_ids.len(),
+                collection_name
+            );
+        }
+    }
+
     info!(
         "Successfully inserted {} vector(s) into collection '{}'",
         vectors_created, collection_name

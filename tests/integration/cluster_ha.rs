@@ -684,7 +684,10 @@ async fn test_raft_trigger_elect_does_not_panic() {
     // Give time for re-election to settle
     tokio::time::sleep(Duration::from_secs(2)).await;
     // Single-node should eventually become leader again
-    assert!(mgr.is_leader().await, "Should re-elect as leader after trigger");
+    assert!(
+        mgr.is_leader().await,
+        "Should re-elect as leader after trigger"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -733,4 +736,90 @@ async fn test_raft_bootstrap_with_unreachable_peers_does_not_block() {
         "initialize_cluster should not block (took {:?})",
         elapsed
     );
+}
+
+// ---------------------------------------------------------------------------
+// Test 19: Vector replication uses ha_manager.master_node() in Raft mode
+// ---------------------------------------------------------------------------
+
+/// Verifies that the HaManager's master_node() is accessible and returns
+/// None when the node is not a leader. This tests the code path that
+/// the vector insert handler uses to find the active master for replication.
+///
+/// The bug was: upsert_points() only checked state.master_node (always None
+/// in Raft mode) and never checked ha_manager.master_node(). Collections
+/// replicated but vectors didn't.
+#[tokio::test]
+async fn test_ha_manager_master_node_accessible_for_replication() {
+    let store = Arc::new(VectorStore::new());
+    let repl_config = ReplicationConfig::default();
+
+    let ha = HaManager::new(1, store.clone(), repl_config);
+
+    // Before becoming leader, master_node() should be None
+    assert!(
+        ha.master_node().is_none(),
+        "master_node should be None before becoming leader"
+    );
+
+    // Become leader — MasterNode is created
+    ha.on_become_leader().await;
+
+    // After becoming leader, master_node() should return Some
+    // (the MasterNode may fail to bind port 7001 in test env, but
+    // the Arc should still be created)
+    // Note: in test we can't guarantee bind succeeds, but the
+    // ha_manager should have attempted to create it
+    let _master = ha.master_node(); // Should not panic
+
+    // Become follower — master_node() should be None again
+    ha.on_become_follower(None).await;
+    assert!(
+        ha.master_node().is_none(),
+        "master_node should be None after becoming follower"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 20: Replication operation can be created for vector insert
+// ---------------------------------------------------------------------------
+
+/// Verifies that VectorOperation::InsertVector can be constructed
+/// with the expected fields. This is the operation that gets replicated
+/// from leader to followers.
+#[tokio::test]
+async fn test_vector_replication_operation_construction() {
+    use vectorizer::replication::VectorOperation;
+
+    let op = VectorOperation::InsertVector {
+        collection: "test-collection".to_string(),
+        id: "vec-1".to_string(),
+        vector: vec![0.1, 0.2, 0.3, 0.4],
+        payload: Some(b"{\"key\":\"value\"}".to_vec()),
+        owner_id: None,
+    };
+
+    // Verify the operation can be serialized (needed for replication log)
+    let serialized = vectorizer::codec::serialize(&op);
+    assert!(serialized.is_ok(), "VectorOperation should serialize");
+
+    let deserialized: Result<VectorOperation, _> =
+        vectorizer::codec::deserialize(&serialized.unwrap());
+    assert!(deserialized.is_ok(), "VectorOperation should deserialize");
+
+    match deserialized.unwrap() {
+        VectorOperation::InsertVector {
+            collection,
+            id,
+            vector,
+            payload,
+            ..
+        } => {
+            assert_eq!(collection, "test-collection");
+            assert_eq!(id, "vec-1");
+            assert_eq!(vector, vec![0.1, 0.2, 0.3, 0.4]);
+            assert!(payload.is_some());
+        }
+        _ => panic!("Expected InsertVector"),
+    }
 }

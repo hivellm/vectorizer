@@ -181,12 +181,18 @@ pub async fn upsert_points(
     // Fire-and-forget: Return response immediately and process in background
     // This improves response time for large batches
     let store_clone = state.store.clone();
-    let master_node = state.master_node.clone();
+    // Check both static master_node and Raft-managed HaManager master.
+    // In Raft HA mode, state.master_node is always None — the active
+    // MasterNode lives in ha_manager.master_node().
+    let active_master: Option<std::sync::Arc<crate::replication::MasterNode>> = state
+        .master_node
+        .clone()
+        .or_else(|| state.ha_manager.as_ref().and_then(|ha| ha.master_node()));
     let collection_name_for_bg = collection_name.clone();
     let points_count_for_bg = points_count;
 
     // Clone vector data for replication before moving into spawn_blocking
-    let repl_vectors: Vec<(String, Vec<f32>, Option<Vec<u8>>)> = if master_node.is_some() {
+    let repl_vectors: Vec<(String, Vec<f32>, Option<Vec<u8>>)> = if active_master.is_some() {
         vectors
             .iter()
             .map(|v| {
@@ -224,7 +230,7 @@ pub async fn upsert_points(
                 );
 
                 // Replicate to replicas if master mode is active
-                if let Some(ref master) = master_node {
+                if let Some(ref master) = active_master {
                     for (id, data, payload) in &repl_vectors {
                         let op = crate::replication::VectorOperation::InsertVector {
                             collection: repl_collection.clone(),
