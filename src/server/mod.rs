@@ -851,14 +851,27 @@ impl VectorizerServer {
 
         // Initialize Raft HA automatically when cluster mode is enabled
         let (raft_manager, ha_manager) = {
-            let cluster_enabled = std::fs::read_to_string(&config_path)
-                .ok()
-                .and_then(|content| {
-                    serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
-                        .ok()
-                        .map(|c| c.cluster.enabled)
-                })
-                .unwrap_or(false);
+            let cluster_enabled = match std::fs::read_to_string(&config_path) {
+                Ok(content) => {
+                    match serde_yaml::from_str::<crate::config::VectorizerConfig>(&content) {
+                        Ok(c) => {
+                            warn!(
+                                "Cluster config parsed: enabled={}, node_id={:?}",
+                                c.cluster.enabled, c.cluster.node_id
+                            );
+                            c.cluster.enabled
+                        }
+                        Err(e) => {
+                            error!("❌ Failed to parse config for cluster check: {}", e);
+                            false
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("❌ Failed to read config file {}: {}", config_path, e);
+                    false
+                }
+            };
 
             if cluster_enabled {
                 info!("🗳️  Initializing Raft consensus (cluster mode active)...");
