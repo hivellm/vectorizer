@@ -902,14 +902,37 @@ impl VectorizerServer {
                         // Bootstrap Raft cluster with all configured members.
                         // Build the member map from the cluster.servers config so
                         // all nodes participate in the initial election.
-                        let cluster_servers = std::fs::read_to_string(&config_path)
-                            .ok()
-                            .and_then(|content| {
-                                serde_yaml::from_str::<crate::config::VectorizerConfig>(&content)
-                                    .ok()
-                                    .map(|c| c.cluster.servers)
-                            })
-                            .unwrap_or_default();
+                        let cluster_servers = match std::fs::read_to_string(&config_path) {
+                            Ok(content) => {
+                                match serde_yaml::from_str::<crate::config::VectorizerConfig>(
+                                    &content,
+                                ) {
+                                    Ok(c) => {
+                                        warn!(
+                                            "Cluster servers from config: {} servers",
+                                            c.cluster.servers.len()
+                                        );
+                                        c.cluster.servers
+                                    }
+                                    Err(e) => {
+                                        error!(
+                                            "❌ Failed to parse config for cluster servers: {}",
+                                            e
+                                        );
+                                        vec![]
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                error!("❌ Failed to read config: {}", e);
+                                vec![]
+                            }
+                        };
+
+                        warn!(
+                            "Cluster servers count: {} (need >1 for multi-node)",
+                            cluster_servers.len()
+                        );
 
                         if cluster_servers.len() > 1 {
                             // Wait for at least 1 peer to be resolvable via DNS
@@ -924,7 +947,7 @@ impl VectorizerServer {
                                 })
                                 .unwrap_or_default();
 
-                            info!("⏳ Waiting for peer DNS resolution before Raft bootstrap...");
+                            warn!("⏳ Waiting for peer DNS resolution before Raft bootstrap...");
                             for attempt in 1..=30 {
                                 let mut resolved = 0;
                                 for server in &cluster_servers {
@@ -937,14 +960,14 @@ impl VectorizerServer {
                                     }
                                 }
                                 if resolved > 0 {
-                                    info!(
+                                    warn!(
                                         "✅ {} peer(s) resolvable via DNS (attempt {})",
                                         resolved, attempt
                                     );
                                     break;
                                 }
                                 if attempt % 5 == 0 {
-                                    info!(
+                                    warn!(
                                         "⏳ Still waiting for peer DNS... (attempt {}/30)",
                                         attempt
                                     );
