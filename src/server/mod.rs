@@ -990,11 +990,16 @@ impl VectorizerServer {
                             // Every node attempts bootstrap — only the first to
                             // succeed actually initializes; others get "already
                             // initialized" which is silently ignored.
-                            if let Err(e) = mgr.initialize_cluster(members).await {
-                                warn!(
+                            warn!(
+                                "🗳️ Calling initialize_cluster with {} members...",
+                                members.len()
+                            );
+                            match mgr.initialize_cluster(members).await {
+                                Ok(_) => warn!("✅ Raft cluster initialized successfully"),
+                                Err(e) => warn!(
                                     "Raft cluster bootstrap: {} (may be normal if already initialized)",
                                     e
-                                );
+                                ),
                             }
                             // Register all node addresses in the Raft state machine
                             // so that resolve_leader_addr() can find them. Only the
