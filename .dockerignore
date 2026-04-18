@@ -92,3 +92,8 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Backup / scratch files
+*.bak
+*.orig
+*.rej

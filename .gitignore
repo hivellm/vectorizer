@@ -9,6 +9,11 @@
 *.swo
 *~
 
+# Backup/scratch files (never commit these)
+*.bak
+*.orig
+*.rej
+
 # OS files
 .DS_Store
 Thumbs.db

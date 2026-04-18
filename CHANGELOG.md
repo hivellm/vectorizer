@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Chore
+- Delete committed backup files `src/db/vector_store.rs.bak` and `tests/integration/sharding_validation.rs.bak` left from earlier refactors.
+- Add `*.bak`, `*.orig`, `*.rej` patterns to `.gitignore` and `.dockerignore` so future scratch files stay out of commits and Docker contexts.
+
 ## [2.4.2] - 2026-02-03
 
 ### Fixed
