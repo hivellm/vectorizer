@@ -7,7 +7,6 @@ use vectorizer::models::{CollectionConfig, DistanceMetric, Payload, Vector};
 use vectorizer::persistence::wal::WALConfig;
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-wal-recovery-bugs; WAL recovery fails on multi-op sequences"]
 async fn test_wal_multiple_operations() {
     let temp_dir = tempdir().unwrap();
     let data_dir = temp_dir.path().to_path_buf();
@@ -125,7 +124,6 @@ async fn test_wal_with_payload() {
 }
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-wal-recovery-bugs; WAL recovery fails on multi-op sequences"]
 async fn test_wal_update_sequence() {
     let temp_dir = tempdir().unwrap();
     let data_dir = temp_dir.path().to_path_buf();
@@ -254,7 +252,6 @@ async fn test_wal_delete_sequence() {
 }
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-wal-recovery-bugs; WAL recovery fails on multi-op sequences"]
 async fn test_wal_multiple_collections() {
     let temp_dir = tempdir().unwrap();
     let data_dir = temp_dir.path().to_path_buf();
@@ -405,7 +402,6 @@ async fn test_wal_error_handling() {
 }
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-wal-recovery-bugs; WAL recovery fails on multi-op sequences"]
 async fn test_wal_without_enabling() {
     // Test that operations work normally when WAL is not enabled
     let store = VectorStore::new();

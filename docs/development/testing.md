@@ -57,9 +57,8 @@ remains until the fix lands. The reason string names the tracking task.
 
 | Test | Tracking task | Summary |
 |---|---|---|
-| `tests/core/wal_vector_store.rs::test_vector_store_wal_integration` | `phase4_triage-wal-recovery-bugs` | WAL integration fails |
-| `tests/core/wal_crash_recovery.rs` (4 tests) | `phase4_triage-wal-recovery-bugs` | WAL recovery not replaying correctly |
-| `tests/core/wal_comprehensive.rs` (4 tests) | `phase4_triage-wal-recovery-bugs` | Multi-op / update-sequence / multi-collection |
+| `tests/core/wal_vector_store.rs` (3 tests) | `phase4_triage-wal-recovery-bugs` | `test_vector_store_wal_integration` fails; `test_wal_recover_all_collections_{empty,with_data}` hang >60s |
+| `tests/core/wal_crash_recovery.rs::test_wal_recover_all_collections` | `phase4_triage-wal-recovery-bugs` | hangs on multi-collection replay; insert/update/delete recover fine |
 | `tests/replication/integration_basic.rs` (12 tests) | `phase4_fix-replication-snapshot-sync` | replica not receiving snapshot on initial sync |
 
 ### Category D — CI flaky
