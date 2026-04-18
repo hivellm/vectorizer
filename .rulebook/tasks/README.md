@@ -12,8 +12,8 @@
 | ⬚ | phase4_authcontext-extractor | 0/12 | authcontext extractor |
 | ⬚ | phase4_enforce-no-unwrap-policy | 0/18 | enforce no unwrap policy |
 | ⬚ | phase4_enforce-public-api-docs | 0/17 | enforce public api docs |
-| ⬚ | phase4_fix-replication-snapshot-sync | 0/12 | fix replication snapshot sync |
-| 🔄 | phase4_fix-wal-multi-collection-replay | 0/8 | fix wal multi collection replay |
+| ⬚ | phase4_fix-replica-delete-operations | 0/5 | fix replica delete operations |
+| 🔄 | phase4_fix-replication-snapshot-sync | 0/12 | fix replication snapshot sync |
 | ⬚ | phase4_query-metal-device-info-from-hive-gpu | 0/9 | query metal device info from hive gpu |
 | ⬚ | phase4_rest-mcp-parity-tests | 0/14 | rest mcp parity tests |
 | ⬚ | phase4_router-layer-admin-middleware | 0/12 | router layer admin middleware |

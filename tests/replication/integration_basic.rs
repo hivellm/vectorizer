@@ -93,7 +93,6 @@ async fn create_running_replica(
 // ============================================================================
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication full sync issue - replica not receiving snapshot. Same root cause as other ignored tests"]
 async fn test_master_start_and_accept_connections() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -157,7 +156,6 @@ async fn test_master_start_and_accept_connections() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - collection not found. Related to snapshot/sync issues"]
 async fn test_master_replicate_operations() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -236,7 +234,6 @@ async fn test_master_replicate_operations() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication full sync issue - replicas not receiving snapshot. Same root cause as test_replica_delete_operations"]
 async fn test_master_multiple_replicas_and_stats() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -317,7 +314,6 @@ async fn test_master_multiple_replicas_and_stats() {
 // ============================================================================
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - replica not receiving snapshot. Same root cause"]
 async fn test_replica_full_sync_on_connect() {
     let (_master, master_store, master_addr) = create_running_master().await;
 
@@ -364,7 +360,6 @@ async fn test_replica_full_sync_on_connect() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - related to snapshot/sync issues"]
 async fn test_replica_partial_sync_on_reconnect() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -454,7 +449,6 @@ async fn test_replica_partial_sync_on_reconnect() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - collections not found. Same root cause as snapshot sync"]
 async fn test_replica_apply_all_operation_types() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -516,7 +510,6 @@ async fn test_replica_apply_all_operation_types() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - replica connection failing. Related to snapshot sync issues"]
 async fn test_replica_heartbeat_and_connection_status() {
     let (_master, _master_store, master_addr) = create_running_master().await;
 
@@ -541,7 +534,6 @@ async fn test_replica_heartbeat_and_connection_status() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - collection not found. Related to snapshot/sync issues"]
 async fn test_replica_incremental_operations() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -609,7 +601,7 @@ async fn test_replica_incremental_operations() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication full sync issue - replica not receiving snapshot. TODO: Investigate master snapshot send logic"]
+#[ignore = "tracked by phase4_fix-replica-delete-operations; only ~1 of 5 DeleteVector ops reach the replica apply loop (master writes all 5 to TCP OK; replica never reads past the first)"]
 async fn test_replica_delete_operations() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -720,7 +712,6 @@ async fn test_replica_delete_operations() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - collection not found. Same root cause as snapshot sync"]
 async fn test_replica_update_operations() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -780,7 +771,6 @@ async fn test_replica_update_operations() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication issue - stats showing 0 replicated. Related to snapshot sync"]
 async fn test_replica_stats_tracking() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -847,7 +837,6 @@ async fn test_empty_snapshot_replication() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "Replication full sync issue - replica not receiving snapshot. Same root cause as other ignored tests"]
 async fn test_large_payload_replication() {
     let (_master, master_store, master_addr) = create_running_master().await;
 
