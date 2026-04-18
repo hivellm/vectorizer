@@ -35,11 +35,16 @@ pub struct ServerConfigFile {
     pub auth_enabled: bool,
 }
 
-/// Authentication configuration in file
+/// Authentication configuration in file.
+///
+/// `jwt_secret` is wrapped in `Secret<String>` so any `Debug` print of
+/// the deserialized config (or an error payload holding one) shows
+/// `<redacted>` instead of the raw key. Serde round-trips transparently,
+/// so YAML wire format is unchanged.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfigFile {
-    /// JWT secret key
-    pub jwt_secret: String,
+    /// JWT secret key (redacting wrapper).
+    pub jwt_secret: crate::auth::Secret<String>,
     /// JWT expiration time in seconds
     pub jwt_expiration: u64,
     /// API key length
@@ -88,7 +93,7 @@ impl Default for ConfigFile {
                 // secret before the config is accepted by `validate_config`.
                 // See `crate::auth::LEGACY_INSECURE_DEFAULT_SECRET` for the
                 // historical value rejected by validation.
-                jwt_secret: String::new(),
+                jwt_secret: crate::auth::Secret::new(String::new()),
                 jwt_expiration: 3600,
                 api_key_length: 32,
                 rate_limit_per_minute: 100,
@@ -172,7 +177,8 @@ impl ConfigManager {
         // Only when auth is enabled — a dev-mode config may ship with no
         // secret and that is acceptable because no JWT is ever issued.
         if config.auth.enabled {
-            if config.auth.jwt_secret.is_empty() {
+            let jwt_secret = config.auth.jwt_secret.expose_secret();
+            if jwt_secret.is_empty() {
                 return Err(VectorizerError::InvalidConfiguration {
                     message: "auth.jwt_secret is empty. Set it in the config file \
                               or via the VECTORIZER_JWT_SECRET env var. Generate \
@@ -180,7 +186,7 @@ impl ConfigManager {
                         .to_string(),
                 });
             }
-            if config.auth.jwt_secret == crate::auth::LEGACY_INSECURE_DEFAULT_SECRET {
+            if jwt_secret == crate::auth::LEGACY_INSECURE_DEFAULT_SECRET {
                 return Err(VectorizerError::InvalidConfiguration {
                     message: "auth.jwt_secret is the legacy insecure default and \
                               will be rejected at boot. Generate a new secret: \
@@ -188,7 +194,7 @@ impl ConfigManager {
                         .to_string(),
                 });
             }
-            if config.auth.jwt_secret.len() < crate::auth::MIN_JWT_SECRET_LEN {
+            if jwt_secret.len() < crate::auth::MIN_JWT_SECRET_LEN {
                 return Err(VectorizerError::InvalidConfiguration {
                     message: format!(
                         "JWT secret must be at least {} characters long",
@@ -336,7 +342,7 @@ mod tests {
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Injecting a valid 64-char secret makes it pass.
-        config.auth.jwt_secret = "v".repeat(64);
+        config.auth.jwt_secret = crate::auth::Secret::new("v".repeat(64));
         assert!(ConfigManager::validate_config(&config).is_ok());
 
         // Invalid port should fail
@@ -345,16 +351,17 @@ mod tests {
         config.server.port = 15002;
 
         // Short JWT secret should fail
-        config.auth.jwt_secret = "short".to_string();
+        config.auth.jwt_secret = crate::auth::Secret::new("short".to_string());
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Legacy insecure default must be explicitly rejected (not merely
         // because it happens to satisfy the length check).
-        config.auth.jwt_secret = crate::auth::LEGACY_INSECURE_DEFAULT_SECRET.to_string();
+        config.auth.jwt_secret =
+            crate::auth::Secret::new(crate::auth::LEGACY_INSECURE_DEFAULT_SECRET.to_string());
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Reset to a valid secret to isolate the log-level assertion below.
-        config.auth.jwt_secret = "v".repeat(64);
+        config.auth.jwt_secret = crate::auth::Secret::new("v".repeat(64));
 
         // Invalid log level should fail
         config.logging.level = "invalid".to_string();
@@ -389,7 +396,7 @@ mod tests {
 
         let mut default_file: ConfigFile =
             serde_yaml::from_str(&std::fs::read_to_string(&config_path).unwrap()).unwrap();
-        default_file.auth.jwt_secret = "o".repeat(64);
+        default_file.auth.jwt_secret = crate::auth::Secret::new("o".repeat(64));
         std::fs::write(&config_path, serde_yaml::to_string(&default_file).unwrap()).unwrap();
 
         // Load config file

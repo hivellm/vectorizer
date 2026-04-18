@@ -1174,7 +1174,7 @@ impl VectorizerServer {
                 auth_config.enabled = enabled.to_lowercase() == "true";
             }
             if let Ok(secret) = std::env::var("VECTORIZER_JWT_SECRET") {
-                auth_config.jwt_secret = secret;
+                auth_config.jwt_secret = crate::auth::Secret::new(secret);
             }
 
             if auth_config.enabled {

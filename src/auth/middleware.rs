@@ -257,12 +257,12 @@ mod tests {
 
     use super::*;
     use crate::auth::roles::{Permission, Role};
-    use crate::auth::{AuthConfig, AuthManager};
+    use crate::auth::{AuthConfig, AuthManager, Secret};
 
     /// Build a valid `AuthConfig` for middleware tests.
     fn test_config() -> AuthConfig {
         AuthConfig {
-            jwt_secret: "m".repeat(64),
+            jwt_secret: Secret::new("m".repeat(64)),
             ..AuthConfig::default()
         }
     }

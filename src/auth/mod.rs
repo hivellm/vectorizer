@@ -9,6 +9,7 @@ pub mod middleware;
 pub mod password;
 pub mod persistence;
 pub mod roles;
+pub mod secret;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,6 +22,7 @@ pub use password::{
     validate_password_with_requirements,
 };
 pub use roles::{Permission, Role};
+pub use secret::Secret;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
@@ -42,7 +44,10 @@ pub struct AuthConfig {
     /// JWT secret key for token signing. Must be set explicitly (via config
     /// file or `VECTORIZER_JWT_SECRET` env var) to a value that is at least
     /// `MIN_JWT_SECRET_LEN` characters long and is NOT the legacy default.
-    pub jwt_secret: String,
+    ///
+    /// Stored in a redacting `Secret<String>` — `Debug`/`Display` of an
+    /// `AuthConfig` will show `<redacted>` for this field.
+    pub jwt_secret: Secret<String>,
     /// JWT token expiration time in seconds (default: 3600 = 1 hour)
     pub jwt_expiration: u64,
     /// API key length (default: 32)
@@ -63,7 +68,7 @@ impl Default for AuthConfig {
     /// auth-bypass vulnerability.
     fn default() -> Self {
         Self {
-            jwt_secret: String::new(),
+            jwt_secret: Secret::new(String::new()),
             jwt_expiration: 3600, // 1 hour
             api_key_length: 32,
             rate_limit_per_minute: 100,
@@ -88,7 +93,8 @@ impl AuthConfig {
         if !self.enabled {
             return Ok(());
         }
-        if self.jwt_secret.is_empty() {
+        let secret = self.jwt_secret.expose_secret();
+        if secret.is_empty() {
             return Err(VectorizerError::InvalidConfiguration {
                 message: "auth.jwt_secret is empty. Set it in config.yml or via \
                           VECTORIZER_JWT_SECRET env var. Generate one with: \
@@ -96,7 +102,7 @@ impl AuthConfig {
                     .to_string(),
             });
         }
-        if self.jwt_secret == LEGACY_INSECURE_DEFAULT_SECRET {
+        if secret == LEGACY_INSECURE_DEFAULT_SECRET {
             return Err(VectorizerError::InvalidConfiguration {
                 message: "auth.jwt_secret is the legacy insecure default. This \
                           value is publicly known and must never be used. \
@@ -104,12 +110,12 @@ impl AuthConfig {
                     .to_string(),
             });
         }
-        if self.jwt_secret.len() < MIN_JWT_SECRET_LEN {
+        if secret.len() < MIN_JWT_SECRET_LEN {
             return Err(VectorizerError::InvalidConfiguration {
                 message: format!(
                     "auth.jwt_secret is {} chars; must be at least {} chars. \
                      Generate one with: openssl rand -hex 64",
-                    self.jwt_secret.len(),
+                    secret.len(),
                     MIN_JWT_SECRET_LEN
                 ),
             });
@@ -140,8 +146,9 @@ pub struct ApiKey {
     pub id: String,
     /// API key name/description
     pub name: String,
-    /// API key value (hashed)
-    pub key_hash: String,
+    /// API key value (hashed). Redacting wrapper — use `.expose_secret()`
+    /// only when strictly required (hash comparison).
+    pub key_hash: Secret<String>,
     /// Associated user ID
     pub user_id: String,
     /// Permissions for this API key
@@ -190,7 +197,8 @@ impl AuthManager {
     pub fn new(config: AuthConfig) -> Result<Self> {
         config.validate()?;
 
-        let jwt_manager = JwtManager::new(&config.jwt_secret, config.jwt_expiration)?;
+        let jwt_manager =
+            JwtManager::new(config.jwt_secret.expose_secret(), config.jwt_expiration)?;
         let api_key_manager = ApiKeyManager::new(config.api_key_length)?;
 
         Ok(Self {
@@ -345,7 +353,7 @@ mod tests {
     /// release build. Do NOT use this value in any production config.
     fn test_config() -> AuthConfig {
         AuthConfig {
-            jwt_secret: "t".repeat(64),
+            jwt_secret: Secret::new("t".repeat(64)),
             ..AuthConfig::default()
         }
     }
@@ -427,7 +435,7 @@ mod tests {
     #[test]
     fn validate_rejects_legacy_default_secret() {
         let config = AuthConfig {
-            jwt_secret: LEGACY_INSECURE_DEFAULT_SECRET.to_string(),
+            jwt_secret: Secret::new(LEGACY_INSECURE_DEFAULT_SECRET.to_string()),
             ..AuthConfig::default()
         };
         let err = config.validate().unwrap_err();
@@ -440,7 +448,7 @@ mod tests {
     #[test]
     fn validate_rejects_short_secret() {
         let config = AuthConfig {
-            jwt_secret: "short-but-nonempty".to_string(),
+            jwt_secret: Secret::new("short-but-nonempty".to_string()),
             ..AuthConfig::default()
         };
         let err = config.validate().unwrap_err();
@@ -453,7 +461,7 @@ mod tests {
     #[test]
     fn validate_accepts_valid_secret() {
         let config = AuthConfig {
-            jwt_secret: "a".repeat(64),
+            jwt_secret: Secret::new("a".repeat(64)),
             ..AuthConfig::default()
         };
         config.validate().unwrap();
@@ -471,9 +479,50 @@ mod tests {
     #[test]
     fn manager_new_refuses_legacy_default() {
         let config = AuthConfig {
-            jwt_secret: LEGACY_INSECURE_DEFAULT_SECRET.to_string(),
+            jwt_secret: Secret::new(LEGACY_INSECURE_DEFAULT_SECRET.to_string()),
             ..AuthConfig::default()
         };
         assert!(AuthManager::new(config).is_err());
+    }
+
+    /// Regression guard for the `Secret<String>` migration. If any future
+    /// refactor demotes `jwt_secret` back to a bare `String`, this test
+    /// fails because the debug output of the config will contain the raw key.
+    #[test]
+    fn auth_config_debug_redacts_jwt_secret() {
+        let marker = "jwt-sentinel-must-not-leak-into-debug-output";
+        let config = AuthConfig {
+            jwt_secret: Secret::new(marker.repeat(2)), // > 64 chars for validate()
+            ..AuthConfig::default()
+        };
+
+        let rendered = format!("{:?}", config);
+        assert!(
+            !rendered.contains(marker),
+            "AuthConfig Debug leaked the jwt_secret: {rendered}"
+        );
+        assert!(
+            rendered.contains("<redacted>"),
+            "expected the Secret<String> redaction marker in {rendered}"
+        );
+    }
+
+    /// YAML / JSON on-the-wire shape must stay identical to a plain
+    /// `String` — consumers of `config.yml` and the encrypted auth store
+    /// should not have to change.
+    #[test]
+    fn auth_config_serde_round_trip_preserves_wire_format() {
+        let original = AuthConfig {
+            jwt_secret: Secret::new("x".repeat(64)),
+            ..AuthConfig::default()
+        };
+        let json = serde_json::to_string(&original).expect("serialize AuthConfig");
+        assert!(
+            json.contains(&"x".repeat(64)),
+            "wire format must contain the plain string: {json}"
+        );
+
+        let back: AuthConfig = serde_json::from_str(&json).expect("deserialize AuthConfig");
+        assert_eq!(back.jwt_secret.expose_secret(), &"x".repeat(64));
     }
 }

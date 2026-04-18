@@ -289,8 +289,9 @@ pub struct UserRecord {
     pub user_id: String,
     /// Username
     pub username: String,
-    /// Password hash (bcrypt)
-    pub password_hash: String,
+    /// Password hash (bcrypt). Redacting wrapper — plaintext bcrypt hash only
+    /// reaches `bcrypt::verify` through `.expose_secret()`.
+    pub password_hash: crate::auth::Secret<String>,
     /// User roles
     pub roles: Vec<Role>,
 }
@@ -396,8 +397,10 @@ impl AuthHandlerState {
                 username
             );
 
-            let password_hash = bcrypt::hash(&password, bcrypt::DEFAULT_COST)
-                .unwrap_or_else(|_| "invalid".to_string());
+            let password_hash = crate::auth::Secret::new(
+                bcrypt::hash(&password, bcrypt::DEFAULT_COST)
+                    .unwrap_or_else(|_| "invalid".to_string()),
+            );
 
             let admin = UserRecord {
                 user_id: username.clone(),
@@ -685,7 +688,8 @@ pub async fn login(
     drop(users);
 
     // Verify password
-    let valid = bcrypt::verify(&request.password, &user.password_hash).unwrap_or(false);
+    let valid =
+        bcrypt::verify(&request.password, user.password_hash.expose_secret()).unwrap_or(false);
     if !valid {
         warn!(
             "Login failed: invalid password for user '{}'",
@@ -1177,17 +1181,20 @@ pub async fn create_user(
         roles
     };
 
-    // Hash password
-    let password_hash = bcrypt::hash(&request.password, bcrypt::DEFAULT_COST).map_err(|e| {
-        error!("Failed to hash password: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(AuthErrorResponse {
-                error: "hash_failed".to_string(),
-                message: "Failed to create user".to_string(),
-            }),
-        )
-    })?;
+    // Hash password and wrap as Secret immediately so the plaintext hash does
+    // not float around as a bare String.
+    let password_hash = crate::auth::Secret::new(
+        bcrypt::hash(&request.password, bcrypt::DEFAULT_COST).map_err(|e| {
+            error!("Failed to hash password: {}", e); // logging-allow(label): "{}" is the bcrypt error, not the password
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(AuthErrorResponse {
+                    error: "hash_failed".to_string(),
+                    message: "Failed to create user".to_string(),
+                }),
+            )
+        })?,
+    );
 
     // Create user ID
     let user_id = uuid::Uuid::new_v4().to_string();
@@ -1439,7 +1446,8 @@ pub async fn change_password(
             )
         })?;
 
-        let valid = bcrypt::verify(current_password, &user.password_hash).unwrap_or(false);
+        let valid =
+            bcrypt::verify(current_password, user.password_hash.expose_secret()).unwrap_or(false);
         if !valid {
             return Err((
                 StatusCode::UNAUTHORIZED,
@@ -1451,17 +1459,19 @@ pub async fn change_password(
         }
     }
 
-    // Hash new password
-    let new_hash = bcrypt::hash(&request.new_password, bcrypt::DEFAULT_COST).map_err(|e| {
-        error!("Failed to hash password: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(AuthErrorResponse {
-                error: "hash_failed".to_string(),
-                message: "Failed to update password".to_string(),
-            }),
-        )
-    })?;
+    // Hash new password and wrap as Secret immediately.
+    let new_hash = crate::auth::Secret::new(
+        bcrypt::hash(&request.new_password, bcrypt::DEFAULT_COST).map_err(|e| {
+            error!("Failed to hash password: {}", e); // logging-allow(label): "{}" is the bcrypt error, not the password
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(AuthErrorResponse {
+                    error: "hash_failed".to_string(),
+                    message: "Failed to update password".to_string(),
+                }),
+            )
+        })?,
+    );
 
     // Update password
     user.password_hash = new_hash.clone();
@@ -1479,7 +1489,7 @@ pub async fn change_password(
     drop(users);
 
     if let Err(e) = state.persistence.save_user(persisted_user) {
-        error!("Failed to persist password change: {}", e);
+        error!("Failed to persist password change: {}", e); // logging-allow(label): "{}" is the I/O error, not the password
     }
 
     info!(

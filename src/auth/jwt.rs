@@ -7,13 +7,18 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 
+use crate::auth::Secret;
 use crate::error::{Result, VectorizerError};
 
-/// JWT manager for token operations
+/// JWT manager for token operations.
+///
+/// The signing secret is stored in a `Secret<String>` so `{:?}` / `{}` print
+/// `<redacted>` instead of the raw key. Access the plaintext only through
+/// `.expose_secret()` at the two sites that build the HMAC key.
 #[derive(Debug)]
 pub struct JwtManager {
-    /// Secret key for signing tokens
-    secret: String,
+    /// Secret key for signing tokens. Redacting wrapper; use `.expose_secret()` to read.
+    secret: Secret<String>,
     /// Token expiration time in seconds
     expiration: u64,
 }
@@ -28,7 +33,7 @@ impl JwtManager {
         }
 
         Ok(Self {
-            secret: secret.to_string(),
+            secret: Secret::new(secret.to_string()),
             expiration,
         })
     }
@@ -54,7 +59,7 @@ impl JwtManager {
         };
 
         let header = Header::new(Algorithm::HS256);
-        let encoding_key = EncodingKey::from_secret(self.secret.as_bytes());
+        let encoding_key = EncodingKey::from_secret(self.secret.expose_secret().as_bytes());
 
         encode(&header, &claims, &encoding_key)
             .map_err(|e| VectorizerError::InternalError(format!("Failed to encode JWT: {}", e)))
@@ -62,7 +67,7 @@ impl JwtManager {
 
     /// Validate a JWT token and return claims
     pub fn validate_token(&self, token: &str) -> Result<crate::auth::UserClaims> {
-        let decoding_key = DecodingKey::from_secret(self.secret.as_bytes());
+        let decoding_key = DecodingKey::from_secret(self.secret.expose_secret().as_bytes());
         let validation = Validation::new(Algorithm::HS256);
 
         let token_data = decode::<crate::auth::UserClaims>(token, &decoding_key, &validation)

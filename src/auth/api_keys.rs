@@ -75,7 +75,7 @@ impl ApiKeyManager {
         let key_info = ApiKey {
             id: key_id.clone(),
             name: name.to_string(),
-            key_hash,
+            key_hash: crate::auth::Secret::new(key_hash),
             user_id: user_id.to_string(),
             permissions,
             created_at: now,
@@ -97,7 +97,10 @@ impl ApiKeyManager {
 
         // Find the key by hash
         for (_, key_info) in keys.iter() {
-            if key_info.key_hash == key_hash && key_info.active {
+            // Hash comparison against a freshly computed hash. Same algorithm on
+            // both sides, so a simple byte-equal is correct (the hash itself is
+            // already a constant-size digest; no plaintext leaks).
+            if key_info.key_hash.expose_secret() == &key_hash && key_info.active {
                 // Check expiration
                 if let Some(expires_at) = key_info.expires_at {
                     let now = chrono::Utc::now().timestamp() as u64;

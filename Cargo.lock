@@ -9076,6 +9076,7 @@ dependencies = [
  "whoami",
  "winres",
  "xxhash-rust",
+ "zeroize",
  "zip 6.0.0",
  "zstd",
 ]

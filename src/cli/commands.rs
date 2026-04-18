@@ -513,7 +513,9 @@ pub async fn handle_config_command(command: ConfigCommands, config: &CliConfig) 
 
             if show_secrets {
                 warn!("Showing sensitive configuration values:");
-                info!("  JWT Secret: {}", config.auth.jwt_secret);
+                // Explicit opt-in: operator passed --show-secrets. The Secret<String> wrapper
+                // still protects every other code path; only this branch pierces it.
+                info!("  JWT Secret: {}", config.auth.jwt_secret.expose_secret());
             } else {
                 info!("  JWT Secret: [HIDDEN] (use --show-secrets to reveal)");
             }

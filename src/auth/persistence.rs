@@ -26,8 +26,9 @@ pub struct PersistedUser {
     pub user_id: String,
     /// Username
     pub username: String,
-    /// Password hash (bcrypt)
-    pub password_hash: String,
+    /// Password hash (bcrypt). Redacting wrapper — hashes are serialized
+    /// transparently to/from disk but never appear in `Debug` output.
+    pub password_hash: crate::auth::Secret<String>,
     /// User roles
     pub roles: Vec<Role>,
     /// Created timestamp
@@ -43,8 +44,8 @@ pub struct PersistedApiKey {
     pub id: String,
     /// API key name/description
     pub name: String,
-    /// API key value hash (not the raw key)
-    pub key_hash: String,
+    /// API key value hash (not the raw key). Redacting wrapper.
+    pub key_hash: crate::auth::Secret<String>,
     /// Associated user ID
     pub user_id: String,
     /// Permissions for this API key
@@ -370,7 +371,7 @@ mod tests {
             PersistedUser {
                 user_id: "user1".to_string(),
                 username: "testuser".to_string(),
-                password_hash: "hash123".to_string(),
+                password_hash: crate::auth::Secret::new("hash123".to_string()),
                 roles: vec![Role::User],
                 created_at: 1234567890,
                 last_login: None,
@@ -405,7 +406,7 @@ mod tests {
         let user = PersistedUser {
             user_id: "user1".to_string(),
             username: "admin".to_string(),
-            password_hash: "hash".to_string(),
+            password_hash: crate::auth::Secret::new("hash".to_string()),
             roles: vec![Role::Admin],
             created_at: 1234567890,
             last_login: None,
@@ -426,7 +427,7 @@ mod tests {
         let key = PersistedApiKey {
             id: "key1".to_string(),
             name: "test key".to_string(),
-            key_hash: "hash".to_string(),
+            key_hash: crate::auth::Secret::new("hash".to_string()),
             user_id: "user1".to_string(),
             permissions: vec![Permission::Read],
             created_at: 1234567890,
