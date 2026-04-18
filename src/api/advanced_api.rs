@@ -10,7 +10,8 @@
 //! - SDK generation and client libraries
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -1008,13 +1009,13 @@ impl AdvancedApiServer {
 
     /// Add API route
     pub fn add_route(&self, path: String, route: ApiRoute) {
-        let mut routes = self.routes.write().unwrap();
+        let mut routes = self.routes.write();
         routes.insert(path, route);
     }
 
     /// Add middleware
     pub fn add_middleware(&self, middleware: TestHandler) {
-        let mut middleware_stack = self.middleware.write().unwrap();
+        let mut middleware_stack = self.middleware.write();
         middleware_stack.push(middleware);
     }
 
@@ -1084,7 +1085,7 @@ impl AdvancedApiServer {
 
     /// Apply middleware
     async fn apply_middleware(&self, request: &mut ApiRequest) -> Result<()> {
-        let middleware = self.middleware.read().unwrap();
+        let middleware = self.middleware.read();
 
         for middleware in middleware.iter() {
             middleware.process_request(request).await?;
@@ -1095,7 +1096,7 @@ impl AdvancedApiServer {
 
     /// Apply response middleware
     async fn apply_response_middleware(&self, response: &mut ApiResponse) -> Result<()> {
-        let middleware = self.middleware.read().unwrap();
+        let middleware = self.middleware.read();
 
         for middleware in middleware.iter() {
             middleware.process_response(response).await?;
@@ -1106,7 +1107,7 @@ impl AdvancedApiServer {
 
     /// Find route
     async fn find_route(&self, request: &ApiRequest) -> Result<ApiRoute> {
-        let routes = self.routes.read().unwrap();
+        let routes = self.routes.read();
 
         if let Some(route) = routes.get(&request.path) {
             Ok(route.clone())
@@ -1249,7 +1250,7 @@ impl MemoryRateLimitingStorage {
 
 impl RateLimitingStorage for MemoryRateLimitingStorage {
     async fn check_rate_limit(&self, key: &str, limit: &RateLimit) -> Result<RateLimitResult> {
-        let data = self.data.read().unwrap();
+        let data = self.data.read();
         let current_count = data.get(key).copied().unwrap_or(0);
 
         Ok(RateLimitResult {
@@ -1261,13 +1262,13 @@ impl RateLimitingStorage for MemoryRateLimitingStorage {
     }
 
     async fn increment_counter(&self, key: &str, _limit: &RateLimit) -> Result<()> {
-        let mut data = self.data.write().unwrap();
+        let mut data = self.data.write();
         *data.entry(key.to_string()).or_insert(0) += 1;
         Ok(())
     }
 
     async fn reset_counter(&self, key: &str, _limit: &RateLimit) -> Result<()> {
-        let mut data = self.data.write().unwrap();
+        let mut data = self.data.write();
         data.remove(key);
         Ok(())
     }
@@ -1291,13 +1292,13 @@ impl MemoryAnalyticsStorage {
 
 impl AnalyticsStorage for MemoryAnalyticsStorage {
     async fn store_data(&self, data: AnalyticsData) -> Result<()> {
-        let mut storage = self.data.write().unwrap();
+        let mut storage = self.data.write();
         storage.push(data);
         Ok(())
     }
 
     async fn query_data(&self, _query: AnalyticsQuery) -> Result<Vec<AnalyticsData>> {
-        let storage = self.data.read().unwrap();
+        let storage = self.data.read();
         Ok(storage.clone())
     }
 }

@@ -58,3 +58,14 @@ jobs:
             echo "::error::src/models/ imports from crate::db — violates layering"
             exit 1
           fi
+      - name: Enforce parking_lot over std::sync for Mutex/RwLock
+        # AGENTS.md mandates parking_lot locks over std::sync variants. This
+        # gate fails the build if any `use std::sync::{...Mutex...}` or
+        # `...RwLock...}` import re-appears in src/. std::sync::Arc, Once,
+        # OnceLock, atomic, and mpsc are NOT flagged (they have no
+        # parking_lot equivalent).
+        run: |
+          if grep -rnE '^use std::sync::\{[^}]*(Mutex|RwLock)' src/; then
+            echo "::error::src/ uses std::sync::Mutex/RwLock — migrate to parking_lot"
+            exit 1
+          fi

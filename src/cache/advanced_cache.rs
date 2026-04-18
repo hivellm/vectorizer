@@ -11,7 +11,8 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
@@ -540,9 +541,9 @@ impl<T: Clone + Send + Sync + 'static> AdvancedCache<T> {
 
     /// Clear all cache layers
     pub fn clear(&self) {
-        self.l1_cache.write().unwrap().clear();
-        self.l2_cache.write().unwrap().clear();
-        self.l3_cache.write().unwrap().clear();
+        self.l1_cache.write().clear();
+        self.l2_cache.write().clear();
+        self.l3_cache.write().clear();
 
         let mut stats = self.stats.lock();
         *stats = CacheStatistics::default();
@@ -559,7 +560,7 @@ impl<T: Clone + Send + Sync + 'static> AdvancedCache<T> {
         layer: &Arc<RwLock<LruCache<CacheKey, CacheEntry<T>>>>,
         key: &CacheKey,
     ) -> Option<T> {
-        let mut cache = layer.write().unwrap();
+        let mut cache = layer.write();
 
         if let Some(entry) = cache.get_mut(key) {
             if entry.is_expired() {
@@ -581,7 +582,7 @@ impl<T: Clone + Send + Sync + 'static> AdvancedCache<T> {
         key: CacheKey,
         mut entry: CacheEntry<T>,
     ) {
-        let mut cache = layer.write().unwrap();
+        let mut cache = layer.write();
 
         // Check if we need to evict
         if cache.len() >= cache.cap().get() {
@@ -597,7 +598,7 @@ impl<T: Clone + Send + Sync + 'static> AdvancedCache<T> {
         layer: &Arc<RwLock<LruCache<CacheKey, CacheEntry<T>>>>,
         key: &CacheKey,
     ) {
-        let mut cache = layer.write().unwrap();
+        let mut cache = layer.write();
         cache.pop(key);
     }
 

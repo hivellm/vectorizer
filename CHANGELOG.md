@@ -32,6 +32,9 @@ All notable changes to this project will be documented in this file.
 - Three `#[allow(dead_code)]` stub methods on `OnnxEmbedder` that called `unreachable!()` inside the body: `get_or_download_model`, `infer_batch`, `apply_pooling`. They had no callers (all real code paths go through the deterministic-hash `embed` / `embed_batch` / `embed_parallel` methods) and were left over from an earlier incomplete `ort` integration. Deleting them removes a class of "if any caller appears, the process aborts" hazards; the ONNX file header already documents that inference is a future feature.
 
 ### Performance
+- Complete the `parking_lot` migration across the remaining 15 files outside the original hot-path list: `src/api/advanced_api.rs`, `src/cache/advanced_cache.rs`, `src/config/enhanced_config.rs`, `src/db/{collection,quantized_collection}.rs`, `src/ml/advanced_ml.rs`, `src/persistence/{dynamic,wal}.rs`, `src/processing/advanced_pipeline.rs`, `src/quantization/{hnsw_integration,storage}.rs`, `src/search/advanced_search.rs`, `src/security/enhanced_security.rs`, `src/storage/{advanced,reader}.rs`. All `.read()/.write()/.lock().unwrap()` and `.map_err(...)?` Result-handling suffixes were stripped because `parking_lot` guards don't poison. A new CI grep gate in `.github/workflows/rust-lint.yml` fails the build if any new `use std::sync::{...Mutex...|...RwLock...}` import appears in `src/`, locking in the migration.
+
+### Performance (hot path)
 - Migrate hot-path `std::sync::Mutex` to `parking_lot::Mutex` in `src/batch/{mod,processor}.rs`, `src/db/{vector_store,hive_gpu_collection}.rs`, and `src/cluster/raft_node.rs`. `parking_lot` locks are smaller (1 byte vs 8+ for std) and don't carry the `PoisonError` machinery, so the hot `.lock()` path is a straight guard return. Per `AGENTS.md` convention.
 
 ### Documentation

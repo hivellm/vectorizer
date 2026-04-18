@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 use zip::ZipArchive;
 
@@ -58,18 +59,14 @@ impl StorageReader {
 
     /// Get the storage index
     pub fn index(&self) -> Result<StorageIndex> {
-        self.index
-            .read()
-            .map(|guard| guard.clone())
-            .map_err(|_| VectorizerError::Storage("Failed to read index".to_string()))
+        Ok(self.index.read().clone())
     }
 
     /// List all collection names
     pub fn list_collections(&self) -> Result<Vec<String>> {
         let index = self
             .index
-            .read()
-            .map_err(|_| VectorizerError::Storage("Failed to read index".to_string()))?;
+            .read();
 
         Ok(index.collections.iter().map(|c| c.name.clone()).collect())
     }
@@ -78,8 +75,7 @@ impl StorageReader {
     pub fn get_collection(&self, name: &str) -> Result<Option<CollectionIndex>> {
         let index = self
             .index
-            .read()
-            .map_err(|_| VectorizerError::Storage("Failed to read index".to_string()))?;
+            .read();
 
         Ok(index.find_collection(name).cloned())
     }
@@ -90,8 +86,7 @@ impl StorageReader {
         {
             let cache = self
                 .file_cache
-                .read()
-                .map_err(|_| VectorizerError::Storage("Failed to read cache".to_string()))?;
+                .read();
 
             if let Some(data) = cache.get(path) {
                 return Ok(data.clone());
@@ -105,8 +100,7 @@ impl StorageReader {
         if data.len() < self.max_cache_size / 10 {
             let mut cache = self
                 .file_cache
-                .write()
-                .map_err(|_| VectorizerError::Storage("Failed to write cache".to_string()))?;
+                .write();
 
             cache.insert(path.to_string(), data.clone());
 
@@ -159,8 +153,7 @@ impl StorageReader {
     pub fn clear_cache(&self) -> Result<()> {
         let mut cache = self
             .file_cache
-            .write()
-            .map_err(|_| VectorizerError::Storage("Failed to write cache".to_string()))?;
+            .write();
 
         cache.clear();
         Ok(())
@@ -170,8 +163,7 @@ impl StorageReader {
     pub fn cache_stats(&self) -> Result<CacheStats> {
         let cache = self
             .file_cache
-            .read()
-            .map_err(|_| VectorizerError::Storage("Failed to read cache".to_string()))?;
+            .read();
 
         let entry_count = cache.len();
         let total_size: usize = cache.values().map(|v| v.len()).sum();

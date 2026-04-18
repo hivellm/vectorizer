@@ -1,7 +1,8 @@
 //! Collection implementation for storing vectors
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
@@ -640,7 +641,6 @@ impl Collection {
                 );
                 self.quantized_vectors
                     .lock()
-                    .unwrap()
                     .insert(id.clone(), quantized_vector);
 
                 // Don't store full precision vector to save memory
@@ -775,7 +775,7 @@ impl Collection {
             crate::models::QuantizationConfig::SQ { bits: 8 }
                 | crate::models::QuantizationConfig::Binary
         ) {
-            self.quantized_vectors.lock().unwrap().contains_key(&id)
+            self.quantized_vectors.lock().contains_key(&id)
         } else {
             self.vectors.contains_key(&id)?
         };
@@ -827,7 +827,6 @@ impl Collection {
             );
             self.quantized_vectors
                 .lock()
-                .unwrap()
                 .insert(id.clone(), quantized_vector);
         } else {
             // Update full precision storage
@@ -868,7 +867,6 @@ impl Collection {
         ) {
             self.quantized_vectors
                 .lock()
-                .unwrap()
                 .remove(vector_id)
                 .is_some()
         } else {
@@ -907,7 +905,6 @@ impl Collection {
             let quantized_vector = self
                 .quantized_vectors
                 .lock()
-                .unwrap()
                 .get(vector_id)
                 .cloned()
                 .ok_or_else(|| VectorizerError::VectorNotFound(vector_id.to_string()))?;
@@ -970,7 +967,7 @@ impl Collection {
         for (id, score) in neighbors {
             let vector = if use_quantization {
                 // Get from quantized storage and dequantize on-demand
-                if let Some(quantized) = self.quantized_vectors.lock().unwrap().get(&id) {
+                if let Some(quantized) = self.quantized_vectors.lock().get(&id) {
                     quantized.to_vector()
                 } else {
                     continue; // Vector not found
@@ -1085,7 +1082,6 @@ impl Collection {
                 if let Some(quantized) = self
                     .quantized_vectors
                     .lock()
-                    .unwrap()
                     .get(&hybrid_result.id)
                 {
                     quantized.to_vector()
@@ -1168,7 +1164,7 @@ impl Collection {
                 .collect();
 
             // Move to quantized storage
-            let mut quantized_storage = self.quantized_vectors.lock().unwrap();
+            let mut quantized_storage = self.quantized_vectors.lock();
             for (id, qv) in quantized {
                 quantized_storage.insert(id, qv);
             }
@@ -1506,7 +1502,6 @@ impl Collection {
                 debug!("Storing quantized vector '{}' during fast load", id);
                 self.quantized_vectors
                     .lock()
-                    .unwrap()
                     .insert(id.clone(), quantized_vector);
 
                 // Don't store full precision vector to save memory
@@ -1563,7 +1558,7 @@ impl Collection {
             crate::models::QuantizationConfig::SQ { bits: 8 }
                 | crate::models::QuantizationConfig::Binary
         ) {
-            let quantized = self.quantized_vectors.lock().unwrap();
+            let quantized = self.quantized_vectors.lock();
             vector_order
                 .iter()
                 .filter_map(|id| quantized.get(id).map(|qv| qv.to_vector()))
@@ -1607,7 +1602,7 @@ impl Collection {
 
         if use_quantization {
             // Calculate from quantized storage
-            let quantized_vectors = self.quantized_vectors.lock().unwrap();
+            let quantized_vectors = self.quantized_vectors.lock();
             let vector_count = quantized_vectors.len();
 
             for (id, qvector) in quantized_vectors.iter() {

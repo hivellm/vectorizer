@@ -5,7 +5,8 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 use serde::{Deserialize, Serialize};
 
@@ -130,7 +131,7 @@ impl QuantizedHnswIndex {
         let quantized = self.quantization.quantize(vectors)?;
 
         // Always cache original vectors for similarity calculation
-        let mut original_cache = self.original_cache.write().unwrap();
+        let mut original_cache = self.original_cache.write();
         for (i, vector) in vectors.iter().enumerate() {
             original_cache.insert(self.vector_count + i, vector.clone());
         }
@@ -164,10 +165,10 @@ impl QuantizedHnswIndex {
 
         // Calculate similarity with all quantized vectors
         let mut results = Vec::new();
-        let quantized_cache = self.quantized_cache.read().unwrap();
+        let quantized_cache = self.quantized_cache.read();
 
         // For now, use original vectors for similarity calculation
-        let original_cache = self.original_cache.read().unwrap();
+        let original_cache = self.original_cache.read();
         for (id, original_vector) in original_cache.iter() {
             let similarity = cosine_similarity(query, original_vector);
             results.push((*id, similarity));
@@ -187,7 +188,7 @@ impl QuantizedHnswIndex {
         k: usize,
     ) -> QuantizationResult<Vec<(usize, f32)>> {
         let mut results = Vec::new();
-        let original_cache = self.original_cache.read().unwrap();
+        let original_cache = self.original_cache.read();
 
         for (id, vector) in original_cache.iter() {
             let similarity = cosine_similarity(query, vector);
@@ -235,8 +236,8 @@ impl QuantizedHnswIndex {
 
     /// Get quantization statistics
     pub fn get_quantization_stats(&self) -> QuantizationResult<HnswQuantizationStats> {
-        let quantized_cache = self.quantized_cache.read().unwrap();
-        let original_cache = self.original_cache.read().unwrap();
+        let quantized_cache = self.quantized_cache.read();
+        let original_cache = self.original_cache.read();
         let total_quantized_vectors = quantized_cache.len();
 
         let original_memory = self.vector_count * self.dimension * 4; // f32 = 4 bytes
@@ -272,15 +273,15 @@ impl QuantizedHnswIndex {
 
     /// Clear the index
     pub fn clear(&mut self) -> QuantizationResult<()> {
-        self.quantized_cache.write().unwrap().clear();
-        self.original_cache.write().unwrap().clear();
+        self.quantized_cache.write().clear();
+        self.original_cache.write().clear();
         self.vector_count = 0;
         Ok(())
     }
 
     /// Save quantized vectors to storage
     pub fn save_to_storage(&self, collection_name: &str) -> QuantizationResult<()> {
-        let cache = self.quantized_cache.read().unwrap();
+        let cache = self.quantized_cache.read();
 
         // Convert cached quantized vectors to QuantizedVectors format
         let mut all_quantized_data = Vec::new();
@@ -321,7 +322,7 @@ impl QuantizedHnswIndex {
     // Private helper methods
 
     fn cache_quantized_vectors(&self, quantized: &QuantizedVectors) -> QuantizationResult<()> {
-        let mut cache = self.quantized_cache.write().unwrap();
+        let mut cache = self.quantized_cache.write();
         let bytes_per_vector = match self.config.quantization_type {
             QuantizationType::Scalar(bits) => match bits {
                 8 => quantized.dimension,

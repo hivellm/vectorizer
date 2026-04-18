@@ -10,7 +10,8 @@
 //! - Automated model selection
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -808,19 +809,19 @@ impl AdvancedMlManager {
 
     /// Register a model
     pub async fn register_model(&self, model: ModelInfo) -> Result<()> {
-        let mut registry = self.model_registry.write().unwrap();
+        let mut registry = self.model_registry.write();
         registry.register_model(model).await
     }
 
     /// Get model by ID
     pub async fn get_model(&self, model_id: &str) -> Result<Option<ModelInfo>> {
-        let registry = self.model_registry.read().unwrap();
+        let registry = self.model_registry.read();
         Ok(registry.get_model(model_id).await)
     }
 
     /// List available models
     pub async fn list_models(&self) -> Result<Vec<ModelInfo>> {
-        let registry = self.model_registry.read().unwrap();
+        let registry = self.model_registry.read();
         Ok(registry.list_models().await)
     }
 
@@ -854,7 +855,7 @@ impl AdvancedMlManager {
         &self,
         criteria: ModelSelectionCriteria,
     ) -> Result<Vec<ModelInfo>> {
-        let registry = self.model_registry.read().unwrap();
+        let registry = self.model_registry.read();
         registry.get_recommendations(criteria).await
     }
 }
@@ -974,7 +975,7 @@ impl ModelTrainer {
 
         // Add job to registry
         {
-            let mut jobs = self.jobs.write().unwrap();
+            let mut jobs = self.jobs.write();
             jobs.push(job.clone());
         }
 
@@ -984,7 +985,7 @@ impl ModelTrainer {
         tokio::spawn(async move {
             // Training implementation would go here
             {
-                let mut jobs = jobs.write().unwrap();
+                let mut jobs = jobs.write();
                 if let Some(job) = jobs.iter_mut().find(|j| j.id == job_id) {
                     job.status = TrainingJobStatus::Running;
                     job.start_time = Some(chrono::Utc::now());
@@ -994,7 +995,7 @@ impl ModelTrainer {
             // Simulate training progress
             for i in 0..100 {
                 {
-                    let mut jobs = jobs.write().unwrap();
+                    let mut jobs = jobs.write();
                     if let Some(job) = jobs.iter_mut().find(|j| j.id == job_id) {
                         job.progress = i as f64 / 100.0;
                     }
@@ -1003,7 +1004,7 @@ impl ModelTrainer {
             }
 
             {
-                let mut jobs = jobs.write().unwrap();
+                let mut jobs = jobs.write();
                 if let Some(job) = jobs.iter_mut().find(|j| j.id == job_id) {
                     job.status = TrainingJobStatus::Completed;
                     job.end_time = Some(chrono::Utc::now());
@@ -1039,7 +1040,7 @@ impl ModelEvaluator {
 
         // Add result to registry
         {
-            let mut results = self.results.write().unwrap();
+            let mut results = self.results.write();
             results.push(result.clone());
         }
 
@@ -1077,14 +1078,14 @@ impl AbTestingManager {
 
     /// Start A/B test
     async fn start_test(&self, test: AbTest) -> Result<()> {
-        let mut active_tests = self.active_tests.write().unwrap();
+        let mut active_tests = self.active_tests.write();
         active_tests.push(test);
         Ok(())
     }
 
     /// Get test results
     async fn get_test_results(&self, test_id: &str) -> Result<Vec<AbTestResult>> {
-        let results = self.test_results.read().unwrap();
+        let results = self.test_results.read();
         Ok(results
             .iter()
             .filter(|r| r.test_id == test_id)

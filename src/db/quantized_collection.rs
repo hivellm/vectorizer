@@ -16,7 +16,8 @@ use crate::{
 };
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use chrono;
 
 /// A collection that uses quantization for memory optimization
@@ -133,7 +134,7 @@ impl QuantizedCollection {
 
         // Initialize quantized index if needed
         {
-            let mut index_guard = self.quantized_index.write().unwrap();
+            let mut index_guard = self.quantized_index.write();
             if index_guard.is_none() {
                 let hnsw_config = HnswQuantizationConfig {
                     quantization_type: self.quantization_config.method.clone(),
@@ -149,7 +150,7 @@ impl QuantizedCollection {
 
         // Add vectors to quantized index
         {
-            let mut index_guard = self.quantized_index.write().unwrap();
+            let mut index_guard = self.quantized_index.write();
             if let Some(ref mut index) = *index_guard {
                 index.insert(&vector_data)?;
             }
@@ -175,19 +176,19 @@ impl QuantizedCollection {
 
             // Update vector order
             {
-                let mut order_guard = self.vector_order.write().unwrap();
+                let mut order_guard = self.vector_order.write();
                 order_guard.push(vector.id.clone());
             }
         }
 
         // Update counts and timestamp
         {
-            let mut count_guard = self.vector_count.write().unwrap();
+            let mut count_guard = self.vector_count.write();
             *count_guard += vectors.len();
         }
 
         {
-            let mut updated_guard = self.updated_at.write().unwrap();
+            let mut updated_guard = self.updated_at.write();
             *updated_guard = chrono::Utc::now();
         }
 
@@ -196,7 +197,7 @@ impl QuantizedCollection {
 
     /// Search for similar vectors using quantized search
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(String, f32)>> {
-        let index_guard = self.quantized_index.read().unwrap();
+        let index_guard = self.quantized_index.read();
         if let Some(ref index) = *index_guard {
             let results = index.search(query, k)?;
             
@@ -216,7 +217,7 @@ impl QuantizedCollection {
 
     /// Get vector count
     pub fn vector_count(&self) -> usize {
-        *self.vector_count.read().unwrap()
+        *self.vector_count.read()
     }
 
     /// Get document count
@@ -233,7 +234,7 @@ impl QuantizedCollection {
             document_count: self.document_count(),
             dimension: self.config.dimension,
             created_at: self.created_at,
-            updated_at: *self.updated_at.read().unwrap(),
+            updated_at: *self.updated_at.read(),
             quantization_type: Some(self.quantization_config.method.clone()),
             memory_usage_mb: self.estimate_memory_usage(),
         }
@@ -256,13 +257,13 @@ impl QuantizedCollection {
 
     /// Set embedding type
     pub fn set_embedding_type(&self, embedding_type: String) {
-        let mut guard = self.embedding_type.write().unwrap();
+        let mut guard = self.embedding_type.write();
         *guard = embedding_type;
     }
 
     /// Get embedding type
     pub fn get_embedding_type(&self) -> String {
-        self.embedding_type.read().unwrap().clone()
+        self.embedding_type.read().clone()
     }
 }
 

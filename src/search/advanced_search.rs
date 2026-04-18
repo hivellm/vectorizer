@@ -9,7 +9,8 @@
 //! - Real-time search updates
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -674,21 +675,21 @@ impl AdvancedSearchEngine {
 
     /// Add document to search index
     pub async fn add_document(&self, document: SearchDocument) -> Result<()> {
-        let mut index = self.index.write().unwrap();
+        let mut index = self.index.write();
         index.add_document(document)?;
         Ok(())
     }
 
     /// Remove document from search index
     pub async fn remove_document(&self, document_id: &str) -> Result<()> {
-        let mut index = self.index.write().unwrap();
+        let mut index = self.index.write();
         index.remove_document(document_id)?;
         Ok(())
     }
 
     /// Update document in search index
     pub async fn update_document(&self, document: SearchDocument) -> Result<()> {
-        let mut index = self.index.write().unwrap();
+        let mut index = self.index.write();
         index.update_document(document)?;
         Ok(())
     }
@@ -701,7 +702,7 @@ impl AdvancedSearchEngine {
         let processed_query = self.query_processor.process_query(&query).await?;
 
         // Get documents from index
-        let index = self.index.read().unwrap();
+        let index = self.index.read();
         let mut results = index.search(&processed_query).await?;
 
         // Rank results
@@ -1248,7 +1249,7 @@ impl SearchAnalytics {
     /// Log query
     async fn log_query(&self, query_log: QueryLog) {
         if self.config.enabled {
-            let mut logs = self.query_logs.write().unwrap();
+            let mut logs = self.query_logs.write();
             logs.push(query_log);
 
             // Keep only recent logs
@@ -1263,7 +1264,7 @@ impl SearchAnalytics {
 
     /// Get metrics
     async fn get_metrics(&self) -> SearchMetrics {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().clone()
     }
 }
 
@@ -1287,7 +1288,7 @@ impl SearchSuggestions {
 
         // Add query to history
         {
-            let mut history = self.query_history.write().unwrap();
+            let mut history = self.query_history.write();
             history.push(query.to_string());
         }
 

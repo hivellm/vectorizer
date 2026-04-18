@@ -10,7 +10,8 @@ use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 
 use memmap2::{Mmap, MmapMut, MmapOptions};
 use parking_lot::RwLock as ParkingRwLock;

@@ -9,7 +9,8 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result};
@@ -173,13 +174,13 @@ impl EnhancedConfigManager {
 
         // Update configuration
         {
-            let mut current_config = self.config.write().unwrap();
+            let mut current_config = self.config.write();
             *current_config = config;
         }
 
         // Update last reload time
         {
-            let mut last_reload = self.last_reload.write().unwrap();
+            let mut last_reload = self.last_reload.write();
             *last_reload = SystemTime::now();
         }
 
@@ -192,7 +193,7 @@ impl EnhancedConfigManager {
 
     /// Save current configuration to file
     pub async fn save_config(&self) -> Result<()> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read();
         let config_yaml =
             serde_yaml::to_string(&*config).context("Failed to serialize configuration")?;
 
@@ -206,7 +207,7 @@ impl EnhancedConfigManager {
 
     /// Get current configuration
     pub fn get_config(&self) -> WorkspaceConfig {
-        self.config.read().unwrap().clone()
+        self.config.read().clone()
     }
 
     /// Update configuration
@@ -214,7 +215,7 @@ impl EnhancedConfigManager {
     where
         F: FnOnce(&mut WorkspaceConfig) -> Result<()>,
     {
-        let mut config = self.config.write().unwrap();
+        let mut config = self.config.write();
         updater(&mut config)?;
         self.validate_config(&config)?;
         Ok(())
@@ -312,7 +313,7 @@ impl EnhancedConfigManager {
                 // Check if file has been modified
                 if let Ok(metadata) = fs::metadata(&config_path).await {
                     if let Ok(modified) = metadata.modified() {
-                        let last_reload_time = *last_reload.read().unwrap();
+                        let last_reload_time = *last_reload.read();
                         if modified > last_reload_time {
                             // Reload configuration
                             if let Ok(content) = fs::read_to_string(&config_path).await {
@@ -328,12 +329,12 @@ impl EnhancedConfigManager {
                                         .is_ok()
                                         {
                                             {
-                                                let mut current_config = config.write().unwrap();
+                                                let mut current_config = config.write();
                                                 *current_config = new_config;
                                             }
                                             {
                                                 let mut last_reload_guard =
-                                                    last_reload.write().unwrap();
+                                                    last_reload.write();
                                                 *last_reload_guard = SystemTime::now();
                                             }
                                             tracing::info!(
@@ -415,7 +416,7 @@ impl EnhancedConfigManager {
 
         // Update configuration
         {
-            let mut current_config = self.config.write().unwrap();
+            let mut current_config = self.config.write();
             *current_config = config;
         }
 
@@ -495,7 +496,7 @@ impl EnhancedConfigManager {
 
     /// Get configuration as environment variables
     pub fn get_config_as_env_vars(&self) -> HashMap<String, String> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read();
         let mut env_vars = HashMap::new();
 
         // Add workspace metadata
@@ -556,7 +557,7 @@ impl EnhancedConfigManager {
 
     /// Export configuration to different formats
     pub async fn export_config(&self, format: ConfigFormat, output_path: &Path) -> Result<()> {
-        let config = self.config.read().unwrap();
+        let config = self.config.read();
 
         match format {
             ConfigFormat::Yaml => {

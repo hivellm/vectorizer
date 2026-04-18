@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use serde_json;
 use thiserror::Error;
@@ -309,7 +310,7 @@ impl DynamicCollectionPersistence {
         let transaction_id = self.wal.current_sequence();
         let transaction = Transaction::new(transaction_id, collection_id.to_string());
 
-        let mut active_transactions = self.active_transactions.lock().unwrap();
+        let mut active_transactions = self.active_transactions.lock();
         active_transactions.insert(transaction_id, transaction);
 
         debug!(
@@ -325,7 +326,7 @@ impl DynamicCollectionPersistence {
         transaction_id: u64,
         operation: Operation,
     ) -> Result<(), PersistenceError> {
-        let mut active_transactions = self.active_transactions.lock().unwrap();
+        let mut active_transactions = self.active_transactions.lock();
 
         if let Some(transaction) = active_transactions.get_mut(&transaction_id) {
             if transaction.status != TransactionStatus::InProgress {
@@ -342,7 +343,7 @@ impl DynamicCollectionPersistence {
 
     /// Commit transaction
     pub async fn commit_transaction(&self, transaction_id: u64) -> Result<(), PersistenceError> {
-        let mut active_transactions = self.active_transactions.lock().unwrap();
+        let mut active_transactions = self.active_transactions.lock();
 
         if let Some(mut transaction) = active_transactions.remove(&transaction_id) {
             if transaction.status != TransactionStatus::InProgress {
@@ -370,7 +371,7 @@ impl DynamicCollectionPersistence {
 
     /// Rollback transaction
     pub async fn rollback_transaction(&self, transaction_id: u64) -> Result<(), PersistenceError> {
-        let mut active_transactions = self.active_transactions.lock().unwrap();
+        let mut active_transactions = self.active_transactions.lock();
 
         if let Some(mut transaction) = active_transactions.remove(&transaction_id) {
             transaction.rollback();
@@ -661,7 +662,7 @@ impl DynamicCollectionPersistence {
             total_documents,
             wal_entries: wal_stats.entry_count,
             wal_size_bytes: wal_stats.file_size_bytes,
-            active_transactions: self.active_transactions.lock().unwrap().len(),
+            active_transactions: self.active_transactions.lock().len(),
         })
     }
 }

@@ -9,7 +9,8 @@
 //! - Compliance reporting
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
@@ -876,7 +877,7 @@ impl EnhancedSecurityManager {
         session_id: &str,
         required_permissions: &[Permission],
     ) -> Result<bool> {
-        let sessions = self.sessions.read().unwrap();
+        let sessions = self.sessions.read();
 
         if let Some(session) = sessions.get(session_id) {
             // Check if session is still valid
@@ -938,7 +939,7 @@ impl EnhancedSecurityManager {
 
     /// Check account lockout
     async fn check_account_lockout(&self, user_id: &str) -> Result<()> {
-        let failed_attempts = self.failed_attempts.read().unwrap();
+        let failed_attempts = self.failed_attempts.read();
 
         if let Some(attempts) = failed_attempts.get(user_id) {
             if attempts.locked {
@@ -985,7 +986,7 @@ impl EnhancedSecurityManager {
             user_agent: user_agent.to_string(),
         };
 
-        let mut sessions = self.sessions.write().unwrap();
+        let mut sessions = self.sessions.write();
         sessions.insert(session_id, session.clone());
 
         Ok(session)
@@ -999,7 +1000,7 @@ impl EnhancedSecurityManager {
 
     /// Log security event
     async fn log_security_event(&self, event: SecurityEvent) {
-        let mut events = self.security_events.write().unwrap();
+        let mut events = self.security_events.write();
         events.push(event);
 
         // Keep only recent events (e.g., last 1000)
@@ -1013,7 +1014,7 @@ impl EnhancedSecurityManager {
 
     /// Reset failed attempts
     async fn reset_failed_attempts(&self, user_id: &str) {
-        let mut failed_attempts = self.failed_attempts.write().unwrap();
+        let mut failed_attempts = self.failed_attempts.write();
         failed_attempts.remove(user_id);
     }
 }

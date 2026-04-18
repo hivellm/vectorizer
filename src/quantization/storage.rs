@@ -8,7 +8,8 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -294,8 +295,8 @@ impl QuantizedVectorStorage {
 
     /// Get storage statistics
     pub fn get_stats(&self) -> QuantizationResult<StorageStats> {
-        let cache = self.cache.read().unwrap();
-        let cache_size = *self.cache_size.read().unwrap();
+        let cache = self.cache.read();
+        let cache_size = *self.cache_size.read();
 
         let mut total_files = 0;
         let mut total_size = 0u64;
@@ -345,8 +346,8 @@ impl QuantizedVectorStorage {
 
     /// Clear cache
     pub fn clear_cache(&self) -> QuantizationResult<()> {
-        let mut cache = self.cache.write().unwrap();
-        let mut cache_size = self.cache_size.write().unwrap();
+        let mut cache = self.cache.write();
+        let mut cache_size = self.cache_size.write();
 
         cache.clear();
         *cache_size = 0;
@@ -432,7 +433,7 @@ impl QuantizedVectorStorage {
     }
 
     fn get_from_cache(&self, collection_name: &str) -> Option<CachedQuantizedVectors> {
-        let cache = self.cache.read().unwrap();
+        let cache = self.cache.read();
         cache.get(collection_name).cloned()
     }
 
@@ -446,7 +447,7 @@ impl QuantizedVectorStorage {
 
         // Check if we need to evict from cache
         let max_cache_size = self.config.max_cache_size_mb * 1024 * 1024;
-        let mut cache_size = self.cache_size.write().unwrap();
+        let mut cache_size = self.cache_size.write();
 
         if *cache_size + memory_usage > max_cache_size {
             self.evict_from_cache(memory_usage)?;
@@ -459,7 +460,7 @@ impl QuantizedVectorStorage {
             memory_usage,
         };
 
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.write();
         cache.insert(collection_name.to_string(), cached);
         *cache_size += memory_usage;
 
@@ -467,8 +468,8 @@ impl QuantizedVectorStorage {
     }
 
     fn remove_from_cache(&self, collection_name: &str) {
-        let mut cache = self.cache.write().unwrap();
-        let mut cache_size = self.cache_size.write().unwrap();
+        let mut cache = self.cache.write();
+        let mut cache_size = self.cache_size.write();
 
         if let Some(cached) = cache.remove(collection_name) {
             *cache_size -= cached.memory_usage;
@@ -476,8 +477,8 @@ impl QuantizedVectorStorage {
     }
 
     fn evict_from_cache(&self, required_space: usize) -> QuantizationResult<()> {
-        let mut cache = self.cache.write().unwrap();
-        let mut cache_size = self.cache_size.write().unwrap();
+        let mut cache = self.cache.write();
+        let mut cache_size = self.cache_size.write();
 
         // Simple LRU eviction - remove oldest entries
         let mut entries: Vec<_> = cache.iter().collect();

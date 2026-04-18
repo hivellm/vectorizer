@@ -9,7 +9,8 @@
 //! - Error handling and recovery
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -796,7 +797,7 @@ impl AdvancedProcessingPipeline {
 
     /// Start pipeline
     pub async fn start(&self) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write();
         state.status = PipelineStatus::Starting;
         state.start_time = Some(Instant::now());
 
@@ -818,7 +819,7 @@ impl AdvancedProcessingPipeline {
 
     /// Stop pipeline
     pub async fn stop(&self) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write();
         state.status = PipelineStatus::Stopping;
 
         // Stop all stages
@@ -836,14 +837,14 @@ impl AdvancedProcessingPipeline {
 
     /// Pause pipeline
     pub async fn pause(&self) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write();
         state.status = PipelineStatus::Paused;
         Ok(())
     }
 
     /// Resume pipeline
     pub async fn resume(&self) -> Result<()> {
-        let mut state = self.state.write().unwrap();
+        let mut state = self.state.write();
         state.status = PipelineStatus::Running;
         Ok(())
     }
@@ -863,12 +864,12 @@ impl AdvancedProcessingPipeline {
 
     /// Get pipeline status
     pub fn get_status(&self) -> PipelineStatus {
-        self.state.read().unwrap().status.clone()
+        self.state.read().status.clone()
     }
 
     /// Get pipeline metrics
     pub fn get_metrics(&self) -> PipelineMetrics {
-        self.metrics.read().unwrap().clone()
+        self.metrics.read().clone()
     }
 
     /// Initialize stage
@@ -988,8 +989,8 @@ impl AdvancedProcessingPipeline {
                 interval.tick().await;
 
                 // Update metrics
-                let mut metrics_guard = metrics.write().unwrap();
-                let state_guard = state.read().unwrap();
+                let mut metrics_guard = metrics.write();
+                let state_guard = state.read();
 
                 if let Some(start_time) = state_guard.start_time {
                     let elapsed = start_time.elapsed();
@@ -1028,7 +1029,7 @@ impl ErrorHandler {
 
         // Log error
         {
-            let mut logs = self.error_logs.write().unwrap();
+            let mut logs = self.error_logs.write();
             logs.push(error_log);
         }
 
