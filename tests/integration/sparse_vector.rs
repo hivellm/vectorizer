@@ -138,11 +138,17 @@ async fn test_sparse_vector_with_payload() {
 }
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-sparse-vector-test; parallel-test collision on shared store"]
 async fn test_sparse_vector_search() {
+    // Originally ignored under "parallel-test collision on shared store"
+    // (phase4_triage-sparse-vector-test). The test already uses a unique
+    // timestamp-suffixed collection name AND its own `VectorStore::new()`
+    // instance — re-running it against the current release/v3.0.0 tree
+    // shows it passes both in isolation and alongside its siblings. The
+    // collision observed at the time the ignore was added has evaporated
+    // (likely fixed indirectly by the v3.0.0 sprint's locking migrations);
+    // removing the ignore restores the sparse-search regression guard.
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    // Use unique collection name to avoid conflicts with parallel tests
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

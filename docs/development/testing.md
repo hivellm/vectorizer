@@ -61,7 +61,6 @@ remains until the fix lands. The reason string names the tracking task.
 | `tests/core/wal_crash_recovery.rs` (4 tests) | `phase4_triage-wal-recovery-bugs` | WAL recovery not replaying correctly |
 | `tests/core/wal_comprehensive.rs` (4 tests) | `phase4_triage-wal-recovery-bugs` | Multi-op / update-sequence / multi-collection |
 | `tests/core/storage.rs` (2 tests) | `phase4_triage-mmap-storage-bugs` | MMap insert+retrieve / update+delete failing |
-| `tests/integration/sparse_vector.rs::test_sparse_vector_search` | `phase4_triage-sparse-vector-test` | parallel-test collision on shared store |
 | `tests/replication/integration_basic.rs` (12 tests) | `phase4_fix-replication-snapshot-sync` | replica not receiving snapshot on initial sync |
 
 ### Category D — CI flaky
