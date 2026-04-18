@@ -32,7 +32,7 @@
 | ⬚ | phase4_rest-mcp-parity-tests | 0/14 | rest mcp parity tests |
 | ⬚ | phase4_router-layer-admin-middleware | 0/12 | router layer admin middleware |
 | ⬚ | phase4_split-advanced-search-engines | 0/12 | split advanced search engines |
-| ⬚ | phase4_split-embedding-providers | 0/9 | split embedding providers |
+| ⬚ | phase4_split-interleaved-embedding-providers | 0/13 | split interleaved embedding providers |
 | ⬚ | phase4_split-sdk-javascript-client | 0/10 | split sdk javascript client |
 | ⬚ | phase4_split-sdk-python-client | 0/11 | split sdk python client |
 | ⬚ | phase4_split-sdk-rust-client | 0/9 | split sdk rust client |
