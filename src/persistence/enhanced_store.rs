@@ -254,6 +254,7 @@ impl EnhancedVectorStore {
             for vector in vectors {
                 use crate::persistence::types::Operation;
                 let operation = Operation::InsertVector {
+                    collection_name: collection_name.to_string(),
                     vector_id: vector.id,
                     data: vector.data,
                     metadata: vector

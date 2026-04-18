@@ -84,6 +84,7 @@ impl WalIntegration {
             };
 
             let operation = Operation::InsertVector {
+                collection_name: collection_name.to_string(),
                 vector_id: vector.id.clone(),
                 data: vector.data.clone(),
                 metadata,
@@ -118,6 +119,7 @@ impl WalIntegration {
             };
 
             let operation = Operation::UpdateVector {
+                collection_name: collection_name.to_string(),
                 vector_id: vector.id.clone(),
                 data: Some(vector.data.clone()),
                 metadata,
@@ -137,6 +139,7 @@ impl WalIntegration {
     ) -> std::result::Result<(), WALError> {
         if let Some(wal) = &self.wal {
             let operation = Operation::DeleteVector {
+                collection_name: collection_name.to_string(),
                 vector_id: vector_id.to_string(),
             };
 

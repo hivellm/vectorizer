@@ -81,6 +81,7 @@ async fn test_persistence_demo() {
 
     // Add operations to transaction
     let operation1 = Operation::InsertVector {
+        collection_name: "demo-collection".to_string(),
         vector_id: "vec1".to_string(),
         data: vec![0.1, 0.2, 0.3, 0.4],
         metadata: {
@@ -92,6 +93,7 @@ async fn test_persistence_demo() {
     };
 
     let operation2 = Operation::InsertVector {
+        collection_name: "demo-collection".to_string(),
         vector_id: "vec2".to_string(),
         data: vec![0.5, 0.6, 0.7, 0.8],
         metadata: {
@@ -211,6 +213,7 @@ async fn test_wal_performance_demo() {
     // Insert 1000 operations
     for i in 0..1000 {
         let operation = Operation::InsertVector {
+            collection_name: "test-collection".to_string(),
             vector_id: format!("vec_{}", i),
             data: vec![i as f32; 384],
             metadata: HashMap::new(),

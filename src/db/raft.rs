@@ -125,11 +125,11 @@ impl RaftStateMachine {
             return Ok(());
         }
 
-        // Apply operation. BETA: until `Operation` carries its own `collection_name`,
-        // every log entry is applied to the "default" collection.
-        // TASK(phase4_add-collection-name-to-raft-operations): extract the real collection_name from the operation payload.
-        let collection_name = "default";
-
+        // Apply operation. The collection is taken from the operation
+        // payload itself — each data-modifying variant carries its own
+        // `collection_name` so multi-collection Raft clusters route
+        // writes correctly. See `persistence::types::OPERATION_LOG_VERSION`
+        // for the format history.
         match &entry.operation {
             Operation::Checkpoint { .. } => {
                 // Checkpoints are metadata only, no state change - don't need store
@@ -144,6 +144,7 @@ impl RaftStateMachine {
 
                 match &entry.operation {
                     Operation::InsertVector {
+                        collection_name,
                         vector_id,
                         data,
                         metadata,
@@ -170,6 +171,7 @@ impl RaftStateMachine {
                         store.insert(collection_name, vec![vector])?;
                     }
                     Operation::UpdateVector {
+                        collection_name,
                         vector_id,
                         data,
                         metadata,
@@ -195,18 +197,20 @@ impl RaftStateMachine {
                             store.update(collection_name, vector)?;
                         }
                     }
-                    Operation::DeleteVector { vector_id } => {
+                    Operation::DeleteVector {
+                        collection_name,
+                        vector_id,
+                    } => {
                         store.delete(collection_name, vector_id)?;
                     }
-                    Operation::CreateCollection { config } => {
-                        // TASK(phase4_add-collection-name-to-raft-operations): extract real name from the operation payload.
-                        let name = "default";
-                        store.create_collection(name, config.clone())?;
+                    Operation::CreateCollection {
+                        collection_name,
+                        config,
+                    } => {
+                        store.create_collection(collection_name, config.clone())?;
                     }
-                    Operation::DeleteCollection => {
-                        // TASK(phase4_add-collection-name-to-raft-operations): extract real name from the operation payload.
-                        let name = "default";
-                        store.delete_collection(name)?;
+                    Operation::DeleteCollection { collection_name } => {
+                        store.delete_collection(collection_name)?;
                     }
                     Operation::Checkpoint { .. } => {
                         // This branch should never be reached due to outer match
@@ -546,5 +550,153 @@ mod tests {
         // Should not fail even without store (checkpoint is metadata only)
         let result = sm.apply(&entry);
         assert!(result.is_ok());
+    }
+
+    /// Regression test for phase4_add-collection-name-to-raft-operations:
+    /// two `InsertVector` operations on two different collections must
+    /// land in their respective collections, not in a single hardcoded
+    /// `"default"` bucket.
+    #[tokio::test]
+    async fn multi_collection_replication_routes_correctly() {
+        use std::sync::Arc;
+
+        use crate::VectorStore;
+        use crate::models::{CollectionConfig, DistanceMetric, HnswConfig};
+
+        let store = Arc::new(VectorStore::new_cpu_only());
+        let mut sm = RaftStateMachine::new();
+        sm.set_store(store.clone());
+
+        let cfg = CollectionConfig {
+            dimension: 3,
+            metric: DistanceMetric::Cosine,
+            hnsw_config: HnswConfig::default(),
+            quantization: crate::models::QuantizationConfig::default(),
+            compression: crate::models::CompressionConfig::default(),
+            normalization: None,
+            storage_type: Some(crate::models::StorageType::Memory),
+            sharding: None,
+            graph: None,
+            encryption: None,
+        };
+        store
+            .create_collection("collection_a", cfg.clone())
+            .expect("create A");
+        store
+            .create_collection("collection_b", cfg)
+            .expect("create B");
+
+        // Insert one vector into each collection through Raft replay.
+        let insert_a = LogEntry {
+            term: 1,
+            index: 1,
+            operation: Operation::InsertVector {
+                collection_name: "collection_a".to_string(),
+                vector_id: "vec_a".to_string(),
+                data: vec![1.0, 0.0, 0.0],
+                metadata: std::collections::HashMap::new(),
+            },
+        };
+        let insert_b = LogEntry {
+            term: 1,
+            index: 2,
+            operation: Operation::InsertVector {
+                collection_name: "collection_b".to_string(),
+                vector_id: "vec_b".to_string(),
+                data: vec![0.0, 1.0, 0.0],
+                metadata: std::collections::HashMap::new(),
+            },
+        };
+
+        sm.apply(&insert_a).expect("apply A");
+        sm.apply(&insert_b).expect("apply B");
+
+        // vec_a must be in collection_a, NOT in collection_b.
+        assert!(
+            store.get_vector("collection_a", "vec_a").is_ok(),
+            "expected vec_a in collection_a"
+        );
+        assert!(
+            store.get_vector("collection_b", "vec_a").is_err(),
+            "vec_a must NOT leak into collection_b"
+        );
+
+        // vec_b must be in collection_b, NOT in collection_a.
+        assert!(
+            store.get_vector("collection_b", "vec_b").is_ok(),
+            "expected vec_b in collection_b"
+        );
+        assert!(
+            store.get_vector("collection_a", "vec_b").is_err(),
+            "vec_b must NOT leak into collection_a"
+        );
+    }
+
+    /// Pre-upgrade Raft log payloads (format version 1, no
+    /// `collection_name` field) must fail to deserialize with a clear
+    /// error — not silently mis-deserialize into the v2 shape. The
+    /// stable serde field-missing error is the version-mismatch
+    /// signal the task proposal asked for.
+    #[test]
+    fn pre_upgrade_operation_payload_rejected() {
+        // A v1 InsertVector payload: it has vector_id / data / metadata
+        // but NO collection_name field. Serde must refuse this.
+        let v1_payload = serde_json::json!({
+            "InsertVector": {
+                "vector_id": "vec_legacy",
+                "data": [1.0, 2.0, 3.0],
+                "metadata": {}
+            }
+        });
+        let err = serde_json::from_value::<Operation>(v1_payload)
+            .expect_err("v1 payload without collection_name must fail");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("collection_name"),
+            "expected the error to point at the missing collection_name field, got: {msg}"
+        );
+
+        // v2 payload round-trips fine.
+        let v2_payload = serde_json::json!({
+            "InsertVector": {
+                "collection_name": "c",
+                "vector_id": "vec",
+                "data": [1.0, 2.0, 3.0],
+                "metadata": {}
+            }
+        });
+        serde_json::from_value::<Operation>(v2_payload)
+            .expect("v2 payload must deserialize cleanly");
+    }
+
+    /// Operation::collection_name() accessor returns the right name
+    /// for every data-modifying variant and `None` for Checkpoint.
+    #[test]
+    fn operation_collection_name_accessor() {
+        let op = Operation::InsertVector {
+            collection_name: "c1".to_string(),
+            vector_id: "v".to_string(),
+            data: vec![],
+            metadata: std::collections::HashMap::new(),
+        };
+        assert_eq!(op.collection_name(), Some("c1"));
+
+        let op = Operation::DeleteVector {
+            collection_name: "c2".to_string(),
+            vector_id: "v".to_string(),
+        };
+        assert_eq!(op.collection_name(), Some("c2"));
+
+        let op = Operation::DeleteCollection {
+            collection_name: "c3".to_string(),
+        };
+        assert_eq!(op.collection_name(), Some("c3"));
+
+        let op = Operation::Checkpoint {
+            vector_count: 0,
+            document_count: 0,
+            checksum: "x".to_string(),
+        };
+        assert_eq!(op.collection_name(), None);
     }
 }

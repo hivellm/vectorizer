@@ -119,6 +119,7 @@ async fn test_state_machine_apply_insert_vector() {
         term: 1,
         index: 1,
         operation: Operation::InsertVector {
+            collection_name: "test".to_string(),
             vector_id: "vec_1".to_string(),
             data: vec![1.0; 128],
             metadata: std::collections::HashMap::new(),

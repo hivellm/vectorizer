@@ -217,33 +217,79 @@ pub struct WALEntry {
     pub transaction_id: Option<u64>,
 }
 
-/// Operations that can be logged in WAL
+/// Current persistence log format version. Bumped whenever the
+/// [`Operation`] wire format changes in a non-backwards-compatible
+/// way so the WAL / Raft log reader can reject old files with a
+/// clear version-mismatch error instead of silently mis-deserializing.
+///
+/// History:
+/// - `1` — initial format (single-collection, no `collection_name` field).
+/// - `2` — [phase4_add-collection-name-to-raft-operations]: each
+///   data-modifying variant now carries its own `collection_name`
+///   so multi-collection Raft clusters route log entries to the
+///   correct collection instead of hardcoding `"default"`.
+pub const OPERATION_LOG_VERSION: u32 = 2;
+
+/// Operations that can be logged in WAL / Raft
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Operation {
     /// Insert vector(s) into collection
     InsertVector {
+        collection_name: String,
         vector_id: String,
         data: Vec<f32>,
         metadata: HashMap<String, String>,
     },
     /// Update existing vector
     UpdateVector {
+        collection_name: String,
         vector_id: String,
         data: Option<Vec<f32>>,
         metadata: Option<HashMap<String, String>>,
     },
     /// Delete vector(s) from collection
-    DeleteVector { vector_id: String },
+    DeleteVector {
+        collection_name: String,
+        vector_id: String,
+    },
     /// Create new collection
-    CreateCollection { config: CollectionConfig },
+    CreateCollection {
+        collection_name: String,
+        config: CollectionConfig,
+    },
     /// Delete collection
-    DeleteCollection,
+    DeleteCollection { collection_name: String },
     /// Checkpoint marker
     Checkpoint {
         vector_count: usize,
         document_count: usize,
         checksum: String,
     },
+}
+
+impl Operation {
+    /// Return the collection this operation targets, if any.
+    ///
+    /// Returns `None` for [`Operation::Checkpoint`] — checkpoints are
+    /// metadata entries that don't touch a specific collection.
+    pub fn collection_name(&self) -> Option<&str> {
+        match self {
+            Operation::InsertVector {
+                collection_name, ..
+            }
+            | Operation::UpdateVector {
+                collection_name, ..
+            }
+            | Operation::DeleteVector {
+                collection_name, ..
+            }
+            | Operation::CreateCollection {
+                collection_name, ..
+            }
+            | Operation::DeleteCollection { collection_name } => Some(collection_name),
+            Operation::Checkpoint { .. } => None,
+        }
+    }
 }
 
 impl Operation {
@@ -254,7 +300,7 @@ impl Operation {
             Operation::UpdateVector { .. } => "update_vector",
             Operation::DeleteVector { .. } => "delete_vector",
             Operation::CreateCollection { .. } => "create_collection",
-            Operation::DeleteCollection => "delete_collection",
+            Operation::DeleteCollection { .. } => "delete_collection",
             Operation::Checkpoint { .. } => "checkpoint",
         }
     }
@@ -267,7 +313,7 @@ impl Operation {
                 | Operation::UpdateVector { .. }
                 | Operation::DeleteVector { .. }
                 | Operation::CreateCollection { .. }
-                | Operation::DeleteCollection
+                | Operation::DeleteCollection { .. }
         )
     }
 }
@@ -467,6 +513,7 @@ mod tests {
         assert!(!transaction.is_completed());
 
         transaction.add_operation(Operation::InsertVector {
+            collection_name: "collection1".to_string(),
             vector_id: "vec1".to_string(),
             data: vec![1.0, 2.0, 3.0],
             metadata: HashMap::new(),
@@ -483,6 +530,7 @@ mod tests {
     #[test]
     fn test_operation_types() {
         let insert_op = Operation::InsertVector {
+            collection_name: "test".to_string(),
             vector_id: "vec1".to_string(),
             data: vec![1.0, 2.0],
             metadata: HashMap::new(),

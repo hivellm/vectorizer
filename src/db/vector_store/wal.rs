@@ -212,6 +212,7 @@ impl VectorStore {
                     vector_id,
                     data,
                     metadata,
+                    collection_name: _,
                 } => {
                     // Reconstruct payload from metadata
                     let payload = if !metadata.is_empty() {
@@ -245,6 +246,7 @@ impl VectorStore {
                     vector_id,
                     data,
                     metadata,
+                    collection_name: _,
                 } => {
                     if let Some(data) = data {
                         // Reconstruct payload from metadata
@@ -280,7 +282,10 @@ impl VectorStore {
                         }
                     }
                 }
-                Operation::DeleteVector { vector_id } => {
+                Operation::DeleteVector {
+                    vector_id,
+                    collection_name: _,
+                } => {
                     // Try to delete (may fail if doesn't exist, which is OK)
                     if self.delete(collection_name, vector_id).is_ok() {
                         replayed += 1;
@@ -290,7 +295,7 @@ impl VectorStore {
                     // Checkpoint entries are informational, skip
                     debug!("Skipping checkpoint entry in recovery");
                 }
-                Operation::CreateCollection { .. } | Operation::DeleteCollection => {
+                Operation::CreateCollection { .. } | Operation::DeleteCollection { .. } => {
                     // Collection operations are handled separately
                     debug!("Skipping collection operation in recovery");
                 }

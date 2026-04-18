@@ -457,6 +457,7 @@ mod tests {
         let wal = WriteAheadLog::new(&wal_path, config).await.unwrap();
 
         let operation = Operation::InsertVector {
+            collection_name: "test_collection".to_string(),
             vector_id: "vec1".to_string(),
             data: vec![1.0, 2.0, 3.0],
             metadata: HashMap::new(),
@@ -480,11 +481,13 @@ mod tests {
 
         let mut transaction = Transaction::new(1, "collection1".to_string());
         transaction.add_operation(Operation::InsertVector {
+            collection_name: "test_collection".to_string(),
             vector_id: "vec1".to_string(),
             data: vec![1.0, 2.0],
             metadata: HashMap::new(),
         });
         transaction.add_operation(Operation::InsertVector {
+            collection_name: "test_collection".to_string(),
             vector_id: "vec2".to_string(),
             data: vec![3.0, 4.0],
             metadata: HashMap::new(),
@@ -510,6 +513,7 @@ mod tests {
         wal.append(
             "collection1",
             Operation::InsertVector {
+                collection_name: "collection1".to_string(),
                 vector_id: "vec1".to_string(),
                 data: vec![1.0],
                 metadata: HashMap::new(),
@@ -521,6 +525,7 @@ mod tests {
         wal.append(
             "collection1",
             Operation::InsertVector {
+                collection_name: "collection1".to_string(),
                 vector_id: "vec2".to_string(),
                 data: vec![2.0],
                 metadata: HashMap::new(),
@@ -553,6 +558,7 @@ mod tests {
         wal.append(
             "collection1",
             Operation::InsertVector {
+                collection_name: "collection1".to_string(),
                 vector_id: "vec1".to_string(),
                 data: vec![1.0],
                 metadata: HashMap::new(),
@@ -564,6 +570,7 @@ mod tests {
         wal.append(
             "collection1",
             Operation::InsertVector {
+                collection_name: "collection1".to_string(),
                 vector_id: "vec2".to_string(),
                 data: vec![2.0],
                 metadata: HashMap::new(),
@@ -593,6 +600,7 @@ mod tests {
         wal.append(
             "collection1",
             Operation::InsertVector {
+                collection_name: "collection1".to_string(),
                 vector_id: "vec1".to_string(),
                 data: vec![1.0],
                 metadata: HashMap::new(),
@@ -604,6 +612,7 @@ mod tests {
         wal.append(
             "collection1",
             Operation::InsertVector {
+                collection_name: "collection1".to_string(),
                 vector_id: "vec2".to_string(),
                 data: vec![2.0],
                 metadata: HashMap::new(),

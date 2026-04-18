@@ -150,6 +150,7 @@ async fn test_transaction_lifecycle() {
 
     // Add operation
     let operation = Operation::InsertVector {
+        collection_name: metadata.id.clone(),
         vector_id: "vec1".to_string(),
         data: vec![1.0, 2.0, 3.0],
         metadata: std::collections::HashMap::new(),

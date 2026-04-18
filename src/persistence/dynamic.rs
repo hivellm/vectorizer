@@ -179,6 +179,7 @@ impl DynamicCollectionPersistence {
 
         // Log creation to WAL
         let operation = Operation::CreateCollection {
+            collection_name: metadata.id.clone(),
             config: metadata.config.clone(),
         };
         self.wal.append(&metadata.id, operation).await?;
@@ -388,21 +389,16 @@ impl DynamicCollectionPersistence {
 
         for operation in &transaction.operations {
             match operation {
-                Operation::InsertVector {
-                    vector_id,
-                    data,
-                    metadata: meta,
-                } => {
+                Operation::InsertVector { .. } => {
                     // Insert vector (this would integrate with VectorStore)
                     // For now, just update counts
                     metadata.vector_count += 1;
                     metadata.document_count += 1;
                 }
-                Operation::UpdateVector { vector_id, .. } => {
-                    // Update vector
-                    // No count change for updates
+                Operation::UpdateVector { .. } => {
+                    // Update vector — no count change
                 }
-                Operation::DeleteVector { vector_id } => {
+                Operation::DeleteVector { .. } => {
                     // Delete vector
                     metadata.vector_count = metadata.vector_count.saturating_sub(1);
                     metadata.document_count = metadata.document_count.saturating_sub(1);
@@ -410,7 +406,7 @@ impl DynamicCollectionPersistence {
                 Operation::CreateCollection { .. } => {
                     // Already handled in create_collection
                 }
-                Operation::DeleteCollection => {
+                Operation::DeleteCollection { .. } => {
                     // Delete collection
                     self.delete_collection_files(&transaction.collection_id)
                         .await?;
@@ -461,7 +457,9 @@ impl DynamicCollectionPersistence {
         }
 
         // Log deletion to WAL
-        let operation = Operation::DeleteCollection;
+        let operation = Operation::DeleteCollection {
+            collection_name: metadata.id.clone(),
+        };
         self.wal.append(&metadata.id, operation).await?;
 
         // Delete files
