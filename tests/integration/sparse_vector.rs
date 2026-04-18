@@ -138,7 +138,7 @@ async fn test_sparse_vector_with_payload() {
 }
 
 #[tokio::test]
-#[ignore]
+#[ignore = "tracked by phase4_triage-sparse-vector-test; parallel-test collision on shared store"]
 async fn test_sparse_vector_search() {
     use std::time::{SystemTime, UNIX_EPOCH};
 
