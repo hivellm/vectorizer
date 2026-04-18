@@ -29,6 +29,22 @@ pub trait EmbeddingProvider: Send + Sync {
     /// Get the dimension of embeddings produced by this provider
     fn dimension(&self) -> usize;
 
+    /// Persist this provider's vocabulary (if any) to a JSON file.
+    ///
+    /// Default implementation returns an error — providers that have no
+    /// vocabulary to serialize (e.g. embedding models that bake weights into
+    /// the binary) leave this unimplemented. Sparse providers like BM25,
+    /// TF-IDF, CharNGram, and BagOfWords override it.
+    ///
+    /// This replaces an older `downcast_ref` if-chain in
+    /// `EmbeddingManager::save_vocabulary_json` that forced every new
+    /// provider to be enumerated in two places.
+    fn save_vocabulary_json(&self, _path: &Path) -> Result<()> {
+        Err(VectorizerError::Other(
+            "Provider does not support vocabulary saving".to_string(),
+        ))
+    }
+
     /// Cast to Any for downcasting (mutable)
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
@@ -876,6 +892,10 @@ impl EmbeddingProvider for TfIdfEmbedding {
         self.dimension
     }
 
+    fn save_vocabulary_json(&self, path: &Path) -> Result<()> {
+        TfIdfEmbedding::save_vocabulary_json(self, path)
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -1108,6 +1128,10 @@ impl EmbeddingProvider for Bm25Embedding {
         self.dimension
     }
 
+    fn save_vocabulary_json(&self, path: &Path) -> Result<()> {
+        Bm25Embedding::save_vocabulary_json(self, path)
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -1205,6 +1229,10 @@ impl EmbeddingProvider for BagOfWordsEmbedding {
 
     fn dimension(&self) -> usize {
         self.dimension
+    }
+
+    fn save_vocabulary_json(&self, path: &Path) -> Result<()> {
+        BagOfWordsEmbedding::save_vocabulary_json(self, path)
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
@@ -1396,6 +1424,10 @@ impl EmbeddingProvider for CharNGramEmbedding {
 
     fn dimension(&self) -> usize {
         self.dimension
+    }
+
+    fn save_vocabulary_json(&self, path: &Path) -> Result<()> {
+        CharNGramEmbedding::save_vocabulary_json(self, path)
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
@@ -1596,25 +1628,19 @@ impl EmbeddingManager {
         self.providers.contains_key(provider_name)
     }
 
-    /// Save vocabulary for a specific provider
+    /// Save vocabulary for a specific provider.
+    ///
+    /// Dispatches through `EmbeddingProvider::save_vocabulary_json`; providers
+    /// that don't override the trait default return an error. Adding a new
+    /// vocabulary-bearing provider is a single-file change (the impl block),
+    /// not a two-file change as before.
     pub fn save_vocabulary_json<P: AsRef<Path>>(&self, provider_name: &str, path: P) -> Result<()> {
         let provider = self.get_provider(provider_name)?;
-
-        // Try to downcast to specific embedding types that have save_vocabulary_json
-        if let Some(bm25) = provider.as_any().downcast_ref::<Bm25Embedding>() {
-            bm25.save_vocabulary_json(path)
-        } else if let Some(tfidf) = provider.as_any().downcast_ref::<TfIdfEmbedding>() {
-            tfidf.save_vocabulary_json(path)
-        } else if let Some(char_ngram) = provider.as_any().downcast_ref::<CharNGramEmbedding>() {
-            char_ngram.save_vocabulary_json(path)
-        } else if let Some(bow) = provider.as_any().downcast_ref::<BagOfWordsEmbedding>() {
-            bow.save_vocabulary_json(path)
-        } else {
-            Err(VectorizerError::Other(format!(
-                "Provider '{}' does not support vocabulary saving",
-                provider_name
-            )))
-        }
+        provider.save_vocabulary_json(path.as_ref()).map_err(|e| {
+            // Wrap the generic "not supported" message with the provider name
+            // so the HTTP/MCP error stays actionable.
+            VectorizerError::Other(format!("Provider '{}': {}", provider_name, e))
+        })
     }
 }
 
@@ -1697,6 +1723,44 @@ mod tests {
 
         let default_provider = manager.get_default_provider().unwrap();
         assert_eq!(default_provider.dimension(), 10);
+    }
+
+    #[test]
+    fn save_vocabulary_dispatches_through_trait_for_bm25() {
+        let mut manager = EmbeddingManager::new();
+        let mut bm25 = Bm25Embedding::new(32);
+        let corpus: Vec<String> = vec!["hello world".into(), "machine learning".into()];
+        bm25.build_vocabulary(&corpus);
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("bm25.json");
+
+        manager
+            .save_vocabulary_json("bm25", &path)
+            .expect("trait dispatch to BM25 override succeeds");
+
+        let body = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            body.contains("\"type\": \"bm25\""),
+            "expected BM25 vocabulary JSON, got: {body}"
+        );
+    }
+
+    #[test]
+    fn save_vocabulary_errors_for_provider_without_override() {
+        // SVD provider inherits the trait default, which returns an error.
+        let mut manager = EmbeddingManager::new();
+        manager.register_provider("svd".to_string(), Box::new(SvdEmbedding::new(16, 16)));
+
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("svd.json");
+        let err = manager.save_vocabulary_json("svd", &path).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("svd") && msg.contains("does not support vocabulary saving"),
+            "expected provider-aware error for SVD, got: {msg}"
+        );
     }
 }
 
