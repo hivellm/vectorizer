@@ -1968,9 +1968,7 @@ impl VectorizerServer {
         };
 
         // Add graph routes
-        let graph_state = crate::api::graph::GraphApiState {
-            store: self.store.clone(),
-        };
+        let graph_state = crate::api::graph::GraphApiState::new(self.store.clone());
         let graph_router = crate::api::graph::create_graph_router().with_state(graph_state);
         let rest_routes = rest_routes.merge(graph_router);
 

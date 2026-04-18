@@ -26,6 +26,26 @@ use crate::error::VectorizerError;
 #[derive(Clone)]
 pub struct GraphApiState {
     pub store: std::sync::Arc<VectorStore>,
+    /// `edge_id -> collection_name` cache, populated on `create_edge` and
+    /// invalidated on `delete_edge`. Replaces the O(N·M) scan through every
+    /// collection's graph on every edge delete with an O(1) lookup. Cache
+    /// misses fall back to the scan for correctness — e.g. when a delete
+    /// happens against an edge whose create path didn't populate the cache
+    /// (before this commit landed) or after a server restart with no
+    /// rebuild.
+    pub edge_index: std::sync::Arc<dashmap::DashMap<String, String>>,
+}
+
+impl GraphApiState {
+    /// Construct a `GraphApiState` with an empty `edge_index`. Callers
+    /// building the state in server bootstrap use this; tests that want
+    /// to pre-populate the index build the struct literal directly.
+    pub fn new(store: std::sync::Arc<VectorStore>) -> Self {
+        Self {
+            store,
+            edge_index: std::sync::Arc::new(dashmap::DashMap::new()),
+        }
+    }
 }
 
 /// Create the graph API router
@@ -539,6 +559,13 @@ pub async fn create_edge(
         )
     })?;
 
+    // Populate the `edge_id -> collection_name` cache so subsequent
+    // `DELETE /graph/edges/{edge_id}` calls can resolve the owning
+    // collection in O(1) instead of scanning every collection.
+    state
+        .edge_index
+        .insert(edge_id.clone(), request.collection.clone());
+
     info!(
         "Created edge '{}' from '{}' to '{}'",
         edge_id, request.source, request.target
@@ -663,23 +690,43 @@ pub async fn delete_edge(
 ) -> Result<Json<DeleteEdgeResponse>, (StatusCode, Json<serde_json::Value>)> {
     debug!("DELETE /graph/edges/{}", edge_id);
 
-    // Edge ID format: "source:target:RELATIONSHIP_TYPE" or "collection:source:target:RELATIONSHIP_TYPE".
-    // TASK(phase4_add-edge-id-collection-mapping-cache): replace this scan with an O(1) edge_id -> collection_name lookup.
-
-    let collections = state.store.list_collections();
+    // Edge ID format: "source:target:RELATIONSHIP_TYPE".
+    // Fast path: consult the `edge_id -> collection_name` cache built up on
+    // `create_edge`. The scan below still runs as a fallback when the cache
+    // misses (e.g. for edges that existed before this commit landed, or
+    // after a rebuild).
     let mut found = false;
 
-    for collection_name in collections {
-        if let Ok(collection) = state.store.get_collection(&collection_name) {
-            if let Some(graph) = get_collection_graph_from_type(&collection) {
-                if graph.remove_edge(&edge_id).is_ok() {
-                    found = true;
-                    info!(
-                        "Deleted edge '{}' from collection '{}'",
-                        edge_id, collection_name
-                    );
-                    break;
-                }
+    if let Some(entry) = state.edge_index.get(&edge_id) {
+        let collection_name = entry.value().clone();
+        drop(entry);
+        if let Ok(collection) = state.store.get_collection(&collection_name)
+            && let Some(graph) = get_collection_graph_from_type(&collection)
+            && graph.remove_edge(&edge_id).is_ok()
+        {
+            state.edge_index.remove(&edge_id);
+            found = true;
+            info!(
+                "Deleted edge '{}' from collection '{}' (cached lookup)",
+                edge_id, collection_name
+            );
+        }
+    }
+
+    if !found {
+        let collections = state.store.list_collections();
+        for collection_name in collections {
+            if let Ok(collection) = state.store.get_collection(&collection_name)
+                && let Some(graph) = get_collection_graph_from_type(&collection)
+                && graph.remove_edge(&edge_id).is_ok()
+            {
+                state.edge_index.remove(&edge_id);
+                found = true;
+                info!(
+                    "Deleted edge '{}' from collection '{}' (scan fallback)",
+                    edge_id, collection_name
+                );
+                break;
             }
         }
     }
@@ -930,5 +977,69 @@ fn parse_relationship_type(s: &str) -> Option<RelationshipType> {
         "CONTAINS" => Some(RelationshipType::Contains),
         "DERIVED_FROM" | "DERIVEDFROM" => Some(RelationshipType::DerivedFrom),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::*;
+
+    /// The default state carries an empty cache — the scan fallback path
+    /// is the only thing that runs until `create_edge` populates entries.
+    #[test]
+    fn graph_api_state_new_has_empty_edge_index() {
+        let state = GraphApiState::new(Arc::new(VectorStore::new()));
+        assert!(state.edge_index.is_empty());
+    }
+
+    /// The index is a `DashMap`, so cloning `GraphApiState` (which axum does
+    /// per-request when `State<GraphApiState>` is extracted) must preserve
+    /// the same underlying map — otherwise every request would see its own
+    /// private cache, defeating the whole point.
+    #[test]
+    fn cloned_state_shares_edge_index() {
+        let state = GraphApiState::new(Arc::new(VectorStore::new()));
+        state
+            .edge_index
+            .insert("e1".to_string(), "collection_a".to_string());
+
+        let clone = state.clone();
+        assert_eq!(clone.edge_index.len(), 1);
+        assert_eq!(
+            clone.edge_index.get("e1").map(|r| r.value().clone()),
+            Some("collection_a".to_string())
+        );
+
+        // Mutating the clone must mutate the original (shared Arc/DashMap).
+        clone
+            .edge_index
+            .insert("e2".to_string(), "collection_b".to_string());
+        assert_eq!(state.edge_index.len(), 2);
+    }
+
+    /// The `edge_id -> collection_name` mapping is what the delete path
+    /// consults first. A hit removes the entry on successful delete so
+    /// stale mappings don't accumulate.
+    #[test]
+    fn edge_index_insert_and_remove_round_trip() {
+        let state = GraphApiState::new(Arc::new(VectorStore::new()));
+
+        state.edge_index.insert(
+            "node-a:node-b:RelatesTo".to_string(),
+            "my_collection".to_string(),
+        );
+        assert_eq!(
+            state
+                .edge_index
+                .get("node-a:node-b:RelatesTo")
+                .map(|r| r.value().clone()),
+            Some("my_collection".to_string())
+        );
+
+        let removed = state.edge_index.remove("node-a:node-b:RelatesTo");
+        assert!(removed.is_some());
+        assert!(state.edge_index.is_empty());
     }
 }
