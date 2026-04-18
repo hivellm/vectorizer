@@ -365,7 +365,11 @@ auth:
 
   # JWT (JSON Web Token) configuration
   # Used for user authentication via login endpoint
-  jwt_secret: "your-secret-key-change-in-production"  # IMPORTANT: Change in production!
+  # REQUIRED (when auth.enabled=true): must be >=32 chars and not the legacy
+  # default. Generate with:  openssl rand -hex 64
+  # Leave empty here and inject via VECTORIZER_JWT_SECRET env var so the
+  # secret never lands in the repo.
+  jwt_secret: ""
   jwt_expiration: 3600  # Token expiration in seconds (default: 1 hour)
 
   # API Key configuration

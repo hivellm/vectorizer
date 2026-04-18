@@ -259,10 +259,17 @@ mod tests {
     use crate::auth::roles::{Permission, Role};
     use crate::auth::{AuthConfig, AuthManager};
 
+    /// Build a valid `AuthConfig` for middleware tests.
+    fn test_config() -> AuthConfig {
+        AuthConfig {
+            jwt_secret: "m".repeat(64),
+            ..AuthConfig::default()
+        }
+    }
+
     #[tokio::test]
     async fn test_auth_middleware_jwt() {
-        let config = AuthConfig::default();
-        let auth_manager = Arc::new(AuthManager::new(config).unwrap());
+        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
 
         let token = auth_manager
             .generate_jwt("user123", "testuser", vec![Role::User])
@@ -283,8 +290,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_middleware_api_key() {
-        let config = AuthConfig::default();
-        let auth_manager = Arc::new(AuthManager::new(config).unwrap());
+        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
 
         let (api_key, _) = auth_manager
             .create_api_key("user123", "test_key", vec![Permission::Read], None)
@@ -305,8 +311,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_middleware_no_auth() {
-        let config = AuthConfig::default();
-        let auth_manager = Arc::new(AuthManager::new(config).unwrap());
+        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
 
         let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
@@ -318,8 +323,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_auth_middleware_invalid_token() {
-        let config = AuthConfig::default();
-        let auth_manager = Arc::new(AuthManager::new(config).unwrap());
+        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
 
         let request = Request::builder()
             .uri("/test")

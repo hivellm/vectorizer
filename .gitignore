@@ -155,6 +155,7 @@ scripts/.vectorizer-sim/
 /.rulebook/*
 !/.rulebook/specs/
 !/.rulebook/tasks/
+!/.rulebook/archive/
 !/.rulebook/tasks/**/*.md
 !/.rulebook/rulebook.json
 

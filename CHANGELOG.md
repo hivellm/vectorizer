@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Breaking
+- **JWT secret must be explicitly configured.** `AuthConfig::default()` no longer ships a real `jwt_secret` — the field is now an empty string. `AuthManager::new` calls `AuthConfig::validate` at startup and refuses to boot if `auth.enabled == true` and the configured secret is empty, shorter than 32 chars, or equal to the historical insecure default (`"vectorizer-default-secret-key-change-in-production"`). Operators must generate a real secret (e.g. `openssl rand -hex 64`) and inject it via config file or the `VECTORIZER_JWT_SECRET` env var before upgrading. This closes a known auth-bypass: any attacker who knew the public default could forge admin JWTs against unconfigured deployments.
+
 ### Chore
 - Delete committed backup files `src/db/vector_store.rs.bak` and `tests/integration/sharding_validation.rs.bak` left from earlier refactors.
 - Add `*.bak`, `*.orig`, `*.rej` patterns to `.gitignore` and `.dockerignore` so future scratch files stay out of commits and Docker contexts.

@@ -84,7 +84,11 @@ impl Default for ConfigFile {
                 auth_enabled: true,
             },
             auth: AuthConfigFile {
-                jwt_secret: "vectorizer-default-secret-key-change-in-production".to_string(),
+                // Intentionally empty — callers must populate with a real
+                // secret before the config is accepted by `validate_config`.
+                // See `crate::auth::LEGACY_INSECURE_DEFAULT_SECRET` for the
+                // historical value rejected by validation.
+                jwt_secret: String::new(),
                 jwt_expiration: 3600,
                 api_key_length: 32,
                 rate_limit_per_minute: 100,
@@ -164,11 +168,34 @@ impl ConfigManager {
             });
         }
 
-        // Validate authentication configuration
-        if config.auth.jwt_secret.len() < 32 {
-            return Err(VectorizerError::InvalidConfiguration {
-                message: "JWT secret must be at least 32 characters long".to_string(),
-            });
+        // Validate authentication configuration.
+        // Only when auth is enabled — a dev-mode config may ship with no
+        // secret and that is acceptable because no JWT is ever issued.
+        if config.auth.enabled {
+            if config.auth.jwt_secret.is_empty() {
+                return Err(VectorizerError::InvalidConfiguration {
+                    message: "auth.jwt_secret is empty. Set it in the config file \
+                              or via the VECTORIZER_JWT_SECRET env var. Generate \
+                              with: openssl rand -hex 64"
+                        .to_string(),
+                });
+            }
+            if config.auth.jwt_secret == crate::auth::LEGACY_INSECURE_DEFAULT_SECRET {
+                return Err(VectorizerError::InvalidConfiguration {
+                    message: "auth.jwt_secret is the legacy insecure default and \
+                              will be rejected at boot. Generate a new secret: \
+                              openssl rand -hex 64"
+                        .to_string(),
+                });
+            }
+            if config.auth.jwt_secret.len() < crate::auth::MIN_JWT_SECRET_LEN {
+                return Err(VectorizerError::InvalidConfiguration {
+                    message: format!(
+                        "JWT secret must be at least {} characters long",
+                        crate::auth::MIN_JWT_SECRET_LEN
+                    ),
+                });
+            }
         }
 
         if config.auth.api_key_length < 16 {
@@ -305,22 +332,29 @@ mod tests {
     fn test_config_validation() {
         let mut config = ConfigFile::default();
 
-        // Valid config should pass
+        // Default config has auth.enabled=true with empty secret — must FAIL.
+        assert!(ConfigManager::validate_config(&config).is_err());
+
+        // Injecting a valid 64-char secret makes it pass.
+        config.auth.jwt_secret = "v".repeat(64);
         assert!(ConfigManager::validate_config(&config).is_ok());
 
         // Invalid port should fail
         config.server.port = 0;
         assert!(ConfigManager::validate_config(&config).is_err());
-
-        // Reset port
         config.server.port = 15002;
 
-        // Invalid JWT secret should fail
+        // Short JWT secret should fail
         config.auth.jwt_secret = "short".to_string();
         assert!(ConfigManager::validate_config(&config).is_err());
 
-        // Reset JWT secret
-        config.auth.jwt_secret = "vectorizer-default-secret-key-change-in-production".to_string();
+        // Legacy insecure default must be explicitly rejected (not merely
+        // because it happens to satisfy the length check).
+        config.auth.jwt_secret = crate::auth::LEGACY_INSECURE_DEFAULT_SECRET.to_string();
+        assert!(ConfigManager::validate_config(&config).is_err());
+
+        // Reset to a valid secret to isolate the log-level assertion below.
+        config.auth.jwt_secret = "v".repeat(64);
 
         // Invalid log level should fail
         config.logging.level = "invalid".to_string();
