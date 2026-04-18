@@ -9,7 +9,7 @@
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
 | ⬚ | phase3_split-auth-handlers | 0/13 | split auth handlers |
-| ⬚ | phase3_split-collection-monolith | 0/14 | split collection monolith |
+| ⬚ | phase3_split-collection-impl-by-concern | 0/14 | split collection impl by concern |
 | ⬚ | phase3_split-rest-handlers-monolith | 0/20 | split rest handlers monolith |
 | ⬚ | phase3_split-server-mod-monolith | 0/14 | split server mod monolith |
 | ⬚ | phase3_split-vector-store-monolith | 0/18 | split vector store monolith |
