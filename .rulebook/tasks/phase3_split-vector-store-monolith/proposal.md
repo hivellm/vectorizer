@@ -1,8 +1,13 @@
 # Proposal: phase3_split-vector-store-monolith
 
+> **Part of the oversized-files audit.** See
+> [docs/refactoring/oversized-files-audit.md](../../../docs/refactoring/oversized-files-audit.md)
+> for the full inventory and severity rubric. This task covers the
+> `critical`-severity `vector_store.rs` entry.
+
 ## Why
 
-`src/db/vector_store.rs` is **3,864 lines** — the core database engine compressed into a single file. Problems:
+`src/db/vector_store.rs` is **3,948 lines** — the core database engine compressed into a single file. Problems:
 
 - Mixes concerns: collection lifecycle, CRUD on vectors, index management, persistence orchestration, WAL, search dispatch, alias management, snapshot coordination.
 - 15 `#[cfg(feature = "cluster")]` blocks (phantom feature — see `phase1_remove-phantom-cluster-feature`) pollute the file.

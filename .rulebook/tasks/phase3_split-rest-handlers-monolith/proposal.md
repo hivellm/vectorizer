@@ -1,8 +1,14 @@
 # Proposal: phase3_split-rest-handlers-monolith
 
+> **Part of the oversized-files audit.** See
+> [docs/refactoring/oversized-files-audit.md](../../../docs/refactoring/oversized-files-audit.md)
+> for the full inventory of the 14 files over 1,500 lines and the
+> severity rubric. This task covers the `critical`-severity
+> `rest_handlers.rs` entry.
+
 ## Why
 
-`src/server/rest_handlers.rs` is **3,795 lines** containing 22+ handler functions, mixed argument parsing, UUID generation TODOs, and silent-error patterns. This is a classic Cursor-generated god-file. Problems:
+`src/server/rest_handlers.rs` is **3,883 lines** (grew slightly during phase1 admin-gate work) containing 22+ handler functions, mixed argument parsing, UUID generation TODOs, and silent-error patterns. This is a classic Cursor-generated god-file. Problems:
 
 - Change review is impossible at scale — any PR touching this file reads as "massive".
 - 15 unsafe `.ok().unwrap()` chains are hidden in the noise.

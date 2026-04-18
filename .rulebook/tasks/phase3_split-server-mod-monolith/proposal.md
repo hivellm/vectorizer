@@ -1,8 +1,13 @@
 # Proposal: phase3_split-server-mod-monolith
 
+> **Part of the oversized-files audit.** See
+> [docs/refactoring/oversized-files-audit.md](../../../docs/refactoring/oversized-files-audit.md)
+> for the full inventory and severity rubric. This task covers the
+> `critical`-severity `server/mod.rs` entry.
+
 ## Why
 
-`src/server/mod.rs` is **3,248 lines** combining:
+`src/server/mod.rs` is **3,315 lines** combining:
 
 - Server bootstrap and lifecycle
 - Router construction (every route registered here)
