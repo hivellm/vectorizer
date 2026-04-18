@@ -1647,7 +1647,20 @@ impl VectorStore {
         name: &str,
         owner_id: &uuid::Uuid,
     ) -> Option<crate::models::CollectionMetadata> {
-        let canonical = self.resolve_alias_target(name).ok()?;
+        // Previously: `.ok()?` silently conflated "alias does not exist" with
+        // "alias table corrupted / lock poisoned". Caller still gets None for
+        // both, but the log now distinguishes them so operational issues are
+        // visible.
+        let canonical = match self.resolve_alias_target(name) {
+            Ok(c) => c,
+            Err(e) => {
+                debug!(
+                    "get_collection_for_owner({}): alias resolution failed: {}",
+                    name, e
+                );
+                return None;
+            }
+        };
         self.collections.get(&canonical).and_then(|collection| {
             if collection.belongs_to(owner_id) {
                 Some(collection.metadata())

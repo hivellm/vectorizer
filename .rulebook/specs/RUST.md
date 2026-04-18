@@ -276,7 +276,62 @@ codespell \
 - Use `thiserror` for custom error types
 - Use `anyhow` for application-level error handling
 - Document error conditions in function docs
-- Never use `unwrap()` or `expect()` in production code without justification
+- Never use `unwrap()` or `expect()` in production code without justification.
+
+### The unwrap/expect policy (tightened in phase3)
+
+**Forbidden in non-test code:**
+
+- `.unwrap()` on anything that can actually fail at runtime — unknown input, I/O,
+  parses, lock acquisitions, map lookups.
+- `.expect("...")` used as "my code can't reach this" — if the invariant is
+  real, encode it in the type system; if it isn't real, the call is a panic
+  waiting to happen.
+- `.unwrap_or_else(|_| panic!(...))` or any other disguised panic.
+
+**Allowed, with a `// SAFE:` comment on the same line explaining why:**
+
+```rust
+let parsed: u32 = line.trim().parse().unwrap(); // SAFE: line was validated by regex two lines above
+```
+
+The `// SAFE:` pattern is a reviewer shorthand borrowed from `// SAFETY:` on
+unsafe blocks. Every occurrence is grep-auditable.
+
+**Preferred alternatives:**
+
+| Instead of | Use |
+|------------|-----|
+| `x.unwrap()` when `x: Result` | `x?` with proper error propagation |
+| `x.unwrap()` when `x: Option` and None means "bug" | `x.ok_or(VectorizerError::InternalError("..."))?` |
+| `x.unwrap_or(fallback)` | Keep — `unwrap_or` is not `.unwrap()`, it's a safe default |
+| `map.get(k).unwrap()` | `map.get(k).ok_or(VectorizerError::NotFound { ... })?` |
+| `s.parse::<T>().unwrap()` | `s.parse::<T>().map_err(\|e\| VectorizerError::BadRequest(format!("..."))`)? |
+
+**The silent `.ok()` anti-pattern.** Writing `fn foo() -> Option<T>` with a
+body of `some_result.ok()?` collapses every error flavour (corruption,
+timeout, permission denied, not-found) into the same `None`. Prefer logging
+at `debug!` / `warn!` level on the Err arm so operational issues stay
+visible:
+
+```rust
+let value = match fallible() {
+    Ok(v) => v,
+    Err(e) => {
+        debug!("fallible() returned {}; returning None", e);
+        return None;
+    }
+};
+```
+
+### Enforcement
+
+- Handler entry points (REST, MCP, gRPC) MUST NOT panic on untrusted input.
+  Integration tests should prove a malformed body returns 4xx, not 500.
+- The full crate-wide clippy sweep (`unwrap_used = "deny"` + `expect_used = "deny"`)
+  is tracked under the dedicated `phase4_enforce-no-unwrap-policy` follow-up.
+  Today the crate still has ~1,430 legacy occurrences (many in test code); the
+  follow-up will classify each into fix / `// SAFE:` / delete.
 
 Example:
 ```rust

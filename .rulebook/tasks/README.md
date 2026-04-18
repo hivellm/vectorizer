@@ -8,7 +8,6 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
-| ⬚ | phase3_reduce-unwrap-in-handlers | 0/14 | reduce unwrap in handlers |
 | ⬚ | phase3_split-auth-handlers | 0/13 | split auth handlers |
 | ⬚ | phase3_split-collection-monolith | 0/14 | split collection monolith |
 | ⬚ | phase3_split-qdrant-grpc | 0/9 | split qdrant grpc |
@@ -26,6 +25,7 @@
 | ⬚ | phase4_add-edge-id-collection-mapping-cache | 0/10 | add edge id collection mapping cache |
 | ⬚ | phase4_add-hybrid-search-to-distributed-grpc-client | 0/12 | add hybrid search to distributed grpc client |
 | ⬚ | phase4_authcontext-extractor | 0/12 | authcontext extractor |
+| ⬚ | phase4_enforce-no-unwrap-policy | 0/18 | enforce no unwrap policy |
 | ⬚ | phase4_enforce-public-api-docs | 0/17 | enforce public api docs |
 | ⬚ | phase4_fix-replication-snapshot-sync | 0/12 | fix replication snapshot sync |
 | ⬚ | phase4_implement-batch-processor-active-operations | 0/12 | implement batch processor active operations |
