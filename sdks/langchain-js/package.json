@@ -27,7 +27,7 @@
   "author": "Vectorizer Team",
   "license": "MIT",
   "dependencies": {
-    "@langchain/core": "^0.1.0",
+    "@langchain/core": "^0.3.80",
     "node-fetch": "^3.3.0"
   },
   "devDependencies": {
@@ -42,7 +42,7 @@
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
-    "@langchain/core": "^0.1.0"
+    "@langchain/core": "^0.3.80"
   },
   "files": [
     "dist/**/*",
