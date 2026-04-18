@@ -37,6 +37,27 @@ fn extract_tenant_id(tenant_ctx: &Option<Extension<RequestTenantContext>>) -> Op
         .and_then(|ctx| Uuid::parse_str(&ctx.0.0.tenant_id).ok())
 }
 
+/// Deterministic UUID derived from a collection name.
+///
+/// Prior to this helper, three call sites in `rest_handlers.rs` passed a
+/// freshly-generated `Uuid::new_v4()` to `HubManager::record_usage`, so every
+/// request against the same collection was recorded under a different UUID,
+/// making per-collection usage aggregation impossible.
+///
+/// `Uuid::new_v5` with a fixed namespace produces a stable UUID: the same
+/// collection name always yields the same UUID, no on-disk migration needed.
+/// The namespace is a v4 UUID minted for Vectorizer and hardcoded here — it
+/// never needs to change, and its only role is to isolate our v5 outputs from
+/// any other system that reuses `NAMESPACE_OID` / `NAMESPACE_URL`.
+const COLLECTION_NAMESPACE_UUID: Uuid =
+    Uuid::from_u128(0x7f_5a_c6_40_3d_fe_4e_1a_9d_82_d8_2d_4e_a7_55_01);
+
+/// Compute the stable metrics UUID for a named collection. Same name in →
+/// same UUID out, no storage required.
+pub(crate) fn collection_metrics_uuid(name: &str) -> Uuid {
+    Uuid::new_v5(&COLLECTION_NAMESPACE_UUID, name.as_bytes())
+}
+
 pub async fn health_check(State(state): State<VectorizerServer>) -> Json<Value> {
     let cache_stats = state.query_cache.stats();
 
@@ -811,8 +832,9 @@ pub async fn create_collection(
     if let Some(ref hub_manager) = state.hub_manager {
         let mut metrics = crate::hub::UsageMetrics::new();
         metrics.record_collection_create();
-        // Use a placeholder collection_id - in production this would be the actual UUID
-        let collection_id = uuid::Uuid::new_v4();
+        // Stable UUID derived from the collection name so subsequent calls
+        // aggregate under the same Hub usage row.
+        let collection_id = collection_metrics_uuid(&name);
         if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
             warn!("Failed to record collection creation usage: {}", e);
         }
@@ -1337,7 +1359,7 @@ pub async fn insert_text(
                 let mut metrics = crate::hub::UsageMetrics::new();
                 let estimated_storage = (embedding_len * 4) as u64;
                 metrics.record_insert(1, estimated_storage);
-                let collection_id = uuid::Uuid::new_v4(); // TODO: Use actual collection UUID
+                let collection_id = collection_metrics_uuid(collection_name);
                 if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
                     warn!("Failed to record vector insertion usage: {}", e);
                 }
@@ -1391,7 +1413,7 @@ pub async fn insert_text(
             let mut metrics = crate::hub::UsageMetrics::new();
             let estimated_storage = (embedding_len * 4) as u64;
             metrics.record_insert(1, estimated_storage);
-            let collection_id = uuid::Uuid::new_v4(); // TODO: Use actual collection UUID
+            let collection_id = collection_metrics_uuid(collection_name);
             if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
                 warn!("Failed to record vector insertion usage: {}", e);
             }
@@ -3791,5 +3813,59 @@ pub async fn get_prometheus_metrics() -> Result<(StatusCode, String), (StatusCod
                 format!("Failed to export metrics: {}", e),
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn collection_metrics_uuid_is_deterministic() {
+        let a = collection_metrics_uuid("docs");
+        let b = collection_metrics_uuid("docs");
+        assert_eq!(a, b, "same name must yield same UUID across calls");
+    }
+
+    #[test]
+    fn collection_metrics_uuid_differs_between_names() {
+        let docs = collection_metrics_uuid("docs");
+        let products = collection_metrics_uuid("products");
+        assert_ne!(
+            docs, products,
+            "different names must yield different UUIDs"
+        );
+    }
+
+    #[test]
+    fn collection_metrics_uuid_is_v5() {
+        let id = collection_metrics_uuid("any-collection");
+        assert_eq!(
+            id.get_version_num(),
+            5,
+            "expected UUIDv5, got v{}",
+            id.get_version_num()
+        );
+    }
+
+    #[test]
+    fn collection_metrics_uuid_handles_empty_and_unicode() {
+        // Edge cases that previously went through `new_v4` without a problem
+        // and must keep round-tripping to themselves under v5.
+        assert_eq!(
+            collection_metrics_uuid(""),
+            collection_metrics_uuid(""),
+            "empty name must be stable"
+        );
+        assert_eq!(
+            collection_metrics_uuid("coleção"),
+            collection_metrics_uuid("coleção"),
+            "unicode name must be stable"
+        );
+        assert_ne!(
+            collection_metrics_uuid(""),
+            collection_metrics_uuid("coleção"),
+            "empty and unicode must collide only by accident, which v5 avoids"
+        );
     }
 }
