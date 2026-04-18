@@ -43,41 +43,15 @@ impl ErrorResponse {
     }
 }
 
-/// Convert VectorizerError to HTTP status code
+/// Convert VectorizerError to HTTP status code.
+///
+/// Delegates to the centralized taxonomy in
+/// [`crate::error::mapping::http_status`] — kept as an
+/// `impl From<&VectorizerError> for StatusCode` so the existing axum
+/// callsites don't need editing.
 impl From<&VectorizerError> for StatusCode {
     fn from(err: &VectorizerError) -> Self {
-        match err {
-            VectorizerError::CollectionNotFound(_) => StatusCode::NOT_FOUND,
-            VectorizerError::VectorNotFound(_) => StatusCode::NOT_FOUND,
-            VectorizerError::NotFound(_) => StatusCode::NOT_FOUND,
-            VectorizerError::CollectionAlreadyExists(_) => StatusCode::CONFLICT,
-            VectorizerError::InvalidDimension { .. } => StatusCode::BAD_REQUEST,
-            VectorizerError::DimensionMismatch { .. } => StatusCode::BAD_REQUEST,
-            VectorizerError::InvalidConfiguration { .. } => StatusCode::BAD_REQUEST,
-            VectorizerError::ConfigurationError(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::Configuration(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::AuthenticationError(_) => StatusCode::UNAUTHORIZED,
-            VectorizerError::AuthorizationError(_) => StatusCode::FORBIDDEN,
-            VectorizerError::EncryptionRequired(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::EncryptionError(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::RateLimitExceeded { .. } => StatusCode::TOO_MANY_REQUESTS,
-            VectorizerError::SerializationError(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::Serialization(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::Deserialization(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::JsonError(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::YamlError(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::IoError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            VectorizerError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            VectorizerError::PersistenceError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            VectorizerError::IndexError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            VectorizerError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            VectorizerError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            VectorizerError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            VectorizerError::TransmutationError(_) => StatusCode::BAD_REQUEST,
-            VectorizerError::UmicpError(_) => StatusCode::BAD_REQUEST,
-            #[cfg(feature = "candle-models")]
-            VectorizerError::CandleError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+        crate::error::mapping::http_status(err)
     }
 }
 
@@ -132,41 +106,12 @@ impl IntoResponse for ErrorResponse {
     }
 }
 
-/// Extract error type from VectorizerError variant
+/// Extract the stable `error_type` identifier for a REST error body.
+///
+/// Delegates to [`VectorizerError::code`] — the single source of
+/// truth for machine-readable error identifiers across REST / MCP.
 fn error_type_from_variant(err: &VectorizerError) -> String {
-    match err {
-        VectorizerError::CollectionNotFound(_) => "collection_not_found",
-        VectorizerError::CollectionAlreadyExists(_) => "collection_already_exists",
-        VectorizerError::VectorNotFound(_) => "vector_not_found",
-        VectorizerError::InvalidDimension { .. } => "invalid_dimension",
-        VectorizerError::DimensionMismatch { .. } => "dimension_mismatch",
-        VectorizerError::PersistenceError(_) => "persistence_error",
-        VectorizerError::IndexError(_) => "index_error",
-        VectorizerError::ConfigurationError(_) => "configuration_error",
-        VectorizerError::Configuration(_) => "configuration_error",
-        VectorizerError::SerializationError(_) => "serialization_error",
-        VectorizerError::Serialization(_) => "serialization_error",
-        VectorizerError::Deserialization(_) => "deserialization_error",
-        VectorizerError::IoError(_) => "io_error",
-        VectorizerError::Io(_) => "io_error",
-        VectorizerError::JsonError(_) => "json_error",
-        VectorizerError::YamlError(_) => "yaml_error",
-        VectorizerError::AuthenticationError(_) => "authentication_error",
-        VectorizerError::AuthorizationError(_) => "authorization_error",
-        VectorizerError::EncryptionRequired(_) => "encryption_required",
-        VectorizerError::EncryptionError(_) => "encryption_error",
-        VectorizerError::RateLimitExceeded { .. } => "rate_limit_exceeded",
-        VectorizerError::InvalidConfiguration { .. } => "invalid_configuration",
-        VectorizerError::InternalError(_) => "internal_error",
-        VectorizerError::NotFound(_) => "not_found",
-        VectorizerError::Other(_) => "unknown_error",
-        VectorizerError::TransmutationError(_) => "transmutation_error",
-        VectorizerError::Storage(_) => "storage_error",
-        VectorizerError::UmicpError(_) => "umicp_error",
-        #[cfg(feature = "candle-models")]
-        VectorizerError::CandleError(_) => "candle_error",
-    }
-    .to_string()
+    err.code().to_string()
 }
 
 /// Helper function to create a standardized error response

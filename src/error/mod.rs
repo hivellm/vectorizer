@@ -1,6 +1,27 @@
-//! Error types for Vectorizer
+//! Error types for Vectorizer.
+//!
+//! - [`VectorizerError`] — the canonical outermost error type. Every
+//!   leaf error in the crate must convert into this (usually via
+//!   `#[from]`).
+//! - [`ErrorKind`] — the classification taxonomy used by the HTTP
+//!   middleware, the gRPC interceptor, and the MCP dispatcher to pick
+//!   the right status code. Exposed via
+//!   [`VectorizerError::kind`].
+//! - [`mapping`] — centralized conversions from `VectorizerError` into
+//!   the three wire-protocol error shapes (axum `StatusCode` + JSON
+//!   body, `tonic::Status`, MCP `ErrorData`). All three keep the
+//!   classification lossless so a `NotFound` in the core engine stays
+//!   `404`/`NOT_FOUND`/`MCP-NotFound` on every boundary.
 
 use thiserror::Error;
+
+pub use kind::ErrorKind;
+
+mod kind;
+pub mod mapping;
+
+#[cfg(test)]
+mod tests;
 
 /// Main error type for Vectorizer operations
 #[derive(Error, Debug)]
