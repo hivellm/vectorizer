@@ -32,7 +32,7 @@
 | ⬚ | phase4_refactor-tests-examples-after-mcp-api-change | 0/9 | refactor tests examples after mcp api change |
 | ⬚ | phase4_rest-mcp-parity-tests | 0/14 | rest mcp parity tests |
 | ⬚ | phase4_router-layer-admin-middleware | 0/12 | router layer admin middleware |
-| ⬚ | phase4_split-advanced-search | 0/11 | split advanced search |
+| ⬚ | phase4_split-advanced-search-engines | 0/12 | split advanced search engines |
 | ⬚ | phase4_split-embedding-providers | 0/9 | split embedding providers |
 | ⬚ | phase4_split-qdrant-api-integration-tests | 0/7 | split qdrant api integration tests |
 | ⬚ | phase4_split-sdk-javascript-client | 0/10 | split sdk javascript client |
