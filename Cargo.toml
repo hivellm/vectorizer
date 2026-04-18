@@ -189,7 +189,7 @@ protoc-bin-vendored = "3.2"
 criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
 proptest = "1.9"
 tempfile = "3.8"
-reqwest = { version = "0.12", features = ["json", "multipart"] }
+reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }
 
 [[bench]]
 name = "filter_benchmark"
