@@ -32,7 +32,6 @@ async fn test_mmap_collection_creation() {
 }
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-mmap-storage-bugs; MMap insert/update tests fail locally"]
 async fn test_mmap_insert_and_retrieve() {
     let temp_dir = tempdir().unwrap();
     let _data_dir = temp_dir.path().to_path_buf();
@@ -148,7 +147,6 @@ async fn test_mmap_large_dataset() {
 }
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-mmap-storage-bugs; MMap insert/update tests fail locally"]
 async fn test_mmap_update_and_delete() {
     let temp_dir = tempdir().unwrap();
     let _data_dir = temp_dir.path().to_path_buf();
