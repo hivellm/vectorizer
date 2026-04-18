@@ -380,9 +380,17 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let config_path = temp_dir.path().join("config.yml");
 
-        // Generate default config file
+        // Generate default config file (ships with empty jwt_secret — intentional,
+        // forces explicit configuration). We inject a valid secret on-disk before
+        // load_from_file because the post-v3.0.0 validator rejects empty secrets
+        // with auth.enabled=true.
         ConfigManager::generate_default_file(&config_path).unwrap();
         assert!(config_path.exists());
+
+        let mut default_file: ConfigFile =
+            serde_yaml::from_str(&std::fs::read_to_string(&config_path).unwrap()).unwrap();
+        default_file.auth.jwt_secret = "o".repeat(64);
+        std::fs::write(&config_path, serde_yaml::to_string(&default_file).unwrap()).unwrap();
 
         // Load config file
         let config = ConfigManager::load_from_file(&config_path).unwrap();
@@ -397,5 +405,22 @@ mod tests {
         // Reload and verify
         let reloaded_config = ConfigManager::load_from_file(&config_path).unwrap();
         assert_eq!(reloaded_config.server.port, 8080);
+    }
+
+    #[test]
+    fn test_default_config_file_fails_validate_until_secret_injected() {
+        // Regression guard for the phase1_fix-jwt-default-secret posture:
+        // `generate_default_file` produces a TEMPLATE, not a ready-to-boot
+        // config. Loading it unchanged must fail validation so operators
+        // are forced to set a real secret.
+        let temp_dir = tempdir().unwrap();
+        let config_path = temp_dir.path().join("config.yml");
+
+        ConfigManager::generate_default_file(&config_path).unwrap();
+        let load = ConfigManager::load_from_file(&config_path);
+        assert!(
+            load.is_err(),
+            "expected freshly-generated default config to fail validation"
+        );
     }
 }

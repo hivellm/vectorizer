@@ -11,7 +11,6 @@ use dashmap::DashMap;
 use tracing::{debug, error, info, warn};
 
 use super::collection::Collection;
-#[cfg(feature = "cluster")]
 use super::distributed_sharded_collection::DistributedShardedCollection;
 use super::hybrid_search::HybridSearchConfig;
 use super::sharded_collection::ShardedCollection;
@@ -33,7 +32,6 @@ pub enum CollectionType {
     /// Sharded collection (distributed across multiple shards on single server)
     Sharded(ShardedCollection),
     /// Distributed sharded collection (distributed across multiple servers)
-    #[cfg(feature = "cluster")]
     DistributedSharded(DistributedShardedCollection),
 }
 
@@ -44,7 +42,6 @@ impl std::fmt::Debug for CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => write!(f, "CollectionType::HiveGpu({})", c.name()),
             CollectionType::Sharded(c) => write!(f, "CollectionType::Sharded({})", c.name()),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
                 write!(f, "CollectionType::DistributedSharded({})", c.name())
             }
@@ -60,7 +57,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.name(),
             CollectionType::Sharded(c) => c.name(),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => c.name(),
         }
     }
@@ -72,7 +68,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.config(),
             CollectionType::Sharded(c) => c.config(),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => c.config(),
         }
     }
@@ -84,7 +79,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.owner_id(),
             CollectionType::Sharded(c) => c.owner_id(),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(_) => None, // Distributed collections don't support multi-tenancy yet
         }
     }
@@ -96,7 +90,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.belongs_to(owner_id),
             CollectionType::Sharded(c) => c.belongs_to(owner_id),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(_) => false, // Distributed collections don't support multi-tenancy yet
         }
     }
@@ -108,7 +101,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.add_vector(vector).map(|_| ()),
             CollectionType::Sharded(c) => c.insert(vector),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
                 // Distributed collections require async operations
                 // Use tokio runtime to execute async insert
@@ -131,7 +123,6 @@ impl CollectionType {
                 Ok(())
             }
             CollectionType::Sharded(c) => c.insert_batch(vectors),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
                 // Distributed collections - use optimized batch insert
                 let rt = tokio::runtime::Runtime::new().map_err(|e| {
@@ -149,7 +140,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.search(query, limit),
             CollectionType::Sharded(c) => c.search(query, limit, None),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
                 // Distributed collections require async operations
                 let rt = tokio::runtime::Runtime::new().map_err(|e| {
@@ -179,7 +169,6 @@ impl CollectionType {
                 // For sharded collections, use multi-shard hybrid search
                 c.hybrid_search(query_dense, query_sparse, config, None)
             }
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
                 // For distributed sharded collections, use distributed hybrid search
                 let rt = tokio::runtime::Runtime::new().map_err(|e| {
@@ -208,7 +197,6 @@ impl CollectionType {
                     config: c.config().clone(),
                 }
             }
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => {
                 // Create metadata for distributed sharded collection
                 let rt = tokio::runtime::Runtime::new().unwrap_or_else(|_| {
@@ -237,6 +225,16 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.remove_vector(id.to_string()),
             CollectionType::Sharded(c) => c.delete(id),
+            CollectionType::DistributedSharded(_) => {
+                // `DistributedShardedCollection::delete` is async by design
+                // (it broadcasts to the shard-owning node). Synchronous
+                // callers must go through the async cluster router instead.
+                Err(VectorizerError::Storage(
+                    "delete_vector is not supported synchronously on distributed \
+                     collections; use the async cluster router"
+                        .to_string(),
+                ))
+            }
         }
     }
 
@@ -247,6 +245,11 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.update(vector),
             CollectionType::Sharded(c) => c.update(vector),
+            CollectionType::DistributedSharded(_) => Err(VectorizerError::Storage(
+                "update_vector is not supported synchronously on distributed \
+                 collections; use the async cluster router"
+                    .to_string(),
+            )),
         }
     }
 
@@ -257,16 +260,26 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.get_vector_by_id(vector_id),
             CollectionType::Sharded(c) => c.get_vector(vector_id),
+            CollectionType::DistributedSharded(_) => Err(VectorizerError::Storage(
+                "get_vector is not supported synchronously on distributed \
+                 collections; use the async cluster router"
+                    .to_string(),
+            )),
         }
     }
 
     /// Get the number of vectors in the collection
+    ///
+    /// For distributed collections this returns the locally-known document
+    /// count (sync), not a cluster-wide total; callers that need the exact
+    /// figure should use `DistributedShardedCollection::vector_count().await`.
     pub fn vector_count(&self) -> usize {
         match self {
             CollectionType::Cpu(c) => c.vector_count(),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.vector_count(),
             CollectionType::Sharded(c) => c.vector_count(),
+            CollectionType::DistributedSharded(c) => c.document_count(),
         }
     }
 
@@ -278,6 +291,7 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.vector_count(), // GPU collections treat vectors as documents
             CollectionType::Sharded(c) => c.document_count(),
+            CollectionType::DistributedSharded(c) => c.document_count(),
         }
     }
 
@@ -290,6 +304,11 @@ impl CollectionType {
             CollectionType::Sharded(c) => {
                 // Sum memory usage from all shards
                 c.shard_counts().values().sum::<usize>() * c.config().dimension * 4 // Rough estimate
+            }
+            CollectionType::DistributedSharded(c) => {
+                // Rough estimate from the locally-known document count;
+                // cluster-wide exact accounting would require an RPC.
+                c.document_count() * c.config().dimension * 4
             }
         }
     }
@@ -305,6 +324,11 @@ impl CollectionType {
                 // Return empty for now - could be implemented by querying all shards
                 Vec::new()
             }
+            CollectionType::DistributedSharded(_) => {
+                // Same rationale as Sharded: requires iterating every shard and
+                // every node; no synchronous path today.
+                Vec::new()
+            }
         }
     }
 
@@ -315,6 +339,7 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.get_embedding_type(),
             CollectionType::Sharded(_) => "sharded".to_string(),
+            CollectionType::DistributedSharded(_) => "distributed".to_string(),
         }
     }
 
@@ -325,7 +350,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(_) => None, // GPU collections don't support graph yet
             CollectionType::Sharded(_) => None, // Sharded collections don't support graph yet
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(_) => None, // Distributed collections don't support graph yet
         }
     }
@@ -337,7 +361,6 @@ impl CollectionType {
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.requantize_existing_vectors(),
             CollectionType::Sharded(c) => c.requantize_existing_vectors(),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(c) => c.requantize_existing_vectors(),
         }
     }
@@ -354,6 +377,12 @@ impl CollectionType {
             }
             CollectionType::Sharded(c) => {
                 let total = c.vector_count() * c.config().dimension * 4; // Rough estimate
+                (total / 2, total / 2, total)
+            }
+            CollectionType::DistributedSharded(c) => {
+                // Same rough estimate as Sharded; distributed collections
+                // need a cluster-wide query for exact figures.
+                let total = c.document_count() * c.config().dimension * 4;
                 (total / 2, total / 2, total)
             }
         }
@@ -396,6 +425,22 @@ impl CollectionType {
                 let total_size = format_bytes(total);
                 (index_size, payload_size, total_size)
             }
+            CollectionType::DistributedSharded(c) => {
+                let total = c.document_count() * c.config().dimension * 4;
+                let format_bytes = |bytes: usize| -> String {
+                    if bytes >= 1024 * 1024 {
+                        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                    } else if bytes >= 1024 {
+                        format!("{:.1} KB", bytes as f64 / 1024.0)
+                    } else {
+                        format!("{} B", bytes)
+                    }
+                };
+                let index_size = format_bytes(total / 2);
+                let payload_size = format_bytes(total / 2);
+                let total_size = format_bytes(total);
+                (index_size, payload_size, total_size)
+            }
         }
     }
 
@@ -415,6 +460,12 @@ impl CollectionType {
                 // Sharded collections don't track embedding types at top level
                 debug!(
                     "Sharded collections don't track embedding types: {}",
+                    embedding_type
+                );
+            }
+            CollectionType::DistributedSharded(_) => {
+                debug!(
+                    "Distributed collections don't track embedding types: {}",
                     embedding_type
                 );
             }
@@ -438,6 +489,10 @@ impl CollectionType {
                 warn!("Sharded collections don't support HNSW dump loading yet");
                 Ok(())
             }
+            CollectionType::DistributedSharded(_) => {
+                warn!("Distributed collections don't support HNSW dump loading yet");
+                Ok(())
+            }
         }
     }
 
@@ -453,6 +508,16 @@ impl CollectionType {
             CollectionType::Sharded(c) => {
                 // Use batch insert for sharded collections
                 c.insert_batch(vectors)
+            }
+            CollectionType::DistributedSharded(_) => {
+                // DistributedSharded's insert is async and bulk load goes
+                // through the cluster router; a synchronous in-memory load
+                // isn't meaningful here.
+                warn!(
+                    "Distributed collections don't support synchronous \
+                     load_vectors_into_memory; use the async insert path"
+                );
+                Ok(())
             }
         }
     }
@@ -470,6 +535,13 @@ impl CollectionType {
             CollectionType::Sharded(c) => {
                 // Use batch insert for sharded collections
                 c.insert_batch(vectors)
+            }
+            CollectionType::DistributedSharded(_) => {
+                warn!(
+                    "Distributed collections don't support synchronous \
+                     fast_load_vectors; use the async insert path"
+                );
+                Ok(())
             }
         }
     }
@@ -1399,7 +1471,6 @@ impl VectorStore {
             CollectionType::Sharded(_) => Err(VectorizerError::Storage(
                 "Graph not yet supported for sharded collections".to_string(),
             )),
-            #[cfg(feature = "cluster")]
             CollectionType::DistributedSharded(_) => Err(VectorizerError::Storage(
                 "Graph not yet supported for distributed collections".to_string(),
             )),
@@ -1891,6 +1962,9 @@ impl VectorStore {
             CollectionType::Sharded(_) => {
                 warn!("Sharded collections don't support load_from_cache yet");
             }
+            CollectionType::DistributedSharded(_) => {
+                warn!("Distributed collections don't support load_from_cache yet");
+            }
         }
 
         Ok(())
@@ -1925,6 +1999,12 @@ impl VectorStore {
             }
             CollectionType::Sharded(_) => {
                 warn!("Sharded collections don't support load_from_cache_with_hnsw_dump yet");
+            }
+            CollectionType::DistributedSharded(_) => {
+                warn!(
+                    "Distributed collections don't support \
+                     load_from_cache_with_hnsw_dump yet"
+                );
             }
         }
 

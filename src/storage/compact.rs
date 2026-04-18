@@ -107,6 +107,13 @@ impl StorageCompactor {
                             );
                             continue;
                         }
+                        CollectionType::DistributedSharded(_) => {
+                            warn!(
+                                "⚠️  Distributed collections not yet supported for memory compaction, skipping '{}'",
+                                name
+                            );
+                            continue;
+                        }
                     };
 
                     info!("   Collection '{}': {} vectors", name, vectors.len());

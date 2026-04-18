@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 ### Breaking
 - **JWT secret must be explicitly configured.** `AuthConfig::default()` no longer ships a real `jwt_secret` — the field is now an empty string. `AuthManager::new` calls `AuthConfig::validate` at startup and refuses to boot if `auth.enabled == true` and the configured secret is empty, shorter than 32 chars, or equal to the historical insecure default (`"vectorizer-default-secret-key-change-in-production"`). Operators must generate a real secret (e.g. `openssl rand -hex 64`) and inject it via config file or the `VECTORIZER_JWT_SECRET` env var before upgrading. This closes a known auth-bypass: any attacker who knew the public default could forge admin JWTs against unconfigured deployments.
 
+### Changed
+- Remove the phantom `"cluster"` Cargo feature flag. `src/db/vector_store.rs` previously wrapped 15 match arms in `#[cfg(feature = "cluster")]`, but the feature was never declared in `Cargo.toml`, so the gated code was permanently dead and drifted from the always-compiled `DistributedShardedCollection` type it referenced. The gates are removed; `DistributedSharded` is now a first-class `CollectionType` variant on every build. Read-path methods return document-count-based approximations; mutating methods (`delete_vector`, `update_vector`, `get_vector`) return a clear `VectorizerError::Storage` steering callers to the async cluster router instead of panicking.
+
 ### Chore
 - Delete committed backup files `src/db/vector_store.rs.bak` and `tests/integration/sharding_validation.rs.bak` left from earlier refactors.
 - Add `*.bak`, `*.orig`, `*.rej` patterns to `.gitignore` and `.dockerignore` so future scratch files stay out of commits and Docker contexts.
