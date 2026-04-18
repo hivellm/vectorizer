@@ -291,6 +291,7 @@ pub async fn restore_backup(
                 data: vector,
                 sparse: None,
                 payload,
+                document_id: None,
             };
 
             vectors_to_insert.push(vec);

@@ -60,12 +60,14 @@ async fn test_mmap_insert_and_retrieve() {
             data: vec![1.0; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
             data: vec![2.0; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         },
     ];
 
@@ -126,6 +128,7 @@ async fn test_mmap_large_dataset() {
             data: vec![i as f32; 256],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect();
 
@@ -174,6 +177,7 @@ async fn test_mmap_update_and_delete() {
         data: vec![1.0; 128],
         payload: None,
         sparse: None,
+        document_id: None,
     };
     assert!(store.insert("mmap_collection", vec![vector]).is_ok());
 
@@ -194,6 +198,7 @@ async fn test_mmap_update_and_delete() {
         data: vec![2.0; 128],
         payload: None,
         sparse: None,
+        document_id: None,
     };
     let update_result = store.update("mmap_collection", updated);
     assert!(
@@ -242,6 +247,7 @@ async fn test_mmap_search() {
             data: vec![i as f32; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect::<Vec<_>>();
 

@@ -163,6 +163,7 @@ pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64,
                     data,
                     sparse: None,
                     payload: payload_obj,
+                    document_id: None,
                 }
             })
             .collect();
@@ -253,6 +254,7 @@ mod tests {
             data: vec![1.0, 0.0, 0.0],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         store.insert("test", vec![vec1]).unwrap();
 
@@ -299,6 +301,7 @@ mod tests {
             payload: Some(crate::models::Payload {
                 data: serde_json::json!({"type": "string", "value": "test"}),
             }),
+            document_id: None,
         };
 
         let vec2 = crate::models::Vector {
@@ -308,6 +311,7 @@ mod tests {
             payload: Some(crate::models::Payload {
                 data: serde_json::json!({"type": "number", "value": 123}),
             }),
+            document_id: None,
         };
 
         let vec3 = crate::models::Vector {
@@ -315,6 +319,7 @@ mod tests {
             data: vec![0.0, 0.0, 1.0],
             sparse: None,
             payload: None, // No payload
+            document_id: None,
         };
 
         store1
@@ -378,6 +383,7 @@ mod tests {
             data: vec![1.0, 2.0, 3.0],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         store1.insert("euclidean", vec![vec.clone()]).unwrap();
         store1.insert("dotproduct", vec![vec]).unwrap();
@@ -444,6 +450,7 @@ mod tests {
             data: vec![1.0, 0.0, 0.0],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         store.insert("meta_test", vec![vec1]).unwrap();
 

@@ -601,6 +601,7 @@ impl UserBackupManager {
                     data: v.data,
                     sparse: v.sparse,
                     payload: v.payload.map(crate::models::Payload::new),
+                    document_id: None,
                 })
                 .collect();
 

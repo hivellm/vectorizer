@@ -68,6 +68,7 @@ impl GpuAdapter {
                 );
                 Some(Payload::new(json_value))
             },
+            document_id: None,
         }
     }
 

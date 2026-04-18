@@ -81,6 +81,7 @@ async fn test_cluster_3_nodes_load_distribution() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }

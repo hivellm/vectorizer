@@ -84,6 +84,7 @@ async fn test_node_failure_during_insert() {
         data: vec![0.1; 128],
         sparse: None,
         payload: None,
+        document_id: None,
     };
 
     // Insert should either succeed (if routed to local node) or fail gracefully
@@ -139,6 +140,7 @@ async fn test_node_failure_during_search() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }

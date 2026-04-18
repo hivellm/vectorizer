@@ -81,6 +81,7 @@ async fn test_rest_insert_text_with_encryption() {
         data: embedding,
         sparse: None,
         payload: Some(payload),
+        document_id: None,
     };
 
     store.insert(collection_name, vec![vector.clone()]).unwrap();
@@ -140,6 +141,7 @@ async fn test_rest_insert_text_without_encryption() {
         data: embedding,
         sparse: None,
         payload: Some(payload),
+        document_id: None,
     };
 
     store.insert(collection_name, vec![vector.clone()]).unwrap();
@@ -195,6 +197,7 @@ fn test_qdrant_upsert_with_encryption() {
         data: vector_data,
         sparse: None,
         payload: Some(payload),
+        document_id: None,
     };
 
     store.insert(collection_name, vec![vector]).unwrap();
@@ -248,6 +251,7 @@ fn test_qdrant_upsert_mixed_encryption() {
         payload: Some(vectorizer::models::Payload::from_encrypted(
             encrypted_payload,
         )),
+        document_id: None,
     };
 
     // Vector 2: Unencrypted
@@ -258,6 +262,7 @@ fn test_qdrant_upsert_mixed_encryption() {
         payload: Some(vectorizer::models::Payload::new(
             json!({"type": "public", "data": "open"}),
         )),
+        document_id: None,
     };
 
     // Insert both
@@ -325,6 +330,7 @@ fn test_file_upload_simulation_with_encryption() {
             data: embedding,
             sparse: None,
             payload: Some(payload),
+            document_id: None,
         });
     }
 
@@ -411,6 +417,7 @@ fn test_encryption_required_enforcement() {
         data: vec![0.1; 64],
         sparse: None,
         payload: Some(vectorizer::models::Payload::new(json!({"data": "test"}))),
+        document_id: None,
     };
 
     let result = store.insert(collection_name, vec![unencrypted_vector]);
@@ -432,6 +439,7 @@ fn test_encryption_required_enforcement() {
         data: vec![0.2; 64],
         sparse: None,
         payload: Some(vectorizer::models::Payload::from_encrypted(encrypted)),
+        document_id: None,
     };
 
     let result = store.insert(collection_name, vec![encrypted_vector]);
@@ -457,6 +465,7 @@ fn test_backward_compatibility_all_routes() {
         data: vec![0.1; 128],
         sparse: None,
         payload: Some(vectorizer::models::Payload::new(json!({"type": "qdrant"}))),
+        document_id: None,
     };
     store.insert(collection1, vec![vector1]).unwrap();
 
@@ -471,6 +480,7 @@ fn test_backward_compatibility_all_routes() {
         payload: Some(vectorizer::models::Payload::new(
             json!({"type": "insert_text"}),
         )),
+        document_id: None,
     };
     store.insert(collection2, vec![vector2]).unwrap();
 
@@ -485,6 +495,7 @@ fn test_backward_compatibility_all_routes() {
         payload: Some(vectorizer::models::Payload::new(
             json!({"type": "file_upload"}),
         )),
+        document_id: None,
     };
     store.insert(collection3, vec![vector3]).unwrap();
 

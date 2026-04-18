@@ -51,12 +51,14 @@ async fn test_vector_store_wal_integration() {
             data: vec![1.0; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
             data: vec![2.0; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         },
     ];
 
@@ -70,6 +72,7 @@ async fn test_vector_store_wal_integration() {
         data: vec![3.0; 128],
         payload: None,
         sparse: None,
+        document_id: None,
     };
     assert!(store.update("test_collection", updated).is_ok());
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -138,6 +141,7 @@ async fn test_wal_recover_all_collections_with_data() {
                 data: vec![1.0; 128],
                 payload: None,
                 sparse: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -150,6 +154,7 @@ async fn test_wal_recover_all_collections_with_data() {
                 data: vec![2.0; 128],
                 payload: None,
                 sparse: None,
+                document_id: None,
             }],
         )
         .unwrap();

@@ -538,6 +538,7 @@ mod tests {
             payload: Some(Payload {
                 data: serde_json::Value::Object(payload_data),
             }),
+            document_id: None,
         }
     }
 
@@ -610,6 +611,7 @@ mod tests {
             payload: Some(Payload {
                 data: serde_json::json!({"content": "empty test", "operation_type": "test"}),
             }),
+            document_id: None,
         };
         assert!(validator.validate_vector_data(&empty_vector, 0).is_err());
 

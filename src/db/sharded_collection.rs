@@ -520,6 +520,7 @@ mod tests {
                 data: vec![1.0; 128],
                 sparse: None,
                 payload: None,
+                document_id: None,
             };
             collection.insert(vector).unwrap();
         }
@@ -543,12 +544,14 @@ mod tests {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let vec2 = Vector {
             id: "vector_2".to_string(),
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
 
         collection.insert(vec1.clone()).unwrap();

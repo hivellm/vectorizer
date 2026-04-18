@@ -205,6 +205,7 @@ mod tests {
             data: vec![1.0, 2.0, 3.0],
             payload: None,
             sparse: None,
+            document_id: None,
         };
 
         // Should not error even when disabled
@@ -230,6 +231,7 @@ mod tests {
             data: vec![1.0, 2.0, 3.0],
             payload: None,
             sparse: None,
+            document_id: None,
         };
 
         // Log insert
@@ -276,6 +278,7 @@ mod tests {
             data: vec![1.0, 2.0, 3.0],
             payload: Some(payload),
             sparse: None,
+            document_id: None,
         };
 
         assert!(

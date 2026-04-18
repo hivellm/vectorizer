@@ -49,12 +49,14 @@ async fn test_wal_crash_recovery_insert() {
             data: vec![1.0; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
             data: vec![2.0; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         },
     ];
     store.insert("test_collection", vectors).unwrap();
@@ -144,6 +146,7 @@ async fn test_wal_crash_recovery_update() {
                 data: vec![1.0; 384],
                 payload: None,
                 sparse: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -157,6 +160,7 @@ async fn test_wal_crash_recovery_update() {
                 data: vec![3.0; 384],
                 payload: None,
                 sparse: None,
+                document_id: None,
             },
         )
         .unwrap();
@@ -238,6 +242,7 @@ async fn test_wal_crash_recovery_delete() {
                 data: vec![1.0; 384],
                 payload: None,
                 sparse: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -318,6 +323,7 @@ async fn test_wal_recover_all_collections() {
                 data: vec![1.0; 384],
                 payload: None,
                 sparse: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -330,6 +336,7 @@ async fn test_wal_recover_all_collections() {
                 data: vec![2.0; 384],
                 payload: None,
                 sparse: None,
+                document_id: None,
             }],
         )
         .unwrap();

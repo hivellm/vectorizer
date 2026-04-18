@@ -167,6 +167,7 @@ impl RaftStateMachine {
                             data: data.clone(),
                             sparse: None,
                             payload,
+                            document_id: None,
                         };
                         store.insert(collection_name, vec![vector])?;
                     }
@@ -193,6 +194,7 @@ impl RaftStateMachine {
                                 data: data_vec.clone(),
                                 sparse: None,
                                 payload,
+                                document_id: None,
                             };
                             store.update(collection_name, vector)?;
                         }

@@ -84,6 +84,7 @@ fn test_sharding_vector_distribution() {
             data: vec![i as f32; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         });
     }
 
@@ -128,6 +129,7 @@ fn test_sharding_multi_shard_search() {
             data,
             payload: None,
             sparse: None,
+            document_id: None,
         });
     }
 
@@ -162,6 +164,7 @@ fn test_sharding_update_operations() {
         data: vec![1.0; 128],
         payload: None,
         sparse: None,
+        document_id: None,
     };
     assert!(store.insert(&collection_name, vec![vector]).is_ok());
 
@@ -175,6 +178,7 @@ fn test_sharding_update_operations() {
         data: vec![2.0; 128],
         payload: None,
         sparse: None,
+        document_id: None,
     };
     assert!(store.update(&collection_name, updated).is_ok());
 
@@ -200,6 +204,7 @@ fn test_sharding_delete_operations() {
             data: vec![i as f32; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         });
     }
     assert!(store.insert(&collection_name, vectors).is_ok());
@@ -267,6 +272,7 @@ fn test_sharding_consistency_after_operations() {
                 }),
             }),
             sparse: None,
+            document_id: None,
         });
     }
     assert!(store.insert(&collection_name, vectors).is_ok());
@@ -286,6 +292,7 @@ fn test_sharding_consistency_after_operations() {
                     }),
                 }),
                 sparse: None,
+                document_id: None,
             };
             assert!(store.update(&collection_name, updated).is_ok());
         } else {
@@ -340,6 +347,7 @@ fn test_sharding_large_scale_insertion() {
             data: vec![i as f32; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         });
     }
 
@@ -383,6 +391,7 @@ fn test_sharding_search_accuracy() {
             data,
             payload: None,
             sparse: None,
+            document_id: None,
         });
     }
     assert!(store.insert(&collection_name, vectors).is_ok());
@@ -424,6 +433,7 @@ fn test_sharding_with_payload() {
                 }),
             }),
             sparse: None,
+            document_id: None,
         });
     }
     assert!(store.insert(&collection_name, vectors).is_ok());
@@ -458,6 +468,7 @@ fn test_sharding_rebalancing_detection() {
             data: vec![i as f32; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         });
     }
     assert!(store.insert(&collection_name, vectors).is_ok());
@@ -492,6 +503,7 @@ fn test_sharding_shard_metadata() {
             data: vec![i as f32; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         });
     }
     assert!(store.insert(&collection_name, vectors).is_ok());
@@ -541,6 +553,7 @@ fn test_sharding_concurrent_operations() {
                 data: vec![idx as f32; 128],
                 payload: None,
                 sparse: None,
+                document_id: None,
             });
         }
         assert!(store.insert(&collection_name, vectors).is_ok());
@@ -563,6 +576,7 @@ fn test_sharding_concurrent_operations() {
                 data: vec![(i * 2) as f32; 128],
                 payload: None,
                 sparse: None,
+                document_id: None,
             };
             assert!(store.update(&collection_name, updated).is_ok());
         } else {

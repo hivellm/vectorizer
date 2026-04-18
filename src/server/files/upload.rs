@@ -549,6 +549,7 @@ pub async fn upload_file(
             data: embedding,
             sparse: None,
             payload: Some(payload),
+            document_id: None,
         };
 
         // Insert vector

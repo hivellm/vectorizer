@@ -690,6 +690,7 @@ fn convert_qdrant_point_to_vector(
         data: vector_data,
         sparse: None,
         payload,
+        document_id: None,
     })
 }
 

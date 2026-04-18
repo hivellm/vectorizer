@@ -464,6 +464,7 @@ impl ShardMigrator {
                 data: entry.vector.clone(),
                 sparse: None,
                 payload,
+                document_id: None,
             };
 
             let mut collection = self

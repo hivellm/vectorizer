@@ -343,6 +343,7 @@ impl VectorizerService for VectorizerGrpcService {
                     .collect();
                 Some(Payload::new(serde_json::Value::Object(json_map)))
             },
+            document_id: None,
         };
 
         match self.store.update(&req.collection_name, vector) {

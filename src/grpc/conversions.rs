@@ -200,6 +200,7 @@ impl TryFrom<&vectorizer::InsertVectorRequest> for Vector {
                     .collect();
                 Some(Payload::new(serde_json::Value::Object(json_map)))
             },
+            document_id: None,
         })
     }
 }

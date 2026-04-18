@@ -544,6 +544,7 @@ impl BatchProcessor {
                     data: serde_json::to_value(m).unwrap_or_default(),
                 })
                 .or(existing_vector.payload),
+            document_id: existing_vector.document_id,
         };
 
         vector_store.update(collection, updated_vector)
@@ -728,6 +729,7 @@ mod tests {
                 data: vec![0.1; 128],
                 sparse: None,
                 payload: None,
+                document_id: None,
             };
             10
         ];
@@ -845,6 +847,7 @@ mod tests {
                 data: vec![0.1; 10000], // Large dimension
                 sparse: None,
                 payload: None,
+                document_id: None,
             };
             100
         ];

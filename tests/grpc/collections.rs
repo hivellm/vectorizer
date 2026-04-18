@@ -106,12 +106,14 @@ async fn test_get_collection_info() {
                     data: create_test_vector("vec1", 1, 128),
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 Vector {
                     id: "vec2".to_string(),
                     data: create_test_vector("vec2", 2, 128),
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )

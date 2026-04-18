@@ -470,6 +470,7 @@ async fn test_mmap_collection_write_and_read() {
         data: vec![0.1, 0.2, 0.3, 0.4],
         sparse: None,
         payload: None,
+        document_id: None,
     };
 
     {

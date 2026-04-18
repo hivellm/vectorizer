@@ -99,6 +99,7 @@ fn generate_vectors(count: usize, dimension: usize) -> Vec<Vector> {
                 .collect(),
             sparse: None,
             payload: None,
+            document_id: None,
         })
         .collect()
 }

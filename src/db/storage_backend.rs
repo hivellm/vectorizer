@@ -92,6 +92,7 @@ impl VectorStorageBackend {
                     data,
                     payload,
                     sparse: sparse_vector,
+                    document_id: None,
                 }))
             }
         }

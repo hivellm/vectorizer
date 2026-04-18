@@ -367,6 +367,7 @@ pub async fn insert_text(
                 data: embedding,
                 sparse: None,
                 payload: Some(payload),
+                document_id: None,
             };
 
             // Insert the vector
@@ -421,6 +422,7 @@ pub async fn insert_text(
             data: embedding,
             sparse: None,
             payload: Some(payload_data),
+            document_id: None,
         };
 
         // Insert the vector using the store

@@ -339,6 +339,7 @@ impl VectorOperations {
                 data: embedding,
                 sparse: None,
                 payload: Some(payload),
+                document_id: None,
             };
 
             vectors_to_insert.push(vector);

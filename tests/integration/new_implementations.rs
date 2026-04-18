@@ -30,6 +30,7 @@ mod document_count_tests {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         }
     }
 
@@ -110,6 +111,7 @@ mod sharded_hybrid_search_tests {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         }
     }
 
@@ -419,6 +421,7 @@ mod batch_insert_tests {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         }
     }
 
@@ -656,6 +659,7 @@ mod search_result_tests {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         }
     }
 
@@ -755,6 +759,7 @@ mod rebalancing_tests {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         }
     }
 

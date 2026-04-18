@@ -71,6 +71,7 @@ async fn test_distributed_sharding_with_quantization() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
         // Insert may fail if routed to remote node without real server - this is expected in tests
@@ -135,6 +136,7 @@ async fn test_distributed_sharding_with_compression() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
         // Insert may fail if routed to remote node without real server - this is expected in tests
@@ -204,6 +206,7 @@ async fn test_distributed_sharding_with_payload() {
                     "value": i,
                 }),
             }),
+            document_id: None,
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
         // Insert may fail if routed to remote node without real server - this is expected in tests
@@ -276,6 +279,7 @@ async fn test_distributed_sharding_with_sparse() {
                 vectorizer::models::SparseVector::new(vec![i as usize], vec![1.0]).unwrap(),
             ),
             payload: None,
+            document_id: None,
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
         // Insert may fail if routed to remote node without real server - this is expected in tests

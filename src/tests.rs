@@ -80,6 +80,7 @@ mod tests {
             data: vec![0.1, 0.2, 0.3],
             sparse: None,
             payload: Some(Payload::new(serde_json::json!({"test": "data"}))),
+            document_id: None,
         };
 
         assert_eq!(vector.id, "test_vector");

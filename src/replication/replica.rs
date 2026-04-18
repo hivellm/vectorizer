@@ -401,6 +401,7 @@ impl ReplicaNode {
                     data: vector.clone(),
                     sparse: None,
                     payload: payload_obj,
+                    document_id: None,
                 };
 
                 self.vector_store
@@ -428,6 +429,7 @@ impl ReplicaNode {
                         data: data.clone(),
                         sparse: None,
                         payload: payload_obj,
+                        document_id: None,
                     };
 
                     self.vector_store

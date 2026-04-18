@@ -450,12 +450,14 @@ async fn test_search_with_threshold() {
             data: create_test_vector("vec1", 1, 128),
             sparse: None,
             payload: None,
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
             data: create_test_vector("vec2", 100, 128), // Very different
             sparse: None,
             payload: None,
+            document_id: None,
         },
     ];
     store.insert("threshold_test", vectors).unwrap();
@@ -516,6 +518,7 @@ async fn test_multiple_collections_simultaneously() {
             data: create_test_vector(&format!("vec_{i}"), i, 128),
             sparse: None,
             payload: None,
+            document_id: None,
         };
         store
             .insert(&format!("collection_{i}"), vec![vector])
@@ -735,6 +738,8 @@ async fn test_search_with_filters() {
             payload: Some(vectorizer::models::Payload::new(
                 serde_json::json!({"category": "A", "type": "test"}),
             )),
+
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
@@ -743,6 +748,8 @@ async fn test_search_with_filters() {
             payload: Some(vectorizer::models::Payload::new(
                 serde_json::json!({"category": "B", "type": "test"}),
             )),
+
+            document_id: None,
         },
     ];
     store.insert("filter_test", vectors).unwrap();
@@ -929,6 +936,7 @@ async fn test_multiple_batch_searches() {
             data: create_test_vector(&format!("vec{i}"), i, 128),
             sparse: None,
             payload: None,
+            document_id: None,
         })
         .collect();
     store.insert("batch_search_test", vectors).unwrap();

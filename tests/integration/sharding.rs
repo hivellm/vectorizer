@@ -39,6 +39,7 @@ fn test_multi_shard_insert_and_search() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
         inserted_ids.push(format!("vec_{i}"));
@@ -83,6 +84,7 @@ fn test_shard_specific_search() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
     }
@@ -116,6 +118,7 @@ fn test_shard_rebalancing_detection() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
     }
@@ -173,6 +176,7 @@ fn test_batch_insert_distribution() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         });
     }
 
@@ -200,6 +204,7 @@ fn test_multi_shard_update_and_delete() {
         data: vec![1.0; 128],
         sparse: None,
         payload: None,
+        document_id: None,
     };
     collection.insert(vector.clone()).unwrap();
 
@@ -209,6 +214,7 @@ fn test_multi_shard_update_and_delete() {
         data: vec![2.0; 128],
         sparse: None,
         payload: None,
+        document_id: None,
     };
     collection.update(updated_vector).unwrap();
 
@@ -243,6 +249,7 @@ fn test_shard_metadata() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
     }

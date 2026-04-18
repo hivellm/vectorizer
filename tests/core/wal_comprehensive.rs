@@ -41,6 +41,7 @@ async fn test_wal_multiple_operations() {
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect::<Vec<_>>();
 
@@ -102,6 +103,7 @@ async fn test_wal_with_payload() {
         data: vec![1.0; 384],
         payload: Some(payload),
         sparse: None,
+        document_id: None,
     };
 
     assert!(
@@ -154,6 +156,7 @@ async fn test_wal_update_sequence() {
         data: vec![1.0; 384],
         payload: None,
         sparse: None,
+        document_id: None,
     };
     assert!(store.insert("test_collection", vec![vector1]).is_ok());
 
@@ -173,6 +176,7 @@ async fn test_wal_update_sequence() {
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         };
         let update_result = store.update("test_collection", updated);
         assert!(
@@ -220,6 +224,7 @@ async fn test_wal_delete_sequence() {
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect::<Vec<_>>();
 
@@ -290,6 +295,7 @@ async fn test_wal_multiple_collections() {
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         };
         assert!(
             store
@@ -351,6 +357,7 @@ async fn test_wal_checkpoint() {
             data: vec![i as f32; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect::<Vec<_>>();
 
@@ -427,6 +434,7 @@ async fn test_wal_without_enabling() {
         data: vec![1.0; 384],
         payload: None,
         sparse: None,
+        document_id: None,
     };
 
     assert!(

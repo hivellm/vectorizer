@@ -97,12 +97,14 @@ mod tests {
             data: vec![1.0, 0.0, 0.0],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let vec2 = Vector {
             id: "vec2".to_string(),
             data: vec![0.0, 1.0, 0.0],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         store1.insert("test", vec![vec1, vec2]).unwrap();
 

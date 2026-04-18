@@ -418,6 +418,7 @@ mod tests {
                 data: vec![i as f32; 128],
                 sparse: None,
                 payload: None,
+                document_id: None,
             })
             .collect()
     }

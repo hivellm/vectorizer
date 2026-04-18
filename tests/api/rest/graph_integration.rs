@@ -55,12 +55,14 @@ fn test_graph_rest_api_functionality() {
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "vec2".to_string(),
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -104,18 +106,21 @@ fn test_graph_discovery_creates_edges_and_api_returns_them() {
                     data: vec![1.0; 128], // Similar vectors
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "doc2".to_string(),
                     data: vec![1.0; 128], // Similar to doc1
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "doc3".to_string(),
                     data: vec![0.1; 128], // Different vector
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -240,18 +245,21 @@ fn test_graph_discovery_via_api_and_list_edges_returns_them() {
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "api_doc2".to_string(),
                     data: vec![1.0; 128], // Similar to api_doc1
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "api_doc3".to_string(),
                     data: vec![0.1; 128], // Different
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )

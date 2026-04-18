@@ -18,6 +18,19 @@ pub struct Vector {
     /// Optional payload associated with the vector
     #[serde(default)]
     pub payload: Option<Payload>,
+    /// Optional document identifier this vector belongs to.
+    ///
+    /// When a vector is derived from a larger document (e.g. a chunk of
+    /// a file), set this to the document's stable ID so the collection
+    /// can answer document-level queries ("list vectors for doc X",
+    /// "delete doc Y") without decoding the payload JSON on every
+    /// access. `#[serde(default)]` lets older JSON payloads that
+    /// predate this field deserialize as `None`. `skip_serializing_if`
+    /// is deliberately NOT set because the codec's positional bincode
+    /// format is symmetric — skipping the field on serialize would
+    /// desync the deserialize stream.
+    #[serde(default)]
+    pub document_id: Option<String>,
 }
 
 /// Internal storage format for quantized vectors (memory optimized)
@@ -104,6 +117,7 @@ impl QuantizedVector {
             data,
             sparse: self.sparse.clone(),
             payload: self.payload.clone(),
+            document_id: None,
         }
     }
 
@@ -717,6 +731,7 @@ impl Default for Vector {
             data: Vec::new(),
             sparse: None,
             payload: None,
+            document_id: None,
         }
     }
 }
@@ -729,6 +744,7 @@ impl Vector {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         }
     }
 
@@ -740,6 +756,7 @@ impl Vector {
             data,
             sparse: Some(sparse),
             payload: None,
+            document_id: None,
         }
     }
 
@@ -750,6 +767,7 @@ impl Vector {
             data,
             sparse: None,
             payload: Some(payload),
+            document_id: None,
         }
     }
 
@@ -766,6 +784,7 @@ impl Vector {
             data,
             sparse: Some(sparse),
             payload: Some(payload),
+            document_id: None,
         }
     }
 
@@ -816,3 +835,80 @@ pub mod sparse_vector;
 pub mod vector_utils_simd;
 
 pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};
+
+#[cfg(test)]
+mod vector_document_id_tests {
+    use super::*;
+
+    /// A Vector built with `..Default::default()` has `document_id = None`
+    /// and its JSON serialization does not include the field (because
+    /// `skip_serializing_if` fires on the serde_json path).
+    #[test]
+    fn default_vector_has_no_document_id() {
+        let v = Vector::default();
+        assert!(v.document_id.is_none());
+    }
+
+    /// `Vector::new` leaves `document_id` as None — the stable
+    /// constructor used by ~all call sites that don't know the
+    /// originating document.
+    #[test]
+    fn new_vector_has_no_document_id() {
+        let v = Vector::new("vec_1".into(), vec![1.0, 2.0, 3.0]);
+        assert_eq!(v.id, "vec_1");
+        assert!(v.document_id.is_none());
+    }
+
+    /// JSON round-trip preserves `document_id` when set.
+    #[test]
+    fn json_roundtrip_preserves_document_id() {
+        let v = Vector {
+            id: "v".into(),
+            data: vec![1.0, 2.0],
+            sparse: None,
+            payload: None,
+            document_id: Some("doc_42".into()),
+        };
+        let json = serde_json::to_string(&v).unwrap();
+        assert!(
+            json.contains("document_id"),
+            "document_id must appear in JSON when Some: {json}"
+        );
+        assert!(json.contains("doc_42"));
+
+        let back: Vector = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.document_id.as_deref(), Some("doc_42"));
+    }
+
+    /// Older JSON payloads (pre-phase4_add-document-id-to-vector) that
+    /// have no `document_id` field must still deserialize — the
+    /// `#[serde(default)]` attribute guarantees this.
+    #[test]
+    fn legacy_json_without_document_id_still_deserializes() {
+        let legacy = r#"{
+            "id": "v",
+            "data": [1.0, 2.0]
+        }"#;
+        let v: Vector = serde_json::from_str(legacy).unwrap();
+        assert_eq!(v.id, "v");
+        assert!(v.document_id.is_none());
+    }
+
+    /// bincode (the `.bin` on-disk codec) round-trip preserves the
+    /// field. `skip_serializing_if` was deliberately omitted from the
+    /// field's serde attributes so the positional bincode stream stays
+    /// symmetric — this test is the guardrail.
+    #[test]
+    fn bincode_roundtrip_preserves_document_id() {
+        let v = Vector {
+            id: "v".into(),
+            data: vec![0.1, 0.2],
+            sparse: None,
+            payload: None,
+            document_id: Some("doc_7".into()),
+        };
+        let bytes = crate::codec::serialize(&v).unwrap();
+        let back: Vector = crate::codec::deserialize(&bytes).unwrap();
+        assert_eq!(back.document_id.as_deref(), Some("doc_7"));
+    }
+}

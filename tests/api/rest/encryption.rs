@@ -69,6 +69,8 @@ fn test_encrypted_payload_insertion_via_collection() {
         payload: Some(vectorizer::models::Payload::from_encrypted(
             encrypted_payload,
         )),
+
+        document_id: None,
     };
 
     // Insert the vector
@@ -131,6 +133,7 @@ fn test_unencrypted_payload_backward_compatibility() {
         data: vector_data,
         sparse: None,
         payload: Some(vectorizer::models::Payload::new(payload_json.clone())),
+        document_id: None,
     };
 
     // Insert the vector
@@ -202,6 +205,7 @@ fn test_mixed_encrypted_and_unencrypted_payloads() {
         payload: Some(vectorizer::models::Payload::from_encrypted(
             encrypted_payload,
         )),
+        document_id: None,
     };
 
     // Insert unencrypted vector
@@ -212,6 +216,7 @@ fn test_mixed_encrypted_and_unencrypted_payloads() {
         payload: Some(vectorizer::models::Payload::new(
             json!({"data": "unencrypted"}),
         )),
+        document_id: None,
     };
 
     // Both should insert successfully
@@ -260,6 +265,7 @@ fn test_encryption_required_validation() {
         data: vec![0.1; 64],
         sparse: None,
         payload: Some(vectorizer::models::Payload::new(json!({"data": "test"}))),
+        document_id: None,
     };
 
     let result = store.insert(collection_name, vec![vector]);

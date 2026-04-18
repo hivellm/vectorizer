@@ -64,6 +64,7 @@ fn test_empty_payload_encryption() {
         data: vec![0.1; 128],
         sparse: None,
         payload: Some(payload),
+        document_id: None,
     };
 
     store.insert(collection_name, vec![vector]).unwrap();
@@ -113,6 +114,7 @@ fn test_large_payload_encryption() {
         data: vec![0.1; 128],
         sparse: None,
         payload: Some(payload),
+        document_id: None,
     };
 
     store.insert(collection_name, vec![vector]).unwrap();
@@ -157,6 +159,7 @@ fn test_special_characters_in_payload() {
         data: vec![0.1; 128],
         sparse: None,
         payload: Some(payload),
+        document_id: None,
     };
 
     store.insert(collection_name, vec![vector]).unwrap();
@@ -195,6 +198,7 @@ fn test_multiple_vectors_same_key() {
             data: vec![i as f32 / 100.0; 128],
             sparse: None,
             payload: Some(Payload::from_encrypted(encrypted)),
+            document_id: None,
         });
     }
 
@@ -241,6 +245,7 @@ fn test_multiple_vectors_different_keys() {
             data: vec![i as f32 / 10.0; 128],
             sparse: None,
             payload: Some(Payload::from_encrypted(encrypted)),
+            document_id: None,
         });
     }
 
@@ -316,6 +321,7 @@ fn test_encryption_with_all_json_types() {
         data: vec![0.1; 128],
         sparse: None,
         payload: Some(payload),
+        document_id: None,
     };
 
     store.insert(collection_name, vec![vector]).unwrap();
@@ -366,6 +372,7 @@ fn test_concurrent_insertions_with_encryption() {
                     data: vec![(thread_id * 10 + i) as f32 / 100.0; 64],
                     sparse: None,
                     payload: Some(Payload::from_encrypted(encrypted)),
+                    document_id: None,
                 };
 
                 store_clone.insert(&collection, vec![vector]).unwrap();
@@ -413,6 +420,7 @@ fn test_encryption_required_reject_unencrypted() {
         data: vec![0.1; 64],
         sparse: None,
         payload: Some(Payload::new(json!({"data": "should fail"}))),
+        document_id: None,
     };
 
     let result = store.insert(collection_name, vec![unencrypted_vector]);
@@ -434,6 +442,7 @@ fn test_encryption_required_reject_unencrypted() {
         data: vec![0.2; 64],
         sparse: None,
         payload: Some(Payload::from_encrypted(encrypted)),
+        document_id: None,
     };
 
     let result = store.insert(collection_name, vec![encrypted_vector]);
@@ -475,6 +484,7 @@ fn test_multiple_key_rotations() {
                 data: vec![(batch * 10 + i) as f32 / 50.0; 64],
                 sparse: None,
                 payload: Some(Payload::from_encrypted(encrypted)),
+                document_id: None,
             });
         }
     }
@@ -561,6 +571,7 @@ fn test_payload_size_variations() {
             data: vec![0.1; 128],
             sparse: None,
             payload: Some(Payload::from_encrypted(encrypted)),
+            document_id: None,
         };
 
         store.insert(collection_name, vec![vector]).unwrap();

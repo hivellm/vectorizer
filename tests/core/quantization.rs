@@ -29,12 +29,14 @@ async fn test_scalar_quantization_8bit() {
             data: vec![1.0; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
             data: vec![0.5; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         },
     ];
 
@@ -78,6 +80,7 @@ async fn test_product_quantization() {
             data: vec![(i % 100) as f32 / 100.0; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect();
 
@@ -120,12 +123,14 @@ async fn test_binary_quantization() {
             data: vec![1.0; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
             data: vec![-1.0; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         },
     ];
 
@@ -163,6 +168,7 @@ async fn test_quantization_search_quality() {
             data: vec![i as f32 / 50.0; 128],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect();
 
@@ -221,6 +227,7 @@ async fn test_quantization_memory_efficiency() {
             data: vec![i as f32 / 100.0; 384],
             payload: None,
             sparse: None,
+            document_id: None,
         })
         .collect();
 

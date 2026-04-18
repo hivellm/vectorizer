@@ -214,6 +214,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
             data: req.vector.clone(),
             sparse: None,
             payload: payload_obj,
+            document_id: None,
         };
 
         {
@@ -264,6 +265,7 @@ impl ClusterServiceTrait for ClusterGrpcService {
             data: req.vector.clone(),
             sparse: None,
             payload: payload_obj,
+            document_id: None,
         };
 
         let mut collection = self

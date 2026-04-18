@@ -80,6 +80,7 @@ async fn test_concurrent_inserts_distributed() {
                 data: vec![0.1; 128],
                 sparse: None,
                 payload: None,
+                document_id: None,
             };
             collection.insert(vector).await
         });
@@ -137,6 +138,7 @@ async fn test_concurrent_searches_distributed() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -207,6 +209,7 @@ async fn test_throughput_comparison() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
         if insert_result.is_ok() {
@@ -255,6 +258,7 @@ async fn test_latency_distribution() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -313,6 +317,7 @@ async fn test_memory_usage_distributed() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }

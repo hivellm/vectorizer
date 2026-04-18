@@ -160,7 +160,7 @@ impl QuantizedCollection {
         for (i, vector) in vectors.iter().enumerate() {
             let metadata = VectorMetadata {
                 id: vector.id.clone(),
-                document_id: None, // TASK(phase4_add-document-id-to-vector): read from vector.document_id once the field exists.
+                document_id: vector.document_id.clone(),
                 dimension: vector.data.len(),
                 quantization_type: self.quantization_config.method.clone(),
                 quality_score: None,
@@ -168,11 +168,13 @@ impl QuantizedCollection {
             };
 
             self.vector_metadata.insert(vector.id.clone(), metadata);
-            
-            // TASK(phase4_add-document-id-to-vector): uncomment once Vector has document_id.
-            // if let Some(ref doc_id) = vector.document_id {
-            //     self.document_ids.insert(doc_id.clone(), ());
-            // }
+
+            // Track the set of document IDs that contributed vectors to this
+            // collection — powers document-level queries on the quantized
+            // path (listing vectors per document, deletion by document).
+            if let Some(ref doc_id) = vector.document_id {
+                self.document_ids.insert(doc_id.clone(), ());
+            }
 
             // Update vector order
             {
@@ -280,3 +282,13 @@ pub struct CollectionMetadata {
     pub quantization_type: Option<QuantizationType>,
     pub memory_usage_mb: f64,
 }
+
+// NOTE: This file is currently an orphan — it is not declared in
+// `src/db/mod.rs` and therefore not part of the library build today.
+// The L161-176 wiring above (`document_id` + `document_ids` index
+// population) is correct for when the module is re-enabled; the
+// `#[serde(default)] document_id: Option<String>` field on
+// `crate::models::Vector` is the dependency that made this wiring
+// possible. Tests for the Vector field itself live in
+// `src/models/mod.rs::vector_document_id_tests` and run on every
+// `cargo test`.

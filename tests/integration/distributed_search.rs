@@ -79,6 +79,7 @@ async fn test_distributed_search_merges_results() {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -138,6 +139,7 @@ async fn test_distributed_search_ordering() {
             data: vec![i as f32 / 10.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -193,6 +195,7 @@ async fn test_distributed_search_with_threshold() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -250,6 +253,7 @@ async fn test_distributed_search_shard_filtering() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -298,6 +302,7 @@ async fn test_distributed_search_performance() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -345,6 +350,7 @@ async fn test_distributed_search_consistency() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }

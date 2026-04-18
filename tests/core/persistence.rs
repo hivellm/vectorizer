@@ -27,6 +27,7 @@ fn test_vector(id: &str, dimension: usize) -> Vector {
         data: vec![1.0; dimension],
         payload: None,
         sparse: None,
+        document_id: None,
     }
 }
 

@@ -306,6 +306,7 @@ impl QdrantDataImporter {
             data: vector_data,
             payload,
             sparse: None,
+            document_id: None,
         })
     }
 }

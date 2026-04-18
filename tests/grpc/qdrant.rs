@@ -162,12 +162,14 @@ async fn test_qdrant_get_collection() {
                     data: vec![0.1; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 Vector {
                     id: "v2".to_string(),
                     data: vec![0.2; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -318,12 +320,14 @@ async fn test_qdrant_get_points() {
                     data: vec![0.1; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 VecModel {
                     id: "get2".to_string(),
                     data: vec![0.2; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -372,12 +376,14 @@ async fn test_qdrant_search_points() {
                     data: vec![0.1; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 VecModel {
                     id: "search2".to_string(),
                     data: vec![0.9; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -426,18 +432,21 @@ async fn test_qdrant_count_points() {
                     data: vec![0.1; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 VecModel {
                     id: "c2".to_string(),
                     data: vec![0.2; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 VecModel {
                     id: "c3".to_string(),
                     data: vec![0.3; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -480,12 +489,14 @@ async fn test_qdrant_delete_points() {
                     data: vec![0.1; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 VecModel {
                     id: "del2".to_string(),
                     data: vec![0.2; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -547,6 +558,7 @@ async fn test_qdrant_scroll_points() {
                     data: vec![i as f32 / 20.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 }],
             )
             .unwrap();

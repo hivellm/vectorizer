@@ -53,6 +53,7 @@ async fn test_graph_find_related_mcp_tool() {
                 data: vec![1.0; 128],
                 sparse: None,
                 payload: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -108,12 +109,14 @@ async fn test_graph_find_path_mcp_tool() {
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "vec2".to_string(),
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -165,6 +168,7 @@ async fn test_graph_get_neighbors_mcp_tool() {
                 data: vec![1.0; 128],
                 sparse: None,
                 payload: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -212,12 +216,14 @@ async fn test_graph_create_edge_mcp_tool() {
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "vec2".to_string(),
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -304,18 +310,21 @@ async fn test_graph_discover_edges_mcp_tool_creates_edges() {
                     data: vec![1.0; 128], // Similar vectors
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "vec2".to_string(),
                     data: vec![1.0; 128], // Similar to vec1
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "vec3".to_string(),
                     data: vec![0.1; 128], // Different vector
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -417,18 +426,21 @@ async fn test_graph_discover_edges_mcp_tool_node_specific() {
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "node2".to_string(),
                     data: vec![1.0; 128], // Similar to node1
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 vectorizer::models::Vector {
                     id: "node3".to_string(),
                     data: vec![0.1; 128], // Different
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )

@@ -122,12 +122,14 @@ async fn test_get_stats() {
                     data: create_test_vector("vec1", 1),
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 Vector {
                     id: "vec2".to_string(),
                     data: create_test_vector("vec2", 2),
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )
@@ -424,6 +426,8 @@ async fn test_search_operations() {
             payload: Some(vectorizer::models::Payload::new(
                 serde_json::json!({"index": i}),
             )),
+
+            document_id: None,
         })
         .collect();
 
@@ -503,6 +507,7 @@ async fn test_hybrid_search() {
             data: create_test_vector(&format!("vec{i}"), i),
             sparse: None,
             payload: None,
+            document_id: None,
         })
         .collect();
 

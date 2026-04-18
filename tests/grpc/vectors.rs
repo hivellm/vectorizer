@@ -106,6 +106,7 @@ async fn test_update_vector() {
                 data: original_data.clone(),
                 sparse: None,
                 payload: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -154,6 +155,7 @@ async fn test_delete_vector() {
                 data: test_vector,
                 sparse: None,
                 payload: None,
+                document_id: None,
             }],
         )
         .unwrap();

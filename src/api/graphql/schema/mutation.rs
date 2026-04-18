@@ -900,6 +900,7 @@ impl MutationRoot {
                 data: embedding,
                 sparse: None,
                 payload: Some(payload),
+                document_id: None,
             };
 
             if gql_ctx.store.insert(&collection_name, vec![vector]).is_ok() {

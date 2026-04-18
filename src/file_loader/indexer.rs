@@ -174,6 +174,7 @@ impl Indexer {
                                 data: embedding,
                                 sparse: None,
                                 payload: Some(payload),
+                                document_id: None,
                             })
                         }
                         Err(e) => {

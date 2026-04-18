@@ -207,18 +207,21 @@ async fn test_search() {
             data: vec1_data.clone(),
             sparse: None,
             payload: None,
+            document_id: None,
         },
         Vector {
             id: "vec2".to_string(),
             data: vec2_data.clone(),
             sparse: None,
             payload: None,
+            document_id: None,
         },
         Vector {
             id: "vec3".to_string(),
             data: vec3_data.clone(),
             sparse: None,
             payload: None,
+            document_id: None,
         },
     ];
 
@@ -263,6 +266,7 @@ async fn test_update_vector() {
                 data: original_data.clone(),
                 sparse: None,
                 payload: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -314,6 +318,7 @@ async fn test_delete_vector() {
                 data: test_vector,
                 sparse: None,
                 payload: None,
+                document_id: None,
             }],
         )
         .unwrap();
@@ -400,12 +405,14 @@ async fn test_get_stats() {
                     data: create_test_vector("vec1", 1),
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
                 Vector {
                     id: "vec2".to_string(),
                     data: create_test_vector("vec2", 2),
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 },
             ],
         )

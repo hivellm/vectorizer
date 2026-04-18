@@ -265,6 +265,7 @@ fn test_sharded_insert_single() {
         data: vec![1.0; 128],
         sparse: None,
         payload: None,
+        document_id: None,
     };
 
     collection.insert(vector).unwrap();
@@ -283,6 +284,7 @@ fn test_sharded_insert_batch() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         });
     }
 
@@ -306,6 +308,7 @@ fn test_sharded_get_vector() {
         data: vec![1.0; 128], // 128 dimensions
         sparse: None,
         payload: None,
+        document_id: None,
     };
 
     collection.insert(vector.clone()).unwrap();
@@ -325,6 +328,7 @@ fn test_sharded_update_vector() {
         data: vec![1.0; 128],
         sparse: None,
         payload: None,
+        document_id: None,
     };
 
     collection.insert(vector1).unwrap();
@@ -334,6 +338,7 @@ fn test_sharded_update_vector() {
         data: vec![2.0; 128],
         sparse: None,
         payload: None,
+        document_id: None,
     };
 
     collection.update(vector2).unwrap();
@@ -361,6 +366,7 @@ fn test_sharded_delete_vector() {
         data: vec![1.0; 128],
         sparse: None,
         payload: None,
+        document_id: None,
     };
 
     collection.insert(vector).unwrap();
@@ -390,6 +396,7 @@ fn test_sharded_search_all_shards() {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         });
     }
 
@@ -415,6 +422,7 @@ fn test_sharded_search_specific_shard() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
     }
@@ -464,6 +472,7 @@ fn test_shard_removal() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
     }
@@ -490,6 +499,7 @@ fn test_shard_rebalancing_detection() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
     }
@@ -520,6 +530,7 @@ fn test_large_scale_insertion() {
             data,
             sparse: None,
             payload: None,
+            document_id: None,
         });
     }
 
@@ -555,6 +566,7 @@ fn test_concurrent_operations() {
                     data: vec![1.0; 128],
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 };
                 coll.insert(vector).unwrap();
             }
@@ -617,6 +629,7 @@ fn test_shard_metadata_consistency() {
             data: vec![1.0; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         collection.insert(vector).unwrap();
     }

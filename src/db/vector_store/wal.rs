@@ -235,6 +235,7 @@ impl VectorStore {
                         data: data.clone(),
                         payload,
                         sparse: None,
+                        document_id: None,
                     };
 
                     // Try to insert (may fail if already exists, which is OK)
@@ -274,6 +275,7 @@ impl VectorStore {
                             data: data.clone(),
                             payload,
                             sparse: None,
+                            document_id: None,
                         };
 
                         // Try to update (may fail if doesn't exist, which is OK)

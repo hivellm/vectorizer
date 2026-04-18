@@ -111,6 +111,7 @@ async fn test_eventual_consistency() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -164,6 +165,7 @@ async fn test_data_durability() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
         inserted_ids.push(id);

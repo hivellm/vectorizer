@@ -83,6 +83,7 @@ async fn test_e2e_distributed_workflow() {
             payload: Some(vectorizer::models::Payload {
                 data: serde_json::json!({"index": i}),
             }),
+            document_id: None,
         };
         let insert_result: Result<(), VectorizerError> = collection.insert(vector).await;
         if insert_result.is_ok() {
@@ -114,6 +115,7 @@ async fn test_e2e_distributed_workflow() {
         payload: Some(vectorizer::models::Payload {
             data: serde_json::json!({"index": 0, "updated": true}),
         }),
+        document_id: None,
     };
     let update_result: Result<(), VectorizerError> = collection.update(updated_vector).await;
     // Accept both success and failure (failure is expected if vector is on remote node)
@@ -197,12 +199,14 @@ async fn test_e2e_multi_collection_cluster() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let vector2 = Vector {
             id: format!("vec2-{i}"),
             data: vec![0.2; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let insert1_result: Result<(), VectorizerError> = collection1.insert(vector1).await;
         let insert2_result: Result<(), VectorizerError> = collection2.insert(vector2).await;
@@ -259,6 +263,7 @@ async fn test_e2e_cluster_scaling() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -285,6 +290,7 @@ async fn test_e2e_cluster_scaling() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }
@@ -333,6 +339,7 @@ async fn test_e2e_cluster_maintenance() {
             data: vec![0.1; 128],
             sparse: None,
             payload: None,
+            document_id: None,
         };
         let _ = collection.insert(vector).await;
     }

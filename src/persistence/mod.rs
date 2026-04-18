@@ -96,6 +96,7 @@ impl From<PersistedVector> for Vector {
                     data: Vec::new(),  // Can't access pv.data since it's moved
                     sparse: None,
                     payload: None,
+                    document_id: None,
                 }
             }
         }
@@ -120,6 +121,7 @@ impl PersistedVector {
             data: self.data,
             sparse: None,
             payload,
+            document_id: None,
         })
     }
 
@@ -155,6 +157,7 @@ impl PersistedVector {
             data,
             sparse: None,
             payload,
+            document_id: None,
         })
     }
 }

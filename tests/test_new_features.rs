@@ -62,6 +62,7 @@ async fn test_wal_integration_basic() {
         data: vec![1.0; 384],
         payload: None,
         sparse: None,
+        document_id: None,
     };
 
     assert!(
@@ -122,6 +123,7 @@ async fn test_collection_with_wal_disabled() {
         data: vec![1.0; 384],
         payload: None,
         sparse: None,
+        document_id: None,
     };
 
     assert!(
@@ -141,6 +143,7 @@ async fn test_collection_with_wal_disabled() {
         data: vec![2.0; 384],
         payload: None,
         sparse: None,
+        document_id: None,
     };
     let update_result = store.update("test_collection", updated_vector);
     assert!(

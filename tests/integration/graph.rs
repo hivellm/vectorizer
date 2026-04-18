@@ -346,6 +346,7 @@ fn test_discover_edges_for_node() {
             data: vec1.clone(),
             sparse: None,
             payload: None,
+            document_id: None,
         })
         .unwrap();
 
@@ -355,6 +356,7 @@ fn test_discover_edges_for_node() {
             data: vec2.clone(),
             sparse: None,
             payload: None,
+            document_id: None,
         })
         .unwrap();
 
@@ -364,6 +366,7 @@ fn test_discover_edges_for_node() {
             data: vec3.clone(),
             sparse: None,
             payload: None,
+            document_id: None,
         })
         .unwrap();
 
@@ -415,6 +418,7 @@ fn test_discover_edges_for_collection() {
                 data: vec_data,
                 sparse: None,
                 payload: None,
+                document_id: None,
             })
             .unwrap();
     }
@@ -553,6 +557,7 @@ fn test_graph_discovery_performance_large_collection() {
             data: vec![(i as f32) / 1000.0; 128], // Varying vectors
             sparse: None,
             payload: Some(vectorizer::models::Payload::new(payload_data)),
+            document_id: None,
         });
     }
 
