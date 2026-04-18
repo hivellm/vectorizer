@@ -125,8 +125,12 @@ pub async fn analyze_project_directory(
 /// Apply the setup configuration (create workspace.yml, create collections, and index files)
 pub async fn apply_setup_config(
     State(state): State<VectorizerServer>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<ApplyConfigRequest>,
 ) -> ApiResult<Json<Value>> {
+    crate::server::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers)
+        .await?;
+
     info!(
         "📝 Applying setup configuration with {} projects",
         payload.projects.len()
@@ -629,7 +633,12 @@ pub struct BrowseDirectoryResponse {
 
 /// POST /setup/browse
 ///
-/// Browse directories for file picker in setup wizard
+/// Browse directories for file picker in setup wizard.
+///
+/// TASK(phase4_gate-setup-browse-as-admin): this endpoint lists server-side
+/// filesystem paths and should be admin-gated once its return type is
+/// refactored to `Result<_, ErrorResponse>`. Currently returns
+/// `Json<BrowseDirectoryResponse>` directly which cannot express a 401/403.
 pub async fn browse_directory(
     Json(payload): Json<BrowseDirectoryRequest>,
 ) -> Json<BrowseDirectoryResponse> {

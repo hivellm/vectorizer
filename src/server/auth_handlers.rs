@@ -1590,6 +1590,106 @@ pub async fn require_admin_middleware(
     next.run(request).await
 }
 
+/// Handler-level admin gate. Prefer this over router-level middleware for
+/// admin-only endpoints: it compiles against any handler state type, is
+/// cheap at call time, and keeps the admin check next to the handler body.
+///
+/// Returns `Ok(AuthState)` only when the caller presents a valid JWT / API
+/// key AND the claims contain `Role::Admin`. Returns a preformatted 401 or
+/// 403 response otherwise.
+pub async fn require_admin_from_headers(
+    state: &AuthHandlerState,
+    headers: &axum::http::HeaderMap,
+) -> Result<AuthState, (axum::http::StatusCode, Json<AuthErrorResponse>)> {
+    use axum::http::StatusCode;
+    use axum::http::header::AUTHORIZATION;
+
+    let unauthenticated = || {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(AuthErrorResponse {
+                error: "unauthorized".to_string(),
+                message: "Authentication required. Provide a valid JWT token or API key."
+                    .to_string(),
+            }),
+        )
+    };
+    let forbidden = || {
+        (
+            StatusCode::FORBIDDEN,
+            Json(AuthErrorResponse {
+                error: "forbidden".to_string(),
+                message: "Admin role required for this endpoint.".to_string(),
+            }),
+        )
+    };
+
+    let mut auth_state: Option<AuthState> = None;
+
+    if let Some(auth_header) = headers.get(AUTHORIZATION)
+        && let Ok(auth_str) = auth_header.to_str()
+    {
+        if let Some(token) = auth_str.strip_prefix("Bearer ") {
+            if !state.is_token_blacklisted(token).await
+                && let Ok(claims) = state.auth_manager.validate_jwt(token)
+            {
+                auth_state = Some(AuthState {
+                    user_claims: claims,
+                    authenticated: true,
+                });
+            }
+        } else if let Ok(claims) = state.auth_manager.validate_api_key(auth_str).await {
+            auth_state = Some(AuthState {
+                user_claims: claims,
+                authenticated: true,
+            });
+        }
+    }
+
+    if auth_state.is_none()
+        && let Some(api_key_header) = headers.get("X-API-Key")
+        && let Ok(api_key) = api_key_header.to_str()
+        && let Ok(claims) = state.auth_manager.validate_api_key(api_key).await
+    {
+        auth_state = Some(AuthState {
+            user_claims: claims,
+            authenticated: true,
+        });
+    }
+
+    let Some(auth) = auth_state else {
+        return Err(unauthenticated());
+    };
+    if !auth.user_claims.roles.contains(&Role::Admin) {
+        return Err(forbidden());
+    }
+    Ok(auth)
+}
+
+/// REST-flavored variant of `require_admin_from_headers`.
+///
+/// Backward-compat behavior: if the server booted with no
+/// `AuthHandlerState` (auth globally disabled), every caller is treated
+/// as admin — preserves single-user local setups that never configured
+/// authentication. When auth IS configured, admin role is enforced.
+pub async fn require_admin_for_rest(
+    auth_handler_state: &Option<AuthHandlerState>,
+    headers: &axum::http::HeaderMap,
+) -> Result<(), crate::server::error_middleware::ErrorResponse> {
+    use axum::http::StatusCode;
+
+    use crate::server::error_middleware::ErrorResponse;
+
+    let Some(state) = auth_handler_state else {
+        return Ok(());
+    };
+
+    match require_admin_from_headers(state, headers).await {
+        Ok(_) => Ok(()),
+        Err((status, Json(err))) => Err(ErrorResponse::new(err.error, err.message, status)),
+    }
+}
+
 /// Extract authentication state from request headers
 async fn extract_auth_from_request(
     state: &AuthHandlerState,
@@ -1747,5 +1847,71 @@ mod tests {
         let path = persist_first_run_credentials(&nested, "root", "pw", false)
             .expect("persist created parents");
         assert!(path.exists());
+    }
+
+    /// Build an AuthHandlerState with a real JwtManager seeded with the given
+    /// roles so we can mint tokens for the admin-gate tests below.
+    async fn test_state_with_user_roles(roles: Vec<Role>) -> (AuthHandlerState, String) {
+        use crate::auth::{AuthConfig, AuthManager, Secret};
+
+        let config = AuthConfig {
+            jwt_secret: Secret::new("z".repeat(64)),
+            enabled: true,
+            ..AuthConfig::default()
+        };
+        let manager = Arc::new(AuthManager::new(config).expect("valid auth config"));
+        let token = manager
+            .generate_jwt("user-under-test", "tester", roles)
+            .expect("generate_jwt");
+        (AuthHandlerState::new(manager), token)
+    }
+
+    #[tokio::test]
+    async fn require_admin_for_rest_returns_ok_when_auth_globally_disabled() {
+        let headers = axum::http::HeaderMap::new();
+        // Backward compat path: auth disabled = every request is effectively admin.
+        require_admin_for_rest(&None, &headers)
+            .await
+            .expect("no-auth mode must allow the call through");
+    }
+
+    #[tokio::test]
+    async fn require_admin_for_rest_returns_401_without_any_auth_header() {
+        let (state, _token) = test_state_with_user_roles(vec![Role::Admin]).await;
+        let headers = axum::http::HeaderMap::new();
+        let err = require_admin_for_rest(&Some(state), &headers)
+            .await
+            .expect_err("missing header must 401");
+        assert_eq!(
+            err.status_code,
+            axum::http::StatusCode::UNAUTHORIZED.as_u16()
+        );
+    }
+
+    #[tokio::test]
+    async fn require_admin_for_rest_returns_403_for_non_admin_token() {
+        let (state, token) = test_state_with_user_roles(vec![Role::User]).await;
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {token}").parse().unwrap(),
+        );
+        let err = require_admin_for_rest(&Some(state), &headers)
+            .await
+            .expect_err("non-admin must 403");
+        assert_eq!(err.status_code, axum::http::StatusCode::FORBIDDEN.as_u16());
+    }
+
+    #[tokio::test]
+    async fn require_admin_for_rest_returns_ok_for_admin_token() {
+        let (state, token) = test_state_with_user_roles(vec![Role::Admin]).await;
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            format!("Bearer {token}").parse().unwrap(),
+        );
+        require_admin_for_rest(&Some(state), &headers)
+            .await
+            .expect("admin token must pass");
     }
 }

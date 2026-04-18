@@ -3108,9 +3108,11 @@ pub async fn force_save_collection(
 
 /// Add workspace directory (for GUI)
 pub async fn add_workspace(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
+    super::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers).await?;
     let path = payload
         .get("path")
         .and_then(|p| p.as_str())
@@ -3248,8 +3250,14 @@ pub async fn get_config() -> Json<Value> {
     }))
 }
 
-/// Update configuration (for GUI)
-pub async fn update_config(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
+/// Update configuration (for GUI). Admin-only.
+pub async fn update_config(
+    State(state): State<VectorizerServer>,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    super::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers).await?;
+
     // Write to config.yml
     match serde_yaml::to_string(&payload) {
         Ok(yaml_content) => match std::fs::write("./config.yml", yaml_content) {
@@ -3284,7 +3292,12 @@ pub async fn update_config(Json(payload): Json<Value>) -> Result<Json<Value>, Er
 /// 1. Saving all pending data
 /// 2. Sending a restart signal to the process
 /// 3. The server should be run under a process manager (e.g., systemd) for actual restart
-pub async fn restart_server() -> Json<Value> {
+pub async fn restart_server(
+    State(state): State<VectorizerServer>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<Value>, ErrorResponse> {
+    super::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers).await?;
+
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
 
@@ -3292,10 +3305,10 @@ pub async fn restart_server() -> Json<Value> {
 
     // Prevent concurrent restart requests
     if RESTART_IN_PROGRESS.swap(true, Ordering::SeqCst) {
-        return Json(json!({
+        return Ok(Json(json!({
             "success": false,
             "message": "Restart already in progress"
-        }));
+        })));
     }
 
     info!("🔄 Initiating graceful server restart");
@@ -3346,10 +3359,10 @@ pub async fn restart_server() -> Json<Value> {
         }
     });
 
-    Json(json!({
+    Ok(Json(json!({
         "success": true,
         "message": "Server restart initiated. The server will restart shortly."
-    }))
+    })))
 }
 
 /// List backups (for GUI)
@@ -3506,8 +3519,10 @@ pub async fn create_backup(
 /// Restore backup (for GUI)
 pub async fn restore_backup(
     State(state): State<VectorizerServer>,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
+    super::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers).await?;
     let backup_id = payload
         .get("backup_id")
         .and_then(|b| b.as_str())

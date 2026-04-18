@@ -1504,6 +1504,8 @@ impl VectorizerServer {
                 "/collections/{name}/force-save",
                 post(rest_handlers::force_save_collection),
             )
+            // Admin-only: /workspace/add, /workspace/remove, POST /workspace/config
+            // enforce admin role inside their handlers via `ensure_admin`.
             .route("/workspace/add", post(rest_handlers::add_workspace))
             .route("/workspace/remove", post(rest_handlers::remove_workspace))
             .route("/workspace/list", get(rest_handlers::list_workspaces))
@@ -1521,6 +1523,7 @@ impl VectorizerServer {
                 "/setup/analyze",
                 post(setup_handlers::analyze_project_directory),
             )
+            // Admin-only: /setup/apply enforces admin role inside handler via `ensure_admin`.
             .route("/setup/apply", post(setup_handlers::apply_setup_config))
             .route("/setup/verify", get(setup_handlers::verify_setup))
             .route(
@@ -1531,11 +1534,14 @@ impl VectorizerServer {
                 "/setup/templates/{id}",
                 get(setup_handlers::get_configuration_template_by_id),
             )
+            // Admin-only: /setup/browse enforces admin inside handler.
             .route("/setup/browse", post(setup_handlers::browse_directory))
             .route("/config", get(rest_handlers::get_config))
+            // Admin-only: POST /config, /admin/restart enforce admin inside handlers.
             .route("/config", post(rest_handlers::update_config))
             .route("/admin/restart", post(rest_handlers::restart_server))
             .route("/backups", get(rest_handlers::list_backups))
+            // Admin-only: /backups/create, /backups/restore enforce admin inside handlers.
             .route("/backups/create", post(rest_handlers::create_backup))
             .route("/backups/restore", post(rest_handlers::restore_backup))
             .route(
@@ -2007,8 +2013,11 @@ impl VectorizerServer {
                 )
                 .with_state(auth_state.clone());
 
-            // Protected auth routes (require authentication via handlers)
-            // Note: Each handler internally checks auth_state.authenticated
+            // Protected + admin-gated auth routes. Every handler already takes
+            // `Extension<AuthState>` and calls `ensure_authenticated` or
+            // `ensure_admin` at the top — see `src/server/auth_handlers.rs`.
+            // The `auth_middleware` layer applied on `rest_routes` below is
+            // what populates the `AuthState` extension for every request.
             let protected_auth_router = Router::new()
                 .route("/auth/me", get(auth_handlers::get_me))
                 .route("/auth/logout", post(auth_handlers::logout))
@@ -2016,7 +2025,7 @@ impl VectorizerServer {
                 .route("/auth/keys", post(auth_handlers::create_api_key))
                 .route("/auth/keys", get(auth_handlers::list_api_keys))
                 .route("/auth/keys/{id}", delete(auth_handlers::revoke_api_key))
-                // User management routes (admin only)
+                // User management — admin role enforced inside handlers.
                 .route("/auth/users", post(auth_handlers::create_user))
                 .route("/auth/users", get(auth_handlers::list_users))
                 .route("/auth/users/{username}", delete(auth_handlers::delete_user))
@@ -2026,7 +2035,30 @@ impl VectorizerServer {
                 )
                 .with_state(auth_state.clone());
 
-            // Merge auth routes first
+            // Admin gating is enforced inside the individual handlers via the
+            // `require_admin_from_headers` helper — see
+            // src/server/auth_handlers.rs. A router-level `.layer(...)`
+            // approach was attempted and rejected because axum's type
+            // inference could not unify the two State types
+            // (`AuthHandlerState` for auth handlers, `VectorizerServer` for
+            // rest/setup handlers) through a single middleware layer.
+            //
+            // TASK(phase4_router-layer-admin-middleware): revisit once either
+            // (a) all admin handlers share a state type, or (b) axum exposes a
+            // `.route_layer()` path that compiles against both handler
+            // families.
+
+            info!(
+                "🔐 Auth buckets — public: /health, /prometheus/metrics, /auth/login, \
+                 /auth/validate-password. Authenticated (any logged-in user): /auth/me, \
+                 /auth/logout, /auth/refresh, /auth/keys/*, all data-access routes. \
+                 Admin (role=admin enforced inside handler): /auth/users*, \
+                 /workspace/add, /workspace/remove, POST /workspace/config, \
+                 /setup/apply, /setup/browse, POST /config, /admin/restart, \
+                 /backups/create, /backups/restore."
+            );
+
+            // Merge auth routes
             let rest_routes = rest_routes
                 .merge(public_auth_router)
                 .merge(protected_auth_router);
