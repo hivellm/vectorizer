@@ -40,6 +40,14 @@ struct Cli {
     /// If not provided, a secure random password will be generated
     #[arg(long, env = "VECTORIZER_ADMIN_PASSWORD")]
     root_password: Option<String>,
+
+    /// Auto-generate and persist a JWT secret on first boot when
+    /// `auth.jwt_secret` is empty. The key is written under the auth data
+    /// directory (mode 0o600 on POSIX) and reused on every restart.
+    /// Off by default — production deployments should set the secret
+    /// explicitly via `VECTORIZER_JWT_SECRET` or config.yml.
+    #[arg(long, env = "VECTORIZER_AUTO_GEN_JWT_SECRET")]
+    auto_generate_jwt_secret: bool,
 }
 
 /// Load configuration from config.yml, creating with defaults if not exists
@@ -285,6 +293,7 @@ async fn main() -> anyhow::Result<()> {
         root_user: cli.root_user,
         root_password: cli.root_password,
         config_path: Some(cli.config.clone()),
+        auto_generate_jwt_secret: cli.auto_generate_jwt_secret,
     };
 
     // Create and start the server with root user configuration

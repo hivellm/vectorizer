@@ -77,6 +77,9 @@ pkg/
 # Large directories that are not needed (but NOT src/models which is source code!)
 node_modules/
 **/node_modules/
+# data/ includes the encrypted auth store and the optionally auto-generated
+# JWT secret (data/jwt_secret.key). Exclude from image context — operators
+# should mount a persistent volume instead.
 data/
 **/data/
 logs/

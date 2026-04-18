@@ -113,6 +113,11 @@ pub struct RootUserConfig {
     pub root_password: Option<String>,
     /// Path to config file (defaults to "config.yml" if not set)
     pub config_path: Option<String>,
+    /// When true and `auth.jwt_secret` is empty, generate a cryptographically
+    /// random key on first boot and persist it under the auth data directory
+    /// as `jwt_secret.key`. Opt-in so production deployments fail fast instead
+    /// of silently running with an unconfigured secret.
+    pub auto_generate_jwt_secret: bool,
 }
 
 impl VectorizerServer {
@@ -1175,6 +1180,36 @@ impl VectorizerServer {
             }
             if let Ok(secret) = std::env::var("VECTORIZER_JWT_SECRET") {
                 auth_config.jwt_secret = crate::auth::Secret::new(secret);
+            }
+
+            // Opt-in auto-generated JWT secret for first-boot UX. Triggered by
+            // either the CLI flag (plumbed via RootUserConfig) or the env var.
+            // Only fires when the operator hasn't already set a secret — an
+            // explicit VECTORIZER_JWT_SECRET or config.yml value always wins.
+            let env_opt_in = std::env::var("VECTORIZER_AUTO_GEN_JWT_SECRET")
+                .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
+                .unwrap_or(false);
+            let opt_in = root_config.auto_generate_jwt_secret || env_opt_in;
+            if opt_in && auth_config.jwt_secret.expose_secret().is_empty() {
+                let key_path = crate::auth::persistence::AuthPersistence::get_data_dir()
+                    .join("jwt_secret.key");
+                match crate::auth::jwt_secret::load_or_generate(&key_path) {
+                    Ok(secret) => {
+                        // Path-only — never log the secret value itself.
+                        info!(
+                            "🔑 Using auto-generated JWT secret persisted at {}",
+                            key_path.display()
+                        );
+                        auth_config.jwt_secret = crate::auth::Secret::new(secret);
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to load or generate JWT secret at {}: {}",
+                            key_path.display(),
+                            e
+                        );
+                    }
+                }
             }
 
             if auth_config.enabled {

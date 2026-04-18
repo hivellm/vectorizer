@@ -5,6 +5,7 @@
 
 pub mod api_keys;
 pub mod jwt;
+pub mod jwt_secret;
 pub mod middleware;
 pub mod password;
 pub mod persistence;

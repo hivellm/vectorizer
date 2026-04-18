@@ -90,6 +90,8 @@ backups/** */
 
 #cuhnsw
 cuhnsw
+# Server data directory — includes the encrypted auth store and the
+# optionally auto-generated JWT secret (data/jwt_secret.key). Never commit.
 data
 
 workspace.yml

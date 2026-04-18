@@ -1,5 +1,70 @@
 # Security
 
+## JWT secret
+
+The JWT signing secret is the single most sensitive piece of auth state —
+anyone who has it can mint tokens that impersonate any user. Production
+deployments MUST set it explicitly.
+
+### Configuring the secret
+
+In order of precedence:
+
+1. **`VECTORIZER_JWT_SECRET` env var.** Highest priority; overrides config.yml.
+2. **`auth.jwt_secret` in `config.yml`.**
+3. **Auto-generated first-boot key** — opt-in, see below.
+
+The loaded value must be at least 32 characters, not empty, and not the
+historical legacy default. `AuthManager::new` refuses to boot otherwise.
+
+### Auto-generated first-boot key (opt-in)
+
+For local development and Docker first-runs where manually setting a
+secret is friction, the server can generate and persist a 512-bit random
+key on first boot. Enable with either:
+
+- `--auto-generate-jwt-secret` CLI flag, or
+- `VECTORIZER_AUTO_GEN_JWT_SECRET=1` environment variable.
+
+Behavior when enabled:
+
+- On first boot with `auth.jwt_secret` empty, the server writes
+  `<data_dir>/jwt_secret.key` with a 128-char hex-encoded key (64 random
+  bytes from `OsRng`).
+- On every subsequent boot the same file is loaded verbatim.
+- Only the file **path** is logged — the secret value never reaches stdout.
+- An explicit `VECTORIZER_JWT_SECRET` or config.yml value always wins
+  over the auto-generated one; the file is only consulted when both are
+  empty.
+
+### File permissions
+
+- **POSIX:** the key file is opened with mode `0o600` (owner read/write
+  only). The write is atomic: a `.tmp` sibling is created, permissions
+  set, contents synced to disk, then renamed onto the final path.
+- **Windows:** `std::fs::OpenOptions` does not expose an NTFS ACL
+  equivalent of `0o600`. The file inherits the ACL of its parent
+  directory (`data/` under the server's working directory). Operators
+  deploying on Windows should ensure the data directory itself is
+  ACL-restricted to the service account that runs the server. For
+  containerised deployments, mount `data/` from a dedicated volume with
+  appropriate host-side permissions.
+
+### Gitignore / dockerignore
+
+`data/` (which includes `jwt_secret.key`) is in both `.gitignore` and
+`.dockerignore`. Never commit the file, never bake it into an image;
+mount a persistent volume if the key needs to survive container restarts.
+
+### Rotating the secret
+
+1. Stop the server.
+2. Delete `data/jwt_secret.key` (or update `auth.jwt_secret` in
+   config.yml / `VECTORIZER_JWT_SECRET`).
+3. Start the server — a fresh key is generated.
+
+Rotation invalidates all outstanding tokens; clients must re-authenticate.
+
 ## Credential handling
 
 ### `Secret<T>` newtype

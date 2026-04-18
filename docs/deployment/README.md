@@ -36,6 +36,18 @@ See [Kubernetes Deployment Guide](./KUBERNETES.md) for details.
 docker-compose -f docs/deployment/docker-compose.production.yml up -d
 ```
 
+#### JWT secret for Docker first-run
+
+Production Docker deployments MUST set `VECTORIZER_JWT_SECRET` explicitly
+(e.g. via a Docker secret or env file). For local/dev convenience you can
+opt into first-boot key generation by setting
+`VECTORIZER_AUTO_GEN_JWT_SECRET=1` — the server writes
+`/data/jwt_secret.key` (mode `0o600` on Linux) on the first run and reuses
+it on every restart. Mount `/data` as a persistent volume so the key
+survives container recreation. See
+[`docs/security.md#jwt-secret`](../security.md#jwt-secret) for details and
+trade-offs.
+
 ### Systemd Service
 
 See [Service Management Guide](../../users/operations/SERVICE_MANAGEMENT.md).
