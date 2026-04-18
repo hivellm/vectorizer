@@ -300,7 +300,14 @@ impl FileDiscovery {
         })
     }
 
-    /// Collect all files recursively from a directory
+    /// Collect all files recursively from a directory.
+    ///
+    /// Before recursing, the base `path` is canonicalized; every directory
+    /// popped from the queue is then verified to still reside under that
+    /// canonical root. A symlink that escapes the base (e.g. `data -> /etc`)
+    /// is logged as a warning and skipped instead of followed. This closes
+    /// the traversal vector flagged in rulebook task
+    /// `phase2_sanitize-discovery-paths`.
     async fn collect_files_recursive(
         &self,
         path: &Path,
@@ -311,6 +318,19 @@ impl FileDiscovery {
             return Ok(files);
         }
 
+        // Canonicalize the base once so every subsequent containment check
+        // compares apples-to-apples (symlinks resolved, `.` / `..` collapsed).
+        let base_canon = match path.canonicalize() {
+            Ok(p) => p,
+            Err(e) => {
+                warn!(
+                    "Cannot canonicalize discovery root {:?} ({}); skipping",
+                    path, e
+                );
+                return Ok(files);
+            }
+        };
+
         if !path.is_dir() {
             // Single file
             if self.config.should_process_file(path) {
@@ -320,7 +340,7 @@ impl FileDiscovery {
         }
 
         // Recursively collect files
-        let mut dir_queue = vec![path.to_path_buf()];
+        let mut dir_queue = vec![base_canon.clone()];
 
         while let Some(current_dir) = dir_queue.pop() {
             let mut entries = tokio::fs::read_dir(&current_dir).await?;
@@ -331,10 +351,33 @@ impl FileDiscovery {
                 if entry_path.is_dir() {
                     if self.config.recursive {
                         // Check if directory should be excluded
-                        let should_scan = !self.is_directory_excluded(&entry_path);
-                        if should_scan {
-                            dir_queue.push(entry_path);
+                        if self.is_directory_excluded(&entry_path) {
+                            continue;
                         }
+                        // Canonicalize + verify the directory still sits
+                        // under the base root. A symlink pointing outside
+                        // (e.g. `$BASE/evil -> /`) resolves to a different
+                        // canonical ancestor and is refused here.
+                        let child_canon = match entry_path.canonicalize() {
+                            Ok(p) => p,
+                            Err(e) => {
+                                debug!(
+                                    "Cannot canonicalize {:?} ({}); skipping",
+                                    entry_path, e
+                                );
+                                continue;
+                            }
+                        };
+                        if !child_canon.starts_with(&base_canon) {
+                            warn!(
+                                "Refusing to follow directory {:?} — canonical \
+                                 path {:?} escapes discovery root {:?} \
+                                 (symlink traversal blocked)",
+                                entry_path, child_canon, base_canon
+                            );
+                            continue;
+                        }
+                        dir_queue.push(child_canon);
                     }
                 } else if entry_path.is_file() {
                     if self.config.should_process_file(&entry_path) {
@@ -750,7 +793,68 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(files.len(), 1);
-        assert_eq!(files[0], test_file);
+        // `collect_files_recursive` now walks from the canonical base so its
+        // results carry the canonical form (on Windows, the UNC `\\?\` prefix).
+        // Compare both sides canonicalized to stay platform-agnostic.
+        assert_eq!(files[0].canonicalize().unwrap(), test_file.canonicalize().unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_symlink_escape_is_refused() {
+        // Only meaningful on platforms that can create symlinks in a tempdir
+        // without elevation. Skip the body on Windows where symlink creation
+        // requires admin or Developer Mode.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let base = TempDir::new().unwrap();
+            let outside = TempDir::new().unwrap();
+            let outside_file = outside.path().join("secret.md");
+            fs::write(&outside_file, "# secret").unwrap();
+
+            // Inside the base, plant a symlink that points to `outside`.
+            symlink(outside.path(), base.path().join("evil")).unwrap();
+
+            // And drop a legitimate file inside the base so we can verify it
+            // is discovered while the symlinked directory is refused.
+            let inside_file = base.path().join("legit.md");
+            fs::write(&inside_file, "# legit").unwrap();
+
+            let config = FileWatcherConfig {
+                watch_paths: Some(vec![base.path().to_path_buf()]),
+                include_patterns: vec!["*.md".to_string()],
+                ..FileWatcherConfig::default()
+            };
+            let discovery = FileDiscovery {
+                config: config.clone(),
+                vector_operations: Arc::new(VectorOperations::new(
+                    Arc::new(VectorStore::new_auto()),
+                    Arc::new(RwLock::new(EmbeddingManager::new())),
+                    config.clone(),
+                )),
+                vector_store: Arc::new(VectorStore::new_auto()),
+            };
+            let files = discovery
+                .collect_files_recursive(base.path())
+                .await
+                .unwrap();
+
+            // Only the legit file should be reported; the symlink target's
+            // `secret.md` must NOT appear.
+            let joined: String = files
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            assert!(
+                joined.contains("legit.md"),
+                "expected legit file to be discovered, got: {joined}"
+            );
+            assert!(
+                !joined.contains("secret.md"),
+                "symlink escape leaked secret file: {joined}"
+            );
+        }
     }
 
     #[tokio::test]
