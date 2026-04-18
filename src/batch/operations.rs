@@ -229,11 +229,11 @@ impl BatchOperationManager {
             .await
     }
 
-    /// Get active operations.
-    ///
-    /// TASK(phase4_implement-batch-processor-active-operations): delegate to `BatchProcessor::active_operations()` once that exists.
+    /// Get a snapshot of the currently in-progress batch operations.
+    /// Delegates to `BatchProcessor::active_operations` — the processor
+    /// is authoritative since it owns the register/unregister path.
     pub async fn get_active_operations(&self) -> HashMap<String, BatchStatus> {
-        HashMap::new()
+        self.processor.active_operations().await
     }
 }
 

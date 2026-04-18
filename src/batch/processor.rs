@@ -54,6 +54,15 @@ impl BatchProcessor {
         ops.remove(operation_id);
     }
 
+    /// Snapshot of currently in-progress batch operations. Returned by
+    /// `BatchOperationManager::get_active_operations`. Safe to call
+    /// concurrently with ongoing batches — the underlying map is locked
+    /// only long enough to clone it, so readers never block writers for
+    /// measurable time.
+    pub async fn active_operations(&self) -> HashMap<String, BatchStatus> {
+        self.in_progress_operations.read().await.clone()
+    }
+
     /// Inserts multiple vectors into a collection.
     pub async fn batch_insert(
         &self,
@@ -671,6 +680,35 @@ mod tests {
             let ops = processor.in_progress_operations.read().await;
             assert!(!ops.contains_key("test_op"));
         }
+    }
+
+    #[tokio::test]
+    async fn active_operations_is_empty_on_fresh_processor() {
+        let processor = create_test_processor();
+        assert!(
+            processor.active_operations().await.is_empty(),
+            "no batches registered yet"
+        );
+    }
+
+    #[tokio::test]
+    async fn active_operations_reports_registered_but_not_yet_unregistered() {
+        let processor = create_test_processor();
+
+        processor.register_operation("batch_abc").await;
+        processor.register_operation("batch_def").await;
+
+        let snapshot = processor.active_operations().await;
+        assert_eq!(snapshot.len(), 2);
+        assert!(snapshot.contains_key("batch_abc"));
+        assert!(snapshot.contains_key("batch_def"));
+
+        // Unregistering removes the entry from the next snapshot.
+        processor.unregister_operation("batch_abc").await;
+        let snapshot = processor.active_operations().await;
+        assert_eq!(snapshot.len(), 1);
+        assert!(!snapshot.contains_key("batch_abc"));
+        assert!(snapshot.contains_key("batch_def"));
     }
 
     #[tokio::test]
