@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 ### Breaking
 - **JWT secret must be explicitly configured.** `AuthConfig::default()` no longer ships a real `jwt_secret` — the field is now an empty string. `AuthManager::new` calls `AuthConfig::validate` at startup and refuses to boot if `auth.enabled == true` and the configured secret is empty, shorter than 32 chars, or equal to the historical insecure default (`"vectorizer-default-secret-key-change-in-production"`). Operators must generate a real secret (e.g. `openssl rand -hex 64`) and inject it via config file or the `VECTORIZER_JWT_SECRET` env var before upgrading. This closes a known auth-bypass: any attacker who knew the public default could forge admin JWTs against unconfigured deployments.
 
+### Removed
+- Three `#[allow(dead_code)]` stub methods on `OnnxEmbedder` that called `unreachable!()` inside the body: `get_or_download_model`, `infer_batch`, `apply_pooling`. They had no callers (all real code paths go through the deterministic-hash `embed` / `embed_batch` / `embed_parallel` methods) and were left over from an earlier incomplete `ort` integration. Deleting them removes a class of "if any caller appears, the process aborts" hazards; the ONNX file header already documents that inference is a future feature.
+
 ### Performance
 - Migrate hot-path `std::sync::Mutex` to `parking_lot::Mutex` in `src/batch/{mod,processor}.rs`, `src/db/{vector_store,hive_gpu_collection}.rs`, and `src/cluster/raft_node.rs`. `parking_lot` locks are smaller (1 byte vs 8+ for std) and don't carry the `PoisonError` machinery, so the hot `.lock()` path is a straight guard return. Per `AGENTS.md` convention.
 

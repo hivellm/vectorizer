@@ -154,12 +154,6 @@ impl OnnxEmbedder {
         })
     }
 
-    /// Get or download ONNX model
-    #[allow(dead_code)]
-    fn get_or_download_model(_config: &OnnxConfig) -> Result<PathBuf> {
-        unreachable!()
-    }
-
     /// Embed a single text
     pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
         self.embed_batch(&[text])
@@ -196,18 +190,6 @@ impl OnnxEmbedder {
             out.push(v);
         }
         Ok(out)
-    }
-
-    /// Run inference on a batch of tokenized inputs
-    #[allow(dead_code)]
-    fn infer_batch(&self, _token_ids_batch: &[Vec<u32>]) -> Result<Vec<Vec<f32>>> {
-        unreachable!()
-    }
-
-    /// Apply pooling strategy to token embeddings
-    #[allow(dead_code)]
-    fn apply_pooling(&self, _embeddings: (), _attention_mask: ()) -> Result<Vec<Vec<f32>>> {
-        unreachable!()
     }
 
     /// Parallel embedding with thread pool control
