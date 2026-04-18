@@ -10,8 +10,14 @@ keywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similar
 categories = ["database", "science"]
 
 [dependencies]
-openraft = { version = "0.10.0-alpha.17", features = ["serde", "type-alias"] }
-openraft-memstore = "0.10.0-alpha.17"
+# Upstream `openraft` has not shipped a 0.10 stable release as of 2026-04-18
+# (latest on crates.io is still 0.10.0-alpha.17). We pin to the exact alpha
+# with a `=` prefix so `cargo update` cannot silently drift the consensus
+# layer to a newer alpha whose behavior we haven't vetted. When a stable
+# 0.10 or 0.11 ships, bump both pins together and retest the HA path
+# (tests/integration/cluster_ha.rs). Risk note published in CHANGELOG.
+openraft = { version = "=0.10.0-alpha.17", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.17"
 futures = "0.3"
 ctrlc = { version = "3.5", optional = true }
 dirs = "5.0"

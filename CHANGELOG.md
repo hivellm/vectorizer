@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 ### Breaking
 - **JWT secret must be explicitly configured.** `AuthConfig::default()` no longer ships a real `jwt_secret` — the field is now an empty string. `AuthManager::new` calls `AuthConfig::validate` at startup and refuses to boot if `auth.enabled == true` and the configured secret is empty, shorter than 32 chars, or equal to the historical insecure default (`"vectorizer-default-secret-key-change-in-production"`). Operators must generate a real secret (e.g. `openssl rand -hex 64`) and inject it via config file or the `VECTORIZER_JWT_SECRET` env var before upgrading. This closes a known auth-bypass: any attacker who knew the public default could forge admin JWTs against unconfigured deployments.
 
+### Security / Dependencies
+- Pin `openraft` and `openraft-memstore` to the exact alpha version `=0.10.0-alpha.17`. Upstream has not shipped a 0.10 stable release as of 2026-04-18 (latest on crates.io is still the alpha). The `=` prefix prevents `cargo update` from silently drifting the consensus layer to a newer alpha whose behavior we haven't vetted against `tests/integration/cluster_ha.rs`. **HA/cluster mode runs on a pre-release consensus library until upstream stabilizes** — operators using `--features cluster` equivalents in production should subscribe to openraft releases and coordinate upgrades. When upstream ships stable, bump both pins together and rerun the Raft integration tests.
+
 ### Chore
 - Bump `whoami` from `1.5` (resolved 1.6.1) to `2` (resolved 2.1.1). Dependabot PR #241 had flagged CI errors from `realname()` now returning `Result<String, whoami::Error>` — the single call site in `vectorizer-cli.rs` uses `username()` which kept its `String` signature, so the upgrade is zero-code. This unblocks the merge of PR #241.
 
