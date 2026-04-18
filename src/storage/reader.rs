@@ -5,8 +5,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use parking_lot::RwLock;
 
+use parking_lot::RwLock;
 use zip::ZipArchive;
 
 use crate::error::{Result, VectorizerError};
@@ -64,18 +64,14 @@ impl StorageReader {
 
     /// List all collection names
     pub fn list_collections(&self) -> Result<Vec<String>> {
-        let index = self
-            .index
-            .read();
+        let index = self.index.read();
 
         Ok(index.collections.iter().map(|c| c.name.clone()).collect())
     }
 
     /// Get collection metadata
     pub fn get_collection(&self, name: &str) -> Result<Option<CollectionIndex>> {
-        let index = self
-            .index
-            .read();
+        let index = self.index.read();
 
         Ok(index.find_collection(name).cloned())
     }
@@ -84,9 +80,7 @@ impl StorageReader {
     pub fn read_file(&self, path: &str) -> Result<Vec<u8>> {
         // Check cache first
         {
-            let cache = self
-                .file_cache
-                .read();
+            let cache = self.file_cache.read();
 
             if let Some(data) = cache.get(path) {
                 return Ok(data.clone());
@@ -98,9 +92,7 @@ impl StorageReader {
 
         // Cache the result if not too large
         if data.len() < self.max_cache_size / 10 {
-            let mut cache = self
-                .file_cache
-                .write();
+            let mut cache = self.file_cache.write();
 
             cache.insert(path.to_string(), data.clone());
 
@@ -151,9 +143,7 @@ impl StorageReader {
 
     /// Clear the file cache
     pub fn clear_cache(&self) -> Result<()> {
-        let mut cache = self
-            .file_cache
-            .write();
+        let mut cache = self.file_cache.write();
 
         cache.clear();
         Ok(())
@@ -161,9 +151,7 @@ impl StorageReader {
 
     /// Get cache statistics
     pub fn cache_stats(&self) -> Result<CacheStats> {
-        let cache = self
-            .file_cache
-            .read();
+        let cache = self.file_cache.read();
 
         let entry_count = cache.len();
         let total_size: usize = cache.values().map(|v| v.len()).sum();

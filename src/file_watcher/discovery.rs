@@ -361,10 +361,7 @@ impl FileDiscovery {
                         let child_canon = match entry_path.canonicalize() {
                             Ok(p) => p,
                             Err(e) => {
-                                debug!(
-                                    "Cannot canonicalize {:?} ({}); skipping",
-                                    entry_path, e
-                                );
+                                debug!("Cannot canonicalize {:?} ({}); skipping", entry_path, e);
                                 continue;
                             }
                         };
@@ -796,7 +793,10 @@ mod tests {
         // `collect_files_recursive` now walks from the canonical base so its
         // results carry the canonical form (on Windows, the UNC `\\?\` prefix).
         // Compare both sides canonicalized to stay platform-agnostic.
-        assert_eq!(files[0].canonicalize().unwrap(), test_file.canonicalize().unwrap());
+        assert_eq!(
+            files[0].canonicalize().unwrap(),
+            test_file.canonicalize().unwrap()
+        );
     }
 
     #[tokio::test]

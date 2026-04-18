@@ -614,8 +614,8 @@ impl DistributedShardedCollection {
             }
         }
 
-        // Search remote shards - fall back to dense search for now
-        // TODO: Add hybrid search support to gRPC client
+        // Search remote shards - fall back to dense search for now.
+        // TASK(phase4_add-hybrid-search-to-distributed-grpc-client): switch to the cluster HybridSearch RPC when available.
         let node_count = node_shards.len();
         for (node_id, remote_shard_ids) in node_shards {
             if node_id == *local_node_id {

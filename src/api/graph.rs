@@ -663,9 +663,8 @@ pub async fn delete_edge(
 ) -> Result<Json<DeleteEdgeResponse>, (StatusCode, Json<serde_json::Value>)> {
     debug!("DELETE /graph/edges/{}", edge_id);
 
-    // Edge ID format: "source:target:RELATIONSHIP_TYPE" or "collection:source:target:RELATIONSHIP_TYPE"
-    // For now, we need to search all collections to find the edge
-    // TODO: Store edge_id -> collection mapping for faster lookup
+    // Edge ID format: "source:target:RELATIONSHIP_TYPE" or "collection:source:target:RELATIONSHIP_TYPE".
+    // TASK(phase4_add-edge-id-collection-mapping-cache): replace this scan with an O(1) edge_id -> collection_name lookup.
 
     let collections = state.store.list_collections();
     let mut found = false;

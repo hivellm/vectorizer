@@ -410,7 +410,8 @@ impl FileOperations {
                 }
             }
 
-            // Key points (lines with important keywords)
+            // Key points (lines with important keywords).
+            // The literals below are the tokens this feature detects in user files.
             let important_keywords = [
                 "important",
                 "note:",
@@ -418,8 +419,8 @@ impl FileOperations {
                 "critical",
                 "must",
                 "required",
-                "TODO",
-                "FIXME",
+                "TODO",  // grep-ignore(tier1-markers)
+                "FIXME", // grep-ignore(tier1-markers)
             ];
             if important_keywords
                 .iter()

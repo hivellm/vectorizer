@@ -5,7 +5,7 @@
 mod unit_tests {
     use crate::discovery::*;
 
-    // TODO: Fix integration tests - Discovery::new now requires VectorStore and EmbeddingManager
+    // TASK(phase4_refactor-tests-examples-after-mcp-api-change): rewrite or delete these tests now that `Discovery::new` takes a `VectorStore` + `EmbeddingManager`.
     // #[tokio::test]
     // async fn test_full_pipeline() {
     //     let config = DiscoveryConfig::default();

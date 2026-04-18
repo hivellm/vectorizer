@@ -2,10 +2,9 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 use dashmap::DashMap;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use tracing::{debug, info, warn};
 
 use super::graph_relationship_discovery::{GraphRelationshipHelper, discover_relationships};
@@ -865,10 +864,7 @@ impl Collection {
             crate::models::QuantizationConfig::SQ { bits: 8 }
                 | crate::models::QuantizationConfig::Binary
         ) {
-            self.quantized_vectors
-                .lock()
-                .remove(vector_id)
-                .is_some()
+            self.quantized_vectors.lock().remove(vector_id).is_some()
         } else {
             self.vectors.remove(vector_id)?
         };
@@ -1079,11 +1075,7 @@ impl Collection {
 
         for hybrid_result in hybrid_results {
             let vector = if use_quantization {
-                if let Some(quantized) = self
-                    .quantized_vectors
-                    .lock()
-                    .get(&hybrid_result.id)
-                {
+                if let Some(quantized) = self.quantized_vectors.lock().get(&hybrid_result.id) {
                     quantized.to_vector()
                 } else {
                     continue;

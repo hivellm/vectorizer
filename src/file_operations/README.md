@@ -195,7 +195,7 @@ cargo test --package vectorizer --lib file_operations::tests::integration_tests
 - [ ] Vector store integration
 - [ ] MCP endpoint integration
 
-### 📋 TODO (Priority 2 & 3)
+### 📋 Planned (Priority 2 & 3)
 - [ ] `get_file_chunks_ordered`
 - [ ] `get_project_outline`
 - [ ] `get_related_files`
@@ -231,12 +231,12 @@ impl VectorStore {
 In `operations.rs`, replace the mock methods with actual vector store queries:
 
 ```rust
-// TODO: Replace this
+// Before (mock):
 async fn get_file_content_mock(...) -> FileOperationResult<FileContent> {
     // Mock implementation
 }
 
-// With this:
+// After (real query against the vector store):
 async fn get_file_content_impl(
     &self,
     collection: &str,
@@ -291,7 +291,7 @@ async fn get_file_content_impl(
             file_type: Self::detect_file_type(file_path),
             size_kb,
             chunk_count: sorted_chunks.len(),
-            last_indexed: Utc::now(), // TODO: get from metadata
+            last_indexed: Utc::now(), // NOTE: replace with a timestamp read from chunk metadata
             language: Self::detect_language(file_path),
         },
         chunks_available: sorted_chunks.len(),

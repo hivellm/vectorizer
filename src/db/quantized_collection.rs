@@ -160,7 +160,7 @@ impl QuantizedCollection {
         for (i, vector) in vectors.iter().enumerate() {
             let metadata = VectorMetadata {
                 id: vector.id.clone(),
-                document_id: None, // TODO: Add document_id to Vector struct
+                document_id: None, // TASK(phase4_add-document-id-to-vector): read from vector.document_id once the field exists.
                 dimension: vector.data.len(),
                 quantization_type: self.quantization_config.method.clone(),
                 quality_score: None,
@@ -169,7 +169,7 @@ impl QuantizedCollection {
 
             self.vector_metadata.insert(vector.id.clone(), metadata);
             
-            // Track document IDs (TODO: Add document_id to Vector struct)
+            // TASK(phase4_add-document-id-to-vector): uncomment once Vector has document_id.
             // if let Some(ref doc_id) = vector.document_id {
             //     self.document_ids.insert(doc_id.clone(), ());
             // }

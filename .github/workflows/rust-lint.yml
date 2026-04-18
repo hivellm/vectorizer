@@ -69,3 +69,11 @@ jobs:
             echo "::error::src/ uses std::sync::Mutex/RwLock — migrate to parking_lot"
             exit 1
           fi
+      - name: Enforce Tier-1 no-marker rule (TODO/FIXME/HACK/XXX)
+        # AGENTS.md Tier-1 rule #1 forbids deferral markers in source. Allowed
+        # exceptions are:
+        #   * `TASK(phaseN_<slug>)` comments pointing at a concrete rulebook task
+        #   * lines carrying the `grep-ignore(tier1-markers)` sentinel
+        #     (used by the marker-detection feature itself)
+        # See .rulebook/tasks/phase0_fix-all-todos/ for the rationale.
+        run: bash scripts/check-no-tier1-markers.sh

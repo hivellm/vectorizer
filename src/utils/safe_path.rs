@@ -63,15 +63,15 @@ pub fn reject_traversal(raw: &str, allow_absolute: bool) -> Result<&str> {
 ///
 /// Returns the canonical `PathBuf` on success.
 pub fn canonicalize_within(base: &Path, candidate: &Path) -> Result<PathBuf> {
-    let base_canon = base.canonicalize().map_err(|e| {
-        VectorizerError::InvalidConfiguration {
+    let base_canon = base
+        .canonicalize()
+        .map_err(|e| VectorizerError::InvalidConfiguration {
             message: format!(
                 "base directory cannot be canonicalized ({}): {}",
                 base.display(),
                 e
             ),
-        }
-    })?;
+        })?;
 
     let joined = if candidate.is_absolute() {
         candidate.to_path_buf()
@@ -79,15 +79,16 @@ pub fn canonicalize_within(base: &Path, candidate: &Path) -> Result<PathBuf> {
         base_canon.join(candidate)
     };
 
-    let candidate_canon = joined.canonicalize().map_err(|e| {
-        VectorizerError::InvalidConfiguration {
-            message: format!(
-                "path does not exist or is unreadable ({}): {}",
-                joined.display(),
-                e
-            ),
-        }
-    })?;
+    let candidate_canon =
+        joined
+            .canonicalize()
+            .map_err(|e| VectorizerError::InvalidConfiguration {
+                message: format!(
+                    "path does not exist or is unreadable ({}): {}",
+                    joined.display(),
+                    e
+                ),
+            })?;
 
     if !candidate_canon.starts_with(&base_canon) {
         return Err(VectorizerError::InvalidConfiguration {

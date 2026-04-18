@@ -130,7 +130,7 @@ impl GpuDetector {
     /// Query Metal GPU information
     #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
     fn query_metal_info() -> GpuInfo {
-        // TODO: Query actual Metal device info from hive-gpu when API available
+        // TASK(phase4_query-metal-device-info-from-hive-gpu): replace placeholders with real hive-gpu device queries.
         GpuInfo {
             backend: GpuBackendType::Metal,
             device_name: "Apple GPU".to_string(),

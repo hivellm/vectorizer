@@ -125,10 +125,10 @@ impl RaftStateMachine {
             return Ok(());
         }
 
-        // Apply operation
-        // Note: In a real implementation, operations would include collection_name
-        // For now, we'll use a default collection or extract from metadata
-        let collection_name = "default"; // TODO: Extract from operation metadata
+        // Apply operation. BETA: until `Operation` carries its own `collection_name`,
+        // every log entry is applied to the "default" collection.
+        // TASK(phase4_add-collection-name-to-raft-operations): extract the real collection_name from the operation payload.
+        let collection_name = "default";
 
         match &entry.operation {
             Operation::Checkpoint { .. } => {
@@ -199,13 +199,13 @@ impl RaftStateMachine {
                         store.delete(collection_name, vector_id)?;
                     }
                     Operation::CreateCollection { config } => {
-                        // Extract collection name from config or use a default
-                        // In real implementation, this would be part of the operation
-                        let name = "default"; // TODO: Extract from operation
+                        // TASK(phase4_add-collection-name-to-raft-operations): extract real name from the operation payload.
+                        let name = "default";
                         store.create_collection(name, config.clone())?;
                     }
                     Operation::DeleteCollection => {
-                        let name = "default"; // TODO: Extract from operation
+                        // TASK(phase4_add-collection-name-to-raft-operations): extract real name from the operation payload.
+                        let name = "default";
                         store.delete_collection(name)?;
                     }
                     Operation::Checkpoint { .. } => {

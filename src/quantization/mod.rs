@@ -12,9 +12,6 @@ pub mod simple_tests;
 pub mod storage;
 pub mod traits;
 
-// TODO: Implement these modules in future phases
-// pub mod metrics;
-
 use std::fmt;
 
 use serde::{Deserialize, Serialize};

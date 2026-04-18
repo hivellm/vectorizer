@@ -308,7 +308,7 @@ impl ExampleUsage {
 mod tests {
     use super::*;
 
-    // TODO: Fix tests - MCPToolHandler and related structs now require VectorStore and EmbeddingManager
+    // TASK(phase4_refactor-tests-examples-after-mcp-api-change): pass VectorStore + EmbeddingManager to MCPToolHandler / RESTAPIHandler / MCPServerIntegration constructors.
     // #[tokio::test]
     // async fn test_example_usage() {
     //     // Test that examples can be created without errors
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn test_tool_schemas() {
-        // TODO: Fix test - MCPServerIntegration::new now requires arguments
+        // TASK(phase4_refactor-tests-examples-after-mcp-api-change): pass the new MCPServerIntegration::new arguments and re-enable the body.
         // let integration = MCPServerIntegration::new();
         // let tools = integration.get_available_tools();
 
@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_rest_endpoints() {
-        // TODO: Fix test - MCPServerIntegration::new now requires arguments
+        // TASK(phase4_refactor-tests-examples-after-mcp-api-change): pass the new MCPServerIntegration::new arguments and re-enable the body.
         // let integration = MCPServerIntegration::new();
         // let endpoints = integration.get_rest_endpoints();
 
