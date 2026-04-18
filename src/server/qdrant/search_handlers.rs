@@ -10,11 +10,13 @@ use serde_json::{Value, json};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
-use super::VectorizerServer;
-use super::error_middleware::{ErrorResponse, create_error_response, create_not_found_error};
 use crate::error::VectorizerError;
 use crate::hub::middleware::RequestTenantContext;
 use crate::models::qdrant::point::{QdrantPointId, QdrantValue, QdrantVector};
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{
+    ErrorResponse, create_error_response, create_not_found_error,
+};
 
 /// Extract tenant ID as UUID from request extensions (if present)
 fn extract_tenant_id(tenant_ctx: &Option<Extension<RequestTenantContext>>) -> Option<Uuid> {

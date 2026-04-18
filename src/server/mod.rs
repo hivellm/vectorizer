@@ -2,27 +2,24 @@ mod auth_handlers;
 mod discovery_handlers;
 mod embedded_assets;
 mod error_middleware;
-pub mod file_operations_handlers;
-mod file_upload_handlers;
-mod file_validation;
+pub mod files;
 mod graph_handlers;
 mod graphql_handlers;
-mod hub_backup_handlers;
-// mod hub_tenant_handlers; // NOTE: Disabled due to axum version conflicts with tonic
-mod hub_usage_handlers;
-pub mod mcp_handlers;
-pub mod mcp_tools;
-mod qdrant_alias_handlers;
-mod qdrant_cluster_handlers;
-mod qdrant_handlers;
-mod qdrant_query_handlers;
-mod qdrant_search_handlers;
-mod qdrant_sharding_handlers;
-mod qdrant_snapshot_handlers;
-mod qdrant_vector_handlers;
+mod hub_handlers;
+pub mod mcp;
+mod qdrant;
 pub mod replication_handlers;
 pub mod rest_handlers;
 mod setup_handlers;
+
+// Keep the old `crate::server::mcp_handlers::X` / `crate::server::mcp_tools::X`
+// paths working for external callers (src/umicp, tests/api/mcp/*). These
+// aliases are free — `pub use` doesn't duplicate code, it re-exports.
+pub use mcp::handlers as mcp_handlers;
+pub use mcp::tools as mcp_tools;
+// `file_operations_handlers` is referenced as `crate::server::file_operations_handlers`
+// from a prior-phase external caller; keep the alias until that is migrated.
+pub use files::operations as file_operations_handlers;
 
 // Re-export main server types from the original implementation
 use std::sync::Arc;
@@ -1549,56 +1546,56 @@ impl VectorizerServer {
                 get(rest_handlers::get_backup_directory),
             )
             // HiveHub user-scoped backup routes
-            .route("/hub/backups", get(hub_backup_handlers::list_user_backups))
+            .route("/hub/backups", get(hub_handlers::backup::list_user_backups))
             .route(
                 "/hub/backups",
-                post(hub_backup_handlers::create_user_backup),
+                post(hub_handlers::backup::create_user_backup),
             )
             .route(
                 "/hub/backups/restore",
-                post(hub_backup_handlers::restore_user_backup),
+                post(hub_handlers::backup::restore_user_backup),
             )
             .route(
                 "/hub/backups/upload",
-                post(hub_backup_handlers::upload_user_backup),
+                post(hub_handlers::backup::upload_user_backup),
             )
             .route(
                 "/hub/backups/{backup_id}",
-                get(hub_backup_handlers::get_user_backup),
+                get(hub_handlers::backup::get_user_backup),
             )
             .route(
                 "/hub/backups/{backup_id}",
-                delete(hub_backup_handlers::delete_user_backup),
+                delete(hub_handlers::backup::delete_user_backup),
             )
             .route(
                 "/hub/backups/{backup_id}/download",
-                get(hub_backup_handlers::download_user_backup),
+                get(hub_handlers::backup::download_user_backup),
             )
             // HiveHub usage statistics routes
             .route(
                 "/hub/usage/statistics",
-                get(hub_usage_handlers::get_usage_statistics),
+                get(hub_handlers::usage::get_usage_statistics),
             )
-            .route("/hub/usage/quota", get(hub_usage_handlers::get_quota_info))
+            .route("/hub/usage/quota", get(hub_handlers::usage::get_quota_info))
             // HiveHub tenant management routes
             // NOTE: Disabled due to axum version conflicts with tonic dependency
             // Routes implemented in hub_tenant_handlers.rs but need axum version alignment
             // .route(
             //     "/api/hub/tenant/cleanup",
-            //     post(hub_tenant_handlers::cleanup_tenant_data),
+            //     post(hub_handlers::tenant::cleanup_tenant_data),
             // )
             // .route(
             //     "/api/hub/tenant/{tenant_id}/stats",
-            //     get(hub_tenant_handlers::get_tenant_statistics),
+            //     get(hub_handlers::tenant::get_tenant_statistics),
             // )
             // .route(
             //     "/api/hub/tenant/{tenant_id}/migrate",
-            //     post(hub_tenant_handlers::migrate_tenant_data),
+            //     post(hub_handlers::tenant::migrate_tenant_data),
             // )
             // HiveHub API key validation
             .route(
                 "/hub/validate-key",
-                post(hub_usage_handlers::validate_api_key),
+                post(hub_handlers::usage::validate_api_key),
             )
             // Collection management
             .route("/collections", get(rest_handlers::list_collections))
@@ -1723,11 +1720,8 @@ impl VectorizerServer {
             // File Upload routes
             // Note: Axum has a default 2MB limit for multipart. This is increased via
             // DefaultBodyLimit layer (configured via max_request_size_mb in config.yml).
-            .route("/files/upload", post(file_upload_handlers::upload_file))
-            .route(
-                "/files/config",
-                get(file_upload_handlers::get_upload_config),
-            )
+            .route("/files/upload", post(files::upload::upload_file))
+            .route("/files/config", get(files::upload::get_upload_config))
             // Replication routes
             .route(
                 "/replication/status",
@@ -1746,160 +1740,163 @@ impl VectorizerServer {
                 get(replication_handlers::list_replicas),
             )
             // Qdrant-compatible routes (under /qdrant prefix)
-            .route("/qdrant/collections", get(qdrant_handlers::get_collections))
             .route(
-                "/qdrant/collections/{name}",
-                get(qdrant_handlers::get_collection),
+                "/qdrant/collections",
+                get(qdrant::handlers::get_collections),
             )
             .route(
                 "/qdrant/collections/{name}",
-                put(qdrant_handlers::create_collection),
+                get(qdrant::handlers::get_collection),
             )
             .route(
                 "/qdrant/collections/{name}",
-                delete(qdrant_handlers::delete_collection),
+                put(qdrant::handlers::create_collection),
             )
             .route(
                 "/qdrant/collections/{name}",
-                axum::routing::patch(qdrant_handlers::update_collection),
+                delete(qdrant::handlers::delete_collection),
+            )
+            .route(
+                "/qdrant/collections/{name}",
+                axum::routing::patch(qdrant::handlers::update_collection),
             )
             .route(
                 "/qdrant/collections/{name}/points",
-                post(qdrant_vector_handlers::retrieve_points),
+                post(qdrant::vector_handlers::retrieve_points),
             )
             .route(
                 "/qdrant/collections/{name}/points",
-                put(qdrant_vector_handlers::upsert_points),
+                put(qdrant::vector_handlers::upsert_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/delete",
-                post(qdrant_vector_handlers::delete_points),
+                post(qdrant::vector_handlers::delete_points),
             )
             .route(
                 "/qdrant/collections/aliases",
-                post(qdrant_alias_handlers::update_aliases),
+                post(qdrant::alias_handlers::update_aliases),
             )
             .route(
                 "/qdrant/collections/{name}/aliases",
-                get(qdrant_alias_handlers::list_collection_aliases),
+                get(qdrant::alias_handlers::list_collection_aliases),
             )
-            .route("/qdrant/aliases", get(qdrant_alias_handlers::list_aliases))
+            .route("/qdrant/aliases", get(qdrant::alias_handlers::list_aliases))
             .route(
                 "/qdrant/collections/{name}/points/scroll",
-                post(qdrant_vector_handlers::scroll_points),
+                post(qdrant::vector_handlers::scroll_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/count",
-                post(qdrant_vector_handlers::count_points),
+                post(qdrant::vector_handlers::count_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/search",
-                post(qdrant_search_handlers::search_points),
+                post(qdrant::search_handlers::search_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/search/batch",
-                post(qdrant_search_handlers::batch_search_points),
+                post(qdrant::search_handlers::batch_search_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/recommend",
-                post(qdrant_search_handlers::recommend_points),
+                post(qdrant::search_handlers::recommend_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/recommend/batch",
-                post(qdrant_search_handlers::batch_recommend_points),
+                post(qdrant::search_handlers::batch_recommend_points),
             )
             // Query API endpoints (Qdrant 1.7+)
             .route(
                 "/qdrant/collections/{name}/points/query",
-                post(qdrant_query_handlers::query_points),
+                post(qdrant::query_handlers::query_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/query/batch",
-                post(qdrant_query_handlers::batch_query_points),
+                post(qdrant::query_handlers::batch_query_points),
             )
             .route(
                 "/qdrant/collections/{name}/points/query/groups",
-                post(qdrant_query_handlers::query_points_groups),
+                post(qdrant::query_handlers::query_points_groups),
             )
             // Search Groups and Matrix API endpoints
             .route(
                 "/qdrant/collections/{name}/points/search/groups",
-                post(qdrant_search_handlers::search_points_groups),
+                post(qdrant::search_handlers::search_points_groups),
             )
             .route(
                 "/qdrant/collections/{name}/points/search/matrix/pairs",
-                post(qdrant_search_handlers::search_matrix_pairs),
+                post(qdrant::search_handlers::search_matrix_pairs),
             )
             .route(
                 "/qdrant/collections/{name}/points/search/matrix/offsets",
-                post(qdrant_search_handlers::search_matrix_offsets),
+                post(qdrant::search_handlers::search_matrix_offsets),
             )
             // Snapshot API endpoints
             .route(
                 "/qdrant/collections/{name}/snapshots",
-                get(qdrant_snapshot_handlers::list_collection_snapshots),
+                get(qdrant::snapshot_handlers::list_collection_snapshots),
             )
             .route(
                 "/qdrant/collections/{name}/snapshots",
-                post(qdrant_snapshot_handlers::create_collection_snapshot),
+                post(qdrant::snapshot_handlers::create_collection_snapshot),
             )
             .route(
                 "/qdrant/collections/{name}/snapshots/{snapshot_name}",
-                delete(qdrant_snapshot_handlers::delete_collection_snapshot),
+                delete(qdrant::snapshot_handlers::delete_collection_snapshot),
             )
             .route(
                 "/qdrant/collections/{name}/snapshots/recover",
-                post(qdrant_snapshot_handlers::recover_collection_snapshot),
+                post(qdrant::snapshot_handlers::recover_collection_snapshot),
             )
             .route(
                 "/qdrant/collections/{name}/snapshots/upload",
-                post(qdrant_snapshot_handlers::upload_collection_snapshot),
+                post(qdrant::snapshot_handlers::upload_collection_snapshot),
             )
             .route(
                 "/qdrant/snapshots",
-                get(qdrant_snapshot_handlers::list_all_snapshots),
+                get(qdrant::snapshot_handlers::list_all_snapshots),
             )
             .route(
                 "/qdrant/snapshots",
-                post(qdrant_snapshot_handlers::create_full_snapshot),
+                post(qdrant::snapshot_handlers::create_full_snapshot),
             )
             // Sharding API endpoints
             .route(
                 "/qdrant/collections/{name}/shards",
-                get(qdrant_sharding_handlers::list_shard_keys),
+                get(qdrant::sharding_handlers::list_shard_keys),
             )
             .route(
                 "/qdrant/collections/{name}/shards",
-                put(qdrant_sharding_handlers::create_shard_key),
+                put(qdrant::sharding_handlers::create_shard_key),
             )
             .route(
                 "/qdrant/collections/{name}/shards/delete",
-                post(qdrant_sharding_handlers::delete_shard_key),
+                post(qdrant::sharding_handlers::delete_shard_key),
             )
             // Cluster API endpoints
             .route(
                 "/qdrant/cluster",
-                get(qdrant_cluster_handlers::get_cluster_status),
+                get(qdrant::cluster_handlers::get_cluster_status),
             )
             .route(
                 "/qdrant/cluster/recover",
-                post(qdrant_cluster_handlers::cluster_recover),
+                post(qdrant::cluster_handlers::cluster_recover),
             )
             .route(
                 "/qdrant/cluster/peer/{peer_id}",
-                delete(qdrant_cluster_handlers::remove_peer),
+                delete(qdrant::cluster_handlers::remove_peer),
             )
             .route(
                 "/qdrant/cluster/metadata/keys",
-                get(qdrant_cluster_handlers::list_metadata_keys),
+                get(qdrant::cluster_handlers::list_metadata_keys),
             )
             .route(
                 "/qdrant/cluster/metadata/keys/{key}",
-                get(qdrant_cluster_handlers::get_metadata_key),
+                get(qdrant::cluster_handlers::get_metadata_key),
             )
             .route(
                 "/qdrant/cluster/metadata/keys/{key}",
-                put(qdrant_cluster_handlers::update_metadata_key),
+                put(qdrant::cluster_handlers::update_metadata_key),
             )
             // Dashboard - serve embedded static files (production build)
             // All dashboard assets are embedded in the binary using rust-embed

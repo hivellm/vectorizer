@@ -15,15 +15,17 @@ use serde_json::{Value, json};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-use super::VectorizerServer;
-use super::error_middleware::{ErrorResponse, create_bad_request_error, create_not_found_error};
-use super::file_validation::{FileValidationError, FileValidator, ValidatedFile};
+use super::validation::{FileValidationError, FileValidator, ValidatedFile};
 use crate::config::FileUploadConfig;
 use crate::file_loader::chunker::Chunker;
 use crate::file_loader::config::{DocumentChunk, LoaderConfig};
 use crate::hub::middleware::RequestTenantContext;
 use crate::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
+};
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{
+    ErrorResponse, create_bad_request_error, create_not_found_error,
 };
 #[cfg(feature = "transmutation")]
 use crate::transmutation_integration::TransmutationProcessor;

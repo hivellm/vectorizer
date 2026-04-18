@@ -8,8 +8,6 @@ use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, error, info};
 
-use super::VectorizerServer;
-use super::error_middleware::{ErrorResponse, create_error_response, create_not_found_error};
 use crate::error::VectorizerError;
 use crate::models::qdrant::{
     PointCountResult as QdrantCountResult, PointOperationStatus as QdrantOperationStatus,
@@ -23,6 +21,10 @@ use crate::models::qdrant::{
 };
 use crate::models::{Payload, Vector};
 use crate::security::payload_encryption::encrypt_payload;
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{
+    ErrorResponse, create_error_response, create_not_found_error,
+};
 
 /// Convert QdrantValue to serde_json::Value
 fn qdrant_value_to_json_value(value: QdrantValue) -> serde_json::Value {

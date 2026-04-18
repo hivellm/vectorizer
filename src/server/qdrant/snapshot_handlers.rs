@@ -10,11 +10,13 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use tracing::{error, info};
 
-use super::VectorizerServer;
-use super::error_middleware::{ErrorResponse, create_error_response, create_not_found_error};
 use crate::models::qdrant::snapshot::{
     QdrantCreateSnapshotResponse, QdrantDeleteSnapshotResponse, QdrantListSnapshotsResponse,
     QdrantSnapshotDescription, QdrantUploadSnapshotResponse,
+};
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{
+    ErrorResponse, create_error_response, create_not_found_error,
 };
 
 /// List snapshots for a specific collection

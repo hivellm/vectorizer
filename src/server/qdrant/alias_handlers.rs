@@ -5,13 +5,13 @@ use axum::response::Json;
 use serde_json::json;
 use tracing::{debug, error, info};
 
-use super::VectorizerServer;
-use super::error_middleware::ErrorResponse;
 use crate::models::qdrant::{
     QdrantAliasDescription, QdrantAliasOperations, QdrantChangeAliasesOperation,
     QdrantCollectionsAliasesResponse,
 };
 use crate::monitoring::metrics::METRICS;
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::ErrorResponse;
 
 /// Helper for recording alias metrics
 fn record_alias_metric(operation: &str, status: &str) {
