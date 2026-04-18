@@ -181,18 +181,23 @@ message CollectionInfo {
     int64 updated_at = 5;
 }
 
+// SearchResult — downgraded from double→float (f64→f32) in v3.0.0 to match
+// the canonical `crate::models::SearchResult` precision and HNSW's native
+// f32 scoring. Breaking wire change — clients built against pre-v3.0.0
+// proto must regenerate. cluster.proto already used `float` so the two
+// service surfaces are now consistent.
 message SearchResult {
     string id = 1;
-    double score = 2;
+    float score = 2;
     repeated float vector = 3;
     map<string, string> payload = 4;
 }
 
 message HybridSearchResult {
     string id = 1;
-    double hybrid_score = 2;
-    double dense_score = 3;
-    double sparse_score = 4;
+    float hybrid_score = 2;
+    float dense_score = 3;
+    float sparse_score = 4;
     repeated float vector = 5;
     map<string, string> payload = 6;
 }

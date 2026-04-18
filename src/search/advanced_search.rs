@@ -430,7 +430,7 @@ pub struct QueryLog {
     pub filters: HashMap<String, serde_json::Value>,
 
     /// Query results
-    pub results: Vec<SearchResult>,
+    pub results: Vec<ScoredDocument>,
 }
 
 /// Search metrics
@@ -465,9 +465,13 @@ pub struct SearchSuggestions {
     query_history: Arc<RwLock<Vec<String>>>,
 }
 
-/// Search result
+/// Ranker output: a single scored document with enrichment fields
+/// (title, snippet, highlighted terms) that don't belong on the
+/// canonical `crate::models::SearchResult`. Renamed from `SearchResult`
+/// in phase2_unify-search-result-type so callers never accidentally mix
+/// this augmented shape with the HNSW scoring shape.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SearchResult {
+pub struct ScoredDocument {
     /// Document ID
     pub document_id: String,
 
@@ -619,7 +623,7 @@ pub struct HighlightTags {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {
     /// Search results
-    pub results: Vec<SearchResult>,
+    pub results: Vec<ScoredDocument>,
 
     /// Total results count
     pub total_count: usize,
@@ -765,7 +769,7 @@ impl AdvancedSearchEngine {
     /// Generate facets
     async fn generate_facets(
         &self,
-        results: &[SearchResult],
+        results: &[ScoredDocument],
         facet_options: &[FacetOption],
     ) -> Result<HashMap<String, Vec<FacetValue>>> {
         let mut facets = HashMap::new();
@@ -861,7 +865,7 @@ impl SearchIndex {
     }
 
     /// Search documents
-    async fn search(&self, query: &ProcessedQuery) -> Result<Vec<SearchResult>> {
+    async fn search(&self, query: &ProcessedQuery) -> Result<Vec<ScoredDocument>> {
         let mut results = Vec::new();
 
         // Get candidate documents
@@ -873,7 +877,7 @@ impl SearchIndex {
                 let score = self.calculate_document_score(document, query).await?;
 
                 if score > 0.0 {
-                    results.push(SearchResult {
+                    results.push(ScoredDocument {
                         document_id: document.id.clone(),
                         title: document.title.clone(),
                         snippet: self.generate_snippet(document, query).await?,
@@ -1146,9 +1150,9 @@ impl RankingEngine {
     /// Rank search results
     async fn rank_results(
         &self,
-        results: &[SearchResult],
+        results: &[ScoredDocument],
         query: &ProcessedQuery,
-    ) -> Result<Vec<SearchResult>> {
+    ) -> Result<Vec<ScoredDocument>> {
         let mut ranked_results = results.to_vec();
 
         // Apply ranking algorithm
@@ -1182,7 +1186,7 @@ impl RankingEngine {
     /// Apply BM25 ranking
     async fn apply_bm25_ranking(
         &self,
-        results: &mut [SearchResult],
+        results: &mut [ScoredDocument],
         _query: &ProcessedQuery,
     ) -> Result<()> {
         // Simplified BM25 implementation
@@ -1195,7 +1199,7 @@ impl RankingEngine {
     /// Apply TF-IDF ranking
     async fn apply_tfidf_ranking(
         &self,
-        results: &mut [SearchResult],
+        results: &mut [ScoredDocument],
         _query: &ProcessedQuery,
     ) -> Result<()> {
         // Simplified TF-IDF implementation
@@ -1208,7 +1212,7 @@ impl RankingEngine {
     /// Apply learning to rank
     async fn apply_learning_to_rank(
         &self,
-        results: &mut [SearchResult],
+        results: &mut [ScoredDocument],
         _query: &ProcessedQuery,
     ) -> Result<()> {
         // Learning to rank implementation
@@ -1218,7 +1222,7 @@ impl RankingEngine {
     /// Apply neural ranking
     async fn apply_neural_ranking(
         &self,
-        results: &mut [SearchResult],
+        results: &mut [ScoredDocument],
         _query: &ProcessedQuery,
     ) -> Result<()> {
         // Neural ranking implementation
@@ -1228,7 +1232,7 @@ impl RankingEngine {
     /// Apply hybrid ranking
     async fn apply_hybrid_ranking(
         &self,
-        results: &mut [SearchResult],
+        results: &mut [ScoredDocument],
         _query: &ProcessedQuery,
     ) -> Result<()> {
         // Hybrid ranking implementation

@@ -501,9 +501,10 @@ impl VectorizerService for VectorizerGrpcService {
             .iter()
             .map(|r| vectorizer::HybridSearchResult {
                 id: r.id.clone(),
-                hybrid_score: r.score as f64,
-                dense_score: r.dense_score.unwrap_or(0.0) as f64,
-                sparse_score: r.sparse_score.unwrap_or(0.0) as f64,
+                // proto fields are now `float` (f32). See phase2_unify-search-result-type.
+                hybrid_score: r.score,
+                dense_score: r.dense_score.unwrap_or(0.0),
+                sparse_score: r.sparse_score.unwrap_or(0.0),
                 vector: r.vector.as_ref().map(|v| v.clone()).unwrap_or_default(),
                 payload: r
                     .payload

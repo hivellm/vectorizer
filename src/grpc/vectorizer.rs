@@ -230,12 +230,17 @@ pub struct CollectionInfo {
     #[prost(int64, tag = "5")]
     pub updated_at: i64,
 }
+/// SearchResult — downgraded from double→float (f64→f32) in v3.0.0 to match
+/// the canonical `crate::models::SearchResult` precision and HNSW's native
+/// f32 scoring. Breaking wire change — clients built against pre-v3.0.0
+/// proto must regenerate. cluster.proto already used `float` so the two
+/// service surfaces are now consistent.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SearchResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(double, tag = "2")]
-    pub score: f64,
+    #[prost(float, tag = "2")]
+    pub score: f32,
     #[prost(float, repeated, tag = "3")]
     pub vector: ::prost::alloc::vec::Vec<f32>,
     #[prost(map = "string, string", tag = "4")]
@@ -248,12 +253,12 @@ pub struct SearchResult {
 pub struct HybridSearchResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(double, tag = "2")]
-    pub hybrid_score: f64,
-    #[prost(double, tag = "3")]
-    pub dense_score: f64,
-    #[prost(double, tag = "4")]
-    pub sparse_score: f64,
+    #[prost(float, tag = "2")]
+    pub hybrid_score: f32,
+    #[prost(float, tag = "3")]
+    pub dense_score: f32,
+    #[prost(float, tag = "4")]
+    pub sparse_score: f32,
     #[prost(float, repeated, tag = "5")]
     pub vector: ::prost::alloc::vec::Vec<f32>,
     #[prost(map = "string, string", tag = "6")]

@@ -11,8 +11,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Compile protobuf definitions with tonic-build
     // Using tonic-prost-build 0.14 (prost extracted from tonic-build in 0.14)
-    // Note: This will recompile if proto files change (expected behavior)
-    // To avoid unnecessary rebuilds, proto files should be committed and only changed when needed
+    //
+    // Explicit rerun-if-changed directives: `compile_protos` does NOT always
+    // emit these (observed during phase2_unify-search-result-type when
+    // `double score → float score` in vectorizer.proto did not trigger
+    // regeneration on the next `cargo build`). Stating them here makes the
+    // build unambiguously rebuild on any proto edit.
+    println!("cargo:rerun-if-changed=proto/vectorizer.proto");
+    println!("cargo:rerun-if-changed=proto/cluster.proto");
     tonic_prost_build::configure()
         .build_server(true)
         .build_client(true) // Enable client generation for tests

@@ -90,7 +90,8 @@ impl From<&SearchResult> for vectorizer::SearchResult {
         use std::collections::HashMap;
         vectorizer::SearchResult {
             id: result.id.clone(),
-            score: result.score as f64,
+            // proto `score` is now `float` (f32). See phase2_unify-search-result-type.
+            score: result.score,
             vector: result.vector.clone().unwrap_or_default(),
             payload: result
                 .payload
@@ -109,6 +110,72 @@ impl From<&SearchResult> for vectorizer::SearchResult {
                     }
                 })
                 .unwrap_or_default(),
+        }
+    }
+}
+
+impl From<vectorizer::SearchResult> for SearchResult {
+    /// Inverse of `From<&SearchResult> for vectorizer::SearchResult`. Builds
+    /// a canonical `models::SearchResult` from a proto payload, so callers
+    /// on the gRPC receiving side never have to hand-roll the conversion
+    /// (and never silently lose precision via an `as f32` cast).
+    fn from(proto: vectorizer::SearchResult) -> Self {
+        let payload = if proto.payload.is_empty() {
+            None
+        } else {
+            let map: serde_json::Map<String, serde_json::Value> = proto
+                .payload
+                .into_iter()
+                .map(|(k, v)| (k, serde_json::Value::String(v)))
+                .collect();
+            Some(Payload {
+                data: serde_json::Value::Object(map),
+            })
+        };
+        SearchResult {
+            id: proto.id,
+            score: proto.score,
+            dense_score: None,
+            sparse_score: None,
+            vector: if proto.vector.is_empty() {
+                None
+            } else {
+                Some(proto.vector)
+            },
+            payload,
+        }
+    }
+}
+
+impl From<vectorizer::HybridSearchResult> for SearchResult {
+    /// Canonicalise a proto `HybridSearchResult` back into the single
+    /// `models::SearchResult` shape. The fused `hybrid_score` becomes the
+    /// main `score`; individual dense/sparse scores are preserved in the
+    /// optional fields.
+    fn from(proto: vectorizer::HybridSearchResult) -> Self {
+        let payload = if proto.payload.is_empty() {
+            None
+        } else {
+            let map: serde_json::Map<String, serde_json::Value> = proto
+                .payload
+                .into_iter()
+                .map(|(k, v)| (k, serde_json::Value::String(v)))
+                .collect();
+            Some(Payload {
+                data: serde_json::Value::Object(map),
+            })
+        };
+        SearchResult {
+            id: proto.id,
+            score: proto.hybrid_score,
+            dense_score: Some(proto.dense_score),
+            sparse_score: Some(proto.sparse_score),
+            vector: if proto.vector.is_empty() {
+                None
+            } else {
+                Some(proto.vector)
+            },
+            payload,
         }
     }
 }
@@ -179,5 +246,112 @@ impl TryFrom<&vectorizer::HybridSearchRequest>
                 algorithm: HybridScoringAlgorithm::ReciprocalRankFusion,
             }),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_payload() -> Payload {
+        Payload {
+            data: serde_json::json!({
+                "title": "hello",
+                "tag": "rust",
+            }),
+        }
+    }
+
+    #[test]
+    fn search_result_round_trip_preserves_score_exactly() {
+        // With proto `float` the score is f32 on both sides — no `as f32`
+        // narrowing, no reordering of near-tie results.
+        let original = SearchResult {
+            id: "vec-1".to_string(),
+            score: 0.987_654_32_f32,
+            dense_score: None,
+            sparse_score: None,
+            vector: Some(vec![0.1, 0.2, 0.3]),
+            payload: Some(sample_payload()),
+        };
+
+        let proto: vectorizer::SearchResult = (&original).into();
+        assert_eq!(
+            proto.score, original.score,
+            "f32→f32 round-trip must be bit-exact"
+        );
+
+        let back: SearchResult = proto.into();
+        assert_eq!(back.id, original.id);
+        assert_eq!(back.score, original.score);
+        assert_eq!(back.vector, original.vector);
+    }
+
+    #[test]
+    fn search_result_ordering_preserved_through_round_trip() {
+        // Regression for the f64→f32 narrowing bug: three nearly-tied scores
+        // must come back in the same order after a proto round-trip.
+        let scores = [0.950_000_1_f32, 0.950_000_2_f32, 0.950_000_3_f32];
+        let originals: Vec<SearchResult> = scores
+            .iter()
+            .enumerate()
+            .map(|(i, &s)| SearchResult {
+                id: format!("v{}", i),
+                score: s,
+                dense_score: None,
+                sparse_score: None,
+                vector: None,
+                payload: None,
+            })
+            .collect();
+
+        let mut round_tripped: Vec<SearchResult> = originals
+            .iter()
+            .map(|r| {
+                let proto: vectorizer::SearchResult = r.into();
+                proto.into()
+            })
+            .collect();
+        round_tripped.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+
+        assert_eq!(round_tripped[0].id, "v2");
+        assert_eq!(round_tripped[1].id, "v1");
+        assert_eq!(round_tripped[2].id, "v0");
+    }
+
+    #[test]
+    fn hybrid_search_result_canonicalises_into_models_search_result() {
+        let proto = vectorizer::HybridSearchResult {
+            id: "doc-42".to_string(),
+            hybrid_score: 0.75,
+            dense_score: 0.60,
+            sparse_score: 0.90,
+            vector: vec![],
+            payload: Default::default(),
+        };
+        let canonical: SearchResult = proto.into();
+        assert_eq!(canonical.id, "doc-42");
+        assert_eq!(canonical.score, 0.75);
+        assert_eq!(canonical.dense_score, Some(0.60));
+        assert_eq!(canonical.sparse_score, Some(0.90));
+    }
+
+    #[test]
+    fn search_result_empty_vector_round_trip_preserves_none() {
+        let original = SearchResult {
+            id: "no-vec".to_string(),
+            score: 0.5,
+            dense_score: None,
+            sparse_score: None,
+            vector: None,
+            payload: None,
+        };
+        let proto: vectorizer::SearchResult = (&original).into();
+        let back: SearchResult = proto.into();
+        assert!(back.vector.is_none(), "empty proto vector must map to None");
+        assert!(
+            back.payload.is_none(),
+            "empty proto payload must map to None"
+        );
     }
 }
