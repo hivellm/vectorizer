@@ -307,3 +307,9 @@
 - [ ] 20.6 Documentation review
 - [ ] 20.7 Beta testing with real users
 - [ ] 20.8 Production deployment
+
+## Mandatory tail (required by rulebook v5.3.0)
+
+- [ ] Update or create documentation covering the implementation
+- [ ] Write tests covering the new behavior
+- [ ] Run tests and confirm they pass

@@ -88,3 +88,9 @@
 - In progress: 0
 - Pending: 2 (testing phase: 9.1-9.6, validation feedback 8.2, progress persistence 8.4, API sandbox docs 10.2)
 - Progress: ~96%
+
+## Mandatory tail (required by rulebook v5.3.0)
+
+- [ ] Update or create documentation covering the implementation
+- [ ] Write tests covering the new behavior
+- [ ] Run tests and confirm they pass
