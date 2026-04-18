@@ -157,3 +157,9 @@ scripts/.vectorizer-sim/
 config.cluster-*.yml
 config.ha-*.yml
 .env
+
+CLAUDE.local.md
+.rulebook/backup/
+.rulebook/handoff/_pending.md
+.rulebook/handoff/.urgent
+.rulebook/telemetry/
