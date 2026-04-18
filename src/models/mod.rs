@@ -816,6 +816,3 @@ pub mod sparse_vector;
 pub mod vector_utils_simd;
 
 pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};
-
-/// Graph models (re-exported from db::graph)
-pub use crate::db::graph::{Edge, Node, RelationshipType};

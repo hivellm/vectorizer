@@ -49,3 +49,12 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check cargo clippy warnings for all targets and features
         run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Enforce layer boundary — src/models/ must not import src/db/
+        # Foundation layer (models) cannot depend on Core layer (db). Guard
+        # against future regressions of the layering fix in rulebook task
+        # phase5_models-db-layering-violation.
+        run: |
+          if grep -rnE '^use crate::db::|crate::db::' src/models/; then
+            echo "::error::src/models/ imports from crate::db — violates layering"
+            exit 1
+          fi

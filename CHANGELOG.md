@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 ### Breaking
 - **JWT secret must be explicitly configured.** `AuthConfig::default()` no longer ships a real `jwt_secret` — the field is now an empty string. `AuthManager::new` calls `AuthConfig::validate` at startup and refuses to boot if `auth.enabled == true` and the configured secret is empty, shorter than 32 chars, or equal to the historical insecure default (`"vectorizer-default-secret-key-change-in-production"`). Operators must generate a real secret (e.g. `openssl rand -hex 64`) and inject it via config file or the `VECTORIZER_JWT_SECRET` env var before upgrading. This closes a known auth-bypass: any attacker who knew the public default could forge admin JWTs against unconfigured deployments.
 
+### Architecture
+- Remove the `pub use crate::db::graph::{Edge, Node, RelationshipType};` re-export from `src/models/mod.rs`. This line was the only reverse dependency from the Foundation layer (`models`) into the Core layer (`db`) — it violated the layering rule documented in `CLAUDE.md`. Grep confirmed zero consumers imported the types via `crate::models::`, so deleting the re-export is behaviorally a no-op; code that wants these types imports them from `crate::db::graph` directly. A new CI grep gate in `rust-lint.yml` fails the build if any new `src/models/` file imports from `crate::db::`, preventing the regression.
+
 ### CI / Testing
 - Re-enable the Go SDK test workflow (`.github/workflows/sdk-go-test.yml`), previously renamed to `.disabled`. `sdks/go/` has working source + a unit-test + integration-test suite (`go vet ./...` clean, `go test -v -short -count=1 ./...` passing locally). The workflow matrix runs on Ubuntu + macOS against Go 1.21 and 1.22. Integration tests skip gracefully when no server is reachable.
 
