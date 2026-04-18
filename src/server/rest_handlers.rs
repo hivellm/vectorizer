@@ -3831,10 +3831,7 @@ mod tests {
     fn collection_metrics_uuid_differs_between_names() {
         let docs = collection_metrics_uuid("docs");
         let products = collection_metrics_uuid("products");
-        assert_ne!(
-            docs, products,
-            "different names must yield different UUIDs"
-        );
+        assert_ne!(docs, products, "different names must yield different UUIDs");
     }
 
     #[test]

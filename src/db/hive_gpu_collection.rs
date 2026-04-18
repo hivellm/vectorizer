@@ -196,14 +196,10 @@ impl HiveGpuCollection {
             .collect();
 
         // Add to GPU storage in batch
-        let indices = self
-            .storage
-            .lock()
-            .add_vectors(&gpu_vectors)
-            .map_err(|e| {
-                error!("Failed to add vectors to GPU storage: {:?}", e);
-                GpuAdapter::gpu_error_to_vectorizer_error(e)
-            })?;
+        let indices = self.storage.lock().add_vectors(&gpu_vectors).map_err(|e| {
+            error!("Failed to add vectors to GPU storage: {:?}", e);
+            GpuAdapter::gpu_error_to_vectorizer_error(e)
+        })?;
 
         self.vector_count += vectors.len();
 
@@ -234,14 +230,10 @@ impl HiveGpuCollection {
         }
 
         // Perform GPU search
-        let gpu_results = self
-            .storage
-            .lock()
-            .search(query, limit)
-            .map_err(|e| {
-                error!("GPU search failed: {:?}", e);
-                GpuAdapter::gpu_error_to_vectorizer_error(e)
-            })?;
+        let gpu_results = self.storage.lock().search(query, limit).map_err(|e| {
+            error!("GPU search failed: {:?}", e);
+            GpuAdapter::gpu_error_to_vectorizer_error(e)
+        })?;
 
         // Convert results to SearchResult format
         let results: Vec<SearchResult> = gpu_results

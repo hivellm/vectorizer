@@ -427,23 +427,20 @@ impl AuthHandlerState {
             // to stdout — container log pipelines (Docker, k8s, systemd, CI)
             // would otherwise capture it permanently.
             let data_dir = AuthPersistence::get_data_dir();
-            let cred_path = match persist_first_run_credentials(
-                &data_dir,
-                &username,
-                &password,
-                was_generated,
-            ) {
-                Ok(p) => p,
-                Err(e) => {
-                    error!(
-                        "Failed to persist root credentials to {:?}: {}. The \
+            let cred_path =
+                match persist_first_run_credentials(&data_dir, &username, &password, was_generated)
+                {
+                    Ok(p) => p,
+                    Err(e) => {
+                        error!(
+                            "Failed to persist root credentials to {:?}: {}. The \
                          password was generated but could not be saved; abort \
                          and fix the filesystem before retrying.",
-                        data_dir, e
-                    );
-                    data_dir.join(".root_credentials")
-                }
-            };
+                            data_dir, e
+                        );
+                        data_dir.join(".root_credentials")
+                    }
+                };
 
             // Log only the username and the path. The path is safe to show
             // in any log shipper; the password stays on disk under 0o600.
@@ -1707,13 +1704,9 @@ mod tests {
     #[test]
     fn persist_first_run_credentials_writes_contents() {
         let tmp = tempfile::tempdir().expect("tempdir");
-        let path = persist_first_run_credentials(
-            tmp.path(),
-            "root",
-            "correct-horse-battery-staple",
-            true,
-        )
-        .expect("persist succeeded");
+        let path =
+            persist_first_run_credentials(tmp.path(), "root", "correct-horse-battery-staple", true)
+                .expect("persist succeeded");
 
         let body = std::fs::read_to_string(&path).expect("read credentials");
         assert!(body.contains("username=root"));
@@ -1731,8 +1724,7 @@ mod tests {
     fn persist_first_run_credentials_sets_0600_on_unix() {
         use std::os::unix::fs::PermissionsExt;
         let tmp = tempfile::tempdir().expect("tempdir");
-        let path =
-            persist_first_run_credentials(tmp.path(), "root", "pw", false).expect("persist");
+        let path = persist_first_run_credentials(tmp.path(), "root", "pw", false).expect("persist");
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "expected 0o600, got {:o}", mode);
     }

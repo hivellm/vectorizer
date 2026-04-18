@@ -586,7 +586,9 @@ impl VectorStore {
             pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
-            wal: Arc::new(parking_lot::Mutex::new(Some(WalIntegration::new_disabled()))),
+            wal: Arc::new(parking_lot::Mutex::new(
+                Some(WalIntegration::new_disabled()),
+            )),
         };
 
         // Check for automatic migration on startup
@@ -608,7 +610,9 @@ impl VectorStore {
             pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
-            wal: Arc::new(parking_lot::Mutex::new(Some(WalIntegration::new_disabled()))),
+            wal: Arc::new(parking_lot::Mutex::new(
+                Some(WalIntegration::new_disabled()),
+            )),
         }
     }
 
@@ -738,7 +742,9 @@ impl VectorStore {
             pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
-            wal: Arc::new(parking_lot::Mutex::new(Some(WalIntegration::new_disabled()))),
+            wal: Arc::new(parking_lot::Mutex::new(
+                Some(WalIntegration::new_disabled()),
+            )),
         }
     }
 
@@ -3229,8 +3235,7 @@ impl VectorStore {
             self.pending_saves.lock().len()
         );
 
-        let collections_to_save: Vec<String> =
-            self.pending_saves.lock().iter().cloned().collect();
+        let collections_to_save: Vec<String> = self.pending_saves.lock().iter().cloned().collect();
         self.pending_saves.lock().clear();
 
         // Force save disabled - using .vecdb format

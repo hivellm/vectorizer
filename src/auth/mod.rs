@@ -207,8 +207,10 @@ impl AuthManager {
     /// fails `validate()`. Use `AuthManager::new(config)` with a populated
     /// config instead. Kept only for test call sites that explicitly inject a
     /// valid secret before invoking.
-    #[deprecated(note = "Default AuthConfig has an empty jwt_secret; construct a full AuthConfig \
-                         and call AuthManager::new directly.")]
+    #[deprecated(
+        note = "Default AuthConfig has an empty jwt_secret; construct a full AuthConfig \
+                         and call AuthManager::new directly."
+    )]
     pub fn new_default() -> Result<Self> {
         Self::new(AuthConfig::default())
     }
