@@ -379,6 +379,13 @@ impl WriteAheadLog {
     }
 
     /// Recover from WAL (replay operations)
+    ///
+    /// Sequences in the WAL are assigned from a single global [`AtomicU64`]
+    /// shared across every collection, so per-collection sequences are a
+    /// monotonically increasing (but not necessarily dense) subset of the
+    /// global sequence space. The validation below checks strict
+    /// monotonicity rather than dense `0..N` indexing to keep corruption
+    /// detection while supporting multi-collection WALs.
     pub async fn recover(&self, collection_id: &str) -> Result<Vec<WALEntry>, WALError> {
         let entries = self.read_collection_entries(collection_id).await?;
 
@@ -388,14 +395,17 @@ impl WriteAheadLog {
             collection_id
         );
 
-        // Validate entries are in correct sequence
-        for (i, entry) in entries.iter().enumerate() {
-            if entry.sequence != i as u64 {
-                return Err(WALError::InvalidSequence {
-                    expected: i as u64,
-                    actual: entry.sequence,
-                });
+        let mut previous: Option<u64> = None;
+        for entry in &entries {
+            if let Some(prev) = previous {
+                if entry.sequence <= prev {
+                    return Err(WALError::InvalidSequence {
+                        expected: prev + 1,
+                        actual: entry.sequence,
+                    });
+                }
             }
+            previous = Some(entry.sequence);
         }
 
         Ok(entries)
@@ -623,5 +633,65 @@ mod tests {
 
         // Validate integrity
         wal.validate_integrity().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_wal_recover_multi_collection_sparse_sequences() {
+        // Regression guard for phase4_fix-wal-multi-collection-replay:
+        // sequences are global, so per-collection recover() must accept
+        // a monotonically increasing (but sparse) subset, not a dense 0..N.
+        let temp_dir = tempdir().unwrap();
+        let wal_path = temp_dir.path().join("multi.wal");
+        let wal = WriteAheadLog::new(&wal_path, WALConfig::default())
+            .await
+            .unwrap();
+
+        // Interleaved writes: collection1 gets seq 0 and 2, collection2 gets seq 1.
+        wal.append(
+            "collection1",
+            Operation::InsertVector {
+                collection_name: "collection1".to_string(),
+                vector_id: "v1".to_string(),
+                data: vec![1.0],
+                metadata: HashMap::new(),
+            },
+        )
+        .await
+        .unwrap();
+        wal.append(
+            "collection2",
+            Operation::InsertVector {
+                collection_name: "collection2".to_string(),
+                vector_id: "v2".to_string(),
+                data: vec![2.0],
+                metadata: HashMap::new(),
+            },
+        )
+        .await
+        .unwrap();
+        wal.append(
+            "collection1",
+            Operation::InsertVector {
+                collection_name: "collection1".to_string(),
+                vector_id: "v3".to_string(),
+                data: vec![3.0],
+                metadata: HashMap::new(),
+            },
+        )
+        .await
+        .unwrap();
+
+        // collection2 entries are [seq=1] — must succeed even though
+        // the sequence doesn't start at 0.
+        let c2 = wal.recover("collection2").await.unwrap();
+        assert_eq!(c2.len(), 1);
+        assert_eq!(c2[0].sequence, 1);
+
+        // collection1 entries are [seq=0, seq=2] — must succeed because
+        // sequences are strictly monotonic even if sparse.
+        let c1 = wal.recover("collection1").await.unwrap();
+        assert_eq!(c1.len(), 2);
+        assert_eq!(c1[0].sequence, 0);
+        assert_eq!(c1[1].sequence, 2);
     }
 }

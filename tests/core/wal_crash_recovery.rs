@@ -275,7 +275,6 @@ async fn test_wal_crash_recovery_delete() {
 }
 
 #[tokio::test]
-#[ignore = "tracked by phase4_triage-wal-recovery-bugs; hangs on multi-collection replay — insert/update/delete recover fine"]
 async fn test_wal_recover_all_collections() {
     let temp_dir = tempdir().unwrap();
     let data_dir = temp_dir.path().to_path_buf();

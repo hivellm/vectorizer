@@ -6,7 +6,6 @@ use vectorizer::models::{CollectionConfig, DistanceMetric, Vector};
 use vectorizer::persistence::wal::WALConfig;
 
 #[tokio::test]
-#[ignore] // Test is failing - needs investigation
 async fn test_vector_store_wal_integration() {
     let temp_dir = tempdir().unwrap();
     let data_dir = temp_dir.path().to_path_buf();
@@ -28,11 +27,13 @@ async fn test_vector_store_wal_integration() {
             .is_ok()
     );
 
-    // Create collection
+    // Use Euclidean metric so stored data preserves raw magnitudes; Cosine
+    // normalizes to unit length, which makes [1.0; 128] and [3.0; 128]
+    // indistinguishable and breaks the update-roundtrip assertion below.
     let config = CollectionConfig {
         graph: None,
         dimension: 128,
-        metric: DistanceMetric::Cosine,
+        metric: DistanceMetric::Euclidean,
         quantization: vectorizer::models::QuantizationConfig::default(),
         hnsw_config: vectorizer::models::HnswConfig::default(),
         compression: vectorizer::models::CompressionConfig::default(),
@@ -89,7 +90,6 @@ async fn test_vector_store_wal_integration() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, recovery operation hangs
 async fn test_wal_recover_all_collections_empty() {
     let temp_dir = tempdir().unwrap();
     let data_dir = temp_dir.path().to_path_buf();
@@ -105,7 +105,6 @@ async fn test_wal_recover_all_collections_empty() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, recovery operation hangs
 async fn test_wal_recover_all_collections_with_data() {
     let temp_dir = tempdir().unwrap();
     let data_dir = temp_dir.path().to_path_buf();
