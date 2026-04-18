@@ -306,55 +306,61 @@ impl ExampleUsage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::Arc;
 
-    // TASK(phase4_refactor-tests-examples-after-mcp-api-change): pass VectorStore + EmbeddingManager to MCPToolHandler / RESTAPIHandler / MCPServerIntegration constructors.
-    // #[tokio::test]
-    // async fn test_example_usage() {
-    //     // Test that examples can be created without errors
-    //     let handler = MCPToolHandler::new(store, embedding_manager);
-    //     let rest_handler = RESTAPIHandler::new();
-    //     let integration = MCPServerIntegration::new();
-    //
-    //     // Verify they were created successfully
-    //     assert!(true);
-    // }
+    use super::*;
+    use crate::VectorStore;
+    use crate::embedding::{Bm25Embedding, EmbeddingManager};
+
+    /// Build a minimally functional `EmbeddingManager` for handler tests —
+    /// same shape as `MCPToolHandler::new_with_store` uses internally.
+    fn test_embedding_manager() -> Arc<EmbeddingManager> {
+        let mut manager = EmbeddingManager::new();
+        let bm25 = Bm25Embedding::new(512);
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+        manager
+            .set_default_provider("bm25")
+            .expect("bm25 registered");
+        Arc::new(manager)
+    }
+
+    /// The three handler constructors used across the examples all produce
+    /// valid instances — nothing panics, the types construct, and they can
+    /// be dropped cleanly. This is what the original commented-out test
+    /// asserted (`assert!(true)`) but now runs the real constructors.
+    #[tokio::test]
+    async fn test_example_usage() {
+        let store = Arc::new(VectorStore::new());
+        let embedding_manager = test_embedding_manager();
+
+        let _handler = MCPToolHandler::new(store.clone(), embedding_manager.clone());
+        let _rest_handler = RESTAPIHandler::new();
+        let _integration = MCPServerIntegration::new();
+    }
 
     #[test]
     fn test_tool_schemas() {
-        // TASK(phase4_refactor-tests-examples-after-mcp-api-change): pass the new MCPServerIntegration::new arguments and re-enable the body.
-        // let integration = MCPServerIntegration::new();
-        // let tools = integration.get_available_tools();
+        let integration = MCPServerIntegration::new();
+        let tools = integration.get_available_tools();
 
-        // assert_eq!(tools.len(), 4);
-
-        // // Verify each tool has required fields
-        // for tool in &tools {
-        //     assert!(tool.contains_key("name"));
-        //     assert!(tool.contains_key("description"));
-        //     assert!(tool.contains_key("inputSchema"));
-        // }
-
-        // Placeholder test
-        assert!(true);
+        assert_eq!(tools.len(), 4);
+        for tool in &tools {
+            assert!(tool.contains_key("name"));
+            assert!(tool.contains_key("description"));
+            assert!(tool.contains_key("inputSchema"));
+        }
     }
 
     #[test]
     fn test_rest_endpoints() {
-        // TASK(phase4_refactor-tests-examples-after-mcp-api-change): pass the new MCPServerIntegration::new arguments and re-enable the body.
-        // let integration = MCPServerIntegration::new();
-        // let endpoints = integration.get_rest_endpoints();
+        let integration = MCPServerIntegration::new();
+        let endpoints = integration.get_rest_endpoints();
 
-        // assert_eq!(endpoints.len(), 5);
-
-        // // Verify each endpoint has required fields
-        // for endpoint in &endpoints {
-        //     assert!(endpoint.contains_key("path"));
-        //     assert!(endpoint.contains_key("method"));
-        //     assert!(endpoint.contains_key("description"));
-        // }
-
-        // Placeholder test
-        assert!(true);
+        assert_eq!(endpoints.len(), 5);
+        for endpoint in &endpoints {
+            assert!(endpoint.contains_key("path"));
+            assert!(endpoint.contains_key("method"));
+            assert!(endpoint.contains_key("description"));
+        }
     }
 }
