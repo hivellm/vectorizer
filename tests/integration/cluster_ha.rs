@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use vectorizer::cluster::raft_node::{ClusterCommand, RaftManager, RaftNodeInfo};
-use vectorizer::cluster::{ClusterNode, DistributedShardRouter, HaManager, LeaderRouter, NodeId};
+use vectorizer::cluster::{DistributedShardRouter, HaManager, LeaderRouter, NodeId};
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, StorageType};
 use vectorizer::replication::ReplicationConfig;
@@ -317,8 +317,7 @@ async fn test_shard_router_deterministic_hashing() {
         let shard_r2 = router2.get_shard_for_vector(id);
         assert_eq!(
             shard_r1, shard_r2,
-            "Vector '{}' should route to same shard on both routers",
-            id
+            "Vector '{id}' should route to same shard on both routers"
         );
     }
 }
@@ -733,8 +732,7 @@ async fn test_raft_bootstrap_with_unreachable_peers_does_not_block() {
     assert!(result.is_ok(), "initialize_cluster should succeed");
     assert!(
         elapsed < Duration::from_secs(5),
-        "initialize_cluster should not block (took {:?})",
-        elapsed
+        "initialize_cluster should not block (took {elapsed:?})"
     );
 }
 
