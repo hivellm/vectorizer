@@ -137,7 +137,7 @@ pub struct ClusterSnapshot {
 /// The Raft state machine for cluster metadata.
 pub struct ClusterStateMachine {
     sm: RwLock<StateMachineData>,
-    snapshot_idx: std::sync::Mutex<u64>,
+    snapshot_idx: parking_lot::Mutex<u64>,
     current_snapshot: RwLock<Option<ClusterSnapshot>>,
 }
 
@@ -145,7 +145,7 @@ impl ClusterStateMachine {
     pub fn new() -> Self {
         Self {
             sm: RwLock::new(StateMachineData::default()),
-            snapshot_idx: std::sync::Mutex::new(0),
+            snapshot_idx: parking_lot::Mutex::new(0),
             current_snapshot: RwLock::new(None),
         }
     }
@@ -163,7 +163,7 @@ impl RaftSnapshotBuilder<TypeConfig> for Arc<ClusterStateMachine> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
 
         let snapshot_idx = {
-            let mut idx = self.snapshot_idx.lock().unwrap();
+            let mut idx = self.snapshot_idx.lock();
             *idx += 1;
             *idx
         };

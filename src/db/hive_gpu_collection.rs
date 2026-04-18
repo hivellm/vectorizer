@@ -3,12 +3,13 @@
 //! This module provides a wrapper around hive-gpu for integration with VectorStore.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::anyhow;
 use chrono::Utc;
 use hive_gpu::{GpuContext, GpuVectorStorage};
+use parking_lot::Mutex;
 use tracing::{debug, error, info, warn};
 
 use crate::db::gpu_detection::GpuBackendType;
@@ -49,7 +50,6 @@ impl HiveGpuCollection {
         // Create GPU storage
         let raw_storage = context
             .lock()
-            .unwrap()
             .create_storage(dimension, gpu_metric)
             .map_err(|e| {
                 error!("Failed to create GPU storage: {:?}", e);
@@ -156,7 +156,6 @@ impl HiveGpuCollection {
         let indices = self
             .storage
             .lock()
-            .unwrap()
             .add_vectors(&[gpu_vector])
             .map_err(|e| {
                 error!("Failed to add vector to GPU storage: {:?}", e);
@@ -164,7 +163,7 @@ impl HiveGpuCollection {
             })?;
 
         self.vector_count += 1;
-        self.vector_ids.lock().unwrap().push(vector.id.clone());
+        self.vector_ids.lock().push(vector.id.clone());
 
         debug!(
             "Added vector '{}' to GPU collection '{}'",
@@ -200,7 +199,6 @@ impl HiveGpuCollection {
         let indices = self
             .storage
             .lock()
-            .unwrap()
             .add_vectors(&gpu_vectors)
             .map_err(|e| {
                 error!("Failed to add vectors to GPU storage: {:?}", e);
@@ -211,7 +209,7 @@ impl HiveGpuCollection {
 
         // Track vector IDs
         let ids: Vec<String> = vectors.iter().map(|v| v.id.clone()).collect();
-        self.vector_ids.lock().unwrap().extend(ids);
+        self.vector_ids.lock().extend(ids);
 
         debug!(
             "Added {} vectors to GPU collection '{}'",
@@ -239,7 +237,6 @@ impl HiveGpuCollection {
         let gpu_results = self
             .storage
             .lock()
-            .unwrap()
             .search(query, limit)
             .map_err(|e| {
                 error!("GPU search failed: {:?}", e);
@@ -271,7 +268,7 @@ impl HiveGpuCollection {
     /// Get a vector by ID
     pub fn get_vector_by_id(&self, id: &str) -> Result<Vector> {
         // Try to get vector from GPU storage
-        match self.storage.lock().unwrap().get_vector(id) {
+        match self.storage.lock().get_vector(id) {
             Ok(Some(gpu_vector)) => {
                 let vector = GpuAdapter::gpu_vector_to_vector(&gpu_vector);
                 Ok(vector)
@@ -286,7 +283,7 @@ impl HiveGpuCollection {
 
     /// Get a vector by index
     pub fn get_vector(&self, index: usize) -> Result<Vector> {
-        match self.storage.lock().unwrap().get_vector(&index.to_string()) {
+        match self.storage.lock().get_vector(&index.to_string()) {
             Ok(Some(gpu_vector)) => {
                 let vector = GpuAdapter::gpu_vector_to_vector(&gpu_vector);
                 Ok(vector)
@@ -306,7 +303,6 @@ impl HiveGpuCollection {
     pub fn remove_vector(&mut self, id: String) -> Result<()> {
         self.storage
             .lock()
-            .unwrap()
             .remove_vectors(&[id.clone()])
             .map_err(|e| {
                 error!("Failed to remove vector '{}' from GPU storage: {:?}", id, e);
@@ -318,7 +314,7 @@ impl HiveGpuCollection {
         }
 
         // Remove from tracked IDs
-        self.vector_ids.lock().unwrap().retain(|vid| vid != &id);
+        self.vector_ids.lock().retain(|vid| vid != &id);
 
         debug!(
             "Removed vector '{}' from GPU collection '{}'",
@@ -428,7 +424,7 @@ impl HiveGpuCollection {
         // This is expensive, so we limit it
         let max_vectors = 10000; // Limit to prevent memory issues
 
-        let ids = self.vector_ids.lock().unwrap();
+        let ids = self.vector_ids.lock();
 
         if ids.len() > max_vectors {
             warn!(
@@ -470,7 +466,6 @@ impl HiveGpuCollection {
         let raw_storage = self
             .context
             .lock()
-            .unwrap()
             .create_storage(self.dimension, gpu_metric)
             .map_err(|e| {
                 error!("Failed to recreate GPU storage: {:?}", e);
@@ -487,7 +482,7 @@ impl HiveGpuCollection {
         }));
 
         self.vector_count = 0;
-        self.vector_ids.lock().unwrap().clear();
+        self.vector_ids.lock().clear();
 
         debug!("Cleared all vectors from GPU collection '{}'", self.name);
         Ok(())

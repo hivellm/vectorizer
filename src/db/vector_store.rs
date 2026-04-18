@@ -557,13 +557,13 @@ pub struct VectorStore {
     /// Auto-save enabled flag (prevents auto-save during initialization)
     auto_save_enabled: Arc<std::sync::atomic::AtomicBool>,
     /// Collections pending save (for batch persistence)
-    pending_saves: Arc<std::sync::Mutex<std::collections::HashSet<String>>>,
+    pending_saves: Arc<parking_lot::Mutex<std::collections::HashSet<String>>>,
     /// Background save task handle
-    save_task_handle: Arc<std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    save_task_handle: Arc<parking_lot::Mutex<Option<tokio::task::JoinHandle<()>>>>,
     /// Global metadata (for replication config, etc.)
     metadata: Arc<DashMap<String, String>>,
     /// WAL integration (optional, for crash recovery)
-    wal: Arc<std::sync::Mutex<Option<WalIntegration>>>,
+    wal: Arc<parking_lot::Mutex<Option<WalIntegration>>>,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -583,10 +583,10 @@ impl VectorStore {
             collections: Arc::new(DashMap::new()),
             aliases: Arc::new(DashMap::new()),
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
-            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+            pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
-            wal: Arc::new(std::sync::Mutex::new(Some(WalIntegration::new_disabled()))),
+            wal: Arc::new(parking_lot::Mutex::new(Some(WalIntegration::new_disabled()))),
         };
 
         // Check for automatic migration on startup
@@ -605,10 +605,10 @@ impl VectorStore {
             collections: Arc::new(DashMap::new()),
             aliases: Arc::new(DashMap::new()),
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
-            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+            pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
-            wal: Arc::new(std::sync::Mutex::new(Some(WalIntegration::new_disabled()))),
+            wal: Arc::new(parking_lot::Mutex::new(Some(WalIntegration::new_disabled()))),
         }
     }
 
@@ -735,10 +735,10 @@ impl VectorStore {
             collections: Arc::new(DashMap::new()),
             aliases: Arc::new(DashMap::new()),
             auto_save_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            pending_saves: Arc::new(std::sync::Mutex::new(HashSet::new())),
-            save_task_handle: Arc::new(std::sync::Mutex::new(None)),
+            pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
+            save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
-            wal: Arc::new(std::sync::Mutex::new(Some(WalIntegration::new_disabled()))),
+            wal: Arc::new(parking_lot::Mutex::new(Some(WalIntegration::new_disabled()))),
         }
     }
 
@@ -901,7 +901,7 @@ impl VectorStore {
                 // Create GPU context for detected backend
                 match GpuAdapter::create_context(backend) {
                     Ok(context) => {
-                        let context = Arc::new(std::sync::Mutex::new(context));
+                        let context = Arc::new(parking_lot::Mutex::new(context));
 
                         // Create Hive-GPU collection
                         let mut hive_gpu_collection = HiveGpuCollection::new(
@@ -2055,7 +2055,7 @@ impl VectorStore {
     /// Log insert operation to WAL (synchronous wrapper)
     /// Note: This is fire-and-forget to avoid blocking. WAL errors are logged but don't fail the operation.
     fn log_wal_insert(&self, collection_name: &str, vectors: &[Vector]) -> Result<()> {
-        let wal_guard = self.wal.lock().unwrap();
+        let wal_guard = self.wal.lock();
         if let Some(wal) = wal_guard.as_ref() {
             if wal.is_enabled() {
                 // Try to get current runtime handle
@@ -2106,7 +2106,7 @@ impl VectorStore {
     /// Log update operation to WAL (synchronous wrapper)
     /// Note: This is fire-and-forget to avoid blocking. WAL errors are logged but don't fail the operation.
     fn log_wal_update(&self, collection_name: &str, vector: &Vector) -> Result<()> {
-        let wal_guard = self.wal.lock().unwrap();
+        let wal_guard = self.wal.lock();
         if let Some(wal) = wal_guard.as_ref() {
             if wal.is_enabled() {
                 if let Ok(_handle) = tokio::runtime::Handle::try_current() {
@@ -2150,7 +2150,7 @@ impl VectorStore {
     /// Note: This is fire-and-forget to avoid blocking. WAL errors are logged but don't fail the operation.
     /// If no tokio runtime is available, WAL logging is skipped to avoid deadlocks.
     fn log_wal_delete(&self, collection_name: &str, vector_id: &str) -> Result<()> {
-        let wal_guard = self.wal.lock().unwrap();
+        let wal_guard = self.wal.lock();
         if let Some(wal) = wal_guard.as_ref() {
             if wal.is_enabled() {
                 if let Ok(_handle) = tokio::runtime::Handle::try_current() {
@@ -2186,7 +2186,7 @@ impl VectorStore {
             .await
             .map_err(|e| VectorizerError::Storage(format!("Failed to enable WAL: {}", e)))?;
 
-        let mut wal_guard = self.wal.lock().unwrap();
+        let mut wal_guard = self.wal.lock();
         *wal_guard = Some(wal);
         info!("WAL enabled for VectorStore");
         Ok(())
@@ -2197,7 +2197,7 @@ impl VectorStore {
         &self,
         collection_name: &str,
     ) -> Result<Vec<crate::persistence::types::WALEntry>> {
-        let wal_guard = self.wal.lock().unwrap();
+        let wal_guard = self.wal.lock();
         if let Some(wal) = wal_guard.as_ref() {
             wal.recover_collection(collection_name)
                 .await
@@ -2329,7 +2329,7 @@ impl VectorStore {
 
     /// Recover all collections from WAL (call on startup)
     pub async fn recover_all_from_wal(&self) -> Result<usize> {
-        let wal_guard = self.wal.lock().unwrap();
+        let wal_guard = self.wal.lock();
         if let Some(wal) = wal_guard.as_ref() {
             if !wal.is_enabled() {
                 debug!("WAL is disabled, skipping recovery");
@@ -2997,18 +2997,18 @@ impl VectorStore {
         // OLD SYSTEM DISABLED - keeping the code for reference only
         /*
         // Start background save task
-        let pending_saves: Arc<std::sync::Mutex<HashSet<String>>> = Arc::clone(&self.pending_saves);
+        let pending_saves: Arc<parking_lot::Mutex<HashSet<String>>> = Arc::clone(&self.pending_saves);
         let collections = Arc::clone(&self.collections);
 
         let save_task = tokio::spawn(async move {
             info!("🔄 OLD Background save task - DEPRECATED");
             loop {
-                if !pending_saves.lock().unwrap().is_empty() {
-                    info!("🔄 Background save: {} collections pending", pending_saves.lock().unwrap().len());
+                if !pending_saves.lock().is_empty() {
+                    info!("🔄 Background save: {} collections pending", pending_saves.lock().len());
 
                     // Process all pending saves
-                    let collections_to_save: Vec<String> = pending_saves.lock().unwrap().iter().cloned().collect();
-                    pending_saves.lock().unwrap().clear();
+                    let collections_to_save: Vec<String> = pending_saves.lock().iter().cloned().collect();
+                    pending_saves.lock().clear();
 
                     // Save each collection to raw format
                     let mut saved_count = 0;
@@ -3204,7 +3204,7 @@ impl VectorStore {
         });
 
         // Store the task handle
-        *self.save_task_handle.lock().unwrap() = Some(save_task);
+        *self.save_task_handle.lock() = Some(save_task);
         */
     }
 
@@ -3219,19 +3219,19 @@ impl VectorStore {
     /// Force immediate save of all pending collections
     /// Useful before shutdown or critical operations
     pub fn force_save_all(&self) -> Result<()> {
-        if self.pending_saves.lock().unwrap().is_empty() {
+        if self.pending_saves.lock().is_empty() {
             debug!("No pending saves to force");
             return Ok(());
         }
 
         info!(
             "🔄 Force saving {} pending collections",
-            self.pending_saves.lock().unwrap().len()
+            self.pending_saves.lock().len()
         );
 
         let collections_to_save: Vec<String> =
-            self.pending_saves.lock().unwrap().iter().cloned().collect();
-        self.pending_saves.lock().unwrap().clear();
+            self.pending_saves.lock().iter().cloned().collect();
+        self.pending_saves.lock().clear();
 
         // Force save disabled - using .vecdb format
         for collection_name in collections_to_save {
@@ -3464,12 +3464,11 @@ impl VectorStore {
             debug!("📝 Marking collection '{}' for auto-save", collection_name);
             self.pending_saves
                 .lock()
-                .unwrap()
                 .insert(collection_name.to_string());
             debug!(
                 "📝 Collection '{}' added to pending saves (total: {})",
                 collection_name,
-                self.pending_saves.lock().unwrap().len()
+                self.pending_saves.lock().len()
             );
         } else {
             // Auto-save is disabled during initialization - this is expected and not an error

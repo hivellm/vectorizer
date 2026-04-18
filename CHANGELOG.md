@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file.
 ### Breaking
 - **JWT secret must be explicitly configured.** `AuthConfig::default()` no longer ships a real `jwt_secret` — the field is now an empty string. `AuthManager::new` calls `AuthConfig::validate` at startup and refuses to boot if `auth.enabled == true` and the configured secret is empty, shorter than 32 chars, or equal to the historical insecure default (`"vectorizer-default-secret-key-change-in-production"`). Operators must generate a real secret (e.g. `openssl rand -hex 64`) and inject it via config file or the `VECTORIZER_JWT_SECRET` env var before upgrading. This closes a known auth-bypass: any attacker who knew the public default could forge admin JWTs against unconfigured deployments.
 
+### Performance
+- Migrate hot-path `std::sync::Mutex` to `parking_lot::Mutex` in `src/batch/{mod,processor}.rs`, `src/db/{vector_store,hive_gpu_collection}.rs`, and `src/cluster/raft_node.rs`. `parking_lot` locks are smaller (1 byte vs 8+ for std) and don't carry the `PoisonError` machinery, so the hot `.lock()` path is a straight guard return. Per `AGENTS.md` convention.
+
 ### Documentation
 - Every `unsafe {}` block and `unsafe fn` in `src/` now carries a `// SAFETY:` (or doc-comment `# Safety` for functions) explaining why the invariants hold. Covered sites: daemon `pre_exec`, 4 mmap create/remap points, 5 AVX2 SIMD helpers, safetensors VarBuilder, hive-gpu Box cast, env-var init in `parallel::init_parallel_env`, and 5 slice-reinterpretation / `copy_nonoverlapping` sites in `storage::mmap`. Enforced going forward by `clippy::undocumented_unsafe_blocks = "deny"` in `Cargo.toml [lints.clippy]`.
 

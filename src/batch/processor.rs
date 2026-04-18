@@ -22,7 +22,7 @@ pub type BatchResult<T> = std::result::Result<T, BatchError>;
 pub struct BatchProcessor {
     config: Arc<BatchConfig>,
     vector_store: Arc<VectorStore>,
-    embedding_manager: Arc<std::sync::Mutex<EmbeddingManager>>,
+    embedding_manager: Arc<parking_lot::Mutex<EmbeddingManager>>,
     // In-progress operations tracking (for progress reporting, cancellation, etc.)
     in_progress_operations: RwLock<HashMap<String, BatchStatus>>,
 }
@@ -32,7 +32,7 @@ impl BatchProcessor {
     pub fn new(
         config: Arc<BatchConfig>,
         vector_store: Arc<VectorStore>,
-        embedding_manager: Arc<std::sync::Mutex<EmbeddingManager>>,
+        embedding_manager: Arc<parking_lot::Mutex<EmbeddingManager>>,
     ) -> Self {
         Self {
             config,
@@ -543,14 +543,14 @@ impl BatchProcessor {
     // Helper for single search execution
     async fn execute_single_search_static(
         vector_store: &VectorStore,
-        embedding_manager: &Arc<std::sync::Mutex<EmbeddingManager>>,
+        embedding_manager: &Arc<parking_lot::Mutex<EmbeddingManager>>,
         collection: &str,
         query: SearchQuery,
     ) -> Result<Vec<SearchResult>> {
         let query_vector = if let Some(vec) = query.query_vector {
             vec
         } else if let Some(text) = query.query_text {
-            let manager = embedding_manager.lock().unwrap();
+            let manager = embedding_manager.lock();
             manager.embed(&text)?
         } else {
             return Err(VectorizerError::Other(
@@ -644,7 +644,7 @@ mod tests {
     fn create_test_processor() -> BatchProcessor {
         let config = Arc::new(BatchConfig::default());
         let vector_store = Arc::new(VectorStore::new());
-        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let embedding_manager = Arc::new(parking_lot::Mutex::new(EmbeddingManager::new()));
 
         BatchProcessor::new(config, vector_store, embedding_manager)
     }
@@ -680,7 +680,7 @@ mod tests {
             ..Default::default()
         });
         let vector_store = Arc::new(VectorStore::new());
-        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let embedding_manager = Arc::new(parking_lot::Mutex::new(EmbeddingManager::new()));
         let processor = BatchProcessor::new(config, vector_store, embedding_manager);
 
         // Try to insert batch larger than max_batch_size
@@ -711,7 +711,7 @@ mod tests {
             ..Default::default()
         });
         let vector_store = Arc::new(VectorStore::new());
-        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let embedding_manager = Arc::new(parking_lot::Mutex::new(EmbeddingManager::new()));
         let processor = BatchProcessor::new(config, vector_store, embedding_manager);
 
         // Try to update batch larger than max_batch_size
@@ -741,7 +741,7 @@ mod tests {
             ..Default::default()
         });
         let vector_store = Arc::new(VectorStore::new());
-        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let embedding_manager = Arc::new(parking_lot::Mutex::new(EmbeddingManager::new()));
         let processor = BatchProcessor::new(config, vector_store, embedding_manager);
 
         // Try to delete batch larger than max_batch_size
@@ -764,7 +764,7 @@ mod tests {
             ..Default::default()
         });
         let vector_store = Arc::new(VectorStore::new());
-        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let embedding_manager = Arc::new(parking_lot::Mutex::new(EmbeddingManager::new()));
         let processor = BatchProcessor::new(config, vector_store, embedding_manager);
 
         // Try to search with batch larger than max_batch_size
@@ -797,7 +797,7 @@ mod tests {
             ..Default::default()
         });
         let vector_store = Arc::new(VectorStore::new());
-        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let embedding_manager = Arc::new(parking_lot::Mutex::new(EmbeddingManager::new()));
         let processor = BatchProcessor::new(config, vector_store, embedding_manager);
 
         // Large vectors that would exceed memory limit
@@ -828,7 +828,7 @@ mod tests {
             ..Default::default()
         });
         let vector_store = Arc::new(VectorStore::new());
-        let embedding_manager = Arc::new(std::sync::Mutex::new(EmbeddingManager::new()));
+        let embedding_manager = Arc::new(parking_lot::Mutex::new(EmbeddingManager::new()));
         let processor = BatchProcessor::new(config, vector_store, embedding_manager);
 
         // This test verifies timeout configuration exists
