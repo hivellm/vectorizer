@@ -141,6 +141,12 @@ impl WarmStore {
 
         // Create new mmap
         let file = File::open(file_path)?;
+        // SAFETY: warm-store cache files are owned by this process. They are
+        // written atomically (write-to-temp + rename) by the same code path
+        // that later reads them; no external writer mutates the backing file
+        // while this mapping is held. The Mmap handle stays owned by the
+        // `Arc` stored in `mmap_cache` until invalidation, so its lifetime
+        // never outlives the underlying file.
         let mmap = unsafe { Mmap::map(&file)? };
         let mmap = Arc::new(mmap);
 

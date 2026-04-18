@@ -237,6 +237,10 @@ async fn run_as_daemon(
         info!("🐧 Setting up Linux daemon...");
 
         // Daemonize the process
+        // SAFETY: `pre_exec` runs in the child process after `fork` and before
+        // `exec`; in that context only async-signal-safe calls are allowed.
+        // `setsid` is explicitly listed as async-signal-safe (see signal-safety(7)).
+        // No heap allocation, no locking, no Rust runtime reentry happens here.
         let result = unsafe {
             Command::new("cargo")
                 .args(&[

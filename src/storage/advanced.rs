@@ -206,6 +206,12 @@ impl AdvancedStorage {
         let file = File::open(&file_path).map_err(|e| VectorizerError::Io(e))?;
 
         // Create memory-mapped file
+        // SAFETY: the per-collection storage file is private to this process
+        // and written by the advanced-storage writer path that takes an
+        // exclusive lock before mutating. While this read-only mapping is
+        // live, no concurrent writer can truncate or resize the file backing
+        // it. The Arc-wrapped mmap in `self.mmap_cache` keeps the file
+        // descriptor alive for the lifetime of the mapping.
         let mmap = unsafe {
             MmapOptions::new().map(&file).map_err(|e| {
                 VectorizerError::Storage(format!("Failed to create memory map: {}", e))

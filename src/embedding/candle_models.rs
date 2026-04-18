@@ -132,6 +132,13 @@ impl RealBertEmbedding {
 
         // Load model weights
         let vb = if weights_path.extension().and_then(|s| s.to_str()) == Some("safetensors") {
+            // SAFETY: `from_mmaped_safetensors` is marked unsafe because the
+            // mapped safetensors file must not be mutated while the tensors are
+            // live. We load model weights from paths that Vectorizer owns
+            // (downloaded into the models cache dir or supplied read-only by
+            // the operator). The file is opened read-only and kept alive for
+            // the lifetime of `VarBuilder`, so no concurrent writer can
+            // invalidate the buffer backing.
             unsafe {
                 VarBuilder::from_mmaped_safetensors(&[weights_path], DTYPE, &device).map_err(
                     |e| VectorizerError::Other(format!("Failed to load safetensors: {}", e)),
@@ -293,6 +300,13 @@ impl RealMiniLmEmbedding {
 
         // Load model weights
         let vb = if weights_path.extension().and_then(|s| s.to_str()) == Some("safetensors") {
+            // SAFETY: `from_mmaped_safetensors` is marked unsafe because the
+            // mapped safetensors file must not be mutated while the tensors are
+            // live. We load model weights from paths that Vectorizer owns
+            // (downloaded into the models cache dir or supplied read-only by
+            // the operator). The file is opened read-only and kept alive for
+            // the lifetime of `VarBuilder`, so no concurrent writer can
+            // invalidate the buffer backing.
             unsafe {
                 VarBuilder::from_mmaped_safetensors(&[weights_path], DTYPE, &device).map_err(
                     |e| VectorizerError::Other(format!("Failed to load safetensors: {}", e)),

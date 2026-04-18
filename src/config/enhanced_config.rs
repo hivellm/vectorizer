@@ -720,6 +720,11 @@ validation:
 
     #[tokio::test]
     async fn test_env_variable_substitution() {
+        // SAFETY: test runs in a `#[tokio::test]` task with `flavor = "current_thread"`
+        // by default; no concurrent threads are reading `env` here, and cargo test
+        // isolates per-test process state. `std::env::set_var` was marked unsafe in
+        // Rust 1.80 purely because the stdlib can't guard against reads from other
+        // threads, which is not a concern in this single-threaded test.
         unsafe {
             std::env::set_var("WORKSPACE_NAME", "Env Test Workspace");
             std::env::set_var("EMBEDDING_DIMENSION", "512");

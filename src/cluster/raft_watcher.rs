@@ -290,6 +290,7 @@ mod tests {
 
     #[test]
     fn test_build_self_http_url_custom_port() {
+        // SAFETY: test is single-threaded; no concurrent env access.
         unsafe {
             std::env::remove_var("HOSTNAME");
             std::env::remove_var("VECTORIZER_SERVICE_NAME");

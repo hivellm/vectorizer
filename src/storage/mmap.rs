@@ -39,6 +39,11 @@ impl MmapVectorStorage {
             file.set_len(min_file_size as u64)?;
         }
 
+        // SAFETY: `file` was opened with RW exclusive access for the lifetime
+        // of this `MmapStorage`. No other writer holds a mapping to this
+        // file concurrently (the `MmapStorage` is owned by a single
+        // collection instance and all mutations go through `&mut self`).
+        // Size is set above via `file.set_len`; the mapping tracks that size.
         let mmap = unsafe { MmapOptions::new().map_mut(&file)? };
 
         // Read count from header
@@ -88,6 +93,9 @@ impl MmapVectorStorage {
             let new_len = (current_len * 2).max(HEADER_SIZE + vector_size * 1000);
             self.file.set_len(new_len as u64)?;
 
+            // SAFETY: remapping after `set_len` grows the backing file.
+            // `&mut self` guarantees no concurrent mutation of the mmap;
+            // the previous mapping is dropped when the field is reassigned.
             self.mmap = unsafe { MmapOptions::new().map_mut(&self.file)? };
             let data_size = self.mmap.len().saturating_sub(HEADER_SIZE);
             self.capacity = data_size / vector_size;
@@ -95,6 +103,11 @@ impl MmapVectorStorage {
 
         // Calculate offset (after header)
         let offset = HEADER_SIZE + (self.count * vector_size);
+        // SAFETY: `vector` is a valid `&[f32]` of length `self.dimension`;
+        // `vector_size = self.dimension * size_of::<f32>()` covers exactly the
+        // bytes backing it. Reinterpreting `&[f32]` as `&[u8]` of the computed
+        // byte length is sound because both have the same provenance and f32
+        // has no uninitialized padding. The borrow does not outlive `vector`.
         let bytes: &[u8] =
             unsafe { std::slice::from_raw_parts(vector.as_ptr() as *const u8, vector_size) };
 
@@ -129,6 +142,9 @@ impl MmapVectorStorage {
 
         let vector_size = self.dimension * std::mem::size_of::<f32>();
         let offset = HEADER_SIZE + (index * vector_size);
+        // SAFETY: identical rationale to the sibling slice reinterpretation
+        // in `append` above — f32 has no padding, and the borrow lifetime
+        // is bounded by `vector`.
         let bytes: &[u8] =
             unsafe { std::slice::from_raw_parts(vector.as_ptr() as *const u8, vector_size) };
 
@@ -150,6 +166,11 @@ impl MmapVectorStorage {
         let bytes = &self.mmap[offset..offset + vector_size];
 
         let mut vector = vec![0.0f32; self.dimension];
+        // SAFETY: `bytes` is a `&[u8]` of exactly `vector_size` bytes, taken
+        // from an in-bounds slice of the mmap. `vector.as_mut_ptr() as *mut u8`
+        // points to `self.dimension * 4` initialized zero bytes (vec! above)
+        // which is the same `vector_size`. Source and destination don't overlap
+        // (one is in the mmap, the other is a freshly allocated Vec).
         unsafe {
             std::ptr::copy_nonoverlapping(
                 bytes.as_ptr(),

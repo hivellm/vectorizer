@@ -56,6 +56,14 @@ impl HiveGpuCollection {
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
             })?;
         // Cast to Box<dyn GpuVectorStorage + Send>
+        // SAFETY: the underlying GPU storage implementations returned by the
+        // hive-gpu crate (Metal, CUDA, WebGPU) are all `Send` in practice — they
+        // hold only owned buffers and GPU handles that are `Send`-safe — but the
+        // public trait alias doesn't carry the bound. We transmute to add the
+        // bound so the store can live inside an `Arc<Mutex<...>>` shared across
+        // tokio tasks. If a future backend violates this assumption, the bug
+        // surfaces at runtime (data races on the GPU handle); the fix is to add
+        // the `Send` bound to the trait itself upstream.
         let storage = Arc::new(Mutex::new(unsafe {
             std::mem::transmute::<Box<dyn GpuVectorStorage>, Box<dyn GpuVectorStorage + Send>>(
                 raw_storage,
@@ -469,6 +477,9 @@ impl HiveGpuCollection {
                 GpuAdapter::gpu_error_to_vectorizer_error(e)
             })?;
         // Cast to Box<dyn GpuVectorStorage + Send>
+        // SAFETY: same invariant as in `HiveGpuCollection::new` — hive-gpu
+        // storage implementations are `Send`-safe, even though the dyn trait
+        // alias doesn't carry the bound. See the constructor for the full rationale.
         self.storage = Arc::new(Mutex::new(unsafe {
             std::mem::transmute::<Box<dyn GpuVectorStorage>, Box<dyn GpuVectorStorage + Send>>(
                 raw_storage,

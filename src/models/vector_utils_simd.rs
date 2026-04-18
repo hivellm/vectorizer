@@ -29,6 +29,9 @@ pub fn dot_product_simd(a: &[f32], b: &[f32]) -> f32 {
     #[cfg(target_arch = "x86_64")]
     {
         if is_avx2_available() {
+            // SAFETY: `dot_product_avx2` has `#[target_feature(enable = "avx2")]`
+            // and must only be called when AVX2 is present at runtime.
+            // `is_avx2_available()` gates exactly that precondition.
             unsafe { dot_product_avx2(a, b) }
         } else {
             dot_product_scalar(a, b)
@@ -46,6 +49,12 @@ fn dot_product_scalar(a: &[f32], b: &[f32]) -> f32 {
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
+/// # Safety
+///
+/// Caller must ensure AVX2 is supported on the running CPU. The public
+/// wrapper `dot_product_simd` checks this via `is_avx2_available()` before
+/// invoking. `a` and `b` must have equal length (asserted in debug builds by
+/// the caller); reading past the end of either slice is UB.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 #[inline]
@@ -84,6 +93,8 @@ pub fn euclidean_distance_simd(a: &[f32], b: &[f32]) -> f32 {
     #[cfg(target_arch = "x86_64")]
     {
         if is_avx2_available() {
+            // SAFETY: `euclidean_distance_avx2` is gated by a runtime CPU
+            // feature check. Same rationale as the sibling `dot_product_simd`.
             unsafe { euclidean_distance_avx2(a, b) }
         } else {
             euclidean_distance_scalar(a, b)
@@ -105,6 +116,11 @@ fn euclidean_distance_scalar(a: &[f32], b: &[f32]) -> f32 {
         .sqrt()
 }
 
+/// # Safety
+///
+/// Same as `dot_product_avx2`: AVX2 must be available at runtime and the
+/// two slices must have equal length. Only called from
+/// `euclidean_distance_simd` which enforces both preconditions.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 #[inline]
@@ -141,6 +157,10 @@ pub fn cosine_similarity_simd(a: &[f32], b: &[f32]) -> f32 {
     dot_product_simd(a, b).clamp(-1.0, 1.0)
 }
 
+/// # Safety
+///
+/// AVX2 must be available at runtime. Only called from the other AVX2
+/// helpers in this module, each of which enforces that precondition.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 #[inline]

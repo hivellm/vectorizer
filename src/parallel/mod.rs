@@ -58,6 +58,11 @@ impl Default for ParallelConfig {
 /// Initialize parallel processing environment
 pub fn init_parallel_env(config: &ParallelConfig) -> Result<()> {
     // Set BLAS thread count
+    // SAFETY: `init_parallel_env` is called exactly once, on the main thread,
+    // before any worker thread is spawned (the thread pools initialized below
+    // are the first consumers of these env vars). `env::set_var` was marked
+    // unsafe in Rust 1.80 solely because concurrent env reads from other
+    // threads would race; that preconditions holds here because we run first.
     unsafe {
         env::set_var("OMP_NUM_THREADS", config.blas_threads.to_string());
         env::set_var("MKL_NUM_THREADS", config.blas_threads.to_string());

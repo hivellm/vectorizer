@@ -331,6 +331,13 @@ impl CacheShard {
         let (mmap, current_offset) = if data_file.exists() && config.use_mmap {
             let file = File::open(&data_file)?;
             let metadata = file.metadata()?;
+            // SAFETY: `Mmap::map` is marked unsafe because the OS can
+            // concurrently mutate the file behind the mapping. The cache data
+            // file is owned by this process (written append-only via the
+            // `save` path, read via this mmap) and never mutated in-place by
+            // another writer while this handle is live, so the content cannot
+            // change underneath. Size is taken from `metadata` immediately
+            // before the map and the slice is re-bound on every reload.
             let mmap = unsafe { Mmap::map(&file)? };
             (Some(mmap), metadata.len() as usize)
         } else {
