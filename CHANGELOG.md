@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+- **First-run root credentials no longer print to stdout.** Previously `auth_handlers.rs` emitted the auto-generated admin username and cleartext password via `println!` on first boot, which got captured by every log pipeline the process ran under (Docker, Kubernetes, systemd journal, CI). Credentials now go to `{data_dir}/.root_credentials` (0o600 on POSIX); only the file path appears in the log stream. The operator must read and delete the file on first login. Added to `.gitignore` and `.dockerignore` to prevent accidental exposure.
+
 ### Breaking
 - **JWT secret must be explicitly configured.** `AuthConfig::default()` no longer ships a real `jwt_secret` — the field is now an empty string. `AuthManager::new` calls `AuthConfig::validate` at startup and refuses to boot if `auth.enabled == true` and the configured secret is empty, shorter than 32 chars, or equal to the historical insecure default (`"vectorizer-default-secret-key-change-in-production"`). Operators must generate a real secret (e.g. `openssl rand -hex 64`) and inject it via config file or the `VECTORIZER_JWT_SECRET` env var before upgrading. This closes a known auth-bypass: any attacker who knew the public default could forge admin JWTs against unconfigured deployments.
 

@@ -164,6 +164,11 @@ config.cluster-*.yml
 config.ha-*.yml
 .env
 
+# First-run root credentials (written by auth_handlers on empty install).
+# Must NEVER be committed — cleartext password.
+**/.root_credentials
+data/.root_credentials
+
 CLAUDE.local.md
 .rulebook/backup/
 .rulebook/handoff/_pending.md

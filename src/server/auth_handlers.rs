@@ -4,6 +4,8 @@
 //! and user information retrieval.
 
 use std::collections::{HashMap, HashSet};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use axum::Extension;
@@ -17,6 +19,52 @@ use crate::auth::middleware::AuthState;
 use crate::auth::persistence::{AuthPersistence, PersistedApiKey, PersistedUser};
 use crate::auth::roles::{Permission, Role};
 use crate::auth::{AuthManager, UserClaims};
+
+/// Persist first-run root credentials to a file with the most restrictive
+/// permissions the host supports (0o600 on POSIX). Returns the path written.
+///
+/// Writing to a file — instead of emitting the password to stdout — prevents
+/// container log pipelines (Docker / k8s / systemd / CI) from capturing the
+/// cleartext password. The operator must read and delete the file on first
+/// login; the file is also added to `.gitignore` / `.dockerignore`.
+fn persist_first_run_credentials(
+    data_dir: &Path,
+    username: &str,
+    password: &str,
+    was_generated: bool,
+) -> std::io::Result<PathBuf> {
+    std::fs::create_dir_all(data_dir)?;
+    let path = data_dir.join(".root_credentials");
+
+    // Build the file body. Keep it short so it fits on a single screen and
+    // operators notice all three lines of guidance.
+    let body = format!(
+        "# Vectorizer first-run root credentials\n\
+         # Written: {now}\n\
+         # Generated: {generated}\n\
+         # READ ONCE AND DELETE. Rotate via the dashboard or /auth API.\n\
+         username={username}\n\
+         password={password}\n",
+        now = chrono::Utc::now().to_rfc3339(),
+        generated = was_generated,
+        username = username,
+        password = password,
+    );
+
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create(true).truncate(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+
+    let mut f = opts.open(&path)?;
+    f.write_all(body.as_bytes())?;
+    f.flush()?;
+    Ok(path)
+}
 
 /// Login request
 #[derive(Debug, Deserialize)]
@@ -374,45 +422,43 @@ impl AuthHandlerState {
                 error!("Failed to save root admin to disk: {}", e);
             }
 
-            // Print credentials to console (one-time only)
-            println!();
-            println!(
-                "╔════════════════════════════════════════════════════════════════════════════╗"
-            );
-            println!(
-                "║                     🔐 ROOT USER CREDENTIALS                               ║"
-            );
-            println!(
-                "╠════════════════════════════════════════════════════════════════════════════╣"
-            );
-            println!("║  Username: {:<63} ║", username);
-            println!("║  Password: {:<63} ║", password);
-            println!(
-                "╠════════════════════════════════════════════════════════════════════════════╣"
+            // Write the one-time root credentials to a 0o600 file in the
+            // auth data directory. We deliberately do NOT print the password
+            // to stdout — container log pipelines (Docker, k8s, systemd, CI)
+            // would otherwise capture it permanently.
+            let data_dir = AuthPersistence::get_data_dir();
+            let cred_path = match persist_first_run_credentials(
+                &data_dir,
+                &username,
+                &password,
+                was_generated,
+            ) {
+                Ok(p) => p,
+                Err(e) => {
+                    error!(
+                        "Failed to persist root credentials to {:?}: {}. The \
+                         password was generated but could not be saved; abort \
+                         and fix the filesystem before retrying.",
+                        data_dir, e
+                    );
+                    data_dir.join(".root_credentials")
+                }
+            };
+
+            // Log only the username and the path. The path is safe to show
+            // in any log shipper; the password stays on disk under 0o600.
+            warn!(
+                "Root admin user '{}' created. Credentials written to {:?} — \
+                 READ ONCE AND DELETE. Rotate via dashboard or /auth API.",
+                username, cred_path
             );
             if was_generated {
-                println!(
-                    "║  ⚠️  SAVE THIS PASSWORD NOW - IT WILL NOT BE SHOWN AGAIN!                  ║"
-                );
-            } else {
-                println!(
-                    "║  ⚠️  Consider changing this password after first login!                    ║"
+                warn!(
+                    "Root password was auto-generated. The file at {:?} is the \
+                     only copy; nothing was echoed to stdout.",
+                    cred_path
                 );
             }
-            println!(
-                "╚════════════════════════════════════════════════════════════════════════════╝"
-            );
-            println!();
-
-            warn!(
-                "Root admin user '{}' created. {}",
-                username,
-                if was_generated {
-                    "Password was auto-generated - see console output above."
-                } else {
-                    "Please change the password in production!"
-                }
-            );
         }
 
         *users.write().await = loaded_users;
@@ -1656,5 +1702,48 @@ mod tests {
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("token123"));
         assert!(json.contains("Bearer"));
+    }
+
+    #[test]
+    fn persist_first_run_credentials_writes_contents() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = persist_first_run_credentials(
+            tmp.path(),
+            "root",
+            "correct-horse-battery-staple",
+            true,
+        )
+        .expect("persist succeeded");
+
+        let body = std::fs::read_to_string(&path).expect("read credentials");
+        assert!(body.contains("username=root"));
+        assert!(body.contains("password=correct-horse-battery-staple"));
+        assert!(body.contains("Generated: true"));
+        assert!(
+            path.ends_with(".root_credentials"),
+            "expected file named .root_credentials, got {:?}",
+            path
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn persist_first_run_credentials_sets_0600_on_unix() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path =
+            persist_first_run_credentials(tmp.path(), "root", "pw", false).expect("persist");
+        let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "expected 0o600, got {:o}", mode);
+    }
+
+    #[test]
+    fn persist_first_run_credentials_creates_parent_dir_when_missing() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        // Nested path that does not yet exist — helper must mkdir -p.
+        let nested = tmp.path().join("a").join("b");
+        let path = persist_first_run_credentials(&nested, "root", "pw", false)
+            .expect("persist created parents");
+        assert!(path.exists());
     }
 }

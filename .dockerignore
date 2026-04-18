@@ -54,6 +54,9 @@ CHANGELOG.md
 .env.*
 *.local
 
+# First-run root credentials (cleartext password — never bake into image)
+**/.root_credentials
+
 # OS files
 .DS_Store
 Thumbs.db
