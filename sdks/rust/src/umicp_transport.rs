@@ -41,7 +41,7 @@ impl UmicpTransport {
         // Use HTTP with UMICP protocol headers
 
         use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
-        use reqwest::{Client, ClientBuilder};
+        use reqwest::ClientBuilder;
 
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));

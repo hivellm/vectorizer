@@ -96,8 +96,50 @@ let collections = conn.client().list_collections().await?;
 
 ## Quick Start (HTTP, legacy)
 
-The 2.x `VectorizerClient` is preserved unchanged. To opt into a
-slim build with RPC only:
+The 2.x `VectorizerClient` is preserved unchanged. The flat
+1,989-line `client.rs` was split into a per-surface module tree in
+the `phase4_split-sdk-rust-client` refactor — every public method
+keeps its name and signature, but the implementation now lives
+next to the surface it belongs to:
+
+```
+sdks/rust/src/
+├── transport.rs        # Transport trait (impl by HttpTransport, RpcTransport, ...)
+├── http_transport.rs   # REST backend
+├── rpc/                # RPC backend (default in v3.x)
+└── client/             # REST facade, split per API surface
+    ├── mod.rs          # struct VectorizerClient + ctors + with_transport()
+    ├── core.rs         # health_check
+    ├── collections.rs  # list/create/get/delete collection
+    ├── vectors.rs      # get_vector, insert_texts, embed_text
+    ├── search.rs       # search_vectors, intelligent/semantic/contextual/hybrid/multi
+    ├── discovery.rs    # discover, filter/score/expand
+    ├── files.rs        # 10 file-ops + upload + upload_config
+    ├── graph.rs        # 10 graph ops (nodes, edges, path, discovery)
+    └── qdrant.rs       # 25 Qdrant-compatible /qdrant/* endpoints
+```
+
+Rust permits multiple `impl` blocks for the same struct across
+files of the same module, so every per-surface file just adds an
+`impl VectorizerClient { ... }` block. The struct definition,
+constructors, transport selection (`get_read_transport` /
+`get_write_transport`), and the `make_request` helper live in
+`client/mod.rs`; per-surface files only contain the user-facing
+methods.
+
+### RPC-readiness regression guard
+
+`VectorizerClient::with_transport(Arc<dyn Transport>, base_url)` is
+exposed as the test-only entry point that builds the client from
+any `Transport` implementation. The
+`tests/mock_transport_regression.rs` integration test exercises one
+method from each of the eight per-surface modules through an
+in-memory mock, proving the surface modules don't hard-code
+`HttpTransport`. When `phase6_sdk-rust-rpc`'s `RpcTransport` lands,
+it satisfies the same `Transport` trait — every per-surface call
+routes through it without a single per-method edit.
+
+To opt into a slim build with RPC only:
 
 ```toml
 [dependencies]
