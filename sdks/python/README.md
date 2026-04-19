@@ -92,6 +92,54 @@ pip install vectorizer-sdk
 pip install vectorizer-sdk==3.0.0
 ```
 
+## Package Layout (v3.x)
+
+The flat 2,907-line `client.py` was split per API surface in the
+`phase4_split-sdk-python-client` refactor. Everything that used to
+hang off `VectorizerClient` still works — it's now composed from
+focused sub-clients:
+
+```
+sdks/python/
+├── client.py              # compat shim → vectorizer.client
+└── vectorizer/
+    ├── __init__.py        # re-exports VectorizerClient + sub-clients
+    ├── _base.py           # Transport ABC + RestTransport + TransportRouter
+    ├── collections.py     # CollectionsClient
+    ├── vectors.py         # VectorsClient
+    ├── search.py          # SearchClient
+    ├── graph.py           # GraphClient
+    ├── admin.py           # AdminClient
+    └── auth.py            # AuthClient
+```
+
+The legacy flat import still works:
+
+```python
+from vectorizer import VectorizerClient  # recommended
+from client import VectorizerClient       # legacy, still supported
+```
+
+Advanced users can pull a single surface:
+
+```python
+from vectorizer import RestTransport
+from vectorizer.collections import CollectionsClient
+
+transport = RestTransport("http://localhost:15002", api_key="...")
+collections = CollectionsClient(transport)
+info = await collections.list_collections()
+```
+
+`_base.Transport` is an abstract base class. The concrete
+`RestTransport` ships here; the `RpcTransport` from the
+`phase6_sdk-python-rpc` work plugs in by subclassing the same ABC.
+That's why `VectorizerClient("vectorizer://host:15503")` will be the
+canonical default URL scheme once RPC lands — per-surface modules
+already route every call through `Transport`, never through `aiohttp`
+or `httpx` directly. See `docs/specs/VECTORIZER_RPC.md` for the RPC
+URL/port conventions.
+
 ## Quick Start
 
 ```python
