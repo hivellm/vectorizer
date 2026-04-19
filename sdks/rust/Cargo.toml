@@ -1,9 +1,9 @@
 [package]
 name = "vectorizer-sdk"
-version = "2.2.0"
+version = "3.0.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
-description = "Rust SDK for Vectorizer - High-performance vector database"
+description = "Rust SDK for Vectorizer — RPC-first (vectorizer://) with HTTP fallback"
 license = "Apache-2.0"
 repository = "https://github.com/hivellm/vectorizer.git"
 keywords = ["vector-database", "semantic-search", "embeddings", "rust"]
@@ -19,7 +19,18 @@ chrono = { version = "0.4", features = ["serde"] }
 anyhow = { version = "1.0", features = ["backtrace"] }
 tracing = "0.1"
 
-# HTTP client
+# RPC transport: length-prefixed MessagePack over raw TCP. The wire
+# spec is `docs/specs/VECTORIZER_RPC.md` in the parent crate; the
+# codec is byte-for-byte the same as `vectorizer::protocol::rpc::codec`.
+rmp-serde = "1"
+parking_lot = "0.12"
+thiserror = "2"
+
+# HTTP client (legacy fallback transport — bundled because the SDK's
+# error type carries a `reqwest::Error` variant; gating it off would
+# break every downstream consumer that matches on `VectorizerError`).
+# Use the `http` feature flag (on by default) to control whether the
+# `HttpTransport` and `VectorizerClient` types are exposed.
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "multipart"] }
 
 # Async trait for transport abstraction
@@ -32,5 +43,12 @@ umicp-core = { version = "0.1", optional = true }
 tokio-test = "0.4"
 
 [features]
-default = []
+# RPC is the recommended primary transport per
+# phase6_make-rpc-default-transport. HTTP stays in the default feature
+# set so existing downstream consumers keep building unchanged; opt
+# out via `default-features = false, features = ["rpc"]` to ship a
+# slim build with the RPC client only.
+default = ["rpc", "http"]
+rpc = []
+http = []
 umicp = ["umicp-core"]
