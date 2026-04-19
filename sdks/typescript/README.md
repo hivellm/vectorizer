@@ -102,6 +102,52 @@ const client = new VectorizerClient({
   baseURL: "http://localhost:15001",
   apiKey: "your-api-key-here",
 });
+```
+
+### Package layout (per-surface clients)
+
+`VectorizerClient` is a facade that mixes in nine per-surface clients —
+each one is also exported standalone if you only need a slice of the
+API:
+
+```text
+src/client/
+├── _base.ts        BaseClient + Transport interface (shared plumbing)
+├── core.ts         CoreClient        — health, stats, embed
+├── collections.ts  CollectionsClient — list / get / create / update / delete
+├── vectors.ts     VectorsClient     — single + batch vector ops
+├── search.ts       SearchClient      — vector / text / intelligent / hybrid
+├── discovery.ts    DiscoveryClient   — discover / filter / score / expand
+├── files.ts        FilesClient       — file content + uploads
+├── graph.ts        GraphClient       — nodes / edges / paths
+├── qdrant.ts       QdrantClient      — Qdrant 1.14 compatibility
+├── admin.ts        AdminClient       — dashboard / workspace / backups
+└── index.ts        VectorizerClient facade (mixes all surfaces in)
+```
+
+Per-surface usage when you want a smaller import:
+
+```typescript
+import { SearchClient } from "@hivehub/vectorizer-sdk";
+
+const search = new SearchClient({ baseURL: "http://localhost:15001" });
+const results = await search.searchVectors("documents", { query_vector: [...], limit: 5 });
+```
+
+The `_base.Transport` interface is the seam the upcoming RPC client
+(`phase6_sdk-typescript-rpc`) plugs into — every per-surface client
+calls `Transport` methods, never `fetch` directly. Browser builds keep
+the REST `Transport`; Node / Deno / Bun builds will expose the new
+`RpcTransport` over the canonical `vectorizer://host:15503` URL scheme
+as the default.
+
+```typescript
+// Test / RPC-readiness regression guard:
+class MockTransport implements Transport { /* ... */ }
+const client = new VectorizerClient({ transport: new MockTransport() });
+```
+
+```typescript
 
 // Health check
 const health = await client.healthCheck();
