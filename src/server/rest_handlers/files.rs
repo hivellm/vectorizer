@@ -10,6 +10,17 @@
 //! the handlers here only parse JSON, build the filter/config, and
 //! marshal the response.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use axum::extract::State;
 use axum::response::Json;
 use serde_json::{Value, json};

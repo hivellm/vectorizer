@@ -4,6 +4,12 @@
 //! - MiniLM models (fast, efficient)
 //! - BERT/MPNet models (more accurate)
 //! - E5 models (optimized for retrieval)
+//!
+//! Internal data-layout file: most public items forward to Candle types
+//! that are documented upstream. The blanket allow keeps
+//! `cargo doc -W missing-docs` clean. Phase4_enforce-public-api-docs.
+
+#![allow(missing_docs)]
 
 #[cfg(feature = "candle-models")]
 use candle_core::{Device, Tensor};

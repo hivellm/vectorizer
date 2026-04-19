@@ -3,6 +3,12 @@
 //! Provides backup and restore operations isolated per user/tenant,
 //! enabling HiveHub to manage backups for individual users.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};

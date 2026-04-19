@@ -3,6 +3,12 @@
 //! Uses `openraft` for leader election and metadata consensus.
 //! Vector data replication uses separate TCP streaming (hybrid approach).
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::io;

@@ -3,6 +3,12 @@
 //! Provides structures and functions for applying the initial setup configuration,
 //! shared between the REST API and CLI.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};

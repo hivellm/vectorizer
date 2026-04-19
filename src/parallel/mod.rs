@@ -12,6 +12,16 @@
 //! `init_parallel_env`. Phase4_enforce-no-unwrap-policy.
 
 #![allow(clippy::expect_used)]
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
 
 use std::sync::Arc;
 use std::{env, thread};

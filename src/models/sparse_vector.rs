@@ -151,15 +151,26 @@ impl SparseVector {
 /// Error types for sparse vector operations
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum SparseVectorError {
+    /// `indices` and `values` slices had different lengths.
     #[error("Length mismatch: indices={indices_len}, values={values_len}")]
     LengthMismatch {
+        /// Length of the supplied `indices` slice.
         indices_len: usize,
+        /// Length of the supplied `values` slice.
         values_len: usize,
     },
+    /// Indices were not strictly sorted, contained duplicates, or were
+    /// otherwise rejected by `SparseVector::new`.
     #[error("Invalid indices: {0}")]
     InvalidIndices(String),
+    /// A sparse index exceeded the declared dimensionality.
     #[error("Dimension out of bounds: index={index}, max={max}")]
-    DimensionOutOfBounds { index: usize, max: usize },
+    DimensionOutOfBounds {
+        /// The offending sparse index.
+        index: usize,
+        /// The configured maximum (exclusive).
+        max: usize,
+    },
 }
 
 /// Sparse vector index for efficient search

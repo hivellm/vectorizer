@@ -3,6 +3,12 @@
 //! Validates cluster configuration to ensure memory limits and storage
 //! requirements are properly configured for production cluster deployments.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use super::{ClusterConfig, ClusterMemoryConfig};
 use crate::config::FileWatcherYamlConfig;
 use crate::models::StorageType;

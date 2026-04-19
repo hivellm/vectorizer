@@ -1,5 +1,9 @@
-// File-level operations module for MCP
-// Provides file-centric abstractions over chunk-based vector storage
+//! File-level operations module for MCP.
+//!
+//! Provides file-centric abstractions over chunk-based vector storage:
+//! retrieve full file content, summarise files, list / filter the
+//! indexed file inventory, and detect related files. Every entry point
+//! goes through `FileLevelCache` for repeated reads.
 
 pub mod cache;
 pub mod errors;

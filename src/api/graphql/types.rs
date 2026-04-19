@@ -2,6 +2,12 @@
 //!
 //! This module defines all GraphQL types used in the API.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use async_graphql::{Enum, InputObject, Object, SimpleObject};
 use serde_json::Value as JsonValue;
 

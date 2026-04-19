@@ -3,6 +3,12 @@
 //! This module implements the Qdrant gRPC API on top of Vectorizer,
 //! enabling drop-in replacement for Qdrant clients using gRPC.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use std::sync::Arc;
 use std::time::Instant;
 

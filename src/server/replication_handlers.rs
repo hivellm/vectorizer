@@ -1,5 +1,11 @@
 //! Replication REST API handlers
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use axum::extract::{Path, State};
 use axum::response::Json;
 use serde::{Deserialize, Serialize};

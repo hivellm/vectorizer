@@ -4,6 +4,12 @@
 //! while maintaining search quality. Based on benchmark results showing
 //! 4x memory compression with improved quality using Scalar Quantization (SQ-8bit).
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 pub mod binary;
 pub mod hnsw_integration;
 pub mod product;

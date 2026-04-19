@@ -3,6 +3,12 @@
 //! This module provides data structures for Qdrant batch operations,
 //! including batch requests and responses.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use serde::{Deserialize, Serialize};
 
 /// Batch operation

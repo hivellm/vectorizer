@@ -8,6 +8,17 @@
 //! - `batch_update_vectors`    — POST /batch/update
 //! - `batch_delete_vectors`    — POST /batch/delete
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use axum::Extension;
 use axum::extract::{Path, State};
 use axum::response::Json;

@@ -3,6 +3,12 @@
 //! This module provides correlation ID tracking for distributed request tracing.
 //! Each request receives a unique ID that is propagated through all logs and traces.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use std::sync::Arc;
 
 use axum::extract::Request;

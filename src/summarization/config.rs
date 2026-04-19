@@ -1,3 +1,7 @@
+//! Summarisation configuration parsed from YAML / `SummarizationConfig`
+//! defaults. Drives method selection, compression ratio, and per-language
+//! toggles for the summarisers in the parent module.
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};

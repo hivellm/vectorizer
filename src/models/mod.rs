@@ -42,8 +42,9 @@ pub struct QuantizedVector {
     pub quantized_data: Vec<u8>,
     /// Original vector dimension (needed for binary quantization)
     pub dimension: usize,
-    /// Quantization parameters for reconstruction
+    /// Minimum value in the original vector (used to dequantize linearly).
     pub min_val: f32,
+    /// Maximum value in the original vector (used to dequantize linearly).
     pub max_val: f32,
     /// Quantization type (SQ-8bit, Binary, etc.)
     pub quantization_type: QuantizationConfig,
@@ -556,11 +557,16 @@ pub enum QuantizationConfig {
     None,
     /// Product Quantization
     PQ {
+        /// Number of centroids per sub-quantizer (typically 256 for 8-bit codes).
         n_centroids: usize,
+        /// Number of sub-quantizers the vector is split into.
         n_subquantizers: usize,
     },
     /// Scalar Quantization
-    SQ { bits: usize },
+    SQ {
+        /// Bit-width per dimension (4, 8, or 16).
+        bits: usize,
+    },
     /// Binary Quantization
     Binary,
 }

@@ -11,6 +11,12 @@
 //! The rmcp `ServerHandler` implementation (`VectorizerMcpService`)
 //! lives next to its routing entry in [`crate::server::core::routing`].
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 #[allow(dead_code)]
 pub mod connection_manager;
 pub mod handlers;

@@ -4,6 +4,12 @@
 //! phase4_split-interleaved-embedding-providers. Depends on
 //! [`super::tfidf::TfIdfEmbedding`] for the base transformation.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use crate::embedding::EmbeddingProvider;
 use crate::embedding::providers::tfidf::TfIdfEmbedding;
 use crate::error::{Result, VectorizerError};

@@ -3,7 +3,18 @@
 //! This crate provides a fast and efficient vector database for semantic search
 //! and similarity queries, designed for AI-driven applications.
 
+// Suppress the long tail of legacy warnings (unused-*, dead-code,
+// useless-vec, etc.) so the only doc / no-unwrap policies we genuinely
+// enforce are visible. Per-lint denies below override this blanket allow
+// for the specific gates phase4 turns on.
 #![allow(warnings)]
+// `missing_docs` is enforced as a hard error: every public item must
+// carry a `///` comment. Per-module opt-outs use a localized
+// `#![allow(missing_docs)]` with a `// Internal data-layout file: …`
+// rationale (see scripts/codemods/add_internal_docs_allow.py).
+// `deny` overrides the blanket `allow(warnings)` above for this lint.
+// Phase4_enforce-public-api-docs.
+#![deny(missing_docs)]
 
 pub mod api;
 pub mod auth;
@@ -61,7 +72,7 @@ pub use summarization::{
     SummarizationResult,
 };
 
-// Version information
+/// Crate version string, sourced from `CARGO_PKG_VERSION` at build time.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // Include test modules

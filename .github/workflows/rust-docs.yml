@@ -1,0 +1,49 @@
+name: Rustdoc
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: ["**"]
+
+env:
+  CARGO_TERM_COLOR: always
+  # Treat every rustdoc warning (broken links, unclosed HTML, etc.) as an
+  # error. `missing_docs` is already wired as `#![deny(...)]` in `lib.rs`
+  # via phase4_enforce-public-api-docs; this flag covers the rest.
+  RUSTDOCFLAGS: "-D warnings"
+
+jobs:
+  doc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v6
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: rustdoc
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install dependencies
+        run: sudo apt-get install -y clang protobuf-compiler
+      - name: Setup Node.js for dashboard build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Build dashboard (required for rust-embed)
+        run: |
+          cd dashboard
+          pnpm install --frozen-lockfile
+          pnpm build
+      # `cargo doc --no-deps` only checks our crate. `--all-features`
+      # exercises every conditionally-compiled public item.
+      - name: Build documentation
+        run: cargo doc --no-deps --all-features --lib
+      # Doc-tests catch broken `///` examples; cheap once the build is
+      # already cached.
+      - name: Run doc-tests
+        run: cargo test --doc --all-features

@@ -6,6 +6,12 @@
 //! deterministic placeholder embeddings. This allows the benchmark to run
 //! end-to-end when the `onnx-models` feature is enabled.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 // use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::PathBuf;

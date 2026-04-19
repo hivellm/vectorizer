@@ -12,6 +12,12 @@
 //! `ErrorKind` in [`kind`](super::kind) first; only when a new wire
 //! protocol needs a distinct code should a new `ErrorKind` appear.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use super::{ErrorKind, VectorizerError};
 
 /// Convert a [`VectorizerError`] reference to an HTTP status code.

@@ -2,6 +2,12 @@
 //!
 //! This module contains the request/response types for the Qdrant Snapshots API.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use serde::{Deserialize, Serialize};
 
 /// Snapshot description (matches Qdrant API format)

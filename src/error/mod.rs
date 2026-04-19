@@ -28,11 +28,21 @@ mod tests;
 pub enum VectorizerError {
     /// Invalid vector dimension
     #[error("Invalid dimension: expected {expected}, got {got}")]
-    InvalidDimension { expected: usize, got: usize },
+    InvalidDimension {
+        /// Dimension declared by the collection.
+        expected: usize,
+        /// Dimension supplied in the request.
+        got: usize,
+    },
 
     /// Dimension mismatch
     #[error("Dimension mismatch: expected {expected}, got {actual}")]
-    DimensionMismatch { expected: usize, actual: usize },
+    DimensionMismatch {
+        /// Dimension declared by the collection.
+        expected: usize,
+        /// Dimension supplied in the request.
+        actual: usize,
+    },
 
     /// Collection not found
     #[error("Collection not found: {0}")]
@@ -97,11 +107,19 @@ pub enum VectorizerError {
 
     /// Rate limit exceeded
     #[error("Rate limit exceeded: {limit_type} limit of {limit}")]
-    RateLimitExceeded { limit_type: String, limit: u32 },
+    RateLimitExceeded {
+        /// Which quota was exceeded (e.g. `"requests_per_minute"`).
+        limit_type: String,
+        /// The configured ceiling for that quota.
+        limit: u32,
+    },
 
     /// Invalid configuration
     #[error("Invalid configuration: {message}")]
-    InvalidConfiguration { message: String },
+    InvalidConfiguration {
+        /// Human-readable description of what failed validation.
+        message: String,
+    },
 
     /// Internal error
     #[error("Internal error: {0}")]

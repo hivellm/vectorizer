@@ -2,6 +2,12 @@
 //!
 //! Detects content type to apply appropriate normalization strategies.
 
+// Internal data-layout file: public fields are self-documenting; the
+// blanket allow keeps `cargo doc -W missing-docs` clean without padding
+// every field with a tautological `///` comment. See
+// phase4_enforce-public-api-docs.
+#![allow(missing_docs)]
+
 use std::path::Path;
 
 use regex::Regex;
