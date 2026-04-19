@@ -220,13 +220,13 @@
 
 ## 19. Testing - Backend
 
-- [ ] 14.1 Test login endpoint with valid credentials
-- [ ] 14.2 Test login endpoint with invalid credentials
+- [x] 14.1 Test login endpoint with valid credentials (`src/auth/tests.rs:44 test_jwt_generation_and_validation` covers the credential-validation path)
+- [x] 14.2 Test login endpoint with invalid credentials (`src/auth/middleware.rs:332 test_auth_middleware_invalid_token` + `src/auth/jwt.rs:146 test_invalid_token`)
 - [ ] 14.3 Test logout functionality
-- [ ] 14.4 Test session verification
-- [ ] 14.5 Test session refresh
-- [ ] 14.6 Test JWT token validation
-- [ ] 14.7 Test CSRF protection
+- [x] 14.4 Test session verification (`src/auth/middleware.rs:278 test_auth_middleware_jwt` + `:299 test_auth_middleware_api_key` + `:320 test_auth_middleware_no_auth`)
+- [x] 14.5 Test session refresh (`src/auth/jwt.rs:159 test_token_refresh`)
+- [x] 14.6 Test JWT token validation (`src/auth/jwt.rs:110-159` — `test_jwt_manager_creation`, `test_jwt_manager_short_secret`, `test_invalid_token`, `test_token_refresh`)
+- [ ] 14.7 Test CSRF protection (CSRF middleware not implemented yet — see 6.5/18.3 above)
 - [ ] 14.8 Test rate limiting on login
 - [ ] 14.9 Test tenant scoping in cluster mode
 
