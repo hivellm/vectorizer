@@ -141,9 +141,18 @@ pub trait SimdBackend: Send + Sync + 'static {
     /// because every step (subtract, multiply by `1/scale`, clamp,
     /// round, narrow-convert) vectorises cleanly.
     ///
-    /// Caller invariants: `dst.len() == src.len()`, `levels > 0`,
-    /// `scale > 0.0`. Out-of-range inputs (NaN, infinite, magnitudes
-    /// past the clamp boundary) are silently clamped.
+    /// Caller invariants: `dst.len() == src.len()`, `levels > 0`.
+    /// Out-of-range inputs (NaN, infinite, magnitudes past the clamp
+    /// boundary) are silently clamped.
+    ///
+    /// Edge case: `scale == 0.0` (constant-valued dataset where
+    /// `max - min == 0`) writes all-zero codes. Mathematically every
+    /// input maps to the same value, so any constant code is
+    /// correct — 0 is the natural choice and it preserves the
+    /// dst-buffer's initial state. This matches the semantics of
+    /// the pre-7f scalar loop, which divided by zero (producing NaN)
+    /// then clamped to 0 — without the panic risk that
+    /// `1.0 / 0.0 → ∞ * (s - offset)` gives in debug builds.
     fn quantize_f32_to_u8(
         &self,
         src: &[f32],
@@ -153,8 +162,14 @@ pub trait SimdBackend: Send + Sync + 'static {
         levels: u32,
     ) {
         debug_assert_eq!(dst.len(), src.len(), "Buffers must have same length");
-        debug_assert!(scale > 0.0, "scale must be positive");
         debug_assert!(levels > 0, "levels must be positive");
+        if scale == 0.0 {
+            // Constant-input short circuit; see method docs.
+            for d in dst.iter_mut() {
+                *d = 0;
+            }
+            return;
+        }
         let inv_scale = 1.0 / scale;
         let max_level = (levels - 1) as f32;
         for (s, d) in src.iter().zip(dst.iter_mut()) {

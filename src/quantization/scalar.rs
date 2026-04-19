@@ -112,26 +112,20 @@ impl ScalarQuantization {
     ///
     /// Routes through `crate::simd::quantize_f32_to_u8` so the
     /// dispatched backend handles the subtract-scale-clamp-round-cast
-    /// chain on vector lanes. The pre-7f scalar loop is preserved
-    /// verbatim by the trait's default implementation; SIMD backends
-    /// override it for the speedup.
+    /// chain on vector lanes. The SIMD primitive handles the
+    /// constant-valued dataset case (`scale == 0.0`) internally by
+    /// writing all-zero codes — matching the pre-7f scalar loop's
+    /// silent-divide-by-zero-then-clamp semantics without the panic
+    /// risk.
     fn quantize_8bit(&self, vector: &[f32]) -> QuantizationResult<Vec<u8>> {
         let mut quantized = vec![0u8; vector.len()];
-        // A constant-valued dataset has max == min and `fit` produces
-        // `scale = 0.0`. The SIMD primitive's contract requires
-        // `scale > 0.0` (it computes `(v - offset) / scale`); short-
-        // circuit to all-zero codes here, which is what the pre-7f
-        // divide-by-zero-then-clamp path produced anyway. Buffer is
-        // already zero-initialised by `vec![0u8; ...]`.
-        if self.scale > 0.0 {
-            crate::simd::quantize_f32_to_u8(
-                vector,
-                &mut quantized,
-                self.scale,
-                self.offset,
-                self.quantized_levels as u32,
-            );
-        }
+        crate::simd::quantize_f32_to_u8(
+            vector,
+            &mut quantized,
+            self.scale,
+            self.offset,
+            self.quantized_levels as u32,
+        );
         Ok(quantized)
     }
 

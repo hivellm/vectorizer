@@ -214,6 +214,22 @@ fn quantize_f32_to_u8_clamps_out_of_range_input() {
 }
 
 #[test]
+fn quantize_f32_to_u8_constant_input_writes_zeros() {
+    // A constant-valued dataset gives `scale == 0.0` (max == min).
+    // The SIMD primitive must handle this without panicking — the
+    // hnsw_integration::test_quantization_stats regression that
+    // surfaced after phase 7f used exactly this fixture.
+    let src = vec![1.0f32; 100];
+    let mut codes = vec![0u8; src.len()];
+    quantize_f32_to_u8(&src, &mut codes, 0.0, 1.0, 256);
+    // Every code must be 0 — there's no information to encode when
+    // every input is identical.
+    for (i, &c) in codes.iter().enumerate() {
+        assert_eq!(c, 0, "code[{i}] = {c}, expected 0 for constant input");
+    }
+}
+
+#[test]
 fn dequantize_u8_to_f32_is_linear() {
     // Dequantize is the trivial linear map: `offset + code * scale`.
     let codes = [0u8, 64, 128, 255];
