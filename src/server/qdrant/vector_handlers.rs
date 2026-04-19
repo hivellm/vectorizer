@@ -516,14 +516,14 @@ pub async fn scroll_points(
             .map(|vector| QdrantPointStruct {
                 id: QdrantPointId::Uuid(vector.id),
                 vector: QdrantVector::Dense(vector.data),
-                payload: vector.payload.map(|p| {
-                    p.data
-                        .as_object()
-                        .unwrap()
-                        .iter()
-                        .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
-                        .collect()
-                }),
+                payload: vector
+                    .payload
+                    .and_then(|p| p.data.as_object().cloned())
+                    .map(|map| {
+                        map.iter()
+                            .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
+                            .collect()
+                    }),
                 public_key: None,
             })
             .collect();
@@ -628,8 +628,15 @@ fn convert_qdrant_point_to_vector(
                     StatusCode::BAD_REQUEST,
                 ));
             }
-            // Extract the single vector - get the first (and only) entry
-            let (vector_name, data) = named_vectors.into_iter().next().unwrap();
+            // Extract the single vector - get the first (and only) entry.
+            // The `len() == 1` check above guarantees `next()` returns `Some`.
+            let Some((vector_name, data)) = named_vectors.into_iter().next() else {
+                return Err(create_error_response(
+                    "internal_error",
+                    "Named vectors became empty after length check",
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ));
+            };
             debug!(
                 "Converting named vector '{}' to single-vector format (dimension: {})",
                 vector_name,
@@ -709,14 +716,14 @@ fn convert_vector_to_qdrant_point(
     };
 
     let payload = if with_payload {
-        vector.payload.map(|p| {
-            p.data
-                .as_object()
-                .unwrap()
-                .iter()
-                .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
-                .collect()
-        })
+        vector
+            .payload
+            .and_then(|p| p.data.as_object().cloned())
+            .map(|map| {
+                map.iter()
+                    .map(|(k, v)| (k.clone(), json_value_to_qdrant_value(v.clone())))
+                    .collect()
+            })
     } else {
         None
     };

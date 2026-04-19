@@ -14,7 +14,12 @@ use rust_embed::Embed;
 #[prefix = ""]
 pub struct DashboardAssets;
 
-/// Serve an embedded file by path - returns an owned response
+/// Serve an embedded file by path - returns an owned response.
+///
+/// Function-scoped allow: every `Response::builder()...body(...).unwrap()`
+/// builds a static-status response with a literal/owned body that the
+/// builder cannot reject. Phase4_enforce-no-unwrap-policy.
+#[allow(clippy::unwrap_used)]
 fn serve_file(path: &str) -> Response<Body> {
     // Remove leading slash if present
     let path = path.strip_prefix('/').unwrap_or(path);

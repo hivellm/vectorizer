@@ -242,7 +242,10 @@ pub async fn handle_api_key_command(command: ApiKeyCommands, config: &CliConfig)
             if let Some(expires_at) = expires_at {
                 info!(
                     "Expires: {}",
-                    chrono::DateTime::from_timestamp(expires_at as i64, 0).unwrap()
+                    chrono::DateTime::from_timestamp(expires_at as i64, 0).map_or_else(
+                        || format!("invalid timestamp ({expires_at})"),
+                        |dt| dt.to_string()
+                    )
                 );
             } else {
                 info!("Expires: Never");
@@ -265,12 +268,18 @@ pub async fn handle_api_key_command(command: ApiKeyCommands, config: &CliConfig)
                         info!("  Permissions: {:?}", key.permissions);
                         info!(
                             "  Created: {}",
-                            chrono::DateTime::from_timestamp(key.created_at as i64, 0).unwrap()
+                            chrono::DateTime::from_timestamp(key.created_at as i64, 0).map_or_else(
+                                || format!("invalid timestamp ({})", key.created_at),
+                                |dt| dt.to_string()
+                            )
                         );
                         if let Some(last_used) = key.last_used {
                             info!(
                                 "  Last Used: {}",
-                                chrono::DateTime::from_timestamp(last_used as i64, 0).unwrap()
+                                chrono::DateTime::from_timestamp(last_used as i64, 0).map_or_else(
+                                    || format!("invalid timestamp ({last_used})"),
+                                    |dt| dt.to_string()
+                                )
                             );
                         }
                         info!("  Active: {}", key.active);
@@ -313,7 +322,10 @@ pub async fn handle_api_key_command(command: ApiKeyCommands, config: &CliConfig)
                     info!("Roles: {:?}", claims.roles);
                     info!(
                         "Expires: {}",
-                        chrono::DateTime::from_timestamp(claims.exp as i64, 0).unwrap()
+                        chrono::DateTime::from_timestamp(claims.exp as i64, 0).map_or_else(
+                            || format!("invalid timestamp ({})", claims.exp),
+                            |dt| dt.to_string()
+                        )
                     );
                 }
                 Err(e) => {

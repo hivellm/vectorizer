@@ -5,6 +5,13 @@
 //! - BLAS thread control for numerical operations
 //! - Batch processing pipelines
 //! - Work stealing for load balancing
+//!
+//! The four `expect("...")` calls in this file are startup-time
+//! invariants: thread-pool construction failure is unrecoverable, and
+//! `embedding_pool()` / `indexing_pool()` must only be called after
+//! `init_parallel_env`. Phase4_enforce-no-unwrap-policy.
+
+#![allow(clippy::expect_used)]
 
 use std::sync::Arc;
 use std::{env, thread};

@@ -1,6 +1,11 @@
 //! Example usage of Intelligent Search MCP and REST tools
 //!
-//! This module demonstrates how to use the intelligent search tools
+//! This module demonstrates how to use the intelligent search tools.
+//! The bodies are documentation samples, not production paths — `unwrap`
+//! and `expect` are kept for readability and not subject to the no-unwrap
+//! policy (phase4_enforce-no-unwrap-policy).
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use serde_json::json;
 use tracing::info;

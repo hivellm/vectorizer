@@ -14,6 +14,19 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use axum::extract::Request;
+
+/// Default `requests_per_second` floor used when the configured value is 0.
+const DEFAULT_RPS: NonZeroU32 = match NonZeroU32::new(100) {
+    Some(n) => n,
+    None => unreachable!(),
+};
+
+/// Default `burst_size` floor used when the configured value is 0.
+const DEFAULT_BURST: NonZeroU32 = match NonZeroU32::new(200) {
+    Some(n) => n,
+    None => unreachable!(),
+};
+
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
@@ -221,10 +234,9 @@ pub struct RateLimiter {
 impl RateLimiter {
     /// Create a new rate limiter
     pub fn new(config: RateLimitConfig) -> Self {
-        let quota = Quota::per_second(
-            NonZeroU32::new(config.requests_per_second).unwrap_or(NonZeroU32::new(100).unwrap()),
-        )
-        .allow_burst(NonZeroU32::new(config.burst_size).unwrap_or(NonZeroU32::new(200).unwrap()));
+        let quota =
+            Quota::per_second(NonZeroU32::new(config.requests_per_second).unwrap_or(DEFAULT_RPS))
+                .allow_burst(NonZeroU32::new(config.burst_size).unwrap_or(DEFAULT_BURST));
 
         let global_limiter = Arc::new(GovernorRateLimiter::direct(quota));
 
@@ -262,10 +274,8 @@ impl RateLimiter {
             .key_limiters
             .entry(api_key.to_string())
             .or_insert_with(|| {
-                let quota = Quota::per_second(
-                    NonZeroU32::new(rps).unwrap_or(NonZeroU32::new(100).unwrap()),
-                )
-                .allow_burst(NonZeroU32::new(burst).unwrap_or(NonZeroU32::new(200).unwrap()));
+                let quota = Quota::per_second(NonZeroU32::new(rps).unwrap_or(DEFAULT_RPS))
+                    .allow_burst(NonZeroU32::new(burst).unwrap_or(DEFAULT_BURST));
                 Arc::new(GovernorRateLimiter::direct(quota))
             });
 
@@ -284,10 +294,9 @@ impl RateLimiter {
             .key_limiters
             .entry(api_key.to_string())
             .or_insert_with(|| {
-                let quota = Quota::per_second(
-                    NonZeroU32::new(requests_per_second).unwrap_or(NonZeroU32::new(100).unwrap()),
-                )
-                .allow_burst(NonZeroU32::new(burst_size).unwrap_or(NonZeroU32::new(200).unwrap()));
+                let quota =
+                    Quota::per_second(NonZeroU32::new(requests_per_second).unwrap_or(DEFAULT_RPS))
+                        .allow_burst(NonZeroU32::new(burst_size).unwrap_or(DEFAULT_BURST));
                 Arc::new(GovernorRateLimiter::direct(quota))
             });
 
@@ -320,10 +329,8 @@ impl RateLimiter {
     /// Update rate limiter for a specific key with new limits
     /// This removes the old limiter and creates a new one with the updated limits
     pub fn update_key_limits(&self, api_key: &str, requests_per_second: u32, burst_size: u32) {
-        let quota = Quota::per_second(
-            NonZeroU32::new(requests_per_second).unwrap_or(NonZeroU32::new(100).unwrap()),
-        )
-        .allow_burst(NonZeroU32::new(burst_size).unwrap_or(NonZeroU32::new(200).unwrap()));
+        let quota = Quota::per_second(NonZeroU32::new(requests_per_second).unwrap_or(DEFAULT_RPS))
+            .allow_burst(NonZeroU32::new(burst_size).unwrap_or(DEFAULT_BURST));
 
         self.key_limiters.insert(
             api_key.to_string(),

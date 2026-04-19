@@ -22,7 +22,16 @@ use crate::server::{
 };
 
 impl VectorizerServer {
-    /// Start the server
+    /// Start the server.
+    ///
+    /// Function-scoped allow: the unwraps below cover (a) static
+    /// `Response::builder().body(...).unwrap()` calls where the body is a
+    /// literal `&'static str` so the builder cannot fail, (b)
+    /// `user_claims.unwrap()` on an `Option` whose `is_none()` branch was
+    /// just early-returned, and (c) Ctrl-C / SIGTERM `expect("...")` calls
+    /// at startup where a panic on signal-handler init is the correct
+    /// failure mode. See phase4_enforce-no-unwrap-policy.
+    #[allow(clippy::unwrap_used, clippy::expect_used)]
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
 
@@ -1111,6 +1120,9 @@ impl VectorizerServer {
     /// MCP freely accessible. Re-enable by swapping the `else` branch
     /// once `.route_layer()` supports the two-state unification the
     /// guard requires.
+    // Function-scoped allow: the trailing `Response::builder()...body(...)
+    // .unwrap()` is a static literal-body construction that cannot fail.
+    #[allow(clippy::unwrap_used)]
     async fn create_mcp_router(
         &self,
         _is_production: bool,

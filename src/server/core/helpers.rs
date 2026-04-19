@@ -105,6 +105,12 @@ pub(super) async fn check_mcp_auth_with_credentials(
 /// - Referrer-Policy: strict-origin-when-cross-origin
 /// - Permissions-Policy: disables geolocation / camera / microphone /
 ///   payment APIs
+// Every `.parse().unwrap()` below converts a static `&'static str` literal
+// into `HeaderValue`; a malformed value would be a code-edit bug surfaced
+// at the first request, not a runtime condition. Function-scoped allow
+// keeps `unwrap_used = "deny"` enforceable everywhere else
+// (phase4_enforce-no-unwrap-policy).
+#[allow(clippy::unwrap_used)]
 pub(super) async fn security_headers_middleware(
     req: axum::extract::Request,
     next: axum::middleware::Next,

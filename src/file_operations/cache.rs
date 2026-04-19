@@ -1,4 +1,17 @@
 use std::num::NonZeroUsize;
+
+const FILE_CONTENT_CAPACITY: NonZeroUsize = match NonZeroUsize::new(100) {
+    Some(n) => n,
+    None => unreachable!(),
+};
+const SUMMARY_CAPACITY: NonZeroUsize = match NonZeroUsize::new(500) {
+    Some(n) => n,
+    None => unreachable!(),
+};
+const FILE_LIST_CAPACITY: NonZeroUsize = match NonZeroUsize::new(50) {
+    Some(n) => n,
+    None => unreachable!(),
+};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -35,11 +48,9 @@ struct CachedFileList {
 impl FileLevelCache {
     pub fn new() -> Self {
         Self {
-            file_content_cache: Arc::new(RwLock::new(LruCache::new(
-                NonZeroUsize::new(100).unwrap(),
-            ))),
-            summary_cache: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(500).unwrap()))),
-            file_list_cache: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(50).unwrap()))),
+            file_content_cache: Arc::new(RwLock::new(LruCache::new(FILE_CONTENT_CAPACITY))),
+            summary_cache: Arc::new(RwLock::new(LruCache::new(SUMMARY_CAPACITY))),
+            file_list_cache: Arc::new(RwLock::new(LruCache::new(FILE_LIST_CAPACITY))),
         }
     }
 

@@ -60,7 +60,15 @@ pub struct ContentTypeDetector {
 }
 
 impl ContentTypeDetector {
-    /// Create a new content type detector
+    /// Create a new content type detector.
+    ///
+    /// All `Regex::new` calls here use `&'static str` patterns that have
+    /// been validated at write time and are covered by the
+    /// `test_content_type_detector_*` unit tests; a regex compile failure
+    /// would be a code-edit bug surfaced at startup, not a runtime
+    /// condition. Function-scoped allow keeps `unwrap_used = "deny"`
+    /// enforceable everywhere else (phase4_enforce-no-unwrap-policy).
+    #[allow(clippy::unwrap_used)]
     pub fn new() -> Self {
         Self {
             code_patterns: vec![

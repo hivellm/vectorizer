@@ -562,9 +562,11 @@ impl FileOperations {
         // Sort
         match filter.sort_by {
             SortBy::Name => files.sort_by(|a, b| a.path.cmp(&b.path)),
-            SortBy::Size => {
-                files.sort_by(|a, b| b.size_estimate_kb.partial_cmp(&a.size_estimate_kb).unwrap())
-            }
+            SortBy::Size => files.sort_by(|a, b| {
+                b.size_estimate_kb
+                    .partial_cmp(&a.size_estimate_kb)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }),
             SortBy::Chunks => files.sort_by(|a, b| b.chunk_count.cmp(&a.chunk_count)),
             SortBy::Recent => files.sort_by(|a, b| b.last_indexed.cmp(&a.last_indexed)),
         }
@@ -689,11 +691,7 @@ impl FileOperations {
                 FileChunk {
                     chunk_index: *index,
                     content: content.clone(),
-                    line_range: if line_start.is_some() && line_end.is_some() {
-                        Some((line_start.unwrap(), line_end.unwrap()))
-                    } else {
-                        None
-                    },
+                    line_range: line_start.and_then(|s| line_end.map(|e| (s, e))),
                     prev_chunk_hint: prev_hint,
                     next_chunk_hint: next_hint,
                 }
@@ -1049,7 +1047,7 @@ impl FileOperations {
             .collect();
 
         // Sort by score descending
-        related_files.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        related_files.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         related_files.truncate(limit);
 
         // Build results

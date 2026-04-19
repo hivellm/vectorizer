@@ -121,7 +121,7 @@ pub mod utils {
         }
 
         let mut sorted = values.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let q1_idx = sorted.len() / 4;
         let q3_idx = 3 * sorted.len() / 4;
@@ -137,7 +137,7 @@ pub mod utils {
 
         let mut sorted_values: Vec<(usize, f64)> =
             values.iter().enumerate().map(|(i, &v)| (i, v)).collect();
-        sorted_values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        sorted_values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let q1_idx = sorted_values.len() / 4;
         let q3_idx = 3 * sorted_values.len() / 4;
@@ -385,7 +385,7 @@ pub mod math {
         }
 
         let mut sorted = values.to_vec();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let mid = sorted.len() / 2;
         if sorted.len() % 2 == 0 {

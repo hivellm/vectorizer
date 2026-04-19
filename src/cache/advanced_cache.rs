@@ -11,6 +11,24 @@
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
+
+/// Default capacity floor for the L1 (smallest, fastest) cache tier.
+const L1_DEFAULT_CAPACITY: NonZeroUsize = match NonZeroUsize::new(1000) {
+    Some(n) => n,
+    None => unreachable!(),
+};
+
+/// Default capacity floor for the L2 (medium) cache tier.
+const L2_DEFAULT_CAPACITY: NonZeroUsize = match NonZeroUsize::new(10_000) {
+    Some(n) => n,
+    None => unreachable!(),
+};
+
+/// Default capacity floor for the L3 (largest, slowest) cache tier.
+const L3_DEFAULT_CAPACITY: NonZeroUsize = match NonZeroUsize::new(100_000) {
+    Some(n) => n,
+    None => unreachable!(),
+};
 use std::sync::Arc;
 use parking_lot::RwLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -431,11 +449,11 @@ impl<T: Clone + Send + Sync + 'static> AdvancedCache<T> {
     /// Create a new advanced cache
     pub fn new(config: AdvancedCacheConfig) -> Self {
         let l1_capacity =
-            NonZeroUsize::new(config.l1.max_entries).unwrap_or(NonZeroUsize::new(1000).unwrap());
+            NonZeroUsize::new(config.l1.max_entries).unwrap_or(L1_DEFAULT_CAPACITY);
         let l2_capacity =
-            NonZeroUsize::new(config.l2.max_entries).unwrap_or(NonZeroUsize::new(10000).unwrap());
+            NonZeroUsize::new(config.l2.max_entries).unwrap_or(L2_DEFAULT_CAPACITY);
         let l3_capacity =
-            NonZeroUsize::new(config.l3.max_entries).unwrap_or(NonZeroUsize::new(100000).unwrap());
+            NonZeroUsize::new(config.l3.max_entries).unwrap_or(L3_DEFAULT_CAPACITY);
 
         let cache = Self {
             l1_cache: Arc::new(RwLock::new(LruCache::new(l1_capacity))),

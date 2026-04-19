@@ -5,6 +5,11 @@
 
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::needless_borrows_for_generic_args)]
+// CLI binary: every `expect("Failed to ...")` here is a startup-time
+// failure (process spawn, signal handler install, current-exe lookup);
+// crashing with a clear message is the correct behaviour and matches
+// idiomatic Rust binary patterns. See phase4_enforce-no-unwrap-policy.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};

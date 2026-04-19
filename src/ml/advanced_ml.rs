@@ -908,7 +908,7 @@ impl ModelRegistry {
                     b.performance
                         .accuracy
                         .partial_cmp(&a.performance.accuracy)
-                        .unwrap()
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
             ModelSelectionStrategy::Fastest => {
@@ -916,7 +916,7 @@ impl ModelRegistry {
                     a.performance
                         .inference_time_ms
                         .partial_cmp(&b.performance.inference_time_ms)
-                        .unwrap()
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
             ModelSelectionStrategy::Smallest => {
@@ -924,7 +924,7 @@ impl ModelRegistry {
                     a.parameters
                         .size_mb
                         .partial_cmp(&b.parameters.size_mb)
-                        .unwrap()
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 });
             }
             ModelSelectionStrategy::Random => {
@@ -1032,8 +1032,8 @@ impl ModelEvaluator {
             model_id: request.model_id,
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
             metrics: HashMap::new(),
             dataset: request.dataset,
         };

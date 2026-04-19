@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 use crate::summarization::types::{
     LanguageConfig, MetadataConfig, MethodConfig, SummarizationMethod,
@@ -86,9 +87,12 @@ impl SummarizationConfig {
             }
 
             // Configurações de métodos
-            if let Some(methods) = summarization.get("methods") {
-                for (method_name, method_config) in methods.as_mapping().unwrap() {
-                    let method_name = method_name.as_str().unwrap();
+            if let Some(methods) = summarization.get("methods").and_then(|v| v.as_mapping()) {
+                for (method_name, method_config) in methods {
+                    let Some(method_name) = method_name.as_str() else {
+                        warn!("summarization.methods: ignoring non-string method key");
+                        continue;
+                    };
                     let mut config = MethodConfig::default();
 
                     if let Some(enabled) = method_config.get("enabled").and_then(|v| v.as_bool()) {
@@ -178,9 +182,12 @@ impl SummarizationConfig {
             }
 
             // Configurações de idiomas
-            if let Some(languages) = summarization.get("languages") {
-                for (lang_code, lang_config) in languages.as_mapping().unwrap() {
-                    let lang_code = lang_code.as_str().unwrap();
+            if let Some(languages) = summarization.get("languages").and_then(|v| v.as_mapping()) {
+                for (lang_code, lang_config) in languages {
+                    let Some(lang_code) = lang_code.as_str() else {
+                        warn!("summarization.languages: ignoring non-string language key");
+                        continue;
+                    };
                     let mut config = LanguageConfig::default();
 
                     if let Some(stopwords) = lang_config.get("stopwords").and_then(|v| v.as_bool())

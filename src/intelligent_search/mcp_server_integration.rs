@@ -39,7 +39,7 @@ impl MCPServerIntegration {
                     .map_err(|e| format!("Invalid arguments: {}", e))?;
 
                 let response = self.mcp_handler.handle_intelligent_search(tool).await?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
             "multi_collection_search" => {
                 let tool: MultiCollectionSearchTool = serde_json::from_value(arguments)
@@ -49,21 +49,21 @@ impl MCPServerIntegration {
                     .mcp_handler
                     .handle_multi_collection_search(tool)
                     .await?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
             "semantic_search" => {
                 let tool: SemanticSearchTool = serde_json::from_value(arguments)
                     .map_err(|e| format!("Invalid arguments: {}", e))?;
 
                 let response = self.mcp_handler.handle_semantic_search(tool).await?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
             "contextual_search" => {
                 let tool: ContextualSearchTool = serde_json::from_value(arguments)
                     .map_err(|e| format!("Invalid arguments: {}", e))?;
 
                 let response = self.mcp_handler.handle_contextual_search(tool).await?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
             _ => Err(format!("Unknown tool: {}", tool_name)),
         }
@@ -254,7 +254,7 @@ impl MCPServerIntegration {
                     .handle_intelligent_search(request)
                     .await
                     .map_err(|e| e.error)?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
             "/api/multi-collection-search" => {
                 let request: MultiCollectionSearchRequest =
@@ -267,7 +267,7 @@ impl MCPServerIntegration {
                     .handle_multi_collection_search(request)
                     .await
                     .map_err(|e| e.error)?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
             "/api/semantic-search" => {
                 let request: SemanticSearchRequest =
@@ -280,7 +280,7 @@ impl MCPServerIntegration {
                     .handle_semantic_search(request)
                     .await
                     .map_err(|e| e.error)?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
             "/api/contextual-search" => {
                 let request: ContextualSearchRequest =
@@ -293,9 +293,10 @@ impl MCPServerIntegration {
                     .handle_contextual_search(request)
                     .await
                     .map_err(|e| e.error)?;
-                Ok(serde_json::to_value(response).unwrap())
+                serde_json::to_value(response).map_err(|e| format!("Serialization failed: {}", e))
             }
-            "/api/docs" => Ok(serde_json::to_value(APIDocumentation::get_documentation()).unwrap()),
+            "/api/docs" => serde_json::to_value(APIDocumentation::get_documentation())
+                .map_err(|e| format!("Serialization failed: {}", e)),
             _ => Err(format!("Unknown endpoint: {}", endpoint)),
         }
     }

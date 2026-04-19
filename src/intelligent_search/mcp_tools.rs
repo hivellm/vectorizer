@@ -257,12 +257,10 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .map(|p| {
-                                            p.data
-                                                .as_object()
-                                                .unwrap()
-                                                .clone()
-                                                .into_iter()
+                                        .and_then(|p| p.data.as_object())
+                                        .map(|map| {
+                                            map.iter()
+                                                .map(|(k, v)| (k.clone(), v.clone()))
                                                 .collect::<HashMap<String, serde_json::Value>>()
                                         })
                                         .unwrap_or_default(),
@@ -397,12 +395,10 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .map(|p| {
-                                            p.data
-                                                .as_object()
-                                                .unwrap()
-                                                .clone()
-                                                .into_iter()
+                                        .and_then(|p| p.data.as_object())
+                                        .map(|map| {
+                                            map.iter()
+                                                .map(|(k, v)| (k.clone(), v.clone()))
                                                 .collect::<HashMap<String, serde_json::Value>>()
                                         })
                                         .unwrap_or_default(),
@@ -514,12 +510,10 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .map(|p| {
-                                            p.data
-                                                .as_object()
-                                                .unwrap()
-                                                .clone()
-                                                .into_iter()
+                                        .and_then(|p| p.data.as_object())
+                                        .map(|map| {
+                                            map.iter()
+                                                .map(|(k, v)| (k.clone(), v.clone()))
                                                 .collect()
                                         })
                                         .unwrap_or_default(),
@@ -579,9 +573,11 @@ impl MCPToolHandler {
         );
         tool_metadata.insert(
             "similarity_threshold".to_string(),
-            serde_json::Value::Number(
-                serde_json::Number::from_f64(similarity_threshold as f64).unwrap(),
-            ),
+            // `Number::from_f64` only fails on NaN/Inf — coerce to 0.0
+            // so the metadata field stays a valid number.
+            serde_json::Number::from_f64(similarity_threshold as f64)
+                .map(serde_json::Value::Number)
+                .unwrap_or_else(|| serde_json::Value::from(0.0)),
         );
 
         Ok(MCPToolResponse {
@@ -633,12 +629,10 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .map(|p| {
-                                            p.data
-                                                .as_object()
-                                                .unwrap()
-                                                .clone()
-                                                .into_iter()
+                                        .and_then(|p| p.data.as_object())
+                                        .map(|map| {
+                                            map.iter()
+                                                .map(|(k, v)| (k.clone(), v.clone()))
                                                 .collect()
                                         })
                                         .unwrap_or_default(),
@@ -692,9 +686,12 @@ impl MCPToolHandler {
         );
         tool_metadata.insert(
             "context_weight".to_string(),
-            serde_json::Value::Number(
-                serde_json::Number::from_f64(tool.context_weight.unwrap_or(0.3) as f64).unwrap(),
-            ),
+            // `Number::from_f64` fails only on NaN/Inf; the default 0.3
+            // already cannot trigger that, so the unwrap_or fallback only
+            // covers a future caller that swaps in a malformed weight.
+            serde_json::Number::from_f64(tool.context_weight.unwrap_or(0.3) as f64)
+                .map(serde_json::Value::Number)
+                .unwrap_or_else(|| serde_json::Value::from(0.3)),
         );
 
         Ok(MCPToolResponse {
@@ -889,16 +886,17 @@ impl MCPToolHandler {
         let mut selected = Vec::new();
         let mut remaining = results.to_vec();
 
-        // Select first result (highest relevance)
-        if let Some(first) = remaining
-            .iter()
-            .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap())
-        {
-            let first_idx = remaining
-                .iter()
-                .position(|r| r.doc_id == first.doc_id)
-                .unwrap();
-            selected.push(remaining.remove(first_idx));
+        // Select first result (highest relevance). NaN scores tie-break as
+        // Equal so the comparator is total even on degenerate input.
+        if let Some(first) = remaining.iter().max_by(|a, b| {
+            a.score
+                .partial_cmp(&b.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }) {
+            let first_doc_id = first.doc_id.clone();
+            if let Some(first_idx) = remaining.iter().position(|r| r.doc_id == first_doc_id) {
+                selected.push(remaining.remove(first_idx));
+            }
         }
 
         // MMR selection for remaining slots
@@ -947,7 +945,11 @@ impl MCPToolHandler {
         }
 
         // Sort by boosted score
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -967,7 +969,11 @@ impl MCPToolHandler {
             }
         }
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -988,7 +994,11 @@ impl MCPToolHandler {
             }
         }
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -1017,7 +1027,11 @@ impl MCPToolHandler {
             }
         }
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 }
