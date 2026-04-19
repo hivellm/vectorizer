@@ -109,6 +109,35 @@ fn env_override() -> Option<&'static dyn SimdBackend> {
             }
         }
 
+        #[cfg(all(target_arch = "aarch64", feature = "simd-neon"))]
+        "neon" => Some(&super::aarch64::neon::NeonBackend),
+
+        #[cfg(all(target_arch = "aarch64", feature = "simd-sve"))]
+        "sve" => {
+            if std::arch::is_aarch64_feature_detected!("sve") {
+                Some(&super::aarch64::sve::SveBackend)
+            } else {
+                tracing::warn!(
+                    "VECTORIZER_SIMD_BACKEND=sve requested but CPU lacks SVE; \
+                     falling back to scalar"
+                );
+                Some(&ScalarBackend)
+            }
+        }
+
+        #[cfg(all(target_arch = "aarch64", feature = "simd-sve"))]
+        "sve2" => {
+            if std::arch::is_aarch64_feature_detected!("sve2") {
+                Some(&super::aarch64::sve2::Sve2Backend)
+            } else {
+                tracing::warn!(
+                    "VECTORIZER_SIMD_BACKEND=sve2 requested but CPU lacks SVE2; \
+                     falling back to scalar"
+                );
+                Some(&ScalarBackend)
+            }
+        }
+
         other => {
             tracing::warn!(
                 "VECTORIZER_SIMD_BACKEND={other:?} is not a recognised backend name; \
@@ -170,8 +199,27 @@ fn select_backend() -> &'static dyn SimdBackend {
 
     #[cfg(all(feature = "simd", target_arch = "aarch64"))]
     {
-        // SVE > NEON. Both backends land in phase7c; the priority
-        // list lives here so future additions touch one file.
+        // Highest-priority slots first. SVE2 implies SVE, and both
+        // need the runtime detector since not every aarch64 CPU
+        // ships with them (Apple Silicon is NEON-only).
+        #[cfg(feature = "simd-sve")]
+        {
+            if std::arch::is_aarch64_feature_detected!("sve2") {
+                return &super::aarch64::sve2::Sve2Backend;
+            }
+            if std::arch::is_aarch64_feature_detected!("sve") {
+                return &super::aarch64::sve::SveBackend;
+            }
+        }
+
+        // NEON is always available on aarch64 (psABI baseline) — no
+        // runtime gate beyond the arch + feature checks. Apple
+        // Silicon, AWS Graviton 1/2, every aarch64 mobile CPU lands
+        // here.
+        #[cfg(feature = "simd-neon")]
+        {
+            return &super::aarch64::neon::NeonBackend;
+        }
     }
 
     #[cfg(all(feature = "simd", target_arch = "wasm32"))]

@@ -62,17 +62,37 @@ is gated by both `cfg(target_arch = ...)` AND a Cargo feature
 (`simd-avx2`, `simd-neon`, etc.) so disabling a feature shrinks the
 binary.
 
-| Target          | Priority                                 |
-|-----------------|------------------------------------------|
-| `x86_64`        | AVX-512F (7b) > AVX2+FMA > AVX2 > SSE2 (7b) > scalar |
-| `aarch64`       | SVE (7c) > NEON (7c) > scalar            |
+| Target          | Priority                                                  |
+|-----------------|-----------------------------------------------------------|
+| `x86_64`        | AVX-512 VNNI > AVX-512F > AVX2+FMA > AVX2 > SSE2 > scalar |
+| `aarch64`       | SVE2 > SVE > NEON > scalar                                |
 | `wasm32`        | SIMD128 if `cfg(target_feature = "simd128")` else scalar (7d) |
-| anything else   | scalar                                   |
+| anything else   | scalar                                                    |
 
-Phase 7a wires only the AVX2 branch; the other slots are documented
-in `dispatch.rs` so future phases extend a single file. Selection is
-cached in a `OnceLock` and never re-evaluated for the life of the
-process.
+Phase 7a scaffolded the dispatch + the AVX2 path. Phase 7b filled
+in the rest of the x86 ladder (SSE2, FMA fusion, AVX-512F, VNNI).
+Phase 7c filled in the aarch64 family (NEON, SVE, SVE2). Selection
+is cached in a `OnceLock` and never re-evaluated for the life of
+the process.
+
+### Env override
+
+`VECTORIZER_SIMD_BACKEND` accepts: `scalar | sse2 | avx2 | avx512 |
+avx512vnni | neon | sve | sve2`. When set, the dispatcher forces
+that backend regardless of CPU capability. If the requested backend's
+runtime check fails (e.g. asking for SVE on Apple Silicon), the
+dispatcher logs a warning and falls back to scalar — never silently
+picking a faster path. An unknown value (typo) is also warned and
+ignored, falling through to auto-detection.
+
+Two operator stories the knob serves:
+
+- **AVX-512 downclock** on Skylake-X server CPUs trips a ~10%
+  sustained frequency drop. For latency-bound (not throughput-bound)
+  workloads, `VECTORIZER_SIMD_BACKEND=avx2` can be a net win.
+- **Numerical-drift debugging**: `VECTORIZER_SIMD_BACKEND=scalar`
+  collapses every code path to the oracle so divergences in test
+  output have one suspect.
 
 ## Cargo features
 
@@ -81,14 +101,29 @@ process.
 | `simd`         | Master flag. Off → every dispatch goes scalar.   |
 | `simd-avx2`    | Compile the AVX2 backend on `x86_64` (FMA fusion auto-detected at construction). |
 | `simd-avx512`  | Compile the AVX-512F + AVX-512 VNNI backends on `x86_64`. |
-| `simd-neon`    | Compile NEON on `aarch64` (7c).                  |
-| `simd-sve`     | Compile SVE on `aarch64` (7c).                   |
+| `simd-neon`    | Compile NEON on `aarch64` (always-on baseline once enabled). |
+| `simd-sve`     | Compile SVE + SVE2 backends on `aarch64`. Runtime detection picks SVE2 over SVE; both fall through to NEON when the CPU lacks them. |
 | `simd-wasm`    | Compile SIMD128 on `wasm32` (7d).                |
 
 Default set: `["simd", "simd-avx2", "simd-neon", "simd-wasm"]` — the
-widely-available baselines. The non-default features are opt-in
-because their backends aren't implemented yet; flipping them on
-without the matching backend module is currently a no-op.
+widely-available baselines. `simd-avx512` and `simd-sve` are opt-in
+because their backends use intrinsics the project's MSRV may not
+expose by default; turning them on a build whose target doesn't
+support those features is a no-op (no extra binary cost).
+
+## Apple Silicon caveat
+
+M1/M2/M3/M4 do NOT implement SVE — they are NEON-only. The
+dispatcher correctly falls back to NEON on Apple Silicon: the SVE
+runtime detector returns false, the SVE2 detector returns false,
+and selection lands on `NeonBackend`. This is why `simd-neon` is in
+the default feature set — without it, every M-series Mac would
+silently run on the scalar oracle.
+
+For SVE you need Graviton3+, Neoverse V1+, Fujitsu A64FX, or Apple's
+A17-class designs (which are NOT shipped in the Mac SoCs at the
+time of writing). SVE2 needs Graviton4 / Neoverse V2 / ARM v9
+silicon.
 
 ## The `SimdBackend` trait
 
