@@ -14,13 +14,13 @@ Complete guide to using the Vectorizer TypeScript/JavaScript SDK.
 ## Installation
 
 ```bash
-npm install @hivellm/vectorizer-sdk
+npm install @hivehub/vectorizer-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 // Create client
 const client = new VectorizerClient("http://localhost:15002");
@@ -315,7 +315,7 @@ import {
   CollectionInfo,
   HybridSearchRequest,
   SparseVector,
-} from "@hivellm/vectorizer-sdk";
+} from "@hivehub/vectorizer-sdk";
 
 async function searchDocuments(
   client: VectorizerClient,
@@ -328,7 +328,7 @@ async function searchDocuments(
 ## Error Handling
 
 ```typescript
-import { VectorizerError } from "@hivellm/vectorizer-sdk";
+import { VectorizerError } from "@hivehub/vectorizer-sdk";
 
 try {
   await client.createCollection("my_collection", { dimension: 384 });

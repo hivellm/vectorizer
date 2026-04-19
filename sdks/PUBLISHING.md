@@ -8,14 +8,14 @@ Before publishing, ensure you have the following tools installed and configured:
 
 ### Required Tools
 
-- **Node.js & npm** - For TypeScript and JavaScript SDKs
+- **Node.js & npm** - For the TypeScript SDK
 - **Python & pip** - For Python SDK
 - **Rust & Cargo** - For Rust SDK
 - **Git** - For version control
 
 ### Registry Credentials
 
-#### npm (TypeScript & JavaScript SDKs)
+#### npm (TypeScript SDK)
 
 ```bash
 npm login
@@ -114,7 +114,6 @@ We provide two publishing scripts for different platforms:
 ### SDK Selection
 
 - `typescript` - Publish only TypeScript SDK to npm
-- `javascript` - Publish only JavaScript SDK to npm
 - `python` - Publish only Python SDK to PyPI
 - `rust` - Publish only Rust SDK to crates.io
 - `all` - Publish all SDKs (default)
@@ -134,7 +133,6 @@ The publishing scripts perform the following steps:
 Before publishing, the scripts run:
 
 - **TypeScript SDK**: 256+ tests (✅ Published v1.8.0)
-- **JavaScript SDK**: 236+ tests (✅ Published v1.8.0)
 - **Python SDK**: 184+ tests (✅ Published v1.8.0)
 - **Rust SDK**: 88+ tests (✅ Published v1.8.0)
 - **C# SDK**: Tests included (✅ Published v1.8.0)
@@ -147,14 +145,6 @@ If you prefer to publish manually or need more control:
 
 ```bash
 cd typescript
-npm run build
-npm publish
-```
-
-### JavaScript SDK
-
-```bash
-cd javascript
 npm run build
 npm publish
 ```
@@ -181,7 +171,7 @@ cargo publish
 
 Before publishing, update version numbers in:
 
-#### TypeScript & JavaScript SDKs
+#### TypeScript SDK
 
 ```json
 // package.json

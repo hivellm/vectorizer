@@ -1791,10 +1791,10 @@ const result = await client.uploadFileContent(
 );
 ```
 
-**JavaScript:**
+**TypeScript / JavaScript:**
 
 ```javascript
-import { VectorizerClient } from '@hivellm/vectorizer';
+import { VectorizerClient } from '@hivehub/vectorizer-sdk';
 
 const client = new VectorizerClient({ baseURL: 'http://localhost:15002' });
 

@@ -6,19 +6,11 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 
 ### 🟦 TypeScript SDK ✅
 
-- **Package**: `@hivellm/vectorizer-sdk`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing
-- **Installation**: `npm install @hivellm/vectorizer-sdk`
+- **Package**: `@hivehub/vectorizer-sdk`
+- **Status**: Published on npm
+- **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing. Ships compiled CommonJS and works from plain JavaScript projects too.
+- **Installation**: `npm install @hivehub/vectorizer-sdk`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
-
-### 🟨 JavaScript SDK ✅
-
-- **Package**: `@hivellm/vectorizer-sdk-js`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD), intelligent search, Master/Replica routing
-- **Installation**: `npm install @hivellm/vectorizer-sdk-js`
-- **Documentation**: [JavaScript SDK README](./javascript/README.md)
 
 ### 🦀 Rust SDK ✅
 
@@ -60,8 +52,17 @@ LangChain (Python + JS), Langflow, n8n, TensorFlow, and PyTorch
 integrations were dropped in v3.0.0. They were thin adapters over the
 core SDK and added support burden out of proportion to their usage.
 Build directly against the language-native SDKs (TypeScript, Python,
-Rust, Go, C#, JavaScript) instead — every operation those integrations
-exposed is one call away on the corresponding SDK.
+Rust, Go, C#) instead — every operation those integrations exposed is
+one call away on the corresponding SDK.
+
+### Removed standalone JavaScript SDK
+
+The standalone `@hivehub/vectorizer-sdk-js` package was dropped in
+v3.0.0. The TypeScript SDK ships compiled CommonJS + ESM and is fully
+usable from plain JavaScript — keeping two parallel packages doubled
+maintenance for no functional difference. Replace `@hivehub/vectorizer-sdk-js`
+with `@hivehub/vectorizer-sdk`; the import path and runtime API are
+identical.
 
 ## 🧠 Intelligent Search Features (v1.5.0+)
 
@@ -122,10 +123,10 @@ const contextualResults = await client.contextualSearch({
 
 ## Quick Start
 
-### TypeScript/JavaScript
+### TypeScript / JavaScript
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-client";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 const client = new VectorizerClient({
   baseURL: "http://localhost:15001",
@@ -232,36 +233,35 @@ vectorizer-sdk = "1.8.0"
 
 ## SDK Comparison Table
 
-| Feature                     | TypeScript   | JavaScript   | Rust         | Python       | Go         | C#           |
-| --------------------------- | ------------ | ------------ | ------------ | ------------ | ---------- | ------------ |
-| **Version**                 | 1.8.0        | 1.8.0        | 1.8.0        | 1.8.0        | 1.8.0      | 1.8.0        |
-| **Status**                  | ✅ Published | ✅ Published | ✅ Published | ✅ Published | 🚧 Dev     | ✅ Published |
-| **Master/Replica Routing**  | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Package Manager**         | npm          | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
-| **Collection Management**   | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Vector Operations**       | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Text Search**             | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Vector Search**           | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Intelligent Search**      | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Semantic Search**         | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Contextual Search**       | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Multi-Collection Search** | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Hybrid Search**           | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Discovery API**           | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **File Operations**         | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Summarization**           | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Embedding Generation**    | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Batch Insert**            | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Batch Search**            | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Batch Update**            | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Batch Delete**            | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Qdrant Compatibility**    | ✅           | ✅           | ✅           | ✅           | 🚧         | 🚧           |
-| **Async/Await**             | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Type Safety**             | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Error Handling**          | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **SourceLink**              | ❌           | ❌           | ✅           | ❌           | ❌         | ✅           |
-| **Code Analysis**           | ❌           | ❌           | ✅           | ❌           | ❌         | ✅           |
-| **Documentation**           | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
+| Feature                     | TypeScript   | Rust         | Python       | Go         | C#           |
+| --------------------------- | ------------ | ------------ | ------------ | ---------- | ------------ |
+| **Status**                  | ✅ Published | ✅ Published | ✅ Published | 🚧 Dev     | ✅ Published |
+| **Master/Replica Routing**  | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Package Manager**         | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
+| **Collection Management**   | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Vector Operations**       | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Text Search**             | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Vector Search**           | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Intelligent Search**      | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Semantic Search**         | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Contextual Search**       | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Multi-Collection Search** | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Hybrid Search**           | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Discovery API**           | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **File Operations**         | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Summarization**           | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Embedding Generation**    | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Batch Insert**            | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Batch Search**            | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Batch Update**            | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Batch Delete**            | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Qdrant Compatibility**    | ✅           | ✅           | ✅           | 🚧         | 🚧           |
+| **Async/Await**             | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Type Safety**             | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Error Handling**          | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **SourceLink**              | ❌           | ✅           | ❌           | ❌         | ✅           |
+| **Code Analysis**           | ❌           | ✅           | ❌           | ❌         | ✅           |
+| **Documentation**           | ✅           | ✅           | ✅           | ✅         | ✅           |
 
 ## Features
 
@@ -379,26 +379,25 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   TypeScript    │    │   JavaScript    │    │     Python      │    │      Rust        │
-│      SDK        │    │      SDK        │    │      SDK        │    │      SDK         │
-│     ✅ v1.5.0   │    │     ✅ v1.5.0   │    │   ✅ v1.5.0      │    │     ✅ v1.5.0    │
-│                 │    │                 │    │                 │    │                  │
-│ • Type Safety   │    │ • REST-Only     │    │ • Async/Await   │    │ • High Performance│
-│ • IntelliSense  │    │ • 100% Tests    │    │ • CLI Interface │    │ • Memory Safety  │
-│ • ES2020+       │    │ • Browser Ready │    │ • 100% Tests    │    │ • MCP Support    │
-│ • UMICP Support │    │ • UMICP Support │    │ • Full Features │    │ • SourceLink     │
-│                 │    │                 │    │                 │    │                  │
-│      C# SDK     │    │      Go SDK     │    │                 │    │                  │
-│     ✅ v1.5.0   │    │   🚧 In Dev     │    │                 │    │                  │
-│                 │    │                 │    │                 │    │                  │
-│ • .NET 8.0+     │    │ • High Perf     │    │                 │    │                  │
-│ • SourceLink    │    │ • Simple API    │    │                 │    │                  │
-│ • Code Analysis │    │ • Go Modules    │    │                 │    │                  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │                       │
-         └───────────────────────┼───────────────────────┼───────────────────────┘
-                                 │                       │
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   TypeScript    │    │     Python      │    │      Rust        │
+│      SDK        │    │      SDK        │    │      SDK         │
+│                 │    │                 │    │                  │
+│ • Type Safety   │    │ • Async/Await   │    │ • High Performance│
+│ • IntelliSense  │    │ • CLI Interface │    │ • Memory Safety  │
+│ • ES2020+       │    │ • Full Features │    │ • MCP Support    │
+│ • Works from JS │    │                 │    │ • SourceLink     │
+│                 │    │                 │    │                  │
+│      C# SDK     │    │      Go SDK     │    │                  │
+│  ✅ Published   │    │   🚧 In Dev     │    │                  │
+│                 │    │                 │    │                  │
+│ • .NET 8.0+     │    │ • High Perf     │    │                  │
+│ • SourceLink    │    │ • Simple API    │    │                  │
+│ • Code Analysis │    │ • Go Modules    │    │                  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
                     ┌─────────────────┐    ┌─────────────────┐
                     │  Vectorizer     │    │   MCP Server    │
                     │     Server      │    │                 │
@@ -753,22 +752,17 @@ summaries = await client.list_summaries(
 
 ```bash
 # TypeScript SDK
-cd client-sdks/typescript
-npm install
-npm run build
-
-# JavaScript SDK
-cd client-sdks/javascript
+cd sdks/typescript
 npm install
 npm run build
 
 # Python SDK
-cd client-sdks/python
+cd sdks/python
 pip install -r requirements.txt
 python setup.py build
 
 # Rust SDK
-cd client-sdks/rust
+cd sdks/rust
 cargo build
 ```
 
@@ -776,19 +770,15 @@ cargo build
 
 ```bash
 # TypeScript SDK
-cd client-sdks/typescript
-npm test
-
-# JavaScript SDK
-cd client-sdks/javascript
+cd sdks/typescript
 npm test
 
 # Python SDK
-cd client-sdks/python
+cd sdks/python
 python run_tests.py
 
 # Rust SDK
-cd client-sdks/rust
+cd sdks/rust
 cargo test
 ```
 
@@ -796,19 +786,15 @@ cargo test
 
 ```bash
 # TypeScript SDK
-cd client-sdks/typescript
-npm run lint
-
-# JavaScript SDK
-cd client-sdks/javascript
+cd sdks/typescript
 npm run lint
 
 # Python SDK
-cd client-sdks/python
+cd sdks/python
 flake8 src/
 
 # Rust SDK
-cd client-sdks/rust
+cd sdks/rust
 cargo clippy
 ```
 

@@ -25,7 +25,7 @@ When using Vectorizer with Master-Replica replication, the SDKs can automaticall
 ### TypeScript / JavaScript
 
 ```typescript
-import { VectorizerClient } from '@hivellm/vectorizer-sdk';
+import { VectorizerClient } from '@hivehub/vectorizer-sdk';
 
 const client = new VectorizerClient({
   hosts: {

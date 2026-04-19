@@ -227,7 +227,7 @@ results = await client.search("documents", query_vector)
 ### TypeScript
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 const client = new VectorizerClient("http://localhost:15002", {
   tenantId: "tenant-acme",

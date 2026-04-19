@@ -61,9 +61,6 @@ openapi-generator-cli generate -i vectorizer/docs/api/openapi.yaml -g rust -o ./
 # Install Swagger Codegen
 npm install -g swagger-codegen
 
-# Generate SDK for JavaScript
-swagger-codegen generate -i vectorizer/docs/api/openapi.yaml -l javascript -o ./sdks/javascript
-
 # Generate SDK for Java
 swagger-codegen generate -i vectorizer/docs/api/openapi.yaml -l java -o ./sdks/java
 ```

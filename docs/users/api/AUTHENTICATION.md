@@ -481,7 +481,7 @@ client = VectorizerClient(
 ### TypeScript
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 // With API key
 const client = new VectorizerClient("http://localhost:15002", {

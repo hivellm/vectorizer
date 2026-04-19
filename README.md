@@ -346,7 +346,6 @@ Comprehensive feature comparison with major vector database solutions:
 | MCP Integration | ✅ 26 tools | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Python SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | TypeScript SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| JavaScript SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Rust SDK | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
 | C# SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Go SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
@@ -408,7 +407,7 @@ Comprehensive feature comparison with major vector database solutions:
 - ✅ **Qdrant Compatibility**: Full API compatibility + migration tools + gRPC support
 - ✅ **Performance**: 4-5x faster search than Qdrant in benchmarks
 - ✅ **Unified Storage**: Compact `.vecdb` format with 20-30% space savings
-- ✅ **Complete SDK Coverage**: 6 official SDKs (Python, TypeScript, JavaScript, Rust, C#, Go)
+- ✅ **Complete SDK Coverage**: 5 official SDKs (Python, TypeScript, Rust, C#, Go)
 
 **Best Use Cases:**
 - **Vectorizer**: AI applications requiring MCP integration, document processing, graph relationships, and high-performance search
@@ -505,9 +504,8 @@ Cursor IDE configuration:
 All SDKs are synchronized with server version **2.5.1**:
 
 - **Python**: `pip install vectorizer-sdk` (v2.5.1)
-- **TypeScript**: `npm install @hivehub/vectorizer-sdk` (v2.5.1)
+- **TypeScript**: `npm install @hivehub/vectorizer-sdk` (v2.5.1) — also usable from plain JavaScript
 - **Rust**: `cargo add vectorizer-sdk` (v2.5.1)
-- **JavaScript**: `npm install @hivehub/vectorizer-sdk-js` (v2.5.1)
 - **C#**: `dotnet add package Vectorizer.Sdk` (v2.5.1)
 - **Go**: `go get github.com/hivellm/vectorizer-sdk-go` (v2.5.1)
 

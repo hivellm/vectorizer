@@ -38,7 +38,7 @@ curl -X POST http://localhost:15002/collections \
 Vectorizer provides official SDKs for multiple languages:
 
 - **Python**: `pip install vectorizer-sdk`
-- **TypeScript/JavaScript**: `npm install @hivellm/vectorizer-sdk`
+- **TypeScript/JavaScript**: `npm install @hivehub/vectorizer-sdk`
 - **Rust**: `cargo add vectorizer-sdk`
 
 **See:** [SDKs Guide](../sdks/README.md) for SDK documentation.
@@ -76,7 +76,7 @@ async def search(query: str, collection: str = "default"):
 
 ```javascript
 const express = require('express');
-const { VectorizerClient } = require('@hivellm/vectorizer-sdk');
+const { VectorizerClient } = require('@hivehub/vectorizer-sdk');
 
 const app = express();
 const vectorizer = new VectorizerClient('http://localhost:15002');

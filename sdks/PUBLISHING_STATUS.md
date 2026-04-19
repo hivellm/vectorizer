@@ -4,19 +4,13 @@
 
 ### TypeScript SDK
 
-- **Package**: `@hivellm/vectorizer-sdk`
+- **Package**: `@hivehub/vectorizer-sdk`
 - **Registry**: npm
-- **Version**: v1.8.0
-- **Status**: ✅ Published successfully
-- **Installation**: `npm install @hivellm/vectorizer-sdk`
-
-### JavaScript SDK
-
-- **Package**: `@hivellm/vectorizer-sdk-js`
-- **Registry**: npm
-- **Version**: v1.8.0
-- **Status**: ✅ Published successfully
-- **Installation**: `npm install @hivellm/vectorizer-sdk-js`
+- **Status**: ✅ Published
+- **Installation**: `npm install @hivehub/vectorizer-sdk`
+- **Note**: Ships compiled CommonJS + ESM and works from plain
+  JavaScript. The standalone `@hivehub/vectorizer-sdk-js` package was
+  retired in v3.0.0 — install `@hivehub/vectorizer-sdk` instead.
 
 ### Rust SDK
 
@@ -44,23 +38,26 @@
 
 ### Removed in v3.0.0
 
-LangChain (Python + JS), Langflow, n8n, TensorFlow, and PyTorch
-integration packages were dropped in v3.0.0. They were thin adapters
-over the core SDKs and added maintenance burden out of proportion to
-their usage. Existing installations of the published versions remain
-functional; no new releases will ship. Build directly against the
-language-native SDKs instead.
+The following packages were dropped in v3.0.0 and will not receive
+new releases. Existing installations remain functional.
+
+- LangChain (Python + JS), Langflow, n8n, TensorFlow, PyTorch
+  integration packages — thin adapters over the core SDKs.
+- Standalone JavaScript SDK (`@hivehub/vectorizer-sdk-js`) —
+  superseded by the TypeScript SDK, which ships compiled JS and is
+  fully usable from plain JavaScript.
+
+Build directly against the language-native SDKs instead.
 
 ## 📋 **Publishing Summary**
 
-| SDK           | Registry   | Status       | Version | Package Name                         |
-| ------------- | ---------- | ------------ | ------- | ------------------------------------ |
-| TypeScript    | npm        | ✅ Published | v1.8.0  | @hivellm/vectorizer-sdk              |
-| JavaScript    | npm        | ✅ Published | v1.8.0  | @hivellm/vectorizer-sdk-js           |
-| Rust          | crates.io  | ✅ Published | v1.8.0  | vectorizer-sdk                       |
-| Python        | PyPI       | ✅ Published | v1.8.0  | vectorizer-sdk                       |
-| C#            | NuGet      | ✅ Published | v1.8.0  | Vectorizer.Sdk                       |
-| Go            | Go Modules | 🚧 In Dev    | v1.8.0  | github.com/hivellm/vectorizer-sdk-go |
+| SDK           | Registry   | Status       | Package Name                         |
+| ------------- | ---------- | ------------ | ------------------------------------ |
+| TypeScript    | npm        | ✅ Published | @hivehub/vectorizer-sdk              |
+| Rust          | crates.io  | ✅ Published | vectorizer-sdk                       |
+| Python        | PyPI       | ✅ Published | vectorizer-sdk                       |
+| C#            | NuGet      | ✅ Published | Vectorizer.Sdk                       |
+| Go            | Go Modules | 🚧 In Dev    | github.com/hivellm/vectorizer-sdk-go |
 
 ## 🔧 **Publishing Infrastructure**
 
@@ -87,7 +84,7 @@ language-native SDKs instead.
 
 ## 🎯 **SDK Feature Completeness**
 
-All 8 published SDKs are **100% complete** with all latest features implemented (Go SDK in development):
+All published SDKs are **100% complete** with all latest features implemented (Go SDK in development):
 
 ### New in v1.8.0: Master/Replica Routing
 
@@ -99,15 +96,15 @@ All SDKs now support automatic read/write routing for high-availability deployme
 
 ### Feature Coverage Matrix
 
-| Feature Category          | TypeScript | JavaScript | Python   | Rust     | C#        |
-| ------------------------- | ---------- | ---------- | -------- | -------- | --------- |
-| **Intelligent Search**    | ✅ 4/4     | ✅ 4/4     | ✅ 4/4   | ✅ 4/4   | ✅ 4/4    |
-| **Discovery Operations**  | ✅ 4/4     | ✅ 4/4     | ✅ 6/6   | ✅ 4/4   | ✅ 4/4    |
-| **File Operations**       | ✅ 7/7     | ✅ 7/7     | ✅ 7/7   | ✅ 7/7   | ✅ 7/7    |
-| **Batch Operations**      | ✅         | ✅         | ✅       | ✅       | ✅        |
-| **Collection Management** | ✅         | ✅         | ✅       | ✅       | ✅        |
-| **Vector Operations**     | ✅         | ✅         | ✅       | ✅       | ✅        |
-| **Status**                | **100%**   | **100%**   | **100%** | **100%** | **100%**  |
+| Feature Category          | TypeScript | Python   | Rust     | C#        |
+| ------------------------- | ---------- | -------- | -------- | --------- |
+| **Intelligent Search**    | ✅ 4/4     | ✅ 4/4   | ✅ 4/4   | ✅ 4/4    |
+| **Discovery Operations**  | ✅ 4/4     | ✅ 6/6   | ✅ 4/4   | ✅ 4/4    |
+| **File Operations**       | ✅ 7/7     | ✅ 7/7   | ✅ 7/7   | ✅ 7/7    |
+| **Batch Operations**      | ✅         | ✅       | ✅       | ✅        |
+| **Collection Management** | ✅         | ✅       | ✅       | ✅        |
+| **Vector Operations**     | ✅         | ✅       | ✅       | ✅        |
+| **Status**                | **100%**   | **100%** | **100%** | **100%**  |
 
 ### Implemented Methods (Oct 2025)
 
@@ -150,7 +147,7 @@ All SDKs now support automatic read/write routing for high-availability deployme
 
 ## 📊 **Success Metrics**
 
-- **5 out of 6 SDKs** successfully published ✅ (Go SDK in development)
+- **4 out of 5 SDKs** successfully published ✅ (Go SDK in development)
 - **100% test coverage** maintained across all SDKs
 - **Cross-platform support** with Bash, PowerShell, and Batch scripts
 - **Comprehensive documentation** with troubleshooting guides

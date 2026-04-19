@@ -1,6 +1,6 @@
 # Test Coverage Report for Hive Vectorizer Client SDKs
 
-This document provides a comprehensive overview of test coverage for the TypeScript, JavaScript, Python, Rust, Go, and C# client SDKs.
+This document provides a comprehensive overview of test coverage for the TypeScript, Python, Rust, Go, and C# client SDKs. The standalone JavaScript SDK was retired in v3.0.0 — the TypeScript SDK ships compiled JS and covers that surface.
 
 **Current Version**: v1.8.0
 

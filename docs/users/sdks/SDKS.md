@@ -50,18 +50,21 @@ hybrid_results = await client.hybrid_search(
 )
 ```
 
-## TypeScript/JavaScript SDK
+## TypeScript SDK
+
+The TypeScript SDK ships compiled CommonJS + ESM and works from plain
+JavaScript projects too — there is no separate JS package since v3.0.0.
 
 ### Installation
 
 ```bash
-npm install @hivellm/vectorizer-sdk
+npm install @hivehub/vectorizer-sdk
 ```
 
 ### Basic Usage
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 // Create client
 const client = new VectorizerClient("http://localhost:15002");
@@ -129,18 +132,13 @@ let hybrid_results = client.hybrid_search(HybridSearchRequest {
 }).await?;
 ```
 
-## JavaScript SDK
+## JavaScript usage
 
-### Installation
-
-```bash
-npm install @hivellm/vectorizer-sdk-js
-```
-
-### Basic Usage
+The standalone JavaScript SDK was retired in v3.0.0. Use the
+TypeScript SDK from JavaScript via CommonJS or ESM:
 
 ```javascript
-const { VectorizerClient } = require("@hivellm/vectorizer-sdk-js");
+const { VectorizerClient } = require("@hivehub/vectorizer-sdk");
 
 const client = new VectorizerClient("http://localhost:15002");
 
