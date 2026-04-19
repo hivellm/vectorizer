@@ -649,4 +649,4 @@ hub:
 #     api_key_ttl_seconds: 600  # Longer cache for production
 #     quota_ttl_seconds: 120
 #
-# For more information, see docs/HUB_INTEGRATION.md
+# For more information, see docs/features/HUB_INTEGRATION.md

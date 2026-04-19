@@ -644,7 +644,7 @@ curl -H "x-hivehub-service: true" \
      http://localhost:15002/collections
 ```
 
-See [HiveHub Integration Guide](./docs/HUB_INTEGRATION.md) for detailed documentation.
+See [HiveHub Integration Guide](./docs/features/HUB_INTEGRATION.md) for detailed documentation.
 
 ### Cluster Mode Requirements
 
@@ -676,9 +676,9 @@ See [Cluster Memory Limits](./docs/specs/CLUSTER_MEMORY.md) for detailed configu
 
 - **[User Documentation](./docs/users/)** - Installation guides and user tutorials
 - **[API Reference](./docs/specs/API_REFERENCE.md)** - Complete REST API documentation
-- **[Dashboard Integration](./docs/DASHBOARD_INTEGRATION.md)** - Web dashboard setup and integration guide
+- **[Dashboard Integration](./docs/features/DASHBOARD_INTEGRATION.md)** - Web dashboard setup and integration guide
 - **[Qdrant Compatibility](./docs/users/qdrant/)** - Qdrant API compatibility and migration guide
-- **[HiveHub Integration](./docs/HUB_INTEGRATION.md)** - Multi-tenant cluster mode with HiveHub.Cloud
+- **[HiveHub Integration](./docs/features/HUB_INTEGRATION.md)** - Multi-tenant cluster mode with HiveHub.Cloud
 - **[Cluster Memory Limits](./docs/specs/CLUSTER_MEMORY.md)** - Cluster mode memory management and validation
 - **[Technical Specifications](./docs/specs/)** - Architecture, performance, and implementation guides
 - **[MCP Integration](./docs/specs/MCP.md)** - Model Context Protocol guide

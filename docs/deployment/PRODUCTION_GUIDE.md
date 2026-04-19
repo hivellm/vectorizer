@@ -360,7 +360,7 @@ See [Service Management Guide](../users/operations/SERVICE_MANAGEMENT.md)
 
 ### Alerting
 
-See [Monitoring Setup Guide](./MONITORING_SETUP.md)
+See [Monitoring Setup Guide](../runbooks/MONITORING_SETUP.md)
 
 ## Backup & Recovery
 
@@ -373,17 +373,17 @@ See [Monitoring Setup Guide](./MONITORING_SETUP.md)
 
 ### Recovery Procedures
 
-See [Backup & Recovery Guide](./BACKUP_RECOVERY.md)
+See [Backup & Recovery Guide](../runbooks/BACKUP_RECOVERY.md)
 
 ## Runbooks
 
-See [Runbooks Directory](./runbooks/)
+See [Runbooks Directory](../runbooks/)
 
-- [High CPU](./runbooks/HIGH_CPU.md)
-- [High Memory](./runbooks/HIGH_MEMORY.md)
-- [Slow Searches](./runbooks/SLOW_SEARCHES.md)
-- [Replication Lag](./runbooks/REPLICATION_LAG.md)
-- [Connection Errors](./runbooks/CONNECTION_ERRORS.md)
+- [High CPU](../runbooks/HIGH_CPU.md)
+- [High Memory](../runbooks/HIGH_MEMORY.md)
+- [Slow Searches](../runbooks/SLOW_SEARCHES.md)
+- [Replication Lag](../runbooks/REPLICATION_LAG.md)
+- [Connection Errors](../runbooks/CONNECTION_ERRORS.md)
 
 ## Best Practices
 

@@ -1261,13 +1261,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Save report
     let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S");
-    let report_path = format!("docs/qdrant_comparison_benchmark_{}.md", timestamp);
+    let report_path = format!("docs/specs/benchmarks/qdrant_comparison_{}.md", timestamp);
     std::fs::write(&report_path, &report)?;
 
     info!("  ✓ Report saved to: {}", report_path);
 
     // Also save JSON results
-    let json_path = format!("docs/qdrant_comparison_benchmark_{}.json", timestamp);
+    let json_path = format!("docs/specs/benchmarks/qdrant_comparison_{}.json", timestamp);
     let comparison = json!({
         "scenarios": all_results.iter().map(|(desc, dim, vec_count, q_count, batch, vec_res, qd_res)| {
             json!({

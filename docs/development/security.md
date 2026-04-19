@@ -126,12 +126,12 @@ let encoding_key = EncodingKey::from_secret(secret.expose_secret().as_bytes());
 
 ## CI gates
 
-Two workflow steps in [`.github/workflows/rust-lint.yml`](../.github/workflows/rust-lint.yml)
+Two workflow steps in [`.github/workflows/rust-lint.yml`](../../.github/workflows/rust-lint.yml)
 enforce the secret-handling rules:
 
 ### 1. Tier-1 marker gate
 
-Script: [`scripts/ci/check-no-tier1-markers.sh`](../scripts/ci/check-no-tier1-markers.sh)
+Script: [`scripts/ci/check-no-tier1-markers.sh`](../../scripts/ci/check-no-tier1-markers.sh)
 
 Fails the build if any `TODO`/`FIXME`/`HACK`/`XXX` literal appears in `src/`
 outside the `TASK(phaseN_<slug>)` allow-list or the `grep-ignore(tier1-markers)`
@@ -140,7 +140,7 @@ security-sensitive code.
 
 ### 2. Credential log-leakage gate
 
-Script: [`scripts/ci/check-no-credential-logs.sh`](../scripts/ci/check-no-credential-logs.sh)
+Script: [`scripts/ci/check-no-credential-logs.sh`](../../scripts/ci/check-no-credential-logs.sh)
 
 Scans `src/auth/` and `src/server/auth_handlers.rs` for log macros
 (`info!`, `debug!`, `warn!`, `error!`, `trace!`, `println!`) that reference

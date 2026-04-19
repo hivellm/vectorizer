@@ -10,7 +10,7 @@
 //! the final rename is the commit point. On POSIX we set mode `0o600`
 //! (owner read/write only). Windows has no direct equivalent; the file
 //! lives under the server's data directory whose ACLs are the operator's
-//! responsibility — see `docs/security.md#jwt-secret`.
+//! responsibility — see `docs/development/security.md#jwt-secret`.
 
 use std::fs;
 use std::io::Write;

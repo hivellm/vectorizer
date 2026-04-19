@@ -527,7 +527,7 @@ groups:
 
 ## Runbook Reference
 
-- [Node Recovery Runbook](RUNBOOKS.md#node-recovery)
-- [Data Restoration Runbook](RUNBOOKS.md#data-restoration)
-- [Failover Runbook](RUNBOOKS.md#failover)
-- [Integrity Check Runbook](RUNBOOKS.md#integrity-check)
+- [Node Recovery Runbook](PROCEDURES.md#node-recovery)
+- [Data Restoration Runbook](PROCEDURES.md#data-restoration)
+- [Failover Runbook](PROCEDURES.md#failover)
+- [Integrity Check Runbook](PROCEDURES.md#integrity-check)

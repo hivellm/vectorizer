@@ -218,7 +218,7 @@ Immediately rollback if:
 - Authentication failures
 - Data corruption detected
 
-See [ROLLBACK_PLAN.md](ROLLBACK_PLAN.md) for procedures.
+See [ROLLBACK_PLAN.md](../runbooks/ROLLBACK_PLAN.md) for procedures.
 
 ## Monitoring During Deployment
 

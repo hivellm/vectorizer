@@ -144,7 +144,7 @@ The dashboard is served by the Rust server:
 - **SPA Routing**: Fallback handler serves `index.html` for client-side routes
 - **API Calls**: Relative paths handled by React Router
 
-See [Dashboard Integration Guide](../docs/DASHBOARD_INTEGRATION.md) for details.
+See [Dashboard Integration Guide](../docs/features/DASHBOARD_INTEGRATION.md) for details.
 
 ## 🐛 Troubleshooting
 
