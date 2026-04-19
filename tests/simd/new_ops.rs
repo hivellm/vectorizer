@@ -15,8 +15,8 @@
 use vectorizer::simd::backend::SimdBackend;
 use vectorizer::simd::scalar::ScalarBackend;
 use vectorizer::simd::{
-    add_assign, horizontal_min_index, l2_norm, manhattan_distance, normalize_in_place, scale,
-    sub_assign,
+    add_assign, dequantize_u8_to_f32, horizontal_min_index, l2_norm, manhattan_distance,
+    normalize_in_place, quantize_f32_to_u8, scale, sub_assign,
 };
 
 /// Linear congruential generator — same one the original oracle uses
@@ -159,4 +159,70 @@ fn horizontal_min_index_first_occurrence_wins_on_tie() {
     // Every backend returns the FIRST occurrence of the minimum to
     // keep the result deterministic.
     assert_eq!(got, Some((1, 0.5)));
+}
+
+// ── phase 7f: quantize / dequantize parity tests ────────────────────
+
+#[test]
+fn quantize_f32_to_u8_round_trip_within_one_step() {
+    // Pre-7f scalar reference (`quantize_8bit`):
+    //   normalised = (v - offset) / scale
+    //   clamped    = normalised.clamp(0, levels - 1)
+    //   code       = clamped.round() as u8
+    // Trait default (and any SIMD override) must round-trip within
+    // one quantization step of the original.
+    for &len in &[5usize, 8, 33, 256, 1024] {
+        let src = random_vector(0xABCD_0000 ^ len as u64, len);
+        // Pick scale/offset so the input range maps onto [0, 255].
+        let offset = -1.0f32;
+        let scale = 2.0 / 255.0; // input ∈ [-1, 1] → codes ∈ [0, 255]
+        let mut codes = vec![0u8; len];
+        let mut decoded = vec![0.0f32; len];
+        quantize_f32_to_u8(&src, &mut codes, scale, offset, 256);
+        dequantize_u8_to_f32(&codes, &mut decoded, scale, offset);
+        for (orig, back) in src.iter().zip(decoded.iter()) {
+            // Each code represents a `scale`-wide bucket; round-trip
+            // error is bounded by `scale` (one step) plus a tiny
+            // f32 rounding margin.
+            let err = (orig - back).abs();
+            assert!(
+                err <= scale + 1e-6,
+                "len={len}: orig={orig} back={back} err={err}"
+            );
+        }
+    }
+}
+
+#[test]
+fn quantize_f32_to_u8_clamps_out_of_range_input() {
+    // Inputs outside [offset, offset + (levels-1)*scale] get clamped
+    // to the end codes — never wrap around.
+    let src = vec![-100.0f32, 100.0, 0.0, 0.5];
+    let mut codes = vec![0u8; src.len()];
+    quantize_f32_to_u8(&src, &mut codes, 1.0 / 255.0, 0.0, 256);
+    assert_eq!(codes[0], 0, "huge negative should clamp to 0");
+    assert_eq!(codes[1], 255, "huge positive should clamp to 255");
+    // 0.0 / scale = 0, rounded = 0
+    assert_eq!(codes[2], 0);
+    // 0.5 / (1/255) = 127.5; round-half-to-even gives either 127 or
+    // 128 depending on f32 rounding — both are acceptable.
+    assert!(
+        (i32::from(codes[3]) - 128).abs() <= 1,
+        "0.5 should land near the midpoint, got {}",
+        codes[3]
+    );
+}
+
+#[test]
+fn dequantize_u8_to_f32_is_linear() {
+    // Dequantize is the trivial linear map: `offset + code * scale`.
+    let codes = [0u8, 64, 128, 255];
+    let mut out = vec![0.0f32; codes.len()];
+    let scale = 1.0 / 255.0;
+    let offset = -0.5;
+    dequantize_u8_to_f32(&codes, &mut out, scale, offset);
+    for (i, &c) in codes.iter().enumerate() {
+        let expected = offset + f32::from(c) * scale;
+        assert!((out[i] - expected).abs() < 1e-6);
+    }
 }

@@ -135,3 +135,18 @@ pub fn scale(a: &mut [f32], s: f32) {
 pub fn horizontal_min_index(a: &[f32]) -> Option<(usize, f32)> {
     backend().horizontal_min_index(a)
 }
+
+/// Quantize `src` to 8-bit unsigned codes in `dst`:
+/// `dst[i] = clamp(round((src[i] - offset) / scale), 0, levels - 1)`.
+/// See [`SimdBackend::quantize_f32_to_u8`] for invariants.
+#[inline]
+pub fn quantize_f32_to_u8(src: &[f32], dst: &mut [u8], scale: f32, offset: f32, levels: u32) {
+    backend().quantize_f32_to_u8(src, dst, scale, offset, levels);
+}
+
+/// Dequantize `src` back to f32 as `dst[i] = offset + src[i] * scale`.
+/// See [`SimdBackend::dequantize_u8_to_f32`].
+#[inline]
+pub fn dequantize_u8_to_f32(src: &[u8], dst: &mut [f32], scale: f32, offset: f32) {
+    backend().dequantize_u8_to_f32(src, dst, scale, offset);
+}

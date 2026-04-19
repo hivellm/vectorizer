@@ -134,6 +134,50 @@ pub trait SimdBackend: Send + Sync + 'static {
         Some((min_idx, min_val))
     }
 
+    /// Quantize `src` into `dst` as 8-bit unsigned codes:
+    /// `dst[i] = clamp(round((src[i] - offset) / scale), 0, levels - 1)`.
+    ///
+    /// Default implementation is a scalar loop; SIMD backends benefit
+    /// because every step (subtract, multiply by `1/scale`, clamp,
+    /// round, narrow-convert) vectorises cleanly.
+    ///
+    /// Caller invariants: `dst.len() == src.len()`, `levels > 0`,
+    /// `scale > 0.0`. Out-of-range inputs (NaN, infinite, magnitudes
+    /// past the clamp boundary) are silently clamped.
+    fn quantize_f32_to_u8(
+        &self,
+        src: &[f32],
+        dst: &mut [u8],
+        scale: f32,
+        offset: f32,
+        levels: u32,
+    ) {
+        debug_assert_eq!(dst.len(), src.len(), "Buffers must have same length");
+        debug_assert!(scale > 0.0, "scale must be positive");
+        debug_assert!(levels > 0, "levels must be positive");
+        let inv_scale = 1.0 / scale;
+        let max_level = (levels - 1) as f32;
+        for (s, d) in src.iter().zip(dst.iter_mut()) {
+            let normalised = (s - offset) * inv_scale;
+            let clamped = normalised.clamp(0.0, max_level);
+            *d = clamped.round() as u8;
+        }
+    }
+
+    /// Dequantize `src` back to f32 as `dst[i] = offset + src[i] * scale`.
+    ///
+    /// Default implementation is a scalar loop; SIMD backends benefit
+    /// from the load-widen-FMA pattern (one cycle per lane on every
+    /// CPU since AVX2).
+    ///
+    /// Caller invariants: `dst.len() == src.len()`.
+    fn dequantize_u8_to_f32(&self, src: &[u8], dst: &mut [f32], scale: f32, offset: f32) {
+        debug_assert_eq!(dst.len(), src.len(), "Buffers must have same length");
+        for (s, d) in src.iter().zip(dst.iter_mut()) {
+            *d = offset + (*s as f32) * scale;
+        }
+    }
+
     /// Diagnostic name. Must be a constant `&'static str`; surfaced
     /// by `dispatch::selected_backend_name()` and the startup log.
     fn name(&self) -> &'static str;

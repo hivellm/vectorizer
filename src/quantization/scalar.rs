@@ -108,28 +108,33 @@ impl ScalarQuantization {
         }
     }
 
-    /// 8-bit quantization (primary method from benchmarks)
+    /// 8-bit quantization (primary method from benchmarks).
+    ///
+    /// Routes through `crate::simd::quantize_f32_to_u8` so the
+    /// dispatched backend handles the subtract-scale-clamp-round-cast
+    /// chain on vector lanes. The pre-7f scalar loop is preserved
+    /// verbatim by the trait's default implementation; SIMD backends
+    /// override it for the speedup.
     fn quantize_8bit(&self, vector: &[f32]) -> QuantizationResult<Vec<u8>> {
-        let mut quantized = Vec::with_capacity(vector.len());
-
-        for &value in vector {
-            let normalized = (value - self.offset) / self.scale;
-            let clamped = normalized.clamp(0.0, (self.quantized_levels - 1) as f32);
-            quantized.push(clamped.round() as u8);
-        }
-
+        let mut quantized = vec![0u8; vector.len()];
+        crate::simd::quantize_f32_to_u8(
+            vector,
+            &mut quantized,
+            self.scale,
+            self.offset,
+            self.quantized_levels as u32,
+        );
         Ok(quantized)
     }
 
-    /// 8-bit dequantization
+    /// 8-bit dequantization.
+    ///
+    /// Routes through `crate::simd::dequantize_u8_to_f32` so the
+    /// dispatched backend handles the cast-multiply-add chain on
+    /// vector lanes.
     fn dequantize_8bit(&self, quantized: &[u8]) -> QuantizationResult<Vec<f32>> {
-        let mut dequantized = Vec::with_capacity(quantized.len());
-
-        for &q in quantized {
-            let value = self.offset + (q as f32) * self.scale;
-            dequantized.push(value);
-        }
-
+        let mut dequantized = vec![0.0f32; quantized.len()];
+        crate::simd::dequantize_u8_to_f32(quantized, &mut dequantized, self.scale, self.offset);
         Ok(dequantized)
     }
 
