@@ -7,6 +7,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 mod api;
+mod cache;
 mod cluster;
 mod config;
 mod core;

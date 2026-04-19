@@ -119,8 +119,17 @@ impl<T: Clone> QueryCache<T> {
         }
     }
 
-    /// Get a cached query result
+    /// Get a cached query result.
+    ///
+    /// Updates internal hit/miss counters AND increments the
+    /// Prometheus `vectorizer_cache_requests_total{cache_type="query",
+    /// result="hit"|"miss"}` counter, so a `/prometheus/metrics`
+    /// scrape reflects real cache behaviour. The dual-counter shape
+    /// (in-process + Prometheus) is intentional: the in-process
+    /// counter is hot-path-cheap and surfaces in `/stats` JSON; the
+    /// Prometheus counter is what alerting and dashboards consume.
     pub fn get(&self, key: &QueryKey) -> Option<T> {
+        use crate::monitoring::metrics::METRICS;
         let mut cache = self.cache.write();
 
         if let Some(entry) = cache.get(key) {
@@ -128,15 +137,54 @@ impl<T: Clone> QueryCache<T> {
                 // Entry expired, remove it
                 cache.pop(key);
                 *self.misses.lock() += 1;
+                METRICS
+                    .cache_requests_total
+                    .with_label_values(&["query", "miss"])
+                    .inc();
                 None
             } else {
                 *self.hits.lock() += 1;
+                METRICS
+                    .cache_requests_total
+                    .with_label_values(&["query", "hit"])
+                    .inc();
                 Some(entry.value.clone())
             }
         } else {
             *self.misses.lock() += 1;
+            METRICS
+                .cache_requests_total
+                .with_label_values(&["query", "miss"])
+                .inc();
             None
         }
+    }
+
+    /// Cache-aside helper: look up `key` in the cache; on miss, run
+    /// `compute`, cache the result, and return it.
+    ///
+    /// This collapses the 7-line manual pattern (`cache.get` →
+    /// branch → call backend → `cache.insert`) into a single call
+    /// site that automatically:
+    ///
+    /// 1. Records the Prometheus hit/miss metric (via the inner
+    ///    `get` call).
+    /// 2. Caches the computed value on miss.
+    /// 3. Returns the value either way.
+    ///
+    /// The closure is only invoked on miss, so `compute` can be
+    /// expensive (e.g. an embedding generation + ANN search); on hit
+    /// the cached value is returned without touching the backend.
+    pub fn cached_or_compute<F, E>(&self, key: QueryKey, compute: F) -> Result<T, E>
+    where
+        F: FnOnce() -> Result<T, E>,
+    {
+        if let Some(cached) = self.get(&key) {
+            return Ok(cached);
+        }
+        let computed = compute()?;
+        self.insert(key, computed.clone());
+        Ok(computed)
     }
 
     /// Insert a query result into the cache
