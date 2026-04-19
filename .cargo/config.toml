@@ -46,6 +46,16 @@ rustflags = ["-A", "warnings"]
 retry = 2
 git-fetch-with-cli = true
 
+# WASM SIMD128 — opt-in for downstream consumers building the crate
+# for `wasm32-unknown-unknown`. Uncomment to enable the
+# `Wasm128Backend` in `src/simd/wasm/simd128.rs`. Without this flag,
+# the WASM build silently falls back to the scalar backend, which is
+# ~4× slower on every distance calculation. See
+# `docs/architecture/simd.md` § "WASM SIMD128 build setup".
+#
+# [target.wasm32-unknown-unknown]
+# rustflags = ["-C", "target-feature=+simd128"]
+
 # Environment variables applied to every cargo invocation from this workspace.
 # force = false means: only set if the user has not already exported the variable.
 [env]

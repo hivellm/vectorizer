@@ -1,16 +1,32 @@
 //! WASM SIMD128 backend.
 //!
-//! One backend planned: `Wasm128Backend` using `core::arch::wasm32`
-//! `v128` intrinsics for 4 f32 lanes per cycle. Lands in phase7d.
+//! One backend in this family: [`simd128::Wasm128Backend`] using the
+//! `v128` type and `core::arch::wasm32` intrinsics for 4 f32 lanes
+//! per cycle.
 //!
 //! Unlike x86/aarch64 where SIMD availability is detected at runtime,
-//! wasm SIMD is a COMPILE-TIME feature (`-C target-feature=+simd128`
-//! plus matching `cfg(target_feature = "simd128")` in the source).
-//! Browsers that don't support SIMD must load a separately-built wasm
-//! module without the SIMD instructions; we don't ship a runtime
-//! detection path on this target.
+//! wasm SIMD is a COMPILE-TIME feature
+//! (`-C target-feature=+simd128` plus matching
+//! `cfg(target_feature = "simd128")` in the source). Browsers /
+//! engines that don't support SIMD128 fail the module instantiation,
+//! which is the desired behaviour for this target — a WASM build
+//! either has SIMD128 throughout or it doesn't, no graceful runtime
+//! fallback like x86 has.
 //!
-//! The directory is created in phase7a so the dispatch table in
-//! `simd::dispatch::select_backend` has a stable target to extend
-//! when phase7d lands. Until then, wasm32 builds resolve to
-//! [`crate::simd::scalar::ScalarBackend`].
+//! Build setup for downstream consumers:
+//!
+//! ```toml
+//! # .cargo/config.toml
+//! [target.wasm32-unknown-unknown]
+//! rustflags = ["-C", "target-feature=+simd128"]
+//! ```
+//!
+//! Or one-shot:
+//!
+//! ```sh
+//! RUSTFLAGS="-C target-feature=+simd128" \
+//!     cargo build --target wasm32-unknown-unknown --features simd-wasm
+//! ```
+
+#[cfg(all(feature = "simd-wasm", target_feature = "simd128"))]
+pub mod simd128;

@@ -224,11 +224,14 @@ fn select_backend() -> &'static dyn SimdBackend {
 
     #[cfg(all(feature = "simd", target_arch = "wasm32"))]
     {
-        // WASM SIMD128 — a `cfg(target_feature = "simd128")` gate
-        // controls availability at compile time (browsers without
-        // SIMD support fall back to scalar at runtime by simply not
-        // shipping the SIMD wasm module). The backend lives at
-        // `src/simd/wasm/mod.rs`; phase7d implements it.
+        // WASM SIMD128 — fully resolved at compile time. Either the
+        // module ships with SIMD128 instructions (the engine must
+        // support them or instantiation fails) or it falls all the
+        // way to scalar. No runtime detection like x86/aarch64.
+        #[cfg(all(feature = "simd-wasm", target_feature = "simd128"))]
+        {
+            return &super::wasm::simd128::Wasm128Backend;
+        }
     }
 
     &ScalarBackend

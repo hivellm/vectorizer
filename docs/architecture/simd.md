@@ -125,6 +125,48 @@ A17-class designs (which are NOT shipped in the Mac SoCs at the
 time of writing). SVE2 needs Graviton4 / Neoverse V2 / ARM v9
 silicon.
 
+## WASM SIMD128 build setup
+
+WebAssembly SIMD is a COMPILE-TIME feature, not a runtime one — the
+module either ships with SIMD128 instructions (and the engine must
+support them or instantiation fails) or it doesn't. Browsers /
+engines that don't support SIMD128 simply load a different,
+non-SIMD wasm artifact; there's no graceful fallback inside a
+single module like x86 has.
+
+To enable the `Wasm128Backend` in a downstream consumer:
+
+```toml
+# .cargo/config.toml in the consumer's project
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]
+```
+
+Or one-shot:
+
+```sh
+RUSTFLAGS="-C target-feature=+simd128" \
+    cargo build --target wasm32-unknown-unknown --features simd-wasm
+```
+
+Engine compatibility matrix (Phase 5 standardised SIMD128):
+
+| Engine                  | First version with SIMD128 |
+|-------------------------|----------------------------|
+| Chrome / Edge           | 91                         |
+| Firefox                 | 89                         |
+| Safari                  | 16.4                       |
+| Node.js                 | 16.4                       |
+| Wasmtime                | 0.34                       |
+| Wasmer                  | 2.0                        |
+| WasmEdge                | 0.10                       |
+| Cloudflare Workers      | available since 2023       |
+| Deno                    | 1.13                       |
+
+Non-goals on this transport: wasm64 (still nightly), relaxed-SIMD
+(separate proposal at Phase 4 — gives at most 10–15% extra; revisit
+once it reaches Phase 5).
+
 ## The `SimdBackend` trait
 
 ```rust
