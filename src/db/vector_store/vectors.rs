@@ -7,8 +7,8 @@
 
 use tracing::debug;
 
-use super::VectorStore;
-use crate::error::Result;
+use super::{CollectionType, VectorStore};
+use crate::error::{Result, VectorizerError};
 use crate::models::Vector;
 
 impl VectorStore {
@@ -75,8 +75,40 @@ impl VectorStore {
         // Log to WAL before applying changes
         self.log_wal_delete(collection_name, vector_id)?;
 
-        let mut collection_ref = self.get_collection_mut(collection_name)?;
-        collection_ref.delete_vector(vector_id)?;
+        // Prefer a shared DashMap shard reference for variants whose inner
+        // delete uses interior mutability (CPU, Sharded). Holding only a
+        // shared shard lock means concurrent readers (e.g. an HTTP handler
+        // or the replication apply loop) do not deadlock against each other.
+        let needs_mut = {
+            let collection_ref = self.get_collection(collection_name)?;
+            match &*collection_ref {
+                CollectionType::Cpu(c) => {
+                    c.delete(vector_id)?;
+                    false
+                }
+                CollectionType::Sharded(c) => {
+                    c.delete(vector_id)?;
+                    false
+                }
+                CollectionType::DistributedSharded(_) => {
+                    return Err(VectorizerError::Storage(
+                        "delete is not supported synchronously on distributed \
+                         collections; use the async cluster router"
+                            .to_string(),
+                    ));
+                }
+                #[cfg(feature = "hive-gpu")]
+                CollectionType::HiveGpu(_) => true,
+            }
+        };
+
+        // HiveGpu still needs &mut self because it tracks vector_count in a
+        // non-atomic field. Re-acquire the shard with an exclusive lock only
+        // for that case.
+        if needs_mut {
+            let mut collection_ref = self.get_collection_mut(collection_name)?;
+            collection_ref.delete_vector(vector_id)?;
+        }
 
         // Mark collection for auto-save
         self.mark_collection_for_save(collection_name);

@@ -110,15 +110,20 @@ The replication path breaks if any of these is violated:
 - **I5.** `apply_snapshot` wipes and recreates collections on the
   replica. Anything that held a `Collection` handle across a full
   sync becomes stale; callers must re-query after sync completes.
+- **I6.** Vector-level mutations (`VectorStore::delete`, etc.) on
+  CPU/Sharded collections must take a *shared* DashMap shard ref
+  (`get_collection`) and rely on the inner type's interior mutability,
+  *not* an exclusive `get_collection_mut` ref. Anything that requires
+  exclusive shard access while a long-lived shared ref is alive (a
+  user holding `get_collection`, a paginated read, the apply loop on
+  the previous op) deadlocks until that ref is dropped — and on the
+  replica that drop only happens when the test panics or the read
+  consumer finishes. The `HiveGpu` variant still needs `&mut self`
+  until its `vector_count` becomes atomic, and falls back to the
+  exclusive path explicitly.
 
 ## Known limitations
 
-- Replica's apply loop holds the read side and the write side of the
-  single post-split stream in the same task, so a slow `apply_operation`
-  call blocks the next `receive_command`. On the delete path this
-  still manifests as only ~1 of N operations reaching the apply
-  loop within a realistic test window. Tracked by
-  `phase4_fix-replica-delete-operations`.
 - `ReplicationConfig` carries `wal_enabled` + `wal_dir` but the replica
   side doesn't log applied operations to its own WAL, so a replica
   restart without a surviving master state file loses anything beyond

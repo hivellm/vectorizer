@@ -603,7 +603,6 @@ async fn test_replica_incremental_operations() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "tracked by phase4_fix-replica-delete-operations; only ~1 of 5 DeleteVector ops reach the replica apply loop (master writes all 5 to TCP OK; replica never reads past the first)"]
 async fn test_replica_delete_operations() {
     let (master, master_store, master_addr) = create_running_master().await;
 
@@ -659,8 +658,13 @@ async fn test_replica_delete_operations() {
         "Collection 'delete_test' not found in replica. Available: {:?}",
         replica_store.list_collections()
     );
-    let collection = replica_store.get_collection("delete_test").unwrap();
-    assert_eq!(collection.vector_count(), 10);
+    {
+        // Bound the lifetime of the DashMap shard ref. Holding it across the
+        // delete loop below would block the replica's apply task on the same
+        // shard and starve it past the test's wait window.
+        let collection = replica_store.get_collection("delete_test").unwrap();
+        assert_eq!(collection.vector_count(), 10);
+    }
 
     // Delete some vectors
     for i in 0..5 {
@@ -685,13 +689,16 @@ async fn test_replica_delete_operations() {
     info!("Replica connected: {}", replica.is_connected());
     info!("Replica offset: {}", replica.get_offset());
 
-    // Verify deletes replicated
-    let collection = replica_store.get_collection("delete_test").unwrap();
-    info!(
-        "After deletes - vector_count: {}",
-        collection.vector_count()
-    );
-    assert_eq!(collection.vector_count(), 5);
+    {
+        // Bound the lifetime of the DashMap shard ref so it does not block
+        // the DeleteCollection apply that follows on the replica.
+        let collection = replica_store.get_collection("delete_test").unwrap();
+        info!(
+            "After deletes - vector_count: {}",
+            collection.vector_count()
+        );
+        assert_eq!(collection.vector_count(), 5);
+    }
 
     // Delete entire collection
     master_store.delete_collection("delete_test").unwrap();
