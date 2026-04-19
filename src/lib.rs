@@ -53,6 +53,7 @@ pub mod quantization;
 pub mod replication;
 pub mod security;
 pub mod server;
+pub mod simd;
 pub mod storage;
 pub mod summarization;
 pub mod testing;

@@ -1,256 +1,64 @@
-//! SIMD-accelerated vector utilities for high-performance distance calculations
+//! Compatibility shim — pre-phase7 entry point for SIMD primitives.
 //!
-//! This module provides SIMD-optimized implementations using platform intrinsics.
-//! Uses runtime CPU feature detection to enable SIMD when available.
+//! Historical note: this file used to host the AVX2 implementation
+//! directly. After phase7a it routes through [`crate::simd`], which
+//! has the runtime dispatch + per-ISA backends. The functions here
+//! are kept as thin `#[inline]` wrappers so any external crate or
+//! older test that imported `models::vector_utils_simd::*` keeps
+//! compiling without a path change.
+//!
+//! New code should call `crate::simd::dot_product` etc. directly.
 
-#[cfg(target_arch = "x86_64")]
-use std::arch::x86_64::*;
-
-const SIMD_LANES: usize = 8;
-
-/// Check if AVX2 is available at runtime
-#[cfg(target_arch = "x86_64")]
-#[inline]
-fn is_avx2_available() -> bool {
-    is_x86_feature_detected!("avx2")
-}
-
-#[cfg(not(target_arch = "x86_64"))]
-#[inline]
-fn is_avx2_available() -> bool {
-    false
-}
-
-/// SIMD-accelerated dot product (AVX2 on x86_64, scalar fallback otherwise)
+/// Sum of pairwise products. Forwards to [`crate::simd::dot_product`].
 #[inline]
 pub fn dot_product_simd(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
-
-    #[cfg(target_arch = "x86_64")]
-    {
-        if is_avx2_available() {
-            // SAFETY: `dot_product_avx2` has `#[target_feature(enable = "avx2")]`
-            // and must only be called when AVX2 is present at runtime.
-            // `is_avx2_available()` gates exactly that precondition.
-            unsafe { dot_product_avx2(a, b) }
-        } else {
-            dot_product_scalar(a, b)
-        }
-    }
-
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        dot_product_scalar(a, b)
-    }
+    crate::simd::dot_product(a, b)
 }
 
-#[inline]
-fn dot_product_scalar(a: &[f32], b: &[f32]) -> f32 {
-    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
-}
-
-/// # Safety
-///
-/// Caller must ensure AVX2 is supported on the running CPU. The public
-/// wrapper `dot_product_simd` checks this via `is_avx2_available()` before
-/// invoking. `a` and `b` must have equal length (asserted in debug builds by
-/// the caller); reading past the end of either slice is UB.
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-#[inline]
-unsafe fn dot_product_avx2(a: &[f32], b: &[f32]) -> f32 {
-    let len = a.len();
-    let simd_len = len - (len % SIMD_LANES);
-
-    let mut sum = _mm256_setzero_ps();
-
-    // Process 8 floats at a time
-    let mut i = 0;
-    while i < simd_len {
-        let va = _mm256_loadu_ps(a.as_ptr().add(i));
-        let vb = _mm256_loadu_ps(b.as_ptr().add(i));
-        let prod = _mm256_mul_ps(va, vb);
-        sum = _mm256_add_ps(sum, prod);
-        i += SIMD_LANES;
-    }
-
-    // Horizontal sum
-    let mut result = horizontal_sum_avx2(sum);
-
-    // Handle tail
-    for idx in simd_len..len {
-        result += a[idx] * b[idx];
-    }
-
-    result
-}
-
-/// SIMD-accelerated Euclidean distance
+/// Euclidean distance (un-squared). Forwards to
+/// [`crate::simd::euclidean_distance`].
 #[inline]
 pub fn euclidean_distance_simd(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
-
-    #[cfg(target_arch = "x86_64")]
-    {
-        if is_avx2_available() {
-            // SAFETY: `euclidean_distance_avx2` is gated by a runtime CPU
-            // feature check. Same rationale as the sibling `dot_product_simd`.
-            unsafe { euclidean_distance_avx2(a, b) }
-        } else {
-            euclidean_distance_scalar(a, b)
-        }
-    }
-
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        euclidean_distance_scalar(a, b)
-    }
+    crate::simd::euclidean_distance(a, b)
 }
 
-#[inline]
-fn euclidean_distance_scalar(a: &[f32], b: &[f32]) -> f32 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum::<f32>()
-        .sqrt()
-}
-
-/// # Safety
-///
-/// Same as `dot_product_avx2`: AVX2 must be available at runtime and the
-/// two slices must have equal length. Only called from
-/// `euclidean_distance_simd` which enforces both preconditions.
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-#[inline]
-unsafe fn euclidean_distance_avx2(a: &[f32], b: &[f32]) -> f32 {
-    let len = a.len();
-    let simd_len = len - (len % SIMD_LANES);
-
-    let mut sum_sq = _mm256_setzero_ps();
-
-    let mut i = 0;
-    while i < simd_len {
-        let va = _mm256_loadu_ps(a.as_ptr().add(i));
-        let vb = _mm256_loadu_ps(b.as_ptr().add(i));
-        let diff = _mm256_sub_ps(va, vb);
-        let sq = _mm256_mul_ps(diff, diff);
-        sum_sq = _mm256_add_ps(sum_sq, sq);
-        i += SIMD_LANES;
-    }
-
-    let mut result = horizontal_sum_avx2(sum_sq);
-
-    // Handle tail
-    for idx in simd_len..len {
-        let diff = a[idx] - b[idx];
-        result += diff * diff;
-    }
-
-    result.sqrt()
-}
-
-/// SIMD-accelerated cosine similarity (assumes normalized vectors)
+/// Cosine similarity assuming pre-normalised inputs. Forwards to
+/// [`crate::simd::cosine_similarity`].
 #[inline]
 pub fn cosine_similarity_simd(a: &[f32], b: &[f32]) -> f32 {
-    dot_product_simd(a, b).clamp(-1.0, 1.0)
-}
-
-/// # Safety
-///
-/// AVX2 must be available at runtime. Only called from the other AVX2
-/// helpers in this module, each of which enforces that precondition.
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-#[inline]
-unsafe fn horizontal_sum_avx2(v: __m256) -> f32 {
-    // Horizontal add within 256-bit vector
-    let hi = _mm256_extractf128_ps(v, 1);
-    let lo = _mm256_castps256_ps128(v);
-    let sum128 = _mm_add_ps(hi, lo);
-
-    // Horizontal add within 128-bit vector
-    let shuf = _mm_movehdup_ps(sum128);
-    let sums = _mm_add_ps(sum128, shuf);
-    let shuf = _mm_movehl_ps(shuf, sums);
-    let sums = _mm_add_ss(sums, shuf);
-
-    _mm_cvtss_f32(sums)
+    crate::simd::cosine_similarity(a, b)
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_avx2_detection() {
-        #[cfg(target_arch = "x86_64")]
-        {
-            tracing::info!("AVX2 available: {}", is_avx2_available());
-        }
-    }
+    // The actual numerical correctness is pinned by the dispatched
+    // backend's own tests + the scalar oracle integration test in
+    // tests/simd/scalar_oracle.rs. These tests just make sure the
+    // shim's call sites still compile + return the right shape.
 
     #[test]
-    fn test_dot_product_simd() {
+    fn shim_dot_product_returns_finite() {
         let a = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let b = vec![8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0];
-
-        let result = dot_product_simd(&a, &b);
-        let expected: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-
-        assert!((result - expected).abs() < 1e-5);
+        let v = dot_product_simd(&a, &b);
+        assert!(v.is_finite());
+        assert!((v - 120.0).abs() < 1e-5); // 1·8+2·7+...+8·1 = 120
     }
 
     #[test]
-    fn test_euclidean_distance_simd() {
+    fn shim_euclidean_distance_handles_3_4_5_triangle() {
         let a = vec![0.0, 0.0, 0.0, 0.0];
         let b = vec![3.0, 4.0, 0.0, 0.0];
-
-        let result = euclidean_distance_simd(&a, &b);
-        assert!((result - 5.0).abs() < 1e-5);
+        assert!((euclidean_distance_simd(&a, &b) - 5.0).abs() < 1e-5);
     }
 
     #[test]
-    fn test_cosine_similarity_simd() {
+    fn shim_cosine_similarity_clamps() {
         let a = vec![1.0, 0.0];
         let b = vec![1.0, 0.0];
-
-        let result = cosine_similarity_simd(&a, &b);
-        assert!((result - 1.0).abs() < 1e-5);
-    }
-
-    #[test]
-    fn test_non_aligned_vectors() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![5.0, 4.0, 3.0, 2.0, 1.0];
-
-        let result = dot_product_simd(&a, &b);
-        let expected: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-
-        assert!((result - expected).abs() < 1e-5);
-    }
-
-    #[test]
-    fn test_large_vectors() {
-        let a: Vec<f32> = (0..1000).map(|i| i as f32 * 0.1).collect();
-        let b: Vec<f32> = (0..1000).map(|i| i as f32 * 0.2).collect();
-
-        let result_simd = dot_product_simd(&a, &b);
-        let result_scalar: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-
-        // Use relative error tolerance for large vectors to account for floating point accumulation
-        let relative_error = if result_scalar.abs() > 1e-6 {
-            (result_simd - result_scalar).abs() / result_scalar.abs()
-        } else {
-            (result_simd - result_scalar).abs()
-        };
-        assert!(
-            relative_error < 1e-4,
-            "Relative error: {} (simd: {}, scalar: {})",
-            relative_error,
-            result_simd,
-            result_scalar
-        );
+        assert!((cosine_similarity_simd(&a, &b) - 1.0).abs() < 1e-6);
     }
 }

@@ -167,10 +167,13 @@ impl QuantizedHnswIndex {
         let mut results = Vec::new();
         let quantized_cache = self.quantized_cache.read();
 
-        // For now, use original vectors for similarity calculation
+        // For now, use original vectors for similarity calculation.
+        // SIMD path: phase7a routed this through `crate::simd` so the
+        // brute-force scan picks up the AVX2 (or NEON, etc.) backend
+        // instead of the local scalar fallback.
         let original_cache = self.original_cache.read();
         for (id, original_vector) in original_cache.iter() {
-            let similarity = cosine_similarity(query, original_vector);
+            let similarity = crate::simd::cosine_similarity(query, original_vector);
             results.push((*id, similarity));
         }
 
@@ -191,7 +194,7 @@ impl QuantizedHnswIndex {
         let original_cache = self.original_cache.read();
 
         for (id, vector) in original_cache.iter() {
-            let similarity = cosine_similarity(query, vector);
+            let similarity = crate::simd::cosine_similarity(query, vector);
             results.push((*id, similarity));
         }
 
@@ -379,23 +382,6 @@ impl HnswQuantizationStats {
     pub fn meets_quality_threshold(&self, threshold: f32) -> bool {
         self.quality_loss <= (1.0 - threshold)
     }
-}
-
-/// Calculate cosine similarity between two vectors
-fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
-    if a.len() != b.len() {
-        return 0.0;
-    }
-
-    let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-    let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-
-    if norm_a == 0.0 || norm_b == 0.0 {
-        return 0.0;
-    }
-
-    dot_product / (norm_a * norm_b)
 }
 
 #[cfg(test)]

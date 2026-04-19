@@ -314,8 +314,22 @@ path = "scripts/dev/test_routes.rs"
 # required-features = ["hive-gpu-wgpu"]
 
 [features]
-default = ["hive-gpu", "fastembed", "transmutation"]
+default = ["hive-gpu", "fastembed", "transmutation", "simd", "simd-avx2", "simd-neon", "simd-wasm"]
 fastembed = ["dep:fastembed"]
+
+# SIMD master flag — turns the dispatch layer on. Disable to force the
+# scalar backend everywhere (useful for debugging or for targets where
+# the per-ISA features aren't wanted). When `simd` is OFF, every
+# `crate::simd::*` call resolves to the scalar oracle.
+simd = []
+# Per-ISA opt-outs. Each backend module is gated by both
+# `cfg(target_arch)` AND the matching feature, so disabling a feature
+# on a build that wouldn't use it is a no-op (no extra binary cost).
+simd-avx2 = []
+simd-avx512 = []
+simd-neon = []
+simd-sve = []
+simd-wasm = []
 
 # OpenSSL vendored for musl cross-compilation
 vendored-openssl = ["dep:openssl"]

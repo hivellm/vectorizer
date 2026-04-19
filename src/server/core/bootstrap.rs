@@ -41,6 +41,15 @@ impl VectorizerServer {
     pub async fn new_with_root_config(root_config: RootUserConfig) -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
 
+        // Surface which SIMD backend the dispatcher picked for this
+        // process so operators can confirm the binary is using the
+        // expected vector instructions (avx2/avx512/neon/sve/wasm128/
+        // scalar). Logged once because dispatch caches via OnceLock.
+        info!(
+            "⚙️  SIMD backend selected: {}",
+            crate::simd::selected_backend_name()
+        );
+
         // Fail fast on a desynced capability registry: a duplicate id, a
         // duplicate (method, path), or a Both/RestOnly/McpOnly mismatch
         // would silently desync the MCP tool list and the REST router.

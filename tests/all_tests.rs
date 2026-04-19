@@ -18,7 +18,9 @@ mod infrastructure;
 mod integration;
 mod performance;
 mod protocol;
+mod quantization;
 mod replication;
+mod simd;
 mod workflow;
 
 // Legacy tests that haven't been migrated yet
