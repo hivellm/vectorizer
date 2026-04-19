@@ -1,6 +1,25 @@
 # Vectorizer Server Configuration File
-# Updated for v0.28.1 - REST API architecture with MCP support
-# Simplified deployment without complex dependencies
+# Updated for v3.x — RPC is the recommended primary transport; REST stays
+# available as the management plane (dashboard, admin, browser clients).
+
+# =============================================================================
+# RPC TRANSPORT (recommended default for first-party SDKs)
+# =============================================================================
+# VectorizerRPC: length-prefixed MessagePack frames over raw TCP.
+# Wire spec: docs/specs/VECTORIZER_RPC.md
+# Operator guide: docs/deployment/rpc.md
+#
+# Use RPC for:
+#   - bulk ingest (10x lower per-frame overhead than REST/JSON)
+#   - low-latency search from a long-lived backend
+#   - first-party SDKs (Rust / Python / TypeScript / Go / C#)
+#
+# REST stays available alongside on its own port for browsers, ops tooling,
+# the dashboard, and any client that doesn't speak raw TCP.
+rpc:
+  enabled: true # Default ON in v3.x; flip to false for REST-only deployments
+  host: "0.0.0.0" # 127.0.0.1 keeps it loopback-only for development
+  port: 15503 # Vectorizer's slot in the 15500-range binary-transport convention
 
 # =============================================================================
 # FILE WATCHER CONFIGURATION

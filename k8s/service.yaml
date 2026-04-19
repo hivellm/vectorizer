@@ -8,6 +8,12 @@ metadata:
 spec:
   type: ClusterIP
   ports:
+    # RPC (binary, recommended primary) listed first per
+    # phase6_make-rpc-default-transport.
+    - name: rpc
+      port: 15503
+      targetPort: rpc
+      protocol: TCP
     - name: http
       port: 15002
       targetPort: http
@@ -20,7 +26,8 @@ spec:
     app: vectorizer
 
 ---
-# LoadBalancer Service (optional)
+# LoadBalancer Service (optional). Both RPC and REST exposed; clients
+# pick by port name.
 apiVersion: v1
 kind: Service
 metadata:
@@ -31,6 +38,10 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
+    - name: rpc
+      port: 15503
+      targetPort: rpc
+      protocol: TCP
     - name: http
       port: 15002
       targetPort: http

@@ -223,11 +223,14 @@ cargo build --release --features full
 
 ### Access Points
 
+- **VectorizerRPC** (recommended primary, binary MessagePack): `tcp://localhost:15503` — see [Operator guide](docs/deployment/rpc.md) and [Wire spec](docs/specs/VECTORIZER_RPC.md)
 - **Web Dashboard**: http://localhost:15002/dashboard/ - Modern React dashboard with complete graph management interface (create/delete edges, explore neighbors, find paths, discover relationships)
-- **REST API**: http://localhost:15002
+- **REST API**: http://localhost:15002 (universal HTTP fallback; what the dashboard, browsers, and ops tooling speak)
 - **MCP Server**: http://localhost:15002/mcp
 - **UMICP Discovery**: http://localhost:15002/umicp/discover
 - **Health Check**: http://localhost:15002/health
+
+> **Upgrading from v2.x?** RPC is now enabled by default (port `15503`). REST stays available unchanged on port `15002`. If your deployment can't expose the new port, set `rpc.enabled: false` in your config. See the [v3.x migration guide](docs/migration/rpc-default.md).
 
 ### 🔒 Authentication (Docker)
 

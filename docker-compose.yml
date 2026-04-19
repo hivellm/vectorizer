@@ -5,7 +5,11 @@ services:
     image: hivehub/vectorizer:latest
     container_name: vectorizer
     ports:
-      - "15002:15002" # MCP + REST API
+      # RPC (binary, recommended primary). Length-prefixed MessagePack
+      # over raw TCP — 10x lower per-frame overhead than REST/JSON.
+      # See docs/specs/VECTORIZER_RPC.md and docs/deployment/rpc.md.
+      - "15503:15503" # VectorizerRPC
+      - "15002:15002" # REST + MCP (dashboard, ops, browser clients)
       - "15003:15003" # Additional port
 
     volumes:
@@ -37,8 +41,14 @@ services:
 
     restart: unless-stopped
 
+    # Healthcheck stays on REST /health because RPC needs raw TCP +
+    # the length-prefixed MessagePack handshake to confirm liveness;
+    # the distroless runtime doesn't ship `nc` or a MessagePack client.
+    # Both transports run inside the same server process, so a passing
+    # REST healthcheck implies the RPC listener is also up (or bind
+    # failure surfaces in the container logs at startup).
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:15002/"]
+      test: ["CMD", "curl", "-f", "http://localhost:15002/health"]
       interval: 30s
       timeout: 10s
       retries: 3

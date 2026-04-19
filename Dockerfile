@@ -268,6 +268,10 @@ ENV TZ=Etc/UTC \
     VECTORIZER_PORT=15002 \
     VECTORIZER_ADMIN_USERNAME=admin
 
+# Ports: RPC (binary, recommended primary) listed first per
+# phase6_make-rpc-default-transport. REST (15002) stays exposed for the
+# dashboard, ops tooling, and browser clients.
+EXPOSE 15503
 EXPOSE 15002
 
 # OpenContainer labels for better supply chain attestation

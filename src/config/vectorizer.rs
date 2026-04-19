@@ -55,12 +55,19 @@ pub struct VectorizerConfig {
     pub rpc: RpcConfig,
 }
 
-/// VectorizerRPC listener configuration. Disabled by default in v1
-/// while the SDK matrix catches up; flip to `enabled: true` to expose
-/// the binary transport on its own port.
+/// VectorizerRPC listener configuration. **Enabled by default in v3.x**
+/// per `phase6_make-rpc-default-transport` — RPC is the recommended
+/// first-party transport (binary MessagePack, ~10x lower per-frame
+/// overhead than REST/JSON). REST stays available alongside on its
+/// own port for browsers, the dashboard, and ops tooling.
+///
+/// Set `rpc.enabled: false` in config.yml to opt back into a
+/// REST-only deployment (e.g. firewalled environments where the
+/// binary port can't be exposed).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RpcConfig {
-    /// When false the bootstrap skips the listener entirely.
+    /// When false the bootstrap skips the listener entirely. Defaults
+    /// to `true` in v3.x; flip to `false` for REST-only deployments.
     #[serde(default = "RpcConfig::default_enabled")]
     pub enabled: bool,
     /// Bind host. `0.0.0.0` exposes the listener on every interface;
@@ -76,7 +83,10 @@ pub struct RpcConfig {
 
 impl RpcConfig {
     fn default_enabled() -> bool {
-        false
+        // v3.x cutover (phase6_make-rpc-default-transport): RPC is now
+        // the recommended primary transport. Operators who want the
+        // pre-v3.x REST-only behaviour set `rpc.enabled: false`.
+        true
     }
     fn default_host() -> String {
         "0.0.0.0".to_string()
