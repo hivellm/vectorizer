@@ -4,7 +4,7 @@ module: guides
 id: guides-index
 order: 0
 description: Advanced features and optimization guides
-tags: [advanced, guides, sparse-vectors, quantization, optimization, n8n, langflow, graph]
+tags: [advanced, guides, sparse-vectors, quantization, optimization, graph]
 ---
 
 # Advanced Guides
@@ -21,22 +21,6 @@ Automatic read/write routing for HA deployments:
 - Round-robin load balancing across replicas
 - Per-operation override for read-your-writes patterns
 - Supported in all SDKs (TypeScript, JavaScript, Python, Rust, Go, C#)
-
-## Integrations
-
-### [n8n Integration](./N8N_INTEGRATION.md)
-No-code workflow automation:
-- Official n8n community node
-- Collection, Vector, and Search operations
-- RAG pipeline examples
-- Integration with 400+ n8n nodes
-
-### [Langflow Integration](./LANGFLOW_INTEGRATION.md)
-Visual LLM app building:
-- LangChain-compatible components
-- VectorStore, Retriever, Loader
-- RAG pipeline examples
-- Custom embeddings support
 
 ## Features
 

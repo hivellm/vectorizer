@@ -54,29 +54,14 @@ High-performance client SDKs for the Hive Vectorizer vector database, available 
 - **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 - **Documentation**: [C# SDK README](./csharp/README.md)
 
-### 🔌 n8n Integration ✅
+### Removed framework integrations
 
-- **Package**: `@vectorizer/n8n-nodes-vectorizer`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: No-code workflow automation, Collection/Vector/Search operations, RAG pipelines
-- **Installation**: Install via n8n community nodes
-- **Documentation**: [n8n SDK README](./n8n/README.md)
-
-### 🎨 Langflow Integration ✅
-
-- **Package**: `vectorizer-langflow`
-- **Status**: Published on PyPI (v1.8.0)
-- **Features**: LangChain-compatible components, VectorStore, Retriever, Loader
-- **Installation**: `pip install vectorizer-langflow`
-- **Documentation**: [Langflow SDK README](./langflow/README.md)
-
-### ⛓️ LangChain.js Integration ✅
-
-- **Package**: `@vectorizer/langchain-js`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: LangChain.js VectorStore integration
-- **Installation**: `npm install @vectorizer/langchain-js`
-- **Documentation**: [LangChain.js SDK README](./langchain-js/README.md)
+LangChain (Python + JS), Langflow, n8n, TensorFlow, and PyTorch
+integrations were dropped in v3.0.0. They were thin adapters over the
+core SDK and added support burden out of proportion to their usage.
+Build directly against the language-native SDKs (TypeScript, Python,
+Rust, Go, C#, JavaScript) instead — every operation those integrations
+exposed is one call away on the corresponding SDK.
 
 ## 🧠 Intelligent Search Features (v1.5.0+)
 

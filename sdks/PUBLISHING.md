@@ -138,8 +138,6 @@ Before publishing, the scripts run:
 - **Python SDK**: 184+ tests (✅ Published v1.8.0)
 - **Rust SDK**: 88+ tests (✅ Published v1.8.0)
 - **C# SDK**: Tests included (✅ Published v1.8.0)
-- **n8n Integration**: Integration tests (✅ Published v1.8.0)
-- **Langflow Integration**: Tests included (✅ Published v1.8.0)
 
 ## Manual Publishing (Alternative)
 

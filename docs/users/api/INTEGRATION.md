@@ -188,31 +188,6 @@ async def answer_question(question: str):
     return response.choices[0].message.content
 ```
 
-### LangChain Integration
-
-**Example:**
-
-```python
-from langchain.vectorstores import VectorStore
-from langchain.embeddings import OpenAIEmbeddings
-from vectorizer_sdk import VectorizerClient
-
-class VectorizerStore(VectorStore):
-    def __init__(self, collection_name: str):
-        self.client = VectorizerClient("http://localhost:15002")
-        self.collection = collection_name
-    
-    def add_texts(self, texts, metadatas=None):
-        for i, text in enumerate(texts):
-            metadata = metadatas[i] if metadatas else {}
-            self.client.insert_text(self.collection, text, metadata=metadata)
-    
-    def similarity_search(self, query, k=4):
-        results = self.client.search(self.collection, query, limit=k)
-        return [{"page_content": r["payload"].get("content", ""), 
-                 "metadata": r["payload"]} for r in results]
-```
-
 ## ETL Pipeline Integration
 
 ### Apache Airflow

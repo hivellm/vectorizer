@@ -69,8 +69,6 @@ A high-performance vector database and search engine built in Rust, designed for
 - **⚡ Rate Limiting**: Per-API-key rate limiting with configurable tiers and overrides
 - **📊 Quantization Cache**: Cache hit ratio tracking with comprehensive metrics
 - **🕸️ Graph Relationships**: Automatic relationship discovery and graph traversal with full GUI support for edge management, node exploration, and path finding
-- **🔗 n8n Integration**: Official n8n community node for no-code workflow automation (400+ node integrations)
-- **🎨 Langflow Integration**: LangChain-compatible components for visual LLM app building
 - **🔒 Security**: JWT + API Key authentication with RBAC
 - **🔐 Payload Encryption**: Optional ECC-P256 + AES-256-GCM payload encryption with zero-knowledge architecture ([docs](docs/features/encryption/README.md))
 
@@ -346,8 +344,6 @@ Comprehensive feature comparison with major vector database solutions:
 | gRPC API | ✅ Qdrant-compatible | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
 | GraphQL API | ✅ Full with GraphiQL | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | MCP Integration | ✅ 26 tools | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| n8n Integration | ✅ Official node | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Langflow Integration | ✅ LangChain components | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Python SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | TypeScript SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | JavaScript SDK | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -406,7 +402,6 @@ Comprehensive feature comparison with major vector database solutions:
 **Vectorizer Advantages:**
 - ✅ **MCP Integration**: Native Model Context Protocol support with 20 focused tools
 - ✅ **Graph Relationships**: Automatic relationship discovery with complete GUI management (create/delete edges, path finding, neighbor exploration)
-- ✅ **No-Code Integrations**: Official n8n node and Langflow components for visual workflow/LLM app building
 - ✅ **GraphQL API**: Full GraphQL API with GraphiQL playground and complete REST parity
 - ✅ **Document Processing**: Built-in support for 14 document formats (PDF, Office, images)
 - ✅ **Desktop GUI**: Electron-based desktop application with vis-network graph visualization
@@ -416,7 +411,7 @@ Comprehensive feature comparison with major vector database solutions:
 - ✅ **Complete SDK Coverage**: 6 official SDKs (Python, TypeScript, JavaScript, Rust, C#, Go)
 
 **Best Use Cases:**
-- **Vectorizer**: AI applications requiring MCP integration, no-code workflows, document processing, graph relationships, and high-performance search
+- **Vectorizer**: AI applications requiring MCP integration, document processing, graph relationships, and high-performance search
 - **Qdrant**: Production-ready vector search with good performance and cloud options
 - **pgvector**: PostgreSQL-based applications needing vector search alongside relational data
 - **Pinecone**: Managed cloud solution with minimal infrastructure management
@@ -454,8 +449,6 @@ Comprehensive feature comparison with major vector database solutions:
 ### Previous Features (v1.6.0 - v1.7.0)
 
 - **✅ Graph Dashboard Enhancements**: Complete graph management interface
-- **✅ n8n Integration**: Official community node for workflow automation
-- **✅ Langflow Integration**: LangChain-compatible components for RAG pipelines
 - **✅ GraphQL API**: Full GraphQL API with async-graphql and GraphiQL playground
 - **✅ SDK Master/Replica Routing**: Automatic read/write routing for high availability
 - **✅ All core tests passing**: 1514+ tests with comprehensive coverage
@@ -517,65 +510,6 @@ All SDKs are synchronized with server version **2.5.1**:
 - **JavaScript**: `npm install @hivehub/vectorizer-sdk-js` (v2.5.1)
 - **C#**: `dotnet add package Vectorizer.Sdk` (v2.5.1)
 - **Go**: `go get github.com/hivellm/vectorizer-sdk-go` (v2.5.1)
-
-## 🔗 Workflow & LLM Integrations
-
-### n8n Integration
-
-Official n8n community node for no-code workflow automation.
-
-**Installation:**
-```bash
-npm install @vectorizer/n8n-nodes-vectorizer
-```
-
-**Features:**
-- Collection management (create, delete, get, list)
-- Vector operations (insert, batch insert, delete, get)
-- Search operations (vector, semantic, hybrid)
-- 400+ n8n node integrations available
-- Visual workflow builder
-
-**Example Workflow:**
-```
-Document Loader → Vectorizer (Insert) → Trigger → Vectorizer (Search) → Response
-```
-
-See [n8n Integration Guide](./sdks/n8n/README.md) for detailed usage.
-
-### Langflow Integration
-
-LangChain-compatible components for visual LLM application building.
-
-**Installation:**
-```bash
-pip install vectorizer-langflow
-```
-
-**Components:**
-- `VectorizerVectorStore` - Full LangChain VectorStore implementation
-- `VectorizerRetriever` - RAG pipeline retriever
-- `VectorizerLoader` - Document loader for existing vectors
-
-**Example:**
-```python
-from vectorizer_langflow import VectorizerVectorStore
-from langchain.embeddings import OpenAIEmbeddings
-
-vectorstore = VectorizerVectorStore(
-    host="http://localhost:15002",
-    collection_name="docs",
-    embedding=OpenAIEmbeddings()
-)
-
-# Add documents
-vectorstore.add_texts(["Document 1", "Document 2"])
-
-# Search
-results = vectorstore.similarity_search("query", k=5)
-```
-
-See [Langflow Integration Guide](./sdks/langflow/README.md) for detailed usage.
 
 ## 🔄 Qdrant Migration
 

@@ -42,29 +42,14 @@
 - **Status**: ✅ Published successfully
 - **Installation**: `dotnet add package Vectorizer.Sdk`
 
-### n8n Integration
+### Removed in v3.0.0
 
-- **Package**: `@vectorizer/n8n-nodes-vectorizer`
-- **Registry**: npm
-- **Version**: v1.8.0
-- **Status**: ✅ Published successfully
-- **Installation**: Install via n8n community nodes
-
-### Langflow Integration
-
-- **Package**: `vectorizer-langflow`
-- **Registry**: PyPI
-- **Version**: v1.8.0
-- **Status**: ✅ Published successfully
-- **Installation**: `pip install vectorizer-langflow`
-
-### LangChain.js Integration
-
-- **Package**: `@vectorizer/langchain-js`
-- **Registry**: npm
-- **Version**: v1.8.0
-- **Status**: ✅ Published successfully
-- **Installation**: `npm install @vectorizer/langchain-js`
+LangChain (Python + JS), Langflow, n8n, TensorFlow, and PyTorch
+integration packages were dropped in v3.0.0. They were thin adapters
+over the core SDKs and added maintenance burden out of proportion to
+their usage. Existing installations of the published versions remain
+functional; no new releases will ship. Build directly against the
+language-native SDKs instead.
 
 ## 📋 **Publishing Summary**
 
@@ -76,9 +61,6 @@
 | Python        | PyPI       | ✅ Published | v1.8.0  | vectorizer-sdk                       |
 | C#            | NuGet      | ✅ Published | v1.8.0  | Vectorizer.Sdk                       |
 | Go            | Go Modules | 🚧 In Dev    | v1.8.0  | github.com/hivellm/vectorizer-sdk-go |
-| n8n           | npm        | ✅ Published | v1.8.0  | @vectorizer/n8n-nodes-vectorizer     |
-| Langflow      | PyPI       | ✅ Published | v1.8.0  | vectorizer-langflow                  |
-| LangChain.js  | npm        | ✅ Published | v1.8.0  | @vectorizer/langchain-js             |
 
 ## 🔧 **Publishing Infrastructure**
 

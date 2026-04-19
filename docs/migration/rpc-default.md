@@ -107,8 +107,9 @@ have not been merged at the time of this cutover. Until the SDKs ship:
 
 When a given SDK ships its RPC client, the corresponding README's
 quickstart will show RPC first (per each task's "Default URL scheme"
-section). The framework integrations (langchain, langflow, n8n, etc.)
-inherit the URL parsing from the underlying SDK and will follow.
+section). The legacy framework integrations (langchain, langflow,
+n8n, tensorflow, pytorch) were dropped in v3.0.0 — they were thin
+adapters over the language-native SDKs and are no longer maintained.
 
 ## Rollback
 
