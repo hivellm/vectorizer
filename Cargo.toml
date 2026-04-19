@@ -31,6 +31,7 @@ serde = { version = "1.0", features = ["derive"], default-features = false }
 serde_json = { version = "1.0", default-features = false }
 serde_yaml = { version = "0.9", default-features = false }
 bincode = { version = "2.0", features = ["serde"] }
+rmp-serde = "1"
 glob = { version = "0.3", default-features = false }
 # Note: chrono is heavy but used in 166 places - consider migrating to time crate in future
 chrono = { version = "0.4", features = ["serde"], default-features = false }

@@ -41,6 +41,13 @@ impl VectorizerServer {
     pub async fn new_with_root_config(root_config: RootUserConfig) -> anyhow::Result<Self> {
         info!("🔧 Initializing Vectorizer Server...");
 
+        // Fail fast on a desynced capability registry: a duplicate id, a
+        // duplicate (method, path), or a Both/RestOnly/McpOnly mismatch
+        // would silently desync the MCP tool list and the REST router.
+        // See `crate::server::capabilities`.
+        crate::server::capabilities::assert_inventory_invariants()
+            .map_err(|e| anyhow::anyhow!("capability registry invariant violation: {}", e))?;
+
         // Get config path from root_config or use default
         let config_path = root_config
             .config_path
@@ -1233,9 +1240,48 @@ impl VectorizerServer {
             None
         };
 
+        // VectorizerRPC binary listener — opt-in via `rpc.enabled` in
+        // config.yml. The listener spawns its own background tasks per
+        // accepted connection; nothing else in `Self` needs to retain a
+        // handle to it (the listener owns its TcpListener for life).
+        let embedding_manager_arc = Arc::new(final_embedding_manager);
+        let rpc_config = std::fs::read_to_string(&config_path)
+            .ok()
+            .and_then(|content| {
+                serde_yaml::from_str::<crate::config::VectorizerConfig>(&content).ok()
+            })
+            .map(|cfg| cfg.rpc)
+            .unwrap_or_default();
+        if rpc_config.enabled {
+            let bind = format!("{}:{}", rpc_config.host, rpc_config.port);
+            match bind.parse::<std::net::SocketAddr>() {
+                Ok(addr) => {
+                    let rpc_state = crate::protocol::rpc::server::RpcState {
+                        store: store_arc.clone(),
+                        embedding_manager: embedding_manager_arc.clone(),
+                        auth: auth_handler_state.clone(),
+                    };
+                    if let Err(e) = crate::protocol::rpc::spawn_rpc_listener(rpc_state, addr).await
+                    {
+                        error!("Failed to spawn VectorizerRPC listener on {}: {}", addr, e);
+                    } else {
+                        info!("✅ VectorizerRPC listener bound to {}", addr);
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Invalid RPC bind address '{}': {} — RPC listener not started",
+                        bind, e
+                    );
+                }
+            }
+        } else {
+            debug!("VectorizerRPC listener disabled in config");
+        }
+
         Ok(Self {
             store: store_arc,
-            embedding_manager: Arc::new(final_embedding_manager),
+            embedding_manager: embedding_manager_arc,
             start_time: std::time::Instant::now(),
             file_watcher_system: watcher_system_for_server,
             metrics_collector: Arc::new(MetricsCollector::new()),

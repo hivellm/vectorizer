@@ -10,6 +10,7 @@
 
 pub mod graphql;
 pub mod mcp;
+pub mod parity;
 pub mod rest;
 
 // gRPC tests are in tests/grpc/ directory

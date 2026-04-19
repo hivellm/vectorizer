@@ -48,6 +48,7 @@ pub mod normalization;
 pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
+pub mod protocol;
 pub mod quantization;
 pub mod replication;
 pub mod security;

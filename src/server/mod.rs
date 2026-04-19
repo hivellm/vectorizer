@@ -34,6 +34,7 @@
 use std::sync::Arc;
 
 mod auth_handlers;
+pub mod capabilities;
 mod core;
 mod discovery_handlers;
 mod embedded_assets;
@@ -48,11 +49,16 @@ pub mod replication_handlers;
 pub mod rest_handlers;
 mod setup_handlers;
 
+pub use core::get_file_watcher_metrics;
+
 pub use auth_handlers::{
     AuthHandlerState, UserRecord, auth_middleware, require_admin_middleware,
     require_auth_middleware,
 };
-pub use core::get_file_watcher_metrics;
+// `file_operations_handlers` is referenced as
+// `crate::server::file_operations_handlers` by at least one external caller;
+// keep the alias until that caller is migrated.
+pub use files::operations as file_operations_handlers;
 // Keep the old `crate::server::mcp_handlers::X` / `crate::server::mcp_tools::X`
 // paths working for external callers (src/umicp, tests/api/mcp/*). `pub use`
 // doesn't duplicate code, it re-exports.
@@ -60,10 +66,6 @@ pub use mcp::handlers as mcp_handlers;
 pub use mcp::handlers::handle_mcp_tool;
 pub use mcp::tools as mcp_tools;
 pub use mcp::tools::get_mcp_tools;
-// `file_operations_handlers` is referenced as
-// `crate::server::file_operations_handlers` by at least one external caller;
-// keep the alias until that caller is migrated.
-pub use files::operations as file_operations_handlers;
 
 use crate::VectorStore;
 use crate::embedding::EmbeddingManager;

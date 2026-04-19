@@ -1088,3 +1088,88 @@ pub fn get_mcp_tools() -> Vec<Tool> {
         },
     ]
 }
+
+/// Build the MCP tool list from the capability registry.
+///
+/// Returns one [`Tool`] per registry entry whose `mcp_tool_name` is
+/// `Some` (i.e. `Transport::Both` or `Transport::McpOnly`). The hand-
+/// written [`get_mcp_tools`] above is still the live source served to
+/// clients — this helper exists so that, as the registry grows to cover
+/// every entry, `get_mcp_tools` can be flipped over in a single change.
+///
+/// Until then, the parity test asserts that for every shared name, the
+/// registry-built tool and the legacy tool agree on `input_schema` —
+/// catching schema drift between the two sources.
+pub fn tools_from_inventory() -> Vec<Tool> {
+    use crate::server::capabilities::inventory;
+
+    inventory()
+        .into_iter()
+        .filter_map(|cap| {
+            let name = cap.mcp_tool_name?;
+            let schema_fn = cap.mcp_input_schema?;
+            Some(Tool {
+                name: Cow::Owned(name.to_string()),
+                title: None,
+                description: Some(Cow::Owned(cap.summary.to_string())),
+                input_schema: schema(schema_fn()),
+                output_schema: None,
+                icons: None,
+                annotations: None,
+                meta: None,
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn registry_tools_are_a_subset_of_legacy_tools() {
+        let legacy_names: std::collections::HashSet<String> = get_mcp_tools()
+            .into_iter()
+            .map(|t| t.name.into_owned())
+            .collect();
+        for tool in tools_from_inventory() {
+            let name = tool.name.into_owned();
+            assert!(
+                legacy_names.contains(&name),
+                "registry exposes MCP tool '{}' that no legacy entry covers \
+                 — either add it to get_mcp_tools() (Stage C) or remove it \
+                 from the registry",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn registry_and_legacy_agree_on_overlapping_input_schemas() {
+        // Build a name -> input_schema lookup for the legacy list.
+        let legacy: std::collections::HashMap<String, serde_json::Value> = get_mcp_tools()
+            .into_iter()
+            .map(|t| {
+                let name = t.name.into_owned();
+                let schema = serde_json::Value::Object((*t.input_schema).clone());
+                (name, schema)
+            })
+            .collect();
+
+        for tool in tools_from_inventory() {
+            let name = tool.name.clone().into_owned();
+            let registry_schema = serde_json::Value::Object((*tool.input_schema).clone());
+            let legacy_schema = legacy
+                .get(&name)
+                .expect("subset test should have caught a missing legacy entry");
+            assert_eq!(
+                &registry_schema, legacy_schema,
+                "MCP tool '{}': registry-built input schema diverges from \
+                 legacy hand-written schema. Reconcile the two before \
+                 flipping get_mcp_tools() to use the registry.",
+                name
+            );
+        }
+    }
+}

@@ -49,6 +49,51 @@ pub struct VectorizerConfig {
     /// Replication configuration (master-replica)
     #[serde(default)]
     pub replication: ReplicationYamlConfig,
+    /// VectorizerRPC binary protocol listener (length-prefixed
+    /// MessagePack over raw TCP; see `docs/specs/VECTORIZER_RPC.md`).
+    #[serde(default)]
+    pub rpc: RpcConfig,
+}
+
+/// VectorizerRPC listener configuration. Disabled by default in v1
+/// while the SDK matrix catches up; flip to `enabled: true` to expose
+/// the binary transport on its own port.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcConfig {
+    /// When false the bootstrap skips the listener entirely.
+    #[serde(default = "RpcConfig::default_enabled")]
+    pub enabled: bool,
+    /// Bind host. `0.0.0.0` exposes the listener on every interface;
+    /// `127.0.0.1` keeps it loopback-only for development.
+    #[serde(default = "RpcConfig::default_host")]
+    pub host: String,
+    /// TCP port. Default `15503` per `docs/specs/VECTORIZER_RPC.md`
+    /// § 12 ("Default port 15503") — Vectorizer's slot in the
+    /// 15500-range binary-transport convention shared with Synap.
+    #[serde(default = "RpcConfig::default_port")]
+    pub port: u16,
+}
+
+impl RpcConfig {
+    fn default_enabled() -> bool {
+        false
+    }
+    fn default_host() -> String {
+        "0.0.0.0".to_string()
+    }
+    fn default_port() -> u16 {
+        15503
+    }
+}
+
+impl Default for RpcConfig {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            host: Self::default_host(),
+            port: Self::default_port(),
+        }
+    }
 }
 
 /// YAML-friendly replication configuration
@@ -489,6 +534,7 @@ impl Default for VectorizerConfig {
             hub: HubConfig::default(),
             file_upload: FileUploadConfig::default(),
             replication: ReplicationYamlConfig::default(),
+            rpc: RpcConfig::default(),
         }
     }
 }

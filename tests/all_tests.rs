@@ -14,6 +14,7 @@ mod hub;
 mod infrastructure;
 mod integration;
 mod performance;
+mod protocol;
 mod replication;
 mod workflow;
 
