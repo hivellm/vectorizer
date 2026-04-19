@@ -155,11 +155,11 @@
 
 ## 13. Frontend - API Client Updates
 
-- [ ] 13.1 Update API client to include auth token in headers
-- [ ] 13.2 Handle 401 Unauthorized responses
-- [ ] 13.3 Auto-redirect to login on auth failure
-- [ ] 13.4 Implement token refresh on 401
-- [ ] 13.5 Add retry logic for failed auth
+- [x] 13.1 Update API client to include auth token in headers (`authMiddleware` in `dashboard/src/lib/api-middleware.ts:408` injects `Authorization: Bearer ${token}` from localStorage on every request)
+- [ ] 13.2 Handle 401 Unauthorized responses (handled in AuthContext for /auth/* endpoints; no global API-client interceptor yet)
+- [ ] 13.3 Auto-redirect to login on auth failure (only handled inside AuthContext during verifySession/refreshToken; no global router-level interceptor yet)
+- [x] 13.4 Implement token refresh on 401 (`refreshToken()` in `dashboard/src/contexts/AuthContext.tsx:239` + 50-min auto-refresh interval)
+- [x] 13.5 Add retry logic for failed auth (`retryMiddleware` in default middleware stack at `dashboard/src/lib/api-middleware.ts`; `retryCount: 3` in `api-client.ts:60`)
 
 ## 14. Backend - Tenant Scoping (Cluster Mode)
 

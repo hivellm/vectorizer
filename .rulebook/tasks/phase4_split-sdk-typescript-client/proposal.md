@@ -2,7 +2,7 @@
 
 ## Why
 
-`sdks/typescript/src/client.ts` is **1,879 lines** — same shape as the JavaScript SDK but with types. Splitting it mirrors the JS split and restores parity. See [docs/refactoring/oversized-files-audit.md](../../../docs/refactoring/oversized-files-audit.md).
+`sdks/typescript/src/client.ts` is **1,879 lines** with every API surface on one `VectorizerClient`. The standalone JavaScript SDK was retired in v3.0.0 (the TypeScript SDK ships compiled JS), so this is now the only Node-side client and the split is more important — there's no separate JS-only file to mirror. See [docs/refactoring/oversized-files-audit.md](../../../docs/refactoring/oversized-files-audit.md).
 
 ## What Changes
 
@@ -18,8 +18,8 @@ TypeScript declaration files (`.d.ts`) regenerate automatically from the split s
 
 - Affected specs: none.
 - Affected code: `sdks/typescript/src/`.
-- Breaking change: NO — `import { VectorizerClient } from '@hivellm/vectorizer'` keeps working.
-- User benefit: per-surface typed clients directly importable (`import { SearchClient } from '@hivellm/vectorizer/search'`); smaller bundles when tree-shaking.
+- Breaking change: NO — `import { VectorizerClient } from '@hivehub/vectorizer-sdk'` keeps working.
+- User benefit: per-surface typed clients directly importable (`import { SearchClient } from '@hivehub/vectorizer-sdk/search'`); smaller bundles when tree-shaking.
 
 ## Cross-reference: RPC as the default transport
 
