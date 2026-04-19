@@ -22,3 +22,22 @@ Public API is preserved: `from vectorizer import VectorizerClient` keeps working
 - Affected code: `sdks/python/` — `client.py`, new submodules, `__init__.py`.
 - Breaking change: NO — the flat `VectorizerClient` API is preserved as a facade.
 - User benefit: 6×smaller review per change; Python users can browse the module most relevant to their use case without reading 2,900 lines of unrelated surfaces.
+
+## Cross-reference: RPC as the default transport
+
+Plan the per-surface split so the upcoming RPC client
+(`phase6_sdk-python-rpc`) plugs into the same surface modules
+(`collections`, `vectors`, `search`, `graph`, `admin`, `auth`) without
+duplicating wrappers. The eventual constructor contract per
+`phase6_make-rpc-default-transport`:
+
+- `VectorizerClient("vectorizer://host:15503")` → RPC (default
+  scheme; binary MessagePack, see `docs/specs/VECTORIZER_RPC.md`).
+- `VectorizerClient("vectorizer://host")` → RPC on default port 15503.
+- `VectorizerClient("host:15503")` (no scheme) → RPC.
+- `VectorizerClient("http://host:15002")` → REST (the legacy fallback;
+  available for the lifetime of the v3.x line).
+
+Keep the `_base.Transport` abstract enough to host either an `httpx`
+or an RPC backend so the same `collections.CollectionsApi` works
+against both.

@@ -24,8 +24,8 @@
 
 ## 5. n8n
 
-- [ ] 5.1 Extend `sdks/n8n/` credential type to accept RPC URL (`vrpc://host:port`) alongside HTTP
-- [ ] 5.2 Update node action code to route requests through the chosen transport
+- [ ] 5.1 Extend `sdks/n8n/` credential type to accept the canonical RPC URL (`vectorizer://host:port`, NOT `vrpc://`) alongside `http(s)://`. URL parsing is done by the underlying SDK's `parseEndpoint` helper (see `phase6_sdk-typescript-rpc` items 3.3 + 3.4) — n8n adds no scheme-detection code of its own.
+- [ ] 5.2 Update node action code to route requests through the chosen transport (the SDK does the routing automatically based on the URL scheme; n8n only forwards the credential URL).
 - [ ] 5.3 Update README + publish a new version to n8n community
 
 ## 6. pytorch

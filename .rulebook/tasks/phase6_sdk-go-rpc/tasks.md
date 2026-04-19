@@ -17,8 +17,10 @@
 
 ## 4. Top-level API
 
-- [ ] 4.1 Export `vectorizer.NewClient(addr, ...opts)` defaulting to RPC
+- [ ] 4.1 Export `vectorizer.NewClient(ctx, url, ...opts)` defaulting to RPC
 - [ ] 4.2 Keep `vectorizer.NewHTTPClient` available for HTTP opt-in
+- [ ] 4.3 Implement the canonical URL parser as a `parseEndpoint(url string) (Endpoint, error)` helper: `vectorizer://host:port` → RPC on the given port; `vectorizer://host` (no port) → RPC on default port 15503; `host:port` (no scheme) → RPC; `http(s)://host:port` → REST. Return an error wrapping `ErrUnsupportedScheme` for any other scheme. Both `NewClient` and `NewHTTPClient` route URL parsing through this single helper.
+- [ ] 4.4 Unit tests in `endpoint_test.go` covering: each of the 4 valid forms, the default-port branch (15503), an invalid scheme (`ftp://`), an empty string, and a URL with userinfo (which MUST be rejected — credentials go in HELLO, not the URL).
 
 ## 5. Examples + docs
 

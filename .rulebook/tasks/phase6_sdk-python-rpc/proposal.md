@@ -23,3 +23,17 @@ Inside `sdks/python/`:
 - Affected code: `sdks/python/vectorizer/` (new `rpc.py`, `async_rpc.py`), `pyproject.toml`, README, examples, tests
 - Breaking change: YES (default transport changes) — document migration
 - User benefit: Python users get RPC without opt-in; async support aligns with modern stacks.
+
+## Default URL scheme
+
+`vectorizer.Client(url)` parses `url` as follows:
+
+- `vectorizer://host:15503` → RPC (binary MessagePack via the
+  `msgpack` PyPI package, see `docs/specs/VECTORIZER_RPC.md`).
+- `vectorizer://host` → RPC on default port 15503.
+- `host:15503` (no scheme) → RPC.
+- `http://host:15002` / `https://host` → REST (legacy fallback).
+
+`vectorizer://` is the canonical default per
+`phase6_make-rpc-default-transport`; the README quickstart uses it
+first, with REST documented under a "Switching transports" header.

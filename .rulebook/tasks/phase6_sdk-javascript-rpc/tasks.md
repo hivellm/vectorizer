@@ -17,8 +17,8 @@
 
 ## 4. Examples + docs
 
-- [ ] 4.1 Update `sdks/javascript/examples/` (if retained) to RPC-first usage
-- [ ] 4.2 Rewrite `sdks/javascript/README.md` with chosen-option guidance
+- [ ] 4.1 Update `sdks/javascript/examples/` (if retained) to RPC-first usage with the canonical `vectorizer://host:15503` URL form
+- [ ] 4.2 Rewrite `sdks/javascript/README.md` with chosen-option guidance; document the `vectorizer://` URL scheme as the default and `http(s)://` as the legacy fallback. Under Option B, `parseEndpoint` is inherited from the TS package (see `phase6_sdk-typescript-rpc` items 3.3 + 3.4) — JS adds no separate parser code.
 
 ## 5. Tail (mandatory — enforced by rulebook v5.3.0)
 

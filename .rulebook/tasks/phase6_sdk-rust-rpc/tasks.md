@@ -24,7 +24,9 @@
 ## 5. Feature flags + defaults
 
 - [ ] 5.1 Add `[features]` section: `rpc = []` (default), `http = ["reqwest"]`, `grpc = ["tonic"]`, `mcp = ["tokio-tungstenite"]`
-- [ ] 5.2 Make `Client::new(addr)` default to RPC
+- [ ] 5.2 Make `Client::new(url)` default to RPC
+- [ ] 5.3 Implement the canonical URL parser as a `parse_endpoint(url: &str) -> Result<Endpoint, ParseError>` helper: `vectorizer://host:port` → RPC on the given port; `vectorizer://host` (no port) → RPC on default port 15503; `host:port` (no scheme) → RPC; `http(s)://host:port` → REST. Reject any other scheme with `ParseError::UnsupportedScheme`. The `Client::new` constructor and any `connect_with_url` helpers route through this single parser.
+- [ ] 5.4 Unit tests for `parse_endpoint` covering: each of the 4 valid forms, the default-port branch (15503), an invalid scheme (`ftp://`), an empty string, and a URL carrying credentials in the userinfo (which MUST be rejected — credentials go in HELLO, not the URL).
 
 ## 6. Examples + docs
 

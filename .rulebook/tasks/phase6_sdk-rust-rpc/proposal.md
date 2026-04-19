@@ -25,3 +25,18 @@ Inside `sdks/rust/`:
 - Affected code: `sdks/rust/src/` (new `rpc/` module), `sdks/rust/Cargo.toml`, `sdks/rust/README.md`, `sdks/rust/examples/`
 - Breaking change: YES (default changes from HTTP to RPC) — documented + switchable via constructor
 - User benefit: faster default path for Rust users; feature-gated transports keep binary size sane.
+
+## Default URL scheme
+
+The constructor accepts a URL string. Scheme drives transport:
+
+- `vectorizer://host:15503` → RPC (binary MessagePack, see
+  `docs/specs/VECTORIZER_RPC.md`).
+- `vectorizer://host` → RPC on default port 15503.
+- `host:15503` (no scheme) → RPC.
+- `http://host:15002` / `https://host` → REST (legacy fallback).
+
+`vectorizer://` is the canonical default per
+`phase6_make-rpc-default-transport`. Examples in `README.md` and
+`sdks/rust/examples/` use `vectorizer://` first; the REST form is
+documented as the "legacy" path under a "Switching transports" header.

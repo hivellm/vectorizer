@@ -15,7 +15,7 @@ Per integration:
 1. **langchain (Python)**: update `VectorizerRetriever` / `VectorizerVectorStore` to use the updated Python SDK (RPC default); bump version; update README.
 2. **langchain-js (TypeScript)**: same for JS/TS ecosystem; uses updated TS SDK.
 3. **langflow**: update the Vectorizer node/component definition to reference RPC in examples.
-4. **n8n**: update the Vectorizer credential + node to support RPC URL format (e.g., `vrpc://host:15503`); keep HTTP credential option for backwards compat.
+4. **n8n**: update the Vectorizer credential + node to support RPC URL format using the canonical `vectorizer://host:15503` scheme (NOT `vrpc://`); keep HTTP credential option for backwards compat.
 5. **pytorch**: update dataset loader / indexer helpers to use the new Python SDK.
 6. **tensorflow**: same.
 
@@ -27,3 +27,11 @@ Each integration's `README.md` quickstart uses RPC. Each publishes a new version
 - Affected code: `sdks/langchain/`, `sdks/langchain-js/`, `sdks/langflow/`, `sdks/n8n/`, `sdks/pytorch/`, `sdks/tensorflow/` (minor each), CHANGELOG
 - Breaking change: NO in most cases (they keep functioning with HTTP if the underlying SDK does); n8n may be YES if credential shape changes — document clearly
 - User benefit: ecosystem integrations get the fast path automatically; no per-framework friction.
+
+## Default URL scheme (cross-cutting)
+
+All integrations use the same `vectorizer://host:15503` URL scheme as
+the underlying SDKs (`phase6_sdk-{python,typescript,...}-rpc`). The
+URL parser logic does NOT live in the integration — it's inherited
+from the SDK constructor. Integration code only forwards the URL it
+receives from credentials/configuration.

@@ -23,3 +23,18 @@ Inside `sdks/csharp/`:
 - Affected code: `sdks/csharp/src/Vectorizer.Rpc/` (new), existing HTTP client, `*.csproj`, README, tests
 - Breaking change: YES (default transport changes) — major version bump
 - User benefit: .NET/Unity/Xamarin consumers get fast path; DI-friendly; tested under ASP.NET Core.
+
+## Default URL scheme
+
+`new VectorizerClient(string url)` parses the URL as follows:
+
+- `vectorizer://host:15503` → RPC (binary MessagePack via the
+  `MessagePack` NuGet package, see `docs/specs/VECTORIZER_RPC.md`).
+- `vectorizer://host` → RPC on default port 15503.
+- `host:15503` (no scheme) → RPC.
+- `http://host:15002` / `https://host` → REST (legacy fallback).
+
+`vectorizer://` is the canonical default per
+`phase6_make-rpc-default-transport`. The
+`services.AddVectorizerClient(url)` DI extension applies the same URL
+parsing.

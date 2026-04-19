@@ -18,3 +18,22 @@ Split `sdks/rust/src/client/`:
 - Affected code: `sdks/rust/src/client.rs` → `sdks/rust/src/client/`.
 - Breaking change: NO — `use vectorizer_sdk::VectorizerClient` keeps working.
 - User benefit: per-surface traits; each becomes independently reviewable.
+
+## Cross-reference: RPC as the default transport
+
+Plan the per-surface split so the upcoming RPC client
+(`phase6_sdk-rust-rpc`) plugs into the same surface modules
+(`collections`, `vectors`, `search`, `graph`, `admin`, `auth`) without
+duplicating wrappers. The eventual constructor contract per
+`phase6_make-rpc-default-transport`:
+
+- `VectorizerClient::new("vectorizer://host:15503")` → RPC (default
+  scheme; binary MessagePack, see `docs/specs/VECTORIZER_RPC.md`).
+- `VectorizerClient::new("vectorizer://host")` → RPC on default port
+  15503.
+- `VectorizerClient::new("host:15503")` (no scheme) → RPC.
+- `VectorizerClient::new("http://host:15002")` → REST (the legacy
+  fallback; available for the lifetime of the v3.x line).
+
+Keep `Transport` an enum behind the per-surface trait impls so the same
+`collections::CollectionsApi` works against either backing transport.

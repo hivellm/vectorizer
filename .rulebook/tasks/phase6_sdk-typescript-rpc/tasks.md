@@ -12,8 +12,10 @@
 
 ## 3. Transport selection
 
-- [ ] 3.1 Implement `createClient(addr, options)` that picks RPC in Node, HTTP in browser, respecting explicit `transport` option
+- [ ] 3.1 Implement `createClient(url, options)` that picks RPC in Node, HTTP in browser, respecting explicit `transport` option
 - [ ] 3.2 Add conditional exports in `package.json` so bundlers tree-shake Node-only code for browser builds
+- [ ] 3.3 Implement the canonical URL parser as a `parseEndpoint(url: string)` helper: `vectorizer://host:port` → RPC on the given port; `vectorizer://host` (no port) → RPC on default port 15503; `host:port` (no scheme) → RPC; `http(s)://host:port` → REST. Reject any other scheme with a clear `Error` message. Browser builds reject `vectorizer://` at parse time with a message pointing at the REST form. The `Client` constructor and `createClient` both call into this single parser.
+- [ ] 3.4 Unit tests for `parseEndpoint` covering: each of the 4 valid forms, the default-port branch (15503), an invalid scheme (`ftp://`), an empty string, a URL with userinfo (which MUST be rejected), and the browser-build rejection of `vectorizer://`.
 
 ## 4. Typed API
 

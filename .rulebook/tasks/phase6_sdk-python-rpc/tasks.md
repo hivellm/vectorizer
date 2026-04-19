@@ -20,6 +20,8 @@
 
 - [ ] 4.1 Export `Client` as alias for RPC; add `HttpClient` alias preserving old behavior
 - [ ] 4.2 Add `vectorizer.connect(addr, ...)` convenience function defaulting to RPC
+- [ ] 4.3 Implement the canonical URL parser in `_base.py::parse_endpoint(url)`: `vectorizer://host:port` → `RpcTransport` on the given port; `vectorizer://host` (no port) → `RpcTransport` on default port 15503; `host:port` (no scheme) → `RpcTransport`; `http(s)://host:port` → `RestTransport`. Reject any other scheme with a clear `ValueError`. The top-level `Client(url)` constructor and `vectorizer.connect(url)` both call into this single parser.
+- [ ] 4.4 Unit tests for `parse_endpoint` covering: each of the 4 valid forms, the default-port branch, an invalid scheme (`ftp://`), an empty string, and a URL with credentials in the userinfo (which MUST be rejected — credentials go in HELLO, not the URL).
 
 ## 5. Examples + docs
 

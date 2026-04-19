@@ -18,8 +18,10 @@
 
 ## 4. DI integration
 
-- [ ] 4.1 Add `IServiceCollection.AddVectorizerClient(options)` extension defaulting to RPC
+- [ ] 4.1 Add `IServiceCollection.AddVectorizerClient(string url)` extension defaulting to RPC
 - [ ] 4.2 Support `options.Transport = TransportKind.Http` opt-out
+- [ ] 4.3 Implement the canonical URL parser as `EndpointParser.Parse(string url)` returning a discriminated union (`Endpoint.Rpc(host, port)` / `Endpoint.Rest(uri)`): `vectorizer://host:port` → RPC on the given port; `vectorizer://host` (no port) → RPC on default port 15503; `host:port` (no scheme) → RPC; `http(s)://host:port` → REST. Throw `ArgumentException` for any other scheme. Both `new VectorizerClient(string url)` and `AddVectorizerClient(string url)` route URL parsing through this single helper.
+- [ ] 4.4 Unit tests in `tests/EndpointParserTests.cs` covering: each of the 4 valid forms, the default-port branch (15503), an invalid scheme (`ftp://`), `null` / empty string, and a URL with userinfo (which MUST be rejected — credentials go in HELLO, not the URL).
 
 ## 5. Examples + docs
 

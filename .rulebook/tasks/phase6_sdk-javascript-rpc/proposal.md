@@ -26,3 +26,17 @@ In either case:
 - Affected code: `sdks/javascript/` (shrunk or repurposed), maybe `package.json`, README
 - Breaking change: YES under Option A
 - User benefit: removes duplicated implementation; single source of truth reduces drift.
+
+## Default URL scheme
+
+Inherits from `phase6_sdk-typescript-rpc` since the JS package
+re-exports the TS artifact. Constructor parses the URL as follows:
+
+- `vectorizer://host:15503` → RPC (Node only; binary MessagePack via
+  `@msgpack/msgpack`, see `docs/specs/VECTORIZER_RPC.md`).
+- `vectorizer://host` → RPC on default port 15503.
+- `host:15503` (no scheme) → RPC.
+- `http://host:15002` / `https://host` → REST (legacy fallback).
+
+`vectorizer://` is the canonical default per
+`phase6_make-rpc-default-transport`.
