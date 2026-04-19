@@ -117,13 +117,21 @@ impl ScalarQuantization {
     /// override it for the speedup.
     fn quantize_8bit(&self, vector: &[f32]) -> QuantizationResult<Vec<u8>> {
         let mut quantized = vec![0u8; vector.len()];
-        crate::simd::quantize_f32_to_u8(
-            vector,
-            &mut quantized,
-            self.scale,
-            self.offset,
-            self.quantized_levels as u32,
-        );
+        // A constant-valued dataset has max == min and `fit` produces
+        // `scale = 0.0`. The SIMD primitive's contract requires
+        // `scale > 0.0` (it computes `(v - offset) / scale`); short-
+        // circuit to all-zero codes here, which is what the pre-7f
+        // divide-by-zero-then-clamp path produced anyway. Buffer is
+        // already zero-initialised by `vec![0u8; ...]`.
+        if self.scale > 0.0 {
+            crate::simd::quantize_f32_to_u8(
+                vector,
+                &mut quantized,
+                self.scale,
+                self.offset,
+                self.quantized_levels as u32,
+            );
+        }
         Ok(quantized)
     }
 
