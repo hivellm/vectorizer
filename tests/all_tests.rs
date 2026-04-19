@@ -8,6 +8,7 @@
 
 mod api;
 mod cluster;
+mod config;
 mod core;
 mod discovery;
 mod gpu;

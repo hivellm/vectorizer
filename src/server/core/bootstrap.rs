@@ -53,6 +53,35 @@ impl VectorizerServer {
             .config_path
             .unwrap_or_else(|| "config.yml".to_string());
 
+        // Layered config loader (`base → mode → env → CLI`). When the
+        // operator sets `VECTORIZER_MODE=production` (or `dev`,
+        // `cluster`, `hub`), this validates the merged config eagerly
+        // so a typo in the override surfaces at boot rather than
+        // randomly later. The base + every mode override file already
+        // pass the strict serde schema, so a successful merge is the
+        // signal we need.
+        if let Some(mode) = crate::config::layered::mode_from_env() {
+            match crate::config::layered::load_layered(
+                std::path::Path::new(&config_path),
+                crate::config::layered::LayeredOptions {
+                    mode: Some(mode.clone()),
+                    modes_dir: None,
+                },
+            ) {
+                Ok(_) => info!(
+                    "📑 VECTORIZER_MODE={} — config validated through the layered loader",
+                    mode
+                ),
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "VECTORIZER_MODE={} requested but the merged config did not validate: {}",
+                        mode,
+                        e
+                    ));
+                }
+            }
+        }
+
         // Initialize monitoring system
         if let Err(e) = crate::monitoring::init() {
             warn!("Failed to initialize monitoring system: {}", e);

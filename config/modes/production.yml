@@ -1,0 +1,92 @@
+# Production mode override — applied on top of `config.example.yml` /
+# `config.yml` when `VECTORIZER_MODE=production`.
+#
+# Carries ONLY the keys that differ from the base. See the per-section
+# matrix in `.rulebook/archive/<date>-phase5_consolidate-config-files/
+# design.md` for the rationale behind every value here.
+#
+# Operators may override any of these in a downstream `config.yml`
+# (the base layer) — the merge is a deep YAML merge, so per-key
+# overrides win.
+
+server:
+  # Bind on all interfaces so the production process is reachable
+  # from the deployment's load balancer / ingress.
+  host: "0.0.0.0"
+  data_dir: "./data"
+
+logging:
+  # Hardened in production: only warn-and-above to keep log volume
+  # manageable for the centralized aggregator.
+  level: warn
+
+gpu:
+  # Production tuning for high-throughput indexing.
+  batch_size: 2000
+
+file_watcher:
+  # Production environments serve pre-indexed data; the per-FS-event
+  # indexing path isn't a fit. Reindex via the explicit reindex API
+  # from a deploy hook instead.
+  enabled: false
+
+workspace:
+  # Auto-load all collections from the workspace manifest at boot
+  # so a fresh production pod has its dataset ready before traffic
+  # arrives.
+  auto_load_collections: true
+
+api:
+  rest:
+    # Allow larger uploads in production — typical document chunks
+    # plus their payloads sit under 50 MB.
+    max_request_size_mb: 50
+    timeout_seconds: 60
+  mcp:
+    # Larger backlog for many concurrent MCP clients.
+    max_connections: 500
+  grpc:
+    # gRPC opt-out in production: REST + MCP cover the surface, and
+    # the gRPC port is dead weight at this layer (cluster-internal
+    # gRPC stays on whatever port `cluster.servers[].grpc_port` says).
+    enabled: false
+
+performance:
+  cpu:
+    # Larger thread pool for indexing-heavy production workloads.
+    max_threads: 16
+    memory_pool_size_mb: 4096
+  batch:
+    default_size: 500
+    max_size: 2000
+
+transmutation:
+  # Production large-file support: PDFs and big DOCX files routinely
+  # cross 50 MB. Wider timeout because OCR + extraction is slow.
+  max_file_size_mb: 100
+  conversion_timeout_secs: 600
+
+normalization:
+  cache:
+    # Warm up the normalization cache aggressively in production —
+    # the working set is much larger than dev's 10k entries.
+    max_entries: 50000
+    ttl_seconds: 7200
+
+storage:
+  # Production-only sections. The base config does NOT carry these
+  # because the dev loop doesn't need compression / scheduled
+  # snapshots / auto-compaction.
+  compression:
+    enabled: true
+    format: zstd
+    level: 6
+  compaction:
+    auto_compact: true
+    batch_size: 2000
+  snapshots:
+    enabled: true
+    interval_hours: 2
+    max_snapshots: 24
+    retention_days: 7
+    path: "./data/snapshots"
