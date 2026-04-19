@@ -142,6 +142,10 @@ pub enum VectorizerError {
     /// IO error (alias for convenience)
     #[error("IO error: {0}")]
     Io(std::io::Error),
+
+    /// Operation not implemented by the remote peer (cluster RPC compat).
+    #[error("Unimplemented: {0}")]
+    Unimplemented(String),
 }
 
 /// Result type alias for Vectorizer operations

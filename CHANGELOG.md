@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Distributed hybrid search via cluster `RemoteHybridSearch` RPC.** `proto/cluster.proto` now exposes `RemoteHybridSearch(RemoteHybridSearchRequest) returns (RemoteHybridSearchResponse)` plus the supporting `SparseVector`, `HybridSearchConfig`, `HybridScoringAlgorithm`, and `HybridSearchResult` messages. The server-side handler (`src/cluster/grpc_service.rs::remote_hybrid_search`) routes to `DistributedShardedCollection::hybrid_search_local_only` for distributed collections — a new helper that scans only this node's `local_shards`, never recursing back out via gRPC — and otherwise delegates to `VectorStore::hybrid_search`. `DistributedShardedCollection::hybrid_search` (line 618) now calls the new RPC for remote shards instead of silently dropping the sparse signal. Mixed-version clusters keep working: when a remote node returns `tonic::Code::Unimplemented`, `ClusterClient::hybrid_search` surfaces it as the new `VectorizerError::Unimplemented` variant and the caller falls back to dense-only `RemoteSearchVectors` for that node only. Two new integration tests in `tests/integration/cluster_hybrid_search.rs` cover the success path (in-process tonic server returns fused results) and the compatibility path (server without `ClusterServiceServer` triggers the dense fallback).
+
 ### Security
 - **First-run root credentials no longer print to stdout.** Previously `auth_handlers.rs` emitted the auto-generated admin username and cleartext password via `println!` on first boot, which got captured by every log pipeline the process ran under (Docker, Kubernetes, systemd journal, CI). Credentials now go to `{data_dir}/.root_credentials` (0o600 on POSIX); only the file path appears in the log stream. The operator must read and delete the file on first login. Added to `.gitignore` and `.dockerignore` to prevent accidental exposure.
 

@@ -86,6 +86,7 @@ impl VectorizerError {
             | VectorizerError::IndexError(_)
             | VectorizerError::Storage(_)
             | VectorizerError::InternalError(_)
+            | VectorizerError::Unimplemented(_)
             | VectorizerError::Other(_) => ErrorKind::Internal,
 
             #[cfg(feature = "candle-models")]
@@ -130,6 +131,7 @@ impl VectorizerError {
             VectorizerError::UmicpError(_) => "umicp_error",
             VectorizerError::TransmutationError(_) => "transmutation_error",
             VectorizerError::Storage(_) => "storage_error",
+            VectorizerError::Unimplemented(_) => "unimplemented",
             #[cfg(feature = "candle-models")]
             VectorizerError::CandleError(_) => "candle_error",
         }

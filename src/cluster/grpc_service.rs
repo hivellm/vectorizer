@@ -372,6 +372,115 @@ impl ClusterServiceTrait for ClusterGrpcService {
         Ok(Response::new(response))
     }
 
+    /// Remote hybrid search
+    ///
+    /// Restricted to shards owned by this node so the call cannot recurse
+    /// back out to the original caller. Distributed-sharded collections use
+    /// the dedicated `hybrid_search_local_only` helper; non-distributed
+    /// variants fall through to the regular `VectorStore::hybrid_search`.
+    async fn remote_hybrid_search(
+        &self,
+        request: Request<RemoteHybridSearchRequest>,
+    ) -> Result<Response<RemoteHybridSearchResponse>, Status> {
+        let req = request.into_inner();
+        debug!(
+            "gRPC: RemoteHybridSearch request for collection '{}' with {} shard filter(s)",
+            req.collection_name,
+            req.shard_ids.len()
+        );
+
+        let config_proto = req.config.ok_or_else(|| {
+            Status::invalid_argument("RemoteHybridSearchRequest.config is required")
+        })?;
+
+        let algorithm = match HybridScoringAlgorithm::try_from(config_proto.algorithm)
+            .unwrap_or(HybridScoringAlgorithm::HybridScoringRrf)
+        {
+            HybridScoringAlgorithm::HybridScoringRrf => {
+                crate::db::HybridScoringAlgorithm::ReciprocalRankFusion
+            }
+            HybridScoringAlgorithm::HybridScoringWeighted => {
+                crate::db::HybridScoringAlgorithm::WeightedCombination
+            }
+            HybridScoringAlgorithm::HybridScoringAlphaBlend => {
+                crate::db::HybridScoringAlgorithm::AlphaBlending
+            }
+        };
+
+        let config = crate::db::HybridSearchConfig {
+            alpha: config_proto.alpha as f32,
+            dense_k: config_proto.dense_k as usize,
+            sparse_k: config_proto.sparse_k as usize,
+            final_k: config_proto.final_k as usize,
+            algorithm,
+        };
+
+        let sparse = req.sparse_query.as_ref().and_then(|sv| {
+            crate::models::SparseVector::new(
+                sv.indices.iter().map(|&i| i as usize).collect(),
+                sv.values.clone(),
+            )
+            .ok()
+        });
+
+        let shard_filter: Option<Vec<crate::db::sharding::ShardId>> = if req.shard_ids.is_empty() {
+            None
+        } else {
+            Some(
+                req.shard_ids
+                    .iter()
+                    .map(|&id| crate::db::sharding::ShardId::new(id))
+                    .collect(),
+            )
+        };
+
+        let collection_ref = self
+            .store
+            .get_collection(&req.collection_name)
+            .map_err(|e| Status::not_found(e.to_string()))?;
+
+        let results = match &*collection_ref {
+            crate::db::vector_store::CollectionType::DistributedSharded(c) => c
+                .hybrid_search_local_only(
+                    &req.dense_query,
+                    sparse.as_ref(),
+                    config,
+                    shard_filter.as_deref(),
+                )
+                .map_err(|e| Status::internal(e.to_string()))?,
+            _ => self
+                .store
+                .hybrid_search(
+                    &req.collection_name,
+                    &req.dense_query,
+                    sparse.as_ref(),
+                    config,
+                )
+                .map_err(|e| Status::internal(e.to_string()))?,
+        };
+
+        let proto_results: Vec<HybridSearchResult> = results
+            .into_iter()
+            .map(|r| HybridSearchResult {
+                id: r.id,
+                hybrid_score: r.score,
+                dense_score: r.dense_score,
+                sparse_score: r.sparse_score,
+                vector: r.vector.unwrap_or_default(),
+                payload_json: r
+                    .payload
+                    .as_ref()
+                    .map(|p| serde_json::to_string(p).unwrap_or_default()),
+            })
+            .collect();
+
+        Ok(Response::new(RemoteHybridSearchResponse {
+            results: proto_results,
+            success: true,
+            message: "Hybrid search completed successfully".to_string(),
+        }))
+    }
+
     /// Remote create collection
     async fn remote_create_collection(
         &self,

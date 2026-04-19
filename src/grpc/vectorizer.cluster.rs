@@ -186,6 +186,73 @@ pub struct SearchResult {
     #[prost(string, optional, tag = "4")]
     pub payload_json: ::core::option::Option<::prost::alloc::string::String>,
 }
+/// Hybrid search messages — dense + sparse fusion across remote shards.
+///
+/// Servers that predate this RPC return `Unimplemented` so callers can fall
+/// back to dense-only `RemoteSearchVectors`. Mirrors the local hybrid entry
+/// point (see `src/db/hybrid_search.rs`).
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SparseVector {
+    #[prost(uint32, repeated, tag = "1")]
+    pub indices: ::prost::alloc::vec::Vec<u32>,
+    #[prost(float, repeated, tag = "2")]
+    pub values: ::prost::alloc::vec::Vec<f32>,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct HybridSearchConfig {
+    #[prost(uint32, tag = "1")]
+    pub dense_k: u32,
+    #[prost(uint32, tag = "2")]
+    pub sparse_k: u32,
+    #[prost(uint32, tag = "3")]
+    pub final_k: u32,
+    #[prost(double, tag = "4")]
+    pub alpha: f64,
+    #[prost(enumeration = "HybridScoringAlgorithm", tag = "5")]
+    pub algorithm: i32,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RemoteHybridSearchRequest {
+    #[prost(string, tag = "1")]
+    pub collection_name: ::prost::alloc::string::String,
+    #[prost(float, repeated, tag = "2")]
+    pub dense_query: ::prost::alloc::vec::Vec<f32>,
+    /// Optional sparse query — when absent, server treats it as dense-only.
+    #[prost(message, optional, tag = "3")]
+    pub sparse_query: ::core::option::Option<SparseVector>,
+    #[prost(message, optional, tag = "4")]
+    pub config: ::core::option::Option<HybridSearchConfig>,
+    /// Optional: restrict to specific shards (empty = all shards on this node).
+    #[prost(uint32, repeated, tag = "5")]
+    pub shard_ids: ::prost::alloc::vec::Vec<u32>,
+    /// Tenant context for multi-tenant isolation
+    #[prost(message, optional, tag = "6")]
+    pub tenant: ::core::option::Option<TenantContext>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HybridSearchResult {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(float, tag = "2")]
+    pub hybrid_score: f32,
+    #[prost(float, optional, tag = "3")]
+    pub dense_score: ::core::option::Option<f32>,
+    #[prost(float, optional, tag = "4")]
+    pub sparse_score: ::core::option::Option<f32>,
+    #[prost(float, repeated, tag = "5")]
+    pub vector: ::prost::alloc::vec::Vec<f32>,
+    #[prost(string, optional, tag = "6")]
+    pub payload_json: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RemoteHybridSearchResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub results: ::prost::alloc::vec::Vec<HybridSearchResult>,
+    #[prost(bool, tag = "2")]
+    pub success: bool,
+    #[prost(string, tag = "3")]
+    pub message: ::prost::alloc::string::String,
+}
 /// Remote collection operation messages
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct RemoteCreateCollectionRequest {
@@ -410,6 +477,35 @@ impl NodeStatus {
             "JOINING" => Some(Self::Joining),
             "LEAVING" => Some(Self::Leaving),
             "UNAVAILABLE" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum HybridScoringAlgorithm {
+    HybridScoringRrf = 0,
+    HybridScoringWeighted = 1,
+    HybridScoringAlphaBlend = 2,
+}
+impl HybridScoringAlgorithm {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::HybridScoringRrf => "HYBRID_SCORING_RRF",
+            Self::HybridScoringWeighted => "HYBRID_SCORING_WEIGHTED",
+            Self::HybridScoringAlphaBlend => "HYBRID_SCORING_ALPHA_BLEND",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "HYBRID_SCORING_RRF" => Some(Self::HybridScoringRrf),
+            "HYBRID_SCORING_WEIGHTED" => Some(Self::HybridScoringWeighted),
+            "HYBRID_SCORING_ALPHA_BLEND" => Some(Self::HybridScoringAlphaBlend),
             _ => None,
         }
     }
@@ -708,6 +804,35 @@ pub mod cluster_service_client {
                     GrpcMethod::new(
                         "vectorizer.cluster.ClusterService",
                         "RemoteSearchVectors",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn remote_hybrid_search(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RemoteHybridSearchRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RemoteHybridSearchResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic_prost::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/vectorizer.cluster.ClusterService/RemoteHybridSearch",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "vectorizer.cluster.ClusterService",
+                        "RemoteHybridSearch",
                     ),
                 );
             self.inner.unary(req, path, codec).await
@@ -1024,6 +1149,13 @@ pub mod cluster_service_server {
             request: tonic::Request<super::RemoteSearchVectorsRequest>,
         ) -> std::result::Result<
             tonic::Response<super::RemoteSearchVectorsResponse>,
+            tonic::Status,
+        >;
+        async fn remote_hybrid_search(
+            &self,
+            request: tonic::Request<super::RemoteHybridSearchRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::RemoteHybridSearchResponse>,
             tonic::Status,
         >;
         /// Remote collection operations
@@ -1436,6 +1568,52 @@ pub mod cluster_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = RemoteSearchVectorsSvc(inner);
+                        let codec = tonic_prost::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/vectorizer.cluster.ClusterService/RemoteHybridSearch" => {
+                    #[allow(non_camel_case_types)]
+                    struct RemoteHybridSearchSvc<T: ClusterService>(pub Arc<T>);
+                    impl<
+                        T: ClusterService,
+                    > tonic::server::UnaryService<super::RemoteHybridSearchRequest>
+                    for RemoteHybridSearchSvc<T> {
+                        type Response = super::RemoteHybridSearchResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RemoteHybridSearchRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ClusterService>::remote_hybrid_search(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RemoteHybridSearchSvc(inner);
                         let codec = tonic_prost::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

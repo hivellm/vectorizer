@@ -614,47 +614,72 @@ impl DistributedShardedCollection {
             }
         }
 
-        // Search remote shards - fall back to dense search for now.
-        // TASK(phase4_add-hybrid-search-to-distributed-grpc-client): switch to the cluster HybridSearch RPC when available.
+        // Search remote shards via the cluster `RemoteHybridSearch` RPC.
+        // Servers that predate the RPC return `Unimplemented`; in that case
+        // we transparently fall back to the dense-only `search_vectors` RPC
+        // so mixed-version clusters keep producing results (without sparse
+        // contribution from those nodes).
         let node_count = node_shards.len();
         for (node_id, remote_shard_ids) in node_shards {
             if node_id == *local_node_id {
                 continue;
             }
 
-            if let Some(node) = self.cluster_manager.get_node(&node_id) {
-                match self
-                    .client_pool
-                    .get_client(&node_id, &node.grpc_address())
-                    .await
-                {
-                    Ok(client) => {
-                        // Use dense search as fallback for remote shards
-                        match client
-                            .search_vectors(
-                                &self.name,
-                                query_dense,
-                                k,
-                                None,
-                                Some(&remote_shard_ids),
-                                None,
-                            )
-                            .await
-                        {
-                            Ok(results) => {
-                                all_results.extend(results);
-                            }
-                            Err(e) => {
-                                warn!(
-                                    "Error in hybrid search for remote shards on node {}: {}",
-                                    node_id, e
-                                );
-                            }
-                        }
+            let Some(node) = self.cluster_manager.get_node(&node_id) else {
+                continue;
+            };
+
+            let client = match self
+                .client_pool
+                .get_client(&node_id, &node.grpc_address())
+                .await
+            {
+                Ok(c) => c,
+                Err(e) => {
+                    warn!("Failed to get client for node {}: {}", node_id, e);
+                    continue;
+                }
+            };
+
+            match client
+                .hybrid_search(
+                    &self.name,
+                    query_dense,
+                    query_sparse,
+                    &config,
+                    Some(&remote_shard_ids),
+                    None,
+                )
+                .await
+            {
+                Ok(results) => {
+                    all_results.extend(results);
+                }
+                Err(VectorizerError::Unimplemented(msg)) => {
+                    warn!(
+                        "Node {} does not support hybrid search ({}), falling back to dense-only",
+                        node_id, msg
+                    );
+                    match client
+                        .search_vectors(
+                            &self.name,
+                            query_dense,
+                            k,
+                            None,
+                            Some(&remote_shard_ids),
+                            None,
+                        )
+                        .await
+                    {
+                        Ok(results) => all_results.extend(results),
+                        Err(e) => warn!("Dense fallback also failed on node {}: {}", node_id, e),
                     }
-                    Err(e) => {
-                        warn!("Failed to get client for node {}: {}", node_id, e);
-                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "Error in hybrid search for remote shards on node {}: {}",
+                        node_id, e
+                    );
                 }
             }
         }
@@ -687,6 +712,49 @@ impl DistributedShardedCollection {
             node_count
         );
 
+        Ok(all_results)
+    }
+
+    /// Hybrid search restricted to LOCAL shards only.
+    ///
+    /// Used by the cluster gRPC `RemoteHybridSearch` handler so a remote
+    /// caller can fetch hybrid results from exactly the shards this node
+    /// owns, without ever recursing back out via gRPC. If `shard_keys` is
+    /// `Some`, only those local shards are scanned (the rest are silently
+    /// dropped); if `None`, every local shard is scanned.
+    pub fn hybrid_search_local_only(
+        &self,
+        query_dense: &[f32],
+        query_sparse: Option<&SparseVector>,
+        config: HybridSearchConfig,
+        shard_keys: Option<&[ShardId]>,
+    ) -> Result<Vec<SearchResult>> {
+        let local_shards = self.local_shards.read();
+
+        let mut all_results = Vec::new();
+        let iter_ids: Vec<ShardId> = match shard_keys {
+            Some(keys) => keys.iter().copied().collect(),
+            None => local_shards.keys().copied().collect(),
+        };
+
+        for shard_id in &iter_ids {
+            if let Some(shard) = local_shards.get(shard_id) {
+                match shard.hybrid_search(query_dense, query_sparse, config.clone()) {
+                    Ok(results) => all_results.extend(results),
+                    Err(e) => warn!(
+                        "Local hybrid search failed on shard {} of collection '{}': {}",
+                        shard_id, self.name, e
+                    ),
+                }
+            }
+        }
+
+        all_results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        all_results.truncate(config.final_k);
         Ok(all_results)
     }
 

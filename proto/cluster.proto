@@ -15,6 +15,7 @@ service ClusterService {
     rpc RemoteUpdateVector(RemoteUpdateVectorRequest) returns (RemoteUpdateVectorResponse);
     rpc RemoteDeleteVector(RemoteDeleteVectorRequest) returns (RemoteDeleteVectorResponse);
     rpc RemoteSearchVectors(RemoteSearchVectorsRequest) returns (RemoteSearchVectorsResponse);
+    rpc RemoteHybridSearch(RemoteHybridSearchRequest) returns (RemoteHybridSearchResponse);
 
     // Remote collection operations
     rpc RemoteCreateCollection(RemoteCreateCollectionRequest) returns (RemoteCreateCollectionResponse);
@@ -163,6 +164,57 @@ message SearchResult {
     float score = 2;
     repeated float vector = 3;
     optional string payload_json = 4;
+}
+
+// Hybrid search messages — dense + sparse fusion across remote shards.
+//
+// Servers that predate this RPC return `Unimplemented` so callers can fall
+// back to dense-only `RemoteSearchVectors`. Mirrors the local hybrid entry
+// point (see `src/db/hybrid_search.rs`).
+message SparseVector {
+    repeated uint32 indices = 1;
+    repeated float values = 2;
+}
+
+enum HybridScoringAlgorithm {
+    HYBRID_SCORING_RRF = 0;
+    HYBRID_SCORING_WEIGHTED = 1;
+    HYBRID_SCORING_ALPHA_BLEND = 2;
+}
+
+message HybridSearchConfig {
+    uint32 dense_k = 1;
+    uint32 sparse_k = 2;
+    uint32 final_k = 3;
+    double alpha = 4;
+    HybridScoringAlgorithm algorithm = 5;
+}
+
+message RemoteHybridSearchRequest {
+    string collection_name = 1;
+    repeated float dense_query = 2;
+    // Optional sparse query — when absent, server treats it as dense-only.
+    optional SparseVector sparse_query = 3;
+    HybridSearchConfig config = 4;
+    // Optional: restrict to specific shards (empty = all shards on this node).
+    repeated uint32 shard_ids = 5;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 6;
+}
+
+message HybridSearchResult {
+    string id = 1;
+    float hybrid_score = 2;
+    optional float dense_score = 3;
+    optional float sparse_score = 4;
+    repeated float vector = 5;
+    optional string payload_json = 6;
+}
+
+message RemoteHybridSearchResponse {
+    repeated HybridSearchResult results = 1;
+    bool success = 2;
+    string message = 3;
 }
 
 // Remote collection operation messages

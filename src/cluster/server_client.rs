@@ -336,6 +336,121 @@ impl ClusterClient {
         Err(last_error.unwrap_or_else(|| VectorizerError::Storage("Unknown error".to_string())))
     }
 
+    /// Hybrid (dense + sparse) search on the remote node.
+    ///
+    /// Returns `Err(VectorizerError::Unimplemented(_))` when the remote
+    /// server predates this RPC, so the caller can fall back to dense-only
+    /// `search_vectors`. Other errors propagate normally.
+    pub async fn hybrid_search(
+        &self,
+        collection_name: &str,
+        dense_query: &[f32],
+        sparse_query: Option<&crate::models::SparseVector>,
+        config: &crate::db::HybridSearchConfig,
+        shard_ids: Option<&[crate::db::sharding::ShardId]>,
+        tenant: Option<&TenantContext>,
+    ) -> Result<Vec<crate::models::SearchResult>> {
+        let algorithm = match config.algorithm {
+            crate::db::HybridScoringAlgorithm::ReciprocalRankFusion => {
+                cluster_proto::HybridScoringAlgorithm::HybridScoringRrf
+            }
+            crate::db::HybridScoringAlgorithm::WeightedCombination => {
+                cluster_proto::HybridScoringAlgorithm::HybridScoringWeighted
+            }
+            crate::db::HybridScoringAlgorithm::AlphaBlending => {
+                cluster_proto::HybridScoringAlgorithm::HybridScoringAlphaBlend
+            }
+        };
+
+        let proto_config = cluster_proto::HybridSearchConfig {
+            dense_k: config.dense_k as u32,
+            sparse_k: config.sparse_k as u32,
+            final_k: config.final_k as u32,
+            alpha: config.alpha as f64,
+            algorithm: algorithm as i32,
+        };
+
+        let proto_sparse = sparse_query.map(|sv| cluster_proto::SparseVector {
+            indices: sv.indices.iter().map(|&i| i as u32).collect(),
+            values: sv.values.clone(),
+        });
+
+        let shard_ids_vec: Vec<u32> = shard_ids
+            .map(|ids| ids.iter().map(|id| id.as_u32()).collect())
+            .unwrap_or_default();
+
+        let request = cluster_proto::RemoteHybridSearchRequest {
+            collection_name: collection_name.to_string(),
+            dense_query: dense_query.to_vec(),
+            sparse_query: proto_sparse,
+            config: Some(proto_config),
+            shard_ids: shard_ids_vec,
+            tenant: tenant_to_proto(tenant),
+        };
+
+        let mut last_error = None;
+        for attempt in 0..2 {
+            let mut client = self.client.clone();
+            let request_clone = tonic::Request::new(request.clone());
+
+            match client.remote_hybrid_search(request_clone).await {
+                Ok(response) => {
+                    let resp = response.into_inner();
+                    if resp.success {
+                        let results: Vec<crate::models::SearchResult> = resp
+                            .results
+                            .into_iter()
+                            .map(|r| {
+                                let payload = r
+                                    .payload_json
+                                    .as_ref()
+                                    .and_then(|json| serde_json::from_str(json).ok());
+                                crate::models::SearchResult {
+                                    id: r.id,
+                                    score: r.hybrid_score,
+                                    dense_score: r.dense_score,
+                                    sparse_score: r.sparse_score,
+                                    vector: Some(r.vector),
+                                    payload,
+                                }
+                            })
+                            .collect();
+                        debug!(
+                            "Hybrid search on node {} for '{}' returned {} results",
+                            self.node_id,
+                            collection_name,
+                            results.len()
+                        );
+                        return Ok(results);
+                    } else {
+                        last_error = Some(VectorizerError::Storage(resp.message));
+                    }
+                }
+                Err(status) if status.code() == tonic::Code::Unimplemented => {
+                    return Err(VectorizerError::Unimplemented(format!(
+                        "remote node {} does not implement RemoteHybridSearch: {}",
+                        self.node_id,
+                        status.message()
+                    )));
+                }
+                Err(e) => {
+                    last_error = Some(VectorizerError::Storage(format!("gRPC error: {}", e)));
+                }
+            }
+
+            if attempt < 1 {
+                let delay = Duration::from_millis(50 * (1 << attempt));
+                tokio::time::sleep(delay).await;
+            }
+        }
+
+        error!(
+            "Failed hybrid search on collection {} at node {} after 2 attempts",
+            collection_name, self.node_id
+        );
+        Err(last_error.unwrap_or_else(|| VectorizerError::Storage("Unknown error".to_string())))
+    }
+
     /// Fetch a batch of vectors from a remote shard for migration purposes.
     ///
     /// Returns `(vectors, total_count, has_more)`.
