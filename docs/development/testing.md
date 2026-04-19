@@ -105,3 +105,39 @@ flagged by a future CI grep gate.
 - `phase4_triage-mmap-storage-bugs` — Category C tests in `storage.rs`
 - `phase4_fix-replication-snapshot-sync` — 12 Category C tests in `replication/integration_basic.rs`
 - `phase4_triage-sparse-vector-test` — single Category C test
+
+## Discovery pipeline tests (`tests/discovery/`)
+
+`src/discovery/` is the **search-result orchestration pipeline**
+(filter → score → expand → broad → focus → compress → readme → plan
+→ render). Despite the directory name it does NOT walk the
+filesystem, parse manifests, or touch any path-traversal surface —
+those concerns live in `src/file_loader/` and `src/file_watcher/`,
+each tested in their own slot.
+
+The `tests/discovery/` suite exercises the orchestration stages
+end-to-end against an in-memory `VectorStore` plus a BM25-backed
+`EmbeddingManager` (the same fixture pattern
+`MCPToolHandler::new_with_store` uses). Five files, 22 tests:
+
+| File | Coverage |
+|---|---|
+| `basics.rs` | `Discovery::discover` happy path; empty store; default exclude-list (`*-test`, `*-backup`) drops blacklisted collections. |
+| `filter_score.rs` | `filter_collections` with no inputs / explicit include / exclude / no-match / empty input. `score_collections` ordering, empty-terms handling, empty-collections handling. |
+| `expand.rs` | `expand_queries_baseline` with each toggle individually, all-on with `max_expansions` truncation, `max_expansions = 0`, stopword stripping in main-term extraction, empty query. |
+| `compress.rs` | `compress_evidence` with empty / single chunk; per-doc cap; global `max_bullets` cap; descending-score ordering. |
+| `concurrent.rs` | 16 concurrent `discover` calls against the same `Discovery` produce identical `collections_searched`; mixed-query concurrent calls don't interfere. |
+
+All tests live under `tests/discovery/` (wired into
+`tests/all_tests.rs::mod discovery`); run with
+`cargo test --test all_tests discovery`.
+
+The original task spec (`phase4_test-discovery-module`) listed
+`edge_cases.rs` (symlink loops, unreadable files), `path_traversal.rs`,
+and `manifest_parse.rs` (YAML proptest). Those did not survive the
+recon pass — the module has zero filesystem code (`grep -rn
+"fn read_dir|symlink|workspace\.yml|canonicalize" src/discovery/`
+returns no matches) and no manifest parser, so the corresponding
+tests would have been testing the wrong code. The proposal items
+were re-scoped at archive time to match what `src/discovery/`
+actually does.

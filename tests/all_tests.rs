@@ -9,6 +9,7 @@
 mod api;
 mod cluster;
 mod core;
+mod discovery;
 mod gpu;
 mod hub;
 mod infrastructure;
