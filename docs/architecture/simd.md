@@ -79,8 +79,8 @@ process.
 | Feature        | Purpose                                          |
 |----------------|--------------------------------------------------|
 | `simd`         | Master flag. Off → every dispatch goes scalar.   |
-| `simd-avx2`    | Compile the AVX2 backend on `x86_64`.            |
-| `simd-avx512`  | Compile the AVX-512F backend on `x86_64` (7b).   |
+| `simd-avx2`    | Compile the AVX2 backend on `x86_64` (FMA fusion auto-detected at construction). |
+| `simd-avx512`  | Compile the AVX-512F + AVX-512 VNNI backends on `x86_64`. |
 | `simd-neon`    | Compile NEON on `aarch64` (7c).                  |
 | `simd-sve`     | Compile SVE on `aarch64` (7c).                   |
 | `simd-wasm`    | Compile SIMD128 on `wasm32` (7d).                |
@@ -98,6 +98,12 @@ pub trait SimdBackend: Send + Sync + 'static {
     fn euclidean_distance_squared(&self, a: &[f32], b: &[f32]) -> f32;
     fn cosine_similarity(&self, a: &[f32], b: &[f32]) -> f32;
     fn l2_norm(&self, a: &[f32]) -> f32;
+
+    // Phase 7b — INT8 path for the upcoming quantization work in 7f.
+    // Default impl is a scalar loop; AVX-512 VNNI overrides with one
+    // `vpdpbusd` instruction per 64 lanes.
+    fn int8_dot_product(&self, a: &[i8], b: &[i8]) -> i32 { /* default */ }
+
     fn name(&self) -> &'static str;
 }
 ```

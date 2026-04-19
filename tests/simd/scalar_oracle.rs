@@ -122,7 +122,18 @@ fn l2_norm_matches_oracle() {
 fn dispatch_picks_a_known_backend() {
     let name = vectorizer::simd::selected_backend_name();
     assert!(
-        ["avx512", "avx2", "sse2", "neon", "sve", "wasm128", "scalar"].contains(&name),
+        [
+            "avx512vnni",
+            "avx512",
+            "avx2+fma",
+            "avx2",
+            "sse2",
+            "neon",
+            "sve",
+            "wasm128",
+            "scalar",
+        ]
+        .contains(&name),
         "unexpected backend name: {name}"
     );
 }

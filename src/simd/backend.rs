@@ -1,14 +1,17 @@
 //! The `SimdBackend` trait — the contract every per-ISA implementation
 //! satisfies.
 //!
-//! v1 of the trait covers the four `f32` primitives the hot paths
-//! exercise today: `dot_product`, `euclidean_distance_squared`,
-//! `cosine_similarity`, and `l2_norm`. Quantization-specific
-//! primitives (u8 PQ codes, sparse vectors) land in phase7f and will
-//! extend this trait with new methods carrying their own scalar
-//! fallbacks — adding a method here without a matching scalar
-//! implementation breaks every backend at once, which is the desired
-//! tripwire.
+//! v1 of the trait (phase 7a) covered the four `f32` primitives the
+//! hot paths exercise today: `dot_product`,
+//! `euclidean_distance_squared`, `cosine_similarity`, and `l2_norm`.
+//! Phase 7b adds `int8_dot_product` for the upcoming quantization
+//! work (phase 7f's INT8 asymmetric distance) — backends that have a
+//! single-instruction implementation (AVX-512 VNNI, NEON DOTPROD)
+//! override it; everything else inherits the scalar fallback.
+//!
+//! Adding a method here without a matching scalar fallback breaks
+//! every backend at once, which is the desired tripwire — but
+//! providing the fallback keeps the per-ISA backends simple.
 //!
 //! Invariants every implementation MUST uphold:
 //!
@@ -46,6 +49,20 @@ pub trait SimdBackend: Send + Sync + 'static {
 
     /// L2 norm: `sqrt(∑ a[i]²)`.
     fn l2_norm(&self, a: &[f32]) -> f32;
+
+    /// INT8 dot product: `∑ a[i] * b[i]` returning an `i32`. Used by
+    /// the phase 7f quantized-distance code path. Default impl is a
+    /// straight scalar loop; backends with a hardware primitive
+    /// (AVX-512 VNNI, NEON DOTPROD) override this. The `i32`
+    /// accumulator absorbs the worst-case `127 * 127 * len` without
+    /// overflow for `len < 130_000`.
+    fn int8_dot_product(&self, a: &[i8], b: &[i8]) -> i32 {
+        debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| (*x as i32) * (*y as i32))
+            .sum()
+    }
 
     /// Diagnostic name. Must be a constant `&'static str`; surfaced
     /// by `dispatch::selected_backend_name()` and the startup log.
