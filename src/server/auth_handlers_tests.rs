@@ -139,3 +139,101 @@ async fn require_admin_for_rest_returns_ok_for_admin_token() {
         .await
         .expect("admin token must pass");
 }
+
+// --- AdminAuth / Authenticated extractor tests
+//
+// These exercise the inner `extract_admin` / `extract_authenticated`
+// helpers that back `FromRequestParts`. Going through `Parts` would
+// force us to build a full `VectorizerServer`; the helper form runs
+// the same logic and keeps the test surface narrow.
+
+use super::extractors::{AdminAuth, Authenticated, extract_admin, extract_authenticated};
+
+#[tokio::test]
+async fn admin_auth_extractor_ok_when_auth_globally_disabled() {
+    let headers = axum::http::HeaderMap::new();
+    let AdminAuth(inner) = extract_admin(None, &headers)
+        .await
+        .expect("no-auth mode must allow the call through");
+    assert!(inner.is_none());
+}
+
+#[tokio::test]
+async fn admin_auth_extractor_401_without_any_auth_header() {
+    let (state, _token) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let headers = axum::http::HeaderMap::new();
+    let err = extract_admin(Some(&state), &headers)
+        .await
+        .expect_err("missing header must 401");
+    assert_eq!(
+        err.status_code,
+        axum::http::StatusCode::UNAUTHORIZED.as_u16()
+    );
+}
+
+#[tokio::test]
+async fn admin_auth_extractor_403_for_non_admin_token() {
+    let (state, token) = test_state_with_user_roles(vec![Role::User]).await;
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::AUTHORIZATION,
+        format!("Bearer {token}").parse().unwrap(),
+    );
+    let err = extract_admin(Some(&state), &headers)
+        .await
+        .expect_err("non-admin must 403");
+    assert_eq!(err.status_code, axum::http::StatusCode::FORBIDDEN.as_u16());
+}
+
+#[tokio::test]
+async fn admin_auth_extractor_ok_for_admin_token() {
+    let (state, token) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::AUTHORIZATION,
+        format!("Bearer {token}").parse().unwrap(),
+    );
+    let AdminAuth(inner) = extract_admin(Some(&state), &headers)
+        .await
+        .expect("admin token must pass");
+    let inner = inner.expect("admin state must be populated");
+    assert!(inner.authenticated);
+    assert!(inner.user_claims.roles.contains(&Role::Admin));
+}
+
+#[tokio::test]
+async fn authenticated_extractor_ok_when_auth_globally_disabled() {
+    let headers = axum::http::HeaderMap::new();
+    let Authenticated(inner) = extract_authenticated(None, &headers)
+        .await
+        .expect("no-auth mode must allow the call through");
+    assert!(inner.is_none());
+}
+
+#[tokio::test]
+async fn authenticated_extractor_401_without_any_auth_header() {
+    let (state, _token) = test_state_with_user_roles(vec![Role::User]).await;
+    let headers = axum::http::HeaderMap::new();
+    let err = extract_authenticated(Some(&state), &headers)
+        .await
+        .expect_err("missing token must 401");
+    assert_eq!(
+        err.status_code,
+        axum::http::StatusCode::UNAUTHORIZED.as_u16()
+    );
+}
+
+#[tokio::test]
+async fn authenticated_extractor_ok_for_non_admin_token() {
+    let (state, token) = test_state_with_user_roles(vec![Role::User]).await;
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        axum::http::header::AUTHORIZATION,
+        format!("Bearer {token}").parse().unwrap(),
+    );
+    let Authenticated(inner) = extract_authenticated(Some(&state), &headers)
+        .await
+        .expect("valid non-admin token must pass");
+    let inner = inner.expect("auth state must be populated");
+    assert!(inner.authenticated);
+}

@@ -19,12 +19,10 @@ use crate::server::error_middleware::{
 
 /// Add workspace directory (for GUI)
 pub async fn add_workspace(
-    State(state): State<VectorizerServer>,
-    headers: axum::http::HeaderMap,
+    _admin: crate::server::auth_handlers::AdminAuth,
+    State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    crate::server::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers)
-        .await?;
     let path = payload
         .get("path")
         .and_then(|p| p.as_str())
@@ -164,13 +162,10 @@ pub async fn get_config() -> Json<Value> {
 
 /// Update configuration (for GUI). Admin-only.
 pub async fn update_config(
-    State(state): State<VectorizerServer>,
-    headers: axum::http::HeaderMap,
+    _admin: crate::server::auth_handlers::AdminAuth,
+    State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    crate::server::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers)
-        .await?;
-
     // Write to config.yml
     match serde_yaml::to_string(&payload) {
         Ok(yaml_content) => match std::fs::write("./config.yml", yaml_content) {
@@ -206,12 +201,9 @@ pub async fn update_config(
 /// 2. Sending a restart signal to the process
 /// 3. The server should be run under a process manager (e.g., systemd) for actual restart
 pub async fn restart_server(
-    State(state): State<VectorizerServer>,
-    headers: axum::http::HeaderMap,
+    _admin: crate::server::auth_handlers::AdminAuth,
+    State(_state): State<VectorizerServer>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    crate::server::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers)
-        .await?;
-
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::time::Duration;
 

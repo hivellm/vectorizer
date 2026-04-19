@@ -169,12 +169,10 @@ pub async fn create_backup(
 
 /// Restore backup (for GUI)
 pub async fn restore_backup(
+    _admin: crate::server::auth_handlers::AdminAuth,
     State(state): State<VectorizerServer>,
-    headers: axum::http::HeaderMap,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    crate::server::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers)
-        .await?;
     let backup_id = payload
         .get("backup_id")
         .and_then(|b| b.as_str())

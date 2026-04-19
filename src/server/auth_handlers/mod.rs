@@ -22,6 +22,7 @@
 
 mod admin;
 mod authenticated;
+mod extractors;
 mod middleware;
 mod public;
 mod state;
@@ -41,6 +42,7 @@ pub use admin::{change_password, create_user, delete_user, list_users};
 pub use authenticated::{
     create_api_key, get_me, list_api_keys, logout, refresh_token, revoke_api_key,
 };
+pub use extractors::{AdminAuth, Authenticated};
 pub use middleware::{
     auth_middleware, require_admin_for_rest, require_admin_from_headers, require_admin_middleware,
     require_auth_middleware,

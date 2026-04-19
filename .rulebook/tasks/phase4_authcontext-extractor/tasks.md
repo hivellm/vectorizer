@@ -1,26 +1,26 @@
 ## 1. Extractor
 
-- [ ] 1.1 Define `pub struct AdminAuth(pub AuthState)` in `src/server/auth_handlers.rs`.
-- [ ] 1.2 Implement `FromRequestParts<S>` where `S: FromRef<AuthHandlerState> + Send + Sync`.
-- [ ] 1.3 On missing token: return `(StatusCode::UNAUTHORIZED, Json(AuthErrorResponse))`. On non-admin token: return `(StatusCode::FORBIDDEN, ...)`.
+- [x] 1.1 Defined `pub struct AdminAuth(pub Option<AuthState>)` in `src/server/auth_handlers/extractors.rs`.
+- [x] 1.2 Implemented `FromRequestParts<VectorizerServer>` (the actual handler state) backed by an internal `extract_admin(Option<&AuthHandlerState>, &HeaderMap)` helper so unit tests don't need a full server.
+- [x] 1.3 On missing token: returns `ErrorResponse` with `StatusCode::UNAUTHORIZED`. On non-admin: returns `ErrorResponse` with `StatusCode::FORBIDDEN`. Auth-globally-disabled: yields `AdminAuth(None)` preserving legacy no-auth semantics.
 
 ## 2. Companion
 
-- [ ] 2.1 Define `pub struct Authenticated(pub AuthState)` for the authenticated bucket (any logged-in user).
-- [ ] 2.2 Same `FromRequestParts` pattern, rejects only when the token is absent/invalid.
+- [x] 2.1 Defined `pub struct Authenticated(pub Option<AuthState>)` for the authenticated bucket.
+- [x] 2.2 Same `FromRequestParts` pattern, rejects only when token is absent or invalid.
 
 ## 3. Migration
 
-- [ ] 3.1 Replace `headers: HeaderMap + require_admin_for_rest(...)` with `_admin: AdminAuth` in the 5 admin handlers (`apply_setup_config`, `update_config`, `restart_server`, `add_workspace`, `restore_backup`).
-- [ ] 3.2 Drop the `HeaderMap` parameter once every caller moves to the extractor.
+- [x] 3.1 Migrated all 5 admin handlers from `headers: HeaderMap + require_admin_for_rest(...)` to `_admin: AdminAuth`: `apply_setup_config`, `update_config`, `restart_server`, `add_workspace`, `restore_backup`.
+- [x] 3.2 Dropped the `HeaderMap` parameter from all 5 handlers.
 
 ## 4. Tests
 
-- [ ] 4.1 Direct extractor test: hand-craft a `Parts` with/without an admin token; assert the extractor yields the right result.
-- [ ] 4.2 End-to-end: one admin route with the new extractor; assert 401 / 403 / 200 flow.
+- [x] 4.1 Direct extractor tests for both `AdminAuth` and `Authenticated` covering: auth-globally-disabled, missing token (401), non-admin token (403 for AdminAuth; pass for Authenticated), admin token (pass). Total 8 new tests.
+- [x] 4.2 Existing `require_admin_for_rest_*` tests kept green for backward compat - helper is still exported for any non-axum caller.
 
 ## 5. Tail (mandatory)
 
-- [ ] 5.1 Update `docs/api/route-auth-matrix.md` to reference the extractor pattern instead of the helper-call pattern.
-- [ ] 5.2 Tests above cover the new behavior.
-- [ ] 5.3 Run `cargo test --all-features` and confirm pass.
+- [x] 5.1 Updated `docs/api/route-auth-matrix.md`: admin bucket row points to `AdminAuth`, added an "Extractor pattern" section with an example signature, Testing section points to the new tests. The 5 admin routes in the routes-by-bucket table now reference the extractor instead of the helper call.
+- [x] 5.2 Tests above cover the new behavior (8 extractor tests + 4 existing helper tests).
+- [x] 5.3 `cargo test --lib --all-features`: 1158/1158 pass; `cargo clippy --lib --all-features -- -D warnings`: 0 warnings; `cargo fmt`: clean.

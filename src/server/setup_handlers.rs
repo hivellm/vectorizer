@@ -124,13 +124,10 @@ pub async fn analyze_project_directory(
 ///
 /// Apply the setup configuration (create workspace.yml, create collections, and index files)
 pub async fn apply_setup_config(
+    _admin: crate::server::auth_handlers::AdminAuth,
     State(state): State<VectorizerServer>,
-    headers: axum::http::HeaderMap,
     Json(payload): Json<ApplyConfigRequest>,
 ) -> ApiResult<Json<Value>> {
-    crate::server::auth_handlers::require_admin_for_rest(&state.auth_handler_state, &headers)
-        .await?;
-
     info!(
         "📝 Applying setup configuration with {} projects",
         payload.projects.len()

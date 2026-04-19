@@ -10,8 +10,8 @@ are preserved.
 | Bucket | Requirement | How it is enforced |
 |--------|------------|--------------------|
 | **Public** | No token needed. | Registered on `public_routes` / `public_auth_router`; no auth layer applied. |
-| **Authenticated** | Valid JWT **or** valid API key. | Handlers accept `Extension<AuthState>` and check `authenticated` — today most handlers fall through to the underlying operation because the dashboard is single-tenant. |
-| **Admin** | Valid JWT/API key **and** the claims contain `Role::Admin`. | Handler calls `require_admin_for_rest(&server.auth_handler_state, &headers)` as its first step; returns 401/403 before touching any server state. |
+| **Authenticated** | Valid JWT **or** valid API key. | Handlers declare `_auth: Authenticated` in their signature; the `FromRequestParts` extractor fails with 401 before the body runs. `Extension<AuthState>` is still supported for middleware-layered routes. |
+| **Admin** | Valid JWT/API key **and** the claims contain `Role::Admin`. | Handlers declare `_admin: AdminAuth` in their signature; the extractor fails with 401 (no token) or 403 (non-admin) before the body runs. Legacy `require_admin_for_rest(&state.auth_handler_state, &headers)` helper is still exported for routes that cannot take an extractor. |
 
 ## Routes by bucket
 
@@ -40,11 +40,11 @@ are preserved.
 
 | Method | Path | Handler | Gate |
 |--------|------|---------|------|
-| POST | `/setup/apply` | `setup_handlers::apply_setup_config` | `require_admin_for_rest` |
-| POST | `/workspace/add` | `rest_handlers::add_workspace` | `require_admin_for_rest` |
-| POST | `/config` | `rest_handlers::update_config` | `require_admin_for_rest` |
-| POST | `/admin/restart` | `rest_handlers::restart_server` | `require_admin_for_rest` |
-| POST | `/backups/restore` | `rest_handlers::restore_backup` | `require_admin_for_rest` |
+| POST | `/setup/apply` | `setup_handlers::apply_setup_config` | `AdminAuth` extractor |
+| POST | `/workspace/add` | `rest_handlers::add_workspace` | `AdminAuth` extractor |
+| POST | `/config` | `rest_handlers::update_config` | `AdminAuth` extractor |
+| POST | `/admin/restart` | `rest_handlers::restart_server` | `AdminAuth` extractor |
+| POST | `/backups/restore` | `rest_handlers::restore_backup` | `AdminAuth` extractor |
 
 ### Pending admin hardening (tracked)
 
@@ -79,11 +79,36 @@ Follow-up `phase4_router-layer-admin-middleware` revisits this once
 either (a) the handler state types are unified, or (b) a cleaner
 `.route_layer` path is found.
 
+## Extractor pattern
+
+Admin-gated handlers declare the extractor as their first parameter:
+
+```rust
+pub async fn restart_server(
+    _admin: crate::server::auth_handlers::AdminAuth,
+    State(_state): State<VectorizerServer>,
+) -> Result<Json<Value>, ErrorResponse> {
+    // handler body runs only after 401/403 checks pass
+}
+```
+
+The extractor clones `state.auth_handler_state` out of the typed
+`State<VectorizerServer>` and runs the same admin check that
+`require_admin_for_rest` uses. Failure returns the same `ErrorResponse`
+shape as the legacy helper, so existing REST callers see identical
+401/403 bodies.
+
+There is a companion `Authenticated` extractor that accepts any
+logged-in user regardless of role. Both extractors yield
+`Option<AuthState>` — `None` when auth is globally disabled (legacy
+no-auth mode), `Some` when a token was validated.
+
 ## Testing
 
-- Unit: `src/server/auth_handlers.rs` `tests::require_admin_for_rest_*`
-  covers the four input states (auth disabled, no header, non-admin
-  token, admin token).
+- Unit: `src/server/auth_handlers_tests.rs` covers both the legacy
+  `require_admin_for_rest` helper and the `AdminAuth` / `Authenticated`
+  extractors across the four input states (auth disabled, no header,
+  non-admin token, admin token).
 - End-to-end via the REST API is covered by existing
   `tests/api/rest/*` suites whose `AuthHandlerState::new_with_root_user`
   path exercises admin token creation and subsequent calls against
