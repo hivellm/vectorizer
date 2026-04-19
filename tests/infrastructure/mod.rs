@@ -9,6 +9,8 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+pub mod bcrypt_compat;
+pub mod candle_compat;
 pub mod docker;
 pub mod handler_robustness;
 pub mod jwt_secret_boot;

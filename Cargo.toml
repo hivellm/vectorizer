@@ -119,7 +119,7 @@ uuid = { version = "1.22", features = ["v4", "v5", "serde"] }
 rand = "0.9"
 hmac = "0.12"           # HMAC for request signing
 base64 = "0.22"         # Base64 encoding for signing secrets
-bcrypt = "0.17"
+bcrypt = "0.19"
 aes-gcm = "0.10"  # AES-GCM encryption for auth persistence
 zeroize = { version = "1", features = ["zeroize_derive"] }  # Redacting Secret<T> newtype; zeroizes on Drop
 p256 = { version = "0.13", features = ["ecdh", "pem"] }  # ECC for payload encryption
@@ -143,9 +143,9 @@ tokio-tungstenite = "0.28"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Optional ML dependencies
-candle-core = { version = "0.9.1", optional = true }
-candle-nn = { version = "0.9.1", optional = true }
-candle-transformers = { version = "0.9.1", optional = true }
+candle-core = { version = "0.10.2", optional = true }
+candle-nn = { version = "0.10.2", optional = true }
+candle-transformers = { version = "0.10.2", optional = true }
 tokenizers = { version = "0.22.2", optional = true }
 hf-hub = { version = "0.4.3", optional = true }
 
