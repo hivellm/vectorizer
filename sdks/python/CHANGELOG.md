@@ -2,6 +2,50 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
+## [3.0.0] - 2026-04-19
+
+### Added
+
+- **VectorizerRPC client** (new default transport in v3.x). Binary,
+  length-prefixed MessagePack over raw TCP (port 15503), spec at
+  `docs/specs/VECTORIZER_RPC.md`. Polyglot parity with the Rust SDK
+  at `sdks/rust/src/rpc/`.
+  - `rpc.RpcClient` (sync, stdlib `socket` + threading) and
+    `rpc.AsyncRpcClient` (`asyncio.open_connection`-based). Both
+    multiplex calls on a single TCP connection by `Request.id`.
+  - `rpc.parse_endpoint` — canonical URL parser shared with every
+    other Vectorizer SDK. Accepts `vectorizer://host:port`,
+    `vectorizer://host` (default port 15503), bare `host:port`, and
+    `http(s)://host:port`. Rejects userinfo credentials.
+  - `rpc.HelloPayload` / `rpc.HelloResponse` — sticky per-connection
+    auth handshake.
+  - `rpc.RpcPool` and `rpc.AsyncRpcPool` — minimal bounded connection
+    pools with an RAII-style guard.
+  - Typed wrappers: `list_collections`, `get_collection_info`,
+    `get_vector`, `search_basic`. Match the Rust SDK shape exactly.
+  - Top-level `vectorizer_sdk.connect(url)` / `connect_async(url)`
+    convenience functions.
+- New runtime dependency: `msgpack>=1.0.0`.
+- New example: `examples/rpc_quickstart.py`.
+- 45 new tests under `tests/rpc/` (unit + integration with an in-test
+  fake server). Includes wire-spec golden vectors that bit-exactly
+  match the hex dumps in the protocol spec.
+
+### Changed
+
+- Bumped to v3.0.0 to mark the new default transport. The legacy
+  `VectorizerClient` REST client stays available unchanged for
+  callers that need HTTP.
+- `README.md` rewritten with an RPC-first quickstart and a
+  "Switching transports" matrix.
+
+### Note
+
+The package surface is **additive** for existing v2.x callers:
+`VectorizerClient` and every model class still import from the same
+paths. The "breaking" v3.0 marker reflects that the recommended
+transport changes — there is no forced migration of existing code.
+
 ## [1.3.0] - 2025-11-15
 
 ### Added

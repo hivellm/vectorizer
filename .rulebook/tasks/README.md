@@ -25,11 +25,11 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
+| ⬚ | phase6_add-resp3-protocol-server | 0/21 | add resp3 protocol server |
 | ⬚ | phase6_sdk-csharp-rpc | 0/22 | sdk csharp rpc |
 | ⬚ | phase6_sdk-framework-integrations-rpc | 0/29 | sdk framework integrations rpc |
 | ⬚ | phase6_sdk-go-rpc | 0/21 | sdk go rpc |
 | ⬚ | phase6_sdk-javascript-rpc | 0/16 | sdk javascript rpc |
-| ⬚ | phase6_sdk-python-rpc | 0/25 | sdk python rpc |
 | ⬚ | phase6_sdk-typescript-rpc | 0/20 | sdk typescript rpc |
 
 ## phase7a
