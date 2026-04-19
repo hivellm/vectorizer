@@ -1,3 +1,7 @@
+// Module is gated by `#[cfg(test)]` in `persistence/mod.rs`; unwrap/expect
+// are idiomatic in the embedded `#[tokio::test]` blocks below.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::HashMap;
 
 use tempfile::tempdir;

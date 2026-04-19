@@ -6,6 +6,7 @@
 use super::*;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod basic_tests {
     use super::*;
 

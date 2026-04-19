@@ -1,5 +1,7 @@
 //! Integration test for file watcher with server
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::fs;
 use std::sync::Arc;
 

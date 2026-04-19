@@ -837,6 +837,7 @@ pub mod vector_utils_simd;
 pub use sparse_vector::{SparseVector, SparseVectorError, SparseVectorIndex};
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod vector_document_id_tests {
     use super::*;
 

@@ -3,6 +3,7 @@
 //! This module contains unit and integration tests for the GraphQL API.
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod unit_tests {
     use crate::api::graphql::types::*;
     use crate::models::{CollectionConfig, CollectionMetadata, DistanceMetric, HnswConfig, Vector};
@@ -347,6 +348,7 @@ mod unit_tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod schema_tests {
     use std::sync::Arc;
 
@@ -819,6 +821,7 @@ mod schema_tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod error_handling_tests {
     use std::sync::Arc;
 

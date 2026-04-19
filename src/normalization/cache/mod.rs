@@ -189,6 +189,7 @@ impl CacheManager {
 mod tests;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod unit_tests {
     use tempfile::tempdir;
 

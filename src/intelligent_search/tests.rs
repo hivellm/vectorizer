@@ -143,6 +143,7 @@ mod query_generator_tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod simple_search_engine_tests {
     use super::*;
 
@@ -505,6 +506,7 @@ mod context_formatter_tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod intelligent_search_engine_tests {
     use super::*;
 
@@ -610,6 +612,7 @@ mod intelligent_search_engine_tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod integration_tests {
     use super::*;
 
@@ -703,6 +706,7 @@ mod integration_tests {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod performance_tests {
     use super::*;
     use std::time::Instant;

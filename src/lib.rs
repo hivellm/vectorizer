@@ -69,6 +69,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 mod tests;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod integration_tests {
     use std::sync::Arc;
     use std::thread;

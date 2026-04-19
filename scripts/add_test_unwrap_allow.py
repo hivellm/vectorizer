@@ -18,7 +18,7 @@ def patch_file(path: str) -> bool:
         content = f.read()
 
     pattern = re.compile(
-        r"(^#\[cfg\(test\)\][^\n]*\n)((?:#\[[^\n]*\]\n)*)(mod\s+tests\s*\{)",
+        r"(^#\[cfg\(test\)\][^\n]*\n)((?:#\[[^\n]*\]\n)*)(mod\s+\w+\s*\{)",
         re.MULTILINE,
     )
     changed = False

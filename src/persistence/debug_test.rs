@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod debug_tests {
     use std::fs;
     use std::path::PathBuf;

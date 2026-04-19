@@ -1,6 +1,7 @@
 //! Tests for discovery system.
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod unit_tests {
     use std::sync::Arc;
 

@@ -1,6 +1,7 @@
 //! Integration tests for cache system
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod integration_tests {
     use tempfile::tempdir;
     use tokio::time::{Duration, sleep};
