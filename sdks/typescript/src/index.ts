@@ -4,6 +4,20 @@
  * High-performance vector database client for semantic search and embeddings.
  */
 
+// Export the RPC client (default transport in v3.x). The legacy
+// REST `VectorizerClient` continues to be exported below; pick the
+// transport that matches your deployment.
+export * as rpc from './rpc';
+export {
+  RpcClient,
+  RpcPool,
+  RpcServerError,
+  RpcConnectionClosed,
+  RpcNotAuthenticated,
+  parseEndpoint,
+  DEFAULT_RPC_PORT,
+} from './rpc';
+
 // Export all models
 export * from './models';
 

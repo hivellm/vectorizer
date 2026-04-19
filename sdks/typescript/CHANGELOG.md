@@ -2,6 +2,52 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [3.0.0] - 2026-04-19
+
+### Added
+
+- **VectorizerRPC client** (new default transport in v3.x). Binary,
+  length-prefixed MessagePack over raw TCP (port 15503), spec at
+  `docs/specs/VECTORIZER_RPC.md`. Polyglot parity with the Rust SDK
+  at `sdks/rust/src/rpc/` and the Python SDK at `sdks/python/rpc/`.
+  - `RpcClient` (Node-only, uses `node:net`) multiplexes calls on a
+    single TCP connection by `Request.id` into per-call promises.
+  - `parseEndpoint` — canonical URL parser shared with every other
+    Vectorizer SDK. Accepts `vectorizer://host:port`,
+    `vectorizer://host` (default port 15503), bare `host:port`, and
+    `http(s)://host:port`. Rejects userinfo credentials.
+  - `HelloPayload` / `HelloResponse` — sticky per-connection auth
+    handshake.
+  - `RpcPool` — minimal bounded connection pool with an RAII-style
+    `PooledClient` guard.
+  - Typed wrappers: `listCollections`, `getCollectionInfo`,
+    `getVector`, `searchBasic`. Match the Rust + Python SDK shapes.
+  - Top-level `import { RpcClient } from '@hivehub/vectorizer-sdk'`
+    convenience export, plus the per-namespace `import { ... } from '@hivehub/vectorizer-sdk/rpc'`.
+- New runtime dependency: `@msgpack/msgpack@^3.0.0`.
+- 39 new tests under `tests/rpc/` (unit + integration with an
+  in-test fake server using Node's `net` module). Includes wire-spec
+  golden vectors that bit-exactly match the hex dumps in the
+  protocol spec § 11.
+
+### Changed
+
+- Bumped to v3.0.0 to mark the new default transport. The legacy
+  `VectorizerClient` REST client stays available unchanged.
+- README rewritten with an RPC-first quickstart and a "Switching
+  transports" matrix.
+
+### Note
+
+The package surface is **additive** for existing v2.x callers:
+`VectorizerClient` and every model class still import from the same
+paths. The "breaking" v3.0 marker reflects that the recommended
+transport changes — there is no forced migration of existing code.
+
+The standalone `@hivehub/vectorizer-sdk-js` package was retired at
+the same time; this TypeScript SDK ships compiled CommonJS + ESM and
+is fully usable from plain JavaScript.
+
 ## [1.3.0] - 2025-11-15
 
 ### Added

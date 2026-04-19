@@ -5,14 +5,54 @@
 
 High-performance TypeScript SDK for Vectorizer vector database.
 
-**Package**: `@hivehub/vectorizer-sdk`  
-**Version**: 2.2.0
+**Package**: `@hivehub/vectorizer-sdk`
+**Version**: 3.0.0
+
+## v3.0 — VectorizerRPC is the default transport
+
+Starting with v3.0, the recommended transport is **VectorizerRPC**: a
+binary, length-prefixed MessagePack protocol over raw TCP (port 15503
+by default). It replaces JSON parsing on the hot path with a single
+`@msgpack/msgpack` decode, removes per-request HTTP framing, and
+supports multiplexed call/response on a single long-lived TCP
+connection. The spec is at `docs/specs/VECTORIZER_RPC.md`.
+
+The legacy REST `VectorizerClient` (over `fetch`) stays available for
+browsers (which can't open raw TCP sockets), ops scripts, and
+anything that already targets HTTP.
+
+```typescript
+import { RpcClient } from '@hivehub/vectorizer-sdk';
+
+const client = await RpcClient.connectUrl('vectorizer://127.0.0.1:15503');
+await client.hello({ clientName: 'my-app' });
+
+console.log(await client.listCollections());
+const hits = await client.searchBasic('docs', 'vector database', 5);
+for (const hit of hits) console.log(hit.id, hit.score);
+
+client.close();
+```
+
+### Switching transports
+
+| Goal | API |
+|---|---|
+| Default RPC (Node) | `await RpcClient.connectUrl('vectorizer://host:15503')` |
+| Bare host:port (RPC) | `await RpcClient.connect('host:15503')` |
+| Legacy REST | `new VectorizerClient({ baseURL: 'http://host:15002' })` |
+| Browsers | REST only — `vectorizer://` URLs need raw TCP, which browsers don't expose. |
+
+The standalone JavaScript SDK was retired in v3.0. This TypeScript
+package ships compiled CommonJS + ESM and is fully usable from plain
+JavaScript projects.
 
 ## Features
 
+- ✅ **VectorizerRPC** (default in v3.x): binary, low-latency, multiplexed
 - ✅ **Complete TypeScript Support**: Full type safety and IntelliSense
 - ✅ **Async/Await**: Modern async programming patterns
-- ✅ **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
+- ✅ **Multiple Transport Protocols**: RPC, HTTP/HTTPS, UMICP support
 - ✅ **HTTP Client**: Native fetch-based HTTP client with robust error handling
 - ✅ **UMICP Protocol**: High-performance protocol with compression and encryption
 - ✅ **Comprehensive Validation**: Input validation and error handling
