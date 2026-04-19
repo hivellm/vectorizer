@@ -1,0 +1,1456 @@
+src/api/graphql/tests.rs:122:        let payload_value = gql_vector.payload.unwrap();
+src/api/graphql/tests.rs:144:        assert_eq!(gql_result.vector.unwrap(), vec![0.1, 0.2, 0.3]);
+src/api/graphql/tests.rs:360:        let temp_dir = TempDir::new().unwrap();
+src/api/graphql/tests.rs:416:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:442:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:473:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:512:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:532:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:576:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:597:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:635:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:676:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:693:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:717:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:742:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:753:            .unwrap()
+src/api/graphql/tests.rs:777:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:832:        let temp_dir = TempDir::new().unwrap();
+src/api/graphql/tests.rs:896:        let data = result.data.into_json().unwrap();
+src/api/graphql/tests.rs:957:        let data = result.data.into_json().unwrap();
+src/auth/api_keys.rs:224:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:240:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:245:            .unwrap();
+src/auth/api_keys.rs:256:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:261:            .unwrap();
+src/auth/api_keys.rs:263:        let validated_key = manager.validate_key(&api_key).await.unwrap();
+src/auth/api_keys.rs:270:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:282:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:294:            .unwrap();
+src/auth/api_keys.rs:297:        manager.validate_key(&api_key).await.unwrap();
+src/auth/api_keys.rs:313:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:318:            .unwrap();
+src/auth/api_keys.rs:321:        manager.validate_key(&api_key).await.unwrap();
+src/auth/api_keys.rs:324:        manager.revoke_key(&key_info.id).await.unwrap();
+src/auth/api_keys.rs:337:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:343:            .unwrap();
+src/auth/api_keys.rs:347:            .unwrap();
+src/auth/api_keys.rs:353:            .unwrap();
+src/auth/api_keys.rs:355:        let user_keys = manager.list_keys_for_user("user123").await.unwrap();
+src/auth/api_keys.rs:358:        let user_keys = manager.list_keys_for_user("user456").await.unwrap();
+src/auth/api_keys.rs:364:        let manager = ApiKeyManager::new(32).unwrap();
+src/auth/api_keys.rs:376:            .unwrap();
+src/auth/api_keys.rs:382:            .unwrap();
+src/auth/api_keys.rs:384:        let cleaned_count = manager.cleanup_expired_keys().await.unwrap();
+src/auth/api_keys.rs:387:        let all_keys = manager.list_all_keys().await.unwrap();
+src/auth/jwt.rs:111:        let manager = JwtManager::new(secret, 3600).unwrap();
+src/auth/jwt.rs:131:        let manager = JwtManager::new(secret, 3600).unwrap();
+src/auth/jwt.rs:135:            .unwrap();
+src/auth/jwt.rs:137:        let claims = manager.validate_token(&token).unwrap();
+src/auth/jwt.rs:147:        let manager = JwtManager::new(secret, 3600).unwrap();
+src/auth/jwt.rs:160:        let manager = JwtManager::new(secret, 1).unwrap(); // Very short expiration
+src/auth/jwt.rs:164:            .unwrap();
+src/auth/jwt.rs:166:        let refreshed_token = manager.refresh_token(&original_token).unwrap();
+src/auth/jwt.rs:169:        let original_claims = manager.validate_token(&original_token).unwrap();
+src/auth/jwt.rs:170:        let refreshed_claims = manager.validate_token(&refreshed_token).unwrap();
+src/auth/jwt_secret.rs:94:        .expect("OsRng must provide entropy for JWT secret generation");
+src/auth/jwt_secret.rs:146:        let tmp = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:150:        let secret = load_or_generate(&path).expect("first call generates");
+src/auth/jwt_secret.rs:158:        let tmp = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:161:        let first = load_or_generate(&path).unwrap();
+src/auth/jwt_secret.rs:162:        let second = load_or_generate(&path).unwrap();
+src/auth/jwt_secret.rs:171:        let tmp_a = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:172:        let tmp_b = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:173:        let a = load_or_generate(&tmp_a.path().join("jwt_secret.key")).unwrap();
+src/auth/jwt_secret.rs:174:        let b = load_or_generate(&tmp_b.path().join("jwt_secret.key")).unwrap();
+src/auth/jwt_secret.rs:183:        let tmp = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:186:        let original = load_or_generate(&path).unwrap();
+src/auth/jwt_secret.rs:187:        fs::remove_file(&path).unwrap();
+src/auth/jwt_secret.rs:188:        let regenerated = load_or_generate(&path).unwrap();
+src/auth/jwt_secret.rs:198:        let tmp = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:200:        fs::write(&path, "deadbeef").unwrap(); // 8 chars, way under 128
+src/auth/jwt_secret.rs:213:        let tmp = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:217:        fs::write(&path, &bad).unwrap();
+src/auth/jwt_secret.rs:229:        let tmp = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:232:        fs::write(&path, format!("{clean}\n")).unwrap();
+src/auth/jwt_secret.rs:234:        let loaded = load_or_generate(&path).unwrap();
+src/auth/jwt_secret.rs:242:        let tmp = TempDir::new().unwrap();
+src/auth/jwt_secret.rs:244:        load_or_generate(&path).unwrap();
+src/auth/jwt_secret.rs:246:        let mode = fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+src/auth/middleware.rs:272:        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
+src/auth/middleware.rs:276:            .unwrap();
+src/auth/middleware.rs:282:            .unwrap();
+src/auth/middleware.rs:293:        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
+src/auth/middleware.rs:298:            .unwrap();
+src/auth/middleware.rs:304:            .unwrap();
+src/auth/middleware.rs:314:        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
+src/auth/middleware.rs:316:        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
+src/auth/middleware.rs:326:        let auth_manager = Arc::new(AuthManager::new(test_config()).unwrap());
+src/auth/middleware.rs:332:            .unwrap();
+src/auth/persistence.rs:103:        let cipher = Aes256Gcm::new_from_slice(&key).expect("Invalid key length for AES-256-GCM");
+src/auth/persistence.rs:364:        let temp_dir = TempDir::new().unwrap();
+src/auth/persistence.rs:382:        persistence.save(&data).unwrap();
+src/auth/persistence.rs:385:        let loaded = persistence.load().unwrap();
+src/auth/persistence.rs:387:        assert_eq!(loaded.users.get("testuser").unwrap().user_id, "user1");
+src/auth/persistence.rs:392:        let temp_dir = TempDir::new().unwrap();
+src/auth/persistence.rs:396:        let data = persistence.load().unwrap();
+src/auth/persistence.rs:403:        let temp_dir = TempDir::new().unwrap();
+src/auth/persistence.rs:415:        persistence.save_user(user).unwrap();
+src/auth/persistence.rs:417:        let loaded = persistence.get_user("admin").unwrap();
+src/auth/persistence.rs:419:        assert_eq!(loaded.unwrap().user_id, "user1");
+src/auth/persistence.rs:424:        let temp_dir = TempDir::new().unwrap();
+src/auth/persistence.rs:439:        persistence.save_api_key(key).unwrap();
+src/auth/persistence.rs:441:        let keys = persistence.get_api_keys_for_user("user1").unwrap();
+src/auth/secret.rs:123:        let json = serde_json::to_string(&original).expect("serialize");
+src/auth/secret.rs:126:        let back: Secret<String> = serde_json::from_str(&json).expect("deserialize");
+src/auth/tests.rs:18:    let auth_manager = AuthManager::new(test_config()).unwrap();
+src/auth/tests.rs:26:    let auth_manager = AuthManager::new(test_config()).unwrap();
+src/auth/tests.rs:31:        .unwrap();
+src/auth/tests.rs:37:    let user_claims = auth_manager.validate_api_key(&api_key).await.unwrap();
+src/auth/tests.rs:43:    let auth_manager = AuthManager::new(test_config()).unwrap();
+src/auth/tests.rs:47:        .unwrap();
+src/auth/tests.rs:49:    let claims = auth_manager.validate_jwt(&token).unwrap();
+src/auth/tests.rs:60:    let auth_manager = AuthManager::new(config).unwrap();
+src/auth/tests.rs:65:        .unwrap();
+src/auth/tests.rs:68:    auth_manager.validate_api_key(&api_key).await.unwrap();
+src/auth/tests.rs:69:    auth_manager.validate_api_key(&api_key).await.unwrap();
+src/auth/tests.rs:122:    config.validate().unwrap();
+src/auth/tests.rs:131:    config.validate().unwrap();
+src/auth/tests.rs:174:    let json = serde_json::to_string(&original).expect("serialize AuthConfig");
+src/auth/tests.rs:180:    let back: AuthConfig = serde_json::from_str(&json).expect("deserialize AuthConfig");
+src/batch/parallel.rs:59:            let permit = self.semaphore.clone().acquire_owned().await.unwrap();
+src/batch/parallel.rs:123:            let permit = self.semaphore.clone().acquire_owned().await.unwrap();
+src/batch/parallel.rs:196:        assert_eq!(result.unwrap().len(), 0);
+src/batch/parallel.rs:216:        let results = result.unwrap();
+src/batch/parallel.rs:237:        let mut results = result.unwrap();
+src/batch/parallel.rs:273:        assert_eq!(result.unwrap().len(), 0);
+src/batch/parallel.rs:290:        let mut results = result.unwrap();
+src/benchmark/metrics.rs:90:        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+src/benchmark/metrics.rs:241:        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+src/benchmark/reporter.rs:454:                .unwrap()
+src/benchmark/reporter.rs:472:        operations.sort_by(|a, b| a.1.avg_latency_us.partial_cmp(&b.1.avg_latency_us).unwrap());
+src/benchmark/runner.rs:534:            let thread_latencies = handle.join().unwrap();
+src/benchmark/utils.rs:124:        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+src/benchmark/utils.rs:140:        sorted_values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+src/benchmark/utils.rs:388:        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+src/bin/vectorizer-cli.rs:176:        .expect("Failed to start MCP server");
+src/bin/vectorizer-cli.rs:203:        .expect("Failed to start REST API server");
+src/bin/vectorizer-cli.rs:219:        .expect("Failed to listen for shutdown signal");
+src/bin/vectorizer-cli.rs:362:        let exe_path = std::env::current_exe().unwrap().display().to_string();
+src/cache/advanced_cache.rs:434:            NonZeroUsize::new(config.l1.max_entries).unwrap_or(NonZeroUsize::new(1000).unwrap());
+src/cache/advanced_cache.rs:436:            NonZeroUsize::new(config.l2.max_entries).unwrap_or(NonZeroUsize::new(10000).unwrap());
+src/cache/advanced_cache.rs:438:            NonZeroUsize::new(config.l3.max_entries).unwrap_or(NonZeroUsize::new(100000).unwrap());
+src/cache/advanced_cache.rs:991:        let compressed = manager.compress(data).unwrap();
+src/cache/query_cache.rs:107:            NonZeroUsize::new(config.max_size).unwrap_or(NonZeroUsize::new(1000).unwrap());
+src/cache/query_cache.rs:242:        assert_eq!(retrieved.unwrap(), value);
+src/cache/tests.rs:11:    let temp_dir = tempdir().unwrap();
+src/cache/tests.rs:23:    let manager = CacheManager::new(config).await.unwrap();
+src/cache/tests.rs:31:    let temp_dir = tempdir().unwrap();
+src/cache/tests.rs:43:    let manager = CacheManager::new(config).await.unwrap();
+src/cache/tests.rs:55:        .unwrap();
+src/cache/tests.rs:62:        .unwrap();
+src/cache/tests.rs:66:    manager.record_hit().await.unwrap();
+src/cache/tests.rs:67:    manager.record_miss().await.unwrap();
+src/cache/tests.rs:77:    let temp_dir = tempdir().unwrap();
+src/cache/tests.rs:89:    let manager = CacheManager::new(config).await.unwrap();
+src/cache/tests.rs:92:    let validation_result = manager.validate().await.unwrap();
+src/cache/tests.rs:99:    let temp_dir = tempdir().unwrap();
+src/cache/tests.rs:116:    let manager = CacheManager::new(config).await.unwrap();
+src/cache/tests.rs:128:        .unwrap();
+src/cache/tests.rs:134:    let cleanup_result = manager.cleanup().await.unwrap();
+src/cache/tests.rs:140:    let temp_dir = tempdir().unwrap();
+src/cache/tests.rs:152:    let cache_manager = Arc::new(CacheManager::new(config).await.unwrap());
+src/cache/tests.rs:157:        .unwrap();
+src/cache/tests.rs:172:    processor.add_task(task).await.unwrap();
+src/cache/tests.rs:180:    let temp_dir = tempdir().unwrap();
+src/cache/tests.rs:184:    std::fs::write(&test_file, "Hello, World!").unwrap();
+src/cache/tests.rs:206:    let serialized = serde_json::to_string(&metadata).unwrap();
+src/cache/tests.rs:207:    let deserialized: CacheMetadata = serde_json::from_str(&serialized).unwrap();
+src/cli/commands.rs:245:                    chrono::DateTime::from_timestamp(expires_at as i64, 0).unwrap()
+src/cli/commands.rs:268:                            chrono::DateTime::from_timestamp(key.created_at as i64, 0).unwrap()
+src/cli/commands.rs:273:                                chrono::DateTime::from_timestamp(last_used as i64, 0).unwrap()
+src/cli/commands.rs:316:                        chrono::DateTime::from_timestamp(claims.exp as i64, 0).unwrap()
+src/cli/config.rs:387:        let temp_dir = tempdir().unwrap();
+src/cli/config.rs:394:        ConfigManager::generate_default_file(&config_path).unwrap();
+src/cli/config.rs:398:            serde_yaml::from_str(&std::fs::read_to_string(&config_path).unwrap()).unwrap();
+src/cli/config.rs:400:        std::fs::write(&config_path, serde_yaml::to_string(&default_file).unwrap()).unwrap();
+src/cli/config.rs:403:        let config = ConfigManager::load_from_file(&config_path).unwrap();
+src/cli/config.rs:410:        ConfigManager::save_to_file(&modified_config, &config_path).unwrap();
+src/cli/config.rs:413:        let reloaded_config = ConfigManager::load_from_file(&config_path).unwrap();
+src/cli/config.rs:423:        let temp_dir = tempdir().unwrap();
+src/cli/config.rs:426:        ConfigManager::generate_default_file(&config_path).unwrap();
+src/cli/mod.rs:532:        let cli = Cli::try_parse_from(args).unwrap();
+src/cli/utils.rs:353:        let temp_dir = tempdir().unwrap();
+src/cli/utils.rs:360:        CliUtils::ensure_directory(&new_dir).unwrap();
+src/cli/utils.rs:365:        CliUtils::ensure_directory(&new_dir).unwrap();
+src/cli/utils.rs:385:        let password = CliUtils::generate_secure_string(32).unwrap();
+src/cli/utils.rs:412:        let mut temp_file = NamedTempFile::new().unwrap();
+src/cli/utils.rs:413:        write!(temp_file, "test content").unwrap();
+src/cli/utils.rs:414:        temp_file.flush().unwrap();
+src/cli/utils.rs:428:        let temp_dir = tempdir().unwrap();
+src/cli/utils.rs:456:        let current = result.unwrap();
+src/cli/utils.rs:462:        let original = CliUtils::get_current_dir().unwrap();
+src/cli/utils.rs:463:        let temp_dir = tempdir().unwrap();
+src/cli/utils.rs:470:        CliUtils::set_current_dir(&original).unwrap();
+src/cli/utils.rs:475:        let str8 = CliUtils::generate_secure_string(8).unwrap();
+src/cli/utils.rs:476:        let str16 = CliUtils::generate_secure_string(16).unwrap();
+src/cli/utils.rs:477:        let str64 = CliUtils::generate_secure_string(64).unwrap();
+src/cli/utils.rs:489:        let str1 = CliUtils::generate_secure_string(32).unwrap();
+src/cli/utils.rs:490:        let str2 = CliUtils::generate_secure_string(32).unwrap();
+src/cli/utils.rs:536:        let mut temp_file = NamedTempFile::new().unwrap();
+src/cli/utils.rs:537:        write!(temp_file, "not a directory").unwrap();
+src/cli/utils.rs:538:        temp_file.flush().unwrap();
+src/cluster/raft_node.rs:827:        let mgr = RaftManager::new(1).await.unwrap();
+src/cluster/raft_node.rs:847:        let json = serde_json::to_string(&data).unwrap();
+src/cluster/raft_node.rs:848:        let recovered: StateMachineData = serde_json::from_str(&json).unwrap();
+src/compression/lz4.rs:251:        let compressed = compressor.compress(data).unwrap();
+src/compression/lz4.rs:255:        let decompressed = compressor.decompress(&compressed, Some(data.len())).unwrap();
+src/compression/lz4.rs:264:        let compressed = compressor.compress(data).unwrap();
+src/compression/lz4.rs:267:        let decompressed = compressor.decompress(&compressed, Some(0)).unwrap();
+src/compression/lz4.rs:276:        let compressed = compressor.compress(data).unwrap();
+src/compression/lz4.rs:279:        let decompressed = compressor.decompress(&compressed, Some(data.len())).unwrap();
+src/compression/zstd.rs:292:        let compressed = compressor.compress(data).unwrap();
+src/compression/zstd.rs:296:        let decompressed = compressor.decompress(&compressed, Some(data.len())).unwrap();
+src/compression/zstd.rs:305:        let compressed = compressor.compress(data).unwrap();
+src/compression/zstd.rs:308:        let decompressed = compressor.decompress(&compressed, Some(0)).unwrap();
+src/compression/zstd.rs:317:        let compressed = compressor.compress(data).unwrap();
+src/compression/zstd.rs:320:        let decompressed = compressor.decompress(&compressed, Some(data.len())).unwrap();
+src/config/enhanced_config_tests.rs:11:    let temp_dir = TempDir::new().unwrap();
+src/config/enhanced_config_tests.rs:92:    fs::write(&config_path, config_content).await.unwrap();
+src/config/enhanced_config_tests.rs:95:    config_manager.load_config().await.unwrap();
+src/config/enhanced_config_tests.rs:114:    let temp_dir = TempDir::new().unwrap();
+src/config/enhanced_config_tests.rs:195:    fs::write(&config_path, config_content).await.unwrap();
+src/config/enhanced_config_tests.rs:198:    config_manager.load_config().await.unwrap();
+src/config/vectorizer_tests.rs:54:    let serialized = serde_json::to_string(&config).unwrap();
+src/config/vectorizer_tests.rs:70:    let config: TransmutationConfig = serde_json::from_str(json).unwrap();
+src/config/vectorizer_tests.rs:126:    let yaml = serde_yaml::to_string(&config).unwrap();
+src/config/vectorizer_tests.rs:131:    let config_from_yaml: TransmutationConfig = serde_yaml::from_str(&yaml).unwrap();
+src/config/vectorizer_tests.rs:170:    let json = serde_json::to_string(&config).unwrap();
+src/config/vectorizer_tests.rs:190:    let config: FileUploadConfig = serde_json::from_str(json).unwrap();
+src/config/vectorizer_tests.rs:210:    let yaml = serde_yaml::to_string(&config).unwrap();
+src/config/vectorizer_tests.rs:216:    let config_from_yaml: FileUploadConfig = serde_yaml::from_str(&yaml).unwrap();
+src/config/vectorizer_tests.rs:232:    let config: FileUploadConfig = serde_json::from_str(json).unwrap();
+src/config/workspace.rs:58:            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+src/config/workspace.rs:412:        let temp_dir = tempdir().unwrap();
+src/config/workspace.rs:419:            .add_workspace(temp_dir.path().to_str().unwrap(), "test_collection")
+src/config/workspace.rs:420:            .unwrap();
+src/config/workspace.rs:430:            .remove_workspace(temp_dir.path().to_str().unwrap())
+src/config/workspace.rs:431:            .unwrap();
+src/db/async_indexing.rs:527:        let manager = AsyncIndexManager::new(128, config, HashMap::new()).unwrap();
+src/db/async_indexing.rs:546:        let manager = AsyncIndexManager::new(128, config, initial_vectors).unwrap();
+src/db/async_indexing.rs:555:        let mut progress_rx = manager.start_rebuild(rebuild_vectors).unwrap();
+src/db/async_indexing.rs:574:        let final_progress = last_progress.unwrap();
+src/db/async_indexing.rs:579:        assert!(manager.swap_index().unwrap());
+src/db/async_indexing.rs:602:        let manager = AsyncIndexManager::new(128, config, initial_vectors.clone()).unwrap();
+src/db/async_indexing.rs:608:        let mut progress_rx = manager.start_rebuild(rebuild_vectors).unwrap();
+src/db/async_indexing.rs:635:            .expect("Should be able to verify quality");
+src/db/async_indexing.rs:674:        let manager = AsyncIndexManager::new(128, config, initial_vectors.clone()).unwrap();
+src/db/async_indexing.rs:680:        let _progress_rx = manager.start_rebuild(rebuild_vectors).unwrap();
+src/db/async_indexing.rs:693:        let results = manager.search(&test_query, 10).expect("Search should work");
+src/db/async_indexing.rs:705:            .expect("Should be able to verify quality after rebuild");
+src/db/async_indexing.rs:717:        let manager = AsyncIndexManager::new(128, config, HashMap::new()).unwrap();
+src/db/collection/mod.rs:138:            .expect("Failed to create optimized HNSW index");
+src/db/collection/mod.rs:171:                        .expect("Failed to initialize mmap storage");
+src/db/collection_normalization.rs:151:        let dir = tempdir().unwrap();
+src/db/collection_normalization.rs:152:        let helper = CollectionNormalizationHelper::from_config(&config, dir.path()).unwrap();
+src/db/collection_normalization.rs:156:        let processed = helper.process_document("test text", None).await.unwrap();
+src/db/collection_normalization.rs:169:        let dir = tempdir().unwrap();
+src/db/collection_normalization.rs:170:        let helper = CollectionNormalizationHelper::from_config(&config, dir.path()).unwrap();
+src/db/collection_normalization.rs:177:            .unwrap();
+src/db/collection_normalization.rs:189:        let dir = tempdir().unwrap();
+src/db/collection_normalization.rs:190:        let helper = CollectionNormalizationHelper::from_config(&config, dir.path()).unwrap();
+src/db/collection_normalization.rs:204:        let dir = tempfile::tempdir().unwrap();
+src/db/collection_normalization.rs:205:        let helper = CollectionNormalizationHelper::from_config(&config, dir.path()).unwrap();
+src/db/collection_tests.rs:31:    collection.insert(vector.clone()).unwrap();
+src/db/collection_tests.rs:33:    let retrieved = collection.get_vector("v1").unwrap();
+src/db/collection_tests.rs:61:    collection.insert(vector).unwrap();
+src/db/collection_tests.rs:65:    collection.update(updated).unwrap();
+src/db/collection_tests.rs:68:    let retrieved = collection.get_vector("v1").unwrap();
+src/db/collection_tests.rs:78:    collection.insert(vector).unwrap();
+src/db/collection_tests.rs:81:    collection.delete("v1").unwrap();
+src/db/collection_tests.rs:111:    collection.insert_batch(vec![vec1, vec2, vec3]).unwrap();
+src/db/collection_tests.rs:121:    collection.delete("vec2").unwrap();
+src/db/collection_tests.rs:172:    collection_quantized.insert_batch(vectors.clone()).unwrap();
+src/db/collection_tests.rs:173:    collection_normal.insert_batch(vectors).unwrap();
+src/db/collection_tests.rs:283:    collection.insert(vector.clone()).unwrap();
+src/db/collection_tests.rs:288:    let retrieved_vec = retrieved.unwrap();
+src/db/collection_tests.rs:334:        collection.insert(vector).unwrap();
+src/db/collection_tests.rs:366:    collection.insert(vector).unwrap();
+src/db/collection_tests.rs:401:        collection.insert(vector).unwrap();
+src/db/collection_tests.rs:409:    let results = results.unwrap();
+src/db/collection_tests.rs:433:        collection.insert(vector).unwrap();
+src/db/collection_tests.rs:535:        collection.insert(vector).unwrap();
+src/db/collection_tests.rs:633:        collection.insert(vector).unwrap();
+src/db/collection_tests.rs:687:    assert_eq!(results.unwrap().len(), 0);
+src/db/collection_tests.rs:719:                coll.insert(vector).unwrap();
+src/db/collection_tests.rs:726:        handle.join().unwrap();
+src/db/collection_tests.rs:752:        collection.insert(vector).unwrap();
+src/db/collection_tests.rs:760:    let results = results.unwrap();
+src/db/collection_tests.rs:784:        collection.insert(vector).unwrap();
+src/db/collection_tests.rs:813:    collection.insert(vector).unwrap();
+src/db/hybrid_search.rs:342:        let results = hybrid_search(dense, sparse, &config).unwrap();
+src/db/hybrid_search.rs:381:        let results = hybrid_search(dense, sparse, &config).unwrap();
+src/db/hybrid_search.rs:408:        let results = hybrid_search(dense, sparse, &config).unwrap();
+src/db/hybrid_search.rs:438:        let results = hybrid_search(dense, sparse, &config).unwrap();
+src/db/hybrid_search.rs:468:        let results = hybrid_search(dense, sparse, &config).unwrap();
+src/db/hybrid_search.rs:482:        let results = hybrid_search(dense, sparse, &config).unwrap();
+src/db/multi_tenancy.rs:465:            .unwrap();
+src/db/multi_tenancy.rs:483:            .unwrap();
+src/db/multi_tenancy.rs:487:            .unwrap();
+src/db/multi_tenancy.rs:492:            .unwrap();
+src/db/multi_tenancy.rs:495:            .unwrap();
+src/db/multi_tenancy.rs:513:            .unwrap();
+src/db/multi_tenancy.rs:518:            .unwrap();
+src/db/optimized_hnsw.rs:464:        let index = OptimizedHnswIndex::new(128, config).unwrap();
+src/db/optimized_hnsw.rs:475:        index.batch_add(vectors).unwrap();
+src/db/optimized_hnsw.rs:482:        let index = OptimizedHnswIndex::new(128, Default::default()).unwrap();
+src/db/optimized_hnsw.rs:487:            index.add(format!("vec_{}", i), vec).unwrap();
+src/db/optimized_hnsw.rs:490:        index.flush().unwrap();
+src/db/payload_index_tests.rs:30:    let ids = index.get_ids_for_keyword("status", "active").unwrap();
+src/db/payload_index_tests.rs:37:    assert!(ids.is_none() || ids.unwrap().is_empty());
+src/db/payload_index_tests.rs:65:    let ids = index.get_ids_in_range("age", Some(25), Some(30)).unwrap();
+src/db/payload_index_tests.rs:113:        .unwrap();
+src/db/payload_index_tests.rs:141:    let ids = index.search_text("description", "rust").unwrap();
+src/db/payload_index_tests.rs:147:    let ids = index.search_text("description", "rust tutorial").unwrap();
+src/db/payload_index_tests.rs:185:        .unwrap();
+src/db/payload_index_tests.rs:197:        .unwrap();
+src/db/payload_index_tests.rs:249:        .unwrap();
+src/db/payload_index_tests.rs:257:        .unwrap();
+src/db/payload_index_tests.rs:262:    let ids = index.get_ids_for_keyword("user.name", "Alice").unwrap();
+src/db/raft.rs:532:        node.start().unwrap();
+src/db/raft.rs:534:        let state = node.get_state().await.unwrap();
+src/db/raft.rs:586:            .expect("create A");
+src/db/raft.rs:589:            .expect("create B");
+src/db/raft.rs:613:        sm.apply(&insert_a).expect("apply A");
+src/db/raft.rs:614:        sm.apply(&insert_b).expect("apply B");
+src/db/raft.rs:671:            .expect("v2 payload must deserialize cleanly");
+src/db/sharded_collection.rs:506:        let collection = ShardedCollection::new("test".to_string(), config).unwrap();
+src/db/sharded_collection.rs:514:        let collection = ShardedCollection::new("test".to_string(), config).unwrap();
+src/db/sharded_collection.rs:525:            collection.insert(vector).unwrap();
+src/db/sharded_collection.rs:532:        let results = collection.search(&query, 5, None).unwrap();
+src/db/sharded_collection.rs:539:        let collection = ShardedCollection::new("test".to_string(), config).unwrap();
+src/db/sharded_collection.rs:557:        collection.insert(vec1.clone()).unwrap();
+src/db/sharded_collection.rs:558:        collection.insert(vec2.clone()).unwrap();
+src/db/sharding.rs:469:        let ring = ConsistentHashRing::new(4, 100).unwrap();
+src/db/sharding.rs:476:        let ring = ConsistentHashRing::new(4, 100).unwrap();
+src/db/sharding.rs:489:        let mut ring = ConsistentHashRing::new(4, 100).unwrap();
+src/db/sharding.rs:492:        ring.add_shard(new_shard, 1.0).unwrap();
+src/db/sharding.rs:499:        let mut ring = ConsistentHashRing::new(4, 100).unwrap();
+src/db/sharding.rs:502:        ring.remove_shard(shard_to_remove).unwrap();
+src/db/sharding.rs:509:        let router = ShardRouter::new("test_collection".to_string(), 4).unwrap();
+src/db/sharding.rs:516:        let router = Arc::new(ShardRouter::new("test".to_string(), 4).unwrap());
+src/db/vector_store/collections.rs:888:        let owner = owner_id.unwrap();
+src/db/vector_store/collection_type.rs:200:                    tokio::runtime::Runtime::new().expect("Failed to create runtime")
+src/db/vector_store_tests.rs:32:        .unwrap();
+src/db/vector_store_tests.rs:35:        .unwrap();
+src/db/vector_store_tests.rs:66:    store.create_collection("test", config.clone()).unwrap();
+src/db/vector_store_tests.rs:99:        .unwrap();
+src/db/vector_store_tests.rs:104:        .unwrap();
+src/db/vector_store_tests.rs:140:        .unwrap();
+src/db/vector_store_tests.rs:145:    store.insert("test_stats_unique", vectors).unwrap();
+src/db/vector_store_tests.rs:178:    store.create_collection("concurrent_test", config).unwrap();
+src/db/vector_store_tests.rs:190:            store_clone.insert("concurrent_test", vectors).unwrap();
+src/db/vector_store_tests.rs:197:        handle.join().unwrap();
+src/db/vector_store_tests.rs:234:        .unwrap();
+src/db/vector_store_tests.rs:241:    store.insert("metadata_test", vectors).unwrap();
+src/db/vector_store_tests.rs:244:    let metadata = store.get_collection_metadata("metadata_test").unwrap();
+src/db/wal_integration.rs:222:        let temp_dir = tempdir().unwrap();
+src/db/wal_integration.rs:225:            .unwrap();
+src/db/wal_integration.rs:264:        let temp_dir = tempdir().unwrap();
+src/db/wal_integration.rs:267:            .unwrap();
+src/discovery/compress.rs:280:        let bullets = compress_evidence(&chunks, 10, 3, &config).unwrap();
+src/discovery/expand.rs:82:        let queries = expand_queries_baseline("O que é o vectorizer", &config).unwrap();
+src/discovery/expand.rs:111:        let queries = expand_queries_baseline("test query", &config).unwrap();
+src/discovery/filter.rs:184:        .unwrap();
+src/discovery/pipeline.rs:219:        let response = result.unwrap();
+src/discovery/plan.rs:101:        let plan = build_answer_plan(&bullets, &config).unwrap();
+src/discovery/readme.rs:103:        let promoted = promote_readme(&chunks, &config).unwrap();
+src/discovery/render.rs:111:        let prompt = render_llm_prompt(&plan, &config).unwrap();
+src/discovery/score.rs:134:        let scored = score_collections(&["vectorizer"], &collections, &config).unwrap();
+src/discovery/tests.rs:21:        assert!(!queries.unwrap().is_empty());
+src/discovery/tests.rs:40:            .expect("bm25 registered");
+src/discovery/tests.rs:48:            .expect("discover call");
+src/embedding/bert.rs:315:        provider.initialize().await.unwrap();
+src/embedding/bert.rs:322:        provider.initialize().await.unwrap();
+src/embedding/bert.rs:324:        let embedding = provider.embed("Hello, world!").await.unwrap();
+src/embedding/bert.rs:335:        provider.initialize().await.unwrap();
+src/embedding/bert.rs:339:        let embeddings = provider.embed_batch(&texts).await.unwrap();
+src/embedding/bert.rs:347:        let provider = BERTFactory::create_and_initialize(None).await.unwrap();
+src/embedding/bert.rs:378:        provider.initialize().await.unwrap();
+src/embedding/bm25.rs:354:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:369:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:371:        let embedding = provider.embed("The quick brown fox").await.unwrap();
+src/embedding/bm25.rs:383:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:387:        let embeddings = provider.embed_batch(&texts).await.unwrap();
+src/embedding/bm25.rs:399:            .unwrap();
+src/embedding/bm25.rs:417:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:435:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:455:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:484:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:518:        provider.add_documents(&documents).await.unwrap();
+src/embedding/bm25.rs:521:        let embedding1 = provider.embed("the quick brown fox").await.unwrap();
+src/embedding/bm25.rs:522:        let embedding2 = provider.embed("a lazy dog").await.unwrap();
+src/embedding/bm25.rs:542:        provider.add_documents(&documents).await.unwrap();
+src/embedding/cache.rs:368:                        let array: [u8; 4] = chunk.try_into().unwrap();
+src/embedding/cache.rs:384:                            let array: [u8; 4] = chunk.try_into().unwrap();
+src/embedding/candle_models.rs:457:        let model = model.unwrap();
+src/embedding/candle_models.rs:464:        let model = RealBertEmbedding::load_model("bert-base-uncased", false).unwrap();
+src/embedding/candle_models.rs:470:        let embedding = embedding.unwrap();
+src/embedding/candle_models.rs:481:        let model = model.unwrap();
+src/embedding/candle_models.rs:490:                .unwrap();
+src/embedding/candle_models.rs:496:        let embedding = embedding.unwrap();
+src/embedding/candle_models.rs:505:                .unwrap();
+src/embedding/candle_models.rs:511:        let embeddings = embeddings.unwrap();
+src/embedding/onnx_models.rs:160:            .map(|mut vecs| vecs.pop().unwrap())
+src/embedding/openai.rs:328:        provider.initialize().await.unwrap();
+src/embedding/openai.rs:338:        provider.initialize().await.unwrap();
+src/embedding/openai.rs:340:        let embedding = provider.embed("Hello, world!").await.unwrap();
+src/embedding/openai.rs:350:        provider.initialize().await.unwrap();
+src/embedding/openai.rs:354:        let embeddings = provider.embed_batch(&texts).await.unwrap();
+src/embedding/openai.rs:364:            .unwrap();
+src/embedding/openai.rs:390:        provider.initialize().await.unwrap();
+src/embedding/providers/manager.rs:157:        let embedding = tfidf.embed("machine learning vectors").unwrap();
+src/embedding/providers/manager.rs:173:        let embedding = bow.embed("hello world").unwrap();
+src/embedding/providers/manager.rs:188:        let embedding = ngram.embed("hello").unwrap();
+src/embedding/providers/manager.rs:206:        manager.set_default_provider("tfidf").unwrap();
+src/embedding/providers/manager.rs:208:        let provider = manager.get_provider("tfidf").unwrap();
+src/embedding/providers/manager.rs:211:        let default_provider = manager.get_default_provider().unwrap();
+src/embedding/providers/manager.rs:223:        let tmp = tempfile::tempdir().unwrap();
+src/embedding/providers/manager.rs:228:            .expect("trait dispatch to BM25 override succeeds");
+src/embedding/providers/manager.rs:230:        let body = std::fs::read_to_string(&path).unwrap();
+src/embedding/providers/manager.rs:243:        let tmp = tempfile::tempdir().unwrap();
+src/embedding/providers/svd.rs:113:        let vt = self.transformation_matrix.as_ref().unwrap();
+src/evaluation/mod.rs:82:                precision_at_k.push(*precision_at_k.last().unwrap());
+src/evaluation/mod.rs:88:                recall_at_k.push(*recall_at_k.last().unwrap());
+src/file_loader/chunker.rs:166:        let chunks = result.unwrap();
+src/file_loader/chunker.rs:187:        let chunks = result.unwrap();
+src/file_loader/chunker.rs:205:        assert_eq!(result.unwrap().len(), 0);
+src/file_loader/chunker.rs:222:        let chunks = result.unwrap();
+src/file_loader/chunker.rs:234:        let chunks = chunker.chunk_text(text, &path).unwrap();
+src/file_loader/chunker.rs:257:        let chunks = result.unwrap();
+src/file_loader/chunker.rs:273:        let chunks = result.unwrap();
+src/file_loader/chunker.rs:288:        let chunks = result.unwrap();
+src/file_loader/chunker.rs:310:        let chunks = result.unwrap();
+src/file_loader/chunker.rs:326:        let chunks = chunker.chunk_text(text, &path).unwrap();
+src/file_operations/cache.rs:39:                NonZeroUsize::new(100).unwrap(),
+src/file_operations/cache.rs:41:            summary_cache: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(500).unwrap()))),
+src/file_operations/cache.rs:42:            file_list_cache: Arc::new(RwLock::new(LruCache::new(NonZeroUsize::new(50).unwrap()))),
+src/file_operations/cache.rs:226:        assert_eq!(retrieved.unwrap().content, "fn main() {}");
+src/file_operations/operations.rs:566:                files.sort_by(|a, b| b.size_estimate_kb.partial_cmp(&a.size_estimate_kb).unwrap())
+src/file_operations/operations.rs:693:                        Some((line_start.unwrap(), line_end.unwrap()))
+src/file_operations/operations.rs:1052:        related_files.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+src/file_watcher/config.rs:629:        let collection = result.unwrap();
+src/file_watcher/discovery.rs:248:                let permit = semaphore.clone().acquire_owned().await.unwrap();
+src/file_watcher/discovery.rs:756:        let temp_dir = TempDir::new().unwrap();
+src/file_watcher/discovery.rs:760:        fs::write(&test_file, "# Test").unwrap();
+src/file_watcher/discovery.rs:791:            .unwrap();
+src/file_watcher/discovery.rs:797:            files[0].canonicalize().unwrap(),
+src/file_watcher/discovery.rs:798:            test_file.canonicalize().unwrap()
+src/file_watcher/discovery.rs:810:            let base = TempDir::new().unwrap();
+src/file_watcher/discovery.rs:811:            let outside = TempDir::new().unwrap();
+src/file_watcher/discovery.rs:813:            fs::write(&outside_file, "# secret").unwrap();
+src/file_watcher/discovery.rs:816:            symlink(outside.path(), base.path().join("evil")).unwrap();
+src/file_watcher/discovery.rs:821:            fs::write(&inside_file, "# legit").unwrap();
+src/file_watcher/discovery.rs:840:                .unwrap();
+src/file_watcher/file_index.rs:217:        let hash = index.get_last_hash(&file_path, &collection_name).unwrap();
+src/file_watcher/file_index.rs:261:        let json = index.to_json().unwrap();
+src/file_watcher/file_index.rs:262:        let deserialized = FileIndex::from_json(&json).unwrap();
+src/file_watcher/hash_validator.rs:201:        let temp_dir = tempdir().unwrap();
+src/file_watcher/hash_validator.rs:203:        fs::write(&file_path, "test content").unwrap();
+src/file_watcher/hash_validator.rs:205:        let hash = validator.calculate_hash(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:208:        let changed = validator.has_content_changed(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:215:        let temp_dir = tempdir().unwrap();
+src/file_watcher/hash_validator.rs:218:        fs::write(&file_path, "test content").unwrap();
+src/file_watcher/hash_validator.rs:219:        let hash1 = validator.calculate_hash(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:221:        fs::write(&file_path, "different content").unwrap();
+src/file_watcher/hash_validator.rs:222:        let hash2 = validator.calculate_hash(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:230:        let temp_dir = tempdir().unwrap();
+src/file_watcher/hash_validator.rs:234:        fs::write(&file_path, "test content").unwrap();
+src/file_watcher/hash_validator.rs:235:        let changed1 = validator.has_content_changed(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:239:        let changed2 = validator.has_content_changed(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:243:        fs::write(&file_path, "different content").unwrap();
+src/file_watcher/hash_validator.rs:244:        let changed3 = validator.has_content_changed(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:251:        let temp_dir = tempdir().unwrap();
+src/file_watcher/hash_validator.rs:254:        fs::write(&file_path, "test content").unwrap();
+src/file_watcher/hash_validator.rs:257:        validator.update_hash(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:261:        let hash = validator.get_hash(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:269:        validator.update_hash(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:278:        let temp_dir = tempdir().unwrap();
+src/file_watcher/hash_validator.rs:281:        fs::write(temp_dir.path().join("file1.txt"), "content1").unwrap();
+src/file_watcher/hash_validator.rs:282:        fs::write(temp_dir.path().join("file2.txt"), "content2").unwrap();
+src/file_watcher/hash_validator.rs:283:        fs::write(temp_dir.path().join("file3.txt"), "content3").unwrap();
+src/file_watcher/hash_validator.rs:289:            .unwrap();
+src/file_watcher/hash_validator.rs:301:        let temp_dir = tempdir().unwrap();
+src/file_watcher/hash_validator.rs:304:        fs::write(&file_path, "test content").unwrap();
+src/file_watcher/hash_validator.rs:305:        let correct_hash = validator.calculate_hash(&file_path).await.unwrap();
+src/file_watcher/hash_validator.rs:311:            .unwrap();
+src/file_watcher/hash_validator.rs:318:            .unwrap();
+src/file_watcher/integrated_sync.rs:383:        let temp_dir = tempdir().unwrap();
+src/file_watcher/integrated_sync.rs:395:        let temp_dir = tempdir().unwrap();
+src/file_watcher/operations.rs:126:            em.set_default_provider("bm25").unwrap();
+src/file_watcher/operations.rs:242:            em.set_default_provider("bm25").unwrap();
+src/file_watcher/tests.rs:49:        // let retrieved_ids = file_index.get_vector_ids(&file_path, &collection_name).unwrap();
+src/file_watcher/tests.rs:104:        let json = file_index.to_json().unwrap();
+src/file_watcher/tests.rs:108:        let deserialized = FileIndex::from_json(&json).unwrap();
+src/file_watcher/tests.rs:128:        let temp_dir = tempdir().unwrap();
+src/file_watcher/tests.rs:141:            std::fs::write(&file_path, content).unwrap();
+src/file_watcher/tests.rs:161:            let content = std::fs::read_to_string(file_path).unwrap();
+src/file_watcher/test_integration.rs:23:    embedding_manager.set_default_provider("bm25").unwrap();
+src/file_watcher/test_integration.rs:73:    let temp_dir = TempDir::new().unwrap();
+src/file_watcher/test_integration.rs:77:    fs::write(&test_file, "# Test File\n\nThis is a test markdown file.").unwrap();
+src/file_watcher/test_integration.rs:86:    embedding_manager.set_default_provider("bm25").unwrap();
+src/file_watcher/test_integration.rs:99:    let watch_paths = watcher_system.config().watch_paths.as_ref().unwrap();
+src/gpu_adapter.rs:205:    ///     let context = GpuAdapter::create_context(backend).unwrap();
+src/grpc/conversions.rs:316:        round_tripped.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/guardrails.rs:418:        let permit1 = guardrails.acquire_permit().unwrap();
+src/guardrails.rs:419:        let permit2 = guardrails.acquire_permit().unwrap();
+src/hub/backup.rs:902:        let json = serde_json::to_string(&info).unwrap();
+src/hub/backup.rs:903:        let parsed: UserBackupInfo = serde_json::from_str(&json).unwrap();
+src/hub/client.rs:374:            .expect("Failed to create mock client");
+src/hub/ip_whitelist.rs:506:        let range = IpRange::parse("192.168.1.1").unwrap();
+src/hub/ip_whitelist.rs:513:        let range = IpRange::parse("192.168.1.0/24").unwrap();
+src/hub/ip_whitelist.rs:521:        let range = IpRange::parse("::1").unwrap();
+src/hub/ip_whitelist.rs:528:        let range = IpRange::parse("2001:db8::/32").unwrap();
+src/hub/ip_whitelist.rs:543:        let whitelist = IpWhitelist::new(config).unwrap();
+src/hub/ip_whitelist.rs:556:        let whitelist = IpWhitelist::new(config).unwrap();
+src/hub/ip_whitelist.rs:569:        let whitelist = IpWhitelist::new(config).unwrap();
+src/hub/ip_whitelist.rs:585:        let whitelist = IpWhitelist::new(config).unwrap();
+src/hub/ip_whitelist.rs:602:        let whitelist = IpWhitelist::new(config).unwrap();
+src/hub/ip_whitelist.rs:607:            .unwrap();
+src/hub/ip_whitelist.rs:623:        let whitelist = IpWhitelist::new(config).unwrap();
+src/hub/key_rotation.rs:379:        assert_eq!(status.unwrap().status, KeyStatus::Rotating);
+src/hub/key_rotation.rs:389:        manager.initiate_rotation(tenant_id, old_key).await.unwrap();
+src/hub/key_rotation.rs:406:        manager.initiate_rotation(tenant_id, old_key).await.unwrap();
+src/hub/key_rotation.rs:407:        manager.complete_rotation(tenant_id).await.unwrap();
+src/hub/key_rotation.rs:421:        manager.initiate_rotation(tenant_id, old_key).await.unwrap();
+src/hub/key_rotation.rs:422:        manager.cancel_rotation(tenant_id).await.unwrap();
+src/hub/mcp_gateway.rs:333:                .unwrap()
+src/hub/middleware.rs:307:            .unwrap();
+src/hub/middleware.rs:321:            .unwrap();
+src/hub/middleware.rs:332:        let req = Request::builder().body(Body::empty()).unwrap();
+src/hub/middleware.rs:342:            .unwrap();
+src/hub/middleware.rs:346:        let external_req = Request::builder().body(Body::empty()).unwrap();
+src/hub/request_signing.rs:340:        let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
+src/hub/request_signing.rs:384:            .expect("Time went backwards")
+src/hub/request_signing.rs:445:        RequestSigningValidator::new(config).unwrap()
+src/hub/request_signing.rs:476:            .unwrap();
+src/hub/request_signing.rs:521:            .unwrap();
+src/hub/request_signing.rs:544:            .unwrap();
+src/hub/request_signing.rs:595:        let headers = create_signing_headers(&validator, "POST", "/test", Some(b"body")).unwrap();
+src/hybrid_search.rs:73:        doc_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+src/hybrid_search.rs:110:        reranked_results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap());
+src/intelligent_search/examples.rs:122:        let similarity_threshold = tool.similarity_threshold.unwrap();
+src/intelligent_search/examples.rs:123:        let semantic_reranking = tool.semantic_reranking.unwrap();
+src/intelligent_search/examples.rs:167:        let context_reranking = tool.context_reranking.unwrap();
+src/intelligent_search/examples.rs:168:        let context_weight = tool.context_weight.unwrap();
+src/intelligent_search/examples.rs:234:                tool["name"].as_str().unwrap(),
+src/intelligent_search/examples.rs:235:                tool["description"].as_str().unwrap()
+src/intelligent_search/examples.rs:245:                endpoint["method"].as_str().unwrap(),
+src/intelligent_search/examples.rs:246:                endpoint["path"].as_str().unwrap(),
+src/intelligent_search/examples.rs:247:                endpoint["description"].as_str().unwrap()
+src/intelligent_search/examples.rs:268:            response["results"].as_array().unwrap().len()
+src/intelligent_search/examples.rs:323:            .expect("bm25 registered");
+src/intelligent_search/mcp_server_integration.rs:42:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:52:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:59:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:66:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:257:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:270:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:283:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:296:                Ok(serde_json::to_value(response).unwrap())
+src/intelligent_search/mcp_server_integration.rs:298:            "/api/docs" => Ok(serde_json::to_value(APIDocumentation::get_documentation()).unwrap()),
+src/intelligent_search/mcp_server_integration.rs:373:            .map(|t| t.get("name").unwrap().as_str().unwrap())
+src/intelligent_search/mcp_server_integration.rs:391:            .map(|e| e.get("path").unwrap().as_str().unwrap())
+src/intelligent_search/mcp_server_integration.rs:418:        let input_schema = schema["inputSchema"].as_object().unwrap();
+src/intelligent_search/mcp_server_integration.rs:421:        let required = input_schema["required"].as_array().unwrap();
+src/intelligent_search/mcp_tools.rs:263:                                                .unwrap()
+src/intelligent_search/mcp_tools.rs:403:                                                .unwrap()
+src/intelligent_search/mcp_tools.rs:520:                                                .unwrap()
+src/intelligent_search/mcp_tools.rs:583:                serde_json::Number::from_f64(similarity_threshold as f64).unwrap(),
+src/intelligent_search/mcp_tools.rs:639:                                                .unwrap()
+src/intelligent_search/mcp_tools.rs:696:                serde_json::Number::from_f64(tool.context_weight.unwrap_or(0.3) as f64).unwrap(),
+src/intelligent_search/mcp_tools.rs:895:            .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap())
+src/intelligent_search/mcp_tools.rs:900:                .unwrap();
+src/intelligent_search/mcp_tools.rs:950:        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/intelligent_search/mcp_tools.rs:970:        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/intelligent_search/mcp_tools.rs:991:        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/intelligent_search/mcp_tools.rs:1020:        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/intelligent_search/rest_api.rs:479:        let serialized = serde_json::to_string(&request).unwrap();
+src/intelligent_search/rest_api.rs:480:        let deserialized: IntelligentSearchRequest = serde_json::from_str(&serialized).unwrap();
+src/intelligent_search/simple_search_engine.rs:72:        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/intelligent_search/simple_search_engine.rs:223:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/simple_search_engine.rs:230:        let results = results.unwrap();
+src/intelligent_search/simple_search_engine.rs:289:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:169:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:174:        let results = results.unwrap();
+src/intelligent_search/tests.rs:183:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:188:        let results = results.unwrap();
+src/intelligent_search/tests.rs:196:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:201:        let results = results.unwrap();
+src/intelligent_search/tests.rs:209:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:214:        let results = results.unwrap();
+src/intelligent_search/tests.rs:249:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:545:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:547:        let (results, metadata) = engine.search("vectorizer", None, Some(5)).await.unwrap();
+src/intelligent_search/tests.rs:558:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:564:        ).await.unwrap();
+src/intelligent_search/tests.rs:574:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:576:        let (results, metadata) = engine.search("nonexistent", None, Some(5)).await.unwrap();
+src/intelligent_search/tests.rs:627:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:630:        let (results, metadata) = engine.search("vectorizer performance", None, Some(3)).await.unwrap();
+src/intelligent_search/tests.rs:654:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:665:            let (results, metadata) = engine.search(query, collections, Some(2)).await.unwrap();
+src/intelligent_search/tests.rs:689:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:691:        let (results, metadata) = engine.search("vectorizer", None, Some(10)).await.unwrap();
+src/intelligent_search/tests.rs:714:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:717:        let (results, metadata) = engine.search("vectorizer performance", None, Some(5)).await.unwrap();
+src/intelligent_search/tests.rs:741:        engine.add_documents(documents).await.unwrap();
+src/intelligent_search/tests.rs:744:        let (results, metadata) = engine.search("vectorizer", None, Some(10)).await.unwrap();
+src/lib.rs:100:        store.create_collection("concurrent", config).unwrap();
+src/lib.rs:127:                    store_clone.insert("concurrent", vec![vector]).unwrap();
+src/lib.rs:140:            let thread_results = handle.join().unwrap();
+src/lib.rs:145:        let metadata = store.get_collection_metadata("concurrent").unwrap();
+src/lib.rs:150:            let vector = store.get_vector("concurrent", vector_id).unwrap();
+src/lib.rs:163:                let results = store_clone.search("concurrent", &query, 5).unwrap();
+src/lib.rs:172:            let result_count = handle.join().unwrap();
+src/lib.rs:234:            store.create_collection(name, config.clone()).unwrap();
+src/lib.rs:262:            .unwrap();
+src/lib.rs:265:            .unwrap();
+src/lib.rs:270:            .unwrap();
+src/lib.rs:273:            .unwrap();
+src/lib.rs:283:            .unwrap();
+src/lib.rs:286:            .unwrap();
+src/lib.rs:292:        store.delete_collection("small_test_mgmt_unique").unwrap();
+src/lib.rs:300:        store.delete_collection("large_test_mgmt_unique").unwrap();
+src/logging/mod.rs:67:                .with_writer(move || log_file.try_clone().expect("Failed to clone log file"))
+src/logging/mod.rs:173:        fs::create_dir_all(&logs_dir).unwrap();
+src/logging/mod.rs:177:        fs::write(&test_log, "test log content").unwrap();
+src/migration/hub_migration.rs:305:            let new_name = record.new_name.clone().unwrap();
+src/migration/hub_migration.rs:306:            let owner_id = record.owner_id.unwrap();
+src/migration/hub_migration.rs:571:        let json = serde_json::to_string(&status).unwrap();
+src/migration/hub_migration.rs:601:        let json = serde_json::to_string(&record).unwrap();
+src/migration/hub_migration.rs:602:        let parsed: CollectionMigrationRecord = serde_json::from_str(&json).unwrap();
+src/migration/qdrant/config_parser.rs:390:        let config = QdrantConfigParser::parse_str(yaml, ConfigFormat::Yaml).unwrap();
+src/migration/qdrant/config_parser.rs:392:        let collections = config.collections.unwrap();
+src/migration/qdrant/config_parser.rs:411:        let config = QdrantConfigParser::parse_str(json, ConfigFormat::Json).unwrap();
+src/migration/qdrant/config_parser.rs:428:        let config = QdrantConfigParser::parse_str(yaml, ConfigFormat::Yaml).unwrap();
+src/migration/qdrant/config_parser.rs:429:        let vectorizer_configs = QdrantConfigParser::convert_to_vectorizer(&config).unwrap();
+src/migration/qdrant/config_parser.rs:452:        let config = QdrantConfigParser::parse_str(yaml, ConfigFormat::Yaml).unwrap();
+src/migration/qdrant/config_parser.rs:453:        let validation = QdrantConfigParser::validate(&config).unwrap();
+src/ml/advanced_ml.rs:911:                        .unwrap()
+src/ml/advanced_ml.rs:919:                        .unwrap()
+src/ml/advanced_ml.rs:927:                        .unwrap()
+src/ml/advanced_ml.rs:1035:                .unwrap()
+src/models/mod.rs:872:        let json = serde_json::to_string(&v).unwrap();
+src/models/mod.rs:879:        let back: Vector = serde_json::from_str(&json).unwrap();
+src/models/mod.rs:892:        let v: Vector = serde_json::from_str(legacy).unwrap();
+src/models/mod.rs:910:        let bytes = crate::codec::serialize(&v).unwrap();
+src/models/mod.rs:911:        let back: Vector = crate::codec::deserialize(&bytes).unwrap();
+src/models/qdrant/point.rs:304:        let json = serde_json::to_string(&vector).unwrap();
+src/models/qdrant/point.rs:309:        let deserialized: QdrantVector = serde_json::from_str(&json).unwrap();
+src/models/qdrant/point.rs:326:        let json = serde_json::to_string(&vector).unwrap();
+src/models/qdrant/point.rs:331:        let deserialized: QdrantVector = serde_json::from_str(&json).unwrap();
+src/models/qdrant/point.rs:346:        let vector: QdrantVector = serde_json::from_str(json).unwrap();
+src/models/qdrant/point.rs:351:                assert_eq!(data.get("default").unwrap().len(), 4);
+src/models/qdrant/point.rs:366:        let json = serde_json::to_string(&point).unwrap();
+src/models/qdrant/point.rs:370:        let deserialized: QdrantPointStruct = serde_json::from_str(&json).unwrap();
+src/models/qdrant/point.rs:392:        let json = serde_json::to_string(&point).unwrap();
+src/models/qdrant/point.rs:396:        let deserialized: QdrantPointStruct = serde_json::from_str(&json).unwrap();
+src/models/qdrant/point.rs:433:        let json = serde_json::to_string(&request).unwrap();
+src/models/qdrant/point.rs:437:        let deserialized: QdrantUpsertPointsRequest = serde_json::from_str(&json).unwrap();
+src/models/qdrant/point.rs:454:            let json = serde_json::to_string(&value).unwrap();
+src/models/qdrant/point.rs:465:        let json = serde_json::to_string(&array).unwrap();
+src/models/qdrant/point.rs:472:        let json = serde_json::to_string(&object).unwrap();
+src/models/qdrant/point.rs:481:        let json = serde_json::to_string(&numeric).unwrap();
+src/models/qdrant/point.rs:486:        let json = serde_json::to_string(&uuid).unwrap();
+src/models/qdrant/search_tests.rs:21:    let json = serde_json::to_string(&request).unwrap();
+src/models/qdrant/search_tests.rs:25:    let deserialized: QdrantSearchRequest = serde_json::from_str(&json).unwrap();
+src/models/qdrant/search_tests.rs:39:    let json = serde_json::to_string(&scored).unwrap();
+src/models/qdrant/search_tests.rs:60:    let json = serde_json::to_string(&request).unwrap();
+src/models/qdrant/search_tests.rs:63:    let deserialized: QdrantQueryRequest = serde_json::from_str(&json).unwrap();
+src/models/qdrant/search_tests.rs:93:    let json = serde_json::to_string(&request).unwrap();
+src/models/qdrant/search_tests.rs:103:    let json = serde_json::to_string(&fusion).unwrap();
+src/models/qdrant/search_tests.rs:110:    let json = serde_json::to_string(&dbsf).unwrap();
+src/models/qdrant/search_tests.rs:131:    let json = serde_json::to_string(&request).unwrap();
+src/models/qdrant/search_tests.rs:145:    let json = serde_json::to_string(&request).unwrap();
+src/models/qdrant/search_tests.rs:158:    let json = serde_json::to_string(&pair).unwrap();
+src/models/qdrant/search_tests.rs:181:    let json = serde_json::to_string(&request).unwrap();
+src/models/qdrant/search_tests.rs:189:    let json = serde_json::to_string(&avg).unwrap();
+src/models/qdrant/search_tests.rs:193:    let json = serde_json::to_string(&best).unwrap();
+src/models/qdrant/search_tests.rs:201:    let json = serde_json::to_string(&bool_payload).unwrap();
+src/models/qdrant/search_tests.rs:206:    let json = serde_json::to_string(&include).unwrap();
+src/models/qdrant/search_tests.rs:242:    let json = serde_json::to_string(&batch).unwrap();
+src/models/qdrant/search_tests.rs:259:    let json = serde_json::to_string(&params).unwrap();
+src/models/sparse_vector.rs:269:        let sparse = SparseVector::new(vec![0, 5, 10], vec![1.0, 2.0, 3.0]).unwrap();
+src/models/sparse_vector.rs:284:        let sparse = SparseVector::new(vec![0, 5, 10], vec![1.0, 2.0, 3.0]).unwrap();
+src/models/sparse_vector.rs:294:        let v1 = SparseVector::new(vec![0, 2, 4], vec![1.0, 2.0, 3.0]).unwrap();
+src/models/sparse_vector.rs:295:        let v2 = SparseVector::new(vec![0, 2, 5], vec![2.0, 3.0, 4.0]).unwrap();
+src/models/sparse_vector.rs:303:        let v1 = SparseVector::new(vec![0, 1], vec![1.0, 0.0]).unwrap();
+src/models/sparse_vector.rs:304:        let v2 = SparseVector::new(vec![0, 1], vec![1.0, 0.0]).unwrap();
+src/models/sparse_vector.rs:313:        let v1 = SparseVector::new(vec![0, 2], vec![1.0, 2.0]).unwrap();
+src/models/sparse_vector.rs:314:        index.add("v1".to_string(), v1).unwrap();
+src/models/sparse_vector.rs:316:        let v2 = SparseVector::new(vec![1, 3], vec![1.0, 2.0]).unwrap();
+src/models/sparse_vector.rs:317:        index.add("v2".to_string(), v2).unwrap();
+src/models/sparse_vector.rs:321:        let query = SparseVector::new(vec![0, 2], vec![1.0, 2.0]).unwrap();
+src/monitoring/correlation.rs:102:            .unwrap();
+src/monitoring/correlation.rs:104:        let response = app.oneshot(request).await.unwrap();
+src/monitoring/correlation.rs:132:            .unwrap();
+src/monitoring/correlation.rs:134:        let _response = app.oneshot(request).await.unwrap();
+src/monitoring/correlation.rs:156:            .unwrap();
+src/monitoring/correlation.rs:158:        let response = app.oneshot(request).await.unwrap();
+src/monitoring/metrics.rs:145:            .unwrap(),
+src/monitoring/metrics.rs:157:            .unwrap(),
+src/monitoring/metrics.rs:169:            .unwrap(),
+src/monitoring/metrics.rs:173:                .unwrap(),
+src/monitoring/metrics.rs:179:            .unwrap(),
+src/monitoring/metrics.rs:188:            .unwrap(),
+src/monitoring/metrics.rs:197:            .unwrap(),
+src/monitoring/metrics.rs:208:            .unwrap(),
+src/monitoring/metrics.rs:215:            .unwrap(),
+src/monitoring/metrics.rs:221:            .unwrap(),
+src/monitoring/metrics.rs:227:            .unwrap(),
+src/monitoring/metrics.rs:233:            .unwrap(),
+src/monitoring/metrics.rs:240:            .unwrap(),
+src/monitoring/metrics.rs:246:            .unwrap(),
+src/monitoring/metrics.rs:252:            .unwrap(),
+src/monitoring/metrics.rs:259:            .unwrap(),
+src/monitoring/metrics.rs:265:            .unwrap(),
+src/monitoring/metrics.rs:271:            .unwrap(),
+src/monitoring/metrics.rs:280:            .unwrap(),
+src/monitoring/metrics.rs:289:            .unwrap(),
+src/monitoring/metrics.rs:299:            .unwrap(),
+src/monitoring/metrics.rs:309:            .unwrap(),
+src/monitoring/metrics.rs:318:            .unwrap(),
+src/monitoring/metrics.rs:327:            .unwrap(),
+src/monitoring/metrics.rs:336:            .unwrap(),
+src/monitoring/metrics.rs:345:            .unwrap(),
+src/monitoring/metrics.rs:355:            .unwrap(),
+src/monitoring/metrics.rs:361:            .unwrap(),
+src/monitoring/metrics.rs:370:            .unwrap(),
+src/monitoring/metrics.rs:379:            .unwrap(),
+src/monitoring/mod.rs:82:        init().unwrap();
+src/monitoring/mod.rs:86:        let metrics_text = result.unwrap();
+src/monitoring/performance.rs:394:        let metrics = monitor.get_operation_metrics("test_op").await.unwrap();
+src/monitoring/performance.rs:418:            .unwrap();
+src/monitoring/performance.rs:465:        let metrics = monitor.get_operation_metrics("test_async").await.unwrap();
+src/monitoring/registry.rs:50:        init().unwrap();
+src/monitoring/registry.rs:51:        init().unwrap();
+src/monitoring/registry.rs:52:        init().unwrap();
+src/monitoring/registry.rs:58:        init().unwrap();
+src/monitoring/registry.rs:73:        init().unwrap();
+src/monitoring/registry.rs:89:        encoder.encode(&metric_families, &mut buffer).unwrap();
+src/monitoring/registry.rs:91:        let output = String::from_utf8(buffer).unwrap();
+src/normalization/cache/blob_store.rs:230:        let dir = tempdir().unwrap();
+src/normalization/cache/blob_store.rs:231:        let store = BlobStore::new(dir.path(), 3).unwrap();
+src/normalization/cache/blob_store.rs:237:        store.put(hash, data).await.unwrap();
+src/normalization/cache/blob_store.rs:240:        let retrieved = store.get(&hash).await.unwrap();
+src/normalization/cache/blob_store.rs:246:        let dir = tempdir().unwrap();
+src/normalization/cache/blob_store.rs:247:        let store = BlobStore::new(dir.path(), 3).unwrap();
+src/normalization/cache/blob_store.rs:253:        store.put(hash, data.as_bytes()).await.unwrap();
+src/normalization/cache/blob_store.rs:262:        let dir = tempdir().unwrap();
+src/normalization/cache/blob_store.rs:263:        let store = BlobStore::new(dir.path(), 3).unwrap();
+src/normalization/cache/blob_store.rs:266:        let result = store.get(&hash).await.unwrap();
+src/normalization/cache/blob_store.rs:272:        let dir = tempdir().unwrap();
+src/normalization/cache/blob_store.rs:279:            let store = BlobStore::new(dir.path(), 3).unwrap();
+src/normalization/cache/blob_store.rs:280:            store.put(hash, data).await.unwrap();
+src/normalization/cache/blob_store.rs:285:            let store = BlobStore::new(dir.path(), 3).unwrap();
+src/normalization/cache/blob_store.rs:286:            let retrieved = store.get(&hash).await.unwrap();
+src/normalization/cache/blob_store.rs:293:        let dir = tempdir().unwrap();
+src/normalization/cache/blob_store.rs:294:        let store = BlobStore::new(dir.path(), 3).unwrap();
+src/normalization/cache/blob_store.rs:303:            store.put(hash, data.as_bytes()).await.unwrap();
+src/normalization/cache/blob_store.rs:312:            let retrieved = store.get(&hash).await.unwrap();
+src/normalization/cache/metrics.rs:213:        let max = *sorted.last().unwrap();
+src/normalization/cache/mod.rs:199:        let dir = tempdir().unwrap();
+src/normalization/cache/mod.rs:206:        let mut cache = CacheManager::new(config).unwrap();
+src/normalization/cache/mod.rs:212:        cache.put_normalized(hash, text).await.unwrap();
+src/normalization/cache/mod.rs:215:        let retrieved = cache.get_normalized(&hash).await.unwrap();
+src/normalization/cache/mod.rs:220:        let retrieved = cache.get_normalized(&hash).await.unwrap();
+src/normalization/cache/mod.rs:226:        let dir = tempdir().unwrap();
+src/normalization/cache/mod.rs:233:        let cache = CacheManager::new(config).unwrap();
+src/normalization/cache/mod.rs:236:        let result = cache.get_normalized(&hash).await.unwrap();
+src/normalization/cache/mod.rs:242:        let dir = tempdir().unwrap();
+src/normalization/cache/mod.rs:249:        let mut cache = CacheManager::new(config).unwrap();
+src/normalization/cache/mod.rs:252:        cache.put_normalized(hash, "test").await.unwrap();
+src/normalization/cache/tests.rs:13:        let dir = tempdir().unwrap();
+src/normalization/cache/tests.rs:20:        let cache = CacheManager::new(config).unwrap();
+src/normalization/cache/tests.rs:37:                    cache.put_normalized(hash, &text).await.unwrap();
+src/normalization/cache/tests.rs:46:                    let result = cache.get_normalized(&hash).await.unwrap();
+src/normalization/cache/tests.rs:56:            handle.await.unwrap();
+src/normalization/cache/tests.rs:62:        let dir = tempdir().unwrap();
+src/normalization/cache/tests.rs:71:        let mut cache = CacheManager::new(config).unwrap();
+src/normalization/cache/tests.rs:81:                .unwrap();
+src/normalization/cache/tests.rs:103:        let dir = tempdir().unwrap();
+src/normalization/cache/tests.rs:116:            let mut cache = CacheManager::new(config).unwrap();
+src/normalization/cache/tests.rs:117:            cache.put_normalized(hash, text).await.unwrap();
+src/normalization/cache/tests.rs:128:            let cache = CacheManager::new(config).unwrap();
+src/normalization/cache/tests.rs:131:            let result = cache.get_normalized(&hash).await.unwrap();
+src/normalization/cache/tests.rs:138:        let dir = tempdir().unwrap();
+src/normalization/cache/tests.rs:146:        let mut cache = CacheManager::new(config).unwrap();
+src/normalization/cache/tests.rs:153:        cache.put_normalized(hash1, "text1").await.unwrap();
+src/normalization/cache/tests.rs:154:        cache.put_normalized(hash2, "text2").await.unwrap();
+src/normalization/cache/tests.rs:174:        let dir = tempdir().unwrap();
+src/normalization/cache/tests.rs:183:        let mut cache = CacheManager::new(config).unwrap();
+src/normalization/cache/tests.rs:189:        cache.put_normalized(hash, &text).await.unwrap();
+src/normalization/cache/warm_store.rs:217:        let dir = tempdir().unwrap();
+src/normalization/cache/warm_store.rs:218:        let store = WarmStore::new(dir.path()).unwrap();
+src/normalization/cache/warm_store.rs:224:        store.put(hash, text).await.unwrap();
+src/normalization/cache/warm_store.rs:227:        let retrieved = store.get(&hash).await.unwrap();
+src/normalization/cache/warm_store.rs:233:        let dir = tempdir().unwrap();
+src/normalization/cache/warm_store.rs:234:        let store = WarmStore::new(dir.path()).unwrap();
+src/normalization/cache/warm_store.rs:237:        let result = store.get(&hash).await.unwrap();
+src/normalization/cache/warm_store.rs:243:        let dir = tempdir().unwrap();
+src/normalization/cache/warm_store.rs:244:        let store = WarmStore::new(dir.path()).unwrap();
+src/normalization/cache/warm_store.rs:253:            store.put(hash, &text).await.unwrap();
+src/normalization/cache/warm_store.rs:262:            let retrieved = store.get(&hash).await.unwrap();
+src/normalization/cache/warm_store.rs:270:        let dir = tempdir().unwrap();
+src/normalization/cache/warm_store.rs:277:            let store = WarmStore::new(dir.path()).unwrap();
+src/normalization/cache/warm_store.rs:278:            store.put(hash, text).await.unwrap();
+src/normalization/cache/warm_store.rs:283:            let store = WarmStore::new(dir.path()).unwrap();
+src/normalization/cache/warm_store.rs:284:            let retrieved = store.get(&hash).await.unwrap();
+src/normalization/detector.rs:68:                Regex::new(r"^#!/").unwrap(),
+src/normalization/detector.rs:70:                Regex::new(r"(fn|def|function|func)\s+\w+\s*\(").unwrap(),
+src/normalization/detector.rs:72:                Regex::new(r"(class|struct|interface|trait)\s+\w+").unwrap(),
+src/normalization/detector.rs:74:                Regex::new(r"^(import|use|require|include|from)\s+").unwrap(),
+src/normalization/detector.rs:76:            html_pattern: Regex::new(r"<[a-zA-Z][^>]*>.*</[a-zA-Z]+>").unwrap(),
+src/normalization/detector.rs:77:            json_pattern: Regex::new(r#"^\s*[{\[].*[}\]]\s*$"#).unwrap(),
+src/normalization/detector.rs:78:            markdown_pattern: Regex::new(r"^#{1,6}\s+.+|```|^\*\*|^-\s|^\d+\.\s").unwrap(),
+src/normalization/hasher.rs:120:        crate::codec::serialize(self).expect("VectorKey serialization failed")
+src/normalization/hasher.rs:231:        let parsed = ContentHash::from_hex(&hex).unwrap();
+src/normalization/hasher.rs:242:        let deserialized = VectorKey::from_bytes(&bytes).unwrap();
+src/normalization/integration.rs:195:        let dir = tempdir().unwrap();
+src/normalization/integration.rs:197:        let pipeline = NormalizationPipeline::new(config, dir.path()).unwrap();
+src/normalization/integration.rs:200:        let result = pipeline.process_document(text, None).await.unwrap();
+src/normalization/integration.rs:209:        let dir = tempdir().unwrap();
+src/normalization/integration.rs:211:        let pipeline = NormalizationPipeline::new(config, dir.path()).unwrap();
+src/normalization/integration.rs:216:        let result1 = pipeline.process_document(text, None).await.unwrap();
+src/normalization/integration.rs:220:        let result2 = pipeline.process_document(text, None).await.unwrap();
+src/normalization/integration.rs:227:        let dir = tempdir().unwrap();
+src/normalization/integration.rs:229:        let pipeline = NormalizationPipeline::new(config, dir.path()).unwrap();
+src/normalization/integration.rs:240:        let dir = tempdir().unwrap();
+src/normalization/integration.rs:242:        let pipeline = NormalizationPipeline::new(config, dir.path()).unwrap();
+src/normalization/integration.rs:247:        assert!(!pipeline.is_duplicate(text).await.unwrap());
+src/normalization/integration.rs:250:        pipeline.process_document(text, None).await.unwrap();
+src/normalization/integration.rs:253:        assert!(pipeline.is_duplicate(text).await.unwrap());
+src/parallel/mod.rs:79:            .expect("Failed to create embedding thread pool")
+src/parallel/mod.rs:88:            .expect("Failed to create indexing thread pool")
+src/parallel/mod.rs:103:        .expect("Embedding pool not initialized. Call init_parallel_env first.")
+src/parallel/mod.rs:110:        .expect("Indexing pool not initialized. Call init_parallel_env first.")
+src/persistence/debug_test.rs:14:        let temp_dir = tempdir().unwrap();
+src/persistence/demo_test.rs:71:    let temp_dir = tempdir().unwrap();
+src/persistence/demo_test.rs:75:    let wal = WriteAheadLog::new(&wal_path, wal_config).await.unwrap();
+src/persistence/demo_test.rs:116:    let sequence = wal.append_transaction(&transaction).await.unwrap();
+src/persistence/demo_test.rs:121:    wal.validate_integrity().await.unwrap();
+src/persistence/demo_test.rs:126:    let entries = wal.read_from(0).await.unwrap();
+src/persistence/demo_test.rs:140:    let checkpoint_sequence = wal.checkpoint().await.unwrap();
+src/persistence/demo_test.rs:148:    let stats = wal.get_stats().await.unwrap();
+src/persistence/demo_test.rs:205:    let temp_dir = tempdir().unwrap();
+src/persistence/demo_test.rs:209:    let wal = WriteAheadLog::new(&wal_path, wal_config).await.unwrap();
+src/persistence/demo_test.rs:222:        wal.append("test-collection", operation).await.unwrap();
+src/persistence/demo_test.rs:235:    let entries = wal.read_from(0).await.unwrap();
+src/persistence/dynamic_tests.rs:11:    let temp_dir = tempdir().unwrap();
+src/persistence/dynamic_tests.rs:13:    std::fs::create_dir_all(&data_dir).unwrap(); // Create directory
+src/persistence/dynamic_tests.rs:25:        .unwrap()
+src/persistence/dynamic_tests.rs:52:        .unwrap();
+src/persistence/dynamic_tests.rs:84:        .unwrap();
+src/persistence/dynamic_tests.rs:108:    let collections = persistence.list_collections().await.unwrap();
+src/persistence/dynamic_tests.rs:115:        .unwrap();
+src/persistence/dynamic_tests.rs:119:        .unwrap();
+src/persistence/dynamic_tests.rs:122:    let collections = persistence.list_collections().await.unwrap();
+src/persistence/dynamic_tests.rs:146:        .unwrap();
+src/persistence/dynamic_tests.rs:149:    let transaction_id = persistence.begin_transaction(&metadata.id).await.unwrap();
+src/persistence/dynamic_tests.rs:161:        .unwrap();
+src/persistence/dynamic_tests.rs:167:        .unwrap();
+src/persistence/dynamic_tests.rs:191:        .unwrap();
+src/persistence/dynamic_tests.rs:200:        .unwrap();
+src/persistence/dynamic_tests.rs:227:        .unwrap();
+src/persistence/dynamic_tests.rs:231:        .unwrap();
+src/persistence/dynamic_tests.rs:233:    let stats = persistence.get_stats().await.unwrap();
+src/persistence/enhanced_store.rs:419:        let temp_dir = tempdir().unwrap();
+src/persistence/enhanced_store.rs:421:        std::fs::create_dir_all(&data_dir).unwrap(); // Create directory
+src/persistence/enhanced_store.rs:432:            .unwrap()
+src/persistence/mod.rs:365:        let dir = tempdir().unwrap();
+src/persistence/mod.rs:373:        manager.save(&data, &path).unwrap();
+src/persistence/mod.rs:376:        let file_size = fs::metadata(&path).unwrap().len();
+src/persistence/mod.rs:380:        let loaded: Vec<u8> = manager.load(&path).unwrap();
+src/persistence/mod.rs:386:        let dir = tempdir().unwrap();
+src/persistence/mod.rs:394:        manager.save(&data, &path).unwrap();
+src/persistence/mod.rs:397:        let file_size = fs::metadata(&path).unwrap().len();
+src/persistence/mod.rs:401:        let loaded: Vec<u8> = manager.load(&path).unwrap();
+src/persistence/mod.rs:407:        let dir = tempdir().unwrap();
+src/persistence/mod.rs:417:        manager_compressed.save(&data, &path_compressed).unwrap();
+src/persistence/mod.rs:420:            .unwrap();
+src/persistence/mod.rs:423:        let loaded_compressed: Vec<u8> = manager_compressed.load(&path_compressed).unwrap();
+src/persistence/mod.rs:424:        let loaded_uncompressed: Vec<u8> = manager_uncompressed.load(&path_uncompressed).unwrap();
+src/persistence/mod.rs:425:        let cross_loaded_compressed: Vec<u8> = manager_uncompressed.load(&path_compressed).unwrap();
+src/persistence/mod.rs:427:            manager_compressed.load(&path_uncompressed).unwrap();
+src/persistence/mod.rs:435:        let compressed_size = fs::metadata(&path_compressed).unwrap().len();
+src/persistence/mod.rs:436:        let uncompressed_size = fs::metadata(&path_uncompressed).unwrap().len();
+src/persistence/wal.rs:463:        let temp_dir = tempdir().unwrap();
+src/persistence/wal.rs:467:        let wal = WriteAheadLog::new(&wal_path, config).await.unwrap();
+src/persistence/wal.rs:476:        let sequence = wal.append("collection1", operation).await.unwrap();
+src/persistence/wal.rs:479:        let stats = wal.get_stats().await.unwrap();
+src/persistence/wal.rs:486:        let temp_dir = tempdir().unwrap();
+src/persistence/wal.rs:490:        let wal = WriteAheadLog::new(&wal_path, config).await.unwrap();
+src/persistence/wal.rs:506:        let sequence = wal.append_transaction(&transaction).await.unwrap();
+src/persistence/wal.rs:509:        let stats = wal.get_stats().await.unwrap();
+src/persistence/wal.rs:516:        let temp_dir = tempdir().unwrap();
+src/persistence/wal.rs:520:        let wal = WriteAheadLog::new(&wal_path, config).await.unwrap();
+src/persistence/wal.rs:533:        .unwrap();
+src/persistence/wal.rs:545:        .unwrap();
+src/persistence/wal.rs:548:        let entries = wal.read_from(0).await.unwrap();
+src/persistence/wal.rs:554:        let entries = wal.read_from(1).await.unwrap();
+src/persistence/wal.rs:561:        let temp_dir = tempdir().unwrap();
+src/persistence/wal.rs:565:        let wal = WriteAheadLog::new(&wal_path, config).await.unwrap();
+src/persistence/wal.rs:578:        .unwrap();
+src/persistence/wal.rs:590:        .unwrap();
+src/persistence/wal.rs:593:        let checkpoint_sequence = wal.checkpoint().await.unwrap();
+src/persistence/wal.rs:597:        let stats = wal.get_stats().await.unwrap();
+src/persistence/wal.rs:603:        let temp_dir = tempdir().unwrap();
+src/persistence/wal.rs:607:        let wal = WriteAheadLog::new(&wal_path, config).await.unwrap();
+src/persistence/wal.rs:620:        .unwrap();
+src/persistence/wal.rs:632:        .unwrap();
+src/persistence/wal.rs:635:        wal.validate_integrity().await.unwrap();
+src/persistence/wal.rs:643:        let temp_dir = tempdir().unwrap();
+src/persistence/wal.rs:647:            .unwrap();
+src/persistence/wal.rs:660:        .unwrap();
+src/persistence/wal.rs:671:        .unwrap();
+src/persistence/wal.rs:682:        .unwrap();
+src/persistence/wal.rs:686:        let c2 = wal.recover("collection2").await.unwrap();
+src/persistence/wal.rs:692:        let c1 = wal.recover("collection1").await.unwrap();
+src/processing/advanced_pipeline.rs:1022:                .unwrap()
+src/quantization/binary.rs:331:        quantizer.train(&vectors).unwrap();
+src/quantization/binary.rs:334:        let quantized = quantizer.quantize_vector(&vectors[0]).unwrap();
+src/quantization/binary.rs:338:        let dequantized = quantizer.dequantize_vector(&quantized, 5).unwrap();
+src/quantization/binary.rs:368:        quantizer.train(&vectors).unwrap();
+src/quantization/binary.rs:371:        let quantized_vector = quantizer.quantize_vector(&vectors[0]).unwrap();
+src/quantization/binary.rs:373:        let similarity = quantizer.similarity(&query, &quantized_vector).unwrap();
+src/quantization/binary.rs:384:        quantizer.train(&vectors).unwrap();
+src/quantization/binary.rs:387:        let quantized = quantizer.quantize(&vectors).unwrap();
+src/quantization/binary.rs:391:        let dequantized = quantizer.dequantize(&quantized).unwrap();
+src/quantization/binary.rs:406:        let params = quantizer.serialize_params().unwrap();
+src/quantization/binary.rs:408:        new_quantizer.deserialize_params(params).unwrap();
+src/quantization/hnsw_integration.rs:409:        let temp_dir = tempdir().unwrap();
+src/quantization/hnsw_integration.rs:414:        let storage = Arc::new(QuantizedVectorStorage::new(storage_config).unwrap());
+src/quantization/hnsw_integration.rs:417:        let mut index = QuantizedHnswIndex::new(config, storage).unwrap();
+src/quantization/hnsw_integration.rs:425:        index.add_vectors(&vectors).unwrap();
+src/quantization/hnsw_integration.rs:427:        let results = index.search_quantized(&vec![1.0, 0.0, 0.0], 2).unwrap();
+src/quantization/hnsw_integration.rs:434:        let temp_dir = tempdir().unwrap();
+src/quantization/hnsw_integration.rs:439:        let storage = Arc::new(QuantizedVectorStorage::new(storage_config).unwrap());
+src/quantization/hnsw_integration.rs:442:        let mut index = QuantizedHnswIndex::new(config, storage).unwrap();
+src/quantization/hnsw_integration.rs:445:        index.add_vectors(&vectors).unwrap();
+src/quantization/hnsw_integration.rs:447:        let stats = index.get_quantization_stats().unwrap();
+src/quantization/hnsw_integration.rs:455:        let temp_dir = tempdir().unwrap();
+src/quantization/hnsw_integration.rs:460:        let storage = Arc::new(QuantizedVectorStorage::new(storage_config).unwrap());
+src/quantization/hnsw_integration.rs:463:        let mut index = QuantizedHnswIndex::new(config, storage).unwrap();
+src/quantization/hnsw_integration.rs:466:        index.add_vectors(&vectors).unwrap();
+src/quantization/hnsw_integration.rs:469:        index.save_to_storage("test_collection").unwrap();
+src/quantization/hnsw_integration.rs:476:        .unwrap();
+src/quantization/hnsw_integration.rs:478:        new_index.load_from_storage("test_collection").unwrap();
+src/quantization/hnsw_integration.rs:480:        let stats = new_index.get_quantization_stats().unwrap();
+src/quantization/hnsw_integration.rs:486:        let temp_dir = tempdir().unwrap();
+src/quantization/hnsw_integration.rs:491:        let storage = Arc::new(QuantizedVectorStorage::new(storage_config).unwrap());
+src/quantization/hnsw_integration.rs:495:        let mut index = QuantizedHnswIndex::new(config, storage).unwrap();
+src/quantization/hnsw_integration.rs:503:        index.add_vectors(&vectors).unwrap();
+src/quantization/hnsw_integration.rs:505:        let results = index.search_hybrid(&vec![1.0, 0.0, 0.0], 2).unwrap();
+src/quantization/product.rs:396:        let quantized = pq.quantize(&test_vector).unwrap();
+src/quantization/product.rs:400:        let reconstructed = pq.reconstruct(&quantized).unwrap();
+src/quantization/product.rs:404:        let error = pq.quantization_error(&test_vector, &quantized).unwrap();
+src/quantization/product.rs:458:        pq.train(&training_vectors).unwrap();
+src/quantization/product.rs:474:            let quantized = pq.quantize(original).unwrap();
+src/quantization/product.rs:475:            let reconstructed = pq.reconstruct(&quantized).unwrap();
+src/quantization/scalar.rs:515:        let mut sq = ScalarQuantization::new(8).unwrap();
+src/quantization/scalar.rs:523:        sq.fit(&vectors).unwrap();
+src/quantization/scalar.rs:525:        let quantized = sq.quantize(&vectors).unwrap();
+src/quantization/scalar.rs:526:        let dequantized = sq.dequantize(&quantized).unwrap();
+src/quantization/scalar.rs:547:        let mut sq = ScalarQuantization::new(4).unwrap();
+src/quantization/scalar.rs:551:        sq.fit(&vectors).unwrap();
+src/quantization/scalar.rs:553:        let quantized = sq.quantize(&vectors).unwrap();
+src/quantization/scalar.rs:554:        let dequantized = sq.dequantize(&quantized).unwrap();
+src/quantization/scalar.rs:572:        let sq8 = ScalarQuantization::new(8).unwrap();
+src/quantization/scalar.rs:573:        let sq4 = ScalarQuantization::new(4).unwrap();
+src/quantization/scalar.rs:574:        let sq2 = ScalarQuantization::new(2).unwrap();
+src/quantization/scalar.rs:575:        let sq1 = ScalarQuantization::new(1).unwrap();
+src/quantization/scalar.rs:597:        let mut sq = ScalarQuantization::new(8).unwrap();
+src/quantization/scalar.rs:605:        sq.fit(&vectors).unwrap();
+src/quantization/scalar.rs:607:        let quantized = sq.quantize(&vectors).unwrap();
+src/quantization/scalar.rs:612:        let similarity = sq.similarity(&query, first_vector_data).unwrap();
+src/quantization/scalar.rs:622:        let mut sq = ScalarQuantization::new(8).unwrap();
+src/quantization/simple_tests.rs:125:        let serialized = serde_json::to_string(&config).unwrap();
+src/quantization/simple_tests.rs:129:        let deserialized: QuantizationConfig = serde_json::from_str(&serialized).unwrap();
+src/quantization/simple_tests.rs:149:        let serialized = serde_json::to_string(&stats).unwrap();
+src/quantization/simple_tests.rs:154:        let deserialized: QuantizationStats = serde_json::from_str(&serialized).unwrap();
+src/quantization/storage.rs:553:        let temp_dir = tempdir().unwrap();
+src/quantization/storage.rs:560:        let storage = QuantizedVectorStorage::new(config).unwrap();
+src/quantization/storage.rs:563:        let mut sq = ScalarQuantization::new(8).unwrap();
+src/quantization/storage.rs:565:        sq.fit(&test_vectors).unwrap();
+src/quantization/storage.rs:566:        let quantized = sq.quantize(&test_vectors).unwrap();
+src/quantization/storage.rs:569:        storage.store("test_collection", &quantized).unwrap();
+src/quantization/storage.rs:572:        let loaded = storage.load("test_collection").unwrap();
+src/quantization/storage.rs:577:        let collections = storage.list_collections().unwrap();
+src/quantization/storage.rs:581:        storage.remove("test_collection").unwrap();
+src/quantization/storage.rs:582:        let collections_after = storage.list_collections().unwrap();
+src/quantization/storage.rs:588:        let temp_dir = tempdir().unwrap();
+src/quantization/storage.rs:595:        let storage = QuantizedVectorStorage::new(config).unwrap();
+src/quantization/storage.rs:598:        let mut sq = ScalarQuantization::new(8).unwrap();
+src/quantization/storage.rs:600:        sq.fit(&test_vectors).unwrap();
+src/quantization/storage.rs:601:        let quantized = sq.quantize(&test_vectors).unwrap();
+src/quantization/storage.rs:603:        storage.store("test1", &quantized).unwrap();
+src/quantization/storage.rs:604:        storage.store("test2", &quantized).unwrap();
+src/quantization/storage.rs:606:        let stats = storage.get_stats().unwrap();
+src/quantization/storage.rs:613:        let temp_dir = tempdir().unwrap();
+src/quantization/storage.rs:620:        let storage = QuantizedVectorStorage::new(config).unwrap();
+src/quantization/storage.rs:623:        let mut sq = ScalarQuantization::new(8).unwrap();
+src/quantization/storage.rs:625:        sq.fit(&test_vectors).unwrap();
+src/quantization/storage.rs:626:        let quantized = sq.quantize(&test_vectors).unwrap();
+src/quantization/storage.rs:630:            storage.store(&format!("test{}", i), &quantized).unwrap();
+src/quantization/storage.rs:633:        let stats = storage.get_stats().unwrap();
+src/quantization/storage.rs:637:        storage.clear_cache().unwrap();
+src/quantization/storage.rs:638:        let stats_after = storage.get_stats().unwrap();
+src/quantization/traits.rs:238:        let serialized = serde_json::to_string(&quantized).unwrap();
+src/quantization/traits.rs:239:        let deserialized: QuantizedVectors = serde_json::from_str(&serialized).unwrap();
+src/replication/durable_log.rs:340:        let log = DurableReplicationLog::new(100, None).unwrap();
+src/replication/durable_log.rs:342:        let o1 = log.append(make_op("col1")).unwrap();
+src/replication/durable_log.rs:343:        let o2 = log.append(make_op("col2")).unwrap();
+src/replication/durable_log.rs:352:        let dir = tempdir().unwrap();
+src/replication/durable_log.rs:357:            let log = DurableReplicationLog::new(100, Some(wal_path.clone())).unwrap();
+src/replication/durable_log.rs:358:            log.append(make_op("col1")).unwrap();
+src/replication/durable_log.rs:359:            log.append(make_op("col2")).unwrap();
+src/replication/durable_log.rs:365:            let mut log = DurableReplicationLog::new(100, Some(wal_path.clone())).unwrap();
+src/replication/durable_log.rs:366:            let last = log.recover().unwrap();
+src/replication/durable_log.rs:374:        let log = DurableReplicationLog::new(100, None).unwrap();
+src/replication/durable_log.rs:377:            log.append(make_op(&format!("col{}", i))).unwrap();
+src/replication/durable_log.rs:380:        let ops = log.get_operations(2).unwrap();
+src/replication/durable_log.rs:387:        let dir = tempdir().unwrap();
+src/replication/durable_log.rs:390:        let log = DurableReplicationLog::new(100, Some(wal_path.clone())).unwrap();
+src/replication/durable_log.rs:393:            log.append(make_op(&format!("col{}", i))).unwrap();
+src/replication/durable_log.rs:400:        let mut recovered = DurableReplicationLog::new(100, Some(wal_path)).unwrap();
+src/replication/durable_log.rs:401:        let last = recovered.recover().unwrap();
+src/replication/durable_log.rs:407:        let dir = tempdir().unwrap();
+src/replication/durable_log.rs:410:        let mut log = DurableReplicationLog::new(100, Some(wal_path)).unwrap();
+src/replication/durable_log.rs:411:        let last = log.recover().unwrap();
+src/replication/durable_log.rs:417:        let mut log = DurableReplicationLog::new(100, None).unwrap();
+src/replication/durable_log.rs:418:        let last = log.recover().unwrap();
+src/replication/master.rs:684:        .unwrap()
+src/replication/master.rs:699:            bind_address: Some("127.0.0.1:0".parse().unwrap()),
+src/replication/master.rs:718:        let master = result.unwrap();
+src/replication/master.rs:733:        let master = MasterNode::new(test_config(1000), store).unwrap();
+src/replication/master.rs:756:        let master = MasterNode::new(test_config(1000), store).unwrap();
+src/replication/master.rs:769:        let master = MasterNode::new(test_config(1000), store).unwrap();
+src/replication/master.rs:783:        assert_eq!(result.unwrap(), 1);
+src/replication/master.rs:789:        let master = MasterNode::new(test_config(1000), store).unwrap();
+src/replication/replica.rs:508:        .unwrap()
+src/replication/replica.rs:526:            master_address: Some("127.0.0.1:7000".parse().unwrap()),
+src/replication/replication_log.rs:81:        let oldest_offset = ops.front().unwrap().offset;
+src/replication/replication_log.rs:124:        .unwrap()
+src/replication/replication_log.rs:195:        let ops = log.get_operations(5).unwrap();
+src/replication/stats_tests.rs:207:        let json = serde_json::to_string(&stats).unwrap();
+src/replication/stats_tests.rs:213:        let deserialized: ReplicationStats = serde_json::from_str(&json).unwrap();
+src/replication/stats_tests.rs:227:        let json = serde_json::to_string(&info).unwrap();
+src/replication/stats_tests.rs:234:        let deserialized: ReplicaInfo = serde_json::from_str(&json).unwrap();
+src/replication/sync.rs:226:        .unwrap()
+src/replication/sync.rs:250:        store.create_collection("test", config).unwrap();
+src/replication/sync.rs:259:        store.insert("test", vec![vec1]).unwrap();
+src/replication/sync.rs:261:        let mut snapshot = create_snapshot(&store, 0).await.unwrap();
+src/replication/sync.rs:294:        store1.create_collection("payload_test", config).unwrap();
+src/replication/sync.rs:327:            .unwrap();
+src/replication/sync.rs:330:        let snapshot = create_snapshot(&store1, 100).await.unwrap();
+src/replication/sync.rs:334:        apply_snapshot(&store2, &snapshot).await.unwrap();
+src/replication/sync.rs:337:        let v1 = store2.get_vector("payload_test", "vec1").unwrap();
+src/replication/sync.rs:340:        let v3 = store2.get_vector("payload_test", "vec3").unwrap();
+src/replication/sync.rs:363:            .unwrap();
+src/replication/sync.rs:378:        store1.create_collection("dotproduct", config_dot).unwrap();
+src/replication/sync.rs:388:        store1.insert("euclidean", vec![vec.clone()]).unwrap();
+src/replication/sync.rs:389:        store1.insert("dotproduct", vec![vec]).unwrap();
+src/replication/sync.rs:392:        let snapshot = create_snapshot(&store1, 50).await.unwrap();
+src/replication/sync.rs:396:        apply_snapshot(&store2, &snapshot).await.unwrap();
+src/replication/sync.rs:399:        let euc_col = store2.get_collection("euclidean").unwrap();
+src/replication/sync.rs:405:        let dot_col = store2.get_collection("dotproduct").unwrap();
+src/replication/sync.rs:417:        let snapshot = create_snapshot(&store1, 0).await.unwrap();
+src/replication/sync.rs:422:        let offset = apply_snapshot(&store2, &snapshot).await.unwrap();
+src/replication/sync.rs:446:        store.create_collection("meta_test", config).unwrap();
+src/replication/sync.rs:455:        store.insert("meta_test", vec![vec1]).unwrap();
+src/replication/sync.rs:458:        let snapshot = create_snapshot(&store, 999).await.unwrap();
+src/replication/sync.rs:461:        let metadata: SnapshotMetadata = crate::codec::deserialize(&snapshot).unwrap();
+src/replication/tests.rs:92:        store1.create_collection("test", config).unwrap();
+src/replication/tests.rs:109:        store1.insert("test", vec![vec1, vec2]).unwrap();
+src/replication/tests.rs:112:        let snapshot = sync::create_snapshot(&store1, 100).await.unwrap();
+src/replication/tests.rs:117:        let offset = sync::apply_snapshot(&store2, &snapshot).await.unwrap();
+src/replication/tests.rs:123:        let collection = store2.get_collection("test").unwrap();
+src/replication/tests.rs:129:        let config = ReplicationConfig::master("127.0.0.1:7000".parse().unwrap());
+src/replication/tests.rs:134:        let config = ReplicationConfig::replica("127.0.0.1:7000".parse().unwrap());
+src/replication/tests.rs:149:            bind_address: Some("127.0.0.1:0".parse().unwrap()),
+src/replication/tests.rs:170:            master_address: Some("127.0.0.1:7000".parse().unwrap()),
+src/replication/tests.rs:226:            let serialized = crate::codec::serialize(&op).unwrap();
+src/replication/tests.rs:227:            let deserialized: VectorOperation = crate::codec::deserialize(&serialized).unwrap();
+src/replication/tests.rs:229:            let _ = crate::codec::serialize(&deserialized).unwrap();
+src/search/advanced_search/engine.rs:88:                    .unwrap()
+src/search/advanced_search/engine.rs:254:        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/search/advanced_search/ranker.rs:54:        ranked_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+src/security/enhanced_security.rs:859:                .unwrap()
+src/security/payload_encryption.rs:324:        let encrypted = encrypt_payload(&payload, &public_key_base64).unwrap();
+src/security/payload_encryption.rs:335:        validate_encrypted_payload(&encrypted).unwrap();
+src/security/rate_limit.rs:225:            NonZeroU32::new(config.requests_per_second).unwrap_or(NonZeroU32::new(100).unwrap()),
+src/security/rate_limit.rs:227:        .allow_burst(NonZeroU32::new(config.burst_size).unwrap_or(NonZeroU32::new(200).unwrap()));
+src/security/rate_limit.rs:266:                    NonZeroU32::new(rps).unwrap_or(NonZeroU32::new(100).unwrap()),
+src/security/rate_limit.rs:268:                .allow_burst(NonZeroU32::new(burst).unwrap_or(NonZeroU32::new(200).unwrap()));
+src/security/rate_limit.rs:288:                    NonZeroU32::new(requests_per_second).unwrap_or(NonZeroU32::new(100).unwrap()),
+src/security/rate_limit.rs:290:                .allow_burst(NonZeroU32::new(burst_size).unwrap_or(NonZeroU32::new(200).unwrap()));
+src/security/rate_limit.rs:324:            NonZeroU32::new(requests_per_second).unwrap_or(NonZeroU32::new(100).unwrap()),
+src/security/rate_limit.rs:326:        .allow_burst(NonZeroU32::new(burst_size).unwrap_or(NonZeroU32::new(200).unwrap()));
+src/security/rate_limit.rs:502:        let free = config.tiers.get("free").unwrap();
+src/security/rate_limit.rs:507:        let enterprise = config.tiers.get("enterprise").unwrap();
+src/security/rate_limit.rs:565:        let json = serde_json::to_string(&key_config).unwrap();
+src/security/rate_limit.rs:566:        let deserialized: KeyRateLimitConfig = serde_json::from_str(&json).unwrap();
+src/security/rate_limit.rs:582:        let json = serde_json::to_string(&tier_config).unwrap();
+src/security/rate_limit.rs:583:        let deserialized: TierRateLimitConfig = serde_json::from_str(&json).unwrap();
+src/security/rate_limit.rs:596:        let yaml = serde_yaml::to_string(&config).unwrap();
+src/security/rate_limit.rs:597:        let deserialized: RateLimitConfig = serde_yaml::from_str(&yaml).unwrap();
+src/security/rate_limit.rs:640:        let info = limiter.get_key_info("special").unwrap();
+src/security/rate_limit.rs:647:        let info = limiter.get_key_info("special").unwrap();
+src/server/auth_handlers_tests.rs:9:    let request: LoginRequest = serde_json::from_str(json).unwrap();
+src/server/auth_handlers_tests.rs:17:    let request: CreateApiKeyRequest = serde_json::from_str(json).unwrap();
+src/server/auth_handlers_tests.rs:34:    let json = serde_json::to_string(&response).unwrap();
+src/server/auth_handlers_tests.rs:41:    let tmp = tempfile::tempdir().expect("tempdir");
+src/server/auth_handlers_tests.rs:44:            .expect("persist succeeded");
+src/server/auth_handlers_tests.rs:46:    let body = std::fs::read_to_string(&path).expect("read credentials");
+src/server/auth_handlers_tests.rs:61:    let tmp = tempfile::tempdir().expect("tempdir");
+src/server/auth_handlers_tests.rs:62:    let path = persist_first_run_credentials(tmp.path(), "root", "pw", false).expect("persist");
+src/server/auth_handlers_tests.rs:63:    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+src/server/auth_handlers_tests.rs:69:    let tmp = tempfile::tempdir().expect("tempdir");
+src/server/auth_handlers_tests.rs:73:        .expect("persist created parents");
+src/server/auth_handlers_tests.rs:87:    let manager = Arc::new(AuthManager::new(config).expect("valid auth config"));
+src/server/auth_handlers_tests.rs:90:        .expect("generate_jwt");
+src/server/auth_handlers_tests.rs:100:        .expect("no-auth mode must allow the call through");
+src/server/auth_handlers_tests.rs:122:        format!("Bearer {token}").parse().unwrap(),
+src/server/auth_handlers_tests.rs:136:        format!("Bearer {token}").parse().unwrap(),
+src/server/auth_handlers_tests.rs:140:        .expect("admin token must pass");
+src/server/auth_handlers_tests.rs:157:        .expect("no-auth mode must allow the call through");
+src/server/auth_handlers_tests.rs:180:        format!("Bearer {token}").parse().unwrap(),
+src/server/auth_handlers_tests.rs:194:        format!("Bearer {token}").parse().unwrap(),
+src/server/auth_handlers_tests.rs:198:        .expect("admin token must pass");
+src/server/auth_handlers_tests.rs:199:    let inner = inner.expect("admin state must be populated");
+src/server/auth_handlers_tests.rs:209:        .expect("no-auth mode must allow the call through");
+src/server/auth_handlers_tests.rs:232:        format!("Bearer {token}").parse().unwrap(),
+src/server/auth_handlers_tests.rs:236:        .expect("valid non-admin token must pass");
+src/server/auth_handlers_tests.rs:237:    let inner = inner.expect("auth state must be populated");
+src/server/core/bootstrap.rs:532:                                        let metadata = std::fs::metadata(&vecdb_path).unwrap();
+src/server/core/helpers.rs:118:        "nosniff".parse().unwrap(),
+src/server/core/helpers.rs:124:        "SAMEORIGIN".parse().unwrap(),
+src/server/core/helpers.rs:130:        "1; mode=block".parse().unwrap(),
+src/server/core/helpers.rs:140:        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss: https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net".parse().unwrap(),
+src/server/core/helpers.rs:145:        "strict-origin-when-cross-origin".parse().unwrap(),
+src/server/core/helpers.rs:152:            .unwrap(),
+src/server/core/routing.rs:841:                                .unwrap();
+src/server/core/routing.rs:846:                            user_claims: user_claims.unwrap(),
+src/server/core/routing.rs:863:                            .unwrap();
+src/server/core/routing.rs:971:                    .expect("Failed to install Ctrl+C handler");
+src/server/core/routing.rs:980:                    signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
+src/server/core/routing.rs:1160:                            .unwrap(),
+src/server/embedded_assets.rs:47:            builder.body(Body::from(content.data.into_owned())).unwrap()
+src/server/embedded_assets.rs:59:                        .unwrap();
+src/server/embedded_assets.rs:68:                .unwrap()
+src/server/embedded_assets.rs:113:        let content_type = response.headers().get("content-type").unwrap();
+src/server/embedded_assets.rs:114:        assert!(content_type.to_str().unwrap().contains("text/html"));
+src/server/files/upload.rs:616:        let json = serde_json::to_string(&response).unwrap();
+src/server/files/upload.rs:635:        let response: FileUploadResponse = serde_json::from_str(json).unwrap();
+src/server/files/upload.rs:659:        let json = serde_json::to_string(&response).unwrap();
+src/server/files/upload.rs:660:        let parsed: FileUploadResponse = serde_json::from_str(&json).unwrap();
+src/server/files/upload.rs:728:        let json = serde_json::to_string(&request).unwrap();
+src/server/files/upload.rs:748:        let json = serde_json::to_string(&request).unwrap();
+src/server/files/upload.rs:761:        let request: FileUploadRequest = serde_json::from_str(json).unwrap();
+src/server/files/upload.rs:772:        let request: FileUploadRequest = serde_json::from_str(json).unwrap();
+src/server/files/validation.rs:301:        let file = result.unwrap();
+src/server/files/validation.rs:443:        let file = result.unwrap();
+src/server/files/validation.rs:455:        let file = result.unwrap();
+src/server/files/validation.rs:468:        let file = result.unwrap();
+src/server/files/validation.rs:486:        let file = result.unwrap();
+src/server/hub_handlers/tenant.rs:235:            let collections_array = export_data["collections"].as_array_mut().unwrap();
+src/server/hub_handlers/tenant.rs:393:        Arc::new(VectorStore::new(&config).unwrap())
+src/server/hub_handlers/tenant.rs:423:            .unwrap();
+src/server/hub_handlers/tenant.rs:430:            .unwrap();
+src/server/hub_handlers/tenant.rs:437:        let deleted_count = store.cleanup_tenant_data(&tenant_id).unwrap();
+src/server/hub_handlers/tenant.rs:461:            .unwrap();
+src/server/hub_handlers/tenant.rs:475:        let serialized = serde_json::to_string(&export).unwrap();
+src/server/hub_handlers/tenant.rs:480:        let serialized = serde_json::to_string(&transfer).unwrap();
+src/server/hub_handlers/tenant.rs:485:        let serialized = serde_json::to_string(&clone).unwrap();
+src/server/hub_handlers/tenant.rs:490:        let serialized = serde_json::to_string(&move_storage).unwrap();
+src/server/hub_handlers/tenant.rs:496:        let export: MigrationType = serde_json::from_str("\"export\"").unwrap();
+src/server/hub_handlers/tenant.rs:499:        let transfer: MigrationType = serde_json::from_str("\"transfer_ownership\"").unwrap();
+src/server/hub_handlers/tenant.rs:502:        let clone: MigrationType = serde_json::from_str("\"clone\"").unwrap();
+src/server/hub_handlers/tenant.rs:505:        let move_storage: MigrationType = serde_json::from_str("\"move_storage\"").unwrap();
+src/server/hub_handlers/tenant.rs:605:            .unwrap();
+src/server/hub_handlers/tenant.rs:609:        store.insert(&collection_name, vectors).unwrap();
+src/server/hub_handlers/tenant.rs:635:            .unwrap();
+src/server/hub_handlers/tenant.rs:639:        store.insert(&collection_name, vectors).unwrap();
+src/server/hub_handlers/tenant.rs:674:            .unwrap();
+src/server/hub_handlers/tenant.rs:677:        store.insert(&source_collection, vectors.clone()).unwrap();
+src/server/hub_handlers/tenant.rs:682:            .unwrap();
+src/server/hub_handlers/tenant.rs:683:        store.insert(&target_collection, vectors).unwrap();
+src/server/hub_handlers/tenant.rs:696:            .unwrap()
+src/server/hub_handlers/tenant.rs:700:            .unwrap()
+src/server/hub_handlers/tenant.rs:719:        assert_eq!(result.unwrap(), 0);
+src/server/hub_handlers/tenant.rs:745:            .unwrap();
+src/server/hub_handlers/tenant.rs:748:            .unwrap();
+src/server/hub_handlers/tenant.rs:751:            .unwrap();
+src/server/mcp/connection_manager.rs:181:            .unwrap();
+src/server/mcp/tools.rs:25:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:68:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:91:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:122:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:149:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:184:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:212:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:255:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:294:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:341:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:378:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:423:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:494:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:531:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:574:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:612:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:654:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:699:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:739:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:783:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:810:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:837:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:874:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:905:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:946:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:969:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:1006:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:1029:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:1051:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:1075:            }).as_object().unwrap().clone().into(),
+src/server/mcp/tools.rs:1098:            }).as_object().unwrap().clone().into(),
+src/server/qdrant/query_handlers.rs:121:                let mut avg = sum_vector.unwrap();
+src/server/qdrant/query_handlers.rs:168:                let mut avg = sum_vector.unwrap();
+src/server/qdrant/vector_handlers.rs:522:                        .unwrap()
+src/server/qdrant/vector_handlers.rs:632:            let (vector_name, data) = named_vectors.into_iter().next().unwrap();
+src/server/qdrant/vector_handlers.rs:715:                .unwrap()
+src/storage/advanced.rs:428:        let temp_dir = TempDir::new().unwrap();
+src/storage/advanced.rs:430:        let storage = AdvancedStorage::new(temp_dir.path(), config).unwrap();
+src/storage/advanced.rs:433:        storage.store_vectors("test", &vectors).unwrap();
+src/storage/advanced.rs:435:        let loaded = storage.load_vectors("test").unwrap();
+src/storage/advanced.rs:442:        let temp_dir = TempDir::new().unwrap();
+src/storage/advanced.rs:444:        let storage = AdvancedStorage::new(temp_dir.path(), config).unwrap();
+src/storage/advanced.rs:447:        storage.store_vectors("test", &vectors).unwrap();
+src/storage/advanced.rs:450:        let loaded1 = storage.load_vectors("test").unwrap();
+src/storage/advanced.rs:454:        let loaded2 = storage.load_vectors("test").unwrap();
+src/storage/advanced.rs:464:        let temp_dir = TempDir::new().unwrap();
+src/storage/advanced.rs:466:        let storage = AdvancedStorage::new(temp_dir.path(), config).unwrap();
+src/storage/advanced.rs:469:        storage.store_vectors("test", &vectors).unwrap();
+src/storage/advanced.rs:471:        let result = storage.optimize_storage("test").unwrap();
+src/storage/advanced.rs:478:        let temp_dir = TempDir::new().unwrap();
+src/storage/advanced.rs:480:        let storage = AdvancedStorage::new(temp_dir.path(), config).unwrap();
+src/storage/advanced.rs:483:        storage.store_vectors("test1", &vectors).unwrap();
+src/storage/advanced.rs:484:        storage.store_vectors("test2", &vectors).unwrap();
+src/storage/advanced.rs:487:        storage.load_vectors("test1").unwrap();
+src/storage/advanced.rs:488:        storage.load_vectors("test2").unwrap();
+src/storage/advanced.rs:493:        storage.clear_cache("test1").unwrap();
+src/storage/advanced.rs:497:        storage.clear_all_caches().unwrap();
+src/storage/advanced.rs:504:        let temp_dir = TempDir::new().unwrap();
+src/storage/advanced.rs:506:        let storage = AdvancedStorage::new(temp_dir.path(), config).unwrap();
+src/storage/advanced.rs:509:        storage.store_vectors("test", &vectors).unwrap();
+src/storage/advanced.rs:510:        storage.load_vectors("test").unwrap();
+src/storage/compact.rs:551:        fs::create_dir_all(&data_dir).unwrap();
+src/storage/compact.rs:555:        let mut file = File::create(&test_file).unwrap();
+src/storage/compact.rs:556:        file.write_all(b"test vector data").unwrap();
+src/storage/compact.rs:561:        let temp_dir = TempDir::new().unwrap();
+src/storage/compact.rs:571:        let temp_dir = TempDir::new().unwrap();
+src/storage/compact.rs:587:        let temp_dir = TempDir::new().unwrap();
+src/storage/compact.rs:594:        let index = result.unwrap();
+src/storage/compact.rs:611:        let temp_dir = TempDir::new().unwrap();
+src/storage/config.rs:278:        let yaml = serde_yaml::to_string(&config).unwrap();
+src/storage/config.rs:283:        let deserialized: StorageConfig = serde_yaml::from_str(&yaml).unwrap();
+src/storage/index.rs:332:        let temp_dir = TempDir::new().unwrap();
+src/storage/index.rs:338:        index.save(&index_path).unwrap();
+src/storage/index.rs:341:        let loaded = StorageIndex::load(&index_path).unwrap();
+src/storage/migration.rs:297:        fs::create_dir_all(&data_dir).unwrap();
+src/storage/migration.rs:301:        let mut file = File::create(&test_file).unwrap();
+src/storage/migration.rs:302:        file.write_all(b"test vector data").unwrap();
+src/storage/migration.rs:307:        let temp_dir = TempDir::new().unwrap();
+src/storage/migration.rs:315:        let temp_dir = TempDir::new().unwrap();
+src/storage/migration.rs:324:        let temp_dir = TempDir::new().unwrap();
+src/storage/migration.rs:328:        let count = migrator.count_legacy_collections().unwrap();
+src/storage/migration.rs:335:        let temp_dir = TempDir::new().unwrap();
+src/storage/migration.rs:342:        let migration_result = result.unwrap();
+src/storage/mmap.rs:210:        let tmp_file = NamedTempFile::new().unwrap();
+src/storage/mmap.rs:214:        let mut storage = MmapVectorStorage::open(path, dim).unwrap();
+src/storage/mmap.rs:219:        let id1 = storage.append(&v1).unwrap();
+src/storage/mmap.rs:220:        let id2 = storage.append(&v2).unwrap();
+src/storage/mmap.rs:226:        let read_v1 = storage.get(0).unwrap();
+src/storage/mmap.rs:227:        let read_v2 = storage.get(1).unwrap();
+src/storage/mmap.rs:236:        let temp_dir = tempfile::tempdir().unwrap();
+src/storage/mmap.rs:242:            let mut storage = MmapVectorStorage::open(&path, dim).unwrap();
+src/storage/mmap.rs:246:                storage.append(&vector).unwrap();
+src/storage/mmap.rs:249:            storage.flush().unwrap();
+src/storage/mmap.rs:257:            let storage = MmapVectorStorage::open(&path, dim).unwrap();
+src/storage/mmap.rs:262:                let vector = storage.get(i).unwrap();
+src/storage/mod.rs:151:        let temp_dir = TempDir::new().unwrap();
+src/storage/mod.rs:157:        let temp_dir = TempDir::new().unwrap();
+src/storage/mod.rs:158:        std::fs::write(vecdb_path(temp_dir.path()), b"test").unwrap();
+src/storage/mod.rs:185:        let temp_dir = TempDir::new().unwrap();
+src/storage/mod.rs:192:        .unwrap();
+src/storage/mod.rs:206:        let temp_dir = TempDir::new().unwrap();
+src/storage/mod.rs:211:        assert_eq!(result.unwrap(), 0);
+src/storage/mod.rs:217:        let temp_dir = TempDir::new().unwrap();
+src/storage/mod.rs:221:        assert_eq!(result.unwrap(), 0);
+src/storage/mod.rs:229:        assert!(vecdb.to_str().unwrap().ends_with("vectorizer.vecdb"));
+src/storage/mod.rs:232:        assert!(vecidx.to_str().unwrap().ends_with("vectorizer.vecidx"));
+src/storage/mod.rs:235:        assert!(snapshots.to_str().unwrap().ends_with("snapshots"));
+src/storage/reader.rs:402:        let temp_dir = TempDir::new().unwrap();
+src/storage/reader.rs:403:        create_test_archive(temp_dir.path()).unwrap();
+src/storage/reader.rs:411:        let temp_dir = TempDir::new().unwrap();
+src/storage/reader.rs:412:        create_test_archive(temp_dir.path()).unwrap();
+src/storage/reader.rs:414:        let reader = StorageReader::new(temp_dir.path()).unwrap();
+src/storage/reader.rs:415:        let collections = reader.list_collections().unwrap();
+src/storage/reader.rs:422:        let temp_dir = TempDir::new().unwrap();
+src/storage/reader.rs:423:        create_test_archive(temp_dir.path()).unwrap();
+src/storage/reader.rs:425:        let reader = StorageReader::new(temp_dir.path()).unwrap();
+src/storage/reader.rs:426:        let collection = reader.get_collection("test_collection").unwrap();
+src/storage/reader.rs:433:        let temp_dir = TempDir::new().unwrap();
+src/storage/reader.rs:434:        create_test_archive(temp_dir.path()).unwrap();
+src/storage/reader.rs:436:        let reader = StorageReader::new(temp_dir.path()).unwrap();
+src/storage/reader.rs:437:        let stats = reader.cache_stats().unwrap();
+src/storage/reader.rs:444:        let temp_dir = TempDir::new().unwrap();
+src/storage/reader.rs:445:        create_test_archive(temp_dir.path()).unwrap();
+src/storage/reader.rs:447:        let reader = StorageReader::new(temp_dir.path()).unwrap();
+src/storage/snapshot.rs:803:        fs::create_dir_all(&collection_dir).unwrap();
+src/storage/snapshot.rs:806:        let mut file = File::create(&test_file).unwrap();
+src/storage/snapshot.rs:807:        file.write_all(b"test data").unwrap();
+src/storage/snapshot.rs:810:        writer.write_archive(&collections_dir).unwrap();
+src/storage/snapshot.rs:815:        let temp_dir = TempDir::new().unwrap();
+src/storage/snapshot.rs:825:        let temp_dir = TempDir::new().unwrap();
+src/storage/snapshot.rs:834:        let snapshot = result.unwrap();
+src/storage/snapshot.rs:841:        let temp_dir = TempDir::new().unwrap();
+src/storage/snapshot.rs:847:        manager.create_snapshot().unwrap();
+src/storage/snapshot.rs:849:        let snapshots = manager.list_snapshots().unwrap();
+src/storage/snapshot.rs:856:        let temp_dir = TempDir::new().unwrap();
+src/storage/snapshot.rs:862:        let snapshot = manager.create_snapshot().unwrap();
+src/storage/snapshot.rs:871:        let temp_dir = TempDir::new().unwrap();
+src/storage/snapshot.rs:877:        let snapshot = manager.create_snapshot().unwrap();
+src/storage/snapshot.rs:878:        assert!(manager.delete_snapshot(&snapshot.id).unwrap());
+src/storage/snapshot.rs:880:        let snapshots = manager.list_snapshots().unwrap();
+src/storage/writer.rs:584:        let temp_dir = TempDir::new().unwrap();
+src/storage/writer.rs:591:        let temp_dir = TempDir::new().unwrap();
+src/storage/writer.rs:602:        let temp_dir = TempDir::new().unwrap();
+src/storage/writer.rs:605:        fs::create_dir_all(&collections_dir).unwrap();
+src/storage/writer.rs:609:        let mut file = File::create(&test_file).unwrap();
+src/storage/writer.rs:610:        file.write_all(b"test vector data").unwrap();
+src/storage/writer.rs:616:        let index = result.unwrap();
+src/summarization/config.rs:90:                for (method_name, method_config) in methods.as_mapping().unwrap() {
+src/summarization/config.rs:91:                    let method_name = method_name.as_str().unwrap();
+src/summarization/config.rs:182:                for (lang_code, lang_config) in languages.as_mapping().unwrap() {
+src/summarization/config.rs:183:                    let lang_code = lang_code.as_str().unwrap();
+src/summarization/manager.rs:40:        Self::new(SummarizationConfig::default()).unwrap()
+src/summarization/manager.rs:48:        Self::new(config).unwrap()
+src/summarization/tests.rs:103:            "extractive".parse::<SummarizationMethod>().unwrap(),
+src/summarization/tests.rs:107:            "keyword".parse::<SummarizationMethod>().unwrap(),
+src/summarization/tests.rs:111:            "sentence".parse::<SummarizationMethod>().unwrap(),
+src/summarization/tests.rs:115:            "abstractive".parse::<SummarizationMethod>().unwrap(),
+src/summarization/tests.rs:186:        let result = manager.summarize_text(params).unwrap();
+src/summarization/tests.rs:190:        let retrieved = manager.get_summary(&summary_id).unwrap();
+src/testing/report.rs:367:        let json = serde_json::to_string(&report).unwrap();
+src/transmutation_integration/tests.rs:758:        let json = serde_json::to_string(&page).unwrap();
+src/transmutation_integration/tests.rs:767:        let page: PageInfo = serde_json::from_str(json).unwrap();
+src/transmutation_integration/tests.rs:792:        let json = serde_json::to_string(&doc).unwrap();
+src/transmutation_integration/tests.rs:812:        let doc: ConvertedDocument = serde_json::from_str(json).unwrap();
+src/transmutation_integration/tests.rs:831:        let json = serde_json::to_string(&original).unwrap();
+src/transmutation_integration/tests.rs:832:        let restored: ConvertedDocument = serde_json::from_str(&json).unwrap();
+src/transmutation_integration/tests.rs:870:        let processor = TransmutationProcessor::new().unwrap();
+src/transmutation_integration/tests.rs:1026:        let processor = TransmutationProcessor::new().unwrap();
+src/transmutation_integration/tests.rs:1029:        let mut temp_file = NamedTempFile::with_suffix(".html").unwrap();
+src/transmutation_integration/tests.rs:1045:        .unwrap();
+src/transmutation_integration/tests.rs:1051:        let doc = result.unwrap();
+src/transmutation_integration/tests.rs:1065:        let processor = TransmutationProcessor::new().unwrap();
+src/transmutation_integration/tests.rs:1068:        let mut temp_file = NamedTempFile::with_suffix(".xml").unwrap();
+src/transmutation_integration/tests.rs:1086:        .unwrap();
+src/transmutation_integration/tests.rs:1092:        let doc = result.unwrap();
+src/transmutation_integration/tests.rs:1102:        let processor = TransmutationProcessor::new().unwrap();
+src/transmutation_integration/tests.rs:1104:        let mut temp_file = NamedTempFile::with_suffix(".html").unwrap();
+src/transmutation_integration/tests.rs:1119:        .unwrap();
+src/transmutation_integration/tests.rs:1124:        let doc = result.unwrap();
+src/transmutation_integration/tests.rs:1135:        let processor = TransmutationProcessor::new().unwrap();
+src/transmutation_integration/tests.rs:1137:        let mut temp_file = NamedTempFile::with_suffix(".html").unwrap();
+src/transmutation_integration/tests.rs:1138:        writeln!(temp_file, "<html><body><p>Test content</p></body></html>").unwrap();
+src/transmutation_integration/tests.rs:1143:        let doc = result.unwrap();
+src/transmutation_integration/tests.rs:1162:        let processor = TransmutationProcessor::new().unwrap();
+src/umicp/discovery.rs:90:        let features = info.features.unwrap();
+src/umicp/discovery.rs:160:            .expect("search operation not found");
+src/umicp/discovery.rs:164:        let annotations = search_op.annotations.as_ref().unwrap();
+src/umicp/discovery.rs:173:        let schema = search_op.input_schema.as_object().unwrap();
+src/umicp/discovery.rs:177:        let properties = schema.get("properties").unwrap().as_object().unwrap();
+src/umicp/discovery.rs:190:            .expect("get_collection_info operation not found");
+src/umicp/discovery.rs:194:        let annotations = collection_op.annotations.as_ref().unwrap();
+src/umicp/discovery.rs:203:        let schema = collection_op.input_schema.as_object().unwrap();
+src/umicp/transport.rs:109:        .map(|op| serde_json::to_value(op).unwrap())
+src/utils/file_hash.rs:35:        let mut temp_file = NamedTempFile::new().unwrap();
+src/utils/file_hash.rs:42:        assert_eq!(hash.unwrap(), empty_hash);
+src/utils/file_hash.rs:47:        let mut temp_file = NamedTempFile::new().unwrap();
+src/utils/file_hash.rs:48:        write!(temp_file, "test content").unwrap();
+src/utils/file_hash.rs:49:        temp_file.flush().unwrap();
+src/utils/file_hash.rs:54:        let hash_str = hash.unwrap();
+src/utils/file_hash.rs:60:        let mut temp_file = NamedTempFile::new().unwrap();
+src/utils/file_hash.rs:61:        write!(temp_file, "same content").unwrap();
+src/utils/file_hash.rs:62:        temp_file.flush().unwrap();
+src/utils/file_hash.rs:64:        let hash1 = calculate_file_hash(temp_file.path()).unwrap();
+src/utils/file_hash.rs:65:        let hash2 = calculate_file_hash(temp_file.path()).unwrap();
+src/utils/file_hash.rs:73:        let mut temp_file1 = NamedTempFile::new().unwrap();
+src/utils/file_hash.rs:74:        write!(temp_file1, "content 1").unwrap();
+src/utils/file_hash.rs:75:        temp_file1.flush().unwrap();
+src/utils/file_hash.rs:77:        let mut temp_file2 = NamedTempFile::new().unwrap();
+src/utils/file_hash.rs:78:        write!(temp_file2, "content 2").unwrap();
+src/utils/file_hash.rs:79:        temp_file2.flush().unwrap();
+src/utils/file_hash.rs:81:        let hash1 = calculate_file_hash(temp_file1.path()).unwrap();
+src/utils/file_hash.rs:82:        let hash2 = calculate_file_hash(temp_file2.path()).unwrap();
+src/utils/file_hash.rs:98:        let mut temp_file = NamedTempFile::new().unwrap();
+src/utils/file_hash.rs:99:        write!(temp_file, "test").unwrap();
+src/utils/file_hash.rs:100:        temp_file.flush().unwrap();
+src/utils/file_hash.rs:105:        let time = modified_time.unwrap();
+src/utils/file_hash.rs:121:        let mut temp_file = NamedTempFile::new().unwrap();
+src/utils/file_hash.rs:123:        temp_file.write_all(&binary_data).unwrap();
+src/utils/file_hash.rs:124:        temp_file.flush().unwrap();
+src/utils/file_hash.rs:128:        assert_eq!(hash.unwrap().len(), 64);
+src/utils/safe_path.rs:139:        let tmp = tempfile::tempdir().expect("tempdir");
+src/utils/safe_path.rs:142:        std::fs::create_dir(&nested).expect("mkdir inner");
+src/utils/safe_path.rs:156:        let tmp = tempfile::tempdir().expect("tempdir");
+src/utils/safe_path.rs:159:        std::fs::write(&file, b"hi").expect("write");
+src/utils/safe_path.rs:161:        let resolved = canonicalize_within(base, Path::new("child.txt")).expect("accepted");
+src/utils/safe_path.rs:162:        assert!(resolved.starts_with(base.canonicalize().unwrap()));
+src/utils/safe_path.rs:167:        let tmp = tempfile::tempdir().expect("tempdir");
+src/workspace/manager.rs:288:            self.config.projects.last().unwrap().name
+src/workspace/manager.rs:385:            project.collections.last().unwrap().name,
+src/workspace/manager.rs:541:        let temp_dir = tempdir().unwrap();
+src/workspace/manager.rs:552:        let temp_dir = tempdir().unwrap();
+src/workspace/manager.rs:554:        let manager = WorkspaceManager::create_default(temp_dir.path()).unwrap();
+src/workspace/manager.rs:562:        let temp_dir = tempdir().unwrap();
+src/workspace/manager.rs:563:        let mut manager = WorkspaceManager::create_default(temp_dir.path()).unwrap();
+src/workspace/manager.rs:567:        std::fs::create_dir(&project_dir).unwrap();
+src/workspace/manager.rs:579:        manager.add_project(project).unwrap();
+src/workspace/manager.rs:583:        manager.remove_project("test-project").unwrap();
+src/workspace/manager.rs:589:        let temp_dir = tempdir().unwrap();
+src/workspace/manager.rs:590:        let manager = WorkspaceManager::create_default(temp_dir.path()).unwrap();
+src/workspace/parser.rs:187:            let config = result.unwrap();
+src/workspace/parser.rs:198:        let temp_dir = tempdir().unwrap();
+src/workspace/parser.rs:211:        let loaded_config = load_result.unwrap();
+src/workspace/parser.rs:217:        let temp_dir = tempdir().unwrap();
+src/workspace/parser.rs:222:        save_workspace_config(&config, &config_path).unwrap();
+src/workspace/parser.rs:228:        let found_path = result.unwrap();
+src/workspace/parser.rs:230:        assert_eq!(found_path.unwrap(), config_path);
+src/workspace/parser.rs:235:        let temp_dir = tempdir().unwrap();
+src/workspace/parser.rs:244:        save_workspace_config(&config, &config_path).unwrap();
+src/workspace/simplified_config_tests.rs:23:        parameters: serde_yaml::from_str("{}").unwrap(),
+src/workspace/simplified_config_tests.rs:114:    let config = result.unwrap();
+src/workspace/simplified_config_tests.rs:116:    assert_eq!(config.workspace.unwrap().name, "test");
+src/workspace/simplified_config_tests.rs:143:    let config = result.unwrap();
+src/workspace/simplified_config_tests.rs:146:    let defaults = config.defaults.unwrap();
+src/workspace/simplified_config_tests.rs:168:    let config = result.unwrap();
+src/workspace/simplified_config_tests.rs:184:            parameters: serde_yaml::from_str("{}").unwrap(),
+src/workspace/simplified_config_tests.rs:193:    assert_eq!(collection.embedding.unwrap().dimension, 1024);
+src/workspace/simplified_config_tests.rs:202:        parameters: serde_yaml::from_str("m: 16\nef_construction: 200").unwrap(),
+src/workspace/simplified_config_tests.rs:225:    let config = result.unwrap();
+src/workspace/templates.rs:319:        assert_eq!(rag.unwrap().name, "RAG (Retrieval-Augmented Generation)");
+src/workspace/validator.rs:804:        let temp_dir = tempdir().unwrap();
+src/workspace/validator.rs:813:        let temp_dir = tempdir().unwrap();

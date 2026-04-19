@@ -1,9 +1,26 @@
 //! MCP Tools definitions - Individual Focused Tools
 
 use std::borrow::Cow;
+use std::sync::Arc;
 
 use rmcp::model::{Tool, ToolAnnotations};
-use serde_json::json;
+use serde_json::{Value, json};
+
+/// Convert a static `json!({ ... })` literal into the `Arc<JsonObject>`
+/// shape expected by `Tool::input_schema`.
+///
+/// Every call site in this module passes a top-level `{ "type": "object", ... }`
+/// literal, so the `Value::Object(map)` arm is the only one that can fire at
+/// runtime. The `unreachable!()` arm exists purely to satisfy the exhaustive
+/// match — flipping `unwrap_used = "deny"` (phase4_enforce-no-unwrap-policy)
+/// would otherwise reject the prior `.as_object().unwrap()` pattern that this
+/// helper replaces in 30+ places.
+fn schema(value: Value) -> Arc<serde_json::Map<String, Value>> {
+    match value {
+        Value::Object(map) => Arc::new(map),
+        _ => unreachable!("schema() called with non-object json! literal"),
+    }
+}
 
 pub fn get_mcp_tools() -> Vec<Tool> {
     vec![
@@ -16,27 +33,26 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             name: Cow::Borrowed("list_collections"),
             title: Some("List Collections".to_string()),
             description: Some(Cow::Borrowed(
-                "List all available collections with metadata including vector count, dimension, and configuration."
+                "List all available collections with metadata including vector count, dimension, and configuration.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {},
                 "required": []
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 2. Create Collection
         Tool {
             name: Cow::Borrowed("create_collection"),
             title: Some("Create Collection".to_string()),
             description: Some(Cow::Borrowed(
-                "Create a new vector collection with specified dimension and distance metric."
+                "Create a new vector collection with specified dimension and distance metric.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "name": {
@@ -65,21 +81,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["name", "dimension"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // 3. Get Collection Info
         Tool {
             name: Cow::Borrowed("get_collection_info"),
             title: Some("Get Collection Info".to_string()),
             description: Some(Cow::Borrowed(
-                "Get detailed information about a specific collection including stats and configuration."
+                "Get detailed information about a specific collection including stats and configuration.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "name": {
@@ -88,21 +103,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["name"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 4. Insert Text
         Tool {
             name: Cow::Borrowed("insert_text"),
             title: Some("Insert Text".to_string()),
             description: Some(Cow::Borrowed(
-                "Insert a single text into a collection with automatic embedding generation."
+                "Insert a single text into a collection with automatic embedding generation.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection_name": {
@@ -119,21 +133,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection_name", "text"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // 5. Get Vector
         Tool {
             name: Cow::Borrowed("get_vector"),
             title: Some("Get Vector".to_string()),
             description: Some(Cow::Borrowed(
-                "Retrieve a specific vector by ID from a collection."
+                "Retrieve a specific vector by ID from a collection.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -146,21 +159,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "vector_id"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 6. Update Vector
         Tool {
             name: Cow::Borrowed("update_vector"),
             title: Some("Update Vector".to_string()),
             description: Some(Cow::Borrowed(
-                "Update an existing vector with new text and/or metadata."
+                "Update an existing vector with new text and/or metadata.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -181,21 +193,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "vector_id"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // 7. Delete Vector
         Tool {
             name: Cow::Borrowed("delete_vector"),
             title: Some("Delete Vector".to_string()),
             description: Some(Cow::Borrowed(
-                "Delete one or more vectors by ID from a collection."
+                "Delete one or more vectors by ID from a collection.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -209,21 +220,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "vector_ids"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // 8. Multi-Collection Search
         Tool {
             name: Cow::Borrowed("multi_collection_search"),
             title: Some("Multi-Collection Search".to_string()),
             description: Some(Cow::Borrowed(
-                "Search across multiple collections simultaneously with results from each."
+                "Search across multiple collections simultaneously with results from each.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -252,21 +262,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query", "collections"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 9. Basic Search
         Tool {
             name: Cow::Borrowed("search"),
             title: Some("Basic Vector Search".to_string()),
             description: Some(Cow::Borrowed(
-                "Basic vector similarity search in a single collection."
+                "Basic vector similarity search in a single collection.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -291,13 +300,12 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query", "collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // =============================================
         // Search Operations (3 tools)
         // =============================================
@@ -307,9 +315,9 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             name: Cow::Borrowed("search_intelligent"),
             title: Some("Intelligent Search".to_string()),
             description: Some(Cow::Borrowed(
-                "AI-powered search with automatic query expansion and result deduplication across collections."
+                "AI-powered search with automatic query expansion and result deduplication across collections.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -338,21 +346,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 11. Semantic Search
         Tool {
             name: Cow::Borrowed("search_semantic"),
             title: Some("Semantic Search".to_string()),
             description: Some(Cow::Borrowed(
-                "Semantic search with basic reranking for better relevance."
+                "Semantic search with basic reranking for better relevance.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -375,21 +382,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query", "collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 12. Extra Search (Combined)
         Tool {
             name: Cow::Borrowed("search_extra"),
             title: Some("Combined Search".to_string()),
             description: Some(Cow::Borrowed(
-                "Combined search that concatenates results from multiple search strategies (basic, intelligent, semantic)."
+                "Combined search that concatenates results from multiple search strategies (basic, intelligent, semantic).",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -420,21 +426,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query", "collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 13. Hybrid Search (Dense + Sparse)
         Tool {
             name: Cow::Borrowed("search_hybrid"),
             title: Some("Hybrid Search".to_string()),
             description: Some(Cow::Borrowed(
-                "Hybrid search combining dense (HNSW) and sparse vector search for optimal results."
+                "Hybrid search combining dense (HNSW) and sparse vector search for optimal results.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -491,13 +496,12 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query", "collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // =============================================
         // Discovery Operations (2 tools)
         // =============================================
@@ -507,9 +511,9 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             name: Cow::Borrowed("filter_collections"),
             title: Some("Filter Collections".to_string()),
             description: Some(Cow::Borrowed(
-                "Filter collections by name patterns with include/exclude support."
+                "Filter collections by name patterns with include/exclude support.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -528,21 +532,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 14. Expand Queries
         Tool {
             name: Cow::Borrowed("expand_queries"),
             title: Some("Expand Queries".to_string()),
             description: Some(Cow::Borrowed(
-                "Generate query variations and expansions for broader search coverage."
+                "Generate query variations and expansions for broader search coverage.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "query": {
@@ -571,13 +574,12 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["query"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // =============================================
         // File Operations (5 tools)
         // =============================================
@@ -587,9 +589,9 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             name: Cow::Borrowed("get_file_content"),
             title: Some("Get File Content".to_string()),
             description: Some(Cow::Borrowed(
-                "Retrieve complete file content from a collection."
+                "Retrieve complete file content from a collection.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -609,21 +611,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "file_path"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 16. List Files
         Tool {
             name: Cow::Borrowed("list_files"),
             title: Some("List Files".to_string()),
             description: Some(Cow::Borrowed(
-                "List all indexed files in a collection with metadata and filters."
+                "List all indexed files in a collection with metadata and filters.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -651,21 +652,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 17. Get File Chunks
         Tool {
             name: Cow::Borrowed("get_file_chunks"),
             title: Some("Get File Chunks".to_string()),
             description: Some(Cow::Borrowed(
-                "Retrieve file chunks in original order for progressive reading."
+                "Retrieve file chunks in original order for progressive reading.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -696,21 +696,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "file_path"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 18. Get Project Outline
         Tool {
             name: Cow::Borrowed("get_project_outline"),
             title: Some("Get Project Outline".to_string()),
             description: Some(Cow::Borrowed(
-                "Generate hierarchical project structure overview from indexed files."
+                "Generate hierarchical project structure overview from indexed files.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -736,21 +735,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // 19. Get Related Files
         Tool {
             name: Cow::Borrowed("get_related_files"),
             title: Some("Get Related Files".to_string()),
             description: Some(Cow::Borrowed(
-                "Find semantically related files using vector similarity."
+                "Find semantically related files using vector similarity.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -780,13 +778,12 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "file_path"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // =============================================
         // Graph Operations (6 tools)
         // =============================================
@@ -796,9 +793,9 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             name: Cow::Borrowed("graph_list_nodes"),
             title: Some("List Graph Nodes".to_string()),
             description: Some(Cow::Borrowed(
-                "List all nodes in a collection's graph with their metadata."
+                "List all nodes in a collection's graph with their metadata.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -807,21 +804,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // Graph Get Neighbors
         Tool {
             name: Cow::Borrowed("graph_get_neighbors"),
             title: Some("Get Graph Node Neighbors".to_string()),
             description: Some(Cow::Borrowed(
-                "Get all neighbors of a specific node in the graph with their relationships."
+                "Get all neighbors of a specific node in the graph with their relationships.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -834,21 +830,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "node_id"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // Graph Find Related
         Tool {
             name: Cow::Borrowed("graph_find_related"),
             title: Some("Find Related Nodes".to_string()),
             description: Some(Cow::Borrowed(
-                "Find all nodes related to a given node within N hops in the graph."
+                "Find all nodes related to a given node within N hops in the graph.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -871,21 +866,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "node_id"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // Graph Find Path
         Tool {
             name: Cow::Borrowed("graph_find_path"),
             title: Some("Find Path Between Nodes".to_string()),
             description: Some(Cow::Borrowed(
-                "Find the shortest path between two nodes in the graph."
+                "Find the shortest path between two nodes in the graph.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -902,21 +896,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "source", "target"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // Graph Create Edge
         Tool {
             name: Cow::Borrowed("graph_create_edge"),
             title: Some("Create Graph Edge".to_string()),
             description: Some(Cow::Borrowed(
-                "Create an explicit edge/relationship between two nodes in the graph."
+                "Create an explicit edge/relationship between two nodes in the graph.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -943,21 +936,18 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection", "source", "target", "relationship_type"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // Graph Delete Edge
         Tool {
             name: Cow::Borrowed("graph_delete_edge"),
             title: Some("Delete Graph Edge".to_string()),
-            description: Some(Cow::Borrowed(
-                "Delete an edge/relationship from the graph."
-            )),
-            input_schema: json!({
+            description: Some(Cow::Borrowed("Delete an edge/relationship from the graph.")),
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "edge_id": {
@@ -966,21 +956,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["edge_id"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // Graph Discover Edges
         Tool {
             name: Cow::Borrowed("graph_discover_edges"),
             title: Some("Discover Graph Edges".to_string()),
             description: Some(Cow::Borrowed(
-                "Automatically discover and create SIMILAR_TO edges between nodes based on semantic similarity. Can discover for a specific node or entire collection."
+                "Automatically discover and create SIMILAR_TO edges between nodes based on semantic similarity. Can discover for a specific node or entire collection.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -1003,21 +992,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // Graph Discover Status
         Tool {
             name: Cow::Borrowed("graph_discover_status"),
             title: Some("Get Graph Discovery Status".to_string()),
             description: Some(Cow::Borrowed(
-                "Get discovery status for a collection, showing how many nodes have edges and overall progress."
+                "Get discovery status for a collection, showing how many nodes have edges and overall progress.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -1026,13 +1014,12 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true)),
             meta: None,
         },
-
         // =============================================
         // Collection Maintenance Tools (3 tools)
         // =============================================
@@ -1042,27 +1029,26 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             name: Cow::Borrowed("list_empty_collections"),
             title: Some("List Empty Collections".to_string()),
             description: Some(Cow::Borrowed(
-                "List all collections that have zero vectors. Useful for identifying collections that can be cleaned up."
+                "List all collections that have zero vectors. Useful for identifying collections that can be cleaned up.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {},
                 "required": []
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
         // Cleanup Empty Collections
         Tool {
             name: Cow::Borrowed("cleanup_empty_collections"),
             title: Some("Cleanup Empty Collections".to_string()),
             description: Some(Cow::Borrowed(
-                "Delete all empty collections (collections with zero vectors). Use dry_run=true to preview what would be deleted without actually deleting."
+                "Delete all empty collections (collections with zero vectors). Use dry_run=true to preview what would be deleted without actually deleting.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "dry_run": {
@@ -1072,21 +1058,20 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": []
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(false)),
             meta: None,
         },
-
         // Get Collection Stats
         Tool {
             name: Cow::Borrowed("get_collection_stats"),
             title: Some("Get Collection Statistics".to_string()),
             description: Some(Cow::Borrowed(
-                "Get detailed statistics for a collection including vector count, dimension, and whether it's empty."
+                "Get detailed statistics for a collection including vector count, dimension, and whether it's empty.",
             )),
-            input_schema: json!({
+            input_schema: schema(json!({
                 "type": "object",
                 "properties": {
                     "collection": {
@@ -1095,12 +1080,11 @@ pub fn get_mcp_tools() -> Vec<Tool> {
                     }
                 },
                 "required": ["collection"]
-            }).as_object().unwrap().clone().into(),
+            })),
             output_schema: None,
             icons: None,
             annotations: Some(ToolAnnotations::new().read_only(true).idempotent(true)),
             meta: None,
         },
-
     ]
 }

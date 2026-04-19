@@ -179,6 +179,7 @@ impl Default for HashValidator {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use std::fs;
 

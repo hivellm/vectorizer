@@ -131,7 +131,16 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    /// Create a new metrics instance
+    /// Create a new metrics instance.
+    ///
+    /// All `prometheus::*::new()` calls below take static `&'static str` names
+    /// and label sets, so the constructors only fail on invalid characters in
+    /// names — which can't change at runtime. The `.unwrap()` calls are the
+    /// canonical "static-invariant" pattern documented in
+    /// `.rulebook/specs/RUST.md`; if any name is malformed it surfaces as a
+    /// startup failure (the right behaviour for a server-init bug) rather
+    /// than a silent metric drop.
+    #[allow(clippy::unwrap_used)]
     pub fn new() -> Self {
         Self {
             // Search metrics
