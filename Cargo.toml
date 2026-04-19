@@ -209,6 +209,42 @@ name = "multi_tenant_overhead"
 path = "benches/multi_tenant_overhead.rs"
 harness = false
 
+# SIMD primitive benchmarks (phase 7g). Each `harness = false` so
+# Criterion drives the loop instead of the libtest stub. Run with
+# `cargo bench --bench simd_<name>` and use `--save-baseline <label>`
+# to commit a baseline JSON. The regression-guard script under
+# `scripts/simd/check-regression.sh` compares fresh runs against the
+# committed baseline.
+[[bench]]
+name = "simd_dot_product"
+path = "benches/simd/dot_product.rs"
+harness = false
+
+[[bench]]
+name = "simd_euclidean"
+path = "benches/simd/euclidean.rs"
+harness = false
+
+[[bench]]
+name = "simd_cosine"
+path = "benches/simd/cosine.rs"
+harness = false
+
+[[bench]]
+name = "simd_l2_norm"
+path = "benches/simd/l2_norm.rs"
+harness = false
+
+[[bench]]
+name = "simd_manhattan"
+path = "benches/simd/manhattan.rs"
+harness = false
+
+[[bench]]
+name = "simd_quantize"
+path = "benches/simd/quantize.rs"
+harness = false
+
 
 # Disabled benchmarks - need refactoring for current API
 # [[bin]]
