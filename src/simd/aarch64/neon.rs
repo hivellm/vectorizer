@@ -50,8 +50,49 @@ impl SimdBackend for NeonBackend {
         self.dot_product(a, a).sqrt()
     }
 
+    fn manhattan_distance(&self, a: &[f32], b: &[f32]) -> f32 {
+        debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
+        // SAFETY: NEON is in the aarch64 psABI baseline; no runtime
+        // check needed.
+        unsafe { manhattan_distance_neon(a, b) }
+    }
+
     fn name(&self) -> &'static str {
         "neon"
+    }
+}
+
+/// # Safety
+///
+/// NEON is guaranteed on every aarch64 target (psABI baseline).
+/// `a` and `b` must have equal length; reading past the end of
+/// either slice is UB. The public wrapper enforces both.
+#[target_feature(enable = "neon")]
+#[inline]
+unsafe fn manhattan_distance_neon(a: &[f32], b: &[f32]) -> f32 {
+    let len = a.len();
+    let simd_len = len - (len % SIMD_LANES);
+
+    // SAFETY: NEON gated by `#[target_feature]`. Loop bound
+    // `i + SIMD_LANES <= simd_len <= len` keeps every load inside
+    // the slice's allocation. `vabsq_f32` is a pure register op.
+    unsafe {
+        let mut sum = vdupq_n_f32(0.0);
+        let mut i = 0;
+        while i < simd_len {
+            let va = vld1q_f32(a.as_ptr().add(i));
+            let vb = vld1q_f32(b.as_ptr().add(i));
+            let diff = vsubq_f32(va, vb);
+            // `vabsq_f32` is the single-instruction absolute value.
+            let abs_diff = vabsq_f32(diff);
+            sum = vaddq_f32(sum, abs_diff);
+            i += SIMD_LANES;
+        }
+        let mut result = vaddvq_f32(sum);
+        for idx in simd_len..len {
+            result += (a[idx] - b[idx]).abs();
+        }
+        result
     }
 }
 

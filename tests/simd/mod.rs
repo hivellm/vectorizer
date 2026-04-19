@@ -2,4 +2,5 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+mod new_ops;
 mod scalar_oracle;

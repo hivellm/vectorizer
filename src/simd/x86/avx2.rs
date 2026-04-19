@@ -120,8 +120,62 @@ impl SimdBackend for Avx2Backend {
         self.dot_product(a, a).sqrt()
     }
 
+    fn manhattan_distance(&self, a: &[f32], b: &[f32]) -> f32 {
+        debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
+        if std::is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 verified by the runtime detector
+            // immediately above.
+            unsafe { manhattan_distance_avx2(a, b) }
+        } else {
+            crate::simd::scalar::ScalarBackend.manhattan_distance(a, b)
+        }
+    }
+
     fn name(&self) -> &'static str {
         if self.with_fma { "avx2+fma" } else { "avx2" }
+    }
+}
+
+/// # Safety
+///
+/// Caller must ensure AVX2 is available on the running CPU. `a` and
+/// `b` must have equal length; reading past the end of either slice
+/// is UB. The public wrapper enforces both.
+///
+/// The absolute-value trick: `|x|` for f32 clears the sign bit,
+/// which we do with `_mm256_andnot_ps(sign_mask, x)` where
+/// `sign_mask = _mm256_set1_ps(-0.0)` has only the sign bit set.
+/// `andnot(sign_mask, x)` is `~sign_mask & x`, which clears x's
+/// sign bit and leaves the rest alone — equivalent to `x.abs()`
+/// for finite values.
+#[target_feature(enable = "avx2")]
+#[inline]
+unsafe fn manhattan_distance_avx2(a: &[f32], b: &[f32]) -> f32 {
+    let len = a.len();
+    let simd_len = len - (len % SIMD_LANES);
+
+    // SAFETY: AVX2 gated by `#[target_feature]`. Loop bound
+    // `i + SIMD_LANES <= simd_len <= len` keeps every load inside
+    // the slice's allocation.
+    unsafe {
+        let sign_mask = _mm256_set1_ps(-0.0);
+        let mut sum = _mm256_setzero_ps();
+        let mut i = 0;
+        while i < simd_len {
+            let va = _mm256_loadu_ps(a.as_ptr().add(i));
+            let vb = _mm256_loadu_ps(b.as_ptr().add(i));
+            let diff = _mm256_sub_ps(va, vb);
+            // Clear the sign bit lane-wise: `andnot(sign_mask, x)`.
+            let abs_diff = _mm256_andnot_ps(sign_mask, diff);
+            sum = _mm256_add_ps(sum, abs_diff);
+            i += SIMD_LANES;
+        }
+
+        let mut result = horizontal_sum_avx2(sum);
+        for idx in simd_len..len {
+            result += (a[idx] - b[idx]).abs();
+        }
+        result
     }
 }
 

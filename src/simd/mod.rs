@@ -95,3 +95,43 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 pub fn l2_norm(a: &[f32]) -> f32 {
     backend().l2_norm(a)
 }
+
+/// Normalise `a` in-place to unit L2 norm. No-op on a zero vector
+/// (a zero vector has no meaningful direction; the alternative is
+/// returning NaN, which propagates badly through downstream math).
+#[inline]
+pub fn normalize_in_place(a: &mut [f32]) {
+    backend().normalize_in_place(a);
+}
+
+/// Manhattan (L1) distance: `∑ |a[i] - b[i]|`.
+#[inline]
+pub fn manhattan_distance(a: &[f32], b: &[f32]) -> f32 {
+    backend().manhattan_distance(a, b)
+}
+
+/// Element-wise in-place `a[i] += b[i]`.
+#[inline]
+pub fn add_assign(a: &mut [f32], b: &[f32]) {
+    backend().add_assign(a, b);
+}
+
+/// Element-wise in-place `a[i] -= b[i]`.
+#[inline]
+pub fn sub_assign(a: &mut [f32], b: &[f32]) {
+    backend().sub_assign(a, b);
+}
+
+/// Element-wise in-place `a[i] *= s`.
+#[inline]
+pub fn scale(a: &mut [f32], s: f32) {
+    backend().scale(a, s);
+}
+
+/// Returns `Some((argmin, min))` over `a`, or `None` when `a` is
+/// empty. NaN propagates as the larger element via
+/// `f32::partial_cmp` semantics.
+#[inline]
+pub fn horizontal_min_index(a: &[f32]) -> Option<(usize, f32)> {
+    backend().horizontal_min_index(a)
+}

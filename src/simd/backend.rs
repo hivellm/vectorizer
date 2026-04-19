@@ -64,6 +64,76 @@ pub trait SimdBackend: Send + Sync + 'static {
             .sum()
     }
 
+    /// Manhattan (L1) distance: `∑ |a[i] - b[i]|`. Default impl is a
+    /// straight scalar loop; SIMD backends override with `vabsq_f32`
+    /// (NEON), `_mm_andnot_ps` + sign mask (SSE2/AVX2), or
+    /// `_mm512_abs_ps` (AVX-512). Used by the new
+    /// `DistanceMetric::Manhattan` collection setting.
+    fn manhattan_distance(&self, a: &[f32], b: &[f32]) -> f32 {
+        debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
+        a.iter().zip(b.iter()).map(|(x, y)| (x - y).abs()).sum()
+    }
+
+    /// Normalise `a` in-place to unit L2 norm. Returns silently
+    /// without modifying `a` when the L2 norm is zero (a zero vector
+    /// has no meaningful direction). Default impl runs a scalar
+    /// `l2_norm` then a scalar divide; SIMD backends benefit because
+    /// both passes vectorise.
+    fn normalize_in_place(&self, a: &mut [f32]) {
+        let norm = self.l2_norm(a);
+        if norm == 0.0 || !norm.is_finite() {
+            return;
+        }
+        let inv = 1.0 / norm;
+        for x in a.iter_mut() {
+            *x *= inv;
+        }
+    }
+
+    /// Element-wise `a[i] += b[i]`. Default impl is a scalar loop;
+    /// SIMD backends override using `_mm256_add_ps` / `vaddq_f32` /
+    /// `f32x4_add`.
+    fn add_assign(&self, a: &mut [f32], b: &[f32]) {
+        debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
+        for (x, y) in a.iter_mut().zip(b.iter()) {
+            *x += *y;
+        }
+    }
+
+    /// Element-wise `a[i] -= b[i]`. Default impl is a scalar loop.
+    fn sub_assign(&self, a: &mut [f32], b: &[f32]) {
+        debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
+        for (x, y) in a.iter_mut().zip(b.iter()) {
+            *x -= *y;
+        }
+    }
+
+    /// Element-wise `a[i] *= s`. Default impl is a scalar loop.
+    fn scale(&self, a: &mut [f32], s: f32) {
+        for x in a.iter_mut() {
+            *x *= s;
+        }
+    }
+
+    /// Returns `Some((argmin, min))` over a non-empty slice, `None`
+    /// for an empty slice. NaN values follow `f32::partial_cmp`
+    /// semantics — they propagate as the larger element so a NaN
+    /// never wins the argmin race.
+    fn horizontal_min_index(&self, a: &[f32]) -> Option<(usize, f32)> {
+        if a.is_empty() {
+            return None;
+        }
+        let mut min_idx = 0usize;
+        let mut min_val = a[0];
+        for (i, &v) in a.iter().enumerate().skip(1) {
+            if v < min_val {
+                min_val = v;
+                min_idx = i;
+            }
+        }
+        Some((min_idx, min_val))
+    }
+
     /// Diagnostic name. Must be a constant `&'static str`; surfaced
     /// by `dispatch::selected_backend_name()` and the startup log.
     fn name(&self) -> &'static str;

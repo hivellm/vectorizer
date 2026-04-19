@@ -115,9 +115,11 @@ impl SparseVector {
         }
     }
 
-    /// Calculate L2 norm
+    /// Calculate L2 norm. Routes through `crate::simd::l2_norm` so
+    /// the dispatched backend (AVX2/NEON/AVX-512/...) handles the
+    /// reduction on vector lanes instead of the scalar loop.
     pub fn norm(&self) -> f32 {
-        self.values.iter().map(|v| v * v).sum::<f32>().sqrt()
+        crate::simd::l2_norm(&self.values)
     }
 
     /// Get memory usage in bytes

@@ -677,14 +677,15 @@ impl CollectionMetadata {
 pub mod vector_utils {
     use super::DistanceMetric;
 
-    /// Normalize a vector to unit length (for cosine similarity)
+    /// Normalize a vector to unit length (for cosine similarity).
+    /// Routes through `crate::simd::normalize_in_place` so the
+    /// dispatched backend handles both passes (norm + divide) on
+    /// vector lanes. Zero vectors are returned unchanged because a
+    /// zero vector has no meaningful direction.
     pub fn normalize_vector(vector: &[f32]) -> Vec<f32> {
-        let norm: f32 = vector.iter().map(|x| x * x).sum::<f32>().sqrt();
-        if norm == 0.0 {
-            vector.to_vec()
-        } else {
-            vector.iter().map(|x| x / norm).collect()
-        }
+        let mut out = vector.to_vec();
+        crate::simd::normalize_in_place(&mut out);
+        out
     }
 
     /// Calculate dot product of two vectors (SIMD-accelerated)
