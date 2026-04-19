@@ -162,27 +162,22 @@ impl VectorizerServer {
                 "/collections/{name}/force-save",
                 post(rest_handlers::force_save_collection),
             )
-            // Admin-only: /workspace/add, /workspace/remove, POST /workspace/config
-            // enforce admin role inside their handlers via `ensure_admin`.
-            .route("/workspace/add", post(rest_handlers::add_workspace))
-            .route("/workspace/remove", post(rest_handlers::remove_workspace))
+            // The 9 admin-only POST routes that used to live here (workspace
+            // add/remove/config, setup apply/browse, config update, admin
+            // restart, backups create/restore) are now registered on a
+            // dedicated `admin_router` further down with router-level
+            // `require_admin_middleware`. Authenticated read-only views of
+            // the same surface stay here.
             .route("/workspace/list", get(rest_handlers::list_workspaces))
             .route(
                 "/workspace/config",
                 get(rest_handlers::get_workspace_config),
             )
-            .route(
-                "/workspace/config",
-                post(rest_handlers::update_workspace_config),
-            )
-            // Setup Wizard routes
             .route("/setup/status", get(setup_handlers::get_setup_status))
             .route(
                 "/setup/analyze",
                 post(setup_handlers::analyze_project_directory),
             )
-            // Admin-only: /setup/apply enforces admin role inside handler via `ensure_admin`.
-            .route("/setup/apply", post(setup_handlers::apply_setup_config))
             .route("/setup/verify", get(setup_handlers::verify_setup))
             .route(
                 "/setup/templates",
@@ -192,16 +187,8 @@ impl VectorizerServer {
                 "/setup/templates/{id}",
                 get(setup_handlers::get_configuration_template_by_id),
             )
-            // Admin-only: /setup/browse enforces admin inside handler.
-            .route("/setup/browse", post(setup_handlers::browse_directory))
             .route("/config", get(rest_handlers::get_config))
-            // Admin-only: POST /config, /admin/restart enforce admin inside handlers.
-            .route("/config", post(rest_handlers::update_config))
-            .route("/admin/restart", post(rest_handlers::restart_server))
             .route("/backups", get(rest_handlers::list_backups))
-            // Admin-only: /backups/create, /backups/restore enforce admin inside handlers.
-            .route("/backups/create", post(rest_handlers::create_backup))
-            .route("/backups/restore", post(rest_handlers::restore_backup))
             .route(
                 "/backups/directory",
                 get(rest_handlers::get_backup_directory),
@@ -752,17 +739,51 @@ impl VectorizerServer {
             )
             .with_state(umicp_state);
 
+        // Admin-only router. The 9 routes below were previously protected
+        // by per-handler `_admin: AdminAuth` extractors (and 4 others were
+        // documented as admin-only but unprotected in practice). Lifting the
+        // gate to the router boundary means a future contributor cannot add
+        // an admin route into this group and forget the protection — and
+        // closes the 4 documented-but-unprotected drift gaps in one move.
+        // When auth is globally disabled, the router is merged without the
+        // `require_admin_middleware` layer to preserve the existing
+        // single-user-mode behaviour.
+        let admin_router: Router<()> = Router::new()
+            .route("/workspace/add", post(rest_handlers::add_workspace))
+            .route("/workspace/remove", post(rest_handlers::remove_workspace))
+            .route(
+                "/workspace/config",
+                post(rest_handlers::update_workspace_config),
+            )
+            .route("/setup/apply", post(setup_handlers::apply_setup_config))
+            .route("/setup/browse", post(setup_handlers::browse_directory))
+            .route("/config", post(rest_handlers::update_config))
+            .route("/admin/restart", post(rest_handlers::restart_server))
+            .route("/backups/create", post(rest_handlers::create_backup))
+            .route("/backups/restore", post(rest_handlers::restore_backup))
+            .with_state(self.clone());
+        let admin_router = if let Some(auth_state) = self.auth_handler_state.clone() {
+            admin_router.layer(axum::middleware::from_fn_with_state(
+                auth_state,
+                crate::server::auth_handlers::require_admin_middleware,
+            ))
+        } else {
+            admin_router
+        };
+
         // Merge all routes - order matters!
         // 1. Public routes first (health check, prometheus metrics) - no auth required
         // 2. UMICP routes (most specific)
         // 3. MCP routes
-        // 4. REST API routes (including /api/*, dashboard with embedded assets)
-        // 5. Metrics routes
+        // 4. Admin router (router-level admin gate)
+        // 5. REST API routes (including /api/*, dashboard with embedded assets)
+        // 6. Metrics routes
         // Note: Dashboard assets are embedded in the binary using rust-embed
         let app = Router::new()
             .merge(public_routes) // Health check and prometheus - always public
             .merge(umicp_routes)
             .merge(mcp_router)
+            .merge(admin_router)
             .merge(rest_routes)
             .merge(metrics_router)
             // Apply DefaultBodyLimit to increase multipart upload limit beyond Axum's default 2MB

@@ -239,3 +239,62 @@ async fn authenticated_extractor_ok_for_non_admin_token() {
     let inner = inner.expect("auth state must be populated");
     assert!(inner.authenticated);
 }
+
+// --- Router-level admin middleware regression tests
+//
+// Prove that `require_admin_middleware`, when wired via
+// `axum::middleware::from_fn_with_state` on a router (mirroring the
+// `admin_router` build in `src/server/core/routing.rs`), short-circuits
+// requests with the right status codes WITHOUT requiring the handler to
+// declare `_admin: AdminAuth` in its signature. Stage 4.2 of
+// `phase4_router-layer-admin-middleware`.
+
+async fn admin_router_for_test(state: AuthHandlerState) -> axum::Router {
+    use axum::Router;
+    use axum::routing::post;
+
+    async fn ok_handler() -> &'static str {
+        "ok"
+    }
+
+    Router::new().route("/admin/test", post(ok_handler)).layer(
+        axum::middleware::from_fn_with_state(state, super::middleware::require_admin_middleware),
+    )
+}
+
+async fn dispatch(router: axum::Router, auth_header: Option<String>) -> axum::http::StatusCode {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    let mut builder = Request::builder().method("POST").uri("/admin/test");
+    if let Some(value) = auth_header {
+        builder = builder.header(axum::http::header::AUTHORIZATION, value);
+    }
+    let req = builder.body(Body::empty()).expect("build request");
+    router.oneshot(req).await.expect("router oneshot").status()
+}
+
+#[tokio::test]
+async fn router_admin_layer_returns_401_without_token() {
+    let (state, _admin_token) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = admin_router_for_test(state).await;
+    let status = dispatch(router, None).await;
+    assert_eq!(status, axum::http::StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn router_admin_layer_returns_403_for_viewer_token() {
+    let (state, viewer_token) = test_state_with_user_roles(vec![Role::User]).await;
+    let router = admin_router_for_test(state).await;
+    let status = dispatch(router, Some(format!("Bearer {viewer_token}"))).await;
+    assert_eq!(status, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn router_admin_layer_returns_200_for_admin_token() {
+    let (state, admin_token) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = admin_router_for_test(state).await;
+    let status = dispatch(router, Some(format!("Bearer {admin_token}"))).await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+}

@@ -36,9 +36,10 @@ pub async fn auth_middleware(
     mut request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    let auth_state = extract_auth_from_request(&state, &request).await;
+    let headers = request.headers().clone();
+    let query = request.uri().query().map(str::to_string);
+    let auth_state = extract_auth_from_parts(&state, &headers, query.as_deref()).await;
 
-    // Add auth state to request extensions
     request.extensions_mut().insert(auth_state);
 
     next.run(request).await
@@ -53,7 +54,9 @@ pub async fn require_auth_middleware(
     use axum::http::StatusCode;
     use axum::response::IntoResponse;
 
-    let auth_state = extract_auth_from_request(&state, &request).await;
+    let headers = request.headers().clone();
+    let query = request.uri().query().map(str::to_string);
+    let auth_state = extract_auth_from_parts(&state, &headers, query.as_deref()).await;
 
     if !auth_state.authenticated {
         return (
@@ -67,7 +70,6 @@ pub async fn require_auth_middleware(
             .into_response();
     }
 
-    // Add auth state to request extensions
     request.extensions_mut().insert(auth_state);
 
     next.run(request).await
@@ -82,7 +84,9 @@ pub async fn require_admin_middleware(
     use axum::http::StatusCode;
     use axum::response::IntoResponse;
 
-    let auth_state = extract_auth_from_request(&state, &request).await;
+    let headers = request.headers().clone();
+    let query = request.uri().query().map(str::to_string);
+    let auth_state = extract_auth_from_parts(&state, &headers, query.as_deref()).await;
 
     if !auth_state.authenticated {
         return (
@@ -95,7 +99,6 @@ pub async fn require_admin_middleware(
             .into_response();
     }
 
-    // Check for admin role
     let is_admin = auth_state.user_claims.roles.contains(&Role::Admin);
     if !is_admin {
         return (
@@ -108,7 +111,6 @@ pub async fn require_admin_middleware(
             .into_response();
     }
 
-    // Add auth state to request extensions
     request.extensions_mut().insert(auth_state);
 
     next.run(request).await
@@ -212,78 +214,75 @@ pub async fn require_admin_for_rest(
     }
 }
 
-/// Extract authentication state from request headers
-async fn extract_auth_from_request(
+/// Extract authentication state from a request.
+///
+/// Takes the headers + query string by reference rather than
+/// `&axum::extract::Request` so the resulting future is `Send`. The
+/// `Request` body type is a `dyn HttpBody` trait object that is `Send`
+/// but not `Sync`, which makes any `&Request` held across an `.await`
+/// non-Send and breaks `axum::middleware::from_fn` composition. Splitting
+/// the borrowed surface into `&HeaderMap` + `Option<&str>` (both
+/// `Send + Sync`) sidesteps the whole problem and lets the same helper
+/// be reused from both `axum::middleware`-style middleware and standalone
+/// callers.
+async fn extract_auth_from_parts(
     state: &AuthHandlerState,
-    request: &axum::extract::Request,
+    headers: &axum::http::HeaderMap,
+    query: Option<&str>,
 ) -> AuthState {
     use axum::http::header::AUTHORIZATION;
 
-    // Try to get authorization header
-    if let Some(auth_header) = request.headers().get(AUTHORIZATION) {
-        if let Ok(auth_str) = auth_header.to_str() {
-            // Check for Bearer token (JWT)
-            if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                // Check if token is blacklisted (logged out)
-                if state.is_token_blacklisted(token).await {
-                    debug!("Token is blacklisted, rejecting authentication");
-                    return AuthState {
-                        user_claims: UserClaims {
-                            user_id: "anonymous".to_string(),
-                            username: "anonymous".to_string(),
-                            roles: vec![],
-                            iat: 0,
-                            exp: 0,
-                        },
-                        authenticated: false,
-                    };
-                }
-
-                if let Ok(claims) = state.auth_manager.validate_jwt(token) {
-                    return AuthState {
-                        user_claims: claims,
-                        authenticated: true,
-                    };
-                }
+    if let Some(auth_header) = headers.get(AUTHORIZATION)
+        && let Ok(auth_str) = auth_header.to_str()
+    {
+        if let Some(token) = auth_str.strip_prefix("Bearer ") {
+            if state.is_token_blacklisted(token).await {
+                debug!("Token is blacklisted, rejecting authentication");
+                return anonymous_auth_state();
             }
-
-            // Check for X-API-Key style (direct API key)
-            if let Ok(claims) = state.auth_manager.validate_api_key(auth_str).await {
+            if let Ok(claims) = state.auth_manager.validate_jwt(token) {
                 return AuthState {
                     user_claims: claims,
                     authenticated: true,
                 };
             }
         }
-    }
 
-    // Check for X-API-Key header
-    if let Some(api_key_header) = request.headers().get("X-API-Key") {
-        if let Ok(api_key) = api_key_header.to_str() {
-            if let Ok(claims) = state.auth_manager.validate_api_key(api_key).await {
-                return AuthState {
-                    user_claims: claims,
-                    authenticated: true,
-                };
-            }
+        if let Ok(claims) = state.auth_manager.validate_api_key(auth_str).await {
+            return AuthState {
+                user_claims: claims,
+                authenticated: true,
+            };
         }
     }
 
-    // Check for API key in query parameters
-    if let Some(query) = request.uri().query() {
+    if let Some(api_key_header) = headers.get("X-API-Key")
+        && let Ok(api_key) = api_key_header.to_str()
+        && let Ok(claims) = state.auth_manager.validate_api_key(api_key).await
+    {
+        return AuthState {
+            user_claims: claims,
+            authenticated: true,
+        };
+    }
+
+    if let Some(query) = query {
         for param in query.split('&') {
-            if let Some(api_key) = param.strip_prefix("api_key=") {
-                if let Ok(claims) = state.auth_manager.validate_api_key(api_key).await {
-                    return AuthState {
-                        user_claims: claims,
-                        authenticated: true,
-                    };
-                }
+            if let Some(api_key) = param.strip_prefix("api_key=")
+                && let Ok(claims) = state.auth_manager.validate_api_key(api_key).await
+            {
+                return AuthState {
+                    user_claims: claims,
+                    authenticated: true,
+                };
             }
         }
     }
 
-    // No authentication found - return anonymous state
+    anonymous_auth_state()
+}
+
+fn anonymous_auth_state() -> AuthState {
     AuthState {
         user_claims: UserClaims {
             user_id: "anonymous".to_string(),

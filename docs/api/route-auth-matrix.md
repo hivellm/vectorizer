@@ -11,7 +11,7 @@ are preserved.
 |--------|------------|--------------------|
 | **Public** | No token needed. | Registered on `public_routes` / `public_auth_router`; no auth layer applied. |
 | **Authenticated** | Valid JWT **or** valid API key. | Handlers declare `_auth: Authenticated` in their signature; the `FromRequestParts` extractor fails with 401 before the body runs. `Extension<AuthState>` is still supported for middleware-layered routes. |
-| **Admin** | Valid JWT/API key **and** the claims contain `Role::Admin`. | Handlers declare `_admin: AdminAuth` in their signature; the extractor fails with 401 (no token) or 403 (non-admin) before the body runs. Legacy `require_admin_for_rest(&state.auth_handler_state, &headers)` helper is still exported for routes that cannot take an extractor. |
+| **Admin** | Valid JWT/API key **and** the claims contain `Role::Admin`. | Routes are registered on a dedicated `admin_router` with `axum::middleware::from_fn_with_state(auth_state, require_admin_middleware)` applied as a router-level layer. The middleware short-circuits to 401 (no token) or 403 (non-admin) before the handler runs. **Adding a new admin route only requires placing it in the `admin_router` builder** — no per-handler change is needed. |
 
 ## Routes by bucket
 
@@ -34,81 +34,115 @@ are preserved.
 | POST / GET / DELETE | `/auth/keys[/{id}]` | `auth_handlers::{create,list,revoke}_api_key` |
 | (various) | `/collections/*`, `/vectors/*`, `/search`, `/discover*`, `/file/*`, `/qdrant/*`, `/graph/*`, `/graphql` | data-access handlers |
 | GET | `/setup/status`, `/setup/verify`, `/setup/templates*` | `setup_handlers::*` (read-only wizard state) |
-| GET | `/config`, `/backups`, `/workspace/list`, `/workspace/config` | read-only inspection |
+| GET | `/config`, `/backups`, `/workspace/list`, `/workspace/config`, `/backups/directory` | read-only inspection |
 
-### Admin (role=admin enforced inside handler)
+### Admin (router-level `require_admin_middleware`)
+
+All 9 routes below live on the `admin_router` built in
+`src/server/core/routing.rs`. The middleware is the single enforcement
+point — handlers do **not** declare `AdminAuth` in their signatures.
+
+| Method | Path | Handler |
+|--------|------|---------|
+| POST | `/workspace/add` | `rest_handlers::add_workspace` |
+| POST | `/workspace/remove` | `rest_handlers::remove_workspace` |
+| POST | `/workspace/config` | `rest_handlers::update_workspace_config` |
+| POST | `/setup/apply` | `setup_handlers::apply_setup_config` |
+| POST | `/setup/browse` | `setup_handlers::browse_directory` |
+| POST | `/config` | `rest_handlers::update_config` |
+| POST | `/admin/restart` | `rest_handlers::restart_server` |
+| POST | `/backups/create` | `rest_handlers::create_backup` |
+| POST | `/backups/restore` | `rest_handlers::restore_backup` |
+
+Note: 4 of these 9 routes (`/workspace/remove`, `/workspace/config`,
+`/setup/browse`, `/backups/create`) were previously documented as admin
+in source comments but had **no actual enforcement** because the
+handler was missing the `AdminAuth` extractor. The router-level lift
+closes that drift gap structurally — protection comes from
+registration-site placement, not handler-by-handler vigilance.
+
+### Auth user mgmt (admin enforced inside handler)
+
+These routes still use the inline `Extension<AuthState>` admin check
+(legacy pattern from before the `AdminAuth` extractor existed). Moving
+them onto the same `admin_router` is straightforward but is gated on a
+state-type unification because `auth_handlers::*` use
+`State<AuthHandlerState>` rather than `State<VectorizerServer>`.
+Tracked as `phase4_unify-admin-auth-handlers-state`.
 
 | Method | Path | Handler | Gate |
 |--------|------|---------|------|
-| POST | `/setup/apply` | `setup_handlers::apply_setup_config` | `AdminAuth` extractor |
-| POST | `/workspace/add` | `rest_handlers::add_workspace` | `AdminAuth` extractor |
-| POST | `/config` | `rest_handlers::update_config` | `AdminAuth` extractor |
-| POST | `/admin/restart` | `rest_handlers::restart_server` | `AdminAuth` extractor |
-| POST | `/backups/restore` | `rest_handlers::restore_backup` | `AdminAuth` extractor |
+| POST / GET | `/auth/users` | `auth_handlers::create_user` / `list_users` | Inline `is_admin` check on `AuthState` extension |
+| DELETE | `/auth/users/{username}` | `auth_handlers::delete_user` | Inline `is_admin` check |
+| PUT | `/auth/users/{username}/password` | `auth_handlers::change_password` | Inline `is_admin` check |
 
-### Pending admin hardening (tracked)
-
-Routes that are operationally admin-sensitive but whose gate is
-not yet wired (return type refactor required or signature constraints):
-
-| Method | Path | Follow-up task |
-|--------|------|----------------|
-| POST | `/workspace/remove` | `phase4_gate-workspace-admin-routes` |
-| POST | `/workspace/config` | `phase4_gate-workspace-admin-routes` |
-| POST | `/setup/browse` | `TASK(phase4_gate-setup-browse-as-admin)` in the source |
-| POST | `/backups/create` | `phase4_gate-workspace-admin-routes` |
-| POST / GET / DELETE / PUT | `/auth/users*` | `phase4_gate-auth-users-admin-routes` |
-
-## Why not router-level middleware?
-
-The natural axum pattern is a dedicated `Router::new().layer(from_fn_with_state(
-state, require_admin_middleware))`. We attempted this and hit a type-system
-wall: the admin bucket spans two state types — `AuthHandlerState` (for
-`auth_handlers::*`) and `VectorizerServer` (for `rest_handlers::*` +
-`setup_handlers::*`) — and axum can't infer a single layer service that
-unifies both. Splitting into two sub-routers each with its own state
-still failed because the `FromFn<..., _>: Service<_>` bound won't match
-once `.with_state(...)` has been applied before `.layer(...)`.
-
-Rather than accept a half-baked cross-state workaround, we moved the
-admin gate into each handler. It adds two lines per handler, compiles
-cleanly, is independently testable, and reads linearly next to the
-business logic it protects.
-
-Follow-up `phase4_router-layer-admin-middleware` revisits this once
-either (a) the handler state types are unified, or (b) a cleaner
-`.route_layer` path is found.
-
-## Extractor pattern
-
-Admin-gated handlers declare the extractor as their first parameter:
+## How the router layer is wired
 
 ```rust
-pub async fn restart_server(
-    _admin: crate::server::auth_handlers::AdminAuth,
-    State(_state): State<VectorizerServer>,
-) -> Result<Json<Value>, ErrorResponse> {
-    // handler body runs only after 401/403 checks pass
-}
+// src/server/core/routing.rs (excerpt)
+let admin_router: Router<()> = Router::new()
+    .route("/workspace/add", post(rest_handlers::add_workspace))
+    .route("/workspace/remove", post(rest_handlers::remove_workspace))
+    // ... 7 more admin routes ...
+    .with_state(self.clone());
+
+let admin_router = if let Some(auth_state) = self.auth_handler_state.clone() {
+    admin_router.layer(axum::middleware::from_fn_with_state(
+        auth_state,
+        crate::server::auth_handlers::require_admin_middleware,
+    ))
+} else {
+    admin_router  // single-user mode: no enforcement, matches legacy behaviour
+};
+
+// Merged into the final app alongside `rest_routes`, `mcp_router`, etc.
+let app = Router::new()
+    .merge(public_routes)
+    .merge(umicp_routes)
+    .merge(mcp_router)
+    .merge(admin_router)        // <-- new
+    .merge(rest_routes)
+    .merge(metrics_router);
 ```
 
-The extractor clones `state.auth_handler_state` out of the typed
-`State<VectorizerServer>` and runs the same admin check that
-`require_admin_for_rest` uses. Failure returns the same `ErrorResponse`
-shape as the legacy helper, so existing REST callers see identical
-401/403 bodies.
+## Why this works now (and didn't before)
 
-There is a companion `Authenticated` extractor that accepts any
-logged-in user regardless of role. Both extractors yield
-`Option<AuthState>` — `None` when auth is globally disabled (legacy
-no-auth mode), `Some` when a token was validated.
+The previous attempt at the router layer (logged in
+`docs/api/route-auth-matrix.md` history) failed with:
+
+```
+the trait `tonic::codegen::Service<Request<Body>>` is not implemented
+for `FromFn<..., ..., _>`
+```
+
+The root cause was a `Send` violation hidden inside
+`extract_auth_from_request(state, &request).await` — the `&Request`
+reference was held across an `.await` and `axum::Request` is `Send`
+but not `Sync`, which makes any `&Request` non-`Send`. The typed
+`from_fn_with_state` form surfaces the violation as a confusing
+`Service` trait mismatch (rustc reports the first trait it tried,
+which happened to be `tonic::codegen::Service`).
+
+Fix: split `extract_auth_from_request` into
+`extract_auth_from_parts(state, &HeaderMap, Option<&str>)`. Both
+borrowed types are `Send + Sync`, so the resulting future is `Send` and
+the middleware composes cleanly. The three middleware functions
+(`auth_middleware`, `require_auth_middleware`, `require_admin_middleware`)
+now extract headers and the query string up-front and call the parts
+helper.
 
 ## Testing
 
-- Unit: `src/server/auth_handlers_tests.rs` covers both the legacy
-  `require_admin_for_rest` helper and the `AdminAuth` / `Authenticated`
-  extractors across the four input states (auth disabled, no header,
-  non-admin token, admin token).
+- Unit (`src/server/auth_handlers_tests.rs`):
+  - Legacy helper coverage: `require_admin_for_rest_*` (4 tests).
+  - `AdminAuth` / `Authenticated` extractor coverage: 8 tests.
+  - **New router-level regression** (`router_admin_layer_returns_401_without_token`,
+    `router_admin_layer_returns_403_for_viewer_token`,
+    `router_admin_layer_returns_200_for_admin_token`): builds a synthetic
+    `Router::new().route(...).layer(from_fn_with_state(...))`, dispatches
+    real `axum::http::Request`s through `tower::ServiceExt::oneshot`,
+    and asserts the status. Adding a new admin route to the production
+    router without breaking these tests guarantees the layer fires.
 - End-to-end via the REST API is covered by existing
   `tests/api/rest/*` suites whose `AuthHandlerState::new_with_root_user`
   path exercises admin token creation and subsequent calls against

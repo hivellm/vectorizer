@@ -167,9 +167,9 @@ pub async fn create_backup(
     })))
 }
 
-/// Restore backup (for GUI)
+/// Restore backup (for GUI). Admin-only — gate enforced at the router
+/// layer in `crate::server::core::routing`.
 pub async fn restore_backup(
-    _admin: crate::server::auth_handlers::AdminAuth,
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {

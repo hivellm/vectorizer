@@ -122,9 +122,9 @@ pub async fn analyze_project_directory(
 
 /// POST /setup/apply
 ///
-/// Apply the setup configuration (create workspace.yml, create collections, and index files)
+/// Apply the setup configuration (create workspace.yml, create collections, and index files).
+/// Admin-only — gate enforced at the router layer in `crate::server::core::routing`.
 pub async fn apply_setup_config(
-    _admin: crate::server::auth_handlers::AdminAuth,
     State(state): State<VectorizerServer>,
     Json(payload): Json<ApplyConfigRequest>,
 ) -> ApiResult<Json<Value>> {

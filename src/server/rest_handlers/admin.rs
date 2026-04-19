@@ -17,9 +17,10 @@ use crate::server::error_middleware::{
     ErrorResponse, create_bad_request_error, create_validation_error,
 };
 
-/// Add workspace directory (for GUI)
+/// Add workspace directory (for GUI). Admin-only — gate enforced at the
+/// router layer in `crate::server::core::routing` via
+/// `require_admin_middleware`, not in this signature.
 pub async fn add_workspace(
-    _admin: crate::server::auth_handlers::AdminAuth,
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
@@ -160,9 +161,9 @@ pub async fn get_config() -> Json<Value> {
     }))
 }
 
-/// Update configuration (for GUI). Admin-only.
+/// Update configuration (for GUI). Admin-only — gate enforced at the
+/// router layer in `crate::server::core::routing`.
 pub async fn update_config(
-    _admin: crate::server::auth_handlers::AdminAuth,
     State(_state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
@@ -201,7 +202,6 @@ pub async fn update_config(
 /// 2. Sending a restart signal to the process
 /// 3. The server should be run under a process manager (e.g., systemd) for actual restart
 pub async fn restart_server(
-    _admin: crate::server::auth_handlers::AdminAuth,
     State(_state): State<VectorizerServer>,
 ) -> Result<Json<Value>, ErrorResponse> {
     use std::sync::atomic::{AtomicBool, Ordering};
