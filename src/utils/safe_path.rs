@@ -104,6 +104,7 @@ pub fn canonicalize_within(base: &Path, candidate: &Path) -> Result<PathBuf> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

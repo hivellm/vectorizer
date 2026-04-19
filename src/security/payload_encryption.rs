@@ -295,6 +295,7 @@ pub fn validate_encrypted_payload(payload: &EncryptedPayload) -> Result<(), Encr
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use serde_json::json;
 

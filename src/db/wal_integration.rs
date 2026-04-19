@@ -188,6 +188,7 @@ impl WalIntegration {
 use tracing::info;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use serde_json::json;
     use tempfile::tempdir;

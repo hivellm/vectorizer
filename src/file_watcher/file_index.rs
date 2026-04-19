@@ -189,6 +189,7 @@ pub struct FileIndexStats {
 pub type FileIndexArc = Arc<RwLock<FileIndex>>;
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

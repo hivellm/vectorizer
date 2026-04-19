@@ -515,6 +515,7 @@ fn load_config(path: &PathBuf) -> Result<CliConfig, Box<dyn std::error::Error>> 
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

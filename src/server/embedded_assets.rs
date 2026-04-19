@@ -83,6 +83,7 @@ pub async fn dashboard_root_handler() -> Response<Body> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

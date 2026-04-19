@@ -539,6 +539,7 @@ pub fn estimate_compression_ratio(data: &[u8]) -> f64 {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use std::fs::{self, File};
     use std::io::Write;

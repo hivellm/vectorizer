@@ -1,6 +1,7 @@
 //! Tests for replication statistics and health tracking
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 

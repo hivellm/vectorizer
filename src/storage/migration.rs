@@ -285,6 +285,7 @@ pub struct MigrationResult {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use std::fs::File;
     use std::io::Write;

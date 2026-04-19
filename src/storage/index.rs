@@ -263,6 +263,7 @@ pub fn detect_file_type(path: &str) -> FileType {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use tempfile::TempDir;
 

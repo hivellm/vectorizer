@@ -293,6 +293,7 @@ pub fn extract_tenant_context(req: &Request<Body>) -> Option<&TenantContext> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

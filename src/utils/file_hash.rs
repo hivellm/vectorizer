@@ -23,6 +23,7 @@ pub fn get_file_modified_time(file_path: &Path) -> Result<chrono::DateTime<chron
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use std::io::Write;
 

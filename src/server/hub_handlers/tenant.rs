@@ -232,6 +232,12 @@ pub async fn migrate_tenant_data(
                 "collections": []
             });
 
+            // SAFE: `export_data` is built three lines above with
+            // `"collections": []` — `as_array_mut()` therefore always returns
+            // `Some` here. Any future change that drops the `collections`
+            // key will surface immediately on first request rather than
+            // silently exporting an empty file.
+            #[allow(clippy::unwrap_used)]
             let collections_array = export_data["collections"].as_array_mut().unwrap();
 
             for collection_name in &source_collections {
@@ -378,6 +384,7 @@ pub async fn migrate_tenant_data(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::{

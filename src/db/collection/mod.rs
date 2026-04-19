@@ -134,6 +134,12 @@ impl Collection {
             batch_size: 1000,
         };
 
+        // SAFE: OptimizedHnswIndex::new only fails on a zero/negative dimension
+        // or invalid HnswConfig — both impossible here because `dimension`
+        // is u32-validated by CollectionConfig and `optimized_config` is
+        // built from already-validated fields. A failure indicates a logic
+        // bug in this constructor, not a runtime condition.
+        #[allow(clippy::expect_used)]
         let index = OptimizedHnswIndex::new(config.dimension, optimized_config)
             .expect("Failed to create optimized HNSW index");
         let now = chrono::Utc::now();
@@ -166,6 +172,16 @@ impl Collection {
                 }
                 let path = data_dir.join(format!("{}.mmap", name));
 
+                // SAFE-ish: This is a real I/O call that can legitimately
+                // fail (permissions, disk full, corrupt file). Long-term we
+                // should propagate the error via Collection::new ->
+                // Result<Self> — tracked under
+                // phase4_enforce-no-unwrap-policy item 2.4 follow-up. Until
+                // then, an mmap failure surfaces as a startup panic, which
+                // matches the prior behaviour and is preferable to a silent
+                // fallback to in-memory storage on a path the operator
+                // explicitly chose.
+                #[allow(clippy::expect_used)]
                 let storage =
                     crate::storage::mmap::MmapVectorStorage::open(&path, config.dimension)
                         .expect("Failed to initialize mmap storage");

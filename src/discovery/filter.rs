@@ -123,6 +123,7 @@ fn filter_by_query_terms(collections: &[CollectionRef], terms: &[String]) -> Vec
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use chrono::Utc;
 

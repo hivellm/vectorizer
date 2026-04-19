@@ -178,6 +178,7 @@ pub struct CacheStats {
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::file_operations::types;

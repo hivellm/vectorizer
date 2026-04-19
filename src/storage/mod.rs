@@ -141,6 +141,7 @@ pub fn load_or_initialize(data_dir: &Path) -> Result<usize> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use tempfile::TempDir;
 

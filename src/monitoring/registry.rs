@@ -39,6 +39,7 @@ pub fn get_registry() -> Arc<RwLock<Registry>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use prometheus::Encoder;
 

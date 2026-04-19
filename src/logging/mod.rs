@@ -150,6 +150,7 @@ pub fn get_log_file_path(service_name: &str, date: Option<DateTime<Local>>) -> P
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use std::thread;
     use std::time::Duration;

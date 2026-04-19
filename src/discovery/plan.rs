@@ -75,6 +75,7 @@ fn section_title(section_type: &SectionType) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

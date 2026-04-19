@@ -63,6 +63,7 @@ pub fn current_correlation_id() -> Option<String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use axum::body::Body;
     use axum::http::Request as HttpRequest;

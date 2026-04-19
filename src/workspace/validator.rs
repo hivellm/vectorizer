@@ -794,6 +794,7 @@ fn validate_validation_settings(_config: &WorkspaceConfig, _result: &mut Validat
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use tempfile::tempdir;
 

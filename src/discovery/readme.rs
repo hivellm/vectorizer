@@ -62,6 +62,7 @@ fn is_readme(file_path: &str, config: &ReadmePromotionConfig) -> bool {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::discovery::types::ChunkMetadata;

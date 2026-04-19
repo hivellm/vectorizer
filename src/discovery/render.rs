@@ -75,6 +75,7 @@ fn truncate_to_token_limit(prompt: String, max_tokens: usize) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::discovery::types::{Bullet, BulletCategory, Section, SectionType};

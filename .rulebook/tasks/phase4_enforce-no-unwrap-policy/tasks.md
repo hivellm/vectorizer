@@ -8,15 +8,15 @@
 - [x] 2.1 `src/server/mcp/tools.rs` (was 31 hits) — replaced every `json!({...}).as_object().unwrap().clone().into()` with a new local `schema(value)` helper that pattern-matches `Value::Object(map)` and `unreachable!()`s on the impossible arm. Zero `.unwrap()` calls remain in this file.
 - [x] 2.2 `src/monitoring/metrics.rs` (30 hits) — every unwrap is inside `Metrics::new()` constructing prometheus collectors from static `&'static str` names, which can only fail on malformed names (compile-time-checked). Added a doc block + function-level `#[allow(clippy::unwrap_used)]` documenting the static-invariant rationale. No semantic change.
 - [x] 2.3 `src/file_watcher/hash_validator.rs` (30 hits) — every unwrap is inside the `#[cfg(test)] mod tests` block. Added `#[allow(clippy::unwrap_used, clippy::expect_used)]` to that block; production code is unwrap-free.
-- [ ] 2.4 `src/db/collection.rs` (29 hits).
-- [ ] 2.5 `src/server/hub_tenant_handlers.rs` (28 hits) — handler entry points.
+- [x] 2.4 `src/db/collection.rs` was split into `src/db/collection/{mod,data,graph,index,persistence,quantization}.rs`; only 2 unwraps remain in `mod.rs::Collection::new`. Documented both with `// SAFE:` rationale + `#[allow(clippy::expect_used)]` (HNSW from validated config = static-invariant; mmap is genuine I/O — flagged for follow-up Result conversion).
+- [x] 2.5 `src/server/hub_handlers/tenant.rs` (was 28 hits; 1 prod, rest test) — annotated the lone prod hit (`as_array_mut().unwrap()` on a literal `json!` two lines above) with a SAFE comment + `#[allow]`; the test mod got the bulk allow.
 - [ ] 2.6 `src/utils/file_hash.rs` (27 hits) + `src/quantization/storage.rs` (27 hits).
 - [ ] 2.7 `src/storage/advanced.rs` + `src/persistence/wal.rs` (25 each).
 - [ ] 2.8 Remaining offender files below 25 hits: sweep in batches of 2-3 per commit.
 
 ## 3. Test modules
 
-- [ ] 3.1 Add `#![allow(clippy::unwrap_used, clippy::expect_used)]` to every `#[cfg(test)] mod tests { ... }` once the lints flip to `deny` — unwrap is idiomatic in tests.
+- [x] 3.1 Built `scripts/add_test_unwrap_allow.py` — idempotent codemod that scans every `#[cfg(test)] mod tests { ... }` block and prepends `#[allow(clippy::unwrap_used, clippy::expect_used)]` if the body contains a `.unwrap()` / `.expect(...)` call. Initial run patched **110 files**; production-only unwraps now isolated to ~67 files (`scripts/classify_unwraps.py` re-run).
 
 ## 4. Enforcement flip
 
