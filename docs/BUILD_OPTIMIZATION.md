@@ -15,7 +15,7 @@ cargo install sccache
 export RUSTC_WRAPPER=$(which sccache)
 
 # Or use the setup script
-source scripts/setup-sccache.sh
+source scripts/build/setup-sccache.sh
 
 # Make permanent (add to ~/.bashrc or ~/.zshrc)
 echo 'export RUSTC_WRAPPER=$(which sccache)' >> ~/.bashrc
@@ -30,7 +30,7 @@ cargo install sccache
 $env:RUSTC_WRAPPER = "C:\Users\$env:USERNAME\.cargo\bin\sccache.exe"
 
 # Or use the setup script
-.\scripts\setup-sccache.ps1
+.\scripts\build\setup-sccache.ps1
 
 # Make permanent (add to PowerShell profile)
 # Find profile: $PROFILE
@@ -50,8 +50,8 @@ sccache --show-stats
 sudo apt install lld clang
 
 # Or use the setup script
-chmod +x scripts/install-lld.sh
-./scripts/install-lld.sh
+chmod +x scripts/build/install-lld.sh
+./scripts/build/install-lld.sh
 ```
 
 **Windows:**
@@ -75,7 +75,7 @@ brew install llvm
 - **What it does**: Uses LLVM's fast linker instead of default system linker
 - **Impact**: 2-5x faster linking for large binaries
 - **Status**: ✅ Configured in `.cargo/config.toml`
-- **Installation**: See scripts/install-lld.sh
+- **Installation**: See scripts/build/install-lld.sh
 
 ### 3. Incremental Compilation
 - **What it does**: Only recompiles changed code

@@ -285,7 +285,7 @@ required-features = ["benchmarks"]
 
 [[bin]]
 name = "test_routes"
-path = "scripts/test_routes.rs"
+path = "scripts/dev/test_routes.rs"
 
 # [[bin]]
 # name = "test_basic_metal"

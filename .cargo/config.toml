@@ -11,7 +11,7 @@ incremental = true
 # 
 # Option 1: Set environment variable (recommended for flexibility)
 #   export RUSTC_WRAPPER=$(which sccache)
-#   Or use: source scripts/setup-sccache.sh
+#   Or use: source scripts/build/setup-sccache.sh
 #
 # Option 2: Uncomment the line below if sccache is in your PATH:
 # rustc-wrapper = "sccache"

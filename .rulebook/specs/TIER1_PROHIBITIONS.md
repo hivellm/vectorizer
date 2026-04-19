@@ -22,14 +22,14 @@
 - Partial implementations ("I'll add the rest later")
 - Reduced scope without explicit approval
 
-### Allow-list (CI-enforced by `scripts/check-no-tier1-markers.sh`)
+### Allow-list (CI-enforced by `scripts/ci/check-no-tier1-markers.sh`)
 
 Only two forms of the forbidden tokens are permitted:
 
 1. **`// TASK(phaseN_<slug>):`** — a comment that points at a tracked rulebook task. Every such marker must correspond to a real `.rulebook/tasks/<slug>/` directory. Grep pattern matched by the gate: `TASK\(phase[0-9]+_[a-z0-9-]+\)`.
 2. **`grep-ignore(tier1-markers)` on the same line** — for code that must keep the literal tokens because it *detects* them in user data (e.g. `src/file_operations/operations.rs` has a summarizer that searches for `TODO`/`FIXME` in source files).
 
-Any other occurrence fails CI. The gate script is `scripts/check-no-tier1-markers.sh` and the workflow step lives in `.github/workflows/rust-lint.yml`.
+Any other occurrence fails CI. The gate script is `scripts/ci/check-no-tier1-markers.sh` and the workflow step lives in `.github/workflows/rust-lint.yml`.
 
 ### Required Behavior
 - **Research** the correct approach before writing code

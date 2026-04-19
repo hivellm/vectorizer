@@ -76,7 +76,7 @@ jobs:
         #   * lines carrying the `grep-ignore(tier1-markers)` sentinel
         #     (used by the marker-detection feature itself)
         # See .rulebook/tasks/phase0_fix-all-todos/ for the rationale.
-        run: bash scripts/check-no-tier1-markers.sh
+        run: bash scripts/ci/check-no-tier1-markers.sh
       - name: Enforce no-credential-logs in auth-handling code
         # Fails PR if any log macro in src/auth/ or src/server/auth_handlers.rs
         # references `password`/`secret`/`api_key` in its format string without
@@ -84,4 +84,4 @@ jobs:
         # the wrapper protects `{:?}` debug prints; this gate catches
         # hand-rolled `info!("password = {}", pwd)` leaks.
         # See .rulebook/tasks/phase1_secret-newtype-and-log-gate/ for rationale.
-        run: bash scripts/check-no-credential-logs.sh
+        run: bash scripts/ci/check-no-credential-logs.sh
