@@ -5,11 +5,66 @@
 
 High-performance Go SDK for Vectorizer vector database.
 
-**Package**: `github.com/hivellm/vectorizer-sdk-go`  
-**Version**: 2.2.0
+**Package**: `github.com/hivellm/vectorizer-sdk-go`
+**Version**: 3.0.0
+
+## v3.0 — VectorizerRPC is the default transport
+
+Starting with v3.0, the recommended transport is **VectorizerRPC**: a
+binary, length-prefixed MessagePack protocol over raw TCP (port 15503
+by default). It replaces JSON parsing on the hot path with a single
+`vmihailenco/msgpack` decode, removes per-request HTTP framing, and
+supports multiplexed call/response on a single long-lived TCP
+connection. Spec: `docs/specs/VECTORIZER_RPC.md` in the parent repo.
+
+The legacy REST `Client` (over `net/http`) stays available for ops
+scripts and anything that already targets HTTP.
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/hivellm/vectorizer-sdk-go/rpc"
+)
+
+func main() {
+    ctx := context.Background()
+    client, err := rpc.ConnectURL(ctx, "vectorizer://127.0.0.1:15503", rpc.ConnectOptions{})
+    if err != nil { log.Fatal(err) }
+    defer client.Close()
+
+    if _, err := client.Hello(ctx, rpc.HelloPayload{ClientName: "my-app"}); err != nil {
+        log.Fatal(err)
+    }
+
+    cols, _ := client.ListCollections(ctx)
+    fmt.Println(cols)
+
+    hits, _ := client.SearchBasic(ctx, "docs", "vector database", 5)
+    for _, hit := range hits {
+        fmt.Println(hit.ID, hit.Score)
+    }
+}
+```
+
+A runnable end-to-end demo lives at
+[`examples/rpc_quickstart/main.go`](examples/rpc_quickstart/main.go).
+
+### Switching transports
+
+| Goal | API |
+|---|---|
+| Default RPC | `rpc.ConnectURL(ctx, "vectorizer://host:15503", ...)` |
+| Bare host:port (RPC) | `rpc.Connect(ctx, "host:15503", ...)` |
+| Legacy REST | `vectorizer.NewClient(&vectorizer.Config{BaseURL: "http://host:15002"})` |
 
 ## Features
 
+- ✅ **VectorizerRPC** (default in v3.x): binary, low-latency, multiplexed
 - ✅ **Simple API**: Clean and intuitive Go interface
 - ✅ **High Performance**: Optimized for production workloads
 - ✅ **Collection Management**: CRUD operations for collections
