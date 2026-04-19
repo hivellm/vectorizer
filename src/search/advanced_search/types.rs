@@ -15,22 +15,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone)]
 pub struct AdvancedSearchEngine {
     /// Search configuration
-    config: SearchConfig,
+    pub(super) config: SearchConfig,
 
     /// Search index
-    index: Arc<RwLock<SearchIndex>>,
+    pub(super) index: Arc<RwLock<SearchIndex>>,
 
     /// Query processor
-    query_processor: Arc<QueryProcessor>,
+    pub(super) query_processor: Arc<QueryProcessor>,
 
     /// Ranking engine
-    ranking_engine: Arc<RankingEngine>,
+    pub(super) ranking_engine: Arc<RankingEngine>,
 
     /// Search analytics
-    analytics: Arc<SearchAnalytics>,
+    pub(super) analytics: Arc<SearchAnalytics>,
 
     /// Search suggestions
-    suggestions: Arc<SearchSuggestions>,
+    pub(super) suggestions: Arc<SearchSuggestions>,
 }
 
 /// Search configuration
@@ -274,19 +274,19 @@ pub struct SearchPerformanceConfig {
 #[derive(Debug, Clone)]
 pub struct SearchIndex {
     /// Documents
-    documents: HashMap<String, SearchDocument>,
+    pub(super) documents: HashMap<String, SearchDocument>,
 
     /// Inverted index
-    inverted_index: HashMap<String, Vec<String>>,
+    pub(super) inverted_index: HashMap<String, Vec<String>>,
 
     /// Vector index
-    vector_index: HashMap<String, Vec<f32>>,
+    pub(super) vector_index: HashMap<String, Vec<f32>>,
 
     /// Metadata index
-    metadata_index: HashMap<String, HashMap<String, Vec<String>>>,
+    pub(super) metadata_index: HashMap<String, HashMap<String, Vec<String>>>,
 
     /// Statistics
-    statistics: SearchIndexStatistics,
+    pub(super) statistics: SearchIndexStatistics,
 }
 
 /// Search document
@@ -349,23 +349,23 @@ pub struct SearchIndexStatistics {
 #[derive(Debug)]
 pub struct QueryProcessor {
     /// Configuration
-    config: QueryProcessingConfig,
+    pub(super) config: QueryProcessingConfig,
 
     /// Stop words
-    stop_words: HashSet<String>,
+    pub(super) stop_words: HashSet<String>,
 
     /// Synonyms
-    synonyms: HashMap<String, Vec<String>>,
+    pub(super) synonyms: HashMap<String, Vec<String>>,
 }
 
 /// Ranking engine
 #[derive(Debug)]
 pub struct RankingEngine {
     /// Configuration
-    config: RankingConfig,
+    pub(super) config: RankingConfig,
 
     /// Ranking models
-    models: HashMap<String, RankingModel>,
+    pub(super) models: HashMap<String, RankingModel>,
 }
 
 /// Ranking model
@@ -385,13 +385,13 @@ pub struct RankingModel {
 #[derive(Debug)]
 pub struct SearchAnalytics {
     /// Configuration
-    config: SearchAnalyticsConfig,
+    pub(super) config: SearchAnalyticsConfig,
 
     /// Query logs
-    query_logs: Arc<RwLock<Vec<QueryLog>>>,
+    pub(super) query_logs: Arc<RwLock<Vec<QueryLog>>>,
 
     /// Search metrics
-    metrics: Arc<RwLock<SearchMetrics>>,
+    pub(super) metrics: Arc<RwLock<SearchMetrics>>,
 }
 
 /// Query log
@@ -448,13 +448,13 @@ pub struct SearchMetrics {
 #[derive(Debug)]
 pub struct SearchSuggestions {
     /// Configuration
-    config: SearchSuggestionsConfig,
+    pub(super) config: SearchSuggestionsConfig,
 
     /// Suggestion index
-    suggestion_index: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    pub(super) suggestion_index: Arc<RwLock<HashMap<String, Vec<String>>>>,
 
     /// Query history
-    query_history: Arc<RwLock<Vec<String>>>,
+    pub(super) query_history: Arc<RwLock<Vec<String>>>,
 }
 
 /// Ranker output: a single scored document with enrichment fields
