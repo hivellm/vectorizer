@@ -1,6 +1,7 @@
 //! GraphQL Multi-Tenant Integration Tests
 //!
 //! These tests verify GraphQL API functionality with HiveHub integration:
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(
     unused_imports,
     clippy::needless_raw_string_hashes,

@@ -6,6 +6,8 @@
 //! - Collection replication via HaManager
 //! - Failover: write on leader, kill leader, read on follower
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;

@@ -1,6 +1,8 @@
 //! Unit tests for auth handlers — extracted from `src/server/auth_handlers.rs` via the
 //! `#[path]` attribute (phase3 monolith test-extraction).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 
 #[test]

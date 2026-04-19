@@ -5,6 +5,8 @@
 //! and the resulting hex string is accepted by `AuthManager::new` with
 //! `enabled = true` and can round-trip a JWT token.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use tempfile::TempDir;
 use vectorizer::auth::jwt_secret::load_or_generate;
 use vectorizer::auth::roles::Role;

@@ -6,6 +6,8 @@
 //! `.rulebook/specs/RUST.md#the-unwrapexpect-policy-tightened-in-phase3`
 //! and the full sweep tracked under `phase4_enforce-no-unwrap-policy`.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::post;

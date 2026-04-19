@@ -1,5 +1,7 @@
 //! Integration tests for VectorStore with WAL
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, Vector};

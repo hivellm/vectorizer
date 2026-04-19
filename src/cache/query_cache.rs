@@ -2,6 +2,11 @@
 
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
+
+const QUERY_CACHE_DEFAULT_CAPACITY: NonZeroUsize = match NonZeroUsize::new(1000) {
+    Some(n) => n,
+    None => unreachable!(),
+};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -103,8 +108,7 @@ pub struct QueryCache<T: Clone> {
 impl<T: Clone> QueryCache<T> {
     /// Create a new query cache with configuration
     pub fn new(config: QueryCacheConfig) -> Self {
-        let capacity =
-            NonZeroUsize::new(config.max_size).unwrap_or(NonZeroUsize::new(1000).unwrap());
+        let capacity = NonZeroUsize::new(config.max_size).unwrap_or(QUERY_CACHE_DEFAULT_CAPACITY);
 
         Self {
             cache: Arc::new(RwLock::new(LruCache::new(capacity))),

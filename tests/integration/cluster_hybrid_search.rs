@@ -17,6 +17,8 @@
 //! they exercise the wire surface, request/response conversions, and the
 //! compatibility-fallback semantics without depending on physical nodes.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::time::Duration;
 

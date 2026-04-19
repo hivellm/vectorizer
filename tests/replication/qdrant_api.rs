@@ -5,6 +5,8 @@
 //! - Vector operations: upsert, retrieve, delete, scroll, count
 //! - Search operations: search, recommend, batch search, batch recommend
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, CompressionConfig, DistanceMetric, HnswConfig, QuantizationConfig,

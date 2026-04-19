@@ -3,6 +3,8 @@
 //! This module contains unit tests, integration tests, and performance tests
 //! for the intelligent search engine.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use crate::intelligent_search::*;
 use crate::intelligent_search::query_generator::QueryGenerator;
 use crate::intelligent_search::simple_search_engine::SimpleSearchEngine;

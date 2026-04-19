@@ -9,6 +9,8 @@
 //! - New implementations (batch insert, hybrid search, rate limiting, etc.)
 //! - TLS/SSL security
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 pub mod binary_quantization;
 pub mod cluster;
 pub mod cluster_e2e;
@@ -23,6 +25,7 @@ pub mod cluster_scale;
 pub mod distributed_search;
 pub mod distributed_sharding;
 pub mod graph;
+pub mod handler_robustness;
 pub mod hub_logging;
 pub mod hybrid_search;
 pub mod multi_tenancy;

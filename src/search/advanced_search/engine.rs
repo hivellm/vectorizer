@@ -85,8 +85,8 @@ impl AdvancedSearchEngine {
                 session_id: None,
                 timestamp: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs(),
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0),
                 duration_ms: start_time.elapsed().as_millis() as u64,
                 results_count: ranked_results.len(),
                 filters: query.filters,
@@ -251,7 +251,11 @@ impl SearchIndex {
         }
 
         // Sort by score
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(results)
     }

@@ -70,7 +70,7 @@ impl<T: EmbeddingProvider, U: EmbeddingProvider> HybridRetriever<T, U> {
             .collect();
 
         // Sort by score descending and take top k
-        doc_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        doc_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         doc_scores.truncate(k);
 
         Ok(doc_scores)
@@ -107,7 +107,11 @@ impl<T: EmbeddingProvider, U: EmbeddingProvider> HybridRetriever<T, U> {
             .collect();
 
         // Sort by dense score and take final k
-        reranked_results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap());
+        reranked_results.sort_by(|a, b| {
+            b.relevance
+                .partial_cmp(&a.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         reranked_results.truncate(final_k);
 
         Ok(reranked_results)

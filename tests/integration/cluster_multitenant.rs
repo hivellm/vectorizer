@@ -3,6 +3,8 @@
 //! These tests verify that distributed sharding works correctly
 //! with multi-tenant isolation in HiveHub Cloud integration.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::time::Duration;
 

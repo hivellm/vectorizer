@@ -6,6 +6,8 @@
 //! - gRPC API (see ../grpc/)
 //! - MCP API
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 pub mod graphql;
 pub mod mcp;
 pub mod rest;

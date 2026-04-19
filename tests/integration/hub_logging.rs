@@ -2,6 +2,8 @@
 //!
 //! Tests the operation logging, request tracking, and HiveHub Cloud integration features.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::time::Instant;
 
 use serde_json::json;

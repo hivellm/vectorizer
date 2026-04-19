@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod sharding_model_tests {
     use vectorizer::models::qdrant::sharding::{
         QdrantCreateShardKeyRequest, QdrantDeleteShardKeyRequest, QdrantLocalShardInfo,

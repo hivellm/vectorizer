@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 /// Test to validate that Docker virtual paths work correctly
 /// This ensures the fix for path traversal validation doesn't break Docker environments
 use tracing::info;

@@ -1,5 +1,7 @@
 //! Integration tests for multi-tenancy
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::db::multi_tenancy::{
     MultiTenancyManager, TenantOperation, TenantQuotas, TenantUsageUpdate,
 };

@@ -1,5 +1,7 @@
 //! Tests for SIMD-accelerated vector operations
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::models::{vector_utils, vector_utils_simd};
 
 #[test]

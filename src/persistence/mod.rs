@@ -441,6 +441,7 @@ mod tests {
 
 // Include comprehensive tests module
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod persistence_tests {
     include!("tests.rs");
 }

@@ -1,5 +1,7 @@
 //! Tests for cache management system
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::PathBuf;
 
 use tempfile::tempdir;

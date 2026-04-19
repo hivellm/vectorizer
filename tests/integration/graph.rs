@@ -1,5 +1,7 @@
 //! Integration tests for graph functionality
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use tracing::info;
 use vectorizer::db::graph::{Edge, Graph, Node, RelationshipType};
 use vectorizer::db::{CollectionType, VectorStore};

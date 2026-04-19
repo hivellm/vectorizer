@@ -529,10 +529,13 @@ impl BenchmarkRunner {
             })
             .collect();
 
-        // Collect results
+        // Collect results — log and skip threads that panicked rather than
+        // aborting the whole benchmark.
         for handle in handles {
-            let thread_latencies = handle.join().unwrap();
-            latencies.extend(thread_latencies);
+            match handle.join() {
+                Ok(thread_latencies) => latencies.extend(thread_latencies),
+                Err(e) => tracing::warn!("benchmark thread panicked: {:?}", e),
+            }
         }
 
         let total_time = start_time.elapsed();

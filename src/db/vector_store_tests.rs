@@ -3,6 +3,8 @@
 //! The outer `#[cfg(test)] mod tests;` declaration lives at the bottom
 //! of `vector_store.rs`.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 use crate::models::{CompressionConfig, DistanceMetric, HnswConfig, Payload};
 

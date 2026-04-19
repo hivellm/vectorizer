@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod cluster_model_tests {
     use std::collections::HashMap;
 

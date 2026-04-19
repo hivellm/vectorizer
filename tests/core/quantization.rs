@@ -1,5 +1,7 @@
 //! Tests for Quantization functionality (PQ and SQ)
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, QuantizationConfig, Vector};
 

@@ -195,11 +195,20 @@ impl CollectionType {
                 }
             }
             CollectionType::DistributedSharded(c) => {
-                // Create metadata for distributed sharded collection
-                let rt = tokio::runtime::Runtime::new().unwrap_or_else(|_| {
-                    tokio::runtime::Runtime::new().expect("Failed to create runtime")
-                });
-                let vector_count = rt.block_on(c.vector_count()).unwrap_or(0);
+                // Create metadata for distributed sharded collection. The
+                // first runtime construction can fail under heavy fd
+                // pressure; fall back to a vector_count of 0 in that case
+                // rather than panic.
+                let vector_count = match tokio::runtime::Runtime::new() {
+                    Ok(rt) => rt.block_on(c.vector_count()).unwrap_or(0),
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to create runtime for distributed vector_count: {}; reporting 0",
+                            e
+                        );
+                        0
+                    }
+                };
                 // Use local document count for now (sync) - distributed count requires async
                 let document_count = c.document_count();
                 CollectionMetadata {

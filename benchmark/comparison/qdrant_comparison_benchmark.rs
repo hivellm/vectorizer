@@ -1,5 +1,10 @@
 //! Vectorizer vs Qdrant Comparative Benchmark
 //!
+//! Benchmark binary — unwrap is idiomatic for fixed test fixtures and
+//! external service handshakes; the `unwrap_used = "deny"` workspace lint
+//! applies only to library code (phase4_enforce-no-unwrap-policy).
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! This benchmark compares Vectorizer and Qdrant performance across:
 //! - Insertion latency and throughput
 //! - Search latency and throughput

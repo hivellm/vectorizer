@@ -283,10 +283,9 @@ impl WorkspaceManager {
         // Update last_updated timestamp
         self.config.workspace.last_updated = chrono::Utc::now().to_rfc3339();
 
-        info!(
-            "Added project: {}",
-            self.config.projects.last().unwrap().name
-        );
+        if let Some(added) = self.config.projects.last() {
+            info!("Added project: {}", added.name);
+        }
         Ok(())
     }
 
@@ -380,11 +379,12 @@ impl WorkspaceManager {
         // Update last_updated timestamp
         self.config.workspace.last_updated = chrono::Utc::now().to_rfc3339();
 
-        info!(
-            "Added collection '{}' to project '{}'",
-            project.collections.last().unwrap().name,
-            project_name
-        );
+        if let Some(added) = project.collections.last() {
+            info!(
+                "Added collection '{}' to project '{}'",
+                added.name, project_name
+            );
+        }
         Ok(())
     }
 

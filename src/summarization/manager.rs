@@ -35,12 +35,22 @@ impl SummarizationManager {
         })
     }
 
-    /// Criar gerenciador com configuração padrão
+    /// Criar gerenciador com configuração padrão.
+    ///
+    /// SAFE: `SummarizationConfig::default()` is statically valid; the only
+    /// failure mode of `Self::new` is `config.validate()` rejecting bad
+    /// thresholds, which the defaults can't trigger.
+    #[allow(clippy::unwrap_used)]
     pub fn with_default_config() -> Self {
         Self::new(SummarizationConfig::default()).unwrap()
     }
 
-    /// Create with enabled summarization config for testing
+    /// Create with enabled summarization config for testing.
+    ///
+    /// SAFE: same rationale as `with_default_config` — only `enabled` and
+    /// `auto_summarize` are toggled, both of which are bool fields not
+    /// covered by `validate()`.
+    #[allow(clippy::unwrap_used)]
     pub fn with_enabled_config() -> Self {
         let mut config = SummarizationConfig::default();
         config.enabled = true;

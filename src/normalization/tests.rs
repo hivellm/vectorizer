@@ -1,5 +1,7 @@
 //! Integration tests for normalization module
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::Path;
 
 use super::*;

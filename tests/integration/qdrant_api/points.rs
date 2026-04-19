@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod point_id_tests {
     use serde_json::json;
     use vectorizer::models::qdrant::point::QdrantPointId;

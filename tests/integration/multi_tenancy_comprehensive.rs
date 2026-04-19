@@ -8,6 +8,8 @@
 //! - Concurrent tenant operations
 //! - Edge cases and error handling
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::db::multi_tenancy::{
     MultiTenancyManager, TenantOperation, TenantQuotas, TenantUsageUpdate,
 };

@@ -6,6 +6,8 @@
 //! - Replication handlers
 //! - Qdrant compatibility
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 pub mod failover;
 pub mod handlers;
 pub mod integration;

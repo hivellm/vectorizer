@@ -1,5 +1,7 @@
 //! Tests for the metrics system
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use super::MetricsCollector;

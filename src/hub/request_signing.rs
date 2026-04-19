@@ -335,7 +335,11 @@ impl RequestSigningValidator {
         debug!("Cleaned up nonce cache, {} entries remaining", cache.len());
     }
 
-    /// Compute HMAC-SHA256 signature
+    /// Compute HMAC-SHA256 signature.
+    ///
+    /// SAFE: HMAC accepts keys of any size (per RFC 2104), so the only error
+    /// path of `new_from_slice` is structurally unreachable.
+    #[allow(clippy::expect_used)]
     fn compute_signature(&self, secret: &[u8], message: &str) -> String {
         let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
         mac.update(message.as_bytes());
@@ -377,12 +381,17 @@ impl RequestSigningValidator {
         Ok(self.compute_signature(secret, &canonical))
     }
 
-    /// Get current Unix timestamp
+    /// Get current Unix timestamp.
+    ///
+    /// `SystemTime::now() - UNIX_EPOCH` only fails on systems whose clock is
+    /// set before 1970-01-01; in that case we return 0 rather than panic so
+    /// signed requests can still be issued (server-side timestamp validation
+    /// will reject them as expected).
     pub fn current_timestamp() -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs()
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
     }
 
     /// Generate a unique nonce

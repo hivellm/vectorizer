@@ -3,6 +3,8 @@
 //! These tests verify that search operations work correctly across
 //! multiple servers and that results are properly merged.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::time::Duration;
 

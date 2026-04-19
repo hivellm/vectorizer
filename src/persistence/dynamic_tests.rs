@@ -2,6 +2,8 @@
 //!
 //! Wired from `src/persistence/dynamic.rs` via the `#[path]` attribute.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use tempfile::tempdir;
 
 use super::*;

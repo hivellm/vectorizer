@@ -361,6 +361,7 @@ impl HubClient {
 
     /// Create a mock HubClient for testing
     #[cfg(test)]
+    #[allow(clippy::expect_used)]
     pub fn new_mock() -> Self {
         let config = HubClientConfig {
             api_url: "http://localhost:12000".to_string(),

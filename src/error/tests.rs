@@ -5,6 +5,8 @@
 //! `500` (the exact failure mode described in the
 //! phase3_unify-error-enums proposal).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::{ErrorKind, VectorizerError};
 
 /// Every variant that carries user-supplied context is a 404.

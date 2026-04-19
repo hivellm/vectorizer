@@ -1,5 +1,7 @@
 //! Authentication tests for HiveHub integration
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::hub::auth::{TenantContext, TenantPermission};
 use vectorizer::hub::{HubCacheConfig, HubConfig};
 

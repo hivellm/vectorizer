@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod distance_metric_tests {
     use vectorizer::models::qdrant::collection::QdrantDistance;
 

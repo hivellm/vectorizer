@@ -8,6 +8,8 @@
 //! - Rebalancing and shard management
 //! - Data consistency and integrity
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::ops::Deref;
 
 use uuid::Uuid;

@@ -1,5 +1,10 @@
 //! Benchmark comparing gRPC vs REST API performance
 //!
+//! Benchmark binary — unwrap is idiomatic for fixed test fixtures and
+//! external service handshakes; the `unwrap_used = "deny"` workspace lint
+//! applies only to library code (phase4_enforce-no-unwrap-policy).
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! This benchmark measures:
 //! - Insert throughput (vectors/sec)
 //! - Search latency (p50, p95, p99)

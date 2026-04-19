@@ -1,6 +1,8 @@
 //! Unit tests for AuthConfig + AuthManager — extracted from `src/auth/mod.rs` via the
 //! `#[path]` attribute (phase3 monolith test-extraction).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 
 /// Build a valid `AuthConfig` for unit tests: injects a deterministic

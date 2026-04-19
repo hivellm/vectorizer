@@ -115,7 +115,13 @@ impl VectorKey {
         }
     }
 
-    /// Serialize to bytes for storage key
+    /// Serialize to bytes for storage key.
+    ///
+    /// SAFE: `VectorKey` only contains plain `String` / `u64` / array
+    /// fields, all of which serialize unconditionally. Panic surfaces a
+    /// codec / type-derivation regression at startup rather than silently
+    /// returning an empty key.
+    #[allow(clippy::expect_used)]
     pub fn to_bytes(&self) -> Vec<u8> {
         crate::codec::serialize(self).expect("VectorKey serialization failed")
     }

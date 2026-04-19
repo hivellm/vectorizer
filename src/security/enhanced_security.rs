@@ -856,8 +856,8 @@ impl EnhancedSecurityManager {
             severity: ThreatSeverity::Low,
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
             user_id: Some(user_id.to_string()),
             ip_address: Some(ip_address.to_string()),
             description: "User authenticated successfully".to_string(),

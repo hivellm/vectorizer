@@ -3,6 +3,8 @@
 //! These tests validate that Metal GPU is properly detected and working
 //! on macOS systems with Metal support.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
 mod metal_tests {
     use tracing::info;

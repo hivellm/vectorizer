@@ -103,10 +103,11 @@ pub async fn umicp_discover_handler(State(_state): State<UmicpState>) -> Json<se
     let server_info = service.server_info();
     let operations = service.list_operations();
 
-    // Operations are already serializable OperationSchema structs
+    // Operations are already serializable OperationSchema structs.
+    // Skip any whose serializer rejects them rather than panic the handler.
     let operations_json: Vec<serde_json::Value> = operations
         .iter()
-        .map(|op| serde_json::to_value(op).unwrap())
+        .filter_map(|op| serde_json::to_value(op).ok())
         .collect();
 
     Json(json!({

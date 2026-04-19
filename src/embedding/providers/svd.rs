@@ -109,8 +109,13 @@ impl EmbeddingProvider for SvdEmbedding {
         // Get TF-IDF embedding
         let tfidf_embedding = self.tfidf.embed(text)?;
 
-        // Apply transformation: result = tfidf_vector * V^T_reduced
-        let vt = self.transformation_matrix.as_ref().unwrap();
+        // Apply transformation: result = tfidf_vector * V^T_reduced.
+        // `fit_svd` always populates `transformation_matrix`; surface the
+        // missing-matrix case as an error rather than panic in case the
+        // invariant gets broken by a future refactor.
+        let vt = self.transformation_matrix.as_ref().ok_or_else(|| {
+            VectorizerError::Other("SVD transformation matrix missing after fit".to_string())
+        })?;
         let mut result = vec![0.0f32; self.reduced_dimension];
 
         // Manual matrix multiplication for simplicity

@@ -118,7 +118,7 @@ fn extract_query_vector(
                     count += 1;
                 }
 
-                let mut avg = sum_vector.unwrap();
+                let mut avg = sum_vector.ok_or("no vectors collected for averaging".to_string())?;
                 for val in &mut avg {
                     *val /= count as f32;
                 }
@@ -165,7 +165,7 @@ fn extract_query_vector(
                     count += 1;
                 }
 
-                let mut avg = sum_vector.unwrap();
+                let mut avg = sum_vector.ok_or("no vectors collected for averaging".to_string())?;
                 for val in &mut avg {
                     *val /= count as f32;
                 }

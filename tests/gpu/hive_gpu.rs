@@ -9,6 +9,7 @@
 //!
 //! To re-enable these tests, remove the `#![cfg(any())]` attribute below.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(any())] // DISABLED: API incompatibility with hive-gpu
 
 #[cfg(feature = "hive-gpu")]

@@ -93,7 +93,12 @@ pub struct AuthPersistence {
 }
 
 impl AuthPersistence {
-    /// Create a new auth persistence manager
+    /// Create a new auth persistence manager.
+    ///
+    /// SAFE: `load_or_generate_key` always returns 32 bytes (AES-256 key
+    /// width); `new_from_slice` only fails on a different size, which is
+    /// a code-edit bug surfaced at startup.
+    #[allow(clippy::expect_used)]
     pub fn new(data_dir: &PathBuf) -> Self {
         let data_path = data_dir.join("auth.enc");
         let key_path = data_dir.join(".auth.key");

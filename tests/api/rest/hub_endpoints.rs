@@ -5,6 +5,8 @@
 //! - Quota information (GET /api/hub/usage/quota)
 //! - API key validation (POST /api/hub/validate-key)
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 
 #[test]

@@ -6,6 +6,8 @@
 //! - Collection consistency (quorum)
 //! - DNS discovery
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::cluster::shard_migrator::MigrationStatus;
 use vectorizer::cluster::{
     ClusterConfig, ClusterManager, ClusterNode, DistributedShardRouter, NodeId,

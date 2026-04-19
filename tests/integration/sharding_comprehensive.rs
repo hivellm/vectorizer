@@ -8,6 +8,8 @@
 //! - Multi-shard search and queries
 //! - Failure scenarios and recovery
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

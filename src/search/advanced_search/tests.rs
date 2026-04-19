@@ -1,6 +1,8 @@
 //! Unit tests for AdvancedSearchEngine — extracted from `src/search/advanced_search/mod.rs` via the
 //! `#[path]` attribute (phase3 monolith test-extraction).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 
 

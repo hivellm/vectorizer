@@ -8,6 +8,8 @@
 //! - Collection cleanup
 //! - Collection persistence
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 pub mod collection_cleanup;
 pub mod persistence;
 pub mod quantization;

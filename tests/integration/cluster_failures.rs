@@ -3,6 +3,8 @@
 //! These tests verify the behavior of the distributed sharding system
 //! when nodes fail, recover, or experience network partitions.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::time::Duration;
 

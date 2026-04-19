@@ -1,5 +1,7 @@
 //! File Upload API Integration Tests
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;

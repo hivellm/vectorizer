@@ -6,6 +6,8 @@
 //! - GET /api/v1/workspaces - List workspaces
 //! - PUT /api/v1/workspace-config - Update workspace config
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[cfg(test)]
 mod workspace_api_tests {
     use serde_json::json;

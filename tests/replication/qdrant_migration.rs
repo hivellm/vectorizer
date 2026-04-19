@@ -1,5 +1,7 @@
 //! Qdrant migration integration tests
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::db::VectorStore;
 use vectorizer::migration::qdrant::{
     ConfigFormat, MigrationValidator, QdrantConfigParser, QdrantDataExporter, QdrantDataImporter,

@@ -6,6 +6,8 @@
 //! - Vector insertion and data generation
 //! - Assertion macros for API responses
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
 

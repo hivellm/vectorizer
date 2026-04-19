@@ -13,6 +13,8 @@
 //! - REST/GraphQL handlers call mark_changed() after mutations
 //! - Periodic auto-save checks the dirty flag and saves when needed
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 
 use tempfile::tempdir;

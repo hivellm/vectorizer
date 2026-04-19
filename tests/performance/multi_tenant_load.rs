@@ -1,6 +1,7 @@
 //! Multi-Tenant Load Tests
 //!
 //! These tests verify system performance and stability with 100+ concurrent tenants.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::uninlined_format_args)]
 //! They test:
 //! - Concurrent tenant operations (create collections, insert vectors, search)

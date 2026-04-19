@@ -1,5 +1,7 @@
 //! Integration tests for query cache functionality
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 use vectorizer::cache::QueryCache;
 use vectorizer::server::VectorizerServer;

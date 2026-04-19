@@ -123,6 +123,9 @@ impl VectorOperations {
             let mut em = EmbeddingManager::new();
             let bm25 = crate::embedding::Bm25Embedding::new(512);
             em.register_provider("bm25".to_string(), Box::new(bm25));
+            // SAFE: `bm25` was just registered above, so set_default cannot
+            // fail with `ProviderNotFound`.
+            #[allow(clippy::unwrap_used)]
             em.set_default_provider("bm25").unwrap();
             em
         };
@@ -239,6 +242,9 @@ impl VectorOperations {
             let mut em = EmbeddingManager::new();
             let bm25 = crate::embedding::Bm25Embedding::new(512);
             em.register_provider("bm25".to_string(), Box::new(bm25));
+            // SAFE: `bm25` was just registered above, so set_default cannot
+            // fail with `ProviderNotFound`.
+            #[allow(clippy::unwrap_used)]
             em.set_default_provider("bm25").unwrap();
             em
         };

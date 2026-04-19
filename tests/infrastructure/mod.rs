@@ -7,6 +7,8 @@
 //! - JWT secret auto-generation boot path
 //! - Handler robustness (no-panic-on-malformed-input)
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 pub mod docker;
 pub mod handler_robustness;
 pub mod jwt_secret_boot;

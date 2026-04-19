@@ -2,6 +2,8 @@
 //!
 //! Wired from `src/db/payload_index.rs` via the `#[path]` attribute.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 
 use super::*;

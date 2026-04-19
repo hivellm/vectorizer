@@ -1,5 +1,7 @@
 //! Integration tests for Raft consensus
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::time::Duration;
 
 use vectorizer::db::raft::{LogEntry, RaftConfig, RaftNode, RaftRole, RaftStateMachine};

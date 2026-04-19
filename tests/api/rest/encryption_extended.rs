@@ -1,5 +1,7 @@
 //! Extended encryption tests - Edge cases, performance, persistence, and concurrency
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 
 use base64::Engine;

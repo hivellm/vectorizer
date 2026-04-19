@@ -1,5 +1,7 @@
 //! Comprehensive tests for WAL (Write-Ahead Log) functionality
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;

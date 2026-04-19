@@ -2,6 +2,8 @@
 //! `src/server/rest_handlers.rs` under
 //! `phase3_split-rest-handlers-monolith` via the `#[path]` attribute.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 
 #[test]

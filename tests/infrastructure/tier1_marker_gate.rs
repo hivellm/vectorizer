@@ -9,6 +9,8 @@
 //!   * `grep-ignore(tier1-markers)` on the same line — detection-feature
 //!     literal strings that must keep the token.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::Path;
 
 use regex::Regex;

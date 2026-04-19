@@ -330,8 +330,8 @@ impl McpHubGateway {
             collection: collection.map(String::from),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64,
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
             duration_ms,
             success,
             error,

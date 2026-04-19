@@ -3,6 +3,8 @@
 //! These tests verify that tenants are properly isolated from each other,
 //! ensuring data privacy and security in a multi-tenant environment.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 
 use vectorizer::hub::auth::{TenantContext, TenantPermission};

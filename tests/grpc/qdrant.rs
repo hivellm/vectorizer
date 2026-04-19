@@ -5,6 +5,7 @@
 //! - Points service
 //! - Snapshots service
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(deprecated)]
 
 use std::sync::Arc;

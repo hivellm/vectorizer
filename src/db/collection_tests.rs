@@ -4,6 +4,8 @@
 //! contain; the outer `mod tests` declaration lives at the bottom of
 //! `collection.rs`.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 use crate::models::{DistanceMetric, HnswConfig};
 

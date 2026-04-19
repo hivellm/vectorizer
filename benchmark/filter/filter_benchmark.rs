@@ -6,6 +6,11 @@
 //! - Text filters (full-text search)
 //! - Geo filters (bounding box and radius)
 //! - Nested field filters
+//!
+//! Benchmark binary: unwrap is idiomatic for the harness setup, the
+//! `unwrap_used = "deny"` workspace lint applies only to library code.
+
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::hint::black_box;
 

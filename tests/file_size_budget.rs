@@ -12,6 +12,8 @@
 //! 2. Only bump the limit here if the file legitimately gained a
 //!    single tightly-coupled handler that cannot be extracted.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::fs;
 use std::path::PathBuf;
 

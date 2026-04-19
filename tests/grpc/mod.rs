@@ -11,6 +11,8 @@
 //! - performance: Stress tests and concurrent operations
 //! - s2s: Server-to-server tests (requires s2s-tests feature)
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 pub mod helpers;
 
 pub mod collections;

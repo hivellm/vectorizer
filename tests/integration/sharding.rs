@@ -1,5 +1,7 @@
 //! Integration tests for distributed sharding
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::db::sharded_collection::ShardedCollection;
 use vectorizer::db::sharding::{ShardId, ShardRouter};
 use vectorizer::models::{

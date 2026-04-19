@@ -1,5 +1,7 @@
 //! Integration tests for ECC-AES payload encryption
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use p256::SecretKey;

@@ -3,6 +3,8 @@
 //! - Verbose flag
 //! - Log suppression
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, Vector};

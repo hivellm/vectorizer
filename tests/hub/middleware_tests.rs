@@ -1,5 +1,7 @@
 //! Middleware tests for HiveHub integration
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::hub::middleware::AuthErrorResponse;
 
 #[test]

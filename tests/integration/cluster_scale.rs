@@ -3,6 +3,8 @@
 //! These tests verify load distribution, shard distribution, and
 //! dynamic node management in larger clusters.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::time::Duration;
 

@@ -154,10 +154,18 @@ impl OnnxEmbedder {
         })
     }
 
-    /// Embed a single text
+    /// Embed a single text.
+    ///
+    /// `embed_batch(&[text])` is contracted to return exactly one vector for
+    /// a single-element input, but propagate the empty case as an error
+    /// rather than panic if the contract is ever broken.
     pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
-        self.embed_batch(&[text])
-            .map(|mut vecs| vecs.pop().unwrap())
+        let mut vecs = self.embed_batch(&[text])?;
+        vecs.pop().ok_or_else(|| {
+            VectorizerError::Other(
+                "embed_batch returned no vectors for single-text input".to_string(),
+            )
+        })
     }
 
     /// Embed a batch of texts with optimal performance

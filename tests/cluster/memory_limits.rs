@@ -2,6 +2,7 @@
 //!
 //! Tests the enforcement of memory limits, MMap storage, and file watcher
 //! disabling in cluster mode.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::uninlined_format_args)]
 
 use vectorizer::cache::{AllocationResult, CacheMemoryManager, CacheMemoryManagerConfig};

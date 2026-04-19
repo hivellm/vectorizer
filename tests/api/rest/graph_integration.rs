@@ -9,6 +9,8 @@
 //! Note: These tests require a running server or use direct API calls.
 //! For now, we test the graph functionality through the VectorStore directly.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use tracing::info;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{

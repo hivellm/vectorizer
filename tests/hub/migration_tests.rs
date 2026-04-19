@@ -3,6 +3,8 @@
 //! Tests for the hub migration module that helps migrate
 //! standalone instances to multi-tenant mode.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use uuid::Uuid;
 use vectorizer::migration::{
     CollectionMapper, CollectionMigrationRecord, MigrationPlan, MigrationResult, MigrationStatus,

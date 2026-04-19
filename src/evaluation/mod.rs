@@ -78,17 +78,8 @@ pub fn evaluate_query_results(
             }
         } else {
             // For non-relevant documents, precision stays the same, recall doesn't change
-            if !precision_at_k.is_empty() {
-                precision_at_k.push(*precision_at_k.last().unwrap());
-            } else {
-                precision_at_k.push(0.0);
-            }
-
-            if !recall_at_k.is_empty() {
-                recall_at_k.push(*recall_at_k.last().unwrap());
-            } else {
-                recall_at_k.push(0.0);
-            }
+            precision_at_k.push(precision_at_k.last().copied().unwrap_or(0.0));
+            recall_at_k.push(recall_at_k.last().copied().unwrap_or(0.0));
         }
     }
 

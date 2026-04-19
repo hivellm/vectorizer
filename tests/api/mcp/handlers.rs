@@ -6,6 +6,8 @@
 //! - Discovery tools
 //! - Collection management via MCP
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 
 #[tokio::test]

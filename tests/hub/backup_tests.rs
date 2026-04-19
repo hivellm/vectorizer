@@ -2,6 +2,8 @@
 //!
 //! Tests for the user-scoped backup system.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 

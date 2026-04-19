@@ -245,6 +245,9 @@ impl FileDiscovery {
                 let file_path = file_path.clone();
                 let config = self.config.clone();
                 let vector_operations = Arc::clone(&self.vector_operations);
+                // SAFE: `Semaphore::acquire_owned` only errors when closed;
+                // we own the `Arc<Semaphore>` and never close it.
+                #[allow(clippy::unwrap_used)]
                 let permit = semaphore.clone().acquire_owned().await.unwrap();
 
                 let task = tokio::spawn(async move {

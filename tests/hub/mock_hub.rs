@@ -3,6 +3,8 @@
 //! Provides a mock implementation of the HiveHub API for integration testing
 //! without requiring a real HiveHub Cloud connection.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

@@ -1,5 +1,7 @@
 //! Integration tests for binary quantization
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, Payload, QuantizationConfig};

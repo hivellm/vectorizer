@@ -3,6 +3,8 @@
 //! These tests verify that the cluster can handle failures gracefully
 //! and maintain data consistency.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::time::Duration;
 

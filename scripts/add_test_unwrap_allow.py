@@ -41,7 +41,7 @@ def patch_file(path: str) -> bool:
                 depth -= 1
             i += 1
         body = content[start:i]
-        if not re.search(r"\.unwrap\(\)|\.expect\(", body):
+        if not re.search(r"\.unwrap(_err)?\(\)|\.expect(_err)?\(", body):
             return m.group(0)
         changed = True
         return f"{prefix}{attrs}{ATTR}\n{mod_decl}"

@@ -2,6 +2,8 @@
 //!
 //! Tests for optional ECC-AES payload encryption via GraphQL API
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 
 use base64::Engine;

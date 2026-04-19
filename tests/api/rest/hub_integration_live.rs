@@ -1,6 +1,7 @@
 //! Live Integration Tests for HiveHub REST API Endpoints
 //!
 //! These tests verify end-to-end functionality of the REST API with HiveHub integration:
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::uninlined_format_args)]
 //! - Service header authentication
 //! - Tenant context propagation

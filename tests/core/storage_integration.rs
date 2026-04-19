@@ -6,6 +6,8 @@
 //! - Index management
 //! - Migration between formats
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::PathBuf;
 
 use tempfile::TempDir;

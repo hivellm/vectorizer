@@ -83,12 +83,13 @@ fn load_existing(path: &Path) -> Result<String> {
     Ok(trimmed.to_string())
 }
 
+// SAFE: `OsRng` is infallible in practice on every supported platform; if
+// the OS RNG truly fails the server has bigger problems than auth. Panic
+// here surfaces the failure loudly during boot rather than silently
+// returning a weak key.
+#[allow(clippy::expect_used)]
 fn generate_hex_secret() -> String {
     let mut buf = [0u8; SECRET_BYTES];
-    // OsRng is infallible in practice on every supported platform; if the
-    // OS RNG truly fails the server has bigger problems than auth. Panic here
-    // surfaces the failure loudly during boot rather than silently returning
-    // a weak key.
     OsRng
         .try_fill_bytes(&mut buf)
         .expect("OsRng must provide entropy for JWT secret generation");

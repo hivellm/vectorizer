@@ -1,5 +1,7 @@
 //! Integration tests for payload indexing
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 use vectorizer::db::VectorStore;
 use vectorizer::models::Payload;

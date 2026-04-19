@@ -11,6 +11,7 @@
 //!
 //! NOTE: These tests are only compiled when the `s2s-tests` feature is enabled.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "s2s-tests")]
 
 use std::collections::HashMap;

@@ -529,11 +529,16 @@ impl VectorizerServer {
 
                                     // Verify the file was created
                                     if vecdb_path.exists() {
-                                        let metadata = std::fs::metadata(&vecdb_path).unwrap();
-                                        info!(
-                                            "   📊 vectorizer.vecdb size: {} bytes",
-                                            metadata.len()
-                                        );
+                                        match std::fs::metadata(&vecdb_path) {
+                                            Ok(metadata) => info!(
+                                                "   📊 vectorizer.vecdb size: {} bytes",
+                                                metadata.len()
+                                            ),
+                                            Err(e) => warn!(
+                                                "   ⚠️  Could not stat vectorizer.vecdb: {}",
+                                                e
+                                            ),
+                                        }
                                     } else {
                                         error!("❌ CRITICAL: vectorizer.vecdb was NOT created!");
                                     }

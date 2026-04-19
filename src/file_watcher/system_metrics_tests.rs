@@ -1,5 +1,7 @@
 //! Tests for system metrics functionality
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use tracing::info;
 use super::MetricsCollector;

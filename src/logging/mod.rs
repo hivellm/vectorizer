@@ -64,7 +64,14 @@ pub fn init_logging_with_level(
         )
         .with(
             tracing_subscriber::fmt::layer()
-                .with_writer(move || log_file.try_clone().expect("Failed to clone log file"))
+                // SAFE: `try_clone` only fails on EBADF / file descriptor
+                // exhaustion, both of which are unrecoverable for the
+                // logging subsystem. Panic surfaces the failure at startup
+                // rather than silently dropping log lines.
+                .with_writer({
+                    #[allow(clippy::expect_used)]
+                    move || log_file.try_clone().expect("Failed to clone log file")
+                })
                 .with_target(true)
                 .with_thread_ids(true)
                 .with_thread_names(true)

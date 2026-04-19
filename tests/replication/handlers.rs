@@ -2,6 +2,8 @@
 //!
 //! Tests for server/replication_handlers.rs to achieve >95% coverage
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::db::VectorStore;
 
 /// Helper to create test server

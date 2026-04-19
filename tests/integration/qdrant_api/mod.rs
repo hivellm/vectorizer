@@ -5,6 +5,8 @@
 //! - Cluster Models
 //! - Point ID Handling
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};

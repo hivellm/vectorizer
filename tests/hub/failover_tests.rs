@@ -1,6 +1,7 @@
 //! HiveHub Failover and Resilience Tests
 //!
 //! These tests verify system behavior when HiveHub API is unavailable or degraded.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::uninlined_format_args, unused_imports, dead_code)]
 //! They test:
 //! - Graceful degradation when HiveHub is down

@@ -293,17 +293,19 @@ impl HubMigrationManager {
                 continue;
             }
 
-            if record.owner_id.is_none() || record.new_name.is_none() {
+            // Combined `let-else` replaces the prior `is_none()` guard plus
+            // two separate `unwrap()` extractions. Behaviour is unchanged:
+            // Missing owner_id or new_name marks the record as Failed.
+            let (Some(new_name), Some(owner_id)) = (record.new_name.clone(), record.owner_id)
+            else {
                 record.status = MigrationStatus::Failed;
                 record.error = Some("Missing owner_id or new_name".to_string());
                 failed += 1;
                 continue;
-            }
+            };
 
             record.status = MigrationStatus::InProgress;
 
-            let new_name = record.new_name.clone().unwrap();
-            let owner_id = record.owner_id.unwrap();
             let original_name = record.original_name.clone();
 
             info!(

@@ -405,6 +405,13 @@ needless_pass_by_ref_mut = "warn"
 # Every `unsafe {}` block must carry a `// SAFETY:` comment explaining why
 # the invariants hold. Documented in `/.rulebook/specs/RUST.md`.
 undocumented_unsafe_blocks = "deny"
+# `unwrap()` / `expect()` are forbidden in production code under
+# phase4_enforce-no-unwrap-policy. Test modules opt out with
+# `#[allow(clippy::unwrap_used, clippy::expect_used)]` (idiomatic in tests);
+# genuinely-safe call sites carry a `// SAFE:` rationale plus a function /
+# block-scoped `#[allow]`. Documented in `/.rulebook/specs/RUST.md`.
+unwrap_used = "deny"
+expect_used = "deny"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }

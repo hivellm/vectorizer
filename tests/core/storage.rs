@@ -1,5 +1,7 @@
 //! Tests for MMAP (Memory-Mapped) storage functionality
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use tempfile::tempdir;
 use vectorizer::db::VectorStore;
 use vectorizer::models::{CollectionConfig, DistanceMetric, StorageType, Vector};

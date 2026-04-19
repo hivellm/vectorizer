@@ -1,5 +1,7 @@
 //! Complete integration tests for ECC-AES payload encryption across all API endpoints
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 
 use base64::Engine;

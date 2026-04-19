@@ -1,5 +1,7 @@
 //! Integration tests for Hybrid Search
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 // Helpers not used in this test file - macros available via crate::
 use serde_json::json;
 use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig, VectorStore};

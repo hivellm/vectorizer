@@ -451,7 +451,7 @@ impl ReportGenerator {
         operations.sort_by(|a, b| {
             b.1.throughput_ops_per_sec
                 .partial_cmp(&a.1.throughput_ops_per_sec)
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         if let Some((best_name, best_metrics)) = operations.first() {
@@ -469,7 +469,11 @@ impl ReportGenerator {
         }
 
         // Latency analysis
-        operations.sort_by(|a, b| a.1.avg_latency_us.partial_cmp(&b.1.avg_latency_us).unwrap());
+        operations.sort_by(|a, b| {
+            a.1.avg_latency_us
+                .partial_cmp(&b.1.avg_latency_us)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         if let Some((fastest_name, fastest_metrics)) = operations.first() {
             report.push_str(&format!(

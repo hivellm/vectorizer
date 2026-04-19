@@ -1,5 +1,7 @@
 //! Integration tests for replication REST API endpoints
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[tokio::test]
 async fn test_replication_status_endpoint_standalone() {
     // Create a test server (standalone mode by default)

@@ -56,6 +56,10 @@ impl ParallelProcessor {
             let chunk_end = (chunk_start + chunk_size).min(items.len());
             let chunk = items[chunk_start..chunk_end].to_vec();
 
+            // SAFE: `Semaphore::acquire_owned` only errors when the
+            // semaphore is closed; we own the `Arc<Semaphore>` and never
+            // close it, so this branch is unreachable in practice.
+            #[allow(clippy::unwrap_used)]
             let permit = self.semaphore.clone().acquire_owned().await.unwrap();
             let processor_clone = processor.clone();
             let handle = tokio::spawn(async move {
@@ -120,6 +124,10 @@ impl ParallelProcessor {
         let mut handles = Vec::new();
 
         for item in items {
+            // SAFE: `Semaphore::acquire_owned` only errors when the
+            // semaphore is closed; we own the `Arc<Semaphore>` and never
+            // close it, so this branch is unreachable in practice.
+            #[allow(clippy::unwrap_used)]
             let permit = self.semaphore.clone().acquire_owned().await.unwrap();
             let processor_clone = processor.clone();
             let handle = tokio::spawn(async move {

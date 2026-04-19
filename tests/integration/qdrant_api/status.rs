@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod collection_status_tests {
     use vectorizer::models::qdrant::collection::QdrantCollectionStatus;
 

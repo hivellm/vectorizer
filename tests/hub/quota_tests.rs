@@ -1,5 +1,7 @@
 //! Quota management tests for HiveHub integration
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::hub::quota::{
     CollectionQuota, QuotaInfo, QuotaType, RateLimitQuota, StorageQuota, VectorQuota,
 };

@@ -1,5 +1,7 @@
 //! Tests for logging level functionality
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[test]
 fn test_logging_function_exists() {
     // Test that the logging function exists and can be called

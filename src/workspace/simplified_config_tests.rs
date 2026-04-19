@@ -2,6 +2,8 @@
 //!
 //! Wired from `src/workspace/simplified_config.rs` via the `#[path]` attribute.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 
 #[test]

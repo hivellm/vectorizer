@@ -881,11 +881,9 @@ impl VectorStore {
         let collection = self.get_collection(name)?;
 
         // If no owner_id is provided, allow access (non-tenant mode)
-        if owner_id.is_none() {
+        let Some(owner) = owner_id else {
             return Ok(collection);
-        }
-
-        let owner = owner_id.unwrap();
+        };
 
         // Check ownership - allow access if collection has no owner or matches
         if collection.owner_id().is_none() || collection.belongs_to(owner) {

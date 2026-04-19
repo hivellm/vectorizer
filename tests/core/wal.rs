@@ -5,6 +5,8 @@
 //! - Comprehensive WAL operations
 //! - Crash recovery scenarios
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 // Each file is a separate module to avoid import conflicts
 #[path = "wal_vector_store.rs"]
 mod wal_vector_store;

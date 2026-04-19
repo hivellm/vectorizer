@@ -295,6 +295,7 @@ pub fn create_server_config(config: &TlsConfig) -> Result<Arc<ServerConfig>> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 

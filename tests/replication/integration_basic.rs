@@ -3,6 +3,8 @@
 //! These tests actually run the TCP server and client to achieve >95% coverage
 //! for master.rs and replica.rs modules.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;

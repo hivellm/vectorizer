@@ -1,5 +1,7 @@
 //! REST API Tests
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[cfg(test)]
 pub mod dashboard_spa;
 #[cfg(test)]

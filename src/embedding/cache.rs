@@ -365,8 +365,9 @@ impl CacheShard {
                 let embedding: Vec<f32> = bytes
                     .chunks_exact(std::mem::size_of::<f32>())
                     .map(|chunk| {
-                        let array: [u8; 4] = chunk.try_into().unwrap();
-                        f32::from_le_bytes(array)
+                        // `chunks_exact(4)` always yields 4-byte slices, so
+                        // explicit indexing replaces a `.try_into().unwrap()`.
+                        f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
                     })
                     .collect();
                 return Some(embedding);
@@ -381,8 +382,8 @@ impl CacheShard {
                     let embedding: Vec<f32> = buf
                         .chunks_exact(std::mem::size_of::<f32>())
                         .map(|chunk| {
-                            let array: [u8; 4] = chunk.try_into().unwrap();
-                            f32::from_le_bytes(array)
+                            // `chunks_exact(4)` always yields 4-byte slices.
+                            f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
                         })
                         .collect();
                     return Some(embedding);

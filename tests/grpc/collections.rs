@@ -7,6 +7,8 @@
 //! - Delete collection
 //! - Multiple collections
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use vectorizer::grpc::vectorizer::*;
 
 use crate::grpc::helpers::*;

@@ -7,6 +7,8 @@
 //! - API request tracking
 //! - Per-key rate limiting
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 // ============================================================================
 // Document Count Tracking Tests
 // ============================================================================

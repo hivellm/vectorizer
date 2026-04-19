@@ -51,7 +51,11 @@ impl RankingEngine {
         }
 
         // Sort by final score
-        ranked_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        ranked_results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(ranked_results)
     }

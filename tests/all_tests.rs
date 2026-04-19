@@ -4,6 +4,8 @@
 //!
 //! Note: Each test module imports its own helpers to avoid duplicate mod errors
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod api;
 mod cluster;
 mod core;

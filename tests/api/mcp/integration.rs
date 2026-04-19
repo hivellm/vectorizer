@@ -2,6 +2,8 @@
 //!
 //! This module contains integration tests for the MCP server functionality.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 
 use rmcp::model::CallToolRequestParam;

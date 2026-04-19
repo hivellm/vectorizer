@@ -1,5 +1,7 @@
 //! Integration tests for Sparse Vector Support
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[allow(clippy::duplicate_mod)]
 #[path = "../helpers/mod.rs"]
 mod helpers;

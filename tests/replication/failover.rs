@@ -7,6 +7,8 @@
 //! - Multiple replica recovery
 //! - Data consistency after failover
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;

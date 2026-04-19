@@ -73,12 +73,10 @@ impl ReplicationLog {
         let ops = self.operations.read();
 
         // If empty, return None
-        if ops.is_empty() {
+        let Some(oldest) = ops.front() else {
             return None;
-        }
-
-        // Find the oldest available offset
-        let oldest_offset = ops.front().unwrap().offset;
+        };
+        let oldest_offset = oldest.offset;
 
         // If requested offset is too old, need full sync
         if from_offset < oldest_offset {
@@ -119,10 +117,12 @@ impl ReplicationLog {
 }
 
 fn current_timestamp() -> u64 {
+    // System clock before UNIX_EPOCH is recoverable: replication entries
+    // simply get a 0 timestamp until the operator fixes the clock.
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 #[cfg(test)]

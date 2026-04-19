@@ -6,6 +6,8 @@
 //! - Error handling
 //! - Data serialization
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use serde_json::json;
 use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
 

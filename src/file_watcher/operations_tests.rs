@@ -2,6 +2,8 @@
 //!
 //! Wired from `src/file_watcher/operations.rs` via the `#[path]` attribute.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::PathBuf;
 use std::sync::Arc;
 

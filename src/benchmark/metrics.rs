@@ -87,7 +87,7 @@ impl OperationMetrics {
         };
 
         let mut sorted_latencies = latencies.clone();
-        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let avg_latency_us = latencies.iter().sum::<f64>() / latencies.len() as f64;
         let p50_latency_us = percentile(&sorted_latencies, 50);
@@ -238,7 +238,7 @@ impl PerformanceMetrics {
         let overall_throughput = total_operations as f64 / (self.total_duration_ms / 1000.0);
         let avg_latency = total_latencies.iter().sum::<f64>() / total_latencies.len() as f64;
         let mut sorted_latencies = total_latencies.clone();
-        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        sorted_latencies.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         self.summary = BenchmarkSummary {
             total_operations,

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod snapshot_model_tests {
     use vectorizer::models::qdrant::snapshot::{
         QdrantCreateSnapshotRequest, QdrantListSnapshotsResponse, QdrantRecoverSnapshotRequest,

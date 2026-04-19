@@ -9,6 +9,8 @@
 //! - Error handling scenarios
 //! - Integration tests (when feature enabled)
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::path::PathBuf;
 
 use super::TransmutationProcessor;

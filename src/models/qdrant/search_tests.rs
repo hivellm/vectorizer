@@ -2,6 +2,8 @@
 //!
 //! Wired from `src/models/qdrant/search.rs` via the `#[path]` attribute.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use super::*;
 
 #[test]

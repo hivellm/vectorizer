@@ -1,4 +1,5 @@
 //! Tests for empty collection cleanup functionality
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![allow(clippy::uninlined_format_args, unused_variables)]
 
 use vectorizer::VectorStore;

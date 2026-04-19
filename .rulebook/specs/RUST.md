@@ -327,11 +327,19 @@ let value = match fallible() {
 ### Enforcement
 
 - Handler entry points (REST, MCP, gRPC) MUST NOT panic on untrusted input.
-  Integration tests should prove a malformed body returns 4xx, not 500.
-- The full crate-wide clippy sweep (`unwrap_used = "deny"` + `expect_used = "deny"`)
-  is tracked under the dedicated `phase4_enforce-no-unwrap-policy` follow-up.
-  Today the crate still has ~1,430 legacy occurrences (many in test code); the
-  follow-up will classify each into fix / `// SAFE:` / delete.
+  Integration tests in `tests/integration/handler_robustness.rs` pin the
+  contract for the highest-risk shapes (malformed JSON, NaN scores,
+  out-of-range timestamps, duplicate sparse indices).
+- **The clippy enforcement is on**: `[lints.clippy]` in `Cargo.toml` sets
+  `unwrap_used = "deny"` and `expect_used = "deny"`. Every production
+  `.unwrap()` / `.expect(...)` either fails the build, lives behind a
+  function- or block-scoped `#[allow(clippy::unwrap_used)]` with a `// SAFE:`
+  rationale that documents the static invariant, or sits inside a
+  `#[cfg(test)]` module / `*_tests.rs` file with the equivalent allow.
+- The phase4 sweep took the crate from ~1,430 legacy occurrences (1,033
+  test-only, 233 production) to a clippy-clean state with ~1,247 test-only
+  allows and a small set of documented production allows; `cargo clippy
+  --all-targets --all-features` returns zero warnings.
 
 Example:
 ```rust

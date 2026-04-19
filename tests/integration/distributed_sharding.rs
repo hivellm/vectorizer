@@ -3,6 +3,8 @@
 //! These tests verify the functionality of DistributedShardedCollection
 //! which distributes vectors across multiple server instances.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::sync::Arc;
 
 use vectorizer::cluster::{

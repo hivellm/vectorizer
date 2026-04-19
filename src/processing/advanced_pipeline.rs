@@ -1019,8 +1019,8 @@ impl ErrorHandler {
             error_id: uuid::Uuid::new_v4().to_string(),
             timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
             stage: stage.to_string(),
             message: error.to_string(),
             details: HashMap::new(),

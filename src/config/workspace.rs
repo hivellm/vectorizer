@@ -53,10 +53,16 @@ fn default_active() -> bool {
 impl Workspace {
     /// Create a new workspace
     pub fn new(path: &str, collection_name: &str) -> Self {
-        let id = format!(
-            "ws-{}",
-            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
-        );
+        // SAFE: `Uuid::new_v4().to_string()` always contains hyphens (8-4-4-4-12),
+        // so `split('-').next()` is structurally `Some`. Use `unwrap_or_default`
+        // to keep `unwrap_used = "deny"` enforceable.
+        let short = uuid::Uuid::new_v4()
+            .to_string()
+            .split('-')
+            .next()
+            .unwrap_or_default()
+            .to_string();
+        let id = format!("ws-{}", short);
 
         Self {
             id,

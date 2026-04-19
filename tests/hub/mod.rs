@@ -1,5 +1,7 @@
 //! Integration tests for HiveHub Cloud integration module
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 mod auth_tests;
 mod backup_tests;
 mod failover_tests;

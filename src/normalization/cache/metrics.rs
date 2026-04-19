@@ -210,7 +210,8 @@ impl LatencyTracker {
         let p50 = sorted[count * 50 / 100];
         let p95 = sorted[count * 95 / 100];
         let p99 = sorted[count * 99 / 100];
-        let max = *sorted.last().unwrap();
+        // `is_empty` early-return above guarantees `sorted.last()` is Some.
+        let max = sorted.last().copied().unwrap_or_default();
 
         LatencyStats {
             count,
