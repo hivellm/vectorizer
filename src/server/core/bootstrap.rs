@@ -57,10 +57,29 @@ impl VectorizerServer {
         crate::server::capabilities::assert_inventory_invariants()
             .map_err(|e| anyhow::anyhow!("capability registry invariant violation: {}", e))?;
 
-        // Get config path from root_config or use default
-        let config_path = root_config
-            .config_path
-            .unwrap_or_else(|| "config.yml".to_string());
+        // Get config path from root_config or use the layout default.
+        //
+        // phase4_consolidate-repo-layout moved the canonical config
+        // into `config/config.yml`. The legacy `./config.yml` path is
+        // still honoured for one release with a one-shot deprecation
+        // warning so operators with a pre-v3.x layout aren't broken
+        // by the move; the shim disappears in v3.1.
+        let config_path = root_config.config_path.unwrap_or_else(|| {
+            let canonical = std::path::Path::new("config/config.yml");
+            let legacy = std::path::Path::new("config.yml");
+            if canonical.exists() {
+                "config/config.yml".to_string()
+            } else if legacy.exists() {
+                tracing::warn!(
+                    "Loading config from legacy path ./config.yml — this fallback is \
+                     scheduled for removal in v3.1. Move your config to ./config/config.yml \
+                     to silence this warning."
+                );
+                "config.yml".to_string()
+            } else {
+                "config/config.yml".to_string()
+            }
+        });
 
         // Layered config loader (`base → mode → env → CLI`). When the
         // operator sets `VECTORIZER_MODE=production` (or `dev`,

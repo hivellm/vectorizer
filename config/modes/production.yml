@@ -1,11 +1,11 @@
-# Production mode override — applied on top of `config.example.yml` /
-# `config.yml` when `VECTORIZER_MODE=production`.
+# Production mode override — applied on top of `config/config.example.yml` /
+# `config/config.yml` when `VECTORIZER_MODE=production`.
 #
 # Carries ONLY the keys that differ from the base. See the per-section
 # matrix in `.rulebook/archive/<date>-phase5_consolidate-config-files/
 # design.md` for the rationale behind every value here.
 #
-# Operators may override any of these in a downstream `config.yml`
+# Operators may override any of these in a downstream `config/config.yml`
 # (the base layer) — the merge is a deep YAML merge, so per-key
 # overrides win.
 

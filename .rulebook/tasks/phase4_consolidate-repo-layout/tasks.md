@@ -8,16 +8,16 @@
 
 ## 2. Config consolidation
 
-- [ ] 2.1 Move `config.example.yml` from root into `config/config.example.yml`
-- [ ] 2.2 Move `config.cluster.yml` into `config/modes/cluster.yml`
-- [ ] 2.3 Move `config.hub.yml` into `config/modes/hub.yml`
-- [ ] 2.4 Delete the root `config.production.yml` (already superseded by `config/modes/production.yml`)
-- [ ] 2.5 Delete `config/config.production.yml` and `config/config.development.yml` (superseded by `config/modes/{production,dev}.yml`)
-- [ ] 2.6 Move `config.yml` into `config/config.yml`; update bootstrap default path
-- [ ] 2.7 Add a one-release compatibility shim: bootstrap warns once and reads `./config.yml` if it still exists, then exits the shim in v3.1
-- [ ] 2.8 Decide on `config/config.windows.yml` and `config/workspace.docker.example.yml` placement; document under `config/README.md` if kept
-- [ ] 2.9 Update `docs/deployment/configuration.md` and the README to point at the new paths
-- [ ] 2.10 Add a CHANGELOG entry under `Changed` with the rewrite table for operators
+- [x] 2.1 `git mv config.example.yml config/config.example.yml`
+- [x] 2.2 `git mv config.cluster.yml config/presets/cluster.yml` (preserved as a full-file preset rather than treated as a layered override — the original is a complete 652L config, not a sparse delta)
+- [x] 2.3 `git mv config.hub.yml config/presets/hub.yml`
+- [x] 2.4 `git mv config.production.yml config/presets/production.yml` (preserved instead of deleted — the 180L file focuses on the replication topology and has no equivalent in `config/modes/production.yml`)
+- [x] 2.5 `git mv config/config.production.yml config/presets/production-light.yml` and `git mv config/config.development.yml config/presets/development.yml` (preserved instead of deleted — same reason)
+- [x] 2.6 `mv config.yml config/config.yml` (untracked, gitignored at root) + bootstrap's default flips to `config/config.yml`. CLI `--config` default also updated. `.gitignore` adds `config/config.yml` to keep the user's working file untracked.
+- [x] 2.7 Compat shim added in `bootstrap.rs`: when neither `config/config.yml` nor a CLI override is present, the loader checks `./config.yml` and emits a one-shot deprecation `WARN`. Scheduled for removal in v3.1.
+- [x] 2.8 Decided: `config/config.windows.yml` moved to `config/presets/windows.yml` (it's a full-file preset like the others, not a layered override). `config/workspace.docker.example.yml` stayed in `config/` (it's a workspace template, not a server config preset).
+- [x] 2.9 Updated `docs/deployment/{configuration,PRODUCTION_GUIDE,docker-compose.production}.md`, `docs/specs/REPLICATION.md`, `docs/users/guides/HA_CLUSTER.md`. Layered loader's `<base_dir>/config/modes/` default also changed to `<base_dir>/modes/` so it resolves correctly under the new layout (rustdoc + `LayeredOptions` doc both updated). Loader header refs in `config/modes/{dev,production}.yml` repointed.
+- [x] 2.10 CHANGELOG entry added under `### Changed` with the full path-rewrite table.
 
 ## 3. Docker consolidation
 

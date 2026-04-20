@@ -5,7 +5,7 @@ file plus an optional mode override. The merge happens at boot. A
 deployment that doesn't pick a mode runs against the base alone.
 
 ```
-base (config.yml or config.example.yml)
+base (config.yml or config/config.example.yml)
    ↓ deep YAML merge
 mode override (config/modes/<mode>.yml)
    ↓ env var overrides (existing pattern, e.g. VECTORIZER_HOST)
@@ -16,8 +16,8 @@ mode override (config/modes/<mode>.yml)
 ## Why this exists
 
 The repo previously carried five near-identical config files
-(`config.yml`, `config.example.yml`, `config.production.yml`,
-`config.cluster.yml`, `config.hub.yml`) — 2076 lines total, with real
+(`config.yml`, `config/config.example.yml`, `config/presets/production.yml`,
+`config/presets/cluster.yml`, `config/presets/hub.yml`) — 2076 lines total, with real
 drift between them (`logging.level` was `debug` / `debug` / `warn` /
 `warn` / `info` across the five). The drift made every change risky:
 any new operator flag had to be propagated to every file and could
@@ -28,7 +28,7 @@ silently miss one. The layered model collapses to **one base** + small
 
 | File | Role |
 |---|---|
-| `config.yml` (operator-supplied) or `config.example.yml` (template) | **Base layer** — every key with sane single-node-dev defaults + rich comments. |
+| `config.yml` (operator-supplied) or `config/config.example.yml` (template) | **Base layer** — every key with sane single-node-dev defaults + rich comments. |
 | `config/modes/dev.yml` | Developer-loop deltas (verbose logging, file watcher on). |
 | `config/modes/production.yml` | Production deltas (warn logging, larger threads / batch / cache, +compression, +snapshots, file watcher off). |
 | `config/modes/cluster.yml` | (next slot) cluster deltas (cluster.enabled=true, mmap on, sharding on, PQ on). |
@@ -83,7 +83,7 @@ fail the merge but WILL fail the strict deserialization with a clear
 ### Single-node dev workstation
 
 ```bash
-# config.yml = a copy of config.example.yml
+# config.yml = a copy of config/config.example.yml
 # no mode set → base alone
 ./vectorizer
 # logs: 📑 no mode override requested; using base config alone
@@ -92,7 +92,7 @@ fail the merge but WILL fail the strict deserialization with a clear
 ### Production deployment
 
 ```bash
-cp config.example.yml config.yml
+cp config/config.example.yml config.yml
 export VECTORIZER_MODE=production
 ./vectorizer
 # logs: 📑 VECTORIZER_MODE=production — config validated through the layered loader
@@ -121,14 +121,14 @@ cargo test --test all_tests --all-features config::layered_real_files
 
 The integration tests in
 [`tests/config/layered_real_files.rs`](../../tests/config/layered_real_files.rs)
-load the real `config.example.yml` + every shipped mode override
+load the real `config/config.example.yml` + every shipped mode override
 and assert the merged result deserializes into the strict
 `VectorizerConfig`. They run on every PR.
 
 ## Migration from the legacy 5-file layout
 
-The legacy files (`config.production.yml`, `config.cluster.yml`,
-`config.hub.yml`, the multi-tenant `config.yml`) are still in the
+The legacy files (`config/presets/production.yml`, `config/presets/cluster.yml`,
+`config/presets/hub.yml`, the multi-tenant `config.yml`) are still in the
 repo for the v3.x.0 release window. They will be deleted in a future
 release once a `scripts/migrate_config.sh` helper lands that
 ingests one of those files and produces the new base + override

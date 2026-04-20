@@ -73,6 +73,7 @@ docs/_site/
 .env
 .env.local
 config.yml
+config/config.yml
 
 # Vectorizer specific
 .vectorizer

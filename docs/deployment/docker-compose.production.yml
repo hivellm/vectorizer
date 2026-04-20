@@ -10,7 +10,7 @@ services:
       - "7001:7001"  # Replication port
     volumes:
       - vectorizer-data:/data
-      - ./config.production.yml:/etc/vectorizer/config.yml:ro
+      - ./config/presets/production.yml:/etc/vectorizer/config.yml:ro
     environment:
       - RUST_LOG=warn
       - DATA_DIR=/data

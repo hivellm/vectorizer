@@ -11,10 +11,10 @@
 //! use vectorizer::config::layered::{load_layered, LayeredOptions};
 //!
 //! let cfg = load_layered(
-//!     Path::new("config.yml"),
+//!     Path::new("config/config.yml"),
 //!     LayeredOptions {
 //!         mode: std::env::var("VECTORIZER_MODE").ok().as_deref().map(str::to_owned),
-//!         modes_dir: None, // defaults to <base_dir>/config/modes/
+//!         modes_dir: None, // defaults to <base_dir>/modes/
 //!     },
 //! )?;
 //! # Ok::<(), vectorizer::config::layered::ConfigError>(())
@@ -55,8 +55,10 @@ pub struct LayeredOptions {
     /// mode override; load the base alone".
     pub mode: Option<String>,
     /// Override the lookup directory for mode files. Defaults to
-    /// `<base_dir>/config/modes/`. Tests typically pass an explicit
-    /// path; production callers leave this at `None`.
+    /// `<base_dir>/modes/` — i.e. `config/modes/` when the base lives
+    /// at `config/config.yml` per the canonical layout. Tests
+    /// typically pass an explicit path; production callers leave this
+    /// at `None`.
     pub modes_dir: Option<PathBuf>,
 }
 
@@ -119,11 +121,16 @@ pub fn load_layered(
             base_yaml
         }
         Some(mode) => {
+            // Mode overrides live in `<base_dir>/modes/`. Under the
+            // canonical phase4_consolidate-repo-layout layout that
+            // resolves to `config/modes/` (base_path =
+            // `config/config.yml`); under the legacy
+            // `./config.yml`-at-root layout it resolves to `./modes/`,
+            // which the deprecation shim warns about at boot.
             let modes_dir = opts.modes_dir.unwrap_or_else(|| {
                 base_path
                     .parent()
                     .unwrap_or_else(|| Path::new("."))
-                    .join("config")
                     .join("modes")
             });
             let override_path = modes_dir.join(format!("{mode}.yml"));

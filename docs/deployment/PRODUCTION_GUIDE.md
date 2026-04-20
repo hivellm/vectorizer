@@ -95,7 +95,7 @@ Complete guide for deploying Vectorizer in production environments.
 ### Server Configuration
 
 ```yaml
-# config.production.yml
+# config/presets/production.yml
 server:
   host: "0.0.0.0"
   port: 15002

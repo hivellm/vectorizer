@@ -1,5 +1,5 @@
-# Dev mode override — applied on top of `config.example.yml` /
-# `config.yml` when `VECTORIZER_MODE=dev`.
+# Dev mode override — applied on top of `config/config.example.yml` /
+# `config/config.yml` when `VECTORIZER_MODE=dev`.
 #
 # Carries ONLY the keys that differ from the base for a developer
 # loop on a workstation. Every other key inherits its base value.

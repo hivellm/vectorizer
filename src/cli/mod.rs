@@ -28,7 +28,7 @@ pub use utils::*;
 #[command(version = env!("CARGO_PKG_VERSION"))]
 pub struct Cli {
     /// Configuration file path
-    #[arg(short, long, default_value = "config.yml")]
+    #[arg(short, long, default_value = "config/config.yml")]
     pub config: PathBuf,
 
     /// Enable verbose output

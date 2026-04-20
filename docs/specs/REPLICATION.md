@@ -188,7 +188,7 @@ cp config.development.yml config-replica.yml
 
 **Example 2: Production Environment**
 
-See `config.production.yml` for production-optimized settings.
+See `config/presets/production.yml` for production-optimized settings.
 
 ---
 

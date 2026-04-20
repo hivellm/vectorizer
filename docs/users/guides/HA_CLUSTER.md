@@ -48,7 +48,7 @@ EOF
 
 **2. Create master config (`config.ha-master.yml`):**
 
-Copy from `config.example.yml` and change these sections:
+Copy from `config/config.example.yml` and change these sections:
 
 ```yaml
 # server section

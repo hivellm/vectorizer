@@ -13,7 +13,7 @@ services:
       - ./data:/vectorizer/data
 
       # Override embedded config with HiveHub config
-      - ./config.hub.yml:/vectorizer/config.yml:ro
+      - ./config/presets/hub.yml:/vectorizer/config/config.yml:ro
 
     environment:
       - VECTORIZER_HOST=0.0.0.0

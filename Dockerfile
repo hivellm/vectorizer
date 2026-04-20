@@ -252,7 +252,7 @@ ARG GIT_COMMIT_ID
 COPY --from=builder /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=builder /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json
 COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
-COPY --from=builder /vectorizer/config.example.yml /vectorizer/config.yml
+COPY --from=builder /vectorizer/config/config.example.yml /vectorizer/config/config.yml
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer/data /vectorizer/data
 
 WORKDIR /vectorizer

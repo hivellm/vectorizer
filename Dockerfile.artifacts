@@ -7,7 +7,7 @@
 #   binaries/linux-amd64/vectorizer
 #   binaries/linux-arm64/vectorizer
 #   dashboard/dist/   (from build-dashboard artifact)
-#   config.example.yml (from repo)
+#   config/config.example.yml (from repo)
 #
 # Build (CI): docker buildx build -f Dockerfile.artifacts --platform linux/amd64,linux/arm64 .
 #
@@ -32,7 +32,7 @@ ARG GIT_COMMIT_ID
 COPY --from=base /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=base /vectorizer/data /vectorizer/data
 COPY dashboard/dist /vectorizer/dashboard/dist
-COPY config.example.yml /vectorizer/config.yml
+COPY config/config.example.yml /vectorizer/config/config.yml
 
 # Ensure data dir stays writable by nonroot (COPY from base keeps ownership)
 RUN chown -R 65532:65532 /vectorizer/data
