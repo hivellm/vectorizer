@@ -526,58 +526,427 @@ pub async fn search_vectors_by_collection(
     Ok(Json(response))
 }
 
+/// POST /batch_search — run multiple searches against one collection.
+///
+/// Request: `{collection, queries: [{query?, vector?, limit?, threshold?}]}`
+/// Each query may carry either a text `query` (embedded server-side via
+/// the active `EmbeddingManager`) or a raw `vector` (validated against
+/// the collection dimension). Per-query failures are captured in the
+/// response without aborting the batch.
+///
+/// Response: `{collection, count, succeeded, failed, results: [{index,
+/// query?, vector?, status: "ok"|"error", results?, total_results?, error?}]}`.
 pub async fn batch_search_vectors(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?
+        .to_string();
+
     let queries = payload
         .get("queries")
         .and_then(|q| q.as_array())
-        .ok_or_else(|| {
-            create_validation_error("queries", "missing or invalid queries parameter")
-        })?;
+        .ok_or_else(|| create_validation_error("queries", "missing or invalid queries parameter"))?
+        .clone();
 
-    info!("Batch searching {} queries", queries.len());
+    if queries.is_empty() {
+        return Err(create_validation_error(
+            "queries",
+            "queries array must contain at least one entry",
+        ));
+    }
+
+    info!(
+        "Batch searching {} queries against '{}'",
+        queries.len(),
+        collection_name
+    );
+
+    let mut succeeded: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<Value> = Vec::with_capacity(queries.len());
+
+    for (idx, entry) in queries.iter().enumerate() {
+        let limit = entry.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+        let threshold = entry.get("threshold").and_then(|v| v.as_f64());
+
+        let outcome = if let Some(vec_arr) = entry.get("vector").and_then(|v| v.as_array()) {
+            let mut query_vector = Vec::with_capacity(vec_arr.len());
+            let mut bad_entry: Option<String> = None;
+            for (i, v) in vec_arr.iter().enumerate() {
+                match v.as_f64() {
+                    Some(f) => query_vector.push(f as f32),
+                    None => {
+                        bad_entry = Some(format!("vector[{}] is not a number", i));
+                        break;
+                    }
+                }
+            }
+            if let Some(msg) = bad_entry {
+                Err(create_validation_error("vector", &msg))
+            } else {
+                do_vector_search(
+                    &state,
+                    &collection_name,
+                    query_vector,
+                    limit,
+                    threshold,
+                    tenant_ctx.as_ref(),
+                )
+                .await
+            }
+        } else if let Some(query) = entry.get("query").and_then(|q| q.as_str()) {
+            match state.embedding_manager.embed(query) {
+                Ok(embedding) => {
+                    do_vector_search(
+                        &state,
+                        &collection_name,
+                        embedding,
+                        limit,
+                        threshold,
+                        tenant_ctx.as_ref(),
+                    )
+                    .await
+                }
+                Err(e) => Err(create_bad_request_error(&format!(
+                    "Failed to embed query: {}",
+                    e
+                ))),
+            }
+        } else {
+            Err(create_validation_error(
+                "queries",
+                &format!("entry[{}] missing both `query` and `vector`", idx),
+            ))
+        };
+
+        match outcome {
+            Ok(mut body) => {
+                succeeded += 1;
+                let hits = body
+                    .get("results")
+                    .and_then(|r| r.as_array())
+                    .map(|a| a.len())
+                    .unwrap_or(0);
+                if let Some(obj) = body.as_object_mut() {
+                    obj.insert("index".to_string(), json!(idx));
+                    obj.insert("status".to_string(), json!("ok"));
+                    obj.insert("total_results".to_string(), json!(hits));
+                    obj.insert(
+                        "query".to_string(),
+                        entry.get("query").cloned().unwrap_or(Value::Null),
+                    );
+                }
+                results.push(body);
+            }
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "status": "error",
+                    "error": e.message.clone(),
+                    "error_type": e.error_type.clone(),
+                    "query": entry.get("query").cloned().unwrap_or(Value::Null),
+                }));
+            }
+        }
+    }
 
     Ok(Json(json!({
-        "results": [],
-        "queries": queries.len(),
-        "message": "Batch search completed"
+        "collection": collection_name,
+        "count": queries.len(),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results,
     })))
 }
 
+/// POST /batch_update — update a vector's payload (and optionally its
+/// dense data) in bulk.
+///
+/// Request: `{collection, updates: [{id, vector?, payload?}]}`. Each
+/// entry either replaces the stored vector's `data` or its `payload`.
+/// Per-entry failures are captured without aborting the batch. The
+/// collection's query cache is invalidated once after the batch.
 pub async fn batch_update_vectors(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
+    use vectorizer::models::{Payload, Vector};
+
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?
+        .to_string();
+
     let updates = payload
         .get("updates")
         .and_then(|u| u.as_array())
-        .ok_or_else(|| {
-            create_validation_error("updates", "missing or invalid updates parameter")
-        })?;
+        .ok_or_else(|| create_validation_error("updates", "missing or invalid updates parameter"))?
+        .clone();
 
-    info!("Batch updating {} vectors", updates.len());
+    if updates.is_empty() {
+        return Err(create_validation_error(
+            "updates",
+            "updates array must contain at least one entry",
+        ));
+    }
+
+    info!(
+        "Batch updating {} vectors in '{}'",
+        updates.len(),
+        collection_name
+    );
+
+    // Capture collection dimension up front; do NOT keep the collection
+    // handle live across `state.store.update` or we'll deadlock on the
+    // write lock that update() needs.
+    let collection_dim = {
+        let c = state
+            .store
+            .get_collection(&collection_name)
+            .map_err(ErrorResponse::from)?;
+        c.config().dimension
+    };
+
+    let mut updated: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<Value> = Vec::with_capacity(updates.len());
+
+    for (idx, entry) in updates.iter().enumerate() {
+        let id = match entry.get("id").and_then(|i| i.as_str()) {
+            Some(id) => id.to_string(),
+            None => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "status": "error",
+                    "error": "missing `id` field",
+                }));
+                continue;
+            }
+        };
+
+        // Read the existing vector in its own scope so the collection
+        // read reference is dropped before we call update().
+        let existing = {
+            match state.store.get_collection(&collection_name) {
+                Ok(c) => match c.get_vector(&id) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        failed += 1;
+                        results.push(json!({
+                            "index": idx,
+                            "id": id,
+                            "status": "error",
+                            "error": format!("{}", e),
+                        }));
+                        continue;
+                    }
+                },
+                Err(e) => {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "id": id,
+                        "status": "error",
+                        "error": format!("{}", e),
+                    }));
+                    continue;
+                }
+            }
+        };
+
+        let new_data = match entry.get("vector").and_then(|v| v.as_array()) {
+            Some(arr) => {
+                let mut v = Vec::with_capacity(arr.len());
+                let mut bad = false;
+                for x in arr {
+                    match x.as_f64() {
+                        Some(f) => v.push(f as f32),
+                        None => {
+                            bad = true;
+                            break;
+                        }
+                    }
+                }
+                if bad {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "id": id,
+                        "status": "error",
+                        "error": "vector entries must be numbers",
+                    }));
+                    continue;
+                }
+                if v.len() != collection_dim {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "id": id,
+                        "status": "error",
+                        "error": format!(
+                            "vector dim {} != collection dim {}",
+                            v.len(),
+                            collection_dim
+                        ),
+                    }));
+                    continue;
+                }
+                v
+            }
+            None => existing.data.clone(),
+        };
+
+        let new_payload = match entry.get("payload") {
+            Some(p) if !p.is_null() => Some(Payload::new(p.clone())),
+            Some(_) => None,
+            None => existing.payload.clone(),
+        };
+
+        let updated_vector = Vector {
+            id: id.clone(),
+            data: new_data,
+            sparse: existing.sparse.clone(),
+            payload: new_payload,
+            document_id: existing.document_id.clone(),
+        };
+
+        match state.store.update(&collection_name, updated_vector) {
+            Ok(()) => {
+                updated += 1;
+                results.push(json!({
+                    "index": idx,
+                    "id": id,
+                    "status": "ok",
+                }));
+            }
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "id": id,
+                    "status": "error",
+                    "error": format!("{}", e),
+                }));
+            }
+        }
+    }
+
+    if updated > 0 {
+        state.query_cache.invalidate_collection(&collection_name);
+        if let Some(ref auto_save) = state.auto_save_manager {
+            auto_save.mark_changed();
+        }
+    }
 
     Ok(Json(json!({
-        "message": format!("Batch updated {} vectors successfully", updates.len()),
-        "count": updates.len()
+        "collection": collection_name,
+        "count": updates.len(),
+        "updated": updated,
+        "failed": failed,
+        "results": results,
     })))
 }
 
+/// POST /batch_delete — delete a list of vector ids from a single
+/// collection.
+///
+/// Request: `{collection, ids: [string]}`. Per-id failures (e.g.
+/// not-found) are captured without aborting the batch. The
+/// collection's query cache is invalidated once after the batch.
 pub async fn batch_delete_vectors(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    let ids = payload
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?
+        .to_string();
+
+    let ids_value = payload
         .get("ids")
         .and_then(|i| i.as_array())
-        .ok_or_else(|| create_validation_error("ids", "missing or invalid ids parameter"))?;
+        .ok_or_else(|| create_validation_error("ids", "missing or invalid ids parameter"))?
+        .clone();
 
-    info!("Batch deleting {} vectors", ids.len());
+    if ids_value.is_empty() {
+        return Err(create_validation_error(
+            "ids",
+            "ids array must contain at least one entry",
+        ));
+    }
+
+    info!(
+        "Batch deleting {} vectors from '{}'",
+        ids_value.len(),
+        collection_name
+    );
+
+    let mut deleted: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<Value> = Vec::with_capacity(ids_value.len());
+
+    for (idx, entry) in ids_value.iter().enumerate() {
+        let id = match entry.as_str() {
+            Some(s) => s.to_string(),
+            None => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "status": "error",
+                    "error": "id must be a string",
+                }));
+                continue;
+            }
+        };
+
+        match state.store.delete(&collection_name, &id) {
+            Ok(()) => {
+                deleted += 1;
+                results.push(json!({
+                    "index": idx,
+                    "id": id,
+                    "status": "ok",
+                }));
+            }
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "id": id,
+                    "status": "error",
+                    "error": format!("{}", e),
+                }));
+            }
+        }
+    }
+
+    if deleted > 0 {
+        state.query_cache.invalidate_collection(&collection_name);
+        if let Some(ref auto_save) = state.auto_save_manager {
+            auto_save.mark_changed();
+        }
+    }
 
     Ok(Json(json!({
-        "message": format!("Batch deleted {} vectors successfully", ids.len()),
-        "count": ids.len()
+        "collection": collection_name,
+        "count": ids_value.len(),
+        "deleted": deleted,
+        "failed": failed,
+        "results": results,
     })))
 }

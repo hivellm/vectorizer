@@ -228,8 +228,14 @@ pub async fn delete_vector_generic(
 }
 
 /// POST /embed — generate an embedding for a text string
+/// POST /embed — generate an embedding for a text input via the
+/// server's active `EmbeddingManager` (BM25 by default, or whatever
+/// provider the operator registered in bootstrap).
+///
+/// Request: `{text: string}`
+/// Response: `{embedding: [f32; dim], text, dimension}`
 pub async fn embed_text(
-    State(_state): State<VectorizerServer>,
+    State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     let text = payload
@@ -237,11 +243,18 @@ pub async fn embed_text(
         .and_then(|t| t.as_str())
         .ok_or_else(|| create_validation_error("text", "missing or invalid text parameter"))?;
 
-    // Returns a mock embedding — real embedding is tracked in a separate task
+    let embedding = state.embedding_manager.embed(text).map_err(|e| {
+        crate::server::error_middleware::create_bad_request_error(&format!(
+            "Failed to generate embedding: {}",
+            e
+        ))
+    })?;
+    let dimension = embedding.len();
+
     Ok(Json(json!({
-        "embedding": vec![0.1; 512],
+        "embedding": embedding,
         "text": text,
-        "dimension": 512
+        "dimension": dimension,
     })))
 }
 
