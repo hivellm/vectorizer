@@ -759,3 +759,67 @@ fn check_is_project_folder(path: &std::path::Path) -> bool {
 
     false
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn setup_status_round_trips_through_json() {
+        let status = SetupStatus {
+            needs_setup: true,
+            version: "3.0.0".to_string(),
+            deployment_type: "binary".to_string(),
+            has_workspace_config: false,
+            project_count: 0,
+            collection_count: 0,
+        };
+
+        let raw = serde_json::to_string(&status).expect("serialize");
+        let decoded: SetupStatus = serde_json::from_str(&raw).expect("deserialize");
+
+        assert_eq!(decoded.needs_setup, status.needs_setup);
+        assert_eq!(decoded.version, status.version);
+        assert_eq!(decoded.deployment_type, status.deployment_type);
+        assert_eq!(decoded.project_count, status.project_count);
+        assert_eq!(decoded.collection_count, status.collection_count);
+    }
+
+    #[test]
+    fn analyze_request_deserialises_from_wire_format() {
+        let raw = r#"{"path":"/workspace/demo"}"#;
+        let req: AnalyzeRequest = serde_json::from_str(raw).expect("deserialize");
+        assert_eq!(req.path, "/workspace/demo");
+    }
+
+    #[test]
+    fn is_project_directory_detects_rust_workspace() {
+        let tmp = TempDir::new().expect("tmp");
+        fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"x\"\n").expect("cargo");
+        assert!(check_is_project_folder(tmp.path()));
+    }
+
+    #[test]
+    fn is_project_directory_detects_node_workspace() {
+        let tmp = TempDir::new().expect("tmp");
+        fs::write(tmp.path().join("package.json"), "{}").expect("package");
+        assert!(check_is_project_folder(tmp.path()));
+    }
+
+    #[test]
+    fn is_project_directory_detects_python_workspace() {
+        let tmp = TempDir::new().expect("tmp");
+        fs::write(tmp.path().join("pyproject.toml"), "[tool.poetry]\n").expect("pyproject");
+        assert!(check_is_project_folder(tmp.path()));
+    }
+
+    #[test]
+    fn is_project_directory_rejects_bare_directory() {
+        let tmp = TempDir::new().expect("tmp");
+        // Bare directory with nothing in it — must not be classed as a project.
+        assert!(!check_is_project_folder(tmp.path()));
+    }
+}

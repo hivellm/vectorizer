@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSetup, SetupStatus, ProjectAnalysis, SetupProject, SuggestedCollection } from '@/hooks/useSetup';
 import { useTemplates, ConfigTemplate, getTemplateIcon, getTemplateColor } from '@/hooks/useTemplates.tsx';
 import { useApiKeys } from '@/hooks/useApiKeys';
+import { useWizardProgress } from '@/hooks/useWizardProgress';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -71,6 +72,8 @@ function SetupWizardPage() {
   const { getStatus, analyzeDirectory, applyConfig } = useSetup();
   const { templates, loading: templatesLoading } = useTemplates();
   const { createApiKey, loading: creatingKey } = useApiKeys();
+  const progress = useWizardProgress<WizardStep, ConfigTemplate, AnalyzedProject>();
+  const [showResumeBanner, setShowResumeBanner] = useState<boolean>(() => progress.snapshot !== null);
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>('welcome');
@@ -197,17 +200,72 @@ function SetupWizardPage() {
     return { isValid: true, error: null };
   }, []);
 
-  // Update collection validation when collections change
+  // Update collection validation when collections change.
+  // Runs cross-project duplicate detection so two selected collections
+  // can never share the same final name — the server would refuse the
+  // resulting workspace.yml later, so surface it at the wizard step.
   useEffect(() => {
     const validations: Record<string, CollectionValidation> = {};
+    const nameCounts = new Map<string, number>();
+    analyzedProjects.forEach((project) => {
+      if (!project.selected) return;
+      project.collections.forEach((col) => {
+        if (!col.selected) return;
+        const normalized = col.name.trim().toLowerCase();
+        nameCounts.set(normalized, (nameCounts.get(normalized) ?? 0) + 1);
+      });
+    });
+
     analyzedProjects.forEach((project, pi) => {
       project.collections.forEach((col, ci) => {
         const key = `${pi}-${ci}`;
-        validations[key] = validateCollectionName(col.name);
+        const baseValidation = validateCollectionName(col.name);
+        if (!baseValidation.isValid) {
+          validations[key] = baseValidation;
+          return;
+        }
+        const normalized = col.name.trim().toLowerCase();
+        const count = nameCounts.get(normalized) ?? 0;
+        if (project.selected && col.selected && count > 1) {
+          validations[key] = {
+            isValid: false,
+            error: `Duplicate collection name — ${count} selected collections use "${col.name}"`,
+          };
+        } else {
+          validations[key] = baseValidation;
+        }
       });
     });
     setCollectionValidations(validations);
   }, [analyzedProjects, validateCollectionName]);
+
+  // Persist wizard progress so a page reload or crash resumes at the
+  // same step. Skipped for the welcome step (nothing to restore) and
+  // for the api-key / complete steps (credentials must not persist).
+  useEffect(() => {
+    if (currentStep === 'welcome' || currentStep === 'api-key' || currentStep === 'complete') return;
+    progress.save({
+      step: currentStep,
+      template: selectedTemplate,
+      folderPath,
+      projects: analyzedProjects,
+    });
+  }, [currentStep, selectedTemplate, folderPath, analyzedProjects, progress]);
+
+  const resumeFromSnapshot = useCallback(() => {
+    const snapshot = progress.snapshot;
+    if (!snapshot) return;
+    setCurrentStep(snapshot.step);
+    setSelectedTemplate(snapshot.template);
+    setFolderPath(snapshot.folderPath);
+    setAnalyzedProjects(snapshot.projects);
+    setShowResumeBanner(false);
+  }, [progress.snapshot]);
+
+  const discardSnapshot = useCallback(() => {
+    progress.clear();
+    setShowResumeBanner(false);
+  }, [progress]);
 
   // Generate YAML preview
   const yamlPreview = useMemo(() => {
@@ -466,6 +524,11 @@ function SetupWizardPage() {
         },
       });
 
+      // Successful apply — drop any saved resume snapshot so the next
+      // visit starts fresh instead of resurrecting the now-committed
+      // workspace state.
+      progress.clear();
+
       // Go to API key step instead of complete
       setCurrentStep('api-key');
     } catch (err) {
@@ -686,6 +749,36 @@ function SetupWizardPage() {
       {currentStep === 'welcome' && (
         <Card className="bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 p-6">
           <div className="text-center space-y-6">
+            {showResumeBanner && progress.snapshot && (
+              <div
+                className="text-left bg-emerald-900/20 border border-emerald-500/40 rounded-xl p-4"
+                role="region"
+                aria-label="Resume previous setup"
+              >
+                <p className="text-sm font-medium text-emerald-200">
+                  Resume your previous setup?
+                </p>
+                <p className="text-xs text-emerald-100/70 mt-1">
+                  Saved {new Date(progress.snapshot.savedAt).toLocaleString()}
+                  {' · '}
+                  step: <span className="font-mono">{progress.snapshot.step}</span>
+                  {progress.snapshot.folderPath && (
+                    <>
+                      {' · '}
+                      folder: <span className="font-mono">{progress.snapshot.folderPath}</span>
+                    </>
+                  )}
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <Button variant="primary" size="sm" onClick={resumeFromSnapshot}>
+                    <ArrowRight className="w-3.5 h-3.5 mr-1" /> Resume
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={discardSnapshot}>
+                    <XClose className="w-3.5 h-3.5 mr-1" /> Start fresh
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="w-20 h-20 bg-neutral-800/50 rounded-full flex items-center justify-center mx-auto">
               <Settings02 className="w-10 h-10 text-neutral-400" />
             </div>
@@ -862,14 +955,17 @@ function SetupWizardPage() {
                       value={folderPath}
                       onChange={(e) => setFolderPath(e.target.value)}
                       placeholder="/path/to/your/project"
-                      className={`w-full px-4 py-2 pr-10 border rounded-lg 
+                      aria-invalid={pathValidation.isValid === false}
+                      className={`w-full px-4 py-2 pr-10 border rounded-lg
                                bg-neutral-800 text-white
-                               focus:ring-2 focus:ring-neutral-500 focus:border-neutral-500
-                               ${pathValidation.isValid === true
-                          ? 'border-neutral-400'
-                          : pathValidation.isValid === false
-                            ? 'border-neutral-500'
-                            : 'border-neutral-700'}`}
+                               focus:ring-2 focus:border-transparent
+                               ${pathValidation.isValid === true && pathValidation.isProject
+                          ? 'border-emerald-500/60 focus:ring-emerald-500/60'
+                          : pathValidation.isValid === true
+                            ? 'border-amber-500/60 focus:ring-amber-500/60'
+                            : pathValidation.isValid === false
+                              ? 'border-red-500/70 focus:ring-red-500/60'
+                              : 'border-neutral-700 focus:ring-neutral-500'}`}
                       onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
                     />
                     {/* Validation indicator */}
@@ -878,12 +974,12 @@ function SetupWizardPage() {
                         <LoadingSpinner size="sm" />
                       ) : pathValidation.isValid === true ? (
                         pathValidation.isProject ? (
-                          <CheckCircle className="w-5 h-5 text-neutral-400" />
+                          <CheckCircle className="w-5 h-5 text-emerald-400" />
                         ) : (
-                          <AlertTriangle className="w-5 h-5 text-neutral-400" />
+                          <AlertTriangle className="w-5 h-5 text-amber-400" />
                         )
                       ) : pathValidation.isValid === false ? (
-                        <XCircle className="w-5 h-5 text-neutral-400" />
+                        <XCircle className="w-5 h-5 text-red-400" />
                       ) : null}
                     </div>
                   </div>
@@ -930,14 +1026,14 @@ function SetupWizardPage() {
                 )}
 
                 {pathValidation.isValid === true && !pathValidation.isProject && (
-                  <p className="mt-2 text-xs text-neutral-400 flex items-center gap-1">
+                  <p className="mt-2 text-xs text-amber-300 flex items-center gap-1" role="status">
                     <AlertTriangle className="w-3 h-3" />
                     Path is valid but no project files detected. You can still analyze it.
                   </p>
                 )}
 
                 {pathValidation.isValid === false && pathValidation.error && (
-                  <p className="mt-2 text-xs text-neutral-400 flex items-center gap-1">
+                  <p className="mt-2 text-xs text-red-300 flex items-center gap-1" role="alert">
                     <XCircle className="w-3 h-3" />
                     {pathValidation.error}
                   </p>
@@ -1049,7 +1145,7 @@ function SetupWizardPage() {
                         <div
                           key={ci}
                           className={`p-3 rounded-lg transition-colors ${hasError
-                            ? 'bg-neutral-800/50 border border-neutral-600'
+                            ? 'bg-red-900/20 border border-red-500/50'
                             : 'bg-neutral-800/30'
                             }`}
                         >
@@ -1070,9 +1166,9 @@ function SetupWizardPage() {
                               </p>
                               {col.selected && validation && (
                                 validation.isValid ? (
-                                    <CheckCircle className="w-4 h-4 text-neutral-400" />
+                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
                                 ) : (
-                                    <XCircle className="w-4 h-4 text-neutral-400" />
+                                    <XCircle className="w-4 h-4 text-red-400" />
                                 )
                               )}
                             </div>
@@ -1080,7 +1176,7 @@ function SetupWizardPage() {
                               {col.description}
                             </p>
                             {col.selected && hasError && validation.error && (
-                                <p className="text-xs text-neutral-400 mt-1 flex items-center gap-1">
+                                <p className="text-xs text-red-300 mt-1 flex items-center gap-1" role="alert">
                                 <AlertCircle className="w-3 h-3" />
                                 {validation.error}
                               </p>
@@ -1161,7 +1257,7 @@ function SetupWizardPage() {
                 return (
                   <div className="flex items-center gap-3">
                     {hasValidationErrors && (
-                      <span className="text-xs text-neutral-400 flex items-center gap-1">
+                      <span className="text-xs text-red-300 flex items-center gap-1" role="alert">
                         <AlertCircle className="w-4 h-4" />
                         Fix validation errors to continue
                       </span>

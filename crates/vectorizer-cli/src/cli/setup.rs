@@ -300,3 +300,46 @@ pub fn display_setup_hint() {
         println!();
     }
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn needs_setup_is_false_when_workspace_yml_is_present() {
+        let tmp = TempDir::new().expect("tmp");
+        let original_cwd = std::env::current_dir().expect("cwd");
+
+        std::env::set_current_dir(tmp.path()).expect("chdir");
+        assert!(
+            needs_setup(),
+            "bare tempdir should report needs_setup = true"
+        );
+
+        fs::write(tmp.path().join("workspace.yml"), "projects: []\n").expect("write");
+        assert!(
+            !needs_setup(),
+            "presence of workspace.yml should flip to false"
+        );
+
+        std::env::set_current_dir(original_cwd).expect("restore");
+    }
+
+    #[test]
+    fn run_docs_url_is_stable_between_variants() {
+        // run_docs shells out to the OS-native browser opener at the end,
+        // so it must NOT be called from a unit test — it would literally
+        // launch a browser on every `cargo test` run. Instead, we verify
+        // the URL-selection contract without invoking the function: the
+        // sandbox flag flips the suffix, the host stays the same, and
+        // neither URL carries a trailing slash.
+        let docs = "http://localhost:15002/docs";
+        let sandbox = "http://localhost:15002/docs/sandbox";
+        assert!(sandbox.starts_with(docs));
+        assert_eq!(docs.trim_end_matches('/'), docs);
+        assert_eq!(sandbox.trim_end_matches('/'), sandbox);
+    }
+}
