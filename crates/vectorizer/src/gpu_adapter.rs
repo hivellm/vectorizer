@@ -166,6 +166,24 @@ impl GpuAdapter {
                 VectorizerError::Other(format!("Internal error: {}", msg))
             }
             HiveGpuError::IoError(e) => VectorizerError::Other(format!("IO error: {}", e)),
+            HiveGpuError::CudaError(msg) => VectorizerError::Other(format!("CUDA error: {}", msg)),
+            HiveGpuError::CublasError(msg) => {
+                VectorizerError::Other(format!("cuBLAS error: {}", msg))
+            }
+            HiveGpuError::HipError(msg) => VectorizerError::Other(format!("HIP error: {}", msg)),
+            HiveGpuError::RocblasError(msg) => {
+                VectorizerError::Other(format!("rocBLAS error: {}", msg))
+            }
+            HiveGpuError::RocmError(msg) => VectorizerError::Other(format!("ROCm error: {}", msg)),
+            HiveGpuError::VulkanError(msg) => {
+                VectorizerError::Other(format!("Vulkan error: {}", msg))
+            }
+            HiveGpuError::IntelError(msg) => {
+                VectorizerError::Other(format!("Intel backend error: {}", msg))
+            }
+            HiveGpuError::SpirvCompileError(msg) => {
+                VectorizerError::Other(format!("SPIR-V compile error: {}", msg))
+            }
             HiveGpuError::Other(msg) => VectorizerError::Other(msg),
         }
     }

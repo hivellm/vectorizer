@@ -127,15 +127,37 @@ impl GpuDetector {
         }
     }
 
-    /// Query Metal GPU information
+    /// Query Metal GPU information via hive-gpu's `GpuContext::device_info()`.
+    ///
+    /// Opens a [`MetalNativeContext`] purely to introspect the device and drops
+    /// it before returning; no GPU work is performed. On any failure we log at
+    /// `debug!` and return a [`GpuInfo`] with a clearly-marked unknown name so
+    /// callers can still render a reasonable diagnostic.
+    ///
+    /// [`MetalNativeContext`]: hive_gpu::metal::MetalNativeContext
     #[cfg(all(feature = "hive-gpu", target_os = "macos"))]
     fn query_metal_info() -> GpuInfo {
-        // TASK(phase4_query-metal-device-info-from-hive-gpu): replace placeholders with real hive-gpu device queries.
-        GpuInfo {
-            backend: GpuBackendType::Metal,
-            device_name: "Apple GPU".to_string(),
-            vram_total: None,
-            driver_version: None,
+        use hive_gpu::GpuContext;
+        use hive_gpu::metal::MetalNativeContext;
+
+        let result = MetalNativeContext::new().and_then(|ctx| ctx.device_info());
+
+        match result {
+            Ok(info) => GpuInfo {
+                backend: GpuBackendType::Metal,
+                device_name: info.name,
+                vram_total: Some(info.total_vram_bytes as usize),
+                driver_version: Some(info.driver_version),
+            },
+            Err(e) => {
+                debug!("Failed to query Metal device info: {:?}", e);
+                GpuInfo {
+                    backend: GpuBackendType::Metal,
+                    device_name: "Apple GPU (unknown)".to_string(),
+                    vram_total: None,
+                    driver_version: None,
+                }
+            }
         }
     }
 
@@ -276,5 +298,37 @@ mod tests {
         assert!(display.contains("Metal"));
         assert!(display.contains("Apple GPU"));
         assert!(!display.contains("GB VRAM"));
+    }
+
+    /// On macOS with the `hive-gpu` feature enabled, a live Metal context must
+    /// produce a non-static device name and a non-zero VRAM total. Regression
+    /// guard so the old literal `"Apple GPU"` string never reappears in
+    /// `query_metal_info`.
+    #[cfg(all(target_os = "macos", feature = "hive-gpu"))]
+    #[test]
+    fn test_query_metal_info_returns_real_data() {
+        if !GpuDetector::is_metal_available() {
+            // Headless CI runners without a GPU: skip the data assertions.
+            return;
+        }
+
+        let info = GpuDetector::query_metal_info();
+        assert_eq!(info.backend, GpuBackendType::Metal);
+        assert_ne!(
+            info.device_name, "Apple GPU",
+            "device name is still the pre-0.2 default string"
+        );
+        assert_ne!(
+            info.device_name, "Apple GPU (unknown)",
+            "device_info() errored — hive-gpu API regression?"
+        );
+        assert!(
+            matches!(info.vram_total, Some(n) if n > 0),
+            "vram_total should be populated on a live Metal device"
+        );
+        assert!(
+            info.driver_version.is_some(),
+            "driver_version should be populated on a live Metal device"
+        );
     }
 }
