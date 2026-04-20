@@ -57,54 +57,54 @@ probe requires a different topology.
 
 ## 3. Broader v3 surface
 
-- [ ] 3.1 **Auth flow**. Enable `auth.enabled: true` + set a
+- [x] 3.1 **Auth flow**. Enable `auth.enabled: true` + set a
   `jwt_secret` in `config.yml`. Restart. POST `/auth/login` with
   admin credentials. Accept: returns JWT; subsequent authenticated
   REST calls (list_collections) work with `Authorization: Bearer
   <jwt>`; unauthenticated calls return 401.
-- [ ] 3.2 **Batch REST**. `POST /batch_insert` with 50 texts,
+- [x] 3.2 **Batch REST**. `POST /batch_insert` with 50 texts,
   `/batch_search` with 5 queries, `/batch_update` renaming 3 vector
   IDs, `/batch_delete` with 10 IDs. Accept: all four return 200 with
   structured per-item results.
-- [ ] 3.3 **File upload** via `POST /files/upload` with a small .md
+- [x] 3.3 **File upload** via `POST /files/upload` with a small .md
   file. Accept: 200, file appears in `list_files` for the target
   collection + chunks retrievable via `get_file_chunks`.
-- [ ] 3.4 **File watcher**. Drop a file into a watched directory (fix
+- [x] 3.4 **File watcher**. Drop a file into a watched directory (fix
   `workspace.yml` schema if needed so the watcher picks up paths).
   Wait 2s for debounce. Accept: watcher logs the event, file is
   indexed + searchable.
-- [ ] 3.5 **GraphQL**. `POST /graphql` with `{ collections { name
+- [x] 3.5 **GraphQL**. `POST /graphql` with `{ collections { name
   vectorCount } }`. Accept: returns the same list `list_collections`
   does. Visit `/graphiql` and confirm playground loads.
-- [ ] 3.6 **Qdrant-compat**. Call at least `PUT /qdrant/collections/{name}`,
+- [x] 3.6 **Qdrant-compat**. Call at least `PUT /qdrant/collections/{name}`,
   `PUT /qdrant/collections/{name}/points`, `POST /qdrant/collections/{name}/points/search`.
   Accept: responses match the Qdrant REST spec shape (result, status,
   time).
-- [ ] 3.7 **Dashboard UI**. GET `/dashboard/` in a browser (or `curl -I`
+- [x] 3.7 **Dashboard UI**. GET `/dashboard/` in a browser (or `curl -I`
   for the HTML). Accept: 200 + HTML body renders React app shell
   referencing the bundled JS/CSS under `/dashboard/assets/`.
-- [ ] 3.8 **Payload encryption**. Create a collection with `encryption:
+- [x] 3.8 **Payload encryption**. Create a collection with `encryption:
   {enabled: true}` in the config. Insert text. Accept: `insert_text`
   response has `"encrypted": true`; `get_vector` returns the original
   payload (round-trip works); raw `.vecdb` on disk doesn't contain the
   plaintext.
-- [ ] 3.9 **Cross-encoder reranking**. `search_semantic` with
+- [x] 3.9 **Cross-encoder reranking**. `search_semantic` with
   `cross_encoder: true` (or whatever the config knob is). Accept: the
   response's `tool_metadata.cross_encoder_reranking` flips to `true`
   and score ordering differs from the non-reranked baseline.
-- [ ] 3.10 **Tantivy 0.26 index**. Exercise the BM25 path — find the
+- [x] 3.10 **Tantivy 0.26 index**. Exercise the BM25 path — find the
   entry point that actually builds a tantivy index (grep
   `IndexWriter` / `Schema::builder()` outside the test modules).
   Accept: index builds + search returns results with BM25 scores.
-- [ ] 3.11 **Arrow/Parquet 58**. Build with `--features arrow,parquet`.
+- [x] 3.11 **Arrow/Parquet 58**. Build with `--features arrow,parquet`.
   Trigger the Parquet export path (check
   `crates/vectorizer/src/embedding/cache.rs` for an endpoint or CLI
   command). Accept: produces a valid `.parquet` file readable by
   `pyarrow.parquet.read_table()`.
-- [ ] 3.12 **Zip 8** snapshot export / import. Find the CLI command or
+- [x] 3.12 **Zip 8** snapshot export / import. Find the CLI command or
   API that wraps snapshots in zip. Accept: produced `.zip` opens + a
   fresh server can import it back and recover collections.
-- [ ] 3.13 **Cluster / Raft** — 2-node local setup (port 15002 + 15003).
+- [x] 3.13 **Cluster / Raft** — 2-node local setup (port 15002 + 15003).
   If the config boilerplate is too large for release gating, tag this
   item as "smoke-only" and just verify single-node server still boots
   with `cluster.enabled: false`. Accept either result, but document
