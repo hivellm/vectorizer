@@ -112,51 +112,51 @@ probe requires a different topology.
 
 ## 4. SDK integration against the live server
 
-- [ ] 4.1 **TypeScript SDK** — set `VECTORIZER_BASE_URL=http://localhost:15002`
+- [x] 4.1 **TypeScript SDK** — set `VECTORIZER_BASE_URL=http://localhost:15002`
   and run `pnpm test` under `sdks/typescript/` in a mode that flips the
   live-server tests on (remove the env-guard marker that currently
   excludes them). Accept: the 46 previously-excluded integration tests
   now run and pass.
-- [ ] 4.2 **Python SDK** — `cd sdks/python && python -m pytest
+- [x] 4.2 **Python SDK** — `cd sdks/python && python -m pytest
   --ignore=tests/test_file_upload.py --ignore=tests/test_routing.py`
   against the running server. Accept: the 46 currently-failing
   server-integration tests pass.
-- [ ] 4.3 **Go SDK** — `cd sdks/go && go test ./... -run Integration`
+- [x] 4.3 **Go SDK** — `cd sdks/go && go test ./... -run Integration`
   against the running server. Accept: the integration-tagged tests
   pass.
-- [ ] 4.4 **Rust SDK** — `cd sdks/rust && cargo test --features rpc --
+- [x] 4.4 **Rust SDK** — `cd sdks/rust && cargo test --features rpc --
   --ignored` (or whatever gate the live-server tests use). Accept:
   live-server tests pass against both HTTP and RPC transports.
-- [ ] 4.5 **C# SDK** — first resolve the pre-existing
+- [x] 4.5 **C# SDK** — first resolve the pre-existing
   `Vectorizer.Tests/FileUploadTests.cs` CS1503 compile errors; then
   `dotnet test` against the running server. Accept: tests compile +
   pass.
 
 ## 5. Stress / performance sanity
 
-- [ ] 5.1 Insert 10k synthetic vectors (dim=512, random payload) via
+- [x] 5.1 Insert 10k synthetic vectors (dim=512, random payload) via
   `/batch_insert` in chunks of 500. Accept: all 10k inserted without
   errors, vector_count = 10k, HNSW graph built (collection metadata
   shows non-zero graph size).
-- [ ] 5.2 Search latency: 1000 random-query `search` calls, measure
+- [x] 5.2 Search latency: 1000 random-query `search` calls, measure
   p50 + p95. Accept: p50 ≤ 5ms, p95 ≤ 15ms on this hardware
   (matches or beats README claims for a 10k collection).
-- [ ] 5.3 Confirm SIMD path — build with default features, inspect
+- [x] 5.3 Confirm SIMD path — build with default features, inspect
   logs for `SIMD enabled: avx2` (or neon / wasm depending on platform)
   on VectorStore init. Accept: a SIMD provider is loaded; search
   latency above is consistent with SIMD-enabled paths.
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 6.1 Update or create documentation covering the implementation
+- [x] 6.1 Update or create documentation covering the implementation
   (release notes in CHANGELOG.md under `3.0.0`; a new
   `docs/releases/v3.0.0-verification.md` capturing each probe's result
   + evidence; any regression found gets its own follow-up task
   linked from this one).
-- [ ] 6.2 Write tests covering the new behavior (every probe whose
+- [x] 6.2 Write tests covering the new behavior (every probe whose
   path wasn't already covered by the existing unit/integration suite
   earns a new regression test so the next release doesn't have to
   rediscover the probe).
-- [ ] 6.3 Run tests and confirm they pass (`cargo test --workspace
+- [x] 6.3 Run tests and confirm they pass (`cargo test --workspace
   --lib --all-features`, plus each SDK's own test command with the
   live-server gate flipped on).
