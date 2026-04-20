@@ -536,4 +536,78 @@ pub fn process(input: &str) -> Result<String, Error> {
 }
 ```
 
+## Workspace Layout
+
+The repo is a Cargo workspace (phase4_split-vectorizer-workspace). Root
+`Cargo.toml` carries `[workspace] members = ["crates/*", "sdks/rust"]`
+plus `[workspace.lints.*]` (clippy + rust + rustdoc policy) and the
+`[profile.*]` set. Each member opts in with `[lints] workspace = true`.
+
+```
+Vectorizer/
+├── Cargo.toml                      [workspace]
+├── crates/
+│   ├── vectorizer-core/            Foundation: error, codec, quantization,
+│   │                               simd, parallel, compression, paths
+│   ├── vectorizer-protocol/        Wire types: RPC codec + types,
+│   │                               tonic-generated gRPC modules
+│   ├── vectorizer-server/          HTTP / gRPC / MCP transport layer +
+│   │                               server binary
+│   ├── vectorizer-cli/             Command-line interface + binaries
+│   └── vectorizer/                 Umbrella engine: db, embedding, models,
+│                                   cache, normalization, persistence,
+│                                   file_*, discovery, hybrid_search,
+│                                   intelligent_search, search, evaluation,
+│                                   batch, config, workspace, auth,
+│                                   cluster, hub, monitoring, replication,
+│                                   security, grpc_conversions, protocol
+│                                   (wire-type re-export)
+└── sdks/rust/                      Rust SDK — workspace member, depends on
+                                    vectorizer-protocol so wire format
+                                    cannot drift between server and client
+```
+
+### Dependency direction (DAG)
+
+```
+vectorizer-core  ←  vectorizer-protocol
+         ↑                ↑
+         └──── vectorizer (umbrella engine) ────────┐
+                          ↑                         │
+               ┌──────────┼──────────┐              │
+      vectorizer-cli  vectorizer-server         sdks/rust
+```
+
+- `vectorizer-core` has no workspace deps (foundation layer).
+- `vectorizer-protocol` depends only on workspace-external crates
+  (tonic, prost, serde, rmp-serde).
+- `vectorizer` (umbrella) depends on `vectorizer-core` +
+  `vectorizer-protocol` and still hosts the storage engine plus the
+  tied-to-engine infra (`auth`, `cluster`, `hub`, `monitoring`,
+  `replication`, `security`) that has bidirectional refs into
+  `db` / `cache` / `models`.
+- `vectorizer-server` depends on `vectorizer-core` +
+  `vectorizer-protocol` + `vectorizer` (umbrella) for the engine.
+- `vectorizer-cli` depends on `vectorizer-core` + `vectorizer`
+  (umbrella) for `auth` / `db` / `models` / `workspace`.
+- `sdks/rust` depends on `vectorizer-protocol` only; it shares the
+  exact wire types the server emits.
+
+### Runtime directories
+
+`vectorizer-core::paths::{data_dir, logs_dir}` centralises where the
+server reads + writes persistent state. Order of resolution:
+
+1. `$VECTORIZER_DATA_DIR` / `$VECTORIZER_LOGS_DIR` if set — used by
+   Docker / Kubernetes deployments to pin the path.
+2. OS-canonical user-data directory:
+   - Linux: `~/.local/share/vectorizer/{data,logs}` (XDG_DATA_HOME)
+   - macOS: `~/Library/Application Support/vectorizer/{data,logs}`
+   - Windows: `%APPDATA%\vectorizer\{data,logs}` (Roaming)
+3. Fallback `./data` / `./.logs` if the OS lookup yields `None`.
+
+Engine `VectorStore::get_data_dir`, `AuthPersistence::get_data_dir`,
+and the server binary all delegate here, so a `cargo run` from any
+crate in the workspace writes to the same place.
+
 <!-- RUST:END -->

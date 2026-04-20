@@ -110,6 +110,19 @@ After implementing, capture ≥1 entry per task:
 - **Layers**: Foundation → Core → Features → Presentation. Higher layers depend on lower; never the reverse.
 - **Use interfaces** for cross-layer communication. No tight coupling.
 
+### Cargo workspace (phase4_split-vectorizer-workspace)
+
+- `vectorizer-core` — foundation (error, codec, quantization, simd, parallel, compression, paths). No workspace deps.
+- `vectorizer-protocol` — wire types (RPC codec + types, tonic-generated gRPC). No workspace deps.
+- `vectorizer` — umbrella engine (db, embedding, models, cache, persistence, …). Depends on core + protocol.
+- `vectorizer-server` — HTTP/gRPC/MCP + server binary. Depends on core + protocol + umbrella.
+- `vectorizer-cli` — CLI + binaries. Depends on core + umbrella.
+- `sdks/rust` — Rust SDK. Depends on protocol only (wire types shared with server).
+
+Dep direction: `core ← protocol ← umbrella ← {server, cli}` and `protocol ← sdks/rust`. Never the reverse. `cargo check --workspace` enforces.
+
+Full layout + runtime-directory conventions (`VECTORIZER_DATA_DIR` / `VECTORIZER_LOGS_DIR` / OS-canonical defaults) documented in [`.rulebook/specs/RUST.md`](.rulebook/specs/RUST.md).
+
 ## Documentation Standards
 
 - All docs in **English**.

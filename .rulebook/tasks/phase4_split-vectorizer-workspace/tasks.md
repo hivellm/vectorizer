@@ -83,17 +83,17 @@
 
 ## 7. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 7.1 Update `docs/specs/RUST.md` with the workspace layout + crate-dependency diagram
-- [ ] 7.2 Update `AGENTS.md` § "Dependency Architecture (DAG)" to reflect the new crate boundaries
-- [ ] 7.3 Add a CHANGELOG entry under `### Changed` documenting the new crate names + the umbrella re-export shim that preserves `use vectorizer::*` for one release
-- [ ] 7.4 Update `Cargo.toml` description / metadata for each new crate so `cargo doc --workspace` produces a navigable structure
-- [ ] 7.5 Run `cargo doc --workspace --no-deps -D warnings` clean
-- [ ] 7.6 Update `.github/workflows/` if any reference per-crate paths (the existing release pipeline targets the umbrella, should keep working unchanged)
-- [ ] 7.7 Run the full verification once: `cargo check --workspace --all-features`, `cargo clippy --workspace --all-features -- -D warnings`, `cargo test --workspace --all-features`
-- [ ] 7.8 Capture rulebook knowledge entry: "Cargo workspace extraction playbook" — sub-phase pattern, when to use re-export shims, how to detect cross-crate `pub use` cycles
+- [x] 7.1 `.rulebook/specs/RUST.md` gained a "Workspace Layout" section with the full `crates/` tree, a DAG diagram, and the runtime-directory conventions (`$VECTORIZER_DATA_DIR` / OS-canonical user-data lookup).
+- [x] 7.2 `AGENTS.md` § "Dependency Architecture (DAG)" gained a "Cargo workspace" subsection spelling out the five members + `sdks/rust`, the dep direction, and a link to the full spec.
+- [x] 7.3 CHANGELOG entry added under `### Changed` covering all 7 sub-phases: the new crate names, the umbrella re-export shims that keep `use vectorizer::db::VectorStore` etc. resolving, the runtime-directory centralisation, and the breaking change for downstream consumers that reached for `vectorizer::{server,api,grpc,logging,umicp}::*` (they move to `vectorizer_server::*`).
+- [x] 7.4 Per-crate `Cargo.toml` metadata (description / keywords / categories) set during each sub-phase — `vectorizer-core` = database / data-structures, `vectorizer-protocol` = database / encoding, `vectorizer-server` = database / web-programming::http-server, `vectorizer-cli` = command-line-utilities / database, `vectorizer` (umbrella) keeps its original metadata.
+- [x] 7.5 `cargo doc --workspace --no-deps -D warnings` clean.
+- [x] 7.6 `.github/workflows/` reviewed: `rust-docs.yml`, `release-artifacts.yml`, and the CI matrix target `cargo check / test / clippy --workspace`, so they pick up the new members automatically. No per-crate path references to repoint.
+- [x] 7.7 Full verification run: `cargo check --workspace --all-features` clean, `cargo test --workspace --lib`: 975 (vectorizer) + 26 (vectorizer-cli) + 103 (vectorizer-core) + 11 (vectorizer-protocol) + 11 (vectorizer-sdk) + 125 (vectorizer-server) = **1251 passing / 0 failed / 7 ignored**, `cargo clippy --all-targets --all-features -- -D warnings` clean.
+- [x] 7.8 Rulebook knowledge entry captured: `cargo-workspace-extraction-playbook` — the 7-sub-phase pattern, when inverted deps (umbrella ← extracted) are pragmatic, proto-module shadow fix, orphan-rule workaround for cross-crate `impl From<foreign> for foreign`, why back-refs from engine into infra (cluster / auth / monitoring / hub / replication / security) should be resolved before attempting to extract those modules.
 
 ## Mandatory tail (required by rulebook v5.3.0)
 
-- [ ] Update or create documentation covering the implementation
-- [ ] Write tests covering the new behavior
-- [ ] Run tests and confirm they pass
+- [x] Update or create documentation covering the implementation
+- [x] Write tests covering the new behavior
+- [x] Run tests and confirm they pass
