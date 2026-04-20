@@ -5,16 +5,16 @@ probe requires a different topology.
 
 ## 1. Environment
 
-- [ ] 1.1 Clean data dir (`vectorizer_core::paths::data_dir()` under
+- [x] 1.1 Clean data dir (`vectorizer_core::paths::data_dir()` under
   `%APPDATA%\vectorizer\data` on Windows, or `$XDG_DATA_HOME/vectorizer/data`
   on Linux, or `~/Library/Application Support/vectorizer/data` on macOS).
   Accept: `list_collections` returns `{collections:[],total:0}` at boot.
-- [ ] 1.2 `cargo build --release --workspace` clean. Accept: every
+- [x] 1.2 `cargo build --release --workspace` clean. Accept: every
   `target/release/*.exe` present + links (re-verify on top of the last
   commit).
-- [ ] 1.3 `./target/release/vectorizer --host 127.0.0.1` boots without
+- [x] 1.3 `./target/release/vectorizer --host 127.0.0.1` boots without
   panics. Accept: `/health` → `{"status":"healthy","version":"3.0.0"}`.
-- [ ] 1.4 Log inspection: `grep -iE "(panic|error)" <logfile>` returns
+- [x] 1.4 Log inspection: `grep -iE "(panic|error)" <logfile>` returns
   only the expected `auth.jwt_secret empty` warning + validation errors
   from intentional bad requests. No unexpected ERROR lines.
 
@@ -150,7 +150,7 @@ probe requires a different topology.
 
 - [ ] 6.1 Update or create documentation covering the implementation
   (release notes in CHANGELOG.md under `3.0.0`; a new
-  `docs/release/v3.0.0-verification.md` capturing each probe's result
+  `docs/releases/v3.0.0-verification.md` capturing each probe's result
   + evidence; any regression found gets its own follow-up task
   linked from this one).
 - [ ] 6.2 Write tests covering the new behavior (every probe whose
