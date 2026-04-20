@@ -83,7 +83,7 @@ The release workflows will automatically:
    - **Docker Build Strategy**: Uses pre-built binaries (artifact-based) instead of compiling in Docker
      - Builds binaries separately for linux/amd64 (gnu) and linux/arm64 (gnu)
      - Builds dashboard assets separately
-     - Passes pre-built artifacts to Dockerfile.artifacts for final image creation
+     - Passes pre-built artifacts to docker/Dockerfile.artifacts for final image creation
      - Uses Debian Bookworm slim as runtime base (same as test containers)
      - Benefits: Faster builds, no OOM errors, no linker issues, consistent environment
 
@@ -232,7 +232,7 @@ docker buildx build --cache-from type=local,src=/tmp/.buildx-cache \
 
 #### Artifact-Based Build (CI/CD approach - no Rust compilation in Docker)
 
-For releases, we use `Dockerfile.artifacts` which builds from pre-compiled binaries:
+For releases, we use `docker/Dockerfile.artifacts` which builds from pre-compiled binaries:
 
 ```bash
 # 1. Build binaries locally or in CI
@@ -249,7 +249,7 @@ cp target/x86_64-unknown-linux-gnu/release/vectorizer binaries/linux-amd64/
 cp target/aarch64-unknown-linux-gnu/release/vectorizer binaries/linux-arm64/
 
 # 4. Build Docker image from artifacts
-docker buildx build -f Dockerfile.artifacts --platform linux/amd64,linux/arm64 \
+docker buildx build -f docker/Dockerfile.artifacts --platform linux/amd64,linux/arm64 \
   -t vectorizer:artifact-build \
   --build-arg GIT_COMMIT_ID=custom-build \
   --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') .

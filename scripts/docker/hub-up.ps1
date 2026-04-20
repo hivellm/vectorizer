@@ -30,7 +30,7 @@ if ($envContent -match "HIVEHUB_SERVICE_API_KEY=your-service-api-key-here") {
 # Build if requested
 if ($Build) {
     Write-Host "🔨 Building Docker image..." -ForegroundColor Yellow
-    docker-compose -f docker-compose.hub.yml build
+    docker compose --profile hub build
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ Build failed" -ForegroundColor Red
         exit 1
@@ -39,7 +39,7 @@ if ($Build) {
 
 # Start container
 Write-Host "▶️  Starting container..." -ForegroundColor Green
-docker-compose --env-file .env.hub -f docker-compose.hub.yml up -d
+docker compose --env-file .env.hub --profile hub up -d
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Failed to start container" -ForegroundColor Red

@@ -1,7 +1,33 @@
-version: "3.8"
+# Vectorizer — single docker-compose with environment profiles.
+#
+# Pick one profile per invocation. None of the services run by
+# default — every service is gated by `profiles:`, so a bare
+# `docker compose up` is a no-op (this is intentional and stops
+# accidental port-15002 collisions when more than one profile is
+# active in the same shell).
+#
+#   docker compose --profile default up -d  # production-like single node
+#   docker compose --profile dev up -d      # local source mount, debug logs
+#   docker compose --profile ha up -d       # 1 master + 2 replicas
+#   docker compose --profile hub up -d      # HiveHub-integrated single node
+#
+# Or set `COMPOSE_PROFILES=default` in your shell / .env so plain
+# `docker compose up` picks the default profile.
+#
+# Profiles are mutually exclusive in practice: the `default`, `dev`,
+# `ha`, and `hub` services all reuse port 15002 on the host. Run
+# only one profile at a time unless you remap ports.
+#
+# Each profile pulls its config from `config/` per the
+# phase4_consolidate-repo-layout layout — see CHANGELOG for the
+# path-rewrite table.
 
 services:
+  # ─────────────────────────────────────────────────────────────────
+  # default — production-like single node (no profile flag needed)
+  # ─────────────────────────────────────────────────────────────────
   vectorizer:
+    profiles: [default]
     image: hivehub/vectorizer:latest
     container_name: vectorizer
     ports:
@@ -11,22 +37,15 @@ services:
       - "15503:15503" # VectorizerRPC
       - "15002:15002" # REST + MCP (dashboard, ops, browser clients)
       - "15003:15003" # Additional port
-
     volumes:
       # Persistent data
       - ./data:/vectorizer/data
       - ./../../:/workspace:ro
-
       # Workspace configuration for Docker (paths are /workspace/*)
-      # For local dev, use workspace.yml with relative paths
       - ./workspace.docker.yml:/vectorizer/workspace.yml:ro
-
       # Mount parent directories for monorepo access
-      # Adjust the number of ../ based on your folder structure
       # HiveLLM structure: vectorizer is in hivellm/vectorizer
-      # CMMV structure: cmmv projects are in ../cmmv/
       - ../../:/workspace:ro
-
     environment:
       - VECTORIZER_HOST=0.0.0.0
       - VECTORIZER_PORT=15002
@@ -38,23 +57,16 @@ services:
       - VECTORIZER_ADMIN_USERNAME=admin
       - VECTORIZER_ADMIN_PASSWORD=admin
       - VECTORIZER_JWT_SECRET=change-this-secret-in-production
-
     restart: unless-stopped
-
-    # Healthcheck stays on REST /health because RPC needs raw TCP +
-    # the length-prefixed MessagePack handshake to confirm liveness;
-    # the distroless runtime doesn't ship `nc` or a MessagePack client.
-    # Both transports run inside the same server process, so a passing
-    # REST healthcheck implies the RPC listener is also up (or bind
-    # failure surfaces in the container logs at startup).
+    # Healthcheck stays on REST /health — the distroless runtime
+    # doesn't ship `nc` or a MessagePack client. Both transports run
+    # in the same process so REST liveness implies RPC liveness.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:15002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-    # Resource limits (optional, adjust as needed)
     deploy:
       resources:
         limits:
@@ -63,3 +75,195 @@ services:
         reservations:
           cpus: "2.0"
           memory: 2G
+
+  # ─────────────────────────────────────────────────────────────────
+  # dev profile — local Dockerfile build, source mount, debug logs
+  # ─────────────────────────────────────────────────────────────────
+  vectorizer-dev:
+    profiles: [dev]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PROFILE=release
+        - FEATURES=
+    container_name: vectorizer-dev
+    ports:
+      - "15002:15002" # MCP + REST API
+      - "15003:15003" # Additional port
+    volumes:
+      - ./data:/vectorizer/data
+      - ./dashboard:/vectorizer/dashboard
+      - ./workspace.docker.yml:/vectorizer/workspace.yml:ro
+      - ../../:/workspace:ro
+      - ./logs:/vectorizer/.logs
+    environment:
+      - VECTORIZER_HOST=0.0.0.0
+      - VECTORIZER_PORT=15002
+      - TZ=America/Sao_Paulo
+      - RUN_MODE=development
+      - RUST_LOG=debug
+      - RUST_BACKTRACE=1
+      - VECTORIZER_AUTH_ENABLED=true
+      - VECTORIZER_ADMIN_USERNAME=admin
+      - VECTORIZER_ADMIN_PASSWORD=admin
+      - VECTORIZER_JWT_SECRET=dev-secret-key
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:15002/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: "8.0"
+          memory: 8G
+        reservations:
+          cpus: "4.0"
+          memory: 4G
+
+  # ─────────────────────────────────────────────────────────────────
+  # hub profile — HiveHub-integrated single node
+  # ─────────────────────────────────────────────────────────────────
+  vectorizer-hub:
+    profiles: [hub]
+    image: hivehub/vectorizer:latest
+    container_name: vectorizer-hub
+    ports:
+      - "15002:15002" # REST API + MCP
+      - "15003:15003" # gRPC
+    volumes:
+      - ./data:/vectorizer/data
+      # Override embedded config with HiveHub config
+      - ./config/presets/hub.yml:/vectorizer/config/config.yml:ro
+    environment:
+      - VECTORIZER_HOST=0.0.0.0
+      - VECTORIZER_PORT=15002
+      - TZ=America/Sao_Paulo
+      - RUN_MODE=production
+      - HIVEHUB_SERVICE_API_KEY=${HIVEHUB_SERVICE_API_KEY:-your-service-api-key-here}
+      - VECTORIZER_ADMIN_USERNAME=admin
+      - VECTORIZER_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - "CMD"
+        - "wget"
+        - "--no-verbose"
+        - "--tries=1"
+        - "--spider"
+        - "http://localhost:15002/health"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 4G
+        reservations:
+          cpus: "2.0"
+          memory: 2G
+    networks:
+      - hub-network
+
+  # ─────────────────────────────────────────────────────────────────
+  # ha profile — 1 master + 2 replicas (HA cluster)
+  # ─────────────────────────────────────────────────────────────────
+  # Architecture: 1 master (read/write) + 2 replicas (read-only)
+  # Replication: TCP streaming (master → replicas)
+  # Auth: shared JWT secret + same admin credentials across all nodes
+  # Setup: create .env with VECTORIZER_ADMIN_PASSWORD and
+  # VECTORIZER_JWT_SECRET (min 32 chars), then
+  # `docker compose --profile ha up -d`. Connect on
+  # http://localhost:15002 — writes redirect to leader (HTTP 307),
+  # reads served by any node, JWT tokens portable across nodes.
+  vectorizer-master:
+    profiles: [ha]
+    image: vectorizer:raft
+    container_name: vz-ha-master
+    user: root
+    ports:
+      - "15002:15002" # REST API + Dashboard
+      - "7001:7001"   # Replication port (internal)
+    environment:
+      VECTORIZER_AUTH_ENABLED: "true"
+      VECTORIZER_ADMIN_USERNAME: "${VECTORIZER_ADMIN_USERNAME:-admin}"
+      VECTORIZER_ADMIN_PASSWORD: "${VECTORIZER_ADMIN_PASSWORD:-}"
+      VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:-}"
+      RUST_LOG: "info,vectorizer::replication=debug"
+    volumes:
+      - master-data:/vectorizer/data
+      - ./config/presets/ha-master.yml:/vectorizer/config/config.yml:ro
+    command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config/config.yml"]
+    networks:
+      - ha-cluster
+    healthcheck:
+      test: ["CMD", "/vectorizer/vectorizer", "--version"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  vectorizer-replica1:
+    profiles: [ha]
+    image: vectorizer:raft
+    container_name: vz-ha-replica1
+    user: root
+    ports:
+      - "15012:15002" # REST API
+    environment:
+      VECTORIZER_AUTH_ENABLED: "true"
+      VECTORIZER_ADMIN_USERNAME: "${VECTORIZER_ADMIN_USERNAME:-admin}"
+      VECTORIZER_ADMIN_PASSWORD: "${VECTORIZER_ADMIN_PASSWORD:-}"
+      VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:-}"
+      RUST_LOG: "info,vectorizer::replication=debug"
+    volumes:
+      - replica1-data:/vectorizer/data
+      - ./config/presets/ha-replica.yml:/vectorizer/config/config.yml:ro
+    command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config/config.yml"]
+    depends_on:
+      vectorizer-master:
+        condition: service_healthy
+    networks:
+      - ha-cluster
+    restart: unless-stopped
+
+  vectorizer-replica2:
+    profiles: [ha]
+    image: vectorizer:raft
+    container_name: vz-ha-replica2
+    user: root
+    ports:
+      - "15022:15002" # REST API
+    environment:
+      VECTORIZER_AUTH_ENABLED: "true"
+      VECTORIZER_ADMIN_USERNAME: "${VECTORIZER_ADMIN_USERNAME:-admin}"
+      VECTORIZER_ADMIN_PASSWORD: "${VECTORIZER_ADMIN_PASSWORD:-}"
+      VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:-}"
+      RUST_LOG: "info,vectorizer::replication=debug"
+    volumes:
+      - replica2-data:/vectorizer/data
+      - ./config/presets/ha-replica.yml:/vectorizer/config/config.yml:ro
+    command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config/config.yml"]
+    depends_on:
+      vectorizer-master:
+        condition: service_healthy
+    networks:
+      - ha-cluster
+    restart: unless-stopped
+
+volumes:
+  master-data:
+  replica1-data:
+  replica2-data:
+
+networks:
+  ha-cluster:
+    driver: bridge
+  hub-network:
+    name: vectorizer-network

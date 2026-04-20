@@ -21,15 +21,15 @@
 
 ## 3. Docker consolidation
 
-- [ ] 3.1 Move `Dockerfile.test` into `docker/Dockerfile.test`
-- [ ] 3.2 Move `Dockerfile.artifacts` into `docker/Dockerfile.artifacts`
-- [ ] 3.3 Update CI workflows that reference the moved Dockerfiles (search `.github/workflows/`)
-- [ ] 3.4 Add the `default` profile to `docker-compose.yml` (no behaviour change)
-- [ ] 3.5 Fold `docker-compose.dev.yml` into `docker-compose.yml` under `profiles: [dev]`
-- [ ] 3.6 Fold `docker-compose.ha.yml` into `docker-compose.yml` under `profiles: [ha]`
-- [ ] 3.7 Fold `docker-compose.hub.yml` into `docker-compose.yml` under `profiles: [hub]`
-- [ ] 3.8 Delete the merged `docker-compose.{dev,ha,hub}.yml` files
-- [ ] 3.9 Update `docs/deployment/docker.md` (or equivalent) and the README to teach `docker compose --profile <name> up`
+- [x] 3.1 `git mv Dockerfile.test docker/Dockerfile.test`
+- [x] 3.2 `git mv Dockerfile.artifacts docker/Dockerfile.artifacts`
+- [x] 3.3 `.github/workflows/release-artifacts.yml` repointed (`./Dockerfile.artifacts` → `./docker/Dockerfile.artifacts`); `docs/specs/RELEASING.md` repointed
+- [x] 3.4 `default` profile added (every service is gated by `profiles:` — bare `docker compose up` is a no-op; `--profile default` runs the production-like single node, or set `COMPOSE_PROFILES=default`)
+- [x] 3.5 `docker-compose.dev.yml` folded as `vectorizer-dev` service with `profiles: [dev]`
+- [x] 3.6 `docker-compose.ha.yml` folded as `vectorizer-master` + `vectorizer-replica1` + `vectorizer-replica2` services with `profiles: [ha]`. `?Set ...` env constraints relaxed to `:-` defaults so the HA env doesn't break config validation for the other profiles; bootstrap's existing `validate()` enforces JWT secret length at runtime when the HA stack actually starts.
+- [x] 3.7 `docker-compose.hub.yml` folded as `vectorizer-hub` service with `profiles: [hub]`. Bind path updated to the new `config/presets/hub.yml`.
+- [x] 3.8 `git rm docker-compose.{dev,ha,hub}.yml`
+- [x] 3.9 Updated `docs/specs/DOCKER.md` (`docker-compose -f docker-compose.dev.yml ...` → `docker compose --profile dev ...`), `docs/deployment/CLUSTER.md`, `docs/users/guides/HA_CLUSTER.md`, `scripts/docker/hub-up.ps1` (rewrites to `docker compose --profile hub`), CHANGELOG.
 
 ## 4. Verification
 

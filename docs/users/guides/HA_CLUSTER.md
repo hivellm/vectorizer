@@ -87,7 +87,7 @@ replication:
 **4. Start the cluster:**
 
 ```bash
-docker-compose -f docker-compose.ha.yml up -d
+docker compose --profile ha up -d
 ```
 
 **5. Connect your application:**
