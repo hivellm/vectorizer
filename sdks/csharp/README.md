@@ -1,12 +1,97 @@
 # Vectorizer C# SDK
 
-[![NuGet version](https://img.shields.io/nuget/v/Vectorizer.Sdk.svg)](https://www.nuget.org/packages/Vectorizer.Sdk)
+[![NuGet version](https://img.shields.io/nuget/v/Vectorizer.Sdk.Rpc.svg)](https://www.nuget.org/packages/Vectorizer.Sdk.Rpc)
+[![NuGet legacy](https://img.shields.io/nuget/v/Vectorizer.Sdk.svg?label=legacy%20HTTP%20package)](https://www.nuget.org/packages/Vectorizer.Sdk)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-High-performance C# SDK for Vectorizer vector database.
+High-performance C# SDK for the Vectorizer vector database.
 
-**Package**: `Vectorizer.Sdk`  
-**Version**: 2.2.0  
+**Recommended package**: `Vectorizer.Sdk.Rpc` (RPC-first, default transport).
+**Legacy HTTP package**: `Vectorizer.Sdk` (REST-only, preserved for back-compat).
+
+## What changed in 3.x
+
+`Vectorizer.Sdk.Rpc` 3.0 introduces the binary VectorizerRPC fast path
+as the default transport:
+
+- `vectorizer://host[:port]` URLs connect over TCP + MessagePack (default
+  port 15503). REST (`http(s)://…`) remains a first-class fallback.
+- `IVectorizerClient` exposes the same typed surface over both
+  transports (`RpcVectorizerClient`, `HttpVectorizerClient`).
+- `services.AddVectorizerClient(url)` registers the client for ASP.NET
+  Core DI, defaulting to RPC.
+- `RpcClientPool` caps concurrency for high-throughput pipelines.
+
+The standalone `Vectorizer.Sdk` 2.x REST client is still shipped from
+this same repo for back-compat; new projects should target
+`Vectorizer.Sdk.Rpc`.
+
+## Quick start (RPC, default)
+
+```csharp
+using Vectorizer.Rpc;
+
+await using var client = VectorizerClientFactory.Create(
+    "vectorizer://localhost:15503");
+
+Console.WriteLine(await client.PingAsync()); // PONG
+
+foreach (var name in await client.ListCollectionsAsync())
+{
+    Console.WriteLine(name);
+}
+
+var hits = await client.SearchBasicAsync("docs", "hello world", limit: 10);
+foreach (var hit in hits)
+{
+    Console.WriteLine($"{hit.Id} score={hit.Score:F4}");
+}
+```
+
+### ASP.NET Core DI
+
+```csharp
+using Vectorizer.Rpc;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddVectorizerClient(options =>
+{
+    options.Url = "vectorizer://localhost:15503";
+    options.Hello = new HelloPayload
+    {
+        ClientName = "my-app/1.0",
+        ApiKey = builder.Configuration["Vectorizer:ApiKey"],
+    };
+});
+
+var app = builder.Build();
+app.MapGet("/search", async (string q, IVectorizerClient client) =>
+    await client.SearchBasicAsync("docs", q, limit: 10));
+app.Run();
+```
+
+### URL grammar
+
+`VectorizerClientFactory.Create(url)` and
+`services.AddVectorizerClient(url)` route parsing through the same
+`EndpointParser.Parse(string url)` helper:
+
+| URL form                         | Transport | Port        |
+|----------------------------------|-----------|-------------|
+| `vectorizer://host:port`         | RPC       | as given    |
+| `vectorizer://host`              | RPC       | 15503       |
+| `host:port` (no scheme)          | RPC       | as given    |
+| `http://host:port`, `https://…`  | REST      | as given    |
+
+Any other scheme throws `ArgumentException`. URLs carrying credentials
+in the userinfo section (e.g. `vectorizer://user:pass@host`) are
+rejected — credentials go through the `HELLO` handshake, not the URL.
+
+## Legacy REST client (`Vectorizer.Sdk` 2.x)
+
+**Package**: `Vectorizer.Sdk`
+**Version**: 2.2.0
 **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 
 ## Features

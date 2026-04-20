@@ -1,0 +1,33 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "./src/Vectorizer.Rpc",
+          "files": ["Vectorizer.Rpc.csproj"]
+        }
+      ],
+      "dest": "api",
+      "disableGitFeatures": false,
+      "disableDefaultFilter": false
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": ["api/**.yml", "api/index.md"]
+      },
+      {
+        "files": ["index.md", "README.md"],
+        "src": "."
+      }
+    ],
+    "output": "_site",
+    "template": ["default", "modern"],
+    "globalMetadata": {
+      "_appTitle": "Vectorizer.Sdk.Rpc API Reference",
+      "_appName": "Vectorizer.Sdk.Rpc",
+      "_enableSearch": true
+    }
+  }
+}
