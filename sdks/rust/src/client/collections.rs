@@ -72,9 +72,7 @@ impl VectorizerClient {
             .await?;
         let create_response: CreateCollectionResponse =
             serde_json::from_str(&response).map_err(|e| {
-                VectorizerError::server(format!(
-                    "Failed to parse create collection response: {e}"
-                ))
+                VectorizerError::server(format!("Failed to parse create collection response: {e}"))
             })?;
 
         let info = CollectionInfo {

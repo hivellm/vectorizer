@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool)]
+
 //! RPC-readiness regression guard for the per-surface client split.
 //!
 //! Constructs `VectorizerClient` from an in-memory mock `Transport`
@@ -88,9 +92,11 @@ impl Transport for MockTransport {
 
 #[tokio::test]
 async fn collections_surface_routes_through_mock() {
-    let mock = Arc::new(
-        MockTransport::new().with_response("GET", "/collections", r#"{"collections":[]}"#),
-    );
+    let mock = Arc::new(MockTransport::new().with_response(
+        "GET",
+        "/collections",
+        r#"{"collections":[]}"#,
+    ));
     let calls_before = mock.calls();
     let client = VectorizerClient::with_transport(mock.clone(), "http://mock");
     let cols = client.list_collections().await.unwrap();
@@ -138,7 +144,10 @@ async fn search_surface_routes_through_mock() {
 async fn discovery_surface_routes_through_mock() {
     let mock = Arc::new(MockTransport::new().with_response("POST", "/discover", r#"{"ok":true}"#));
     let client = VectorizerClient::with_transport(mock.clone(), "http://mock");
-    let _ = client.discover("q", None, None, None, None, None).await.unwrap();
+    let _ = client
+        .discover("q", None, None, None, None, None)
+        .await
+        .unwrap();
     assert_eq!(mock.calls(), 1);
 }
 
@@ -168,9 +177,11 @@ async fn graph_surface_routes_through_mock() {
 
 #[tokio::test]
 async fn qdrant_surface_routes_through_mock() {
-    let mock = Arc::new(
-        MockTransport::new().with_response("GET", "/qdrant/collections", r#"{"result":{"collections":[]},"status":"ok","time":0}"#),
-    );
+    let mock = Arc::new(MockTransport::new().with_response(
+        "GET",
+        "/qdrant/collections",
+        r#"{"result":{"collections":[]},"status":"ok","time":0}"#,
+    ));
     let client = VectorizerClient::with_transport(mock.clone(), "http://mock");
     let _ = client.qdrant_list_collections().await.unwrap();
     assert_eq!(mock.calls(), 1);

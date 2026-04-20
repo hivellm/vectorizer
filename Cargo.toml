@@ -9,7 +9,7 @@
 
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*", "sdks/rust"]
 
 # Centralised lint policy. Per-crate `Cargo.toml` opts in via
 # `[lints] workspace = true`. Mirrors the policy that lived under

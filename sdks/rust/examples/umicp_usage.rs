@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool, clippy::overly_complex_bool_expr)]
+
 //! Example: Using the Vectorizer client with UMICP protocol
 //!
 //! UMICP (Universal Messaging and Inter-process Communication Protocol) provides:

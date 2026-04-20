@@ -18,7 +18,10 @@ use super::VectorizerClient;
 macro_rules! parse_qdrant {
     ($response:expr, $what:literal) => {{
         serde_json::from_str(&$response).map_err(|e| {
-            VectorizerError::server(format!(concat!("Failed to parse Qdrant ", $what, " response: {}"), e))
+            VectorizerError::server(format!(
+                concat!("Failed to parse Qdrant ", $what, " response: {}"),
+                e
+            ))
         })
     }};
 }
@@ -196,9 +199,7 @@ impl VectorizerClient {
 
     /// Create a full-cluster snapshot (Qdrant-compatible).
     pub async fn qdrant_create_full_snapshot(&self) -> Result<serde_json::Value> {
-        let response = self
-            .make_request("POST", "/qdrant/snapshots", None)
-            .await?;
+        let response = self.make_request("POST", "/qdrant/snapshots", None).await?;
         parse_qdrant!(response, "create full snapshot")
     }
 

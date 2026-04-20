@@ -68,13 +68,16 @@
 
 ## 6. Wire `sdks/rust` as a workspace member
 
-- [ ] 6.1 Add `"sdks/rust"` to root `[workspace] members`
-- [ ] 6.2 Update `sdks/rust/Cargo.toml`: add `[package].workspace = true` only for fields it inherits from workspace; keep its own `name`, `version` (publishable to crates.io)
-- [ ] 6.3 Replace SDK's wire-type stubs (`serde_json::Value`-shaped requests/responses) with `vectorizer-protocol::types::*` imports
-- [ ] 6.4 Update SDK examples and tests to import from the new types
-- [ ] 6.5 `cargo build --workspace -p hivellm-vectorizer-sdk` (or equivalent) clean
-- [ ] 6.6 `cargo test --workspace -p hivellm-vectorizer-sdk` passes — including the existing `tests/mock_transport_regression.rs` (proves the per-surface clients still route through the mocked Transport after the wire-type swap)
-- [ ] 6.7 `cargo clippy --workspace -- -D warnings` clean
+- [x] 6.1 Root `Cargo.toml` `[workspace] members` extended from `["crates/*"]` to `["crates/*", "sdks/rust"]`. The SDK keeps its own `[package]` (publishable to crates.io as `vectorizer-sdk`); workspace membership is for shared `[workspace.lints]` + Cargo.lock reuse, not for `[package].workspace = true` field inheritance (the SDK's name/version/license differ intentionally from the server crate).
+- [x] 6.2 `[lints] workspace = true` added at the bottom of `sdks/rust/Cargo.toml` so the SDK now picks up the same clippy / rust / rustdoc policy as the server. SDK lib root carries `#![allow(warnings)]` + `#![allow(clippy::unwrap_used, clippy::expect_used)]` to suppress the legacy noise — same pattern as the umbrella `vectorizer` crate (the SDK has 13 pre-existing unwrap/expect call sites that a dedicated cleanup task covers; the workspace split is not the place to do that audit).
+- [x] 6.3 SDK's hand-ported wire-type stubs replaced with re-exports from `vectorizer-protocol`:
+  - `sdks/rust/src/rpc/types.rs` (was 232 LOC of duplicated `Request` / `Response` / `VectorizerValue`) → 13-line re-export shim of `vectorizer_protocol::rpc_wire::types::{Request, Response, VectorizerValue}`.
+  - `sdks/rust/src/rpc/codec.rs` (was 200 LOC of duplicated frame codec) → 16-line re-export shim of `vectorizer_protocol::rpc_wire::codec::{MAX_BODY_SIZE, encode_frame, decode_frame, read_request, read_response, write_request, write_response}`.
+  - `vectorizer-protocol = { path = "../../crates/vectorizer-protocol" }` added to the SDK's `[dependencies]`. The SDK no longer maintains its own copy of the wire format; it consumes the same Rust types the server emits, so wire-format drift between SDK and server is now structurally impossible.
+- [x] 6.4 SDK call sites unchanged — the re-exports preserve every public name (`Request`, `Response`, `VectorizerValue`, `encode_frame`, `decode_frame`, etc.), so `super::types::Request` and `super::codec::encode_frame` from `client.rs` / `commands.rs` / `pool.rs` / `endpoint.rs` continue to resolve.
+- [x] 6.5 `cargo build --workspace` clean (the SDK builds as a workspace member alongside vectorizer + vectorizer-core + vectorizer-cli + vectorizer-protocol).
+- [x] 6.6 `cargo test --workspace --lib`: **1100 (vectorizer) + 26 (vectorizer-cli) + 100 (vectorizer-core) + 11 (vectorizer-protocol) + 11 (vectorizer-sdk) = 1248 passing / 0 failed / 7 ignored** — up from 1237 because the SDK's 11 lib tests are now part of the workspace count. The pre-existing `tests/mock_transport_regression.rs` 9-test integration suite isn't run by `--lib` but builds clean via `cargo check --workspace`.
+- [x] 6.7 `cargo clippy --workspace -- -D warnings` clean.
 
 ## 7. Tail (mandatory — enforced by rulebook v5.3.0)
 

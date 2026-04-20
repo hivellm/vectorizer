@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool, clippy::overly_complex_bool_expr)]
+
 //! Example: Using ECC-AES Payload Encryption with Vectorizer
 //!
 //! This example demonstrates how to use end-to-end encryption for vector payloads

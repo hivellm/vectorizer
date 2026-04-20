@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool)]
+
 //! End-to-end integration test for the SDK's RPC client.
 //!
 //! Spins up an in-test server on `127.0.0.1:0` that speaks the

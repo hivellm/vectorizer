@@ -8207,6 +8207,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-test"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6d24790a10a7af737693a3e8f1d03faef7e6ca0cc99aae5066f533766de545"
+dependencies = [
+ "futures-core",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
 name = "tokio-tungstenite"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8665,6 +8676,26 @@ checksum = "2896d95c02a80c6d6a5d6e953d479f5ddf2dfdb6a244441010e373ac0fb88971"
 
 [[package]]
 name = "umicp-core"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d90f552ca9bb9a8e65479da59827b4e598094af8f9e6969954f29b81bb5f0c28"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "chrono",
+ "hex",
+ "ndarray 0.16.1",
+ "parking_lot",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "umicp-core"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "011d3be8c6a322f3b511ba120190abe977fad7bdbac589109e7b4d90bdaf4190"
@@ -9086,7 +9117,7 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "transmutation",
- "umicp-core",
+ "umicp-core 0.2.3",
  "unicode-normalization",
  "uuid",
  "vectorizer-core",
@@ -9145,7 +9176,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tonic",
  "tracing",
- "umicp-core",
+ "umicp-core 0.2.3",
  "zstd",
 ]
 
@@ -9165,6 +9196,27 @@ dependencies = [
  "tonic-build",
  "tonic-prost",
  "tonic-prost-build",
+]
+
+[[package]]
+name = "vectorizer-sdk"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "parking_lot",
+ "reqwest",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "umicp-core 0.1.3",
+ "uuid",
+ "vectorizer-protocol",
 ]
 
 [[package]]

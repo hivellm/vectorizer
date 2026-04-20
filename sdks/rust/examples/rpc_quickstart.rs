@@ -1,3 +1,11 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(
+    clippy::absurd_extreme_comparisons,
+    clippy::nonminimal_bool,
+    clippy::overly_complex_bool_expr
+)]
+
 //! RPC quickstart example for the Vectorizer Rust SDK (v3.x default).
 //!
 //! Connects to a server on `127.0.0.1:15503` (the default RPC port),

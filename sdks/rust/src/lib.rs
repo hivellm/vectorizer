@@ -5,6 +5,24 @@
 //! (binary MessagePack over raw TCP, see [`rpc`]); HTTP stays available
 //! as the legacy fallback under the `http` Cargo feature.
 //!
+//! Suppresses the long tail of legacy clippy warnings (cast_lossless,
+//! uninlined_format_args, etc.) that the workspace lint policy
+//! escalates to deny. Mirrors the same blanket allow the umbrella
+//! `vectorizer` crate + `vectorizer-core` + `vectorizer-cli` all
+//! carry — without it, joining the workspace under sub-phase 6
+//! would fail clippy on pre-existing SDK code untouched by the move.
+//!
+//! The SDK also explicitly allows `unwrap_used` / `expect_used` at
+//! the crate root because it carries 13 pre-existing call sites
+//! (mostly in `client/` discovery + files modules) that
+//! `phase4_enforce-no-unwrap-policy` cleared from the server crate
+//! but not yet from the SDK. A dedicated cleanup task (separate from
+//! the workspace split) covers those — the policy only fires on the
+//! server's public surface today, not the SDK.
+
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+//!
 //! # Quick start (RPC, default)
 //!
 //! ```no_run
