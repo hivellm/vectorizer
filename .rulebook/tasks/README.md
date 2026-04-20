@@ -8,7 +8,7 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
-| ⬚ | phase5_merge-dependabot-safe-batch | 0/13 | merge dependabot safe batch |
+| ⬚ | phase5_refresh-all-dependencies | 0/5 | refresh all dependencies |
 
 ## phase6
 
