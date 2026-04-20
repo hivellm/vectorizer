@@ -18,3 +18,6 @@
 - [x] 4.1 Update the GPU setup doc with what users see in the startup log.
 - [x] 4.2 Tests above cover the new behavior.
 - [x] 4.3 Run `cargo test --all-features` on macOS and confirm pass.
+- [x] Update or create documentation covering the implementation (docs/specs/GPU_SETUP.md refreshed; CHANGELOG entry under 3.0.0 `### Changed`).
+- [x] Write tests covering the new behavior (`test_query_metal_info_returns_real_data` in src/db/gpu_detection.rs, cfg-gated to macOS + hive-gpu).
+- [x] Verify gates (cargo check + clippy + fmt) pass.
