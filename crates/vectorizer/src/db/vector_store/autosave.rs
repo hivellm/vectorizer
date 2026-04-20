@@ -44,33 +44,44 @@ impl VectorStore {
         info!("⏸️ Auto-save disabled for all collections");
     }
 
-    /// Force immediate save of all pending collections.
-    /// Useful before shutdown or critical operations.
+    /// Clear the pending-saves marker set — does NOT write `.vecdb`.
+    ///
+    /// In the `.vecdb` storage layout, the actual on-disk flush is owned
+    /// by `AutoSaveManager::force_save`, which runs on a 5-minute timer
+    /// or can be awaited explicitly. This method only resets the
+    /// in-memory "dirty" flag for each pending collection so subsequent
+    /// `mark_collection_dirty` calls aren't duplicates.
+    ///
+    /// Callers that need a real flush to disk must go through
+    /// `AutoSaveManager::force_save().await` — e.g.
+    /// `state.auto_save_manager.force_save().await` from a REST handler.
+    ///
+    /// This method is kept as a no-op fallback for code paths that run
+    /// in servers booted without an auto-save manager (read-only test
+    /// harnesses) and for the pending-marker reset that the compactor
+    /// loop expects.
     pub fn force_save_all(&self) -> Result<()> {
         if self.pending_saves.lock().is_empty() {
-            debug!("No pending saves to force");
+            debug!("No pending saves to clear");
             return Ok(());
         }
 
+        let pending_count = self.pending_saves.lock().len();
         info!(
-            "🔄 Force saving {} pending collections",
-            self.pending_saves.lock().len()
+            "🔄 Clearing {} pending-save markers (real flush is owned by AutoSaveManager)",
+            pending_count
         );
 
         let collections_to_save: Vec<String> = self.pending_saves.lock().iter().cloned().collect();
         self.pending_saves.lock().clear();
 
-        // Force save deferred here — using .vecdb format means the
-        // in-memory AutoSaveManager owns the actual flush; we just clear
-        // the pending set so subsequent marks aren't duplicates.
         for collection_name in collections_to_save {
             debug!(
-                "Collection '{}' marked for save (using .vecdb format)",
+                "Collection '{}' pending marker cleared (no .vecdb write here)",
                 collection_name
             );
         }
 
-        info!("✅ Force save completed");
         Ok(())
     }
 

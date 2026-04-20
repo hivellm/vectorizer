@@ -417,34 +417,74 @@ pub async fn delete_collection(
     })))
 }
 
-/// POST /collections/{name}/save — force-save a collection (GUI)
+/// POST /collections/{name}/force-save — trigger an immediate compaction
+/// of all in-memory collections (including `{name}`) to the on-disk
+/// `.vecdb` file.
+///
+/// The historical `VectorStore::force_save_all()` path only cleared the
+/// pending-saves marker and did not actually flush (the real flush is
+/// owned by `AutoSaveManager`, which normally runs on a 5-minute timer).
+/// This handler now awaits `AutoSaveManager::force_save` when the server
+/// was booted with an auto-save manager (the default), so the GUI's
+/// force-save button + the CLI's pre-backup save + the probe 2.1
+/// snapshot round-trip all produce a real on-disk file before they
+/// return.
+///
+/// Returns `{success: true, message}` on a real flush, and only falls
+/// back to clearing the pending-saves marker when `state.auto_save_manager`
+/// is `None` (servers booted without persistence — e.g. read-only test
+/// harnesses).
 pub async fn force_save_collection(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
 ) -> Result<Json<Value>, ErrorResponse> {
     info!("💾 Force saving collection: {}", collection_name);
 
-    // Verify collection exists
-    match state.store.get_collection(&collection_name) {
-        Ok(_) => {
-            // Force save all collections (including the requested one)
-            match state.store.force_save_all() {
-                Ok(_) => Ok(Json(json!({
-                    "success": true,
-                    "message": format!("Collection '{}' saved successfully", collection_name)
-                }))),
-                Err(e) => {
-                    error!("Failed to force save: {}", e);
-                    Ok(Json(json!({
-                        "success": false,
-                        "message": format!("Failed to save collection: {}", e)
-                    })))
-                }
+    // Verify collection exists before triggering a global flush so we
+    // return 404 for unknown collections rather than silently flushing
+    // everything else.
+    state.store.get_collection(&collection_name).map_err(|e| {
+        error!("Collection not found: {}", e);
+        ErrorResponse::from(e)
+    })?;
+
+    if let Some(ref auto_save) = state.auto_save_manager {
+        match auto_save.force_save().await {
+            Ok(()) => Ok(Json(json!({
+                "success": true,
+                "message": format!("Collection '{}' saved successfully", collection_name),
+                "flushed": true,
+            }))),
+            Err(e) => {
+                error!("Failed to flush to .vecdb: {}", e);
+                Ok(Json(json!({
+                    "success": false,
+                    "message": format!("Failed to save collection: {}", e),
+                    "flushed": false,
+                })))
             }
         }
-        Err(e) => {
-            error!("Collection not found: {}", e);
-            Err(ErrorResponse::from(e))
+    } else {
+        // No auto-save manager — fall back to clearing the pending-saves
+        // marker (the legacy behavior). The server is running without
+        // persistence, so there is nothing to flush to disk.
+        match state.store.force_save_all() {
+            Ok(_) => Ok(Json(json!({
+                "success": true,
+                "message": format!(
+                    "Collection '{}' saved (in-memory server, no .vecdb flush)",
+                    collection_name
+                ),
+                "flushed": false,
+            }))),
+            Err(e) => {
+                error!("Failed to clear pending saves: {}", e);
+                Ok(Json(json!({
+                    "success": false,
+                    "message": format!("Failed to save collection: {}", e),
+                    "flushed": false,
+                })))
+            }
         }
     }
 }

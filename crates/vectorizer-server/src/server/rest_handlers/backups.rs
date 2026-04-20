@@ -313,11 +313,21 @@ pub async fn restore_backup(
         );
     }
 
-    // Force save all collections
-    state
-        .store
-        .force_save_all()
-        .map_err(|e| ErrorResponse::from(e))?;
+    // Flush all collections to .vecdb so the restore is durable across
+    // server restarts. Use the AutoSaveManager (real compactor) when the
+    // server has one; fall back to clearing the pending-saves marker on
+    // in-memory servers that boot without persistence.
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save
+            .force_save()
+            .await
+            .map_err(|e| ErrorResponse::from(e))?;
+    } else {
+        state
+            .store
+            .force_save_all()
+            .map_err(|e| ErrorResponse::from(e))?;
+    }
 
     info!("♻️ Backup restored successfully");
 
