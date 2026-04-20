@@ -30,8 +30,11 @@ describe('VectorizerClient', () => {
       delete: vi.fn(),
     };
 
-    // Mock constructors
-    (HttpClient as unknown as Mock).mockImplementation(() => mockHttpClient);
+    // Mock constructors — vitest 4 requires `function` / `class`
+    // bodies in implementations, not arrows.
+    (HttpClient as unknown as Mock).mockImplementation(function () {
+      return mockHttpClient;
+    });
 
     // Create client
     client = new VectorizerClient({

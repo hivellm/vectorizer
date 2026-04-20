@@ -30,7 +30,9 @@ describe('VectorizerClient Integration Tests', () => {
     };
 
     // Mock constructors
-    (HttpClient as unknown as Mock).mockImplementation(() => mockHttpClient);
+    (HttpClient as unknown as Mock).mockImplementation(function () {
+      return mockHttpClient;
+    });
 
     client = new VectorizerClient({
       baseURL: 'http://localhost:15002',

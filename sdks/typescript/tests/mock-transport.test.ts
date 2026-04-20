@@ -35,23 +35,29 @@ import { HttpClient } from '../src/utils/http-client';
 // network call.
 vi.mock('../src/utils/http-client', () => {
   return {
-    HttpClient: vi.fn().mockImplementation(() => ({
-      get: vi.fn(() => {
-        throw new Error('HttpClient.get called — MockTransport was not wired up');
-      }),
-      post: vi.fn(() => {
-        throw new Error('HttpClient.post called — MockTransport was not wired up');
-      }),
-      put: vi.fn(() => {
-        throw new Error('HttpClient.put called — MockTransport was not wired up');
-      }),
-      delete: vi.fn(() => {
-        throw new Error('HttpClient.delete called — MockTransport was not wired up');
-      }),
-      postFormData: vi.fn(() => {
-        throw new Error('HttpClient.postFormData called — MockTransport was not wired up');
-      }),
-    })),
+    // vitest 4 rejects arrow-body implementations passed directly to
+    // `vi.fn(...)`. Use `function` bodies here — the `MockTransport`
+    // class wires every real call up below, so reaching these spies
+    // means the test is misconfigured.
+    HttpClient: vi.fn().mockImplementation(function () {
+      return {
+        get: vi.fn(function () {
+          throw new Error('HttpClient.get called — MockTransport was not wired up');
+        }),
+        post: vi.fn(function () {
+          throw new Error('HttpClient.post called — MockTransport was not wired up');
+        }),
+        put: vi.fn(function () {
+          throw new Error('HttpClient.put called — MockTransport was not wired up');
+        }),
+        delete: vi.fn(function () {
+          throw new Error('HttpClient.delete called — MockTransport was not wired up');
+        }),
+        postFormData: vi.fn(function () {
+          throw new Error('HttpClient.postFormData called — MockTransport was not wired up');
+        }),
+      };
+    }),
   };
 });
 
