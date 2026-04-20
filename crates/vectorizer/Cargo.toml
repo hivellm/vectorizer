@@ -1,0 +1,466 @@
+[package]
+name = "vectorizer"
+version = "2.5.16"
+edition = "2024"
+authors = ["HiveLLM Contributors"]
+description = "High-performance, in-memory vector database written in Rust"
+license = "Apache-2.0"
+repository = "https://github.com/hivellm/vectorizer"
+keywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similarity-search"]
+categories = ["database", "science"]
+
+[dependencies]
+# Upstream `openraft` has not shipped a 0.10 stable release as of 2026-04-18
+# (latest on crates.io is still 0.10.0-alpha.17). We pin to the exact alpha
+# with a `=` prefix so `cargo update` cannot silently drift the consensus
+# layer to a newer alpha whose behavior we haven't vetted. When a stable
+# 0.10 or 0.11 ships, bump both pins together and retest the HA path
+# (tests/integration/cluster_ha.rs). Risk note published in CHANGELOG.
+openraft = { version = "=0.10.0-alpha.17", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.17"
+futures = "0.3"
+ctrlc = { version = "3.5", optional = true }
+dirs = "5.0"
+# Core dependencies
+# Optimized: Use only needed tokio features instead of "full" (saves ~30% compile time)
+tokio = { version = "1.48", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
+axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
+tower = { version = "0.5", default-features = false }
+tower-http = { version = "0.6.7", features = ["cors", "trace", "fs", "set-header"], default-features = false }
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_json = { version = "1.0", default-features = false }
+serde_yaml = { version = "0.9", default-features = false }
+bincode = { version = "2.0", features = ["serde"] }
+rmp-serde = "1"
+glob = { version = "0.3", default-features = false }
+# Note: chrono is heavy but used in 166 places - consider migrating to time crate in future
+chrono = { version = "0.4", features = ["serde"], default-features = false }
+sha2 = "0.10"
+walkdir = "2.5"
+notify = "8.2"
+fastrand = "2.3"
+sysinfo = "0.37"
+
+# Index and vector operations
+hnsw_rs = "0.3"
+
+# Intelligent search dependencies
+tantivy = "0.25"  # BM25 full-text search engine
+rrf = "0.1"       # Reciprocal Rank Fusion
+fastembed = { version = "5.4", optional = true } # Embeddings + cross-encoder reranking (requires ONNX Runtime)
+rust-tfidf = "1.1" # TF-IDF similarity fallback
+
+# Linear algebra for basic matrix operations
+ndarray = "0.17.1"
+
+# GPU acceleration via external hive-gpu crate only
+hive-gpu = { version = "0.1", optional = true }
+
+# Parallel processing
+rayon = "1.10"
+crossbeam = "0.8"
+num_cpus = "1.16"
+
+# Memory analysis
+memory-stats = "1.0"
+
+# Data structures
+dashmap = "6.1"
+parking_lot = "0.12"
+once_cell = "1.20"
+arc-swap = "1.7"
+
+# Error handling and logging
+anyhow = { version = "1.0", features = ["backtrace"], default-features = false }
+thiserror = { version = "2.0", default-features = false }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"], default-features = false }
+scopeguard = { version = "1.2", default-features = false }
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+tar = "0.4"
+flate2 = "1.1"
+
+# HTTP client for status checks (using rustls for musl compatibility)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# UMICP protocol integration (v0.2.3 with native JSON types + tool discovery)
+umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
+
+# System utilities
+whoami = "2"
+libc = "0.2.178"
+
+# Embedded dashboard assets
+rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
+mime_guess = "2.0"
+
+# Compression and caching
+lz4_flex = "0.12.0"
+memmap2 = "0.9"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+zstd = "0.13"
+zip = { version = "6.0", features = ["zstd", "deflate"] }
+crc32fast = "1.4" # For replication checksums
+
+# Text normalization dependencies
+blake3 = { version = "1.5", default-features = false }
+unicode-normalization = { version = "0.1", default-features = false }
+# Note: regex is expensive - consider using simpler string matching where possible
+regex = { version = "1.10", default-features = false, features = ["std", "unicode-perl"] }
+
+# OpenSSL vendored for musl cross-compilation (hf-hub uses native-tls)
+openssl = { version = "0.10", features = ["vendored"], optional = true }
+
+# Authentication and security
+jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
+uuid = { version = "1.22", features = ["v4", "v5", "serde"] }
+rand = "0.9"
+hmac = "0.12"           # HMAC for request signing
+base64 = "0.22"         # Base64 encoding for signing secrets
+bcrypt = "0.19"
+aes-gcm = "0.10"  # AES-GCM encryption for auth persistence
+zeroize = { version = "1", features = ["zeroize_derive"] }  # Redacting Secret<T> newtype; zeroizes on Drop
+p256 = { version = "0.13", features = ["ecdh", "pem"] }  # ECC for payload encryption
+hex = "0.4"  # Hex encoding/decoding for public keys
+lazy_static = "1.4"
+tower_governor = "0.8"  # Rate limiting middleware
+governor = "0.10.2"       # Rate limiting core
+rustls = "0.23"         # TLS support
+rustls-pemfile = "2.2"  # PEM file parsing for TLS
+tokio-rustls = "0.26"   # Tokio TLS integration
+rcgen = "0.14"          # Certificate generation for testing
+
+# HiveHub Cloud integration
+hivehub-internal-sdk = "1.0"
+
+# CLI utilities
+sys-info = "0.9"
+
+# MCP (Model Context Protocol) dependencies
+tokio-tungstenite = "0.28"
+tokio-stream = { version = "0.1", features = ["sync"] }
+
+# Optional ML dependencies
+candle-core = { version = "0.10.2", optional = true }
+candle-nn = { version = "0.10.2", optional = true }
+candle-transformers = { version = "0.10.2", optional = true }
+tokenizers = { version = "0.22.2", optional = true }
+hf-hub = { version = "0.4.3", optional = true }
+
+# ONNX Runtime for high-performance inference
+ort = { version = "2.0.0-rc.10", optional = true, features = ["half"] }
+
+# Additional serialization formats
+arrow = { version = "57", optional = true }
+parquet = { version = "57", optional = true }
+
+# MCP SDK
+rmcp = { version = "0.10", features = ["server", "macros", "transport-streamable-http-server"] }
+tokio-util = "0.7"
+async-trait = "0.1"
+lru = "0.16.1"
+hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1.20", features = ["tokio", "server", "server-auto"] }
+
+# GraphQL API
+async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
+async-graphql-axum = "7.0"
+
+# Monitoring and Observability
+prometheus = "0.14"
+opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-tokio"] }
+opentelemetry-prometheus = "0.29"
+opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
+tracing-opentelemetry = "0.32"
+
+# gRPC support
+tonic = { version = "0.14", features = [] }
+tonic-prost = "0.14"
+prost = "0.14"
+prost-types = "0.14"
+
+# Transmutation - Document conversion engine (optional)
+transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
+
+[build-dependencies]
+cc = { version = "1.2.49", features = ["parallel"] }
+winres = "0.1"
+tonic-build = "0.14"
+tonic-prost-build = "0.14"
+# Vendored protoc for cross-compilation (e.g. aarch64-unknown-linux-musl in CI where container has no protoc)
+protoc-bin-vendored = "3.2"
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
+proptest = "1.9"
+tempfile = "3.8"
+reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }
+
+[[bench]]
+name = "filter_benchmark"
+path = "../../benches/filter/filter_benchmark.rs"
+harness = false
+
+[[bench]]
+name = "multi_tenant_overhead"
+path = "../../benches/multi_tenant_overhead.rs"
+harness = false
+
+# SIMD primitive benchmarks (phase 7g). Each `harness = false` so
+# Criterion drives the loop instead of the libtest stub. Run with
+# `cargo bench --bench simd_<name>` and use `--save-baseline <label>`
+# to commit a baseline JSON. The regression-guard script under
+# `scripts/simd/check-regression.sh` compares fresh runs against the
+# committed baseline.
+[[bench]]
+name = "simd_dot_product"
+path = "../../benches/simd/dot_product.rs"
+harness = false
+
+[[bench]]
+name = "simd_euclidean"
+path = "../../benches/simd/euclidean.rs"
+harness = false
+
+[[bench]]
+name = "simd_cosine"
+path = "../../benches/simd/cosine.rs"
+harness = false
+
+[[bench]]
+name = "simd_l2_norm"
+path = "../../benches/simd/l2_norm.rs"
+harness = false
+
+[[bench]]
+name = "simd_manhattan"
+path = "../../benches/simd/manhattan.rs"
+harness = false
+
+[[bench]]
+name = "simd_quantize"
+path = "../../benches/simd/quantize.rs"
+harness = false
+
+
+# Disabled benchmarks - need refactoring for current API
+# [[bin]]
+# name = "benchmark_embeddings"
+# path = "../../benches/scripts/benchmark_embeddings.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "gpu_benchmark"
+# path = "../../benches/scripts/gpu_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "quantization_benchmark"
+# path = "../../benches/scripts/quantization_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "core_operations_benchmark"
+# path = "../../benches/scripts/core_operations_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "dimension_comparison_benchmark"
+# path = "../../benches/scripts/dimension_comparison_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "combined_optimization_benchmark"
+# path = "../../benches/scripts/combined_optimization_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "scale_benchmark"
+# path = "../../benches/scripts/scale_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "patched_benchmark"
+# path = "../../benches/scripts/patched_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "large_scale_benchmark"
+# path = "../../benches/scripts/large_scale_benchmark.rs"
+# required-features = ["benchmarks"]
+
+# [[bin]]
+# name = "storage_benchmark"
+# path = "../../benches/scripts/storage_benchmark.rs"
+# required-features = ["benchmarks"]
+
+# [[bin]]
+# name = "diagnostic_benchmark"
+# path = "../../benches/scripts/diagnostic_benchmark.rs"
+# required-features = ["benchmarks"]
+
+[[bin]]
+name = "vectorizer-cli"
+path = "src/bin/vectorizer-cli.rs"
+
+[[bin]]
+name = "vectorizer"
+path = "src/bin/vectorizer.rs"
+
+[[bin]]
+name = "benchmark_grpc_vs_rest"
+path = "../../benches/grpc/benchmark_grpc_vs_rest.rs"
+required-features = ["benchmarks"]
+
+[[bin]]
+name = "qdrant_comparison_benchmark"
+path = "../../benches/comparison/qdrant_comparison_benchmark.rs"
+required-features = ["benchmarks"]
+
+[[bin]]
+name = "test_routes"
+path = "../../scripts/dev/test_routes.rs"
+
+# [[bin]]
+# name = "test_basic_metal"
+# path = "../../benches/scripts/test_basic_metal.rs"
+# required-features = ["benchmarks", "hive-gpu"]
+
+# [[bin]]
+# name = "metal_native_search_benchmark"
+# path = "../../benches/scripts/metal_native_search_benchmark.rs"
+# required-features = ["hive-gpu-metal"]
+
+# [[bin]]
+# name = "metal_hnsw_search_benchmark"
+# path = "../../benches/scripts/metal_hnsw_search_benchmark.rs"
+# required-features = ["benchmarks", "hive-gpu"]
+
+# [[bin]]
+# name = "simple_metal_test"
+# path = "../../benches/scripts/simple_metal_test.rs"
+# required-features = ["benchmarks", "hive-gpu"]
+
+# [[bin]]
+# name = "gpu_scale_benchmark"
+# path = "../../benches/scripts/gpu_scale_benchmark.rs"
+# required-features = ["hive-gpu-wgpu"]
+
+[features]
+default = ["hive-gpu", "fastembed", "transmutation", "simd", "simd-avx2", "simd-neon", "simd-wasm"]
+fastembed = ["dep:fastembed"]
+
+# SIMD master flag — turns the dispatch layer on. Disable to force the
+# scalar backend everywhere (useful for debugging or for targets where
+# the per-ISA features aren't wanted). When `simd` is OFF, every
+# `crate::simd::*` call resolves to the scalar oracle.
+simd = []
+# Per-ISA opt-outs. Each backend module is gated by both
+# `cfg(target_arch)` AND the matching feature, so disabling a feature
+# on a build that wouldn't use it is a no-op (no extra binary cost).
+simd-avx2 = []
+simd-avx512 = []
+simd-neon = []
+simd-sve = []
+simd-wasm = []
+
+# OpenSSL vendored for musl cross-compilation
+vendored-openssl = ["dep:openssl"]
+
+# GPU acceleration via external hive-gpu crate only (Metal-only currently)
+# Future: CUDA, ROCm, WebGPU support when hive-gpu implements them
+hive-gpu = ["dep:hive-gpu"]
+
+# Legacy features (deprecated - kept for backward compatibility)
+metal-native = ["hive-gpu"]
+gpu-accel = ["hive-gpu"]
+
+# Server-to-Server (S2S) tests - only compile when explicitly enabled
+# Usage: cargo test --features s2s-tests --test grpc_s2s
+s2s-tests = []
+benchmarks = []
+candle-core = ["dep:candle-core"]
+candle-nn = ["dep:candle-nn"]
+candle-transformers = ["dep:candle-transformers"]
+tokenizers = ["dep:tokenizers"]
+hf-hub = ["dep:hf-hub"]
+ort = ["dep:ort"]
+arrow = ["dep:arrow"]
+parquet = ["dep:parquet", "arrow"]
+onnx-models = [
+    "ort",
+    "tokenizers",
+    "hf-hub"
+]
+candle-models = [
+    "candle-core",
+    "candle-nn",
+    "candle-transformers",
+    "tokenizers",
+    "hf-hub"
+]
+
+# Real BERT and MiniLM embeddings (requires candle)
+real-models = ["candle-models"]
+transmutation = ["dep:transmutation"]
+full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
+
+# Unix-specific dependencies (for signal handling)
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31", features = ["signal"] }
+
+# [[bin]]
+# name = "gpu_scale_benchmark"
+# path = "../../benches/scripts/gpu_scale_benchmark.rs"
+# required-features = ["wgpu-gpu"]
+#
+# [[bin]]
+# name = "cache_benchmark"
+# path = "../../benches/scripts/cache_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "complete_normalization_benchmark"
+# path = "../../benches/scripts/complete_normalization_benchmark.rs"
+# required-features = ["benchmarks"]
+
+# Lints + profiles inherited from the workspace root Cargo.toml
+# (centralised under phase4_split-vectorizer-workspace, sub-phase 1).
+[lints]
+workspace = true
+
+# =============================================================================
+# DEBIAN PACKAGE METADATA
+# =============================================================================
+[package.metadata.deb]
+maintainer = "HiveLLM Contributors <info@hivellm.org>"
+depends = "$auto"
+license-file = ["../../LICENSE", "0"]
+section = "database"
+priority = "optional"
+extended-description = """\
+Vectorizer is a high-performance vector database and search engine built in Rust. \
+It provides semantic search, document indexing, and AI-powered applications support \
+with sub-3ms search times and comprehensive embedding model support.\
+"""
+assets = [
+    ["../../target/release/vectorizer", "usr/bin/", "755"],
+    ["../../target/release/vectorizer-cli", "usr/bin/", "755"],
+    ["../../README.md", "usr/share/doc/vectorizer/README", "644"],
+    ["../../config/config.example.yml", "etc/vectorizer/config.yml", "644"],
+    ["../../config/config.example.yml", "etc/vectorizer/", "644"],
+    ["../../workspace.example.yml", "etc/vectorizer/", "644"],
+    ["../../dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],
+    ["../../dashboard/app.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["../../dashboard/api-client.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["../../dashboard/search-function.js", "usr/share/vectorizer/dashboard/", "644"],
+    ["../../dashboard/styles.css", "usr/share/vectorizer/dashboard/", "644"],
+    ["../../dashboard/favicon.ico", "usr/share/vectorizer/dashboard/", "644"],
+    ["../../dashboard/icon.png", "usr/share/vectorizer/dashboard/", "644"],
+]
+conf-files = ["/etc/vectorizer/config.yml"]
+maintainer-scripts = "../../debian/"
+systemd-units = { unit-name = "vectorizer", enable = false }

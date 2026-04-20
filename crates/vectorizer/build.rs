@@ -17,19 +17,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `double score → float score` in vectorizer.proto did not trigger
     // regeneration on the next `cargo build`). Stating them here makes the
     // build unambiguously rebuild on any proto edit.
-    println!("cargo:rerun-if-changed=proto/vectorizer.proto");
-    println!("cargo:rerun-if-changed=proto/cluster.proto");
+    // Proto + assets live at the workspace root; this crate sits at
+    // `crates/vectorizer/` after phase4_split-vectorizer-workspace
+    // sub-phase 1, so the relative paths walk up two levels.
+    println!("cargo:rerun-if-changed=../../proto/vectorizer.proto");
+    println!("cargo:rerun-if-changed=../../proto/cluster.proto");
     tonic_prost_build::configure()
         .build_server(true)
         .build_client(true) // Enable client generation for tests
         .out_dir("src/grpc")
         .compile_protos(
-            &["proto/vectorizer.proto", "proto/cluster.proto"],
-            &["proto"],
+            &["../../proto/vectorizer.proto", "../../proto/cluster.proto"],
+            &["../../proto"],
         )?;
 
     // Compile Qdrant-compatible gRPC proto definitions
-    println!("cargo:rerun-if-changed=proto/qdrant/");
+    println!("cargo:rerun-if-changed=../../proto/qdrant/");
     std::fs::create_dir_all("src/grpc/qdrant")?;
     tonic_prost_build::configure()
         .build_server(true)
@@ -37,18 +40,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .out_dir("src/grpc/qdrant")
         .compile_protos(
             &[
-                "proto/qdrant/collections_service.proto",
-                "proto/qdrant/points_service.proto",
-                "proto/qdrant/snapshots_service.proto",
+                "../../proto/qdrant/collections_service.proto",
+                "../../proto/qdrant/points_service.proto",
+                "../../proto/qdrant/snapshots_service.proto",
             ],
-            &["proto/qdrant"],
+            &["../../proto/qdrant"],
         )?;
 
     // Embed Windows icon resource
     #[cfg(all(target_os = "windows", not(target_env = "msvc")))]
     {
         let mut res = winres::WindowsResource::new();
-        res.set_icon("assets/icon.ico");
+        res.set_icon("../../assets/icon.ico");
         res.set("ProductName", "Vectorizer");
         res.set("FileDescription", "High-performance vector database");
         res.set("CompanyName", "HiveLLM Contributors");

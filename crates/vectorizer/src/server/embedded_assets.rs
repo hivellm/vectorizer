@@ -8,9 +8,12 @@ use axum::http::{Response, StatusCode, header};
 use axum::response::IntoResponse;
 use rust_embed::Embed;
 
-/// Embedded dashboard assets from dashboard/dist
+/// Embedded dashboard assets from `dashboard/dist`. The folder lives at
+/// the workspace root; this crate sits at `crates/vectorizer/` after
+/// phase4_split-vectorizer-workspace sub-phase 1, so the path walks
+/// up two levels.
 #[derive(Embed)]
-#[folder = "dashboard/dist"]
+#[folder = "../../dashboard/dist"]
 #[prefix = ""]
 pub struct DashboardAssets;
 

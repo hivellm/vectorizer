@@ -16,12 +16,21 @@ use std::path::PathBuf;
 use vectorizer::config::layered::{LayeredOptions, load_layered};
 
 fn repo_root() -> PathBuf {
-    // CARGO_MANIFEST_DIR is the crate root for `cargo test`.
+    // CARGO_MANIFEST_DIR is the crate root for `cargo test`. After
+    // phase4_split-vectorizer-workspace (sub-phase 1) the crate sits
+    // at `crates/vectorizer/`, so the workspace root is two parents
+    // up.
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")))
 }
 
 fn base_path() -> PathBuf {
-    repo_root().join("config.example.yml")
+    // After phase4_consolidate-repo-layout (phase 2) the canonical
+    // base config lives under `config/`.
+    repo_root().join("config").join("config.example.yml")
 }
 
 fn modes_dir() -> PathBuf {

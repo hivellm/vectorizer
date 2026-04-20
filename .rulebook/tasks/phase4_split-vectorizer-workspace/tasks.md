@@ -1,14 +1,15 @@
 ## 1. Skeleton (no refactor — every `use crate::X` keeps working)
 
-- [ ] 1.1 Create `crates/` directory at repo root
-- [ ] 1.2 `git mv src crates/vectorizer/src` and `git mv tests crates/vectorizer/tests`
-- [ ] 1.3 `git mv Cargo.toml crates/vectorizer/Cargo.toml`; new root `Cargo.toml` is `[workspace] members = ["crates/*"]` + `[workspace.package]` + `[workspace.dependencies]` (centralised versions)
-- [ ] 1.4 Move `[lints.clippy]` and `[lints.rust]` to `[workspace.lints.*]`; per-crate `Cargo.toml` adds `[lints] workspace = true`
-- [ ] 1.5 Move `[[bench]]`, `[[bin]]`, `[features]` blocks down into `crates/vectorizer/Cargo.toml`
-- [ ] 1.6 Update `benches/` paths in the moved `crates/vectorizer/Cargo.toml` (paths become `../../benches/...`) OR move `benches/` into `crates/vectorizer/benches/`
-- [ ] 1.7 `cargo build --workspace` clean
-- [ ] 1.8 `cargo test --workspace --lib` 1210/1210 (no behaviour change expected)
-- [ ] 1.9 `cargo clippy --workspace -- -D warnings` clean
+- [x] 1.1 `mkdir crates/vectorizer`
+- [x] 1.2 `git mv src crates/vectorizer/src` and `git mv tests crates/vectorizer/tests`
+- [x] 1.3 `git mv Cargo.toml crates/vectorizer/Cargo.toml` and `git mv build.rs crates/vectorizer/build.rs`. New root `Cargo.toml` is `[workspace] resolver = "2"` + `members = ["crates/*"]` + `[workspace.lints.{clippy,rust,rustdoc}]` + the full `[profile.*]` set (release, ci, release-fast, perf, dev). `[workspace.dependencies]` centralisation is its own follow-up — phase 1 keeps `[dependencies]` inline on the moved crate to minimise diff.
+- [x] 1.4 `[lints.clippy]`, `[lints.rust]`, `[lints.rustdoc]` lifted into `[workspace.lints.*]` on the root manifest. `crates/vectorizer/Cargo.toml` opts in via `[lints] workspace = true`.
+- [x] 1.5 `[[bench]]`, `[[bin]]`, `[features]`, `[package.metadata.deb]` stayed in the moved `crates/vectorizer/Cargo.toml` (no movement needed — they're crate-scoped).
+- [x] 1.6 Path-relative entries in `crates/vectorizer/Cargo.toml` repointed to walk two levels up: `[[bench]] path = "benches/..."` → `"../../benches/..."`, `[[bin]] path = "scripts/dev/test_routes.rs"` → `"../../scripts/dev/test_routes.rs"`, `[package.metadata.deb] assets[]`: `target/release/...` → `../../target/release/...`, `README.md` → `../../README.md`, `config/...` → `../../config/...`, `dashboard/...` → `../../dashboard/...`, `workspace.example.yml` → `../../workspace.example.yml`. `license-file` → `../../LICENSE`, `maintainer-scripts` → `../../debian/`. `crates/vectorizer/build.rs` repointed: `proto/...` → `../../proto/...`, `assets/icon.ico` → `../../assets/icon.ico`. `crates/vectorizer/src/server/embedded_assets.rs` `#[folder = "dashboard/dist"]` → `"../../dashboard/dist"`. `crates/vectorizer/tests/config/layered_real_files.rs::repo_root()` walks up two parents now (also fixes a latent regression from `phase4_consolidate-repo-layout` phase 2 where the test still pointed at `config.example.yml` instead of `config/config.example.yml`).
+- [x] 1.7 `cargo check --workspace` clean
+- [x] 1.8 `cargo build --workspace --bin vectorizer` clean (server binary still builds end-to-end)
+- [x] 1.9 `cargo test --workspace --lib` → **1210/1210 passing** (7 ignored, no behaviour change vs pre-split baseline)
+- [x] 1.10 `cargo clippy --workspace -- -D warnings` clean
 
 ## 2. Extract `vectorizer-protocol`
 
