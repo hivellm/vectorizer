@@ -256,12 +256,22 @@ impl Bm25Embedding {
             hasher.finish()
         };
 
-        // Generate pseudo-random but deterministic embedding
+        // Generate a pseudo-random but deterministic embedding. Previously
+        // this computed `seed.wrapping_mul(1103515245).wrapping_add(12345
+        // + i as u64) % 65536`, which kept `seed * 1103515245` fixed
+        // across all dimensions and only added `12345 + i`. After `% 65536`
+        // that produced 512 consecutive integers differing by 1, which
+        // L2-normalize to ~1/sqrt(dimension) uniformly — the exact
+        // pathological behavior probe 2.1 observed (~0.0436 across every
+        // component). Iterate the LCG state per dimension so each
+        // component is an independent step of the generator.
         let mut embedding = Vec::with_capacity(self.dimension);
-        for i in 0..self.dimension {
-            // Simple LCG-like generator seeded by text hash
-            let value =
-                ((seed.wrapping_mul(1103515245).wrapping_add(12345 + i as u64)) % 65536) as f32;
+        let mut state = seed;
+        for _ in 0..self.dimension {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let value = ((state >> 33) & 0xFFFF) as f32;
             embedding.push((value / 32768.0) - 1.0); // Normalize to [-1, 1]
         }
 
@@ -443,5 +453,81 @@ impl EmbeddingProvider for Bm25Embedding {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+
+    use super::*;
+
+    fn cosine(a: &[f32], b: &[f32]) -> f32 {
+        let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+        let na = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let nb = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+        dot / (na * nb)
+    }
+
+    /// Regression test for phase8_investigate-uniform-embeddings (finding F4).
+    ///
+    /// The pre-fix LCG in `fallback_hash_embedding` produced
+    /// `~1/sqrt(dim)` on every component for every text, which collapsed
+    /// all embeddings to the same uniform vector and made pairwise
+    /// cosine similarity ≈ 1.0 across different inputs. This test locks
+    /// the post-fix invariant: distinct inputs produce distinct vectors
+    /// with pairwise cosine similarity well below 0.95.
+    #[test]
+    fn fallback_embedding_is_not_uniform_across_distinct_inputs() {
+        let bm25 = Bm25Embedding::new(512);
+        let texts = [
+            "completely different first sentence about oranges",
+            "another totally unrelated topic about submarines",
+            "third short idea discussing ancient stone tablets",
+            "fourth concept centered on jazz improvisation",
+            "fifth note on the winter migration of arctic terns",
+        ];
+
+        let embeddings: Vec<Vec<f32>> = texts
+            .iter()
+            .map(|t| bm25.fallback_hash_embedding(t))
+            .collect();
+
+        // Each vector should cover both signs (pre-fix produced a
+        // monotonic linear sequence that after L2-normalize landed on
+        // a constant).
+        for (i, v) in embeddings.iter().enumerate() {
+            let has_positive = v.iter().any(|&x| x > 0.01);
+            let has_negative = v.iter().any(|&x| x < -0.01);
+            assert!(
+                has_positive && has_negative,
+                "embedding {i} lacks sign variation (pos={has_positive}, neg={has_negative})"
+            );
+        }
+
+        // Pairwise cosine similarity must stay well below 1.0 — the
+        // pre-fix bug made every pair effectively identical.
+        for i in 0..embeddings.len() {
+            for j in (i + 1)..embeddings.len() {
+                let s = cosine(&embeddings[i], &embeddings[j]);
+                assert!(
+                    s.abs() < 0.95,
+                    "pairwise similarity too high for {i}-{j}: {s}"
+                );
+            }
+        }
+
+        // A single vector's components must not be uniform. Compute
+        // the std dev — pre-fix fallback had std dev ≈ 0, post-fix
+        // should land well above 0.01.
+        for (i, v) in embeddings.iter().enumerate() {
+            let mean = v.iter().sum::<f32>() / v.len() as f32;
+            let var = v.iter().map(|x| (x - mean).powi(2)).sum::<f32>() / v.len() as f32;
+            let std = var.sqrt();
+            assert!(
+                std > 0.01,
+                "embedding {i} std dev {std} looks uniform (pre-fix would be ~0)"
+            );
+        }
     }
 }
