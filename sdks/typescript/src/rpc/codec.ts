@@ -106,7 +106,7 @@ export class FrameReader {
    */
   drain(): unknown[] {
     const out: unknown[] = [];
-    let buffer = Buffer.concat(this.chunks, this.buffered);
+    const buffer = Buffer.concat(this.chunks, this.buffered);
     let offset = 0;
 
     while (offset + HEADER_SIZE <= buffer.length) {

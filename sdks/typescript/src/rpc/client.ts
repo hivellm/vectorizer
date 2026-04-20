@@ -307,7 +307,7 @@ export class RpcClient {
       let resp: Response;
       try {
         resp = responseFromMsgpack(raw);
-      } catch (err) {
+      } catch (_err) {
         // Skip malformed frames — log via stderr would be too noisy.
         // The pending caller will eventually time out or get
         // ConnectionClosed when the socket dies.
