@@ -4,16 +4,11 @@
 
 **Total**: 4 tasks | **Completed**: 0 | **In Progress**: 0 | **Pending**: 4
 
-## phase5
-
-| Status | Task | Progress | Description |
-|--------|------|----------|-------------|
-| ⬚ | phase5_refresh-all-dependencies | 0/5 | refresh all dependencies |
-
 ## phase6
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
+| ⬚ | phase6_major-dep-migrations | 0/32 | major dep migrations |
 | ⬚ | phase6_sdk-csharp-rpc | 0/22 | sdk csharp rpc |
 
 ## phase8
