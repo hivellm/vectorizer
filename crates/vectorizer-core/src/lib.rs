@@ -46,5 +46,6 @@ pub mod codec;
 pub mod compression;
 pub mod error;
 pub mod parallel;
+pub mod paths;
 pub mod quantization;
 pub mod simd;

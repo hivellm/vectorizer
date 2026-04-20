@@ -12,10 +12,15 @@ use super::{CollectionType, VectorStore};
 use crate::error::{Result, VectorizerError};
 
 impl VectorStore {
-    /// Get the centralized data directory path (same as DocumentLoader)
+    /// Get the centralized data directory path (same as
+    /// [`crate::auth::persistence::AuthPersistence::get_data_dir`]).
+    ///
+    /// Delegates to [`vectorizer_core::paths::data_dir`] which
+    /// resolves to the per-OS user data directory (XDG on Linux,
+    /// Application Support on macOS, AppData on Windows) and accepts
+    /// `VECTORIZER_DATA_DIR` as an explicit override.
     pub fn get_data_dir() -> PathBuf {
-        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        current_dir.join("data")
+        vectorizer_core::paths::data_dir()
     }
 
     /// Load a collection from cache without reconstructing the HNSW index

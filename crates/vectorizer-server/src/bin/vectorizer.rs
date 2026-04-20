@@ -117,16 +117,23 @@ fn load_config(config_path: &str) -> VectorizerConfig {
 fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result<(), String> {
     let mut errors = Vec::new();
 
-    // 1. Check data directory
-    let data_dir = std::path::Path::new("./data");
+    // 1. Check data directory — resolved by vectorizer_core::paths
+    // so the binary writes to the OS-canonical user-data location
+    // (XDG on Linux, Application Support on macOS, AppData on
+    // Windows). Override with VECTORIZER_DATA_DIR.
+    let data_dir = vectorizer_core::paths::data_dir();
     if !data_dir.exists() {
         // Try to create it
-        match std::fs::create_dir_all(data_dir) {
+        match std::fs::create_dir_all(&data_dir) {
             Ok(_) => {
-                info!("📁 Created data directory: ./data");
+                info!("📁 Created data directory: {}", data_dir.display());
             }
             Err(e) => {
-                errors.push(format!("Cannot create data directory ./data: {}", e));
+                errors.push(format!(
+                    "Cannot create data directory {}: {}",
+                    data_dir.display(),
+                    e
+                ));
             }
         }
     } else {
@@ -137,17 +144,24 @@ fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result
                 let _ = std::fs::remove_file(&test_file);
             }
             Err(e) => {
-                errors.push(format!("No write permission in ./data: {}", e));
+                errors.push(format!(
+                    "No write permission in {}: {}",
+                    data_dir.display(),
+                    e
+                ));
             }
         }
     }
 
     // 2. Check snapshots directory if enabled
-    let snapshots_dir = std::path::Path::new("./data/snapshots");
+    let snapshots_dir = data_dir.join("snapshots");
     if !snapshots_dir.exists() {
-        match std::fs::create_dir_all(snapshots_dir) {
+        match std::fs::create_dir_all(&snapshots_dir) {
             Ok(_) => {
-                info!("📁 Created snapshots directory: ./data/snapshots");
+                info!(
+                    "📁 Created snapshots directory: {}",
+                    snapshots_dir.display()
+                );
             }
             Err(e) => {
                 warn!("⚠️  Could not create snapshots directory: {}", e);
@@ -187,16 +201,18 @@ fn validate_permissions(_config: &VectorizerConfig, config_path: &str) -> Result
         }
     }
 
-    // 5. Check logs directory
-    let logs_dir = std::path::Path::new("./.logs");
+    // 5. Check logs directory — same OS-canonical resolution as
+    // `data_dir`, see vectorizer_core::paths.
+    let logs_dir = vectorizer_core::paths::logs_dir();
     if !logs_dir.exists() {
-        match std::fs::create_dir_all(logs_dir) {
+        match std::fs::create_dir_all(&logs_dir) {
             Ok(_) => {
-                info!("📁 Created logs directory: ./.logs");
+                info!("📁 Created logs directory: {}", logs_dir.display());
             }
             Err(e) => {
                 warn!(
-                    "⚠️  Cannot create logs directory: {} (logging to console only)",
+                    "⚠️  Cannot create logs directory {}: {} (logging to console only)",
+                    logs_dir.display(),
                     e
                 );
                 // Not critical, just warn

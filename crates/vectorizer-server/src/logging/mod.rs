@@ -26,8 +26,11 @@ pub fn init_logging_with_level(
     service_name: &str,
     default_level: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Create logs directory if it doesn't exist
-    let logs_dir = PathBuf::from(".logs");
+    // Create logs directory if it doesn't exist — resolved by
+    // vectorizer_core::paths so it lands in the OS-canonical
+    // user-data location (XDG on Linux, Application Support on
+    // macOS, AppData on Windows). Override with VECTORIZER_LOGS_DIR.
+    let logs_dir = vectorizer_core::paths::logs_dir();
     if !logs_dir.exists() {
         fs::create_dir_all(&logs_dir)?;
         if default_level == "debug" || default_level == "info" {
@@ -136,13 +139,15 @@ fn cleanup_old_logs(logs_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Clean up old logs manually (can be called periodically)
 pub fn cleanup_old_logs_manual() -> Result<(), Box<dyn std::error::Error>> {
-    let logs_dir = PathBuf::from(".logs");
+    let logs_dir = vectorizer_core::paths::logs_dir();
     cleanup_old_logs(&logs_dir)
 }
 
-/// Get the current log directory path
+/// Get the current log directory path. Delegates to
+/// [`vectorizer_core::paths::logs_dir`] so the answer is OS-aware
+/// and matches what the binary uses at startup.
 pub fn get_logs_dir() -> PathBuf {
-    PathBuf::from(".logs")
+    vectorizer_core::paths::logs_dir()
 }
 
 /// Get the log file path for a specific service and date
@@ -166,10 +171,14 @@ mod tests {
 
     #[test]
     fn test_get_log_file_path() {
+        // The path is now resolved via vectorizer_core::paths so it's
+        // OS-canonical (XDG / Application Support / AppData) rather
+        // than always `.logs/` in the cwd. Pin only the segments
+        // this test legitimately controls (the service name + the
+        // .log extension).
         let path = get_log_file_path("test-service", None);
         assert!(path.to_string_lossy().contains("test-service"));
         assert!(path.to_string_lossy().contains(".log"));
-        assert!(path.to_string_lossy().contains(".logs"));
     }
 
     #[test]

@@ -27,6 +27,13 @@ bincode = { version = "2.0", features = ["serde"] }
 lz4_flex = "0.12.0"
 zstd = "0.13"
 
+# paths/ — OS user-data directory resolution (XDG on Linux, Application
+# Support on macOS, AppData on Windows). Centralises the "where does
+# vectorizer write its data and logs" decision so the answer is the
+# same across the binary, the auth-persistence layer, and the
+# storage layer.
+dirs = "5.0"
+
 # parallel/, quantization/ — thread pools + parallel helpers
 rayon = "1.10"
 crossbeam = "0.8"

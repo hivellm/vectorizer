@@ -9191,6 +9191,7 @@ dependencies = [
  "bincode 2.0.1",
  "candle-core",
  "crossbeam",
+ "dirs 5.0.1",
  "fastrand",
  "lz4_flex 0.12.1",
  "num_cpus",

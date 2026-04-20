@@ -159,10 +159,14 @@ impl AuthPersistence {
         key
     }
 
-    /// Get the default data directory
+    /// Get the default data directory.
+    ///
+    /// Delegates to [`vectorizer_core::paths::data_dir`] so the auth
+    /// state lands in the same OS-canonical location as the engine's
+    /// `.vecdb` files (per-OS user-data dir, overridable via
+    /// `VECTORIZER_DATA_DIR`).
     pub fn get_data_dir() -> PathBuf {
-        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        current_dir.join("data")
+        vectorizer_core::paths::data_dir()
     }
 
     /// Create with default data directory
