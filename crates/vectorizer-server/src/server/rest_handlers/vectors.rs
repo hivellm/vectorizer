@@ -245,38 +245,182 @@ pub async fn embed_text(
     })))
 }
 
-/// POST /batch/insert — batch-insert multiple texts
-pub async fn batch_insert_texts(
-    State(_state): State<VectorizerServer>,
-    Json(payload): Json<Value>,
+/// Shared implementation for `batch_insert_texts` and `insert_texts`.
+///
+/// Accepts `{collection, texts: [{id?, text, metadata?, public_key?,
+/// auto_chunk?, chunk_size?, chunk_overlap?}], ...batch-level defaults}`
+/// and runs each entry through `insert::insert_one_text`. Per-item errors
+/// are captured as `{status: "error"}` without aborting the batch.
+///
+/// Response shape: `{collection, inserted, failed, results: [...],
+/// count}`. Returns 400 when the top-level `collection` or `texts` fields
+/// are missing or `texts` is empty.
+async fn do_batch_insert_texts(
+    state: VectorizerServer,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
+    payload: Value,
 ) -> Result<Json<Value>, ErrorResponse> {
+    use vectorizer::monitoring::metrics::METRICS;
+
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?
+        .to_string();
+
     let texts = payload
         .get("texts")
         .and_then(|t| t.as_array())
-        .ok_or_else(|| create_validation_error("texts", "missing or invalid texts parameter"))?;
+        .ok_or_else(|| create_validation_error("texts", "missing or invalid texts parameter"))?
+        .clone();
 
-    info!("Batch inserting {} texts", texts.len());
+    if texts.is_empty() {
+        return Err(create_validation_error(
+            "texts",
+            "texts array must contain at least one entry",
+        ));
+    }
+
+    let batch_public_key = payload
+        .get("public_key")
+        .and_then(|k| k.as_str())
+        .map(str::to_string);
+    let batch_auto_chunk = payload
+        .get("auto_chunk")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let batch_chunk_size = payload
+        .get("chunk_size")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as usize);
+    let batch_chunk_overlap = payload
+        .get("chunk_overlap")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as usize);
+
+    info!(
+        "Batch inserting {} text(s) into collection '{}'",
+        texts.len(),
+        collection_name
+    );
+
+    let mut results: Vec<Value> = Vec::with_capacity(texts.len());
+    let mut inserted: usize = 0;
+    let mut failed: usize = 0;
+
+    for (idx, entry) in texts.iter().enumerate() {
+        let Some(text) = entry.get("text").and_then(|t| t.as_str()) else {
+            failed += 1;
+            results.push(json!({
+                "index": idx,
+                "status": "error",
+                "error": "missing or invalid text field",
+            }));
+            continue;
+        };
+
+        let client_id = entry.get("id").and_then(|i| i.as_str()).map(str::to_string);
+        let metadata = super::insert::parse_metadata(entry);
+        let public_key = entry
+            .get("public_key")
+            .and_then(|k| k.as_str())
+            .map(str::to_string)
+            .or_else(|| batch_public_key.clone());
+        let auto_chunk = entry
+            .get("auto_chunk")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(batch_auto_chunk);
+        let chunk_size = entry
+            .get("chunk_size")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as usize)
+            .or(batch_chunk_size);
+        let chunk_overlap = entry
+            .get("chunk_overlap")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as usize)
+            .or(batch_chunk_overlap);
+
+        let timer = METRICS.insert_latency_seconds.start_timer();
+        let outcome = super::insert::insert_one_text(
+            &state,
+            tenant_ctx.as_ref(),
+            &collection_name,
+            text,
+            metadata,
+            public_key.as_deref(),
+            auto_chunk,
+            chunk_size,
+            chunk_overlap,
+        )
+        .await;
+        drop(timer);
+
+        let label_collection: &str = &collection_name;
+        match outcome {
+            Ok(res) => {
+                inserted += 1;
+                METRICS
+                    .insert_requests_total
+                    .with_label_values(&[label_collection, "success"])
+                    .inc();
+                results.push(json!({
+                    "index": idx,
+                    "client_id": client_id,
+                    "status": "ok",
+                    "vector_ids": res.vector_ids,
+                    "vectors_created": res.vector_ids.len(),
+                    "chunked": res.chunked,
+                }));
+            }
+            Err(e) => {
+                failed += 1;
+                METRICS
+                    .insert_requests_total
+                    .with_label_values(&[label_collection, "error"])
+                    .inc();
+                results.push(json!({
+                    "index": idx,
+                    "client_id": client_id,
+                    "status": "error",
+                    "error": e.message.clone(),
+                    "error_type": e.error_type.clone(),
+                }));
+            }
+        }
+    }
+
+    info!(
+        "Batch insert into '{}' complete: {} inserted, {} failed",
+        collection_name, inserted, failed
+    );
 
     Ok(Json(json!({
-        "message": format!("Batch inserted {} texts successfully", texts.len()),
-        "count": texts.len()
+        "collection": collection_name,
+        "inserted": inserted,
+        "failed": failed,
+        "count": texts.len(),
+        "results": results,
     })))
 }
 
-/// POST /texts — insert multiple texts
-pub async fn insert_texts(
-    State(_state): State<VectorizerServer>,
+/// POST /batch_insert — batch-insert multiple texts into a collection.
+pub async fn batch_insert_texts(
+    State(state): State<VectorizerServer>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    let texts = payload
-        .get("texts")
-        .and_then(|t| t.as_array())
-        .ok_or_else(|| create_validation_error("texts", "missing or invalid texts parameter"))?;
+    do_batch_insert_texts(state, tenant_ctx, payload).await
+}
 
-    info!("Inserting {} texts", texts.len());
-
-    Ok(Json(json!({
-        "message": format!("Inserted {} texts successfully", texts.len()),
-        "count": texts.len()
-    })))
+/// POST /insert_texts — alias of `batch_insert_texts`. Same payload shape
+/// and response shape; preserved for REST API back-compat.
+pub async fn insert_texts(
+    State(state): State<VectorizerServer>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    do_batch_insert_texts(state, tenant_ctx, payload).await
 }

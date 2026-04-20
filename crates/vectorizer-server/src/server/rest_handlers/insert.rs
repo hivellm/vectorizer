@@ -1,9 +1,12 @@
-//! Single-document text insertion handler.
+//! Single-document text insertion handler + the shared write pipeline that
+//! the batch endpoints in `super::vectors` reuse.
 //!
-//! `insert_text` is split into its own file because it is ~475 lines of
-//! substantive logic (chunking, embedding, quota, replication, metrics) that
-//! would dominate any shared file.
+//! `insert_text` is the POST /insert handler. Its core chunk+embed+insert
+//! body lives in `pub(super) async fn insert_one_text` so the batch
+//! endpoints (`batch_insert_texts`, `insert_texts`) can drive the exact
+//! same write path without duplicating the pipeline.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use axum::Extension;
@@ -22,7 +25,449 @@ use vectorizer::file_loader::config::LoaderConfig;
 use vectorizer::hub::middleware::RequestTenantContext;
 use vectorizer_core::error::VectorizerError;
 
-/// POST /insert — insert a single text document, auto-chunking large inputs
+/// Outcome of a single text insert — the vector ids that were created plus
+/// whether the input was chunked.
+#[derive(Debug)]
+pub(super) struct InsertOneResult {
+    pub vector_ids: Vec<String>,
+    pub chunked: bool,
+}
+
+/// Parse the optional `metadata` object from a request payload into a
+/// `HashMap<String, String>`. Non-string values are stringified via
+/// `serde_json::Value::to_string`.
+pub(super) fn parse_metadata(payload: &Value) -> HashMap<String, String> {
+    payload
+        .get("metadata")
+        .and_then(|m| m.as_object())
+        .map(|m| {
+            m.iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        match v {
+                            serde_json::Value::String(s) => s.clone(),
+                            _ => v.to_string(),
+                        },
+                    )
+                })
+                .collect::<HashMap<String, String>>()
+        })
+        .unwrap_or_default()
+}
+
+/// Ensure a collection exists, creating it with the project's default
+/// configuration (pulled from `config.yml` when present, otherwise
+/// `CollectionConfig::default()`) if missing.
+fn ensure_collection_exists(state: &VectorizerServer, name: &str) -> Result<(), ErrorResponse> {
+    match state.store.get_collection(name) {
+        Ok(_) => Ok(()),
+        Err(VectorizerError::CollectionNotFound(_)) => {
+            info!(
+                "Collection '{}' not found, creating automatically with default config",
+                name
+            );
+            let cfg = load_default_collection_config();
+            state
+                .store
+                .create_collection(name, cfg)
+                .map_err(ErrorResponse::from)?;
+            info!(
+                "Collection '{}' created successfully with auto-creation",
+                name
+            );
+            Ok(())
+        }
+        Err(e) => Err(ErrorResponse::from(e)),
+    }
+}
+
+/// Load `CollectionConfig` defaults from `config.yml`, falling back to
+/// `CollectionConfig::default()` on any parse or IO failure.
+fn load_default_collection_config() -> vectorizer::models::CollectionConfig {
+    let Ok(config_content) = std::fs::read_to_string("config.yml") else {
+        return vectorizer::models::CollectionConfig::default();
+    };
+    let Ok(yaml_value) = serde_yaml::from_str::<serde_json::Value>(&config_content) else {
+        return vectorizer::models::CollectionConfig::default();
+    };
+    let Some(defaults) = yaml_value
+        .get("collections")
+        .and_then(|c| c.get("defaults"))
+    else {
+        return vectorizer::models::CollectionConfig::default();
+    };
+
+    let dimension = defaults
+        .get("dimension")
+        .and_then(|d| d.as_u64())
+        .map(|d| d as usize)
+        .unwrap_or(512);
+
+    let metric = defaults
+        .get("metric")
+        .and_then(|m| m.as_str())
+        .unwrap_or("cosine");
+
+    let metric_enum = match metric {
+        "cosine" => vectorizer::models::DistanceMetric::Cosine,
+        "euclidean" => vectorizer::models::DistanceMetric::Euclidean,
+        "dot" => vectorizer::models::DistanceMetric::DotProduct,
+        _ => vectorizer::models::DistanceMetric::Cosine,
+    };
+
+    let hnsw_config = defaults
+        .get("index")
+        .and_then(|i| i.get("hnsw"))
+        .map(|hnsw| vectorizer::models::HnswConfig {
+            m: hnsw
+                .get("m")
+                .and_then(|m| m.as_u64())
+                .map(|m| m as usize)
+                .unwrap_or(16),
+            ef_construction: hnsw
+                .get("ef_construction")
+                .and_then(|e| e.as_u64())
+                .map(|e| e as usize)
+                .unwrap_or(200),
+            ef_search: hnsw
+                .get("ef_search")
+                .and_then(|e| e.as_u64())
+                .map(|e| e as usize)
+                .unwrap_or(64),
+            seed: None,
+        })
+        .unwrap_or_default();
+
+    let quantization = match defaults
+        .get("quantization")
+        .and_then(|q| q.get("type"))
+        .and_then(|t| t.as_str())
+    {
+        Some("sq") => {
+            let bits = defaults
+                .get("quantization")
+                .and_then(|q| q.get("sq"))
+                .and_then(|s| s.get("bits"))
+                .and_then(|b| b.as_u64())
+                .map(|b| b as usize)
+                .unwrap_or(8);
+            vectorizer::models::QuantizationConfig::SQ { bits }
+        }
+        Some(_) => vectorizer::models::QuantizationConfig::None,
+        None => vectorizer::models::QuantizationConfig::SQ { bits: 8 },
+    };
+
+    vectorizer::models::CollectionConfig {
+        dimension,
+        metric: metric_enum,
+        hnsw_config,
+        quantization,
+        compression: vectorizer::models::CompressionConfig::default(),
+        normalization: None,
+        storage_type: Some(vectorizer::models::StorageType::Memory),
+        sharding: None,
+        graph: None,
+        encryption: None,
+    }
+}
+
+/// HiveHub quota gate for vector insertion. Returns `Ok(())` when either
+/// HiveHub is disabled, the quota check passes, or the hub call itself
+/// errors (we log + allow to match the existing `insert_text` behavior).
+/// Returns `Err(QUOTA_EXCEEDED)` only when HiveHub explicitly denies.
+async fn check_insert_quota(
+    state: &VectorizerServer,
+    tenant_ctx: Option<&Extension<RequestTenantContext>>,
+    estimated_vectors: usize,
+) -> Result<(), ErrorResponse> {
+    let Some(hub_manager) = state.hub_manager.as_ref() else {
+        return Ok(());
+    };
+    let tenant_id = tenant_ctx
+        .map(|ctx| ctx.0.0.tenant_id.as_str())
+        .unwrap_or("default");
+    match hub_manager
+        .check_quota(
+            tenant_id,
+            vectorizer::hub::QuotaType::VectorCount,
+            estimated_vectors as u64,
+        )
+        .await
+    {
+        Ok(true) => Ok(()),
+        Ok(false) => {
+            warn!(
+                "Vector insertion denied for tenant {}: quota exceeded (estimated {} vectors)",
+                tenant_id, estimated_vectors
+            );
+            Err(ErrorResponse::new(
+                "QUOTA_EXCEEDED".to_string(),
+                format!(
+                    "Vector quota exceeded. Estimated {} vectors needed. Please upgrade your plan or delete unused vectors.",
+                    estimated_vectors
+                ),
+                StatusCode::TOO_MANY_REQUESTS,
+            ))
+        }
+        Err(e) => {
+            warn!("Failed to check quota with HiveHub: {}", e);
+            Ok(())
+        }
+    }
+}
+
+/// Record a successful vector-insert against the HiveHub usage counters.
+/// No-op when HiveHub is disabled.
+async fn record_insert_usage(
+    state: &VectorizerServer,
+    collection_name: &str,
+    embedding_len: usize,
+    inserted: u64,
+) {
+    let Some(hub_manager) = state.hub_manager.as_ref() else {
+        return;
+    };
+    let mut metrics = vectorizer::hub::UsageMetrics::new();
+    let estimated_storage = (embedding_len * 4) as u64 * inserted;
+    metrics.record_insert(inserted, estimated_storage);
+    let collection_id = collection_metrics_uuid(collection_name);
+    if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
+        warn!("Failed to record vector insertion usage: {}", e);
+    }
+}
+
+/// Mark a collection dirty for auto-save, invalidate its query cache, and
+/// forward Raft replication for the given vector ids. Meant to run once
+/// per request after all vectors are committed.
+fn mark_collection_dirty(state: &VectorizerServer, collection_name: &str, vector_ids: &[String]) {
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
+    state.query_cache.invalidate_collection(collection_name);
+    debug!(
+        "💾 Cache invalidated for collection '{}' after insert",
+        collection_name
+    );
+
+    if vector_ids.is_empty() {
+        return;
+    }
+
+    let active_master: Option<std::sync::Arc<vectorizer::replication::MasterNode>> = state
+        .master_node
+        .clone()
+        .or_else(|| state.ha_manager.as_ref().and_then(|ha| ha.master_node()));
+    if let Some(ref master) = active_master {
+        if let Ok(col) = state.store.get_collection(collection_name) {
+            for vid in vector_ids {
+                if let Ok(v) = col.get_vector(vid) {
+                    let payload_bytes = v.payload.as_ref().and_then(|p| serde_json::to_vec(p).ok());
+                    let op = vectorizer::replication::VectorOperation::InsertVector {
+                        collection: collection_name.to_string(),
+                        id: vid.clone(),
+                        vector: v.data.clone(),
+                        payload: payload_bytes,
+                        owner_id: None,
+                    };
+                    master.replicate(op);
+                }
+            }
+            debug!(
+                "Replicated {} vectors for collection '{}'",
+                vector_ids.len(),
+                collection_name
+            );
+        }
+    }
+}
+
+/// Core write path: chunk + embed + insert a single text into the target
+/// collection. Ensures the collection exists (auto-creating with defaults
+/// when missing), enforces the HiveHub quota for the estimated vector
+/// count, records usage metrics, marks auto-save dirty, invalidates the
+/// query cache, and forwards Raft replication.
+///
+/// Returns the new vector ids + whether the text was chunked.
+pub(super) async fn insert_one_text(
+    state: &VectorizerServer,
+    tenant_ctx: Option<&Extension<RequestTenantContext>>,
+    collection_name: &str,
+    text: &str,
+    metadata: HashMap<String, String>,
+    public_key: Option<&str>,
+    auto_chunk: bool,
+    chunk_size: Option<usize>,
+    chunk_overlap: Option<usize>,
+) -> Result<InsertOneResult, ErrorResponse> {
+    let text_len = text.len();
+    let should_chunk = auto_chunk && text_len > 2048;
+
+    info!(
+        "Inserting text into collection '{}': {} chars (encrypted: {}, chunking: {})",
+        collection_name,
+        text_len,
+        public_key.is_some(),
+        should_chunk
+    );
+
+    ensure_collection_exists(state, collection_name)?;
+
+    let upload_config = FileUploadConfig::default();
+    let chunk_size_val = chunk_size.unwrap_or(upload_config.default_chunk_size);
+    let estimated_vectors = if should_chunk {
+        std::cmp::max(1, text_len.div_ceil(chunk_size_val))
+    } else {
+        1
+    };
+
+    check_insert_quota(state, tenant_ctx, estimated_vectors).await?;
+
+    let mut vector_ids: Vec<String> = Vec::new();
+    let mut last_embedding_len = 0usize;
+
+    if should_chunk {
+        let chunk_overlap_val = chunk_overlap.unwrap_or(upload_config.default_chunk_overlap);
+
+        let loader_config = LoaderConfig {
+            max_chunk_size: chunk_size_val,
+            chunk_overlap: chunk_overlap_val,
+            include_patterns: vec![],
+            exclude_patterns: vec![],
+            embedding_dimension: 512,
+            embedding_type: "bm25".to_string(),
+            collection_name: collection_name.to_string(),
+            max_file_size: upload_config.max_file_size,
+        };
+
+        let chunker = Chunker::new(loader_config);
+
+        let file_path = metadata
+            .get("filename")
+            .or_else(|| metadata.get("file_path"))
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("text_input"));
+
+        let chunks = chunker
+            .chunk_text(text, &file_path)
+            .map_err(|e| create_bad_request_error(&format!("Failed to chunk text: {}", e)))?;
+
+        info!(
+            "Text chunked into {} chunks (chunk_size: {}, overlap: {})",
+            chunks.len(),
+            chunk_size_val,
+            chunk_overlap_val
+        );
+
+        for chunk in &chunks {
+            let embedding = state.embedding_manager.embed(&chunk.content).map_err(|e| {
+                create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+            })?;
+            last_embedding_len = embedding.len();
+
+            let mut payload_data = json!({
+                "content": chunk.content,
+                "chunk_index": chunk.chunk_index,
+                "file_path": chunk.file_path,
+            });
+            if let Some(obj) = payload_data.as_object_mut() {
+                for (k, v) in &metadata {
+                    if !obj.contains_key(k) {
+                        obj.insert(k.clone(), json!(v));
+                    }
+                }
+            }
+
+            let payload = if let Some(key) = public_key {
+                let encrypted = vectorizer::security::payload_encryption::encrypt_payload(
+                    &payload_data,
+                    key,
+                )
+                .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
+                vectorizer::models::Payload::from_encrypted(encrypted)
+            } else {
+                vectorizer::models::Payload::new(payload_data)
+            };
+
+            let vector_id = uuid::Uuid::new_v4().to_string();
+            let vector = vectorizer::models::Vector {
+                id: vector_id.clone(),
+                data: embedding,
+                sparse: None,
+                payload: Some(payload),
+                document_id: None,
+            };
+
+            state
+                .store
+                .insert(collection_name, vec![vector])
+                .map_err(ErrorResponse::from)?;
+
+            vector_ids.push(vector_id);
+        }
+    } else {
+        let embedding = state.embedding_manager.embed(text).map_err(|e| {
+            create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+        })?;
+        last_embedding_len = embedding.len();
+
+        let payload_json = serde_json::Value::Object(
+            metadata
+                .iter()
+                .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
+                .collect(),
+        );
+
+        let payload_data = if let Some(key) = public_key {
+            let encrypted =
+                vectorizer::security::payload_encryption::encrypt_payload(&payload_json, key)
+                    .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
+            vectorizer::models::Payload::from_encrypted(encrypted)
+        } else {
+            vectorizer::models::Payload::new(payload_json)
+        };
+
+        let vector_id = uuid::Uuid::new_v4().to_string();
+        let vector = vectorizer::models::Vector {
+            id: vector_id.clone(),
+            data: embedding,
+            sparse: None,
+            payload: Some(payload_data),
+            document_id: None,
+        };
+
+        state
+            .store
+            .insert(collection_name, vec![vector])
+            .map_err(ErrorResponse::from)?;
+
+        vector_ids.push(vector_id);
+    }
+
+    record_insert_usage(
+        state,
+        collection_name,
+        last_embedding_len,
+        vector_ids.len() as u64,
+    )
+    .await;
+
+    mark_collection_dirty(state, collection_name, &vector_ids);
+
+    info!(
+        "Successfully inserted {} vector(s) into collection '{}'",
+        vector_ids.len(),
+        collection_name
+    );
+
+    Ok(InsertOneResult {
+        vector_ids,
+        chunked: should_chunk,
+    })
+}
+
+/// POST /insert — insert a single text document, auto-chunking large inputs.
 pub async fn insert_text(
     State(state): State<VectorizerServer>,
     tenant_ctx: Option<Extension<RequestTenantContext>>,
@@ -30,7 +475,6 @@ pub async fn insert_text(
 ) -> Result<Json<Value>, ErrorResponse> {
     use vectorizer::monitoring::metrics::METRICS;
 
-    // Start latency timer
     let timer = METRICS.insert_latency_seconds.start_timer();
 
     let collection_name = payload
@@ -51,31 +495,13 @@ pub async fn insert_text(
                 "missing or invalid text parameter",
             )
         })?;
-    let metadata = payload
-        .get("metadata")
-        .and_then(|m| m.as_object())
-        .map(|m| {
-            m.iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        match v {
-                            serde_json::Value::String(s) => s.clone(),
-                            _ => v.to_string(),
-                        },
-                    )
-                })
-                .collect::<std::collections::HashMap<String, String>>()
-        })
-        .unwrap_or_default();
 
+    let metadata = parse_metadata(&payload);
     let public_key = payload.get("public_key").and_then(|k| k.as_str());
-
-    // Get chunking parameters (optional)
     let auto_chunk = payload
         .get("auto_chunk")
         .and_then(|v| v.as_bool())
-        .unwrap_or(true); // Default: enable auto-chunking for large texts
+        .unwrap_or(true);
     let chunk_size = payload
         .get("chunk_size")
         .and_then(|v| v.as_u64())
@@ -85,418 +511,20 @@ pub async fn insert_text(
         .and_then(|v| v.as_u64())
         .map(|v| v as usize);
 
-    // Determine if we should chunk (text is large or auto_chunk is enabled)
-    let text_len = text.len();
-    let should_chunk = auto_chunk && text_len > 2048; // Threshold: 2048 characters (default chunk size)
-
-    info!(
-        "Inserting text into collection '{}': {} chars (encrypted: {}, chunking: {})",
+    let result = insert_one_text(
+        &state,
+        tenant_ctx.as_ref(),
         collection_name,
-        text_len,
-        public_key.is_some(),
-        should_chunk
-    );
+        text,
+        metadata,
+        public_key,
+        auto_chunk,
+        chunk_size,
+        chunk_overlap,
+    )
+    .await?;
 
-    // Verify collection exists, create if it doesn't
-    // The insert operation needs a write lock, so we can't hold a read reference
-    {
-        match state.store.get_collection(collection_name) {
-            Ok(_) => {
-                // Collection exists, continue
-            }
-            Err(VectorizerError::CollectionNotFound(_)) => {
-                // Collection doesn't exist, create it with default config
-                info!(
-                    "Collection '{}' not found, creating automatically with default config",
-                    collection_name
-                );
-
-                // Try to load defaults from config.yml
-                let default_config = {
-                    if let Ok(config_content) = std::fs::read_to_string("config.yml") {
-                        if let Ok(yaml_value) =
-                            serde_yaml::from_str::<serde_json::Value>(&config_content)
-                        {
-                            // Extract collections.defaults if available
-                            if let Some(collections) = yaml_value.get("collections") {
-                                if let Some(defaults) = collections.get("defaults") {
-                                    let dimension = defaults
-                                        .get("dimension")
-                                        .and_then(|d| d.as_u64())
-                                        .map(|d| d as usize)
-                                        .unwrap_or(512);
-
-                                    let metric = defaults
-                                        .get("metric")
-                                        .and_then(|m| m.as_str())
-                                        .unwrap_or("cosine");
-
-                                    let metric_enum = match metric {
-                                        "cosine" => vectorizer::models::DistanceMetric::Cosine,
-                                        "euclidean" => {
-                                            vectorizer::models::DistanceMetric::Euclidean
-                                        }
-                                        "dot" => vectorizer::models::DistanceMetric::DotProduct,
-                                        _ => vectorizer::models::DistanceMetric::Cosine,
-                                    };
-
-                                    // Extract HNSW config
-                                    let hnsw_config = if let Some(index) = defaults.get("index") {
-                                        if let Some(hnsw) = index.get("hnsw") {
-                                            vectorizer::models::HnswConfig {
-                                                m: hnsw
-                                                    .get("m")
-                                                    .and_then(|m| m.as_u64())
-                                                    .map(|m| m as usize)
-                                                    .unwrap_or(16),
-                                                ef_construction: hnsw
-                                                    .get("ef_construction")
-                                                    .and_then(|e| e.as_u64())
-                                                    .map(|e| e as usize)
-                                                    .unwrap_or(200),
-                                                ef_search: hnsw
-                                                    .get("ef_search")
-                                                    .and_then(|e| e.as_u64())
-                                                    .map(|e| e as usize)
-                                                    .unwrap_or(64),
-                                                seed: None,
-                                            }
-                                        } else {
-                                            vectorizer::models::HnswConfig::default()
-                                        }
-                                    } else {
-                                        vectorizer::models::HnswConfig::default()
-                                    };
-
-                                    // Extract quantization config
-                                    let quantization = if let Some(quant) =
-                                        defaults.get("quantization")
-                                    {
-                                        if let Some(typ) =
-                                            quant.get("type").and_then(|t| t.as_str())
-                                        {
-                                            if typ == "sq" {
-                                                let bits = quant
-                                                    .get("sq")
-                                                    .and_then(|s| s.get("bits"))
-                                                    .and_then(|b| b.as_u64())
-                                                    .map(|b| b as usize)
-                                                    .unwrap_or(8);
-                                                vectorizer::models::QuantizationConfig::SQ { bits }
-                                            } else {
-                                                vectorizer::models::QuantizationConfig::None
-                                            }
-                                        } else {
-                                            vectorizer::models::QuantizationConfig::None
-                                        }
-                                    } else {
-                                        vectorizer::models::QuantizationConfig::SQ { bits: 8 }
-                                    };
-
-                                    vectorizer::models::CollectionConfig {
-                                        dimension,
-                                        metric: metric_enum,
-                                        hnsw_config,
-                                        quantization,
-                                        compression: vectorizer::models::CompressionConfig::default(
-                                        ),
-                                        normalization: None,
-                                        storage_type: Some(vectorizer::models::StorageType::Memory),
-                                        sharding: None,
-                                        graph: None,
-                                        encryption: None,
-                                    }
-                                } else {
-                                    vectorizer::models::CollectionConfig::default()
-                                }
-                            } else {
-                                vectorizer::models::CollectionConfig::default()
-                            }
-                        } else {
-                            vectorizer::models::CollectionConfig::default()
-                        }
-                    } else {
-                        vectorizer::models::CollectionConfig::default()
-                    }
-                };
-
-                // Create collection
-                state
-                    .store
-                    .create_collection(collection_name, default_config)
-                    .map_err(|e| ErrorResponse::from(e))?;
-
-                info!(
-                    "Collection '{}' created successfully with auto-creation",
-                    collection_name
-                );
-            }
-            Err(e) => {
-                // Other error, return it
-                return Err(ErrorResponse::from(e));
-            }
-        }
-        // Reference dropped here at end of block
-    }
-
-    // Determine number of vectors to create (for quota check)
-    let estimated_vectors = if should_chunk {
-        // Estimate: divide text length by chunk size
-        let upload_config = FileUploadConfig::default();
-        let chunk_size_val = chunk_size.unwrap_or(upload_config.default_chunk_size);
-        std::cmp::max(1, (text_len + chunk_size_val - 1) / chunk_size_val)
-    } else {
-        1
-    };
-
-    // Check HiveHub quota for vector insertion if enabled
-    if let Some(ref hub_manager) = state.hub_manager {
-        // Extract tenant ID from request context, or use "default" for anonymous requests
-        let tenant_id = tenant_ctx
-            .as_ref()
-            .map(|ctx| ctx.0.0.tenant_id.as_str())
-            .unwrap_or("default");
-        match hub_manager
-            .check_quota(
-                tenant_id,
-                vectorizer::hub::QuotaType::VectorCount,
-                estimated_vectors as u64,
-            )
-            .await
-        {
-            Ok(allowed) => {
-                if !allowed {
-                    warn!(
-                        "Vector insertion denied for tenant {}: quota exceeded (estimated {} vectors)",
-                        tenant_id, estimated_vectors
-                    );
-                    return Err(ErrorResponse::new(
-                        "QUOTA_EXCEEDED".to_string(),
-                        format!(
-                            "Vector quota exceeded. Estimated {} vectors needed. Please upgrade your plan or delete unused vectors.",
-                            estimated_vectors
-                        ),
-                        StatusCode::TOO_MANY_REQUESTS,
-                    ));
-                }
-            }
-            Err(e) => {
-                warn!("Failed to check quota with HiveHub: {}", e);
-            }
-        }
-    }
-
-    let mut vectors_created = 0;
-    let mut vector_ids = Vec::new();
-
-    if should_chunk {
-        // Use chunking for large texts
-        let upload_config = FileUploadConfig::default();
-        let chunk_size_val = chunk_size.unwrap_or(upload_config.default_chunk_size);
-        let chunk_overlap_val = chunk_overlap.unwrap_or(upload_config.default_chunk_overlap);
-
-        // Create chunker configuration
-        let loader_config = LoaderConfig {
-            max_chunk_size: chunk_size_val,
-            chunk_overlap: chunk_overlap_val,
-            include_patterns: vec![],
-            exclude_patterns: vec![],
-            embedding_dimension: 512,
-            embedding_type: "bm25".to_string(),
-            collection_name: collection_name.to_string(),
-            max_file_size: upload_config.max_file_size,
-        };
-
-        let chunker = Chunker::new(loader_config);
-
-        // Use filename from metadata if available, otherwise use a default
-        let file_path = metadata
-            .get("filename")
-            .or_else(|| metadata.get("file_path"))
-            .map(|s| PathBuf::from(s))
-            .unwrap_or_else(|| PathBuf::from("text_input"));
-
-        // Chunk the text
-        let chunks = chunker
-            .chunk_text(text, &file_path)
-            .map_err(|e| create_bad_request_error(&format!("Failed to chunk text: {}", e)))?;
-
-        info!(
-            "Text chunked into {} chunks (chunk_size: {}, overlap: {})",
-            chunks.len(),
-            chunk_size_val,
-            chunk_overlap_val
-        );
-
-        // Create vectors for each chunk
-        for chunk in &chunks {
-            // Generate embedding for the chunk
-            let embedding = state.embedding_manager.embed(&chunk.content).map_err(|e| {
-                create_bad_request_error(&format!("Failed to generate embedding: {}", e))
-            })?;
-            let embedding_len = embedding.len();
-
-            // Build payload with chunk metadata
-            let mut payload_data = json!({
-                "content": chunk.content,
-                "chunk_index": chunk.chunk_index,
-                "file_path": chunk.file_path,
-            });
-
-            // Merge user-provided metadata
-            if let Some(obj) = payload_data.as_object_mut() {
-                for (k, v) in &metadata {
-                    if !obj.contains_key(k) {
-                        obj.insert(k.clone(), json!(v));
-                    }
-                }
-            }
-
-            // Encrypt payload if public_key is provided
-            let payload = if let Some(key) = public_key {
-                let encrypted = vectorizer::security::payload_encryption::encrypt_payload(
-                    &payload_data,
-                    key,
-                )
-                .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
-                vectorizer::models::Payload::from_encrypted(encrypted)
-            } else {
-                vectorizer::models::Payload::new(payload_data)
-            };
-
-            // Create vector with generated ID
-            let vector_id = format!("{}", uuid::Uuid::new_v4());
-            let vector = vectorizer::models::Vector {
-                id: vector_id.clone(),
-                data: embedding,
-                sparse: None,
-                payload: Some(payload),
-                document_id: None,
-            };
-
-            // Insert the vector
-            state
-                .store
-                .insert(collection_name, vec![vector])
-                .map_err(|e| ErrorResponse::from(e))?;
-
-            vector_ids.push(vector_id);
-            vectors_created += 1;
-
-            // Record usage metrics if HiveHub is enabled
-            if let Some(ref hub_manager) = state.hub_manager {
-                let mut metrics = vectorizer::hub::UsageMetrics::new();
-                let estimated_storage = (embedding_len * 4) as u64;
-                metrics.record_insert(1, estimated_storage);
-                let collection_id = collection_metrics_uuid(collection_name);
-                if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
-                    warn!("Failed to record vector insertion usage: {}", e);
-                }
-            }
-        }
-    } else {
-        // Single vector for small texts (original behavior)
-        let embedding = state.embedding_manager.embed(text).map_err(|e| {
-            create_bad_request_error(&format!("Failed to generate embedding: {}", e))
-        })?;
-        let embedding_len = embedding.len();
-
-        // Create payload with metadata
-        let payload_json = serde_json::Value::Object(
-            metadata
-                .iter()
-                .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
-                .collect(),
-        );
-
-        // Encrypt payload if public_key is provided
-        let payload_data = if let Some(key) = public_key {
-            let encrypted =
-                vectorizer::security::payload_encryption::encrypt_payload(&payload_json, key)
-                    .map_err(|e| create_bad_request_error(&format!("Encryption failed: {}", e)))?;
-            vectorizer::models::Payload::from_encrypted(encrypted)
-        } else {
-            vectorizer::models::Payload::new(payload_json)
-        };
-
-        // Create vector with generated ID
-        let vector_id = format!("{}", uuid::Uuid::new_v4());
-        let vector = vectorizer::models::Vector {
-            id: vector_id.clone(),
-            data: embedding,
-            sparse: None,
-            payload: Some(payload_data),
-            document_id: None,
-        };
-
-        // Insert the vector using the store
-        state
-            .store
-            .insert(collection_name, vec![vector])
-            .map_err(|e| ErrorResponse::from(e))?;
-
-        vector_ids.push(vector_id);
-        vectors_created = 1;
-
-        // Record usage metrics if HiveHub is enabled
-        if let Some(ref hub_manager) = state.hub_manager {
-            let mut metrics = vectorizer::hub::UsageMetrics::new();
-            let estimated_storage = (embedding_len * 4) as u64;
-            metrics.record_insert(1, estimated_storage);
-            let collection_id = collection_metrics_uuid(collection_name);
-            if let Err(e) = hub_manager.record_usage(collection_id, metrics).await {
-                warn!("Failed to record vector insertion usage: {}", e);
-            }
-        }
-    }
-
-    // Mark changes for auto-save
-    if let Some(ref auto_save) = state.auto_save_manager {
-        auto_save.mark_changed();
-    }
-
-    // Invalidate cache for this collection
-    state.query_cache.invalidate_collection(collection_name);
-    debug!(
-        "💾 Cache invalidated for collection '{}' after insert",
-        collection_name
-    );
-
-    // Replicate vector insertions to followers (Raft HA mode)
-    let active_master: Option<std::sync::Arc<vectorizer::replication::MasterNode>> = state
-        .master_node
-        .clone()
-        .or_else(|| state.ha_manager.as_ref().and_then(|ha| ha.master_node()));
-    if let Some(ref master) = active_master {
-        // Re-read the inserted vectors for replication
-        if let Ok(col) = state.store.get_collection(collection_name) {
-            for vid in &vector_ids {
-                if let Ok(v) = col.get_vector(vid) {
-                    let payload_bytes = v.payload.as_ref().and_then(|p| serde_json::to_vec(p).ok());
-                    let op = vectorizer::replication::VectorOperation::InsertVector {
-                        collection: collection_name.to_string(),
-                        id: vid.clone(),
-                        vector: v.data.clone(),
-                        payload: payload_bytes,
-                        owner_id: None,
-                    };
-                    master.replicate(op);
-                }
-            }
-            debug!(
-                "Replicated {} vectors for collection '{}'",
-                vector_ids.len(),
-                collection_name
-            );
-        }
-    }
-
-    info!(
-        "Successfully inserted {} vector(s) into collection '{}'",
-        vectors_created, collection_name
-    );
-
-    let label_collection: &str = &collection_name;
+    let label_collection: &str = collection_name;
     let label_success = "success";
     METRICS
         .insert_requests_total
@@ -505,10 +533,13 @@ pub async fn insert_text(
     drop(timer);
 
     Ok(Json(json!({
-        "message": format!("Text inserted successfully ({} vector(s) created)", vectors_created),
-        "vectors_created": vectors_created,
-        "vector_ids": vector_ids,
+        "message": format!(
+            "Text inserted successfully ({} vector(s) created)",
+            result.vector_ids.len()
+        ),
+        "vectors_created": result.vector_ids.len(),
+        "vector_ids": result.vector_ids,
         "collection": collection_name,
-        "chunked": should_chunk
+        "chunked": result.chunked
     })))
 }
