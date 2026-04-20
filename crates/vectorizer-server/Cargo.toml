@@ -126,7 +126,7 @@ regex = { version = "1.10", default-features = false, features = ["std", "unicod
 hnsw_rs = "0.3"
 tar = "0.4"
 flate2 = "1.1"
-tantivy = "0.25"
+tantivy = "0.26"
 
 # Openraft (replication)
 openraft = { version = "=0.10.0-alpha.17", features = ["serde", "type-alias"] }
