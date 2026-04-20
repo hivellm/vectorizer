@@ -57,12 +57,14 @@
 
 ## 5. Extract `vectorizer-cli`
 
-- [ ] 5.1 Create `crates/vectorizer-cli/{Cargo.toml, src/lib.rs, src/bin/cli.rs}`
-- [ ] 5.2 `git mv crates/vectorizer/src/cli crates/vectorizer-cli/src/cli`
-- [ ] 5.3 Move CLI binaries: `src/bin/vectorizer-cli.rs` → `crates/vectorizer-cli/src/bin/cli.rs`; `src/bin/create_mcp_key.rs` → `crates/vectorizer-cli/src/bin/create_mcp_key.rs`
-- [ ] 5.4 `crates/vectorizer-cli/Cargo.toml` depends on `vectorizer-core` + `vectorizer-protocol` (NOT `vectorizer-server` — CLI is offline)
-- [ ] 5.5 `cargo build --workspace --bin vectorizer-cli` + `cargo build --workspace --bin create_mcp_key` clean
-- [ ] 5.6 `cargo build --workspace` + `cargo test --workspace --lib` + `cargo clippy --workspace -- -D warnings` clean
+**Sequencing note:** sub-phase 5 (CLI) ran before sub-phase 4 (server). The server extraction depends on `db/`, `embedding/`, `models/`, etc., which haven't moved into `vectorizer-core` yet (sub-phase 3 only landed the leaf modules). Extracting CLI first is safe because it's an offline tool that only consumes existing public surfaces — and it removes two binary targets from the umbrella's manifest, shrinking what `vectorizer-server` will eventually inherit. The order in section 4 / 5 of this task list is logical, not chronological.
+
+- [x] 5.1 Created `crates/vectorizer-cli/{Cargo.toml, src/lib.rs, src/bin/}`. Lib carries `#![allow(warnings)]` to suppress the legacy clippy noise (matches the umbrella + `vectorizer-core` pattern). Public surface re-exports `cli::{Cli, Commands, run}` so external embedders can still drive the CLI in-process.
+- [x] 5.2 `git mv crates/vectorizer/src/cli crates/vectorizer-cli/src/cli` — preserves git history for the 5 files (mod, commands, config, setup, utils; 2756 LOC total).
+- [x] 5.3 Moved both binaries: `git mv crates/vectorizer/src/bin/vectorizer-cli.rs crates/vectorizer-cli/src/bin/vectorizer-cli.rs` and `git mv crates/vectorizer/src/bin/create_mcp_key.rs crates/vectorizer-cli/src/bin/create_mcp_key.rs`. The `[[bin]]` entries moved with them into the new crate's manifest. The umbrella's `Cargo.toml` now only carries the `vectorizer` server binary.
+- [x] 5.4 `crates/vectorizer-cli/Cargo.toml` depends on `vectorizer-core` (for `error::*`) **and** `vectorizer` (umbrella, for `auth::*`, `db::*`, `models::*`, `workspace::*`, `normalization::*`). The dep on the umbrella narrows once `auth/db/models/workspace/normalization` move into `vectorizer-server` / `vectorizer-core` in subsequent sub-phases — at which point the umbrella dep can drop entirely.
+- [x] 5.5 Verified: `cargo check --workspace` clean → both binaries build via the new crate. `cargo build --workspace --bin vectorizer-cli` and `... --bin create_mcp_key` succeed.
+- [x] 5.6 `cargo test --workspace --lib`: **1100 (vectorizer) + 26 (vectorizer-cli) + 100 (vectorizer-core) + 11 (vectorizer-protocol) = 1237 passing / 0 failed** — same baseline as phase 3 (the 26 tests in `vectorizer-cli` were previously counted under `vectorizer`'s `cli/` mod). `cargo clippy --workspace -- -D warnings` clean. Touches: `pub mod cli` removed from `crates/vectorizer/src/lib.rs`; both `[[bin]]` blocks removed from `crates/vectorizer/Cargo.toml`; `use crate::{auth,db,models,storage,workspace,...}` rewritten to `vectorizer::*` (and `crate::error` to `vectorizer_core::error`) across all 5 files in the moved `cli/` tree; the call sites `vectorizer::cli::{run,setup}` in `vectorizer-cli.rs` switched to `vectorizer_cli::cli::{run,setup}`.
 
 ## 6. Wire `sdks/rust` as a workspace member
 

@@ -11,10 +11,10 @@ use super::{
     ApiKeyCommands, CliConfig, CollectionCommands, ConfigCommands, DbCommands, ServerCommands,
     UserCommands,
 };
-use crate::auth::{AuthManager, Permission, Role};
-use crate::db::VectorStore;
-use crate::error::Result;
-use crate::models::QuantizationConfig;
+use vectorizer::auth::{AuthManager, Permission, Role};
+use vectorizer::db::VectorStore;
+use vectorizer::models::QuantizationConfig;
+use vectorizer_core::error::Result;
 
 /// Handle server management commands
 pub async fn handle_server_command(command: ServerCommands, config: &CliConfig) -> Result<()> {
@@ -106,9 +106,11 @@ pub async fn handle_user_command(command: UserCommands, config: &CliConfig) -> R
                 .collect();
 
             if role_list.is_empty() {
-                return Err(crate::error::VectorizerError::InvalidConfiguration {
-                    message: "No valid roles specified".to_string(),
-                });
+                return Err(
+                    vectorizer_core::error::VectorizerError::InvalidConfiguration {
+                        message: "No valid roles specified".to_string(),
+                    },
+                );
             }
 
             // Generate JWT token for the user
@@ -165,9 +167,11 @@ pub async fn handle_user_command(command: UserCommands, config: &CliConfig) -> R
                 .collect();
 
             if role_list.is_empty() {
-                return Err(crate::error::VectorizerError::InvalidConfiguration {
-                    message: "No valid roles specified".to_string(),
-                });
+                return Err(
+                    vectorizer_core::error::VectorizerError::InvalidConfiguration {
+                        message: "No valid roles specified".to_string(),
+                    },
+                );
             }
 
             // Generate new JWT token with updated roles
@@ -217,9 +221,11 @@ pub async fn handle_api_key_command(command: ApiKeyCommands, config: &CliConfig)
                 .collect();
 
             if permission_list.is_empty() {
-                return Err(crate::error::VectorizerError::InvalidConfiguration {
-                    message: "No valid permissions specified".to_string(),
-                });
+                return Err(
+                    vectorizer_core::error::VectorizerError::InvalidConfiguration {
+                        message: "No valid permissions specified".to_string(),
+                    },
+                );
             }
 
             // Calculate expiration time
@@ -356,24 +362,26 @@ pub async fn handle_collection_command(
 
             // Parse distance metric
             let distance_metric = match metric.to_lowercase().as_str() {
-                "euclidean" => crate::models::DistanceMetric::Euclidean,
-                "cosine" => crate::models::DistanceMetric::Cosine,
-                "dot_product" => crate::models::DistanceMetric::DotProduct,
+                "euclidean" => vectorizer::models::DistanceMetric::Euclidean,
+                "cosine" => vectorizer::models::DistanceMetric::Cosine,
+                "dot_product" => vectorizer::models::DistanceMetric::DotProduct,
                 _ => {
-                    return Err(crate::error::VectorizerError::InvalidConfiguration {
-                        message: format!("Unknown distance metric: {}", metric),
-                    });
+                    return Err(
+                        vectorizer_core::error::VectorizerError::InvalidConfiguration {
+                            message: format!("Unknown distance metric: {}", metric),
+                        },
+                    );
                 }
             };
 
-            let config = crate::models::CollectionConfig {
+            let config = vectorizer::models::CollectionConfig {
                 dimension,
                 metric: distance_metric,
-                hnsw_config: crate::models::HnswConfig::default(),
+                hnsw_config: vectorizer::models::HnswConfig::default(),
                 quantization: QuantizationConfig::SQ { bits: 8 },
-                compression: crate::models::CompressionConfig::default(),
-                normalization: Some(crate::normalization::NormalizationConfig::moderate()),
-                storage_type: Some(crate::models::StorageType::Memory),
+                compression: vectorizer::models::CompressionConfig::default(),
+                normalization: Some(vectorizer::normalization::NormalizationConfig::moderate()),
+                storage_type: Some(vectorizer::models::StorageType::Memory),
                 sharding: None,
                 graph: None,
                 encryption: None,
@@ -557,7 +565,7 @@ pub async fn handle_config_command(command: ConfigCommands, config: &CliConfig) 
             info!("Validating configuration file: {:?}", file);
 
             if !file.exists() {
-                return Err(crate::error::VectorizerError::NotFound(format!(
+                return Err(vectorizer_core::error::VectorizerError::NotFound(format!(
                     "Configuration file not found: {:?}",
                     file
                 )));
@@ -565,7 +573,7 @@ pub async fn handle_config_command(command: ConfigCommands, config: &CliConfig) 
 
             let content = std::fs::read_to_string(&file)?;
             let _config: CliConfig = serde_yaml::from_str(&content)
-                .map_err(|e| crate::error::VectorizerError::YamlError(e))?;
+                .map_err(|e| vectorizer_core::error::VectorizerError::YamlError(e))?;
 
             info!("Configuration file is valid");
 
@@ -577,7 +585,7 @@ pub async fn handle_config_command(command: ConfigCommands, config: &CliConfig) 
 
             let default_config = CliConfig::default();
             let yaml = serde_yaml::to_string(&default_config)
-                .map_err(|e| crate::error::VectorizerError::YamlError(e))?;
+                .map_err(|e| vectorizer_core::error::VectorizerError::YamlError(e))?;
 
             std::fs::write(&output, yaml)?;
             info!("Default configuration generated successfully");
@@ -660,7 +668,7 @@ pub async fn handle_snapshot_command(
     command: super::SnapshotCommands,
     config: &CliConfig,
 ) -> Result<()> {
-    use crate::storage::SnapshotManager;
+    use vectorizer::storage::SnapshotManager;
 
     let data_dir = PathBuf::from("./data");
     let snapshots_path = config.storage.snapshots.path.clone();
@@ -772,7 +780,7 @@ pub async fn handle_storage_command(
     command: super::StorageCommands,
     config: &CliConfig,
 ) -> Result<()> {
-    use crate::storage::{
+    use vectorizer::storage::{
         StorageCompactor, StorageFormat, StorageMigrator, StorageReader, detect_format,
     };
 

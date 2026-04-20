@@ -9101,6 +9101,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectorizer-cli"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "ctrlc",
+ "libc",
+ "rand 0.9.3",
+ "reqwest",
+ "serde",
+ "serde_yaml",
+ "sys-info",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "vectorizer",
+ "vectorizer-core",
+]
+
+[[package]]
 name = "vectorizer-core"
 version = "3.0.0"
 dependencies = [

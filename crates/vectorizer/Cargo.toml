@@ -311,9 +311,10 @@ harness = false
 # path = "../../benches/scripts/diagnostic_benchmark.rs"
 # required-features = ["benchmarks"]
 
-[[bin]]
-name = "vectorizer-cli"
-path = "src/bin/vectorizer-cli.rs"
+# vectorizer-cli + create_mcp_key binaries moved to the dedicated
+# `vectorizer-cli` crate under phase4_split-vectorizer-workspace
+# sub-phase 5. Run with `cargo run --bin vectorizer-cli` from the
+# workspace root — Cargo finds the binary in the new crate.
 
 [[bin]]
 name = "vectorizer"

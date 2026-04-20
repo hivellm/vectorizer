@@ -377,14 +377,14 @@ pub struct CliConfig {
     /// Server configuration
     pub server: ServerConfig,
     /// Authentication configuration
-    pub auth: crate::auth::AuthConfig,
+    pub auth: vectorizer::auth::AuthConfig,
     /// Database configuration
     pub database: DatabaseConfig,
     /// Logging configuration
     pub logging: LoggingConfig,
     /// Storage configuration
     #[serde(default)]
-    pub storage: crate::storage::StorageConfig,
+    pub storage: vectorizer::storage::StorageConfig,
 }
 
 /// Server configuration for CLI
@@ -431,7 +431,7 @@ impl Default for CliConfig {
                 data_dir: PathBuf::from("./data"),
                 auth_enabled: true,
             },
-            auth: crate::auth::AuthConfig::default(),
+            auth: vectorizer::auth::AuthConfig::default(),
             database: DatabaseConfig {
                 persistence_path: PathBuf::from("./data"),
                 compression_enabled: true,
@@ -442,7 +442,7 @@ impl Default for CliConfig {
                 log_to_file: false,
                 log_file: None,
             },
-            storage: crate::storage::StorageConfig::default(),
+            storage: vectorizer::storage::StorageConfig::default(),
         }
     }
 }

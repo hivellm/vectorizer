@@ -20,7 +20,9 @@ pub mod api;
 pub mod auth;
 pub mod batch;
 pub mod cache;
-pub mod cli;
+// `cli` moved into the standalone `vectorizer-cli` crate under
+// phase4_split-vectorizer-workspace sub-phase 5. The
+// `vectorizer-cli` + `create_mcp_key` binaries live there too.
 pub mod cluster;
 // `codec`, `compression`, `error`, `parallel`, `quantization`, `simd`
 // moved into `vectorizer-core` under

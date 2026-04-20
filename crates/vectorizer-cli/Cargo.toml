@@ -1,0 +1,52 @@
+[package]
+name = "vectorizer-cli"
+version = "3.0.0"
+edition = "2024"
+authors = ["HiveLLM Contributors"]
+description = "Command-line interface for Vectorizer (vectorizer-cli + create_mcp_key binaries)."
+license = "Apache-2.0"
+repository = "https://github.com/hivellm/vectorizer"
+keywords = ["vector-database", "cli"]
+categories = ["command-line-utilities", "database"]
+
+[dependencies]
+# Workspace seams
+vectorizer-core = { path = "../vectorizer-core" }
+# CLI still depends on the umbrella for `auth::*`, `db::*`,
+# `models::*`, `workspace::*` — those move into vectorizer-server /
+# vectorizer-core in subsequent sub-phases. Once they do, this dep
+# narrows.
+vectorizer = { path = "../vectorizer" }
+
+# CLI deps
+clap = { version = "4.5", features = ["derive", "env"] }
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_yaml = { version = "0.9", default-features = false }
+tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "signal"], default-features = false }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"], default-features = false }
+anyhow = { version = "1.0", features = ["backtrace"], default-features = false }
+chrono = { version = "0.4", features = ["serde"], default-features = false }
+rand = "0.9"
+sys-info = "0.9"
+
+# Binary support: process spawn + signal handling
+ctrlc = { version = "3.5", optional = true }
+libc = "0.2.178"
+
+# HTTP client for status checks (used by `vectorizer-cli status`)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[[bin]]
+name = "vectorizer-cli"
+path = "src/bin/vectorizer-cli.rs"
+
+[[bin]]
+name = "create_mcp_key"
+path = "src/bin/create_mcp_key.rs"
+
+[lints]
+workspace = true
