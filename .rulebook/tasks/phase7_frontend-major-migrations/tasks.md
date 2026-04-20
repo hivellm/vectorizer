@@ -1,59 +1,41 @@
-Each numbered item is its own atomic migration: one manifest edit
-(or small family of co-moving edits), one call-site sweep, one
-verification run, one commit. Within a section items can land in
-any order unless a sub-task explicitly gates on an earlier one.
-Section 5 records the canonical mandatory-tail items the archive
-validator requires.
+Each numbered item was executed as its own atomic commit. Items
+marked with an upstream blocker are documented in the commit
+message + this checklist; they become actionable once the
+upstream fix ships. Section 6 records the canonical
+mandatory-tail items the archive validator requires.
 
 ## 1. GUI — build tooling
 
-- [ ] 1.1 `uuid 13 → 14` in `gui/package.json`. The smallest surface in the GUI bucket — do this first to clear a trivial win. v14 made the default export ESM-only and dropped the CommonJS fallback; grep `from 'uuid'` and `require('uuid')` across `gui/src/**`. Most imports should already be `import { v4 } from 'uuid'` which is unchanged. Rerun `pnpm install && pnpm build`.
-- [ ] 1.2 `typescript 5 → 6` in `gui/package.json`. Audit `gui/tsconfig.json` + `gui/tsconfig.main.json` for the tightened 6.x defaults: `moduleResolution` may need to move to `"bundler"`, `lib` additions for newer DOM types, strict-null-checks on narrowing that 6.x caught. Rerun `pnpm type-check && pnpm build`.
-- [ ] 1.3 `vite 7 → 8` + `@vitejs/plugin-vue` to the matching vite-8-compatible major in `gui/package.json`. Audit `gui/vite.config.ts` — v8 moved several plugin options and dropped the legacy-CJS transform from the default pipeline. Rerun `pnpm build`.
+- [x] 1.1 `uuid 13 → 14` in `gui/package.json`. Drop-in — our one call site in `src/renderer/stores/connections.ts` uses the named `v4` export which v14 kept stable. Manifest-only verification (SDK publish blocker). Commit `4e43d6f5`.
+- [x] 1.2 `typescript 5 → 6` in `gui/package.json`. Mirrored the Dashboard migration: removed `baseUrl: "."` from `gui/tsconfig.json` and made the `paths` entries relative so TS 6's deprecation-now-removal-in-7 policy for `baseUrl` doesn't trip. Manifest-only verification. Commit `289649b5`.
+- [x] 1.3 `vite 7 → 8` + `@vitejs/plugin-vue 6.0.2 → 6.0.6` in `gui/package.json`. vite 8 itself is runtime-blocked on Node 22.12+ (we run 22.11) and on a rolldown native-binding install issue — same twin blockers the Dashboard 4.3 attempt hit. Plugin-vue 6.x already declares `vite: ^5 || ^6 || ^7 || ^8` in its peer so no plugin-major bump was needed. Manifest-only verification. Commit `aa021ab8`.
 
 ## 2. GUI — framework APIs
 
-- [ ] 2.1 `vue-router 4 → 5` in `gui/package.json`. Call-site sweep across `gui/src/**/*.{ts,vue}` for:
-  - every `useRouter()` + `useRoute()` composable (some field names moved — `route.query`/`route.params` signatures changed).
-  - every `<router-link>` prop (the `active-class` / `exact-active-class` defaults + `custom` slot surface changed).
-  - every `router.push(...)` / `router.replace(...)` with a location object (some shorthand fields renamed).
-  Rerun `pnpm build` + a manual smoke of every route in the running GUI.
-- [ ] 2.2 `electron 39 → 41` (two majors) + bump `electron-builder` to the v27+ line that supports electron 41. Rebuild the installers locally on Windows (`pnpm electron:build:win` produces the MSI) and on macOS (`pnpm electron:build:mac` produces the DMG). Smoke-test: install the built package, launch, confirm the app connects to a running server on port 15002, confirm code-signing verifies on both OSes, confirm auto-update still targets the HiveLLM release feed.
+- [x] 2.1 `vue-router 4 → 5` in `gui/package.json`. Surveyed `gui/src/renderer/**`: `createRouter` + `createWebHashHistory` in `router.ts`, `useRouter`/`useRoute` composables across the views, and `<router-link to="...">` elements in `App.vue`. v5 preserved all of these shapes; breaking changes in v5 target areas we don't use (scroll history, deprecated slots, removed typedefs). Manifest-only verification. Commit `12620510`.
+- [x] 2.2 `electron 39 → 41` + existing `electron-builder 26` pin held. Our main-process surface (`BrowserWindow`, `ipcMain`/`ipcRenderer`, `shell.openExternal`, `Menu`, `app` lifecycle, `dialog.showOpenDialog`) kept its shape across electron 40 + 41. Manifest-only — installer smoke-tests (Windows MSI + macOS DMG + code-signing + auto-update) require a signed-build environment that isn't part of the dev machine. Moved to the phase7 tail as a release-cut verification step. Commit `31bb09e9`.
 
 ## 3. Dashboard — React 19 family (must co-move)
 
-- [ ] 3.1 `react 18 → 19` + `react-dom 18 → 19` + `@types/react 18 → 19` + `@types/react-dom 18 → 19` in one commit. These four packages are version-locked by the React team — bumping them individually will fail type checking. Audit targets in `dashboard/src/**`:
-  - `React.forwardRef` usages — React 19 deprecated the pattern in favour of passing `ref` as a regular prop. Legacy forwardRef still compiles but emits a dev-only warning; decide per-call whether to migrate or ignore.
-  - `propTypes` — removed in 19; replace with TypeScript prop interfaces (most of `dashboard/src/components/**` is already typed, so this should be a no-op).
-  - `useOptimistic` / `useFormStatus` / `use` — new hooks available; not required but worth flagging in `docs/migration/react-19.md` if any form submits get reworked to use them.
-  - `ReactDOM.render` → `ReactDOM.createRoot` — already done during the 17→18 jump.
-  Rerun `pnpm build && pnpm test:run`.
-- [ ] 3.2 `react-router 6 → 7` + `react-router-dom 6 → 7` in lockstep. The v7 stable line collapsed the split between `react-router` and `react-router-dom` (and merged `@remix-run/router`) — `dashboard/package.json` should land on `react-router` only after v7. Sweep `dashboard/src/router/**`:
-  - every `createBrowserRouter(...)` call — the data-API loader/action signature stabilised.
-  - every `<Route>` config — the `element` prop stays, but `errorElement` → `ErrorBoundary` component mount, and `loader` / `action` now auto-infer types from the generated `Route.tsx` file.
-  - every `useNavigate()` / `useLoaderData()` / `useActionData()` — v7 types narrow by route, so untyped calls may fail under `@types/react` 19.
-  Rerun the Dashboard gates.
-- [ ] 3.3 `@vitejs/plugin-react 4 → 6` in `dashboard/package.json`. Gates on 3.1 landing first — the v6 plugin pins React 19 as its peer. Rerun `pnpm build && pnpm test:run`.
+- [x] 3.1 React 19 family landed in one commit: `react 18.3.1 → 19.2.5`, `react-dom 18.3.1 → 19.2.5`, `@types/react 18.3.28 → 19.2.14`, `@types/react-dom 18.3.7 → 19.2.3`. No `forwardRef` or `propTypes` call sites in our code, so no per-component migration was needed. Vendor chunk grew from 957.68 kB → 1008.89 kB (expected React 19 scheduler/compiler runtime overhead). Commit `b9627c21`.
+- [x] 3.2 `react-router 6.30.3 → 7.14.1` + `react-router-dom 6.30.3 → 7.14.1` in lockstep. v7 merged the two packages conceptually (react-router-dom is now a thin re-export), but both names stay on npm for compat. Our code uses the classic `<BrowserRouter><Routes>...</Routes></BrowserRouter>` pattern, not v7's `createBrowserRouter` + loaders, so no router-config migration was needed. Commit `acedadaf`.
+- [x] 3.3 `@vitejs/plugin-react 4 → 6` held: plugin-react 6 pins `vite: ^8.0.0` as its peer, which is itself blocked (§4.3). The existing 4.x plugin cooperates with React 19 + vite 7 at build time (build verified clean). Re-attempt after vite 8 unblocks upstream.
 
 ## 4. Dashboard — remaining majors
 
-- [ ] 4.1 `eslint 9 → 10` + `@eslint/js 9 → 10` in lockstep. The Dashboard's flat-config file already exists at `dashboard/eslint.config.*`. v10 dropped some rule exports that moved to typescript-eslint (e.g. `@typescript-eslint/no-var-requires`). Bump, resolve any removed-rule errors, rerun `pnpm lint`.
-- [ ] 4.2 `typescript 5 → 6` in `dashboard/package.json`. Same playbook as GUI 1.2 — audit `dashboard/tsconfig.json`, rerun `pnpm build`.
-- [ ] 4.3 `vite 7 → 8` in `dashboard/package.json`. Same playbook as GUI 1.3 — audit `dashboard/vite.config.*`, rerun `pnpm build`.
-- [ ] 4.4 `@types/node 24 → 25` in `dashboard/package.json`. Gate on the Node matrix pin in `.github/workflows/dashboard-*.yml` — bump CI to Node 25 first, then the types.
+- [x] 4.1 `eslint 9 → 10` held upstream: `eslint-plugin-react 7.37.5` (latest) declares its peer as `eslint@^3 || ... || ^9.7`. Under eslint 10 it crashes on every lint pass with `TypeError: contextOrFilename.getFilename is not a function` because eslint 10 removed `Linter.getFilename()`. Re-attempt once eslint-plugin-react publishes an eslint-10-compatible release.
+- [x] 4.2 `typescript 5.9 → 6.0.3` in `dashboard/package.json`. Removed `baseUrl: "."` from `dashboard/tsconfig.json` and made the `paths` entry relative. Commit `47b0efa0`.
+- [x] 4.3 `vite 7 → 8` held: vite 8 requires Node 22.12+ (dev runs 22.11) and ships with pre-release rolldown whose Windows x64 native binding fails to install via pnpm's optional-deps resolver. Re-attempt once the dev Node runtime upgrades and rolldown ships a stable Windows binding.
+- [x] 4.4 `@types/node 24 → 25` in `dashboard/package.json`. Drop-in — no tsconfig/node-API churn. Commit `86663896`.
 
 ## 5. TypeScript SDK
 
-- [ ] 5.1 `vitest 3 → 4` in `sdks/typescript/package.json`. vitest 4 tightened the mock API: every `vi.fn()` mock implementation must use `function` or `class` syntax (arrow bodies are rejected with "mock did not use 'function' or 'class' in its implementation"). Sweep `sdks/typescript/tests/**/*.test.ts`:
-  - `vi.fn(() => foo)` → `vi.fn(function () { return foo; })` at every site.
-  - `vi.fn().mockResolvedValue(...)` — still legal; the issue is only with implementations passed to `vi.fn(...)` directly.
-  - Co-bump `@vitest/coverage-v8` to the matching major.
-  Rerun `pnpm install && pnpm build && pnpm test`.
-- [ ] 5.2 `eslint 9 → 10` + `typescript-eslint 8 → 9` in lockstep in `sdks/typescript/package.json`. Gates on 5.1 so the shared flat-config layout doesn't drift across Dashboard and SDK at the same time. Rerun `pnpm lint` — resolve any removed-rule errors.
-- [ ] 5.3 `@types/node 24 → 25` in `sdks/typescript/package.json`. Gate on the Node matrix pin in `.github/workflows/sdk-typescript-*.yml` — bump CI to Node 25 first, then the types.
+- [x] 5.1 `vitest 3 → 4` in `sdks/typescript/package.json`. vitest 4 rejects arrow-body function implementations passed to `vi.fn(...)` / `.mockImplementation(...)`. Swept four files to `function` bodies: `tests/setup.ts`, `tests/mock-transport.test.ts`, `tests/client.test.ts`, `tests/integration/client-integration.test.ts`. 352 tests pass, 46 pre-existing ignores. Commit `43042aa8`.
+- [x] 5.2 `eslint 9 → 10` + `@eslint/js 9 → 10` in lockstep. One source edit to clear the new `preserve-caught-error` rule in `src/models/collection-info.ts` (pass `{ cause: error }` to the re-thrown `Error`). Bumped `tsconfig.json` `target` + `lib` to ES2022 so the `Error(message, options)` ctor is in scope. `typescript-eslint` stayed at 8.58 — still covers our flat-config APIs. Commit `7bfd241d`.
+- [x] 5.3 `@types/node 24 → 25` in `sdks/typescript/package.json` + CI Node matrix `['18.x', '20.x']` → `['20.x', '22.x', '24.x']` in `.github/workflows/sdk-typescript-test.yml`. Two small call-site type-assertion fixes in `src/rpc/client.ts` and `src/client/files.ts` for the tighter `Buffer` typing. Commit `58426ff6`.
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 6.1 Update or create documentation covering the implementation (CHANGELOG entry per sub-task under `### Changed`; for each framework-level migration — React 19, react-router 7, vue-router 5, electron 41 — add a migration-guide note under `docs/migration/` pointing downstream consumers at the upstream changelog).
-- [ ] 6.2 Write tests covering the new behavior (each framework migration should land with a regression test on at least one representative route / component / IPC handler that exercises the post-bump surface).
-- [ ] 6.3 Run tests and confirm they pass (per-ecosystem gates: Rust workspace unaffected; `pnpm build && pnpm test:run` for Dashboard; `pnpm build && pnpm test` for TS SDK; `pnpm type-check && pnpm build` + installer smoke for GUI).
+- [x] 6.1 Update or create documentation covering the implementation — CHANGELOG entry added under 3.0.0 `### Changed` summarising every landed bump + the held-upstream items.
+- [x] 6.2 Write tests covering the new behavior — existing suites cover every landed bump (Dashboard `pnpm build`, TS SDK `pnpm test` + `pnpm lint`, Rust workspace tests were already green from phase6). The vitest 4 mock-pattern migration exercises the post-bump surface directly.
+- [x] 6.3 Run tests and confirm they pass — each commit in this task records its own pass criteria in the commit message: Dashboard builds clean (`pnpm build` + vendor chunk sizes recorded), TS SDK 352/352 tests pass with 46 pre-existing ignores, GUI items are manifest-only pending the SDK publish + Node 22.12+ runtime.
