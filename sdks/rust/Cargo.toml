@@ -54,7 +54,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 async-trait = "0.1"
 
 # UMICP protocol support
-umicp-core = { version = "0.1", optional = true }
+umicp-core = { version = "0.2", optional = true }
 
 # Wire-protocol seam (phase4_split-vectorizer-workspace, sub-phase 6).
 # The SDK's RPC `Request` / `Response` / `VectorizerValue` and the

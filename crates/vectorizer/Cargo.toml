@@ -20,7 +20,7 @@ openraft = { version = "=0.10.0-alpha.17", features = ["serde", "type-alias"] }
 openraft-memstore = "=0.10.0-alpha.17"
 futures = "0.3"
 ctrlc = { version = "3.5", optional = true }
-dirs = "5.0"
+dirs = "6.0"
 # Core dependencies
 # Optimized: Use only needed tokio features instead of "full" (saves ~30% compile time)
 tokio = { version = "1.48", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
@@ -47,7 +47,7 @@ hnsw_rs = "0.3"
 # Intelligent search dependencies
 tantivy = "0.25"  # BM25 full-text search engine
 rrf = "0.1"       # Reciprocal Rank Fusion
-fastembed = { version = "5.4", optional = true } # Embeddings + cross-encoder reranking (requires ONNX Runtime)
+fastembed = { version = "5.13", optional = true } # Embeddings + cross-encoder reranking (requires ONNX Runtime)
 rust-tfidf = "1.1" # TF-IDF similarity fallback
 
 # Linear algebra for basic matrix operations
@@ -97,7 +97,7 @@ rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
 mime_guess = "2.0"
 
 # Compression and caching
-lz4_flex = "0.12.0"
+lz4_flex = "0.13"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
@@ -139,7 +139,7 @@ hivehub-internal-sdk = "1.0"
 sys-info = "0.9"
 
 # MCP (Model Context Protocol) dependencies
-tokio-tungstenite = "0.28"
+tokio-tungstenite = "0.29"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Optional ML dependencies
@@ -150,7 +150,7 @@ tokenizers = { version = "0.22.2", optional = true }
 hf-hub = { version = "0.4.3", optional = true }
 
 # ONNX Runtime for high-performance inference
-ort = { version = "2.0.0-rc.10", optional = true, features = ["half"] }
+ort = { version = "2.0.0-rc.11", optional = true, features = ["half"] }
 
 # Additional serialization formats
 arrow = { version = "57", optional = true }
@@ -160,7 +160,7 @@ parquet = { version = "57", optional = true }
 rmcp = { version = "0.10", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
-lru = "0.16.1"
+lru = "0.17"
 hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1.20", features = ["tokio", "server", "server-auto"] }
 

@@ -24,7 +24,7 @@ umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
 bincode = { version = "2.0", features = ["serde"] }
 
 # compression/, quantization/storage.rs — lz4 + zstd wrappers
-lz4_flex = "0.12.0"
+lz4_flex = "0.13"
 zstd = "0.13"
 
 # paths/ — OS user-data directory resolution (XDG on Linux, Application
@@ -32,7 +32,7 @@ zstd = "0.13"
 # vectorizer write its data and logs" decision so the answer is the
 # same across the binary, the auth-persistence layer, and the
 # storage layer.
-dirs = "5.0"
+dirs = "6.0"
 
 # parallel/, quantization/ — thread pools + parallel helpers
 rayon = "1.10"

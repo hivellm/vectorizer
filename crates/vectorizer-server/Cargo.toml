@@ -34,7 +34,7 @@ prost-types = "0.14"
 
 # MCP SDK
 rmcp = { version = "0.10", features = ["server", "macros", "transport-streamable-http-server"] }
-tokio-tungstenite = "0.28"
+tokio-tungstenite = "0.29"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # GraphQL
@@ -84,7 +84,7 @@ dashmap = "6.1"
 once_cell = "1.20"
 arc-swap = "1.7"
 lazy_static = "1.4"
-lru = "0.16.1"
+lru = "0.17"
 
 # Error / logging
 anyhow = { version = "1.0", features = ["backtrace"], default-features = false }
@@ -111,7 +111,7 @@ sysinfo = "0.37"
 sha2 = "0.10"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 rand = "0.9"
-dirs = "5.0"
+dirs = "6.0"
 memory-stats = "1.0"
 fastrand = "2.3"
 num_cpus = "1.16"
