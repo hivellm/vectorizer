@@ -22,13 +22,22 @@ pub mod batch;
 pub mod cache;
 pub mod cli;
 pub mod cluster;
-pub mod codec;
+// `codec`, `compression`, `error`, `parallel`, `quantization`, `simd`
+// moved into `vectorizer-core` under
+// phase4_split-vectorizer-workspace sub-phase 3. Re-exported here so
+// existing `use crate::error::*` / `use vectorizer::codec::*` /
+// `use crate::simd::*` call sites resolve unchanged.
+pub use vectorizer_core::codec;
+pub use vectorizer_core::compression;
+pub use vectorizer_core::error;
+pub use vectorizer_core::parallel;
+pub use vectorizer_core::quantization;
+pub use vectorizer_core::simd;
 pub mod config;
 pub mod db;
 pub mod discovery;
 // pub mod document_loader; // REMOVED - replaced by file_loader
 pub mod embedding;
-pub mod error;
 pub mod evaluation;
 pub mod file_loader;
 pub mod file_operations;
@@ -45,15 +54,12 @@ pub mod migration;
 pub mod models;
 pub mod monitoring;
 pub mod normalization;
-pub mod parallel;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
 pub mod protocol;
-pub mod quantization;
 pub mod replication;
 pub mod security;
 pub mod server;
-pub mod simd;
 pub mod storage;
 pub mod summarization;
 pub mod testing;

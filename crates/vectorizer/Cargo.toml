@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "2.5.16"
+version = "3.0.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -189,6 +189,12 @@ transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf
 # RPC + gRPC types live in the standalone `vectorizer-protocol` crate
 # so the Rust SDK can depend on the same shapes the server emits.
 vectorizer-protocol = { path = "../vectorizer-protocol" }
+# Core primitives seam (phase4_split-vectorizer-workspace, sub-phase 3):
+# error type, binary codec, quantization, simd, parallel + compression
+# helpers live in `vectorizer-core`. Re-exported through the umbrella
+# `vectorizer::{error,codec,quantization,simd,parallel,compression}`
+# so existing call sites resolve unchanged.
+vectorizer-core = { path = "../vectorizer-core" }
 
 [build-dependencies]
 # Only the Windows icon-embed step remains here — proto compilation
@@ -360,15 +366,19 @@ fastembed = ["dep:fastembed"]
 # scalar backend everywhere (useful for debugging or for targets where
 # the per-ISA features aren't wanted). When `simd` is OFF, every
 # `crate::simd::*` call resolves to the scalar oracle.
-simd = []
+#
+# Each gate forwards to vectorizer-core (which owns the simd module
+# under phase4_split-vectorizer-workspace sub-phase 3) so per-ISA
+# selection still works through the umbrella default-features set.
+simd = ["vectorizer-core/simd"]
 # Per-ISA opt-outs. Each backend module is gated by both
 # `cfg(target_arch)` AND the matching feature, so disabling a feature
 # on a build that wouldn't use it is a no-op (no extra binary cost).
-simd-avx2 = []
-simd-avx512 = []
-simd-neon = []
-simd-sve = []
-simd-wasm = []
+simd-avx2 = ["vectorizer-core/simd-avx2"]
+simd-avx512 = ["vectorizer-core/simd-avx512"]
+simd-neon = ["vectorizer-core/simd-neon"]
+simd-sve = ["vectorizer-core/simd-sve"]
+simd-wasm = ["vectorizer-core/simd-wasm"]
 
 # OpenSSL vendored for musl cross-compilation
 vendored-openssl = ["dep:openssl"]
@@ -403,7 +413,11 @@ candle-models = [
     "candle-nn",
     "candle-transformers",
     "tokenizers",
-    "hf-hub"
+    "hf-hub",
+    # Activates the matching feature in vectorizer-core so the
+    # `VectorizerError::CandleError(#[from] candle_core::Error)` enum
+    # variant is available end-to-end.
+    "vectorizer-core/candle-models"
 ]
 
 # Real BERT and MiniLM embeddings (requires candle)

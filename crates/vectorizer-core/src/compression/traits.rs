@@ -9,13 +9,13 @@ use serde::{Deserialize, Serialize};
 pub trait Compressor {
     /// Compress data
     fn compress(&self, data: &[u8]) -> CompressionResult<Vec<u8>>;
-    
+
     /// Get compression level
     fn level(&self) -> u8;
-    
+
     /// Get algorithm name
     fn algorithm(&self) -> &str;
-    
+
     /// Estimate compressed size
     fn estimate_compressed_size(&self, original_size: usize) -> usize;
 }
@@ -23,8 +23,12 @@ pub trait Compressor {
 /// Trait for decompression operations
 pub trait Decompressor {
     /// Decompress data
-    fn decompress(&self, compressed_data: &[u8], original_size: Option<usize>) -> CompressionResult<Vec<u8>>;
-    
+    fn decompress(
+        &self,
+        compressed_data: &[u8],
+        original_size: Option<usize>,
+    ) -> CompressionResult<Vec<u8>>;
+
     /// Get algorithm name
     fn algorithm(&self) -> &str;
 }
@@ -36,13 +40,18 @@ pub trait CompressionMethod: Compressor + Decompressor {
         let compressed = self.compress(data)?;
         Ok(data.len() as f64 / compressed.len() as f64)
     }
-    
+
     /// Check if data should be compressed based on size and ratio
-    fn should_compress(&self, data: &[u8], min_size: usize, min_ratio: f64) -> CompressionResult<bool> {
+    fn should_compress(
+        &self,
+        data: &[u8],
+        min_size: usize,
+        min_ratio: f64,
+    ) -> CompressionResult<bool> {
         if data.len() < min_size {
             return Ok(false);
         }
-        
+
         let ratio = self.compression_ratio(data)?;
         Ok(ratio >= min_ratio)
     }
@@ -98,22 +107,24 @@ impl CompressionMetrics {
             (1.0 - self.compressed_size as f64 / self.original_size as f64) * 100.0
         }
     }
-    
+
     /// Calculate compression throughput in MB/s
     pub fn compression_throughput_mbps(&self) -> f64 {
         if self.compression_time_us == 0 {
             0.0
         } else {
-            (self.original_size as f64 / 1_000_000.0) / (self.compression_time_us as f64 / 1_000_000.0)
+            (self.original_size as f64 / 1_000_000.0)
+                / (self.compression_time_us as f64 / 1_000_000.0)
         }
     }
-    
+
     /// Calculate decompression throughput in MB/s
     pub fn decompression_throughput_mbps(&self) -> f64 {
         if self.decompression_time_us == 0 {
             0.0
         } else {
-            (self.original_size as f64 / 1_000_000.0) / (self.decompression_time_us as f64 / 1_000_000.0)
+            (self.original_size as f64 / 1_000_000.0)
+                / (self.decompression_time_us as f64 / 1_000_000.0)
         }
     }
 }
@@ -148,13 +159,15 @@ impl CompressionBenchmark {
             self.avg_ratio / (self.avg_compression_time_us as f64 / 1_000_000.0)
         }
     }
-    
+
     /// Compare with another benchmark
     pub fn compare(&self, other: &CompressionBenchmark) -> CompressionComparison {
         CompressionComparison {
             ratio_improvement: self.avg_ratio / other.avg_ratio,
-            compression_speed_improvement: other.avg_compression_time_us as f64 / self.avg_compression_time_us as f64,
-            decompression_speed_improvement: other.avg_decompression_time_us as f64 / self.avg_decompression_time_us as f64,
+            compression_speed_improvement: other.avg_compression_time_us as f64
+                / self.avg_compression_time_us as f64,
+            decompression_speed_improvement: other.avg_decompression_time_us as f64
+                / self.avg_decompression_time_us as f64,
             efficiency_improvement: self.efficiency_score() / other.efficiency_score(),
         }
     }
@@ -217,7 +230,7 @@ impl CompressionStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_compression_metrics() {
         let metrics = CompressionMetrics {
@@ -228,12 +241,12 @@ mod tests {
             compressed_size: 500,
             algorithm: "zstd".to_string(),
         };
-        
+
         assert_eq!(metrics.space_savings_percent(), 50.0);
         assert!(metrics.compression_throughput_mbps() > 0.0);
         assert!(metrics.decompression_throughput_mbps() > 0.0);
     }
-    
+
     #[test]
     fn test_compression_benchmark() {
         let benchmark = CompressionBenchmark {
@@ -246,20 +259,20 @@ mod tests {
             decompression_throughput_mbps: 200.0,
             sample_count: 100,
         };
-        
+
         assert!(benchmark.efficiency_score() > 0.0);
     }
-    
+
     #[test]
     fn test_compression_strategy() {
         let fast_config = CompressionStrategy::Fast.config();
         assert_eq!(fast_config.level, 1);
         assert!(!fast_config.auto_level);
-        
+
         let balanced_config = CompressionStrategy::Balanced.config();
         assert_eq!(balanced_config.level, 3);
         assert!(balanced_config.auto_level);
-        
+
         let max_config = CompressionStrategy::Maximum.config();
         assert_eq!(max_config.level, 22);
         assert!(!max_config.auto_level);

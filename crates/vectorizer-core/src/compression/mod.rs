@@ -4,10 +4,10 @@
 //! storage requirements and improve I/O performance. Supports LZ4 and Zstd
 //! compression algorithms with automatic selection based on data characteristics.
 
-pub mod lz4;
-pub mod zstd;
-pub mod traits;
 pub mod config;
+pub mod lz4;
+pub mod traits;
+pub mod zstd;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -88,7 +88,7 @@ impl CompressionStats {
             self.bytes_original as f64 / self.bytes_compressed as f64
         }
     }
-    
+
     /// Calculate space savings percentage
     pub fn space_savings_percent(&self) -> f64 {
         if self.bytes_original == 0 {
@@ -97,13 +97,14 @@ impl CompressionStats {
             (1.0 - self.bytes_compressed as f64 / self.bytes_original as f64) * 100.0
         }
     }
-    
+
     /// Get average compression throughput in MB/s
     pub fn compression_throughput_mbps(&self) -> f64 {
         if self.avg_compression_time_us == 0 {
             0.0
         } else {
-            (self.bytes_original as f64 / 1_000_000.0) / (self.avg_compression_time_us as f64 / 1_000_000.0)
+            (self.bytes_original as f64 / 1_000_000.0)
+                / (self.avg_compression_time_us as f64 / 1_000_000.0)
         }
     }
 }
@@ -113,25 +114,28 @@ impl CompressionStats {
 pub enum CompressionError {
     #[error("Compression failed: {0}")]
     CompressionFailed(String),
-    
+
     #[error("Decompression failed: {0}")]
     DecompressionFailed(String),
-    
+
     #[error("Invalid compression level: {level} for algorithm {algorithm}")]
-    InvalidLevel { level: u8, algorithm: CompressionAlgorithm },
-    
+    InvalidLevel {
+        level: u8,
+        algorithm: CompressionAlgorithm,
+    },
+
     #[error("Data too small for compression: {size} < {threshold}")]
     DataTooSmall { size: usize, threshold: usize },
-    
+
     #[error("Compression ratio too low: {ratio:.2} < {threshold:.2}")]
     CompressionRatioTooLow { ratio: f64, threshold: f64 },
-    
+
     #[error("Memory allocation failed: {0}")]
     MemoryAllocationFailed(String),
-    
+
     #[error("Serialization failed: {0}")]
     SerializationFailed(String),
-    
+
     #[error("Deserialization failed: {0}")]
     DeserializationFailed(String),
 }
@@ -161,17 +165,17 @@ impl CompressionManager {
             config,
         }
     }
-    
+
     /// Get current configuration
     pub fn config(&self) -> &CompressionConfig {
         &self.config
     }
-    
+
     /// Get current statistics
     pub fn stats(&self) -> &CompressionStats {
         &self.stats
     }
-    
+
     /// Reset statistics
     pub fn reset_stats(&mut self) {
         self.stats = CompressionStats {
@@ -184,23 +188,33 @@ impl CompressionManager {
             algorithm: self.config.algorithm.clone(),
         };
     }
-    
+
     /// Update statistics after compression operation
-    pub fn update_stats(&mut self, original_size: usize, compressed_size: usize, compression_time_us: u64, decompression_time_us: u64) {
+    pub fn update_stats(
+        &mut self,
+        original_size: usize,
+        compressed_size: usize,
+        compression_time_us: u64,
+        decompression_time_us: u64,
+    ) {
         self.stats.bytes_original += original_size as u64;
         self.stats.bytes_compressed += compressed_size as u64;
         self.stats.operations_count += 1;
-        
+
         // Update average times using exponential moving average
         let alpha = 0.1; // Smoothing factor
         if self.stats.operations_count == 1 {
             self.stats.avg_compression_time_us = compression_time_us;
             self.stats.avg_decompression_time_us = decompression_time_us;
         } else {
-            self.stats.avg_compression_time_us = ((1.0 - alpha) * self.stats.avg_compression_time_us as f64 + alpha * compression_time_us as f64) as u64;
-            self.stats.avg_decompression_time_us = ((1.0 - alpha) * self.stats.avg_decompression_time_us as f64 + alpha * decompression_time_us as f64) as u64;
+            self.stats.avg_compression_time_us =
+                ((1.0 - alpha) * self.stats.avg_compression_time_us as f64
+                    + alpha * compression_time_us as f64) as u64;
+            self.stats.avg_decompression_time_us =
+                ((1.0 - alpha) * self.stats.avg_decompression_time_us as f64
+                    + alpha * decompression_time_us as f64) as u64;
         }
-        
+
         self.stats.compression_ratio = self.stats.compression_ratio();
     }
 }
@@ -208,14 +222,14 @@ impl CompressionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_compression_algorithm_display() {
         assert_eq!(format!("{}", CompressionAlgorithm::Lz4), "LZ4");
         assert_eq!(format!("{}", CompressionAlgorithm::Zstd), "Zstd");
         assert_eq!(format!("{}", CompressionAlgorithm::None), "None");
     }
-    
+
     #[test]
     fn test_default_config() {
         let config = CompressionConfig::default();
@@ -225,7 +239,7 @@ mod tests {
         assert_eq!(config.min_size_threshold, 1024);
         assert!(config.enable_stats);
     }
-    
+
     #[test]
     fn test_compression_stats() {
         let mut stats = CompressionStats {
@@ -237,20 +251,20 @@ mod tests {
             avg_decompression_time_us: 500,
             algorithm: CompressionAlgorithm::Zstd,
         };
-        
+
         assert_eq!(stats.compression_ratio(), 2.0);
         assert_eq!(stats.space_savings_percent(), 50.0);
         assert!(stats.compression_throughput_mbps() > 0.0);
     }
-    
+
     #[test]
     fn test_compression_manager() {
         let config = CompressionConfig::default();
         let manager = CompressionManager::new(config);
-        
+
         assert_eq!(manager.config().algorithm, CompressionAlgorithm::Zstd);
         assert_eq!(manager.stats().operations_count, 0);
-        
+
         // Test stats update
         let mut manager = manager;
         manager.update_stats(1000, 500, 1000, 500);
@@ -261,7 +275,11 @@ mod tests {
 }
 
 // Re-export main types
-pub use traits::{Compressor, Decompressor, CompressionMethod, CompressionStrategy, CompressionMetrics};
+pub use config::{
+    CompressionConfigBuilder, CompressionConfigValidator, CompressionPresets, DataType,
+};
 pub use lz4::Lz4Compressor;
+pub use traits::{
+    CompressionMethod, CompressionMetrics, CompressionStrategy, Compressor, Decompressor,
+};
 pub use zstd::ZstdCompressor;
-pub use config::{CompressionConfigBuilder, CompressionPresets, CompressionConfigValidator, DataType};

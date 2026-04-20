@@ -8981,7 +8981,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer"
-version = "2.5.16"
+version = "3.0.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -9089,6 +9089,7 @@ dependencies = [
  "umicp-core",
  "unicode-normalization",
  "uuid",
+ "vectorizer-core",
  "vectorizer-protocol",
  "walkdir",
  "whoami",
@@ -9100,8 +9101,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "vectorizer-core"
+version = "3.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "bincode 2.0.1",
+ "candle-core",
+ "crossbeam",
+ "fastrand",
+ "lz4_flex 0.12.1",
+ "num_cpus",
+ "once_cell",
+ "parking_lot",
+ "rayon",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tonic",
+ "tracing",
+ "umicp-core",
+ "zstd",
+]
+
+[[package]]
 name = "vectorizer-protocol"
-version = "2.5.16"
+version = "3.0.0"
 dependencies = [
  "prost",
  "prost-types",

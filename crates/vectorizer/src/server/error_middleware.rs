@@ -43,22 +43,18 @@ impl ErrorResponse {
     }
 }
 
-/// Convert VectorizerError to HTTP status code.
-///
-/// Delegates to the centralized taxonomy in
-/// [`crate::error::mapping::http_status`] — kept as an
-/// `impl From<&VectorizerError> for StatusCode` so the existing axum
-/// callsites don't need editing.
-impl From<&VectorizerError> for StatusCode {
-    fn from(err: &VectorizerError) -> Self {
-        crate::error::mapping::http_status(err)
-    }
-}
+// Note: the `impl From<&VectorizerError> for StatusCode` shim that
+// used to live here was deleted under
+// phase4_split-vectorizer-workspace sub-phase 3 because both
+// `VectorizerError` (now in `vectorizer-core`) and `StatusCode`
+// (axum) are foreign to this crate, which the orphan rule rejects.
+// The single caller below uses `crate::error::mapping::http_status`
+// directly — same call path the shim delegated to.
 
 /// Convert VectorizerError to ErrorResponse
 impl From<VectorizerError> for ErrorResponse {
     fn from(err: VectorizerError) -> Self {
-        let status_code = StatusCode::from(&err);
+        let status_code = crate::error::mapping::http_status(&err);
         let error_type = error_type_from_variant(&err);
         let message = err.to_string();
 
