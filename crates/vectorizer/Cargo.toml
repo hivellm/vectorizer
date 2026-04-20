@@ -83,7 +83,7 @@ tar = "0.4"
 flate2 = "1.1"
 
 # HTTP client for status checks (using rustls for musl compatibility)
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.13", features = ["json", "rustls"], default-features = false }
 
 # UMICP protocol integration (v0.2.3 with native JSON types + tool discovery)
 umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
@@ -213,7 +213,7 @@ proptest = "1.9"
 # affect the main build graph.
 vectorizer-server = { path = "../vectorizer-server" }
 tempfile = "3.8"
-reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }
+reqwest = { version = "0.13", features = ["json", "multipart", "rustls", "blocking"], default-features = false }
 
 [[bench]]
 name = "filter_benchmark"

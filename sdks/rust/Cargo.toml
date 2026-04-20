@@ -48,7 +48,7 @@ thiserror = "2"
 # break every downstream consumer that matches on `VectorizerError`).
 # Use the `http` feature flag (on by default) to control whether the
 # `HttpTransport` and `VectorizerClient` types are exposed.
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "multipart"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "multipart"] }
 
 # Async trait for transport abstraction
 async-trait = "0.1"
