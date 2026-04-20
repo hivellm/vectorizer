@@ -257,7 +257,7 @@ impl VectorizerServer {
             .route("/search", post(rest_handlers::search_vectors))
             .route(
                 "/collections/{name}/search",
-                post(rest_handlers::search_vectors),
+                post(rest_handlers::search_vectors_by_collection),
             )
             .route(
                 "/collections/{name}/search/text",

@@ -348,22 +348,182 @@ pub async fn search_by_file(
     })))
 }
 
-pub async fn search_vectors(
-    State(_state): State<VectorizerServer>,
-    Json(payload): Json<Value>,
-) -> Result<Json<Value>, ErrorResponse> {
-    let query_vector = payload
+/// Core raw-vector search pipeline shared by `search_vectors` (POST
+/// /search) and `search_vectors_by_collection` (POST
+/// /collections/{name}/search).
+///
+/// Validates that the query vector's dimension matches the target
+/// collection, consults the query cache (via `QueryKey::from_vector`),
+/// runs the HNSW search, and records metrics under the `vector` label.
+/// Returns the JSON response body.
+async fn do_vector_search(
+    state: &VectorizerServer,
+    collection_name: &str,
+    query_embedding: Vec<f32>,
+    limit: usize,
+    threshold: Option<f64>,
+    tenant_ctx: Option<&Extension<RequestTenantContext>>,
+) -> Result<Value, ErrorResponse> {
+    use vectorizer::cache::query_cache::QueryKey;
+    use vectorizer::monitoring::metrics::METRICS;
+
+    let label_vector = "vector".to_string();
+    let timer = METRICS
+        .search_latency_seconds
+        .with_label_values(&[collection_name, &label_vector])
+        .start_timer();
+
+    let cache_key = QueryKey::from_vector(
+        collection_name.to_string(),
+        &query_embedding,
+        limit,
+        threshold,
+    );
+    if let Some(cached) = state.query_cache.get(&cache_key) {
+        debug!(
+            "💾 Cache hit for raw-vector search in collection '{}'",
+            collection_name
+        );
+        drop(timer);
+        return Ok(cached);
+    }
+
+    let tenant_id = extract_tenant_id(&tenant_ctx.cloned());
+
+    let collection = state
+        .store
+        .get_collection_with_owner(collection_name, tenant_id.as_ref())
+        .map_err(ErrorResponse::from)?;
+
+    if query_embedding.len() != collection.config().dimension {
+        return Err(create_validation_error(
+            "vector",
+            &format!(
+                "vector dimension {} does not match collection dimension {}",
+                query_embedding.len(),
+                collection.config().dimension
+            ),
+        ));
+    }
+
+    let search_results = collection
+        .search(&query_embedding, limit)
+        .map_err(|e| create_bad_request_error(&format!("Search failed: {}", e)))?;
+
+    let results: Vec<Value> = search_results
+        .into_iter()
+        .filter(|r| threshold.is_none_or(|t| r.score as f64 >= t))
+        .map(|result| {
+            json!({
+                "id": result.id,
+                "score": result.score,
+                "vector": result.vector,
+                "payload": result.payload.map(|p| p.data)
+            })
+        })
+        .collect();
+
+    let response = json!({
+        "results": results,
+        "query_type": "vector",
+        "limit": limit,
+        "collection": collection_name,
+        "total_results": results.len(),
+    });
+
+    state.query_cache.insert(cache_key, response.clone());
+
+    METRICS
+        .search_requests_total
+        .with_label_values(&[collection_name, &label_vector, "success"])
+        .inc();
+    METRICS
+        .search_results_count
+        .with_label_values(&[collection_name, &label_vector])
+        .observe(results.len() as f64);
+    drop(timer);
+
+    Ok(response)
+}
+
+/// Parse `vector`, `limit`, `threshold` from the request JSON. Returns
+/// 400 when `vector` is missing, not an array, or contains non-float
+/// entries.
+fn parse_vector_search_payload(
+    payload: &Value,
+) -> Result<(Vec<f32>, usize, Option<f64>), ErrorResponse> {
+    let raw = payload
         .get("vector")
         .and_then(|v| v.as_array())
         .ok_or_else(|| create_validation_error("vector", "missing or invalid vector parameter"))?;
+    let mut query_vector = Vec::with_capacity(raw.len());
+    for (idx, entry) in raw.iter().enumerate() {
+        let f = entry.as_f64().ok_or_else(|| {
+            create_validation_error("vector", &format!("vector[{}] is not a number", idx))
+        })?;
+        query_vector.push(f as f32);
+    }
     let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
+    let threshold = payload.get("threshold").and_then(|t| t.as_f64());
+    Ok((query_vector, limit, threshold))
+}
 
-    // For now, return empty results
-    Ok(Json(json!({
-        "results": [],
-        "query_vector": query_vector,
-        "limit": limit
-    })))
+/// POST /search — raw-vector similarity search. The target collection
+/// is taken from the JSON body's `collection` field.
+///
+/// Request: `{collection, vector: [f32; dim], limit?, threshold?}`
+/// Response: `{collection, limit, query_type: "vector", total_results,
+/// results: [{id, score, vector, payload}]}`
+pub async fn search_vectors(
+    State(state): State<VectorizerServer>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| {
+            create_validation_error("collection", "missing or invalid collection parameter")
+        })?
+        .to_string();
+
+    let (query_vector, limit, threshold) = parse_vector_search_payload(&payload)?;
+
+    let response = do_vector_search(
+        &state,
+        &collection_name,
+        query_vector,
+        limit,
+        threshold,
+        tenant_ctx.as_ref(),
+    )
+    .await?;
+
+    Ok(Json(response))
+}
+
+/// POST /collections/{name}/search — raw-vector similarity search with
+/// the collection supplied via URL path. Same request/response shape as
+/// `search_vectors` minus the body-level `collection` field.
+pub async fn search_vectors_by_collection(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    tenant_ctx: Option<Extension<RequestTenantContext>>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let (query_vector, limit, threshold) = parse_vector_search_payload(&payload)?;
+
+    let response = do_vector_search(
+        &state,
+        &collection_name,
+        query_vector,
+        limit,
+        threshold,
+        tenant_ctx.as_ref(),
+    )
+    .await?;
+
+    Ok(Json(response))
 }
 
 pub async fn batch_search_vectors(

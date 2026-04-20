@@ -59,6 +59,31 @@ impl QueryKey {
         }
     }
 
+    /// Build a query key from a raw query vector. The vector's bytes are
+    /// hashed with SHA-256 and the resulting hex digest is stored in the
+    /// `query` field (prefixed with `vector:` so it never collides with a
+    /// real text query). This keeps the cache-lookup key bounded and
+    /// deterministic regardless of vector dimension.
+    pub fn from_vector(
+        collection: String,
+        vector: &[f32],
+        limit: usize,
+        threshold: Option<f64>,
+    ) -> Self {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        for v in vector {
+            hasher.update(v.to_le_bytes());
+        }
+        let digest = hex::encode(hasher.finalize());
+        Self {
+            collection,
+            query: format!("vector:{}", digest),
+            limit,
+            threshold: threshold.map(|t| (t * 1000.0) as u32),
+        }
+    }
+
     /// Get threshold as f64
     pub fn threshold_f64(&self) -> Option<f64> {
         self.threshold.map(|t| t as f64 / 1000.0)

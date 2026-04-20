@@ -65,7 +65,7 @@ pub use meta::{
 };
 pub use search::{
     batch_delete_vectors, batch_search_vectors, batch_update_vectors, hybrid_search_vectors,
-    search_by_file, search_vectors, search_vectors_by_text,
+    search_by_file, search_vectors, search_vectors_by_collection, search_vectors_by_text,
 };
 pub use vectors::{
     batch_insert_texts, delete_vector, delete_vector_generic, embed_text, get_vector, insert_texts,
