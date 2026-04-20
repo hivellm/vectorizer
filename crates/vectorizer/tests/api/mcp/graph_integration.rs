@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::CallToolRequestParam;
+use rmcp::model::CallToolRequestParams;
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::models::{
@@ -79,10 +79,7 @@ async fn test_graph_find_related_mcp_tool() {
         serde_json::Value::String("SIMILAR_TO".to_string()),
     );
 
-    let request = CallToolRequestParam {
-        name: "graph_find_related".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("graph_find_related").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
@@ -139,10 +136,7 @@ async fn test_graph_find_path_mcp_tool() {
         serde_json::Value::String("vec2".to_string()),
     );
 
-    let request = CallToolRequestParam {
-        name: "graph_find_path".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("graph_find_path").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
@@ -186,10 +180,7 @@ async fn test_graph_get_neighbors_mcp_tool() {
         serde_json::Value::String("vec1".to_string()),
     );
 
-    let request = CallToolRequestParam {
-        name: "graph_get_neighbors".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("graph_get_neighbors").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
@@ -254,10 +245,7 @@ async fn test_graph_create_edge_mcp_tool() {
         serde_json::Value::Number(serde_json::Number::from_f64(0.85).unwrap()),
     );
 
-    let request = CallToolRequestParam {
-        name: "graph_create_edge".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("graph_create_edge").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
@@ -282,10 +270,7 @@ async fn test_graph_mcp_tool_error_handling() {
         serde_json::Value::String("vec1".to_string()),
     );
 
-    let request = CallToolRequestParam {
-        name: "graph_get_neighbors".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("graph_get_neighbors").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     // Should return error for non-existent collection
@@ -355,10 +340,7 @@ async fn test_graph_discover_edges_mcp_tool_creates_edges() {
         serde_json::Value::Number(serde_json::Number::from(10)),
     );
 
-    let request = CallToolRequestParam {
-        name: "graph_discover_edges".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("graph_discover_edges").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok(), "Discovery should succeed");
@@ -475,10 +457,7 @@ async fn test_graph_discover_edges_mcp_tool_node_specific() {
         serde_json::Value::Number(serde_json::Number::from(10)),
     );
 
-    let request = CallToolRequestParam {
-        name: "graph_discover_edges".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("graph_discover_edges").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok(), "Discovery should succeed");

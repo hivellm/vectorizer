@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
 use serde_json::json;
 
 use vectorizer::VectorStore;
@@ -38,7 +38,7 @@ fn get_collection_refs(store: &Arc<VectorStore>) -> Vec<CollectionRef> {
 }
 
 pub async fn handle_discover(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -108,7 +108,7 @@ pub async fn handle_discover(
 }
 
 pub async fn handle_filter_collections(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -151,7 +151,7 @@ pub async fn handle_filter_collections(
 }
 
 pub async fn handle_score_collections(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -196,7 +196,7 @@ pub async fn handle_score_collections(
 }
 
 pub async fn handle_expand_queries(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
         .arguments
@@ -238,7 +238,7 @@ pub async fn handle_expand_queries(
 }
 
 pub async fn handle_broad_discovery(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -286,7 +286,7 @@ pub async fn handle_broad_discovery(
 }
 
 pub async fn handle_semantic_focus(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -352,7 +352,7 @@ pub async fn handle_semantic_focus(
 }
 
 pub async fn handle_promote_readme(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
         .arguments
@@ -402,7 +402,7 @@ pub async fn handle_promote_readme(
 }
 
 pub async fn handle_compress_evidence(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
         .arguments
@@ -463,7 +463,7 @@ pub async fn handle_compress_evidence(
 }
 
 pub async fn handle_build_answer_plan(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
         .arguments
@@ -523,7 +523,7 @@ pub async fn handle_build_answer_plan(
 }
 
 pub async fn handle_render_llm_prompt(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
         .arguments

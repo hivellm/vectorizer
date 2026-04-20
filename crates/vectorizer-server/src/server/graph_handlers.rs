@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
 use serde_json::json;
 
 use vectorizer::db::graph::RelationshipType;
@@ -20,7 +20,7 @@ fn get_collection_graph_from_type(
 
 /// Handle graph_list_nodes tool
 pub async fn handle_graph_list_nodes(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(
@@ -66,7 +66,7 @@ pub async fn handle_graph_list_nodes(
 
 /// Handle graph_get_neighbors tool
 pub async fn handle_graph_get_neighbors(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(
@@ -127,7 +127,7 @@ pub async fn handle_graph_get_neighbors(
 
 /// Handle graph_find_related tool
 pub async fn handle_graph_find_related(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(
@@ -202,7 +202,7 @@ pub async fn handle_graph_find_related(
 
 /// Handle graph_find_path tool
 pub async fn handle_graph_find_path(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(
@@ -274,7 +274,7 @@ pub async fn handle_graph_find_path(
 
 /// Handle graph_create_edge tool
 pub async fn handle_graph_create_edge(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(
@@ -359,7 +359,7 @@ pub async fn handle_graph_create_edge(
 
 /// Handle graph_delete_edge tool
 pub async fn handle_graph_delete_edge(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(
@@ -410,7 +410,7 @@ pub async fn handle_graph_delete_edge(
 
 /// Handle graph_discover_edges tool
 pub async fn handle_graph_discover_edges(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(
@@ -520,7 +520,7 @@ pub async fn handle_graph_discover_edges(
 
 /// Handle graph_discover_status tool
 pub async fn handle_graph_discover_status(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args: serde_json::Value = serde_json::from_str(

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
 use serde_json::json;
 
 use vectorizer::VectorStore;
@@ -8,7 +8,7 @@ use vectorizer::embedding::EmbeddingManager;
 use vectorizer::file_operations::FileOperations;
 
 pub async fn handle_get_file_chunks_ordered(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -54,7 +54,7 @@ pub async fn handle_get_file_chunks_ordered(
 }
 
 pub async fn handle_get_project_outline(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -100,7 +100,7 @@ pub async fn handle_get_project_outline(
 }
 
 pub async fn handle_get_related_files(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -154,7 +154,7 @@ pub async fn handle_get_related_files(
 }
 
 pub async fn handle_search_by_file_type(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {

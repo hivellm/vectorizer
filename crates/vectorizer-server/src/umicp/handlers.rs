@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use rmcp::model::{CallToolRequestParam, Content};
+use rmcp::model::{CallToolRequestParams, Content};
 use serde_json::{Value, json};
 use tracing::{debug, error};
 use umicp_core::{Envelope, OperationType};
@@ -66,7 +66,7 @@ pub async fn handle_umicp_request(state: UmicpState, envelope: Envelope) -> Resu
 fn capabilities_to_mcp_request(
     tool_name: &str,
     caps: &HashMap<String, Value>,
-) -> Result<CallToolRequestParam> {
+) -> Result<CallToolRequestParams> {
     // Build arguments JSON from capabilities
     let mut args = serde_json::Map::new();
 
@@ -79,10 +79,11 @@ fn capabilities_to_mcp_request(
         args.insert(key.clone(), value.clone());
     }
 
-    Ok(CallToolRequestParam {
-        name: tool_name.to_string().into(),
-        arguments: Some(args),
-    })
+    // rmcp 1.x marked `CallToolRequestParamss` (aliased `CallToolRequestParams`)
+    // as `#[non_exhaustive]`, so struct-literal construction is no longer
+    // legal. Use the builder entry point instead — `new(...)` initialises
+    // `meta` + `task` to `None` which matches the previous semantics.
+    Ok(CallToolRequestParams::new(tool_name.to_string()).with_arguments(args))
 }
 
 /// Convert MCP Content to JSON

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParam, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
 use serde_json::json;
 
 use crate::server::discovery_handlers::*;
@@ -91,7 +91,7 @@ fn create_embedding_manager_for_collection(
 }
 
 pub async fn handle_mcp_tool(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
     cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
@@ -151,7 +151,7 @@ pub async fn handle_mcp_tool(
 // =============================================
 
 async fn handle_search_vectors(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     _embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -222,7 +222,7 @@ async fn handle_list_collections(store: Arc<VectorStore>) -> Result<CallToolResu
 }
 
 async fn handle_create_collection(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -299,7 +299,7 @@ async fn handle_create_collection(
 }
 
 async fn handle_get_collection_info(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -358,7 +358,7 @@ async fn handle_get_collection_info(
 }
 
 async fn handle_insert_text(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -427,7 +427,7 @@ async fn handle_insert_text(
 }
 
 async fn handle_get_vector(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -465,7 +465,7 @@ async fn handle_get_vector(
 }
 
 async fn handle_delete_vectors(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -503,7 +503,7 @@ async fn handle_delete_vectors(
 }
 
 async fn handle_update_vector(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -571,7 +571,7 @@ async fn handle_update_vector(
 // Intelligent Search Handlers
 
 async fn handle_intelligent_search(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -630,7 +630,7 @@ async fn handle_intelligent_search(
 }
 
 async fn handle_multi_collection_search(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -688,7 +688,7 @@ async fn handle_multi_collection_search(
 }
 
 async fn handle_semantic_search(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -742,7 +742,7 @@ async fn handle_semantic_search(
 
 // New search_extra handler - combines multiple search strategies
 async fn handle_search_extra(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -918,7 +918,7 @@ async fn handle_search_extra(
 // =========================
 
 async fn handle_get_file_content(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -973,7 +973,7 @@ async fn handle_get_file_content(
 }
 
 async fn handle_list_files_in_collection(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
@@ -1054,7 +1054,7 @@ async fn handle_list_files_in_collection(
 }
 
 async fn handle_hybrid_search(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
@@ -1194,7 +1194,7 @@ async fn handle_list_empty_collections(
 }
 
 async fn handle_cleanup_empty_collections(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request.arguments.as_ref();
@@ -1231,7 +1231,7 @@ async fn handle_cleanup_empty_collections(
 }
 
 async fn handle_get_collection_stats(
-    request: CallToolRequestParam,
+    request: CallToolRequestParams,
     store: Arc<VectorStore>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request

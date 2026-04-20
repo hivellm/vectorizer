@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::CallToolRequestParam;
+use rmcp::model::CallToolRequestParams;
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer_server::server::mcp_handlers::handle_mcp_tool;
@@ -19,10 +19,8 @@ async fn test_mcp_tool_handling() {
     let embedding_manager = Arc::new(EmbeddingManager::new());
 
     // Test list collections tool
-    let request = CallToolRequestParam {
-        name: "list_collections".to_string().into(),
-        arguments: Some(serde_json::Map::new()),
-    };
+    let request =
+        CallToolRequestParams::new("list_collections").with_arguments(serde_json::Map::new());
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
@@ -45,10 +43,7 @@ async fn test_mcp_tool_handling() {
         serde_json::Value::String("cosine".to_string()),
     );
 
-    let request = CallToolRequestParam {
-        name: "create_collection".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("create_collection").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
@@ -60,10 +55,7 @@ async fn test_mcp_tool_handling() {
         serde_json::Value::String("test_collection".to_string()),
     );
 
-    let request = CallToolRequestParam {
-        name: "get_collection_info".to_string().into(),
-        arguments: Some(args),
-    };
+    let request = CallToolRequestParams::new("get_collection_info").with_arguments(args);
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_ok());
@@ -76,19 +68,13 @@ async fn test_mcp_tool_error_handling() {
     let embedding_manager = Arc::new(EmbeddingManager::new());
 
     // Test unknown tool
-    let request = CallToolRequestParam {
-        name: "unknown_tool".to_string().into(),
-        arguments: Some(serde_json::Map::new()),
-    };
+    let request = CallToolRequestParams::new("unknown_tool").with_arguments(serde_json::Map::new());
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_err());
 
     // Test missing arguments
-    let request = CallToolRequestParam {
-        name: "create_collection".to_string().into(),
-        arguments: None,
-    };
+    let request = CallToolRequestParams::new("create_collection");
 
     let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
     assert!(result.is_err());

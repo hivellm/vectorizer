@@ -21,20 +21,18 @@ impl rmcp::ServerHandler for VectorizerMcpService {
     fn get_info(&self) -> rmcp::model::ServerInfo {
         use rmcp::model::{Implementation, ProtocolVersion, ServerCapabilities, ServerInfo};
 
-        ServerInfo {
-            protocol_version: ProtocolVersion::default(),
-            capabilities: ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
-            server_info: Implementation {
-                name: "vectorizer-server".to_string(),
-                title: Some("HiveLLM Vectorizer Server".to_string()),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                website_url: Some("https://github.com/hivellm/hivellm".to_string()),
-                icons: None,
-            },
-            instructions: Some("HiveLLM Vectorizer - High-performance semantic search and vector database system with MCP + REST API.".to_string()),
-        }
+        // rmcp 1.x marked `Implementation` + `ServerInfo` as
+        // `#[non_exhaustive]`, so struct-literal syntax is no longer
+        // legal — build them through the `Implementation::new` +
+        // `InitializeResult::new` builder chains instead.
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_protocol_version(ProtocolVersion::default())
+            .with_server_info(
+                Implementation::new("vectorizer-server", env!("CARGO_PKG_VERSION"))
+                    .with_title("HiveLLM Vectorizer Server")
+                    .with_website_url("https://github.com/hivellm/hivellm"),
+            )
+            .with_instructions("HiveLLM Vectorizer - High-performance semantic search and vector database system with MCP + REST API.")
     }
 
     fn list_tools(
@@ -50,16 +48,13 @@ impl rmcp::ServerHandler for VectorizerMcpService {
 
             let tools = crate::server::mcp::tools::get_mcp_tools();
 
-            Ok(ListToolsResult {
-                tools,
-                next_cursor: None,
-            })
+            Ok(ListToolsResult::with_all_items(tools))
         }
     }
 
     fn call_tool(
         &self,
-        request: rmcp::model::CallToolRequestParam,
+        request: rmcp::model::CallToolRequestParams,
         _context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> impl std::future::Future<
         Output = Result<rmcp::model::CallToolResult, rmcp::model::ErrorData>,
@@ -86,10 +81,7 @@ impl rmcp::ServerHandler for VectorizerMcpService {
     + '_ {
         async move {
             use rmcp::model::ListResourcesResult;
-            Ok(ListResourcesResult {
-                resources: vec![],
-                next_cursor: None,
-            })
+            Ok(ListResourcesResult::with_all_items(vec![]))
         }
     }
 }
