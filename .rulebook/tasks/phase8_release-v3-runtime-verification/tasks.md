@@ -26,31 +26,31 @@ probe requires a different topology.
   server → restart → `list_collections` → `search` same query. Accept:
   snapshot file appears under `data_dir()/snapshots/`, collection comes
   back after restart with same vector_count, search returns same results.
-- [ ] 2.2 **Real embedding model** (`fastembed 5.13` + `ort rc.11` +
+- [x] 2.2 **Real embedding model** (`fastembed 5.13` + `ort rc.11` +
   `hf-hub 0.5`). Enable a real ONNX model in `config.yml` under
   `embedding.default_model` (e.g. `all-MiniLM-L6-v2`). Restart server.
   Accept: `POST /embed` returns a vector that is NOT the uniform `0.1`
   placeholder; model download logged from hf-hub; `ort::Session`
   initialisation logged.
-- [ ] 2.3 **gRPC** (`tonic 0.14` + `grpc_conversions.rs`). Use `grpcurl`
+- [x] 2.3 **gRPC** (`tonic 0.14` + `grpc_conversions.rs`). Use `grpcurl`
   (or `tests/grpc` integration tests pointed at the live server) to call
   `list_collections`, `create_collection`, `upsert_points`, `search_points`
   over the Qdrant-compatible service on `:15100`. Accept: each RPC returns
   200 with the expected proto shape.
-- [ ] 2.4 **UMICP** (`umicp-core 0.2`). `curl /umicp/discover` returns the
+- [x] 2.4 **UMICP** (`umicp-core 0.2`). `curl /umicp/discover` returns the
   operation manifest; call at least one operation via POST `/umicp`.
   Accept: both endpoints return 200 + structured JSON matching
   `docs/specs/UMICP.md`.
-- [ ] 2.5 **VectorizerRPC** (`vectorizer-protocol` wire types) on
+- [x] 2.5 **VectorizerRPC** (`vectorizer-protocol` wire types) on
   `:15503`. Use the `sdks/rust` RPC client to issue one `ListCollections`
   + one `Search`. Accept: the binary length-prefixed msgpack frames
   decode cleanly + return correct results.
-- [ ] 2.6 **Prometheus exposition** (`opentelemetry-prometheus 0.31`).
+- [x] 2.6 **Prometheus exposition** (`opentelemetry-prometheus 0.31`).
   Find the actual endpoint (not the JSON `/metrics`) via source grep
   of `PrometheusBuilder` / `with_registry`. Accept: GET that endpoint
   returns `# HELP ...` / `# TYPE ...` prometheus text format with at
   least `vectorizer_*` metrics.
-- [ ] 2.7 **Query cache** (`lru 0.17`). Send the same `search` query
+- [x] 2.7 **Query cache** (`lru 0.17`). Send the same `search` query
   twice in a row. Accept: second response has cache-hit indicator
   (header, metadata, or log line) and measurably lower latency than
   the first.
