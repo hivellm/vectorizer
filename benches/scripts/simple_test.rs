@@ -1,7 +1,7 @@
 //! Simple test to verify benchmark utilities work
 
+use tracing::{debug, error, info, warn};
 use vectorizer::benchmark::{BenchmarkConfig, TestDataGenerator};
-use tracing::{info, error, warn, debug};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("🧪 Simple Test of Benchmark Utilities");

@@ -4,7 +4,7 @@
 //! to avoid the empty index issue.
 
 use std::time::Instant;
-use tracing::{info, error, warn, debug};
+use tracing::{debug, error, info, warn};
 
 use vectorizer::benchmark::{
     BenchmarkConfig, OperationMetrics, PerformanceMetrics, ReportGenerator, TestDataGenerator,

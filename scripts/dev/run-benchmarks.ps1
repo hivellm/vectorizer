@@ -2,7 +2,7 @@
 # Usage: .\scripts\run-benchmarks.ps1
 
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$outputDir = "benchmark/reports"
+$outputDir = "benches/reports"
 
 Write-Host "🚀 Vectorizer Performance Benchmarks" -ForegroundColor Cyan
 Write-Host "Timestamp: $timestamp" -ForegroundColor Gray

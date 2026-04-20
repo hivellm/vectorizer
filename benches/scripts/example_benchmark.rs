@@ -4,8 +4,8 @@
 //! to create comprehensive benchmarks.
 
 // Removed unused imports: BenchmarkScenario, VectorPattern
+use tracing::{debug, error, info, warn};
 use vectorizer::benchmark::{BenchmarkConfig, BenchmarkRunner, ReportGenerator, TestDataGenerator};
-use tracing::{info, error, warn, debug};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("🚀 Vectorizer Benchmark Helper Utilities Example");

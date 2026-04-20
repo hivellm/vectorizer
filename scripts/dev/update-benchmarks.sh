@@ -6,7 +6,7 @@ set -e
 echo "🔄 Updating benchmarks to use hive-gpu..."
 
 # Find all benchmark files that import vectorizer::gpu
-BENCHMARK_FILES=$(find benchmark/scripts -name "*.rs" -exec grep -l "vectorizer::gpu" {} \;)
+BENCHMARK_FILES=$(find benches/scripts -name "*.rs" -exec grep -l "vectorizer::gpu" {} \;)
 
 for file in $BENCHMARK_FILES; do
     echo "📝 Updating $file"

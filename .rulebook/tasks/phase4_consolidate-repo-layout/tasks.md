@@ -1,10 +1,10 @@
 ## 1. Root cleanup
 
-- [ ] 1.1 Delete `coverage.lcov` and `final-test-output.txt`
-- [ ] 1.2 Move `test-master-replica.ts` into `scripts/` (or delete if dead)
-- [ ] 1.3 Move `create_mcp_key.rs` into `src/bin/create_mcp_key.rs`; verify `cargo run --bin create_mcp_key` works
-- [ ] 1.4 Fold `test/file-upload.test.ts` into `tests/`; delete the empty `test/` dir
-- [ ] 1.5 Resolve `benchmark/` vs `benches/`: keep `benches/`, port anything live, delete the loser
+- [x] 1.1 Delete `coverage.lcov` (untracked, ~1.3 MB scratch). `final-test-output.txt` was already gone.
+- [x] 1.2 `test-master-replica.ts` already absent at task start
+- [x] 1.3 `git mv create_mcp_key.rs src/bin/create_mcp_key.rs`; rewrote against current `AuthManager` API (jwt_secret now wrapped in `Secret`, `Permission` enum, `expires_at: Option<u64>`, tuple return). Now reads `VECTORIZER_JWT_SECRET` env var. `cargo check --bin create_mcp_key` clean.
+- [x] 1.4 `test/` directory already absent
+- [x] 1.5 Merged `benchmark/` into `benches/` instead of deleting (user direction). All topic subdirs preserved under `benches/{comparison,core,embeddings,filter,gpu,grpc,performance,quantization,replication,scripts,search,storage,tests}/`. Loose files (`example_benchmark.rs`, `minimal_benchmark.rs`, `simple_test.rs`, `README.md`, `run_benchmarks.sh`, `benchmark_config.toml`, 10 `*.txt` scratch dumps, `reports/`) moved to `benches/`. Cargo.toml `path = "benchmark/..."` → `path = "benches/..."` (16 entries, 3 active + 13 commented). `scripts/dev/{run-benchmarks.ps1,update-benchmarks.sh}` and `docs/specs/BENCHMARKING.md` paths updated.
 
 ## 2. Config consolidation
 
