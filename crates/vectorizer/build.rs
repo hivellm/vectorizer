@@ -1,52 +1,10 @@
-// Build scripts cannot use tracing - reverting to println!
-// use tracing::{info, error, warn, debug};
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Use vendored protoc when PROTOC is not set (e.g. cross-compilation in CI)
-    if std::env::var("PROTOC").is_err()
-        && let Ok(path) = protoc_bin_vendored::protoc_bin_path()
-    {
-        // SAFETY: build script runs in isolated process; no other threads read env
-        unsafe { std::env::set_var("PROTOC", path) };
-    }
+// Build scripts cannot use tracing — keep `println!` only.
+//
+// gRPC proto compilation moved into the `vectorizer-protocol` crate
+// under phase4_split-vectorizer-workspace sub-phase 2. This build
+// script now only embeds the Windows icon resource for the binary.
 
-    // Compile protobuf definitions with tonic-build
-    // Using tonic-prost-build 0.14 (prost extracted from tonic-build in 0.14)
-    //
-    // Explicit rerun-if-changed directives: `compile_protos` does NOT always
-    // emit these (observed during phase2_unify-search-result-type when
-    // `double score → float score` in vectorizer.proto did not trigger
-    // regeneration on the next `cargo build`). Stating them here makes the
-    // build unambiguously rebuild on any proto edit.
-    // Proto + assets live at the workspace root; this crate sits at
-    // `crates/vectorizer/` after phase4_split-vectorizer-workspace
-    // sub-phase 1, so the relative paths walk up two levels.
-    println!("cargo:rerun-if-changed=../../proto/vectorizer.proto");
-    println!("cargo:rerun-if-changed=../../proto/cluster.proto");
-    tonic_prost_build::configure()
-        .build_server(true)
-        .build_client(true) // Enable client generation for tests
-        .out_dir("src/grpc")
-        .compile_protos(
-            &["../../proto/vectorizer.proto", "../../proto/cluster.proto"],
-            &["../../proto"],
-        )?;
-
-    // Compile Qdrant-compatible gRPC proto definitions
-    println!("cargo:rerun-if-changed=../../proto/qdrant/");
-    std::fs::create_dir_all("src/grpc/qdrant")?;
-    tonic_prost_build::configure()
-        .build_server(true)
-        .build_client(true)
-        .out_dir("src/grpc/qdrant")
-        .compile_protos(
-            &[
-                "../../proto/qdrant/collections_service.proto",
-                "../../proto/qdrant/points_service.proto",
-                "../../proto/qdrant/snapshots_service.proto",
-            ],
-            &["../../proto/qdrant"],
-        )?;
-
+fn main() {
     // Embed Windows icon resource
     #[cfg(all(target_os = "windows", not(target_env = "msvc")))]
     {
@@ -60,9 +18,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         res.set("FileVersion", env!("CARGO_PKG_VERSION"));
 
         if let Err(e) = res.compile() {
-            eprintln!("Warning: Failed to compile Windows resource: {}", e);
+            eprintln!("Warning: Failed to compile Windows resource: {e}");
         }
     }
-
-    Ok(())
 }

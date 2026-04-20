@@ -185,13 +185,16 @@ prost-types = "0.14"
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
 
+# Wire-protocol seam (phase4_split-vectorizer-workspace, sub-phase 2):
+# RPC + gRPC types live in the standalone `vectorizer-protocol` crate
+# so the Rust SDK can depend on the same shapes the server emits.
+vectorizer-protocol = { path = "../vectorizer-protocol" }
+
 [build-dependencies]
-cc = { version = "1.2.49", features = ["parallel"] }
+# Only the Windows icon-embed step remains here — proto compilation
+# moved to the `vectorizer-protocol` crate under
+# phase4_split-vectorizer-workspace sub-phase 2.
 winres = "0.1"
-tonic-build = "0.14"
-tonic-prost-build = "0.14"
-# Vendored protoc for cross-compilation (e.g. aarch64-unknown-linux-musl in CI where container has no protoc)
-protoc-bin-vendored = "3.2"
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }

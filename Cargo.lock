@@ -8998,7 +8998,6 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-transformers",
- "cc",
  "chrono",
  "clap",
  "crc32fast",
@@ -9049,7 +9048,6 @@ dependencies = [
  "proptest",
  "prost",
  "prost-types",
- "protoc-bin-vendored",
  "rand 0.9.3",
  "rayon",
  "rcgen",
@@ -9080,9 +9078,7 @@ dependencies = [
  "tokio-tungstenite 0.28.0",
  "tokio-util",
  "tonic",
- "tonic-build",
  "tonic-prost",
- "tonic-prost-build",
  "tower",
  "tower-http",
  "tower_governor",
@@ -9093,6 +9089,7 @@ dependencies = [
  "umicp-core",
  "unicode-normalization",
  "uuid",
+ "vectorizer-protocol",
  "walkdir",
  "whoami",
  "winres",
@@ -9100,6 +9097,24 @@ dependencies = [
  "zeroize",
  "zip 6.0.0",
  "zstd",
+]
+
+[[package]]
+name = "vectorizer-protocol"
+version = "2.5.16"
+dependencies = [
+ "prost",
+ "prost-types",
+ "protoc-bin-vendored",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "tonic-prost",
+ "tonic-prost-build",
 ]
 
 [[package]]

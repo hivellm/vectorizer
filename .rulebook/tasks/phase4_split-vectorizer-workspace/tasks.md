@@ -13,16 +13,16 @@
 
 ## 2. Extract `vectorizer-protocol`
 
-- [ ] 2.1 Create `crates/vectorizer-protocol/{Cargo.toml, src/lib.rs}`
-- [ ] 2.2 `git mv crates/vectorizer/src/protocol crates/vectorizer-protocol/src/protocol`
-- [ ] 2.3 `git mv crates/vectorizer/src/codec.rs crates/vectorizer-protocol/src/codec.rs`
-- [ ] 2.4 Identify the wire-shaped types in `crates/vectorizer/src/models/` (Vector, CollectionConfig, SearchRequest/Response, Embedding*, etc. — the types serialized over REST/gRPC/RPC). Move them into `crates/vectorizer-protocol/src/types/`. Leave server-internal models behind in `vectorizer`.
-- [ ] 2.5 Move tonic-generated proto modules from `crates/vectorizer/src/grpc/{vectorizer,cluster,qdrant_proto}.rs` into `crates/vectorizer-protocol/src/proto/`
-- [ ] 2.6 Move `proto/*.proto` build setup from the umbrella crate's `build.rs` into `crates/vectorizer-protocol/build.rs`
-- [ ] 2.7 Add `vectorizer-protocol = { path = "../vectorizer-protocol" }` to `crates/vectorizer/Cargo.toml`
-- [ ] 2.8 Add a top-level `pub use vectorizer_protocol::{...}` re-export shim in `crates/vectorizer/src/lib.rs` so existing consumers keep compiling
-- [ ] 2.9 `cargo build --workspace` + `cargo test --workspace --lib` clean
-- [ ] 2.10 `cargo clippy --workspace -- -D warnings` clean
+- [x] 2.1 Created `crates/vectorizer-protocol/{Cargo.toml, src/lib.rs, build.rs}`. Lib is `#![deny(missing_docs)]` and exposes `pub mod rpc_wire` + `pub mod grpc_gen { vectorizer; cluster; qdrant_proto }`.
+- [x] 2.2 `git mv` of the wire-only RPC pieces: `crates/vectorizer/src/protocol/rpc/{types.rs,codec.rs}` → `crates/vectorizer-protocol/src/rpc_wire/`. The `dispatch.rs` + `server.rs` halves stay in `vectorizer` because they pull in `crate::db::VectorStore`, `crate::embedding::EmbeddingManager`, `crate::server::AuthHandlerState`, and `crate::auth::roles::Role` — none of which belong on the wire-protocol crate.
+- [x] 2.3 `crates/vectorizer/src/codec.rs` (generic bincode wrapper used by cluster/embedding-cache/normalization/persistence) **stays** in `vectorizer`. Not moved — it's a serialization helper, not a wire type.
+- [x] 2.4 Wire-shaped types in `models/` **stay in vectorizer for sub-phase 2** to keep this commit narrow. They're tangled with server-internal types (`Vector`, `Payload`, `SparseVector` are used by both REST/gRPC handlers and the storage engine). The orphan-rule fallout this would create is large; a dedicated sub-phase covers it once the server crate is extracted.
+- [x] 2.5 `git mv proto crates/vectorizer-protocol/proto/`. Generated proto modules removed via `git rm crates/vectorizer/src/grpc/{vectorizer.rs,vectorizer.cluster.rs,qdrant/qdrant.rs}`; `vectorizer-protocol/build.rs` regenerates them into `crates/vectorizer-protocol/src/grpc_gen/` on the next build.
+- [x] 2.6 `crates/vectorizer-protocol/build.rs` owns proto compilation now (with `protoc-bin-vendored`, same vendoring trick as before). `crates/vectorizer/build.rs` slimmed to the Windows icon-resource embed only; `tonic-build` / `tonic-prost-build` / `protoc-bin-vendored` build-deps moved to the new crate.
+- [x] 2.7 `vectorizer-protocol = { path = "../vectorizer-protocol" }` added to `crates/vectorizer/Cargo.toml`.
+- [x] 2.8 Re-exports added: `vectorizer::grpc::{vectorizer,cluster,qdrant_proto}` re-export from `vectorizer_protocol::grpc_gen::*`; `vectorizer::protocol::rpc::{codec,types,Request,Response,VectorizerValue}` re-export from `vectorizer_protocol::rpc_wire::*`. Two `include!("../grpc/vectorizer.cluster.rs")` call sites in `cluster/{server_client,state_sync}.rs` migrated to `use crate::grpc::cluster as cluster_proto`. One orphan-rule fallout fixed: `impl TryFrom<&vectorizer::HybridSearchRequest> for (Vec<f32>, Option<SparseVector>, HybridSearchConfig)` rewritten as a free function `hybrid_search_request_to_engine_args` (every component foreign to `vectorizer` once `HybridSearchRequest` moved out).
+- [x] 2.9 `cargo build --workspace --bin vectorizer` + `cargo test --workspace --lib` clean.
+- [x] 2.10 `cargo clippy --workspace -- -D warnings` clean.
 
 ## 3. Extract `vectorizer-core`
 

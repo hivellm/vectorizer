@@ -9,10 +9,9 @@ use super::node::NodeId;
 use crate::error::{Result, VectorizerError};
 use crate::hub::TenantContext;
 
-// Include generated cluster proto code
-mod cluster_proto {
-    include!("../grpc/vectorizer.cluster.rs");
-}
+// Cluster proto types live in the `vectorizer-protocol` crate after
+// phase4_split-vectorizer-workspace sub-phase 2.
+use crate::grpc::cluster as cluster_proto;
 
 use cluster_proto::cluster_service_client::ClusterServiceClient;
 

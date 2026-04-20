@@ -42,10 +42,7 @@ pub fn decode_frame<T: for<'de> Deserialize<'de>>(
     if len > MAX_BODY_SIZE {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!(
-                "RPC frame too large: declared {} bytes, max {}",
-                len, MAX_BODY_SIZE
-            ),
+            format!("RPC frame too large: declared {len} bytes, max {MAX_BODY_SIZE}"),
         ));
     }
     let total = 4 + len;
@@ -93,10 +90,7 @@ async fn read_frame<T: for<'de> Deserialize<'de>, R: AsyncRead + Unpin>(
     if len > MAX_BODY_SIZE {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            format!(
-                "RPC frame too large: declared {} bytes, max {}",
-                len, MAX_BODY_SIZE
-            ),
+            format!("RPC frame too large: declared {len} bytes, max {MAX_BODY_SIZE}"),
         ));
     }
     let mut body = vec![0u8; len];
@@ -118,7 +112,7 @@ async fn write_frame<T: Serialize, W: AsyncWrite + Unpin>(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
-    use crate::protocol::rpc::types::VectorizerValue;
+    use crate::rpc_wire::types::VectorizerValue;
 
     #[test]
     fn encode_decode_roundtrip_request() {

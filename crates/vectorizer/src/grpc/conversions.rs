@@ -217,37 +217,41 @@ impl From<vectorizer::HybridScoringAlgorithm> for HybridScoringAlgorithm {
     }
 }
 
-impl TryFrom<&vectorizer::HybridSearchRequest>
-    for (Vec<f32>, Option<SparseVector>, HybridSearchConfig)
-{
-    type Error = VectorizerError;
+/// Convert a hybrid-search proto request into the
+/// `(dense_query, sparse_query, config)` triple the engine expects.
+///
+/// This was a `TryFrom` impl before phase4_split-vectorizer-workspace
+/// sub-phase 2 moved `HybridSearchRequest` into `vectorizer-protocol` —
+/// the orphan rule then rejected the impl because every non-tuple
+/// component was foreign to this crate. A free function carries the
+/// same conversion without invoking the orphan rule.
+pub fn hybrid_search_request_to_engine_args(
+    req: &vectorizer::HybridSearchRequest,
+) -> Result<(Vec<f32>, Option<SparseVector>, HybridSearchConfig)> {
+    let dense_query = req.dense_query.clone();
+    let sparse_query = req.sparse_query.as_ref().map(|sv| SparseVector {
+        indices: sv.indices.iter().map(|&i| i as usize).collect(),
+        values: sv.values.clone(),
+    });
+    let config = req.config.as_ref().map(|c| HybridSearchConfig {
+        dense_k: c.dense_k as usize,
+        sparse_k: c.sparse_k as usize,
+        final_k: c.final_k as usize,
+        alpha: c.alpha as f32,
+        algorithm: HybridScoringAlgorithm::from(c.algorithm()),
+    });
 
-    fn try_from(req: &vectorizer::HybridSearchRequest) -> Result<Self> {
-        let dense_query = req.dense_query.clone();
-        let sparse_query = req.sparse_query.as_ref().map(|sv| SparseVector {
-            indices: sv.indices.iter().map(|&i| i as usize).collect(),
-            values: sv.values.clone(),
-        });
-        let config = req.config.as_ref().map(|c| HybridSearchConfig {
-            dense_k: c.dense_k as usize,
-            sparse_k: c.sparse_k as usize,
-            final_k: c.final_k as usize,
-            alpha: c.alpha as f32,
-            algorithm: HybridScoringAlgorithm::from(c.algorithm()),
-        });
-
-        Ok((
-            dense_query,
-            sparse_query,
-            config.unwrap_or_else(|| HybridSearchConfig {
-                dense_k: 10,
-                sparse_k: 10,
-                final_k: 10,
-                alpha: 0.5,
-                algorithm: HybridScoringAlgorithm::ReciprocalRankFusion,
-            }),
-        ))
-    }
+    Ok((
+        dense_query,
+        sparse_query,
+        config.unwrap_or_else(|| HybridSearchConfig {
+            dense_k: 10,
+            sparse_k: 10,
+            final_k: 10,
+            alpha: 0.5,
+            algorithm: HybridScoringAlgorithm::ReciprocalRankFusion,
+        }),
+    ))
 }
 
 #[cfg(test)]

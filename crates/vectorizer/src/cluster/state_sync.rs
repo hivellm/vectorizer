@@ -13,10 +13,9 @@ use super::node::{ClusterNode, NodeId, NodeStatus};
 use super::server_client::ClusterClientPool;
 use crate::db::VectorStore;
 
-// Include generated cluster proto code
-mod cluster_proto {
-    include!("../grpc/vectorizer.cluster.rs");
-}
+// Cluster proto types live in the `vectorizer-protocol` crate after
+// phase4_split-vectorizer-workspace sub-phase 2.
+use crate::grpc::cluster as cluster_proto;
 
 /// Cluster state synchronizer
 #[derive(Debug, Clone)]

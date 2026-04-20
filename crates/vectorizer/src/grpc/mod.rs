@@ -6,26 +6,16 @@
 pub mod conversions;
 pub mod server;
 
-// Include generated protobuf code. The included files are auto-generated
-// by `tonic-prost-build` on every `cargo build`; we cannot annotate
-// individual items, so the wrapping module silences `missing_docs` for
-// the whole tree.
-#[allow(missing_docs)]
-pub mod vectorizer {
-    include!("vectorizer.rs");
-}
+// Generated proto modules now live in the `vectorizer-protocol` crate
+// (phase4_split-vectorizer-workspace, sub-phase 2). Re-exported here so
+// existing consumers (`use vectorizer::grpc::vectorizer::*` etc.) keep
+// working without code changes.
+pub use vectorizer_protocol::grpc_gen::cluster;
+pub use vectorizer_protocol::grpc_gen::qdrant_proto;
+pub use vectorizer_protocol::grpc_gen::vectorizer;
 
-#[allow(missing_docs)]
-pub mod cluster {
-    include!("vectorizer.cluster.rs");
-}
-
-#[allow(missing_docs)]
-pub mod qdrant_proto {
-    include!("qdrant/qdrant.rs");
-}
-
-// Qdrant gRPC service implementations
+// Qdrant gRPC service implementations (server-side, depend on the
+// storage engine — stay in this crate, not the wire-protocol crate).
 pub mod qdrant_grpc;
 
 // Re-export service types
