@@ -35,7 +35,7 @@ rmp-serde = "1"
 glob = { version = "0.3", default-features = false }
 # Note: chrono is heavy but used in 166 places - consider migrating to time crate in future
 chrono = { version = "0.4", features = ["serde"], default-features = false }
-sha2 = "0.10"
+sha2 = "0.11"
 walkdir = "2.5"
 notify = "8.2"
 fastrand = "2.3"
@@ -117,7 +117,7 @@ openssl = { version = "0.10", features = ["vendored"], optional = true }
 jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
 uuid = { version = "1.22", features = ["v4", "v5", "serde"] }
 rand = "0.9"
-hmac = "0.12"           # HMAC for request signing
+hmac = "0.13"           # HMAC for request signing
 base64 = "0.22"         # Base64 encoding for signing secrets
 bcrypt = "0.19"
 aes-gcm = "0.10"  # AES-GCM encryption for auth persistence

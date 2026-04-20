@@ -55,7 +55,7 @@ impl ApiKeyManager {
     fn hash_key(&self, key: &str) -> String {
         let mut hasher = Sha256::new();
         hasher.update(key.as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 
     /// Create a new API key for a user

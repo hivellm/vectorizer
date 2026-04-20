@@ -535,7 +535,7 @@ impl StorageWriter {
     fn calculate_checksum(&self, data: &[u8]) -> String {
         let mut hasher = Sha256::new();
         hasher.update(data);
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 
     /// Decompress gzip data

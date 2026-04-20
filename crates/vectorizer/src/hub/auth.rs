@@ -385,7 +385,7 @@ impl HubAuth {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(api_key.as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 
     /// Get cached authentication if valid

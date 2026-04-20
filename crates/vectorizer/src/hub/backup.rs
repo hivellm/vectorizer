@@ -805,7 +805,7 @@ impl UserBackupManager {
         hasher.update(&data);
         let result = hasher.finalize();
 
-        Ok(format!("{:x}", result))
+        Ok(hex::encode(result))
     }
 
     /// Cleanup old backups for a user

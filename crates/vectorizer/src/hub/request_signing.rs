@@ -29,7 +29,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use parking_lot::RwLock;
 use sha2::{Digest, Sha256};
 use tracing::{debug, warn};
@@ -141,7 +141,7 @@ impl SignedRequest {
             Some(b) if !b.is_empty() => {
                 let mut hasher = Sha256::new();
                 hasher.update(b);
-                format!("{:x}", hasher.finalize())
+                hex::encode(hasher.finalize())
             }
             _ => String::new(),
         };
@@ -343,7 +343,7 @@ impl RequestSigningValidator {
     fn compute_signature(&self, secret: &[u8], message: &str) -> String {
         let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
         mac.update(message.as_bytes());
-        format!("{:x}", mac.finalize().into_bytes())
+        hex::encode(mac.finalize().into_bytes())
     }
 
     /// Generate a signature for testing/client use
@@ -364,7 +364,7 @@ impl RequestSigningValidator {
             Some(b) if !b.is_empty() => {
                 let mut hasher = Sha256::new();
                 hasher.update(b);
-                format!("{:x}", hasher.finalize())
+                hex::encode(hasher.finalize())
             }
             _ => String::new(),
         };
@@ -488,7 +488,7 @@ mod tests {
         // Create signed request
         let mut body_hasher = Sha256::new();
         body_hasher.update(body);
-        let body_hash = format!("{:x}", body_hasher.finalize());
+        let body_hash = hex::encode(body_hasher.finalize());
 
         let request = SignedRequest {
             method: "POST".to_string(),

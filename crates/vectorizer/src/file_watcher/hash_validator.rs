@@ -41,7 +41,7 @@ impl HashValidator {
         let content = std::fs::read(path)?;
         let mut hasher = Sha256::new();
         hasher.update(&content);
-        let hash = format!("{:x}", hasher.finalize());
+        let hash = hex::encode(hasher.finalize());
         Ok(hash)
     }
 
@@ -53,7 +53,7 @@ impl HashValidator {
 
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     }
 
     /// Check if file content has changed

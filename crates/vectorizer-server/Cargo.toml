@@ -43,7 +43,7 @@ async-graphql-axum = "7.0"
 
 # Auth + security primitives
 jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
-hmac = "0.12"
+hmac = "0.13"
 base64 = "0.22"
 bcrypt = "0.19"
 aes-gcm = "0.10"
@@ -108,7 +108,7 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 # Misc
 glob = { version = "0.3", default-features = false }
 sysinfo = "0.38"
-sha2 = "0.10"
+sha2 = "0.11"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 rand = "0.9"
 dirs = "6.0"

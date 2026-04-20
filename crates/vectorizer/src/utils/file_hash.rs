@@ -12,7 +12,7 @@ pub fn calculate_file_hash(file_path: &Path) -> Result<String> {
     let mut hasher = Sha256::new();
     hasher.update(&content);
     let hash = hasher.finalize();
-    Ok(format!("{:x}", hash))
+    Ok(hex::encode(hash))
 }
 
 /// Get file modification time

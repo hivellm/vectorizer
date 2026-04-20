@@ -234,7 +234,7 @@ impl Persistence {
                                 if let Ok(content) = std::fs::read(file_path) {
                                     let mut hasher = Sha256::new();
                                     hasher.update(&content);
-                                    let hash = format!("{:x}", hasher.finalize());
+                                    let hash = hex::encode(hasher.finalize());
                                     file_checksums.insert(file_path.to_string(), hash);
                                 }
                             }
