@@ -43,7 +43,7 @@
     "@vitejs/plugin-vue": "^6.0.6",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.0",
-    "electron": "^39.8.5",
+    "electron": "^41.0.0",
     "electron-builder": "^26.0.12",
     "esbuild": "^0.28.0",
     "postcss": "^8.5.6",
