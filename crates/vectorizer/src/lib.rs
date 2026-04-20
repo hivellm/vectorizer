@@ -16,7 +16,9 @@
 // Phase4_enforce-public-api-docs.
 #![deny(missing_docs)]
 
-pub mod api;
+// `api` moved into `vectorizer-server` under
+// phase4_split-vectorizer-workspace sub-phase 4 along with the
+// rest of the HTTP / gRPC / MCP transport layer.
 pub mod auth;
 pub mod batch;
 pub mod cache;
@@ -47,11 +49,20 @@ pub mod file_watcher;
 // GPU module removed - using external hive-gpu crate
 #[cfg(feature = "hive-gpu")]
 pub mod gpu_adapter;
-pub mod grpc;
+// `grpc` moved into `vectorizer-server` under sub-phase 4
+// (server-side gRPC handlers; the generated proto modules already
+// live in `vectorizer-protocol` from sub-phase 2).
+//
+// `grpc_conversions` stays in the umbrella because the
+// `impl From<proto::*> for models::*` blocks need both types local
+// for the orphan rule. The conversions are engine-side glue between
+// proto wire shapes and engine model types.
+pub mod grpc_conversions;
 pub mod hub;
 pub mod hybrid_search;
 pub mod intelligent_search;
-pub mod logging;
+// `logging` moved into `vectorizer-server` (sub-phase 4) — it's
+// server-startup tracing setup.
 pub mod migration;
 pub mod models;
 pub mod monitoring;
@@ -59,14 +70,24 @@ pub mod normalization;
 #[path = "persistence/mod.rs"]
 pub mod persistence;
 pub mod protocol;
+// `replication` stays in the umbrella because `cluster::ha_manager`
+// (which stays in umbrella too) uses MasterNode / ReplicaNode /
+// ReplicationConfig from it. Moving replication breaks that
+// non-circular but cross-module link; rather than refactor
+// ha_manager + replication right now, we keep the engine-side
+// replication primitives here and only move the server's TCP
+// listener glue with the rest of the transport code in sub-phase 4.
 pub mod replication;
+// `security` stays in the umbrella because `models::Payload`
+// references `EncryptedPayload` from it (engine-side wire shape).
+// `server` moved into `vectorizer-server` (sub-phase 4).
 pub mod security;
-pub mod server;
 pub mod storage;
 pub mod summarization;
 pub mod testing;
 pub mod transmutation_integration;
-pub mod umicp;
+// `umicp` moved into `vectorizer-server` (sub-phase 4) — server
+// transport integration.
 pub mod utils;
 pub mod workspace;
 

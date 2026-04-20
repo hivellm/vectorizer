@@ -11,7 +11,7 @@ use crate::hub::TenantContext;
 
 // Cluster proto types live in the `vectorizer-protocol` crate after
 // phase4_split-vectorizer-workspace sub-phase 2.
-use crate::grpc::cluster as cluster_proto;
+use vectorizer_protocol::grpc_gen::cluster as cluster_proto;
 
 use cluster_proto::cluster_service_client::ClusterServiceClient;
 

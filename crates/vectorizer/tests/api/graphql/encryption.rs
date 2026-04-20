@@ -10,10 +10,10 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use p256::SecretKey;
 use p256::elliptic_curve::sec1::ToEncodedPoint;
-use vectorizer::api::graphql::create_schema;
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::models::CollectionConfig;
+use vectorizer_server::api::graphql::create_schema;
 
 /// Helper to create a test ECC key pair
 fn create_test_keypair() -> (SecretKey, String) {

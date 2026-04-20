@@ -13,19 +13,19 @@ use std::time::Duration;
 
 use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
-use vectorizer::grpc::qdrant_proto::collections_client::CollectionsClient;
-use vectorizer::grpc::qdrant_proto::points_client::PointsClient;
-use vectorizer::grpc::qdrant_proto::*;
 use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
+use vectorizer_protocol::grpc_gen::qdrant_proto::collections_client::CollectionsClient;
+use vectorizer_protocol::grpc_gen::qdrant_proto::points_client::PointsClient;
+use vectorizer_protocol::grpc_gen::qdrant_proto::*;
 
 /// Helper to start a Qdrant gRPC test server
 async fn start_qdrant_test_server(
     port: u16,
 ) -> Result<Arc<VectorStore>, Box<dyn std::error::Error>> {
     use tonic::transport::Server;
-    use vectorizer::grpc::QdrantGrpcService;
-    use vectorizer::grpc::qdrant_proto::collections_server::CollectionsServer;
-    use vectorizer::grpc::qdrant_proto::points_server::PointsServer;
+    use vectorizer_protocol::grpc_gen::qdrant_proto::collections_server::CollectionsServer;
+    use vectorizer_protocol::grpc_gen::qdrant_proto::points_server::PointsServer;
+    use vectorizer_server::grpc::QdrantGrpcService;
 
     let store = Arc::new(VectorStore::new());
     let service = QdrantGrpcService::new(store.clone());

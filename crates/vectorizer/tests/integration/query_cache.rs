@@ -4,7 +4,7 @@
 
 use serde_json::json;
 use vectorizer::cache::QueryCache;
-use vectorizer::server::VectorizerServer;
+use vectorizer_server::server::VectorizerServer;
 
 #[allow(clippy::duplicate_mod)]
 #[path = "../helpers/mod.rs"]

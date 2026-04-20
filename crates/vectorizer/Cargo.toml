@@ -205,6 +205,13 @@ winres = "0.1"
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
 proptest = "1.9"
+
+# Dev-only cycle: integration tests under tests/api/, tests/grpc/,
+# tests/mcp/ exercise the server stack that moved into
+# `vectorizer-server` under phase4_split-vectorizer-workspace
+# sub-phase 4. Cargo allows dev-dep cycles because they don't
+# affect the main build graph.
+vectorizer-server = { path = "../vectorizer-server" }
 tempfile = "3.8"
 reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }
 
@@ -313,26 +320,29 @@ harness = false
 
 # vectorizer-cli + create_mcp_key binaries moved to the dedicated
 # `vectorizer-cli` crate under phase4_split-vectorizer-workspace
-# sub-phase 5. Run with `cargo run --bin vectorizer-cli` from the
-# workspace root — Cargo finds the binary in the new crate.
+# sub-phase 5. The `vectorizer` server binary moved to
+# `vectorizer-server` under sub-phase 4.
 
-[[bin]]
-name = "vectorizer"
-path = "src/bin/vectorizer.rs"
-
-[[bin]]
-name = "benchmark_grpc_vs_rest"
-path = "../../benches/grpc/benchmark_grpc_vs_rest.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "qdrant_comparison_benchmark"
-path = "../../benches/comparison/qdrant_comparison_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "test_routes"
-path = "../../scripts/dev/test_routes.rs"
+# benchmark_grpc_vs_rest, qdrant_comparison_benchmark, and
+# test_routes used vectorizer::server / vectorizer::api / etc. that
+# moved to the vectorizer-server crate under sub-phase 4. Disabled
+# here pending re-registration in vectorizer-server (where they have
+# access to the moved server stack). The .rs sources still live at
+# benches/{grpc,comparison}/ + scripts/dev/.
+#
+# [[bin]]
+# name = "benchmark_grpc_vs_rest"
+# path = "../../benches/grpc/benchmark_grpc_vs_rest.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "qdrant_comparison_benchmark"
+# path = "../../benches/comparison/qdrant_comparison_benchmark.rs"
+# required-features = ["benchmarks"]
+#
+# [[bin]]
+# name = "test_routes"
+# path = "../../scripts/dev/test_routes.rs"
 
 # [[bin]]
 # name = "test_basic_metal"

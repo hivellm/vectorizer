@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use vectorizer::grpc::vectorizer::*;
+use vectorizer_protocol::grpc_gen::vectorizer::*;
 
 use crate::grpc::helpers::*;
 

@@ -1,0 +1,154 @@
+[package]
+name = "vectorizer-server"
+version = "3.0.0"
+edition = "2024"
+authors = ["HiveLLM Contributors"]
+description = "HTTP / gRPC / MCP server for Vectorizer."
+license = "Apache-2.0"
+repository = "https://github.com/hivellm/vectorizer"
+keywords = ["vector-database", "server", "http", "grpc", "mcp"]
+categories = ["database", "web-programming::http-server"]
+
+[dependencies]
+# Workspace seams
+vectorizer-core = { path = "../vectorizer-core" }
+vectorizer-protocol = { path = "../vectorizer-protocol" }
+# Engine + auth + cluster + hub + monitoring still live in the
+# umbrella `vectorizer` crate because of bidirectional deps
+# (db→cluster, cache→monitoring, config→{auth,hub}). A future
+# sub-phase resolves those back-refs and narrows this dep.
+vectorizer = { path = "../vectorizer" }
+
+# HTTP / WebSocket server
+axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
+tower = { version = "0.5", default-features = false }
+tower-http = { version = "0.6.7", features = ["cors", "trace", "fs", "set-header"], default-features = false }
+hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1.20", features = ["tokio", "server", "server-auto"] }
+
+# gRPC
+tonic = { version = "0.14", features = [] }
+tonic-prost = "0.14"
+prost = "0.14"
+prost-types = "0.14"
+
+# MCP SDK
+rmcp = { version = "0.10", features = ["server", "macros", "transport-streamable-http-server"] }
+tokio-tungstenite = "0.28"
+tokio-stream = { version = "0.1", features = ["sync"] }
+
+# GraphQL
+async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
+async-graphql-axum = "7.0"
+
+# Auth + security primitives
+jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
+hmac = "0.12"
+base64 = "0.22"
+bcrypt = "0.19"
+aes-gcm = "0.10"
+zeroize = { version = "1", features = ["zeroize_derive"] }
+p256 = { version = "0.13", features = ["ecdh", "pem"] }
+hex = "0.4"
+rcgen = "0.14"
+tower_governor = "0.8"
+governor = "0.10.2"
+rustls = "0.23"
+rustls-pemfile = "2.2"
+tokio-rustls = "0.26"
+
+# UMICP transport
+umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
+
+# HiveHub Cloud
+hivehub-internal-sdk = "1.0"
+
+# Embedded dashboard
+rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
+mime_guess = "2.0"
+
+# Async / std support
+tokio = { version = "1.48", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
+tokio-util = "0.7"
+async-trait = "0.1"
+futures = "0.3"
+
+# Serialization + utilities
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_json = { version = "1.0", default-features = false }
+serde_yaml = { version = "0.9", default-features = false }
+chrono = { version = "0.4", features = ["serde"], default-features = false }
+uuid = { version = "1.22", features = ["v4", "v5", "serde"] }
+parking_lot = "0.12"
+dashmap = "6.1"
+once_cell = "1.20"
+arc-swap = "1.7"
+lazy_static = "1.4"
+lru = "0.16.1"
+
+# Error / logging
+anyhow = { version = "1.0", features = ["backtrace"], default-features = false }
+thiserror = { version = "2.0", default-features = false }
+tracing = { version = "0.1", default-features = false }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"], default-features = false }
+scopeguard = { version = "1.2", default-features = false }
+
+# Replication-specific
+crc32fast = "1.4"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+ctrlc = { version = "3.5", optional = true }
+libc = "0.2.178"
+sys-info = "0.9"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Misc
+glob = { version = "0.3", default-features = false }
+sysinfo = "0.37"
+sha2 = "0.10"
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+rand = "0.9"
+dirs = "5.0"
+memory-stats = "1.0"
+fastrand = "2.3"
+num_cpus = "1.16"
+whoami = "2"
+chrono-tz = "0.10"
+notify = "8.2"
+walkdir = "2.5"
+tempfile = "3.8"
+rmp-serde = "1"
+bincode = { version = "2.0", features = ["serde"] }
+regex = { version = "1.10", default-features = false, features = ["std", "unicode-perl"] }
+hnsw_rs = "0.3"
+tar = "0.4"
+flate2 = "1.1"
+tantivy = "0.25"
+
+# Openraft (replication)
+openraft = { version = "=0.10.0-alpha.17", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.17"
+
+# Prometheus / OTel
+prometheus = "0.14"
+opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-tokio"] }
+opentelemetry-prometheus = "0.29"
+opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
+tracing-opentelemetry = "0.32"
+
+[[bin]]
+name = "vectorizer"
+path = "src/bin/vectorizer.rs"
+
+[features]
+# Server-to-server gRPC integration tests gated under this flag.
+# `tests/grpc_s2s.rs` carries `#![cfg(feature = "s2s-tests")]` and
+# only runs when an external server is reachable.
+s2s-tests = []
+
+[lints]
+workspace = true

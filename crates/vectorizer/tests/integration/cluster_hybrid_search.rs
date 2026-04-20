@@ -27,10 +27,10 @@ use tonic::transport::Server;
 use vectorizer::cluster::{ClusterGrpcService, ClusterManager};
 use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig, VectorStore};
 use vectorizer::error::VectorizerError;
-use vectorizer::grpc::VectorizerGrpcService;
-use vectorizer::grpc::cluster::cluster_service_server::ClusterServiceServer;
-use vectorizer::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
 use vectorizer::models::{CollectionConfig, DistanceMetric, SparseVector, Vector};
+use vectorizer_protocol::grpc_gen::cluster::cluster_service_server::ClusterServiceServer;
+use vectorizer_protocol::grpc_gen::vectorizer::vectorizer_service_server::VectorizerServiceServer;
+use vectorizer_server::grpc::VectorizerGrpcService;
 
 /// Build a `VectorStore` with one collection populated for hybrid scoring.
 fn populated_store() -> Arc<VectorStore> {
@@ -74,8 +74,8 @@ async fn bind_free_port() -> (String, std::net::SocketAddr) {
 
 #[tokio::test]
 async fn remote_hybrid_search_returns_fused_results() {
-    use vectorizer::grpc::cluster::cluster_service_client::ClusterServiceClient;
-    use vectorizer::grpc::cluster::{
+    use vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient;
+    use vectorizer_protocol::grpc_gen::cluster::{
         HybridScoringAlgorithm as ProtoAlgo, HybridSearchConfig as ProtoConfig,
         RemoteHybridSearchRequest, SparseVector as ProtoSparse,
     };

@@ -10,8 +10,8 @@ use super::node::{ClusterNode as LocalClusterNode, NodeId, NodeStatus};
 use crate::db::VectorStore;
 use crate::error::VectorizerError;
 // Use the generated cluster proto code from grpc module
-use crate::grpc::cluster::cluster_service_server::ClusterService as ClusterServiceTrait;
-use crate::grpc::cluster::*;
+use vectorizer_protocol::grpc_gen::cluster::cluster_service_server::ClusterService as ClusterServiceTrait;
+use vectorizer_protocol::grpc_gen::cluster::*;
 
 /// Cluster gRPC service implementation
 #[derive(Clone)]
@@ -65,10 +65,18 @@ impl ClusterServiceTrait for ClusterGrpcService {
                 address: node.address.clone(),
                 grpc_port: node.grpc_port as u32,
                 status: match node.status {
-                    NodeStatus::Active => crate::grpc::cluster::NodeStatus::Active as i32,
-                    NodeStatus::Joining => crate::grpc::cluster::NodeStatus::Joining as i32,
-                    NodeStatus::Leaving => crate::grpc::cluster::NodeStatus::Leaving as i32,
-                    NodeStatus::Unavailable => crate::grpc::cluster::NodeStatus::Unavailable as i32,
+                    NodeStatus::Active => {
+                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Active as i32
+                    }
+                    NodeStatus::Joining => {
+                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Joining as i32
+                    }
+                    NodeStatus::Leaving => {
+                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Leaving as i32
+                    }
+                    NodeStatus::Unavailable => {
+                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Unavailable as i32
+                    }
                 },
                 shards: node.shards.iter().map(|s| s.as_u32()).collect(),
                 metadata: {
@@ -135,13 +143,13 @@ impl ClusterServiceTrait for ClusterGrpcService {
 
             // Update status
             match proto_node.status {
-                x if x == crate::grpc::cluster::NodeStatus::Active as i32 => {
+                x if x == vectorizer_protocol::grpc_gen::cluster::NodeStatus::Active as i32 => {
                     local_node.mark_active()
                 }
-                x if x == crate::grpc::cluster::NodeStatus::Joining as i32 => {
+                x if x == vectorizer_protocol::grpc_gen::cluster::NodeStatus::Joining as i32 => {
                     local_node.status = NodeStatus::Joining;
                 }
-                x if x == crate::grpc::cluster::NodeStatus::Leaving as i32 => {
+                x if x == vectorizer_protocol::grpc_gen::cluster::NodeStatus::Leaving as i32 => {
                     local_node.status = NodeStatus::Leaving;
                 }
                 _ => local_node.mark_unavailable(),

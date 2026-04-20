@@ -9,7 +9,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use vectorizer::grpc::vectorizer::*;
+use vectorizer_protocol::grpc_gen::vectorizer::*;
 
 use crate::grpc::helpers::*;
 
@@ -21,7 +21,7 @@ async fn test_list_collections() {
     // Create a collection via gRPC
     let mut client = create_test_client(port).await.unwrap();
 
-    use vectorizer::grpc::vectorizer::{
+    use vectorizer_protocol::grpc_gen::vectorizer::{
         CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
         HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType,
     };
@@ -59,7 +59,7 @@ async fn test_create_collection() {
 
     let mut client = create_test_client(port).await.unwrap();
 
-    use vectorizer::grpc::vectorizer::{
+    use vectorizer_protocol::grpc_gen::vectorizer::{
         CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
         HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType,
     };

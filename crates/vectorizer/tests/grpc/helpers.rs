@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
-use vectorizer::grpc::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
+use vectorizer_protocol::grpc_gen::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 
 /// Helper to create a test gRPC client
 pub async fn create_test_client(
@@ -46,8 +46,8 @@ pub fn create_test_vector(_id: &str, seed: usize, dimension: usize) -> Vec<f32> 
 /// Helper to start a test gRPC server
 pub async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::error::Error>> {
     use tonic::transport::Server;
-    use vectorizer::grpc::VectorizerGrpcService;
-    use vectorizer::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
+    use vectorizer_protocol::grpc_gen::vectorizer::vectorizer_service_server::VectorizerServiceServer;
+    use vectorizer_server::grpc::VectorizerGrpcService;
 
     let store = Arc::new(VectorStore::new());
     let service = VectorizerGrpcService::new(store.clone());

@@ -381,9 +381,9 @@ mod graphql_workspace_tests {
     use std::sync::Arc;
 
     use tempfile::TempDir;
-    use vectorizer::api::graphql::{VectorizerSchema, create_schema};
     use vectorizer::db::VectorStore;
     use vectorizer::embedding::EmbeddingManager;
+    use vectorizer_server::api::graphql::{VectorizerSchema, create_schema};
 
     fn create_test_schema() -> (VectorizerSchema, TempDir) {
         let temp_dir = TempDir::new().unwrap();

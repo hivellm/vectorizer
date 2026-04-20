@@ -9,7 +9,7 @@ use std::sync::Arc;
 use rmcp::model::CallToolRequestParam;
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
-use vectorizer::server::mcp_handlers::handle_mcp_tool;
+use vectorizer_server::server::mcp_handlers::handle_mcp_tool;
 
 /// Test MCP tool handling for basic operations
 #[tokio::test]

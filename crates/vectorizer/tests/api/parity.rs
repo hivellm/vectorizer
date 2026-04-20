@@ -1,6 +1,6 @@
 //! REST/MCP parity test, registry-driven.
 //!
-//! For every entry in `vectorizer::server::capabilities::inventory()`
+//! For every entry in `vectorizer_server::server::capabilities::inventory()`
 //! tagged `Transport::Both`, this suite validates the **structural**
 //! parity contract:
 //!
@@ -27,12 +27,12 @@
 
 use std::collections::HashSet;
 
-use vectorizer::server::capabilities::{Transport, inventory};
-use vectorizer::server::mcp_tools::{get_mcp_tools, tools_from_inventory};
+use vectorizer_server::server::capabilities::{Transport, inventory};
+use vectorizer_server::server::mcp_tools::{get_mcp_tools, tools_from_inventory};
 
 #[test]
 fn registry_invariants_hold() {
-    vectorizer::server::capabilities::assert_inventory_invariants()
+    vectorizer_server::server::capabilities::assert_inventory_invariants()
         .expect("registry invariants must hold");
 }
 

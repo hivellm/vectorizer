@@ -10,8 +10,8 @@ use tokio::net::TcpStream;
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::protocol::rpc::codec::{read_response, write_request};
-use vectorizer::protocol::rpc::server::{RpcState, spawn_rpc_listener};
 use vectorizer::protocol::rpc::types::{Request, VectorizerValue};
+use vectorizer_server::protocol::rpc::server::{RpcState, spawn_rpc_listener};
 
 /// Bind the listener on `127.0.0.1:0` so the OS picks a free port,
 /// then return the bound address. The listener task lives for the

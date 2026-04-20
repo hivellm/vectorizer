@@ -16,7 +16,7 @@ use vectorizer::embedding::EmbeddingManager;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, GraphConfig, HnswConfig, QuantizationConfig,
 };
-use vectorizer::server::mcp_handlers::handle_mcp_tool;
+use vectorizer_server::server::mcp_handlers::handle_mcp_tool;
 
 fn create_test_collection_config() -> CollectionConfig {
     CollectionConfig {

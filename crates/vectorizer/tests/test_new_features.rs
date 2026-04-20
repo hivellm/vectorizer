@@ -159,17 +159,7 @@ async fn test_collection_with_wal_disabled() {
     assert!(store.get_vector("test_collection", "test_vec").is_err());
 }
 
-#[test]
-fn test_logging_levels() {
-    // Test that logging module compiles and can be initialized with different levels
-    // Note: This test may fail if tracing is already initialized, which is expected
-    use vectorizer::logging;
-
-    // Try to initialize (may fail if already initialized, which is OK)
-    let result1 = logging::init_logging_with_level("test_warn", "warn");
-    let result2 = logging::init_logging_with_level("test_info", "info");
-
-    // At least one should work (or both fail if already initialized)
-    // The important thing is that the function exists and compiles
-    assert!(result1.is_ok() || result2.is_ok() || (result1.is_err() && result2.is_err()));
-}
+// `test_logging_levels` moved to vectorizer-server's test suite
+// under phase4_split-vectorizer-workspace sub-phase 4 —
+// `vectorizer_server::logging` is now `vectorizer_server::logging` and this
+// crate (the umbrella) no longer depends on the server crate.

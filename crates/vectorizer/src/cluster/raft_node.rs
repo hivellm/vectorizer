@@ -544,12 +544,12 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
 
         let response = client
-            .raft_vote(tonic::Request::new(crate::grpc::cluster::RaftVoteRequest {
-                data,
-            }))
+            .raft_vote(tonic::Request::new(
+                vectorizer_protocol::grpc_gen::cluster::RaftVoteRequest { data },
+            ))
             .await
             .map_err(|e| {
                 warn!("Raft vote RPC to {} failed: {:?}", self.target_addr, e);
@@ -589,11 +589,11 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
 
         let response = client
             .raft_append_entries(tonic::Request::new(
-                crate::grpc::cluster::RaftAppendEntriesRequest { data },
+                vectorizer_protocol::grpc_gen::cluster::RaftAppendEntriesRequest { data },
             ))
             .await
             .map_err(|e| {
@@ -648,11 +648,11 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            crate::grpc::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
 
         let response = client
             .raft_snapshot(tonic::Request::new(
-                crate::grpc::cluster::RaftSnapshotRequest {
+                vectorizer_protocol::grpc_gen::cluster::RaftSnapshotRequest {
                     vote_data,
                     snapshot_meta,
                     snapshot_data,
