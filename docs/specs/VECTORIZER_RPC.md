@@ -360,4 +360,4 @@ a4 50 4f 4e 47                 #       value = "PONG"
   not re-sent per request.
 - **Default port 15503**: Vectorizer's RPC listener. The 15500-range is
   reserved for binary transports across the HiveLLM family
-  (Synap=15500, Vectorizer=15503, RESP3=15504, future=15505+).
+  (Synap=15500, Vectorizer=15503, future=15504+).
