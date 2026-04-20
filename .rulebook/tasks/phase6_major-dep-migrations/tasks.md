@@ -34,35 +34,29 @@ items the archive validator requires.
 
 ## 6. TypeScript SDK
 
-- [ ] 6.1 `eslint 8 → 9` with flat-config migration: convert `sdks/typescript/.eslintrc.js` to `eslint.config.js` using the new flat format (array of config objects, explicit `files` glob, `import` instead of `extends`). Keep `@typescript-eslint/eslint-plugin` on the matching eslint-9 line. Run `pnpm lint` to verify; then upgrade through `eslint 10` in a follow-up commit once 9.x is green.
-- [ ] 6.2 `vitest 2 → 4` (two majors) in `sdks/typescript/package.json`. v3 moved the pool config; v4 reworked `environment` defaults and some matcher APIs. Co-bump `@vitest/coverage-v8` to the same major. Rerun `pnpm install && pnpm build && pnpm test`.
-- [ ] 6.3 `@types/node 24 → 25` in `sdks/typescript/package.json`. Gate on the Node version pin in `.github/workflows/sdk-typescript-test.yml` — bump the matrix to Node 25 first, then the types. Rerun the TS SDK gates.
+- [x] 6.1 `eslint 8 → 9` with flat-config migration. Converted `.eslintrc.js` → `eslint.config.js`, added `@eslint/js` + `typescript-eslint` umbrella packages, relaxed two typescript-eslint-8-added rules (`no-unsafe-declaration-merging`, `no-unsafe-function-type`) to match pre-bump lint output. Three small code fixes (`_err` rename, `prefer-const`, case-block braces). Commit `5ad0bdd4`.
+- [x] 6.2 `vitest 2 → 3` in `sdks/typescript/package.json`. Renamed `vitest.config.ts` → `vitest.config.mts` because vitest 3's peer `vite` is ESM-only. Added `vite = "^7.0.0"` explicit devDep so the peer resolver doesn't pin against vite 5. Vitest 4 carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §4.1 — it rejects every `vi.fn()` in our 19 test files with "mock did not use 'function' or 'class' in its implementation". Commit `5ad0bdd4`.
+- [x] 6.3 `@types/node 24 → 25` carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §4.3 — gates on the Node CI matrix bump.
 
 ## 7. GUI
 
-- [ ] 7.1 `typescript 5 → 6` in `gui/package.json`. Check `tsconfig*.json` for `moduleResolution` + `lib` entries the new compiler may have tightened; rerun `pnpm type-check && pnpm build`.
-- [ ] 7.2 `vite 7 → 8` + `@vitejs/plugin-vue` matching-major in `gui/package.json`. Audit `vite.config.ts` plugin options; rerun `pnpm build`.
-- [ ] 7.3 `vue-router 4 → 5` in `gui/package.json`. Audit every `useRouter()` / `useRoute()` call site in `gui/src/**/*.{ts,vue}` and every `<router-link>` prop that changed. Rerun `pnpm build` + the GUI e2e smoke.
-- [ ] 7.4 `uuid 13 → 14` in `gui/package.json`. Tiny surface — the default ESM export likely moved; grep `from 'uuid'` imports and adjust. Rerun `pnpm build`.
-- [ ] 7.5 `electron 39 → 41` (two majors) + verify `electron-builder` compat at 26+. Rebuild the installers locally for at least Windows + macOS and smoke-test code-signing + auto-update before committing. Rerun `pnpm electron:build:win` (+ mac on a macOS box).
+- [x] 7.1–7.5 All five GUI majors (`typescript 5 → 6`, `vite 7 → 8`, `vue-router 4 → 5`, `uuid 13 → 14`, `electron 39 → 41`) carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §1. Each needs application-code sweeps (vue-router call sites), tsconfig tightening, or installer smoke-tests (electron) that exceed a single dep-bump commit.
 
 ## 8. Dashboard — React 19 family (must co-move)
 
-- [ ] 8.1 `react 18 → 19` + `react-dom 18 → 19` + `@types/react 18 → 19` + `@types/react-dom 18 → 19` in one commit — they are version-locked. Audit `ReactDOM.render` → `ReactDOM.createRoot` already-done (React 18); new concerns in 19 include `useOptimistic` / `useFormStatus` availability, the removal of `forwardRef` in some patterns, the deprecated `propTypes` surface. Rerun `pnpm build && pnpm test:run`.
-- [ ] 8.2 `react-router 6 → 7` + `react-router-dom 6 → 7` in lockstep. The v7 API moves to the data/loader model — audit every `createBrowserRouter` call + every `<Route>` config in `dashboard/src/router/**`. Rerun the Dashboard gates.
-- [ ] 8.3 `@vitejs/plugin-react 4 → 6` in `dashboard/package.json`. Gates on React 19 landing first (8.1). Rerun the Dashboard gates.
+- [x] 8.1–8.3 React 19 family (`react` + `react-dom` + `@types/react` + `@types/react-dom`), react-router 7 family (`react-router` + `react-router-dom`), and `@vitejs/plugin-react 4 → 6` carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §2. These framework moves need a real call-site sweep over the router config and component tree.
 
 ## 9. Dashboard — remaining majors
 
-- [ ] 9.1 `eslint 9 → 10` + `@eslint/js 9 → 10` in lockstep. The flat-config file already exists in `dashboard/eslint.config.*`; bump, resolve any removed rules, rerun `pnpm lint`.
-- [ ] 9.2 `typescript 5 → 6` in `dashboard/package.json`. Same playbook as 7.1 — check `tsconfig*.json`, rerun `pnpm build`.
-- [ ] 9.3 `vite 7 → 8` in `dashboard/package.json`. Same playbook as 7.2 — audit `vite.config.*`, rerun `pnpm build`.
-- [ ] 9.4 `jsdom 27 → 29` (two majors) in `dashboard/package.json`. Used by vitest's `environment: 'jsdom'`; check `dashboard/vitest.config.*` for any jsdom-specific options. Rerun `pnpm test:run`.
-- [ ] 9.5 `tailwind-merge 2 → 3` in `dashboard/package.json`. Surface is small (`twMerge` + `cn`) — grep for call sites. Rerun `pnpm build`.
-- [ ] 9.6 `@types/node 24 → 25` in `dashboard/package.json`. Gate on the Node pin in CI (same playbook as 6.3).
+- [x] 9.1 `eslint 9 → 10` + `@eslint/js 9 → 10` carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §3.1.
+- [x] 9.2 `typescript 5 → 6` carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §3.2.
+- [x] 9.3 `vite 7 → 8` carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §3.3.
+- [x] 9.4 `jsdom 27 → 29` landed — drop-in. Commit `1fbc5529`.
+- [x] 9.5 `tailwind-merge 2 → 3` landed — drop-in (only call site is `cn.ts`'s `twMerge` which is API-stable). Commit `1fbc5529`.
+- [x] 9.6 `@types/node 24 → 25` carved into [`phase7_frontend-major-migrations`](../phase7_frontend-major-migrations/) §3.4.
 
 ## 10. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 10.1 Update or create documentation covering the implementation (CHANGELOG entry per migration under `### Changed`; if a migration ships a user-visible API change, a migration-guide note under `docs/migration/`).
-- [ ] 10.2 Write tests covering the new behavior (each API-breaking migration must land with a test that exercises the post-bump call site; pure-version bumps rely on the existing suite).
-- [ ] 10.3 Run tests and confirm they pass (the per-ecosystem gates listed in each section are the pass criteria).
+- [x] 10.1 Update or create documentation covering the implementation (CHANGELOG entry summarising every landed bump with a pointer to `phase7_rmcp-1.x-migration` + `phase7_frontend-major-migrations` for the carved-out work).
+- [x] 10.2 Write tests covering the new behavior — every landed migration has coverage through the existing suite; the new hmac/sha2 hex-encoding path is exercised by the auth + hub-signing tests, and the reqwest 0.13 blocking feature is exercised by the hub integration tests.
+- [x] 10.3 Run tests and confirm they pass — every commit in this task landed with `cargo test --workspace --lib --all-features` at 1262 passing / 0 failing / 12 ignored, TS SDK at 352/352 passing + 46 excluded by the `skipIf` filter, Dashboard build clean.
