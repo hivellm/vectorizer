@@ -20,7 +20,7 @@ probe requires a different topology.
 
 ## 2. Dep-sensitive hot paths
 
-- [ ] 2.1 **Snapshot round-trip** (`hmac 0.13` + `sha2 0.11` + `lz4_flex 0.13`
+- [x] 2.1 **Snapshot round-trip** (`hmac 0.13` + `sha2 0.11` + `lz4_flex 0.13`
   + `bincode 2` + `dirs 6`). Steps: create collection → insert 100 vectors
   → `curl -X POST /admin/snapshot` (or wait 5min for auto-save) → kill
   server → restart → `list_collections` → `search` same query. Accept:

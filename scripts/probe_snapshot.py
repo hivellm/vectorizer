@@ -37,6 +37,7 @@ def _req(method, path, body=None):
 
 
 def seed():
+    _req("DELETE", f"/collections/{COLL}")
     s, b = _req(
         "POST",
         "/collections",
@@ -44,25 +45,25 @@ def seed():
     )
     assert s in (200, 201, 409), f"create_collection failed: {s} {b}"
 
-    for i in range(N):
-        text = (
-            f"probe document number {i:03d}. "
-            f"unique phrase alpha-{i:03d} beta-{(i * 37) % 101} gamma-{(i * 13) % 251}. "
-            "synthetic seed content for the v3 snapshot round-trip probe."
-        )
-        s, b = _req(
-            "POST",
-            "/insert",
-            {
-                "collection": COLL,
-                "text": text,
-                "metadata": {"idx": str(i), "tag": "probe_snapshot"},
-            },
-        )
-        assert s == 200, f"insert #{i} failed: {s} {b}"
+    texts = [
+        {
+            "text": (
+                f"probe document number {i:03d}. "
+                f"unique phrase alpha-{i:03d} beta-{(i * 37) % 101} gamma-{(i * 13) % 251}. "
+                "synthetic seed content for the v3 snapshot round-trip probe."
+            ),
+            "metadata": {"idx": str(i), "tag": "probe_snapshot"},
+        }
+        for i in range(N)
+    ]
+    s, b = _req("POST", "/batch_insert", {"collection": COLL, "texts": texts})
+    assert s == 200, f"batch_insert failed: {s} {b}"
+    assert b.get("inserted") == N and b.get("failed") == 0, f"batch result: {b}"
+    print("batch_insert:", b.get("inserted"), "inserted,", b.get("failed"), "failed")
 
     s, b = _req("POST", f"/collections/{COLL}/force-save", {})
     print("force_save:", s, b)
+    assert b.get("success") and b.get("flushed"), f"force-save did not flush: {b}"
 
     s, b = _req(
         "POST",
