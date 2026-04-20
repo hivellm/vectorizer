@@ -109,7 +109,11 @@ export class FilesClient extends BaseClient {
     if (typeof File !== 'undefined' && file instanceof File) {
       formData.append('file', file, filename);
     } else if (typeof Blob !== 'undefined') {
-      const blob = new Blob([file as Buffer | Uint8Array]);
+      // @types/node 25 tightened `Buffer` typing to carry the
+      // underlying buffer kind. Global `Blob` rejects
+      // `SharedArrayBuffer`-backed views, but our `file` here is
+      // always an `ArrayBuffer`-backed payload at runtime.
+      const blob = new Blob([file as unknown as Uint8Array<ArrayBuffer>]);
       formData.append('file', blob, filename);
     } else {
       throw new Error('File upload requires File, Buffer, or Uint8Array');

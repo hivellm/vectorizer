@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
-        node-version: [ '18.x', '20.x' ]
+        node-version: [ '20.x', '22.x', '24.x' ]
 
     steps:
     - name: Checkout code (non-Windows)
@@ -74,7 +74,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '20.x'
+        node-version: '22.x'
         cache: 'npm'
         cache-dependency-path: sdks/typescript/package-lock.json
 
@@ -95,7 +95,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '20.x'
+        node-version: '22.x'
         cache: 'npm'
         cache-dependency-path: sdks/typescript/package-lock.json
 

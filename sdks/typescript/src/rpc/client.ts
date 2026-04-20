@@ -134,7 +134,11 @@ export class RpcClient {
   private constructor(socket: net.Socket) {
     this.socket = socket;
     this.socket.setNoDelay(true);
-    this.socket.on('data', (chunk) => this.onData(chunk));
+    // @types/node 25 typed the `data` callback as `string | Buffer`
+    // because streams can be in either binary or text mode. Our
+    // TCP socket never calls `setEncoding`, so every chunk is a
+    // `Buffer` at runtime — assert the narrower type.
+    this.socket.on('data', (chunk: Buffer) => this.onData(chunk));
     this.socket.on('error', (err) => this.onError(err));
     this.socket.on('close', () => this.onClose());
   }
