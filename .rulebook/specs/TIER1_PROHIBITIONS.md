@@ -7,7 +7,7 @@
 
 ## PROHIBITION 1: No Shortcuts, Stubs, or Simplified Logic
 
-**NEVER** simplify logic, add `TODO`/`FIXME`/`HACK`/`XXX`, create stubs, use placeholders, alter existing logic to avoid complexity, reduce scope, skip edge cases, or deliver partial implementations.
+**NEVER** simplify logic, add TODO/FIXME/HACK, create stubs, use placeholders, alter existing logic to avoid complexity, reduce scope, skip edge cases, or deliver partial implementations.
 
 **Response time is IRRELEVANT. Quality is everything.**
 
@@ -15,21 +15,11 @@
 - `// TODO` — unfinished work disguised as progress
 - `// FIXME` — a known bug left for "later"
 - `// HACK` — a shortcut that will haunt you
-- `// XXX` — same category, different typographical flavor
 - `return 0; // placeholder` — a lie that compiles
 - `/* stub */` — an empty promise
 - Simplified algorithms where the correct one is known
 - Partial implementations ("I'll add the rest later")
 - Reduced scope without explicit approval
-
-### Allow-list (CI-enforced by `scripts/ci/check-no-tier1-markers.sh`)
-
-Only two forms of the forbidden tokens are permitted:
-
-1. **`// TASK(phaseN_<slug>):`** — a comment that points at a tracked rulebook task. Every such marker must correspond to a real `.rulebook/tasks/<slug>/` directory. Grep pattern matched by the gate: `TASK\(phase[0-9]+_[a-z0-9-]+\)`.
-2. **`grep-ignore(tier1-markers)` on the same line** — for code that must keep the literal tokens because it *detects* them in user data (e.g. `src/file_operations/operations.rs` has a summarizer that searches for `TODO`/`FIXME` in source files).
-
-Any other occurrence fails CI. The gate script is `scripts/ci/check-no-tier1-markers.sh` and the workflow step lives in `.github/workflows/rust-lint.yml`.
 
 ### Required Behavior
 - **Research** the correct approach before writing code

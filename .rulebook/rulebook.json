@@ -1,24 +1,24 @@
 {
-  "version": "5.3.3",
-  "installedAt": "2026-04-18T01:44:36.630Z",
-  "updatedAt": "2026-04-18T01:44:50.028Z",
-  "projectId": "2d74fe26-ff39-40fc-8ecd-d7d51c741a60",
+  "version": "5.4.0",
+  "installedAt": "2026-04-20T18:56:11.050Z",
+  "updatedAt": "2026-04-20T18:56:11.051Z",
+  "projectId": "Vectorizer",
   "mode": "full",
   "features": {
-    "watcher": true,
-    "agent": true,
+    "watcher": false,
+    "agent": false,
     "logging": true,
-    "telemetry": true,
+    "telemetry": false,
     "notifications": false,
     "dryRun": false,
-    "gitHooks": false,
+    "gitHooks": true,
     "repl": false,
-    "templates": false,
-    "context": false,
-    "health": false,
+    "templates": true,
+    "context": true,
+    "health": true,
     "plugins": false,
-    "parallel": false,
-    "smartContinue": false
+    "parallel": true,
+    "smartContinue": true
   },
   "coverageThreshold": 95,
   "language": "en",
@@ -62,22 +62,6 @@
       "requireApprovalForStories": "all"
     }
   },
-  "agentsMode": "lean",
-  "monorepo": {
-    "detected": false,
-    "tool": null,
-    "packages": []
-  },
-  "languages": [
-    "rust",
-    "ruby"
-  ],
-  "frameworks": [],
-  "modules": [
-    "rulebook_mcp"
-  ],
-  "modular": true,
-  "rulebookDir": ".rulebook",
   "skills": {
     "enabled": [
       "languages/rust",
@@ -117,5 +101,6 @@
       "core/token-optimization",
       "core/workspace"
     ]
-  }
+  },
+  "agentsMode": "lean"
 }
