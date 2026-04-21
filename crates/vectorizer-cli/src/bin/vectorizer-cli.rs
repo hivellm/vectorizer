@@ -363,7 +363,10 @@ async fn install_service() {
     {
         info!("🐧 Installing as Linux systemd service...");
 
-        let username = whoami::username();
+        // whoami 2.x returns `Result<String, whoami::Error>`; fall back
+        // to "root" so the generated unit file stays writable even when
+        // the platform can't resolve the current user (rare on Linux).
+        let username = whoami::username().unwrap_or_else(|_| "root".to_string());
         let exe_path = std::env::current_exe().unwrap().display().to_string();
         let current_dir = std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("/var/lib/vectorizer"))
