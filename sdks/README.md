@@ -2,48 +2,50 @@
 
 High-performance client SDKs for the Hive Vectorizer vector database, available in multiple languages.
 
+All SDKs synchronized at **v3.0.0**. Every SDK accepts both `vectorizer://host[:port]` (RPC, binary MessagePack over TCP — **default in v3.x**, port `15503`) and `http(s)://host[:port]` (REST fallback, port `15002`) URLs through the same endpoint parser.
+
 ## Available SDKs
 
 ### 🟦 TypeScript SDK ✅
 
 - **Package**: `@hivehub/vectorizer-sdk`
-- **Status**: Published on npm
-- **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing. Ships compiled CommonJS and works from plain JavaScript projects too.
+- **Status**: Published on npm (v3.0.0)
+- **Features**: VectorizerRPC + REST, full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing. Ships compiled CommonJS + ESM and works from plain JavaScript projects too.
 - **Installation**: `npm install @hivehub/vectorizer-sdk`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
 
 ### 🦀 Rust SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on crates.io (v1.8.0)
-- **Features**: High performance, async/await, MCP support, type safety, intelligent search, Master/Replica routing
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.8.0"`
+- **Status**: Published on crates.io (v3.0.0)
+- **Features**: VectorizerRPC + REST, high performance, async/await, MCP support, type safety, intelligent search, Master/Replica routing
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.0.0"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
 ### 🐍 Python SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on PyPI (v1.8.0)
-- **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search, Master/Replica routing
-- **Installation**: `pip install vectorizer-sdk==1.8.0`
+- **Status**: Published on PyPI (v3.0.0)
+- **Features**: VectorizerRPC + REST, async/await support, comprehensive testing, CLI interface, intelligent search, Master/Replica routing
+- **Installation**: `pip install vectorizer-sdk==3.0.0`
 - **Documentation**: [Python SDK README](./python/README.md)
 
-### 🐹 Go SDK 🚧
+### 🐹 Go SDK ✅
 
 - **Package**: `github.com/hivellm/vectorizer-sdk-go`
-- **Status**: In Development (v1.8.0)
-- **Features**: High performance, simple API, comprehensive error handling, intelligent search, Master/Replica routing
-- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go`
+- **Status**: v3.0.0
+- **Features**: VectorizerRPC + REST, high performance, simple API, comprehensive error handling, intelligent search, Master/Replica routing
+- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.0.0`
 - **Repository**: https://github.com/hivellm/vectorizer/tree/main/sdks/go
 - **Documentation**: [Go SDK README](./go/README.md)
 
 ### 🔷 C# SDK ✅
 
-- **Package**: `Vectorizer.Sdk`
-- **Status**: Published on NuGet (v1.8.0)
-- **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Master/Replica routing
-- **Installation**: `dotnet add package Vectorizer.Sdk`
-- **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
+- **Packages**: `Vectorizer.Sdk` (REST), `Vectorizer.Sdk.Rpc` (RPC, new in v3.0.0)
+- **Status**: Published on NuGet (v3.0.0)
+- **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Master/Replica routing. The `Vectorizer.Sdk.Rpc` companion package adds the binary VectorizerRPC transport with MessagePack framing, connection pool, and ASP.NET Core DI.
+- **Installation**: `dotnet add package Vectorizer.Sdk` (+ `dotnet add package Vectorizer.Sdk.Rpc` for RPC)
+- **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk · https://www.nuget.org/packages/Vectorizer.Sdk.Rpc
 - **Documentation**: [C# SDK README](./csharp/README.md)
 
 ### Removed framework integrations
@@ -129,7 +131,7 @@ const contextualResults = await client.contextualSearch({
 import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key",
 });
 
@@ -162,7 +164,7 @@ const results = await client.searchVectors("documents", {
 from vectorizer import VectorizerClient
 
 client = VectorizerClient(
-    base_url="http://localhost:15001",
+    base_url="http://localhost:15002",
     api_key="your-api-key"
 )
 
@@ -228,14 +230,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-vectorizer-sdk = "1.8.0"
+vectorizer-sdk = "3.0.0"
 ```
 
 ## SDK Comparison Table
 
 | Feature                     | TypeScript   | Rust         | Python       | Go         | C#           |
 | --------------------------- | ------------ | ------------ | ------------ | ---------- | ------------ |
-| **Status**                  | ✅ Published | ✅ Published | ✅ Published | 🚧 Dev     | ✅ Published |
+| **Status**                  | ✅ v3.0.0    | ✅ v3.0.0    | ✅ v3.0.0    | ✅ v3.0.0  | ✅ v3.0.0    |
+| **VectorizerRPC**           | ✅           | ✅           | ✅           | ✅         | ✅           |
 | **Master/Replica Routing**  | ✅           | ✅           | ✅           | ✅         | ✅           |
 | **Package Manager**         | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
 | **Collection Management**   | ✅           | ✅           | ✅           | ✅         | ✅           |
@@ -389,7 +392,7 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 │ • Works from JS │    │                 │    │ • SourceLink     │
 │                 │    │                 │    │                  │
 │      C# SDK     │    │      Go SDK     │    │                  │
-│  ✅ Published   │    │   🚧 In Dev     │    │                  │
+│  ✅ v3.0.0      │    │  ✅ v3.0.0      │    │                  │
 │                 │    │                 │    │                  │
 │ • .NET 8.0+     │    │ • High Perf     │    │                  │
 │ • SourceLink    │    │ • Simple API    │    │                  │
@@ -402,7 +405,7 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
                     │  Vectorizer     │    │   MCP Server    │
                     │     Server      │    │                 │
                     │                 │    │ • Model Context │
-                    │ • REST API      │    │ • AI Integration │
+                    │ • REST + RPC    │    │ • AI Integration │
                     │ • MCP Protocol  │    │ • Tool Calling  │
                     │                 │    │ • SSE Transport │
                     └─────────────────┘    └─────────────────┘
@@ -449,8 +452,8 @@ Configure once, use everywhere. The SDK automatically routes operations:
 // TypeScript/JavaScript
 const client = new VectorizerClient({
   hosts: {
-    master: "http://master-node:15001",
-    replicas: ["http://replica1:15001", "http://replica2:15001"],
+    master: "http://master-node:15002",
+    replicas: ["http://replica1:15002", "http://replica2:15002"],
   },
   apiKey: "your-api-key",
   readPreference: "replica", // "master" | "replica" | "nearest"
@@ -477,8 +480,8 @@ const fresh = await client.getVector("documents", "doc1", {
 # Python
 client = VectorizerClient(
     hosts={
-        "master": "http://master-node:15001",
-        "replicas": ["http://replica1:15001", "http://replica2:15001"]
+        "master": "http://master-node:15002",
+        "replicas": ["http://replica1:15002", "http://replica2:15002"]
     },
     api_key="your-api-key",
     read_preference="replica"  # "master" | "replica" | "nearest"
@@ -501,9 +504,9 @@ fresh = await client.get_vector("documents", "doc1", read_preference="master")
 ```rust
 // Rust
 let client = VectorizerClient::builder()
-    .master("http://master-node:15001")
-    .replica("http://replica1:15001")
-    .replica("http://replica2:15001")
+    .master("http://master-node:15002")
+    .replica("http://replica1:15002")
+    .replica("http://replica2:15002")
     .api_key("your-api-key")
     .read_preference(ReadPreference::Replica)
     .build()?;
@@ -528,8 +531,8 @@ let fresh = client.get_vector_with_preference("documents", "doc1", ReadPreferenc
 // Go
 client := vectorizer.NewClient(&vectorizer.Config{
     Hosts: vectorizer.HostConfig{
-        Master:   "http://master-node:15001",
-        Replicas: []string{"http://replica1:15001", "http://replica2:15001"},
+        Master:   "http://master-node:15002",
+        Replicas: []string{"http://replica1:15002", "http://replica2:15002"},
     },
     APIKey:         "your-api-key",
     ReadPreference: vectorizer.ReadPreferenceReplica, // Master | Replica | Nearest
@@ -553,8 +556,8 @@ var client = new VectorizerClient(new ClientConfig
 {
     Hosts = new HostConfig
     {
-        Master = "http://master-node:15001",
-        Replicas = new[] { "http://replica1:15001", "http://replica2:15001" }
+        Master = "http://master-node:15002",
+        Replicas = new[] { "http://replica1:15002", "http://replica2:15002" }
     },
     ApiKey = "your-api-key",
     ReadPreference = ReadPreference.Replica // Master | Replica | Nearest
@@ -623,7 +626,7 @@ For development or single-node deployments:
 ```typescript
 // Single node - no replication
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key",
 });
 ```

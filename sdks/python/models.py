@@ -236,8 +236,8 @@ class HealthStatus:
 class ClientConfig:
     """Configuration for the Vectorizer client."""
     
-    base_url: str = "http://localhost:15001"
-    ws_url: str = "ws://localhost:15001/ws"
+    base_url: str = "http://localhost:15002"
+    ws_url: str = "ws://localhost:15002/ws"
     api_key: Optional[str] = None
     timeout: int = 30
     max_retries: int = 3

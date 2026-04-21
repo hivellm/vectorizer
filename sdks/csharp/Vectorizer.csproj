@@ -11,7 +11,7 @@
     <Authors>HiveHub Contributors</Authors>
     <Company>HiveHub</Company>
     <Product>Vectorizer.Sdk</Product>
-    <Copyright>Copyright © HiveHub 2025</Copyright>
+    <Copyright>Copyright © HiveHub 2026</Copyright>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
@@ -26,7 +26,7 @@
     <RepositoryUrl>https://github.com/hivellm/vectorizer</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <Version>2.2.0</Version>
+    <Version>3.0.0</Version>
     <!-- SourceLink Configuration -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>

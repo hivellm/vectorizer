@@ -150,8 +150,8 @@ Examples:
     
     parser.add_argument(
         "--url",
-        default="http://localhost:15001",
-        help="Vectorizer service URL (default: http://localhost:15001)"
+        default="http://localhost:15002",
+        help="Vectorizer service URL (default: http://localhost:15002)"
     )
     parser.add_argument(
         "--api-key",

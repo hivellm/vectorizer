@@ -1,11 +1,14 @@
 # SDK Publishing Status
 
+All SDKs synchronized at **v3.0.0**. VectorizerRPC (binary MessagePack over TCP, port `15503`) is the default transport in every language; REST (port `15002`) remains available as a fallback via the `http(s)://...` URL scheme.
+
 ## ✅ **Successfully Published**
 
 ### TypeScript SDK
 
 - **Package**: `@hivehub/vectorizer-sdk`
 - **Registry**: npm
+- **Version**: v3.0.0
 - **Status**: ✅ Published
 - **Installation**: `npm install @hivehub/vectorizer-sdk`
 - **Note**: Ships compiled CommonJS + ESM and works from plain
@@ -16,25 +19,33 @@
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: crates.io
-- **Version**: v1.8.0
+- **Version**: v3.0.0
 - **Status**: ✅ Published successfully
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.8.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.0.0"`
 
 ### Python SDK
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: PyPI
-- **Version**: v1.8.0
+- **Version**: v3.0.0
 - **Status**: ✅ Published successfully
-- **Installation**: `pip install vectorizer-sdk==1.8.0`
+- **Installation**: `pip install vectorizer-sdk==3.0.0`
 
 ### C# SDK
 
-- **Package**: `Vectorizer.Sdk`
+- **Packages**: `Vectorizer.Sdk` (REST), `Vectorizer.Sdk.Rpc` (RPC, new in v3.0.0)
 - **Registry**: NuGet
-- **Version**: v1.8.0
+- **Version**: v3.0.0
 - **Status**: ✅ Published successfully
-- **Installation**: `dotnet add package Vectorizer.Sdk`
+- **Installation**: `dotnet add package Vectorizer.Sdk` (add `Vectorizer.Sdk.Rpc` for the binary transport)
+
+### Go SDK
+
+- **Package**: `github.com/hivellm/vectorizer-sdk-go`
+- **Registry**: Go Modules (git tag)
+- **Version**: v3.0.0
+- **Status**: ✅ Released
+- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.0.0`
 
 ### Removed in v3.0.0
 
@@ -51,13 +62,14 @@ Build directly against the language-native SDKs instead.
 
 ## 📋 **Publishing Summary**
 
-| SDK           | Registry   | Status       | Package Name                         |
-| ------------- | ---------- | ------------ | ------------------------------------ |
-| TypeScript    | npm        | ✅ Published | @hivehub/vectorizer-sdk              |
-| Rust          | crates.io  | ✅ Published | vectorizer-sdk                       |
-| Python        | PyPI       | ✅ Published | vectorizer-sdk                       |
-| C#            | NuGet      | ✅ Published | Vectorizer.Sdk                       |
-| Go            | Go Modules | 🚧 In Dev    | github.com/hivellm/vectorizer-sdk-go |
+| SDK           | Registry   | Version  | Package Name                                |
+| ------------- | ---------- | -------- | ------------------------------------------- |
+| TypeScript    | npm        | v3.0.0   | @hivehub/vectorizer-sdk                     |
+| Rust          | crates.io  | v3.0.0   | vectorizer-sdk                              |
+| Python        | PyPI       | v3.0.0   | vectorizer-sdk                              |
+| C# (REST)     | NuGet      | v3.0.0   | Vectorizer.Sdk                              |
+| C# (RPC)      | NuGet      | v3.0.0   | Vectorizer.Sdk.Rpc                          |
+| Go            | Go Modules | v3.0.0   | github.com/hivellm/vectorizer-sdk-go        |
 
 ## 🔧 **Publishing Infrastructure**
 
@@ -84,11 +96,17 @@ Build directly against the language-native SDKs instead.
 
 ## 🎯 **SDK Feature Completeness**
 
-All published SDKs are **100% complete** with all latest features implemented (Go SDK in development):
+All published SDKs are **100% complete** with all latest features implemented.
 
-### New in v1.8.0: Master/Replica Routing
+### New in v3.0.0
 
-All SDKs now support automatic read/write routing for high-availability deployments:
+- **VectorizerRPC default transport** — binary MessagePack over TCP, multiplexed connection pool. URL scheme `vectorizer://host[:port]` (default port `15503`). REST remains available via `http(s)://host:15002`.
+- **C# SDK split** — `Vectorizer.Sdk` (REST) and `Vectorizer.Sdk.Rpc` (RPC companion with TCP + MessagePack framing, connection pool, ASP.NET Core DI).
+- **Retired**: standalone `@hivehub/vectorizer-sdk-js` (TypeScript SDK ships compiled JS) and framework integration packages (`langchain`, `langchain-js`, `langflow`, `n8n`, `tensorflow`, `pytorch`).
+
+### v1.8.0 Baseline: Master/Replica Routing
+
+All SDKs support automatic read/write routing for high-availability deployments:
 - **HostConfig**: Configure master URL and replica URLs
 - **ReadPreference**: Choose routing strategy (master, replica, nearest)
 - **Automatic Routing**: Writes → master, reads → replicas (round-robin)
@@ -96,15 +114,15 @@ All SDKs now support automatic read/write routing for high-availability deployme
 
 ### Feature Coverage Matrix
 
-| Feature Category          | TypeScript | Python   | Rust     | C#        |
-| ------------------------- | ---------- | -------- | -------- | --------- |
-| **Intelligent Search**    | ✅ 4/4     | ✅ 4/4   | ✅ 4/4   | ✅ 4/4    |
-| **Discovery Operations**  | ✅ 4/4     | ✅ 6/6   | ✅ 4/4   | ✅ 4/4    |
-| **File Operations**       | ✅ 7/7     | ✅ 7/7   | ✅ 7/7   | ✅ 7/7    |
-| **Batch Operations**      | ✅         | ✅       | ✅       | ✅        |
-| **Collection Management** | ✅         | ✅       | ✅       | ✅        |
-| **Vector Operations**     | ✅         | ✅       | ✅       | ✅        |
-| **Status**                | **100%**   | **100%** | **100%** | **100%**  |
+| Feature Category          | TypeScript | Python   | Rust     | C#        | Go       |
+| ------------------------- | ---------- | -------- | -------- | --------- | -------- |
+| **VectorizerRPC**         | ✅         | ✅       | ✅       | ✅        | ✅       |
+| **Intelligent Search**    | ✅ 4/4     | ✅ 4/4   | ✅ 4/4   | ✅ 4/4    | ✅       |
+| **Discovery Operations**  | ✅ 4/4     | ✅ 6/6   | ✅ 4/4   | ✅ 4/4    | 🚧       |
+| **File Operations**       | ✅ 7/7     | ✅ 7/7   | ✅ 7/7   | ✅ 7/7    | 🚧       |
+| **Batch Operations**      | ✅         | ✅       | ✅       | ✅        | partial  |
+| **Collection Management** | ✅         | ✅       | ✅       | ✅        | ✅       |
+| **Vector Operations**     | ✅         | ✅       | ✅       | ✅        | ✅       |
 
 ### Implemented Methods (Oct 2025)
 
@@ -147,7 +165,7 @@ All SDKs now support automatic read/write routing for high-availability deployme
 
 ## 📊 **Success Metrics**
 
-- **4 out of 5 SDKs** successfully published ✅ (Go SDK in development)
+- **5 out of 5 SDKs** released at v3.0.0 ✅
 - **100% test coverage** maintained across all SDKs
 - **Cross-platform support** with Bash, PowerShell, and Batch scripts
 - **Comprehensive documentation** with troubleshooting guides

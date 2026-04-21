@@ -601,8 +601,8 @@ from vectorizer import VectorizerClient
 # Configure with master and replicas - SDK handles routing automatically
 client = VectorizerClient(
     hosts={
-        "master": "http://master-node:15001",
-        "replicas": ["http://replica1:15001", "http://replica2:15001"]
+        "master": "http://master-node:15002",
+        "replicas": ["http://replica1:15002", "http://replica2:15002"]
     },
     api_key="your-api-key",
     read_preference="replica"  # "master" | "replica" | "nearest"
@@ -661,7 +661,7 @@ For development or single-node deployments, use the simple configuration:
 ```python
 # Single node - no replication
 client = VectorizerClient(
-    base_url="http://localhost:15001",
+    base_url="http://localhost:15002",
     api_key="your-api-key"
 )
 ```

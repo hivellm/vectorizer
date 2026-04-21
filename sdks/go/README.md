@@ -286,8 +286,8 @@ func main() {
     // Configure with master and replicas - SDK handles routing automatically
     client := vectorizer.NewClient(&vectorizer.Config{
         Hosts: vectorizer.HostConfig{
-            Master:   "http://master-node:15001",
-            Replicas: []string{"http://replica1:15001", "http://replica2:15001"},
+            Master:   "http://master-node:15002",
+            Replicas: []string{"http://replica1:15002", "http://replica2:15002"},
         },
         APIKey:         "your-api-key",
         ReadPreference: vectorizer.ReadPreferenceReplica, // Master | Replica | Nearest
@@ -353,7 +353,7 @@ For development or single-node deployments:
 ```go
 // Single node - no replication
 client := vectorizer.NewClient(&vectorizer.Config{
-    BaseURL: "http://localhost:15001",
+    BaseURL: "http://localhost:15002",
     APIKey:  "your-api-key",
 })
 ```

@@ -99,7 +99,7 @@ import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 // Create client
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key-here",
 });
 ```
@@ -130,7 +130,7 @@ Per-surface usage when you want a smaller import:
 ```typescript
 import { SearchClient } from "@hivehub/vectorizer-sdk";
 
-const search = new SearchClient({ baseURL: "http://localhost:15001" });
+const search = new SearchClient({ baseURL: "http://localhost:15002" });
 const results = await search.searchVectors("documents", { query_vector: [...], limit: 5 });
 ```
 
@@ -365,8 +365,8 @@ import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 // Configure with master and replicas - SDK handles routing automatically
 const client = new VectorizerClient({
   hosts: {
-    master: "http://master-node:15001",
-    replicas: ["http://replica1:15001", "http://replica2:15001"],
+    master: "http://master-node:15002",
+    replicas: ["http://replica1:15002", "http://replica2:15002"],
   },
   apiKey: "your-api-key",
   readPreference: "replica", // "master" | "replica" | "nearest"
@@ -432,7 +432,7 @@ For development or single-node deployments:
 ```typescript
 // Single node - no replication
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key",
 });
 ```

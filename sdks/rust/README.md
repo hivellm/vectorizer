@@ -456,9 +456,9 @@ use vectorizer_rust_sdk::{VectorizerClient, ReadPreference};
 
 // Configure with master and replicas - SDK handles routing automatically
 let client = VectorizerClient::builder()
-    .master("http://master-node:15001")
-    .replica("http://replica1:15001")
-    .replica("http://replica2:15001")
+    .master("http://master-node:15002")
+    .replica("http://replica1:15002")
+    .replica("http://replica2:15002")
     .api_key("your-api-key")
     .read_preference(ReadPreference::Replica)
     .build()?;
@@ -517,7 +517,7 @@ For development or single-node deployments:
 
 ```rust
 // Single node - no replication
-let client = VectorizerClient::new_with_api_key("http://localhost:15001", "your-api-key")?;
+let client = VectorizerClient::new_with_api_key("http://localhost:15002", "your-api-key")?;
 ```
 
 ## API Endpoints

@@ -294,8 +294,8 @@ var client = new VectorizerClient(new ClientConfig
 {
     Hosts = new HostConfig
     {
-        Master = "http://master-node:15001",
-        Replicas = new[] { "http://replica1:15001", "http://replica2:15001" }
+        Master = "http://master-node:15002",
+        Replicas = new[] { "http://replica1:15002", "http://replica2:15002" }
     },
     ApiKey = "your-api-key",
     ReadPreference = ReadPreference.Replica // Master | Replica | Nearest
@@ -365,7 +365,7 @@ For development or single-node deployments:
 // Single node - no replication
 var client = new VectorizerClient(new ClientConfig
 {
-    BaseUrl = "http://localhost:15001",
+    BaseUrl = "http://localhost:15002",
     ApiKey = "your-api-key"
 });
 ```
