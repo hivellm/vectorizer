@@ -12,7 +12,7 @@ categories = ["database", "encoding"]
 [dependencies]
 # RPC wire layer (length-prefixed MessagePack)
 serde = { version = "1.0", features = ["derive"], default-features = false }
-serde_json = { version = "1.0", default-features = false }
+serde_json = { version = "1.0", default-features = false, features = ["std"] }
 rmp-serde = "1"
 tokio = { version = "1.48", features = ["io-util"], default-features = false }
 thiserror = { version = "2.0", default-features = false }
