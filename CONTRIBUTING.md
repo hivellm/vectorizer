@@ -135,6 +135,20 @@ cargo test --test multi_collection_test
 cargo nextest run --test api_workflow_test --test concurrent_test --test multi_collection_test --timeout 600s
 ```
 
+### Windows Contributors and `--all-features`
+
+`cargo test --workspace --lib --all-features` fails at link time on
+Windows MSVC with exit code 1319 ("path too long"). The combined
+feature set (`real-models + onnx-models + arrow + parquet +
+transmutation + fastembed + hive-gpu + simd-*`) produces 160+ rlib +
+symbol paths that overflow the ~32 kB Windows command-line limit.
+
+**Local Windows workflow**: run `cargo test --workspace --lib`
+(no `--all-features`). The authoritative all-features signal lives
+on CI under
+[`.github/workflows/rust-all-features.yml`](.github/workflows/rust-all-features.yml)
+where `ubuntu-latest` absorbs the full link line.
+
 ### Integration Tests
 
 The project includes comprehensive integration tests covering:

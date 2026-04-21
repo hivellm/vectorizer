@@ -473,4 +473,24 @@ pub fn process(input: &str) -> Result<String, Error> {
 }
 ```
 
+## Running the full feature matrix on Windows
+
+`cargo test --workspace --lib --all-features` fails at link time on
+Windows MSVC with exit code 1319 ("path too long"). The combined
+feature set (`real-models + onnx-models + arrow + parquet +
+transmutation + fastembed + hive-gpu + simd-*`) produces 160+ rlib +
+symbol paths that overflow the ~32 kB Windows command-line limit.
+
+**Windows contributors**: run `cargo test --workspace --lib` (no
+`--all-features`). All feature-gated paths are exercised on CI under
+`ubuntu-latest`, where the ~2 MB command-line limit absorbs the
+full link line.
+
+The authoritative all-features signal is the
+[`.github/workflows/rust-all-features.yml`](.github/workflows/rust-all-features.yml)
+workflow (job name: `cargo test --workspace --lib --all-features`).
+It runs on every push to `main` / `release/**` and on every PR;
+merges to `release/v3.0.0` and `main` should be gated on it via
+branch protection.
+
 <!-- RUST:END -->

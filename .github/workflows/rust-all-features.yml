@@ -1,0 +1,111 @@
+name: Rust all-features (Linux)
+
+# Gates the `--all-features` test pass on a platform where the
+# command-line length limit does not bite. Windows MSVC `link.exe`
+# fails with exit 1319 ("path too long") on the combined feature set
+# (real-models + onnx-models + arrow + parquet + transmutation +
+# fastembed + hive-gpu + simd-*) because the 160+ rlib + symbol
+# paths overflow the ~32 kB Windows command line. Linux's ~2 MB limit
+# comfortably absorbs the same link line, so the authoritative
+# all-features signal lives on ubuntu-latest.
+#
+# This gate is the release-verification acceptance for
+# phase8_release-v3-runtime-verification tail item 6.3 (which cannot
+# be verified from a Windows dev workstation under `--all-features`).
+
+on:
+  push:
+    branches: [main, master, "release/**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  all-features:
+    name: cargo test --workspace --lib --all-features
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Separate cache key from the main rust.yml workflow so the
+          # all-features target dir does not evict the default-features
+          # cache (they produce different rlibs).
+          key: all-features
+
+      - name: Install mold (Linux linker, speeds up the all-features link)
+        uses: rui314/setup-mold@v1
+        continue-on-error: true
+
+      - name: Point rustc at mold for Linux builds
+        run: |
+          if [ -f "/usr/local/bin/mold" ]; then
+            mkdir -p .cargo
+            echo "[target.x86_64-unknown-linux-gnu]" >> .cargo/config.toml
+            echo "linker = \"clang\"" >> .cargo/config.toml
+            echo "rustflags = [\"-C\", \"link-arg=-fuse-ld=/usr/local/bin/mold\"]" >> .cargo/config.toml
+          fi
+        shell: bash
+
+      - name: Install protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+        shell: bash
+
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Setup Node.js for dashboard build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Build dashboard (required for rust-embed)
+        run: |
+          cd dashboard
+          pnpm install --frozen-lockfile
+          pnpm build
+        shell: bash
+
+      # `--lib` deliberately scopes this gate to unit tests + rustdoc
+      # examples baked into the `lib` target; live-server integration
+      # tests live under `tests/` and are exercised by the regular
+      # rust.yml workflow at default feature sets.
+      - name: cargo build --workspace --lib --all-features
+        run: cargo build --workspace --lib --all-features
+
+      - name: cargo nextest run --workspace --lib --all-features
+        run: cargo nextest run --workspace --lib --all-features --no-fail-fast
+        env:
+          NEXTEST_TIMEOUT: 300s
+
+      - name: Upload nextest junit report (always)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nextest-all-features-junit.xml
+          path: target/nextest/default/junit.xml
+          if-no-files-found: ignore
+
+      - name: Upload full build + test log on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: all-features-failure-log
+          path: |
+            target/**/*.log
+            ~/.cargo/registry/index/
+          if-no-files-found: ignore
