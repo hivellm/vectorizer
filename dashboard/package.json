@@ -31,7 +31,7 @@
     "@visx/xychart": "^3.12.0",
     "clsx": "^2.1.1",
     "js-yaml": "^4.1.1",
-    "monaco-editor": "^0.55.0",
+    "monaco-editor": "^0.55.1",
     "react": "^19.0.0",
     "react-aria-components": "^1.17.0",
     "react-dom": "^19.0.0",
