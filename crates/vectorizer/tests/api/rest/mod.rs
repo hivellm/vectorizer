@@ -22,6 +22,7 @@ pub mod graph_integration;
 pub mod hub_endpoints;
 pub mod hub_integration_live;
 pub mod integration;
+pub mod qdrant_compat_minimal_real;
 pub mod vector_search_real;
 #[cfg(test)]
 pub mod workspace;

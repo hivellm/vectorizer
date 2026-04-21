@@ -311,35 +311,34 @@ pub async fn update_collection(
 
     let _current_config = collection.config();
 
+    // The three sub-configs are now Option<> (phase8_qdrant-compat-
+    // minimal-request-shape): resolve each to its Qdrant-upstream
+    // default when the caller omits it so the update path stays
+    // identical regardless of which fields the client sent.
+    let optimizer_config = request.config.optimizer_config.clone().unwrap_or_default();
+    let hnsw_config = request.config.hnsw_config.clone().unwrap_or_default();
+    let wal_config = request.config.wal_config.clone().unwrap_or_default();
+
     // Update configuration based on request
     debug!(
         "Updating optimizer config for collection: {}",
         collection_name
     );
-    // Store optimizer settings in collection metadata
-    let optimizer_settings = convert_qdrant_optimizer_config(&request.config.optimizer_config);
-    // Note: In a real implementation, you would update the collection's metadata
-    // with these optimizer settings. For now, we just log the update.
+    let optimizer_settings = convert_qdrant_optimizer_config(&optimizer_config);
     info!("Optimizer config updated: {:?}", optimizer_settings);
 
     debug!("Updating HNSW config for collection: {}", collection_name);
-    // Update HNSW configuration
-    let new_hnsw_config =
-        convert_qdrant_hnsw_config(&request.config.hnsw_config, &_current_config.hnsw_config);
+    let new_hnsw_config = convert_qdrant_hnsw_config(&hnsw_config, &_current_config.hnsw_config);
 
-    // Note: HNSW config changes may require reindexing for full effect
-    // The new config is stored but existing index parameters remain until rebuild
     info!(
         "HNSW config updated: m={}, ef_construction={}, ef_search={} (may require reindexing)",
         new_hnsw_config.m, new_hnsw_config.ef_construction, new_hnsw_config.ef_search
     );
 
     debug!("Updating WAL config for collection: {}", collection_name);
-    // WAL configuration is typically handled at the storage level
-    // Store WAL settings in collection metadata
     info!(
-        "WAL config updated: wal_capacity_mb={:?}, wal_segments_ahead={:?}",
-        request.config.wal_config.wal_capacity_mb, request.config.wal_config.wal_segments_ahead
+        "WAL config updated: wal_capacity_mb={}, wal_segments_ahead={}",
+        wal_config.wal_capacity_mb, wal_config.wal_segments_ahead
     );
 
     if let Some(quantization_config) = &request.config.quantization_config {
@@ -502,19 +501,25 @@ fn convert_to_qdrant_config(
 
     QdrantCollectionConfig {
         vectors: vectors_config,
-        shard_number: 1,
-        replication_factor: 1,
-        write_consistency_factor: 1,
-        on_disk_payload: false,
-        distance,
-        hnsw_config,
-        optimizer_config,
-        wal_config,
+        shard_number: Some(1),
+        replication_factor: Some(1),
+        write_consistency_factor: Some(1),
+        on_disk_payload: Some(false),
+        hnsw_config: Some(hnsw_config),
+        optimizer_config: Some(optimizer_config),
+        wal_config: Some(wal_config),
         quantization_config,
     }
 }
 
-/// Convert Qdrant CreateCollectionRequest to Vectorizer CollectionConfig
+/// Convert Qdrant CreateCollectionRequest to Vectorizer CollectionConfig.
+///
+/// The Qdrant-upstream REST spec only requires `vectors`; every other
+/// sub-config is optional and defaults server-side. See
+/// `phase8_qdrant-compat-minimal-request-shape` (probe 3.6). A request
+/// that arrives as `{"vectors": {"size": 4, "distance": "Cosine"}}`
+/// therefore produces a fully-formed `CollectionConfig` with the same
+/// defaults the upstream Qdrant server would apply.
 fn convert_from_qdrant_config(
     request: &QdrantCreateCollectionRequest,
 ) -> Result<vectorizer::models::CollectionConfig, ErrorResponse> {
@@ -526,11 +531,13 @@ fn convert_from_qdrant_config(
         QdrantDistance::Dot => vectorizer::models::DistanceMetric::DotProduct,
     };
 
-    // Extract HNSW configuration
+    // Resolve HNSW to the Qdrant-upstream default when the caller
+    // omitted the `hnsw_config` block.
+    let hnsw_qdrant = request.config.hnsw_config.clone().unwrap_or_default();
     let hnsw_config = vectorizer::models::HnswConfig {
-        m: request.config.hnsw_config.m as usize,
-        ef_construction: request.config.hnsw_config.ef_construct as usize,
-        ef_search: request.config.hnsw_config.full_scan_threshold as usize,
+        m: hnsw_qdrant.m as usize,
+        ef_construction: hnsw_qdrant.ef_construct as usize,
+        ef_search: hnsw_qdrant.full_scan_threshold as usize,
         seed: None,
     };
 
