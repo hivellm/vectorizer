@@ -58,7 +58,7 @@ pub trait EmbeddingProvider: Send + Sync {
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
-mod providers;
+pub mod providers;
 pub use providers::{
     BagOfWordsEmbedding, BertEmbedding, Bm25Embedding, CharNGramEmbedding, EmbeddingManager,
     MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding,

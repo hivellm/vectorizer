@@ -28,8 +28,86 @@ use tracing::{debug, error, info, warn};
 use super::workspace_loader::{load_file_watcher_config, load_workspace_collections};
 use crate::server::{AuthHandlerState, RootUserConfig, VectorizerServer};
 use vectorizer::VectorStore;
-use vectorizer::embedding::EmbeddingManager;
+use vectorizer::embedding::{EmbeddingManager, EmbeddingProvider};
 use vectorizer::file_watcher::MetricsCollector;
+
+/// Parse `embedding.model` from the top-level of `config.yml` and return
+/// the canonical provider name + dimension. Falls back to `"bm25"` when
+/// the field is missing, empty, or the config file can't be read.
+///
+/// Recognized values:
+///   - `"bm25"` (default) — handled by the caller via `Bm25Embedding::new(dim)`
+///   - `"fastembed:<model-id>"` — resolved via
+///     `vectorizer::embedding::providers::fastembed::parse_model_id`
+///
+/// An unknown prefix / unresolvable fastembed id returns `Err` so boot
+/// fails fast instead of silently falling back to BM25.
+fn resolve_embedding_model_name(config_path: &str) -> anyhow::Result<String> {
+    let Ok(content) = std::fs::read_to_string(config_path) else {
+        return Ok("bm25".to_string());
+    };
+    let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(&content) else {
+        return Ok("bm25".to_string());
+    };
+    let model = value
+        .get("embedding")
+        .and_then(|e| e.get("model"))
+        .and_then(|m| m.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "bm25".to_string());
+    Ok(model)
+}
+
+/// Build the default embedding provider for a fresh `EmbeddingManager`
+/// according to `config.embedding.model`. Returns `(name, dimension,
+/// boxed_provider)`.
+///
+/// The server bootstrap calls this three times — once for the main
+/// server, once for the file-watcher embedding manager, once for the
+/// "final" embedding manager the `VectorizerServer` struct holds. All
+/// three must point at the same provider shape so text indexed by the
+/// file watcher lands in the same embedding space as text indexed via
+/// `POST /insert`.
+fn build_default_provider(
+    config_path: &str,
+) -> anyhow::Result<(String, usize, Box<dyn EmbeddingProvider>)> {
+    let model = resolve_embedding_model_name(config_path)?;
+
+    if let Some(fastembed_id) = model.strip_prefix("fastembed:") {
+        let cache_dir = vectorizer_core::paths::data_dir().join("fastembed");
+        let provider = vectorizer::embedding::providers::try_build_fastembed_provider(
+            fastembed_id,
+            cache_dir.clone(),
+        )
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let dim = provider.dimension();
+        let name = format!("fastembed:{}", fastembed_id);
+        info!(
+            "🧠 Embedding provider: {} (fastembed, dim={}, cache_dir={})",
+            name,
+            dim,
+            cache_dir.display()
+        );
+        return Ok((name, dim, provider));
+    }
+
+    if model == "bm25" {
+        info!("🧠 Embedding provider: bm25 (default, dim=512)");
+        return Ok((
+            "bm25".to_string(),
+            512,
+            Box::new(vectorizer::embedding::Bm25Embedding::new(512)),
+        ));
+    }
+
+    Err(anyhow::anyhow!(
+        "Unknown embedding model '{}'. Supported prefixes: \"bm25\" (default), \
+         \"fastembed:<model-id>\" (requires the fastembed Cargo feature at \
+         compile time). See docs/specs/EMBEDDING.md for the full matrix.",
+        model
+    ))
+}
 
 impl VectorizerServer {
     /// Create a new vectorizer server
@@ -151,12 +229,13 @@ impl VectorizerServer {
 
         info!("🔍 PRE_INIT: Creating embedding manager...");
         let mut embedding_manager = EmbeddingManager::new();
-        info!("🔍 PRE_INIT: Creating BM25 embedding...");
-        let bm25 = vectorizer::embedding::Bm25Embedding::new(512);
-        info!("🔍 PRE_INIT: Registering BM25 provider...");
-        embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
-        info!("🔍 PRE_INIT: Setting default provider...");
-        embedding_manager.set_default_provider("bm25")?;
+        let (provider_name, _provider_dim, provider) = build_default_provider(&config_path)?;
+        info!(
+            "🔍 PRE_INIT: Registering '{}' provider (dim {})",
+            provider_name, _provider_dim
+        );
+        embedding_manager.register_provider(provider_name.clone(), provider);
+        embedding_manager.set_default_provider(&provider_name)?;
         info!("✅ PRE_INIT: Embedding manager configured");
 
         info!(
@@ -168,11 +247,15 @@ impl VectorizerServer {
         // Initialize file watcher if enabled
         info!("🔍 STEP 2: Initializing file watcher embedding manager...");
         let mut embedding_manager_for_watcher = EmbeddingManager::new();
-        let bm25_for_watcher = vectorizer::embedding::Bm25Embedding::new(512);
+        let (watcher_provider_name, _watcher_dim, watcher_provider) =
+            build_default_provider(&config_path)?;
         embedding_manager_for_watcher
-            .register_provider("bm25".to_string(), Box::new(bm25_for_watcher));
-        embedding_manager_for_watcher.set_default_provider("bm25")?;
-        info!("✅ STEP 2: File watcher embedding manager initialized");
+            .register_provider(watcher_provider_name.clone(), watcher_provider);
+        embedding_manager_for_watcher.set_default_provider(&watcher_provider_name)?;
+        info!(
+            "✅ STEP 2: File watcher embedding manager initialized with '{}'",
+            watcher_provider_name
+        );
 
         info!("🔍 STEP 3: Creating Arc wrappers for file watcher components...");
         let embedding_manager_for_watcher_arc =
@@ -650,9 +733,10 @@ impl VectorizerServer {
 
         // Create final embedding manager for the server struct
         let mut final_embedding_manager = EmbeddingManager::new();
-        let final_bm25 = vectorizer::embedding::Bm25Embedding::new(512);
-        final_embedding_manager.register_provider("bm25".to_string(), Box::new(final_bm25));
-        final_embedding_manager.set_default_provider("bm25")?;
+        let (final_provider_name, _final_dim, final_provider) =
+            build_default_provider(&config_path)?;
+        final_embedding_manager.register_provider(final_provider_name.clone(), final_provider);
+        final_embedding_manager.set_default_provider(&final_provider_name)?;
 
         // Initialize AutoSaveManager (5min save + 1h snapshot intervals)
         info!("🔄 Initializing AutoSaveManager...");
