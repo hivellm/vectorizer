@@ -878,11 +878,28 @@ async fn test_large_payload_replication() {
     };
     master_store.insert("large_payload", vec![vec]).unwrap();
 
-    // Now connect replica - should receive snapshot with large payload
+    // Now connect replica - should receive snapshot with large payload.
+    // Poll for the replica to catch up instead of a fixed sleep: 2s is
+    // enough on a dev box but flakes on GitHub's ubuntu-latest runner
+    // where the snapshot transfer + collection materialization takes
+    // longer under contention.
     let (_replica, replica_store) = create_running_replica(master_addr).await;
-    sleep(Duration::from_secs(2)).await;
 
-    // Verify replica has the vector with large payload
-    let replica_collection = replica_store.get_collection("large_payload").unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    let replica_collection = loop {
+        match replica_store.get_collection("large_payload") {
+            Ok(c) if c.vector_count() == 1 => break c,
+            _ if std::time::Instant::now() >= deadline => {
+                panic!(
+                    "replica did not replicate `large_payload` (vectors=1) within 30s; \
+                     last state: {:?}",
+                    replica_store
+                        .get_collection("large_payload")
+                        .map(|c| c.vector_count())
+                );
+            }
+            _ => sleep(Duration::from_millis(100)).await,
+        }
+    };
     assert_eq!(replica_collection.vector_count(), 1);
 }
