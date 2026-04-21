@@ -29,7 +29,10 @@ fn test_logging_helpers() {
 
     // Test helper functions exist
     let logs_dir = logging::get_logs_dir();
-    assert!(logs_dir.to_string_lossy().contains(".logs"));
+    // Accepts both the platform data-dir path (`<data_dir>/vectorizer/logs`,
+    // returned by `vectorizer_core::paths::logs_dir` when `dirs::data_dir()`
+    // resolves) and the `./.logs` fallback used when it doesn't.
+    assert!(logs_dir.to_string_lossy().contains("logs"));
 
     let log_path = logging::get_log_file_path("test_service", None);
     assert!(log_path.to_string_lossy().contains("test_service"));
