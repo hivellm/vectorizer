@@ -56,10 +56,24 @@ jobs:
           fi
         shell: bash
 
-      - name: Install protoc
+      - name: Install protoc + system OpenSSL
         run: |
           sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+          sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
+        shell: bash
+
+      - name: Override leaked Windows OPENSSL_DIR (runner env quirk)
+        # The ubuntu-latest GH-hosted image currently surfaces
+        # `OPENSSL_DIR=C:/Program Files/OpenSSL-Win64` to Linux jobs,
+        # which makes openssl-sys panic because that path doesn't exist
+        # on a Linux runner. Setting it to an empty string also panics
+        # (openssl-sys rejects empty). Overwrite with the canonical
+        # ubuntu path so libssl-dev headers + libs are discoverable.
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
         shell: bash
 
       - name: Install nextest

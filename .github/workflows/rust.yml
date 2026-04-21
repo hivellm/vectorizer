@@ -37,14 +37,28 @@ jobs:
             fi
           fi
         shell: bash
-      - name: Install protoc (Protocol Buffers compiler)
+      - name: Install protoc (Protocol Buffers compiler) + system OpenSSL (ubuntu)
         run: |
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             sudo apt-get update
-            sudo apt-get install -y protobuf-compiler
+            sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             choco install protoc
           fi
+        shell: bash
+
+      - name: Override leaked Windows OPENSSL_DIR (ubuntu matrix only)
+        if: matrix.os == 'ubuntu-latest'
+        # The ubuntu-latest GH-hosted image currently surfaces
+        # `OPENSSL_DIR=C:/Program Files/OpenSSL-Win64` to Linux jobs,
+        # which makes openssl-sys panic because that path doesn't
+        # exist on a Linux runner. Empty string also panics. Point at
+        # the canonical ubuntu libssl-dev install location instead.
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
         shell: bash
       - name: Install nextest
         uses: taiki-e/install-action@nextest
