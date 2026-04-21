@@ -17,7 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "prepublishOnly": "pnpm run clean && pnpm run build",
     "dev": "ts-node examples/basic-usage.ts",
     "publish:wsl": "export BROWSER=wslview && npm publish"
