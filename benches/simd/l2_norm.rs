@@ -1,8 +1,9 @@
 //! Criterion bench for `crate::simd::l2_norm`. Single-vector
 //! reduction; no second input.
 
-use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
+
+use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use vectorizer::simd::backend::SimdBackend;
 use vectorizer::simd::scalar::ScalarBackend;
 

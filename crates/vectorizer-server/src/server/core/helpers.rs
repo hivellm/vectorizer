@@ -12,9 +12,9 @@ use std::sync::Arc;
 
 use axum::extract::State;
 use axum::response::Json;
+use vectorizer::file_watcher::FileWatcherMetrics;
 
 use crate::server::ServerState;
-use vectorizer::file_watcher::FileWatcherMetrics;
 
 /// Extract auth credentials from request headers (sync part)
 /// Returns (Option<jwt_token>, Option<api_key>)

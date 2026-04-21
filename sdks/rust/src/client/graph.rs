@@ -4,10 +4,9 @@
 //! discovery pipeline that infers `SIMILAR_TO` edges from vector
 //! distance.
 
+use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::*;
-
-use super::VectorizerClient;
 
 impl VectorizerClient {
     /// List every node in a collection's graph.

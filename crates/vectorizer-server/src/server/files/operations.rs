@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
 use serde_json::json;
-
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::file_operations::FileOperations;

@@ -6,16 +6,15 @@ use std::time::Duration;
 use parking_lot::RwLock;
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
+// Cluster proto types live in the `vectorizer-protocol` crate after
+// phase4_split-vectorizer-workspace sub-phase 2.
+use vectorizer_protocol::grpc_gen::cluster as cluster_proto;
 
 use super::collection_sync::CollectionSynchronizer;
 use super::manager::ClusterManager;
 use super::node::{ClusterNode, NodeId, NodeStatus};
 use super::server_client::ClusterClientPool;
 use crate::db::VectorStore;
-
-// Cluster proto types live in the `vectorizer-protocol` crate after
-// phase4_split-vectorizer-workspace sub-phase 2.
-use vectorizer_protocol::grpc_gen::cluster as cluster_proto;
 
 /// Cluster state synchronizer
 #[derive(Debug, Clone)]

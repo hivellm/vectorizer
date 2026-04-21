@@ -3,10 +3,12 @@
 //! LZ4 is a fast compression algorithm optimized for speed over compression ratio.
 //! It provides very fast compression and decompression with reasonable compression ratios.
 
+use std::time::Instant;
+
+use serde::{Deserialize, Serialize};
+
 use crate::compression::traits::{CompressionMethod, Compressor, Decompressor};
 use crate::compression::{CompressionError, CompressionResult};
-use serde::{Deserialize, Serialize};
-use std::time::Instant;
 
 /// LZ4 compression configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

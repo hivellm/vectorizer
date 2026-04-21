@@ -2,8 +2,9 @@
 //! pre-normalised so the trait contract holds; the bench exercises
 //! the same clamped-dot path the production code uses.
 
-use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
+
+use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use vectorizer::simd::backend::SimdBackend;
 use vectorizer::simd::scalar::ScalarBackend;
 

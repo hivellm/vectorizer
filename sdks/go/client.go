@@ -22,17 +22,17 @@ type Config struct {
 
 // Client is the main Vectorizer client with optional master/replica topology support
 type Client struct {
-	baseURL          string
-	apiKey           string
-	httpClient       *http.Client
-	masterClient     *http.Client
-	replicaClients   []*http.Client
-	replicaURLs      []string
-	masterURL        string
-	replicaIndex     uint32
-	readPreference   ReadPreference
-	isReplicaMode    bool
-	config           *Config
+	baseURL        string
+	apiKey         string
+	httpClient     *http.Client
+	masterClient   *http.Client
+	replicaClients []*http.Client
+	replicaURLs    []string
+	masterURL      string
+	replicaIndex   uint32
+	readPreference ReadPreference
+	isReplicaMode  bool
+	config         *Config
 }
 
 // NewClient creates a new Vectorizer client

@@ -4,10 +4,6 @@ use std::sync::Arc;
 
 use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
 use serde_json::json;
-
-use crate::server::discovery_handlers::*;
-use crate::server::files::operations::*;
-use crate::server::graph_handlers::*;
 use vectorizer::VectorStore;
 use vectorizer::db::graph::RelationshipType;
 use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig};
@@ -19,6 +15,10 @@ use vectorizer::embedding::EmbeddingManager;
 use vectorizer::file_operations::{FileListFilter, FileOperations, SortBy, SummaryType};
 use vectorizer::intelligent_search::mcp_tools::*;
 use vectorizer::models::SparseVector;
+
+use crate::server::discovery_handlers::*;
+use crate::server::files::operations::*;
+use crate::server::graph_handlers::*;
 
 /// Helper function to create an embedding manager for a specific collection
 fn create_embedding_manager_for_collection(

@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tracing::{debug, error, info, warn};
-
 use vectorizer::auth::AuthManager;
 use vectorizer::auth::persistence::{AuthPersistence, PersistedUser};
 use vectorizer::auth::roles::Role;

@@ -9,17 +9,17 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use tracing::{debug, error, info, warn};
-
-use crate::server::VectorizerServer;
-use crate::server::error_middleware::{
-    ErrorResponse, create_error_response, create_not_found_error,
-};
 use vectorizer::models::qdrant::point::{QdrantPointId, QdrantValue, QdrantVector};
 use vectorizer::models::qdrant::{
     FilterProcessor, QdrantBatchQueryRequest, QdrantBatchQueryResponse, QdrantComplexQuery,
     QdrantFilter, QdrantGroupsResult, QdrantPointGroup, QdrantPrefetch, QdrantQuery,
     QdrantQueryGroupsRequest, QdrantQueryGroupsResponse, QdrantQueryRequest, QdrantQueryResponse,
     QdrantScoredPoint, QdrantVectorInput, QdrantWithPayload, QdrantWithVector,
+};
+
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{
+    ErrorResponse, create_error_response, create_not_found_error,
 };
 
 /// Convert serde_json::Value to QdrantValue

@@ -9,6 +9,4 @@
 //! `Response` (without dispatching it) doesn't have to learn the
 //! full server-side API.
 
-pub use vectorizer_protocol::rpc_wire::codec;
-pub use vectorizer_protocol::rpc_wire::types;
-pub use vectorizer_protocol::rpc_wire::{Request, Response, VectorizerValue};
+pub use vectorizer_protocol::rpc_wire::{Request, Response, VectorizerValue, codec, types};

@@ -14,13 +14,13 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, error, info, warn};
+use vectorizer::auth::middleware::AuthState;
+use vectorizer::auth::roles::Role;
+use vectorizer::hub::middleware::RequestTenantContext;
 
 use super::common::{collection_metrics_uuid, extract_tenant_id};
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::ErrorResponse;
-use vectorizer::auth::middleware::AuthState;
-use vectorizer::auth::roles::Role;
-use vectorizer::hub::middleware::RequestTenantContext;
 
 /// GET /collections — list all collections (admin sees all; tenants see their own)
 pub async fn list_collections(

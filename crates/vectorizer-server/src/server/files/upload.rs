@@ -14,12 +14,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-
-use super::validation::{FileValidationError, FileValidator, ValidatedFile};
-use crate::server::VectorizerServer;
-use crate::server::error_middleware::{
-    ErrorResponse, create_bad_request_error, create_not_found_error,
-};
 use vectorizer::config::FileUploadConfig;
 use vectorizer::file_loader::chunker::Chunker;
 use vectorizer::file_loader::config::{DocumentChunk, LoaderConfig};
@@ -29,6 +23,12 @@ use vectorizer::models::{
 };
 #[cfg(feature = "transmutation")]
 use vectorizer::transmutation_integration::TransmutationProcessor;
+
+use super::validation::{FileValidationError, FileValidator, ValidatedFile};
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{
+    ErrorResponse, create_bad_request_error, create_not_found_error,
+};
 
 /// Request for file upload with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]

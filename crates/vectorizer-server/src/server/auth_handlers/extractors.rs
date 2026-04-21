@@ -19,13 +19,13 @@ use axum::extract::FromRequestParts;
 use axum::http::HeaderMap;
 use axum::http::request::Parts;
 use axum::response::Json;
+use vectorizer::auth::middleware::AuthState;
 
 use super::middleware::require_admin_from_headers;
 use super::state::AuthHandlerState;
 use super::types::AuthErrorResponse;
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::ErrorResponse;
-use vectorizer::auth::middleware::AuthState;
 
 /// Admin-auth extractor.
 ///

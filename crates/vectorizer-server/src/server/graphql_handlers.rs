@@ -9,9 +9,9 @@ use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::response::{Html, IntoResponse};
+use vectorizer::hub::auth::TenantContext;
 
 use crate::api::graphql::VectorizerSchema;
-use vectorizer::hub::auth::TenantContext;
 
 /// GraphQL state containing the schema
 #[derive(Clone)]

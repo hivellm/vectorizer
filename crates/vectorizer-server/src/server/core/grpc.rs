@@ -5,9 +5,9 @@
 use std::sync::Arc;
 
 use tracing::info;
+use vectorizer::VectorStore;
 
 use crate::server::VectorizerServer;
-use vectorizer::VectorStore;
 
 impl VectorizerServer {
     /// Start gRPC server
@@ -34,8 +34,9 @@ impl VectorizerServer {
 
         // Add ClusterService if cluster is enabled
         if let Some(cluster_mgr) = cluster_manager {
-            use crate::grpc::cluster::cluster_service_server::ClusterServiceServer;
             use vectorizer::cluster::ClusterGrpcService;
+
+            use crate::grpc::cluster::cluster_service_server::ClusterServiceServer;
 
             info!("🔗 Adding Cluster gRPC service");
             let cluster_service =

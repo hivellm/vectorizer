@@ -16,11 +16,11 @@ use axum::extract::{Path, Query, State};
 use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, info};
+use vectorizer::hub::middleware::RequestTenantContext;
 
 use super::common::extract_tenant_id;
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{ErrorResponse, create_validation_error};
-use vectorizer::hub::middleware::RequestTenantContext;
 
 /// GET /collections/{name}/vectors — paginated vector listing
 pub async fn list_vectors(

@@ -6,13 +6,12 @@
 //! Discovery (multi-stage filter + score + expand) lives in
 //! [`super::discovery`]; per-file search variants in [`super::files`].
 
+use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::hybrid_search::{
     HybridScoringAlgorithm, HybridSearchRequest, HybridSearchResponse,
 };
 use crate::models::*;
-
-use super::VectorizerClient;
 
 impl VectorizerClient {
     /// Text search against one collection. The server embeds the

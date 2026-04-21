@@ -35,9 +35,6 @@ mod types;
 #[allow(unused_imports)]
 use std::sync::Arc;
 
-#[allow(unused_imports)]
-use vectorizer::auth::roles::Role;
-
 pub use admin::{change_password, create_user, delete_user, list_users};
 pub use authenticated::{
     create_api_key, get_me, list_api_keys, logout, refresh_token, revoke_api_key,
@@ -48,17 +45,18 @@ pub use middleware::{
     require_auth_middleware,
 };
 pub use public::{login, validate_password_endpoint};
-pub use state::{AuthHandlerState, UserRecord};
-
 // Internal items that tests reach for via `use super::*`. The outer world
 // doesn't see these — the visibility is scoped to the crate.
 pub(crate) use state::persist_first_run_credentials;
+pub use state::{AuthHandlerState, UserRecord};
 pub use types::{
     ApiKeyInfo, AuthErrorResponse, ChangePasswordRequest, CreateApiKeyRequest,
     CreateApiKeyResponse, CreateUserRequest, CreateUserResponse, ListApiKeysResponse,
     ListUsersResponse, LoginRequest, LoginResponse, LogoutResponse, RefreshTokenRequest,
     RefreshTokenResponse, UserInfo, ValidatePasswordRequest, ValidatePasswordResponse,
 };
+#[allow(unused_imports)]
+use vectorizer::auth::roles::Role;
 
 #[cfg(test)]
 #[path = "../auth_handlers_tests.rs"]

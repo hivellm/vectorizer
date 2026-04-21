@@ -3,8 +3,9 @@
 //! (sign-bit-mask trick on x86, `vabsq_f32` on aarch64) that this
 //! bench compares against the scalar `.abs()` loop.
 
-use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
+
+use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use vectorizer::simd::backend::SimdBackend;
 use vectorizer::simd::scalar::ScalarBackend;
 

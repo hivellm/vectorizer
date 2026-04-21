@@ -24,12 +24,12 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
-
-use super::workspace_loader::{load_file_watcher_config, load_workspace_collections};
-use crate::server::{AuthHandlerState, RootUserConfig, VectorizerServer};
 use vectorizer::VectorStore;
 use vectorizer::embedding::{EmbeddingManager, EmbeddingProvider};
 use vectorizer::file_watcher::MetricsCollector;
+
+use super::workspace_loader::{load_file_watcher_config, load_workspace_collections};
+use crate::server::{AuthHandlerState, RootUserConfig, VectorizerServer};
 
 /// Parse `embedding.model` from the top-level of `config.yml` and return
 /// the canonical provider name + dimension. Falls back to `"bm25"` when

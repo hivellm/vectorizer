@@ -2,18 +2,16 @@
 
 use std::time::Duration;
 
+use cluster_proto::cluster_service_client::ClusterServiceClient;
 use tonic::transport::Channel;
 use tracing::{debug, error, info, warn};
-
-use super::node::NodeId;
-use crate::error::{Result, VectorizerError};
-use crate::hub::TenantContext;
-
 // Cluster proto types live in the `vectorizer-protocol` crate after
 // phase4_split-vectorizer-workspace sub-phase 2.
 use vectorizer_protocol::grpc_gen::cluster as cluster_proto;
 
-use cluster_proto::cluster_service_client::ClusterServiceClient;
+use super::node::NodeId;
+use crate::error::{Result, VectorizerError};
+use crate::hub::TenantContext;
 
 /// Convert hub TenantContext to proto TenantContext
 fn tenant_to_proto(tenant: Option<&TenantContext>) -> Option<cluster_proto::TenantContext> {

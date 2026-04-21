@@ -15,11 +15,11 @@
 use std::collections::HashMap;
 
 use tonic::transport::Channel;
+use vectorizer_protocol::grpc_gen::vectorizer::vectorizer_service_client::VectorizerServiceClient;
 use vectorizer_protocol::grpc_gen::vectorizer::{
     CollectionConfig as ProtoCollectionConfig, CreateCollectionRequest, DeleteCollectionRequest,
     DistanceMetric as ProtoDistanceMetric, GetVectorRequest, HnswConfig as ProtoHnswConfig,
     InsertVectorRequest, ListCollectionsRequest, SearchRequest, StorageType as ProtoStorageType,
-    vectorizer_service_client::VectorizerServiceClient,
 };
 
 const GRPC_ADDR: &str = "http://127.0.0.1:15003";

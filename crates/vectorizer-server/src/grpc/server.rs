@@ -5,17 +5,17 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use once_cell::sync::Lazy;
-use tonic::{Request, Response, Status};
-use tracing::{debug, error, info};
-
-use super::vectorizer as proto;
-use super::vectorizer::vectorizer_service_server::VectorizerService;
 use ::vectorizer::db::hybrid_search::HybridScoringAlgorithm;
 use ::vectorizer::db::{HybridSearchConfig, VectorStore};
 use ::vectorizer::grpc_conversions::*;
 use ::vectorizer::models::{CollectionConfig, Payload, QuantizationConfig, SparseVector, Vector};
+use once_cell::sync::Lazy;
+use tonic::{Request, Response, Status};
+use tracing::{debug, error, info};
 use vectorizer_core::error::VectorizerError;
+
+use super::vectorizer as proto;
+use super::vectorizer::vectorizer_service_server::VectorizerService;
 
 /// Server start time for uptime tracking
 static SERVER_START_TIME: Lazy<Instant> = Lazy::new(Instant::now);

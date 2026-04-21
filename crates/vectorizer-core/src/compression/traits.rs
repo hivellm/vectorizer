@@ -2,8 +2,9 @@
 //!
 //! This module defines the core traits for compression and decompression operations.
 
-use crate::compression::{CompressionError, CompressionResult};
 use serde::{Deserialize, Serialize};
+
+use crate::compression::{CompressionError, CompressionResult};
 
 /// Trait for compression operations
 pub trait Compressor {

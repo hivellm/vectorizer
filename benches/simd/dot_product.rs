@@ -12,8 +12,9 @@
 //! command on different hosts produces directly comparable JSON
 //! baselines that `scripts/simd/check-regression.sh` can diff.
 
-use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
+
+use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use vectorizer::simd::backend::SimdBackend;
 use vectorizer::simd::scalar::ScalarBackend;
 

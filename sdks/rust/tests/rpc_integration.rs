@@ -27,7 +27,6 @@ use std::time::Duration;
 
 use tokio::io::BufReader;
 use tokio::net::TcpListener;
-
 use vectorizer_sdk::rpc::codec::{read_request, write_response};
 use vectorizer_sdk::rpc::types::{Request, Response, VectorizerValue};
 use vectorizer_sdk::rpc::{HelloPayload, RpcClient, RpcClientError};

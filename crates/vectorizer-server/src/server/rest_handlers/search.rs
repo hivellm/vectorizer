@@ -24,15 +24,15 @@ use axum::extract::{Path, State};
 use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, info};
+use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig};
+use vectorizer::hub::middleware::RequestTenantContext;
+use vectorizer::models::SparseVector;
 
 use super::common::extract_tenant_id;
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{
     ErrorResponse, create_bad_request_error, create_validation_error,
 };
-use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig};
-use vectorizer::hub::middleware::RequestTenantContext;
-use vectorizer::models::SparseVector;
 
 pub async fn search_vectors_by_text(
     State(state): State<VectorizerServer>,

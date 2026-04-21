@@ -66,7 +66,6 @@ pub use mcp::handlers as mcp_handlers;
 pub use mcp::handlers::handle_mcp_tool;
 pub use mcp::tools as mcp_tools;
 pub use mcp::tools::get_mcp_tools;
-
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::file_watcher::{FileWatcherSystem, MetricsCollector};

@@ -2,8 +2,9 @@
 //! Sweeps the standard dims so the result table directly answers
 //! "how much faster does the SIMD path quantize a 768-dim vector".
 
-use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
+
+use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use vectorizer::simd::backend::SimdBackend;
 use vectorizer::simd::scalar::ScalarBackend;
 

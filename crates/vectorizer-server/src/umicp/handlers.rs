@@ -9,9 +9,9 @@ use rmcp::model::{CallToolRequestParams, Content};
 use serde_json::{Value, json};
 use tracing::{debug, error};
 use umicp_core::{Envelope, OperationType};
+use vectorizer_core::error::Result;
 
 use super::UmicpState;
-use vectorizer_core::error::Result;
 
 /// Main UMICP request handler - routes to MCP handlers
 pub async fn handle_umicp_request(state: UmicpState, envelope: Envelope) -> Result<Envelope> {

@@ -4,10 +4,12 @@
 //! with good compression and decompression speeds. It's particularly well-suited
 //! for vector data compression.
 
+use std::time::Instant;
+
+use serde::{Deserialize, Serialize};
+
 use crate::compression::traits::{CompressionMethod, Compressor, Decompressor};
 use crate::compression::{CompressionError, CompressionResult};
-use serde::{Deserialize, Serialize};
-use std::time::Instant;
 
 /// Zstd compression configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

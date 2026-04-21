@@ -26,7 +26,6 @@
 //!   on every server start so a registry typo can't ship silently.
 
 use serde_json::{Value, json};
-
 use vectorizer_core::error::Result;
 
 /// Auth bucket the operation lives in. Used to decide whether the parity

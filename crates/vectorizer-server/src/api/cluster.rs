@@ -15,7 +15,6 @@ use axum::response::Json;
 use axum::routing::{delete, get, post};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
-
 use vectorizer::cluster::{ClusterManager, NodeId};
 use vectorizer::db::VectorStore;
 use vectorizer_core::error::VectorizerError;

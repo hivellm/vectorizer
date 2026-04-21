@@ -20,10 +20,8 @@
 #![cfg(feature = "http")]
 #![allow(clippy::unwrap_used)]
 
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicUsize, Ordering},
-};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use serde_json::Value;

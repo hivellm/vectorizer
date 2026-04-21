@@ -7,10 +7,9 @@
 //! `Transport` trait doesn't model multipart yet — every other
 //! method goes through the dispatched transport.
 
+use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::*;
-
-use super::VectorizerClient;
 
 impl VectorizerClient {
     /// Retrieve the complete content of an indexed file.

@@ -22,10 +22,10 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 use tracing::debug;
-
-use super::server::RpcState;
 use vectorizer::auth::roles::Role;
 use vectorizer_protocol::rpc_wire::types::{Request, Response, VectorizerValue};
+
+use super::server::RpcState;
 
 /// Per-connection auth state. Mutated only by the `HELLO` handler;
 /// every other handler reads it under a shared lock.

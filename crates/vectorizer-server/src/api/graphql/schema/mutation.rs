@@ -7,18 +7,18 @@ use std::sync::Arc;
 
 use async_graphql::{Context, Object};
 use tracing::{error, info, warn};
-
-use super::super::types::*;
-use super::{
-    GraphQLContext, base64_decode, check_collection_ownership, get_language_from_extension,
-    is_binary_content, load_file_upload_config,
-};
 use vectorizer::db::graph::{Edge, Node, RelationshipType};
 use vectorizer::file_loader::chunker::Chunker;
 use vectorizer::file_loader::config::LoaderConfig;
 use vectorizer::hub::auth::TenantContext;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
+};
+
+use super::super::types::*;
+use super::{
+    GraphQLContext, base64_decode, check_collection_ownership, get_language_from_extension,
+    is_binary_content, load_file_upload_config,
 };
 
 pub struct MutationRoot;

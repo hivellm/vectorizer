@@ -31,7 +31,6 @@ use dashmap::DashMap;
 use tracing::info;
 
 use crate::db::wal_integration::WalIntegration;
-
 // Names the tests module at `src/db/vector_store_tests.rs` picks up via
 // `use super::*;`. Kept in sync with the pre-split surface so the test
 // file doesn't need touching.

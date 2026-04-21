@@ -18,15 +18,15 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Json;
 use tracing::{error, info};
+use vectorizer::auth::middleware::AuthState;
+use vectorizer::auth::persistence::PersistedApiKey;
+use vectorizer::auth::roles::{Permission, Role};
 
 use super::state::AuthHandlerState;
 use super::types::{
     ApiKeyInfo, AuthErrorResponse, CreateApiKeyRequest, CreateApiKeyResponse, ListApiKeysResponse,
     LogoutResponse, RefreshTokenResponse, UserInfo,
 };
-use vectorizer::auth::middleware::AuthState;
-use vectorizer::auth::persistence::PersistedApiKey;
-use vectorizer::auth::roles::{Permission, Role};
 
 /// Get current user info - GET /auth/me
 pub async fn get_me(

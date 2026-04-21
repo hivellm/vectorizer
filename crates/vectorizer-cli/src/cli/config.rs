@@ -5,9 +5,9 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use vectorizer_core::error::{Result, VectorizerError};
 
 use super::CliConfig;
-use vectorizer_core::error::{Result, VectorizerError};
 
 /// Configuration file format
 #[derive(Debug, Clone, Serialize, Deserialize)]

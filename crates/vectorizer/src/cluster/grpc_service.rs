@@ -4,14 +4,14 @@ use std::sync::Arc;
 
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info, warn};
+// Use the generated cluster proto code from grpc module
+use vectorizer_protocol::grpc_gen::cluster::cluster_service_server::ClusterService as ClusterServiceTrait;
+use vectorizer_protocol::grpc_gen::cluster::*;
 
 use super::manager::ClusterManager;
 use super::node::{ClusterNode as LocalClusterNode, NodeId, NodeStatus};
 use crate::db::VectorStore;
 use crate::error::VectorizerError;
-// Use the generated cluster proto code from grpc module
-use vectorizer_protocol::grpc_gen::cluster::cluster_service_server::ClusterService as ClusterServiceTrait;
-use vectorizer_protocol::grpc_gen::cluster::*;
 
 /// Cluster gRPC service implementation
 #[derive(Clone)]

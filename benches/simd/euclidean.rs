@@ -2,8 +2,9 @@
 //! template as `dot_product.rs`; see that file for the rationale
 //! behind the dimension sweep + Criterion settings.
 
-use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
+
+use criterion::{BenchmarkId, Throughput, criterion_group, criterion_main};
 use vectorizer::simd::backend::SimdBackend;
 use vectorizer::simd::scalar::ScalarBackend;
 

@@ -4,14 +4,14 @@ use axum::extract::{Path, State};
 use axum::response::Json;
 use serde_json::json;
 use tracing::{debug, error, info};
-
-use crate::server::VectorizerServer;
-use crate::server::error_middleware::ErrorResponse;
 use vectorizer::models::qdrant::{
     QdrantAliasDescription, QdrantAliasOperations, QdrantChangeAliasesOperation,
     QdrantCollectionsAliasesResponse,
 };
 use vectorizer::monitoring::metrics::METRICS;
+
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::ErrorResponse;
 
 /// Helper for recording alias metrics
 fn record_alias_metric(operation: &str, status: &str) {

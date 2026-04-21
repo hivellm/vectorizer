@@ -4,6 +4,11 @@
 
 use std::time::Instant;
 
+use ::vectorizer::models::qdrant::filter::{
+    QdrantCondition, QdrantFilter, QdrantMatchValue, QdrantRange,
+};
+use ::vectorizer::models::qdrant::filter_processor::FilterProcessor;
+use ::vectorizer::models::{Payload, Vector};
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
 
@@ -14,11 +19,6 @@ use super::{
 use crate::grpc::qdrant_proto::r#match::MatchValue;
 use crate::grpc::qdrant_proto::points_server::Points;
 use crate::grpc::qdrant_proto::*;
-use ::vectorizer::models::qdrant::filter::{
-    QdrantCondition, QdrantFilter, QdrantMatchValue, QdrantRange,
-};
-use ::vectorizer::models::qdrant::filter_processor::FilterProcessor;
-use ::vectorizer::models::{Payload, Vector};
 
 // ============================================================================
 // Points Service Implementation

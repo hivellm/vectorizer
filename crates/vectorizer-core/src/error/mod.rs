@@ -13,9 +13,8 @@
 //!   classification lossless so a `NotFound` in the core engine stays
 //!   `404`/`NOT_FOUND`/`MCP-NotFound` on every boundary.
 
-use thiserror::Error;
-
 pub use kind::ErrorKind;
+use thiserror::Error;
 
 mod kind;
 pub mod mapping;

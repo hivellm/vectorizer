@@ -24,7 +24,6 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::{interval, sleep};
-
 use vectorizer_core::error::VectorizerError;
 
 /// Advanced API server

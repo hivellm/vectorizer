@@ -8,12 +8,12 @@ use axum::response::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{error, info};
-
-use crate::server::VectorizerServer;
-use crate::server::error_middleware::ErrorResponse;
 use vectorizer::workspace::project_analyzer::{ProjectAnalysis, analyze_directory};
 use vectorizer::workspace::setup_config::{ApplyConfigRequest, write_workspace_config};
 use vectorizer::workspace::templates::{ConfigTemplate, get_template_by_id, get_templates};
+
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::ErrorResponse;
 
 /// Setup status response
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -763,9 +763,11 @@ fn check_is_project_folder(path: &std::path::Path) -> bool {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use super::*;
     use std::fs;
+
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn setup_status_round_trips_through_json() {

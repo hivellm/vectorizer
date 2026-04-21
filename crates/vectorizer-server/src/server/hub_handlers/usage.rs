@@ -10,11 +10,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{error, info, warn};
 use uuid::Uuid;
+use vectorizer::hub::usage::UsageMetrics;
+use vectorizer::monitoring::metrics::METRICS;
 
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::ErrorResponse;
-use vectorizer::hub::usage::UsageMetrics;
-use vectorizer::monitoring::metrics::METRICS;
 
 /// Query parameters for usage statistics
 #[derive(Debug, Deserialize)]

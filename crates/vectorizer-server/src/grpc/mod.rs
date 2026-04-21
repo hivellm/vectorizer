@@ -13,9 +13,7 @@ pub mod server;
 // (phase4_split-vectorizer-workspace, sub-phase 2). Re-exported here so
 // existing consumers (`use vectorizer::grpc::vectorizer::*` etc.) keep
 // working without code changes.
-pub use vectorizer_protocol::grpc_gen::cluster;
-pub use vectorizer_protocol::grpc_gen::qdrant_proto;
-pub use vectorizer_protocol::grpc_gen::vectorizer;
+pub use vectorizer_protocol::grpc_gen::{cluster, qdrant_proto, vectorizer};
 
 // Qdrant gRPC service implementations (server-side, depend on the
 // storage engine — stay in this crate, not the wire-protocol crate).

@@ -11,11 +11,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{error, info, warn};
 use uuid::Uuid;
+use vectorizer::hub::backup::{RestoreResult, UserBackupInfo};
+use vectorizer::monitoring::metrics::METRICS;
 
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::ErrorResponse;
-use vectorizer::hub::backup::{RestoreResult, UserBackupInfo};
-use vectorizer::monitoring::metrics::METRICS;
 
 /// Query parameters for list backups
 #[derive(Debug, Deserialize)]

@@ -9,14 +9,14 @@ use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, error, info};
 use uuid::Uuid;
+use vectorizer::hub::middleware::RequestTenantContext;
+use vectorizer::models::qdrant::point::{QdrantPointId, QdrantValue, QdrantVector};
+use vectorizer_core::error::VectorizerError;
 
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{
     ErrorResponse, create_error_response, create_not_found_error,
 };
-use vectorizer::hub::middleware::RequestTenantContext;
-use vectorizer::models::qdrant::point::{QdrantPointId, QdrantValue, QdrantVector};
-use vectorizer_core::error::VectorizerError;
 
 /// Extract tenant ID as UUID from request extensions (if present)
 fn extract_tenant_id(tenant_ctx: &Option<Extension<RequestTenantContext>>) -> Option<Uuid> {

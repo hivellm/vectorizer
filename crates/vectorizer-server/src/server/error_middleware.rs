@@ -6,7 +6,6 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::error;
-
 use vectorizer_core::error::VectorizerError;
 
 /// Standard error response format

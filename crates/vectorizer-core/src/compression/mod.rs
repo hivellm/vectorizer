@@ -9,8 +9,9 @@ pub mod lz4;
 pub mod traits;
 pub mod zstd;
 
-use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
 
 /// Supported compression algorithms
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

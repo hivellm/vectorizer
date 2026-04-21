@@ -230,4 +230,3 @@ func assertValueEqual(t *testing.T, got, want VectorizerValue) {
 		}
 	}
 }
-

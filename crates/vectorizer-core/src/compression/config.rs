@@ -2,8 +2,9 @@
 //!
 //! This module provides configuration management for compression operations.
 
-use crate::compression::{CompressionAlgorithm, CompressionConfig};
 use serde::{Deserialize, Serialize};
+
+use crate::compression::{CompressionAlgorithm, CompressionConfig};
 
 /// Compression configuration builder
 pub struct CompressionConfigBuilder {

@@ -1,12 +1,13 @@
 //! Conversion utilities between Protobuf types and internal types
 
+use vectorizer_protocol::grpc_gen::vectorizer as proto;
+
 use crate::db::hybrid_search::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::error::{Result, VectorizerError};
 use crate::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, SearchResult,
     SparseVector, StorageType, Vector,
 };
-use vectorizer_protocol::grpc_gen::vectorizer as proto;
 
 impl TryFrom<&proto::CollectionConfig> for crate::models::CollectionConfig {
     type Error = VectorizerError;

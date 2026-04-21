@@ -23,7 +23,6 @@ use axum::response::Json;
 use axum::routing::{delete, get, post};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
-
 use vectorizer::db::graph::{Edge, Graph, Node, RelationshipType};
 use vectorizer::db::{CollectionType, VectorStore};
 use vectorizer_core::error::VectorizerError;

@@ -4,10 +4,9 @@
 //! embedding generation. Search lives in [`super::search`];
 //! collection-level CRUD in [`super::collections`].
 
+use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::*;
-
-use super::VectorizerClient;
 
 impl VectorizerClient {
     /// Fetch one vector by id.

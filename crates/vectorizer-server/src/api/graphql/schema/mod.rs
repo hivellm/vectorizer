@@ -6,8 +6,6 @@ use std::sync::Arc;
 
 use async_graphql::{Context, EmptySubscription, Object, Schema};
 use tracing::{error, info, warn};
-
-use super::types::*;
 use vectorizer::config::FileUploadConfig;
 use vectorizer::db::VectorStore;
 use vectorizer::db::auto_save::AutoSaveManager;
@@ -20,6 +18,8 @@ use vectorizer::hub::quota::QuotaManager;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector,
 };
+
+use super::types::*;
 
 /// GraphQL context containing shared state
 pub struct GraphQLContext {

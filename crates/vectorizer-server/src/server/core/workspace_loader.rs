@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use tracing::{debug, info, warn};
-
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 

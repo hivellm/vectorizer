@@ -15,15 +15,15 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, info, warn};
-
-use super::common::collection_metrics_uuid;
-use crate::server::VectorizerServer;
-use crate::server::error_middleware::{ErrorResponse, create_bad_request_error};
 use vectorizer::config::FileUploadConfig;
 use vectorizer::file_loader::chunker::Chunker;
 use vectorizer::file_loader::config::LoaderConfig;
 use vectorizer::hub::middleware::RequestTenantContext;
 use vectorizer_core::error::VectorizerError;
+
+use super::common::collection_metrics_uuid;
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{ErrorResponse, create_bad_request_error};
 
 /// Outcome of a single text insert — the vector ids that were created plus
 /// whether the input was chunked.

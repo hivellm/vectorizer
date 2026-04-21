@@ -9,9 +9,8 @@
 //! source-compatible with Qdrant clients without locking the SDK
 //! to a specific Qdrant minor version.
 
-use crate::error::{Result, VectorizerError};
-
 use super::VectorizerClient;
+use crate::error::{Result, VectorizerError};
 
 /// Build the standard "parse-or-fail" wrapper used by every method
 /// in this module — keeps each method to one logical statement.

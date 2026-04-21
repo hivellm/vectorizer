@@ -115,7 +115,7 @@ impl SimdBackend for Avx2Backend {
     }
 
     fn l2_norm(&self, a: &[f32]) -> f32 {
-        // L2 norm is `sqrt(dot(a, a))`. Re-using the AVX2 dot keeps
+        // L2 norm is `sqrt(dot(a, a))`. Reusing the AVX2 dot keeps
         // the SIMD path warm without a separate intrinsic.
         self.dot_product(a, a).sqrt()
     }

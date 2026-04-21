@@ -18,15 +18,15 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Json;
 use tracing::{error, info};
+use vectorizer::auth::middleware::AuthState;
+use vectorizer::auth::persistence::PersistedUser;
+use vectorizer::auth::roles::Role;
 
 use super::state::{AuthHandlerState, UserRecord};
 use super::types::{
     AuthErrorResponse, ChangePasswordRequest, CreateUserRequest, CreateUserResponse,
     ListUsersResponse, UserInfo,
 };
-use vectorizer::auth::middleware::AuthState;
-use vectorizer::auth::persistence::PersistedUser;
-use vectorizer::auth::roles::Role;
 
 /// Create user - POST /auth/users (admin only)
 pub async fn create_user(

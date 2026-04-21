@@ -12,20 +12,20 @@
 use std::sync::Arc;
 use std::time::Instant;
 
+use ::vectorizer::models::qdrant::filter::{
+    QdrantCondition, QdrantFilter, QdrantMatchValue, QdrantRange,
+};
+use ::vectorizer::models::qdrant::filter_processor::FilterProcessor;
+use ::vectorizer::models::{Payload, Vector};
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info};
+use vectorizer::VectorStore;
 
 use crate::grpc::qdrant_proto::collections_server::Collections;
 use crate::grpc::qdrant_proto::r#match::MatchValue;
 use crate::grpc::qdrant_proto::points_server::Points;
 use crate::grpc::qdrant_proto::snapshots_server::Snapshots;
 use crate::grpc::qdrant_proto::*;
-use ::vectorizer::models::qdrant::filter::{
-    QdrantCondition, QdrantFilter, QdrantMatchValue, QdrantRange,
-};
-use ::vectorizer::models::qdrant::filter_processor::FilterProcessor;
-use ::vectorizer::models::{Payload, Vector};
-use vectorizer::VectorStore;
 
 /// Qdrant-compatible gRPC service
 #[derive(Clone)]

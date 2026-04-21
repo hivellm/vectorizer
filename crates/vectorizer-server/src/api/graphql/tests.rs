@@ -5,10 +5,11 @@
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod unit_tests {
-    use crate::api::graphql::types::*;
     use vectorizer::models::{
         CollectionConfig, CollectionMetadata, DistanceMetric, HnswConfig, Vector,
     };
+
+    use crate::api::graphql::types::*;
 
     // =========================================================================
     // Type Conversion Tests
@@ -355,10 +356,10 @@ mod schema_tests {
     use std::sync::Arc;
 
     use tempfile::TempDir;
-
-    use crate::api::graphql::{VectorizerSchema, create_schema};
     use vectorizer::db::VectorStore;
     use vectorizer::embedding::EmbeddingManager;
+
+    use crate::api::graphql::{VectorizerSchema, create_schema};
 
     fn create_test_schema() -> (VectorizerSchema, TempDir) {
         let temp_dir = TempDir::new().unwrap();
@@ -828,10 +829,10 @@ mod error_handling_tests {
     use std::sync::Arc;
 
     use tempfile::TempDir;
-
-    use crate::api::graphql::create_schema;
     use vectorizer::db::VectorStore;
     use vectorizer::embedding::EmbeddingManager;
+
+    use crate::api::graphql::create_schema;
 
     fn create_test_schema() -> (crate::api::graphql::VectorizerSchema, TempDir) {
         let temp_dir = TempDir::new().unwrap();

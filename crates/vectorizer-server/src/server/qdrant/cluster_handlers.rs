@@ -11,15 +11,15 @@ use std::time::Instant;
 use axum::extract::{Path, State};
 use axum::response::Json;
 use tracing::{info, warn};
-
-use crate::server::VectorizerServer;
-use crate::server::error_middleware::ErrorResponse;
 use vectorizer::models::qdrant::cluster::{
     QdrantClusterRecoverResponse, QdrantClusterStatus, QdrantClusterStatusResponse,
     QdrantGetMetadataKeyResponse, QdrantListMetadataKeysResponse, QdrantPeerInfo, QdrantPeerState,
     QdrantRaftInfo, QdrantRemovePeerResponse, QdrantUpdateMetadataKeyRequest,
     QdrantUpdateMetadataKeyResponse,
 };
+
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::ErrorResponse;
 
 // Static peer ID for this single-node instance
 static PEER_ID: AtomicU64 = AtomicU64::new(1);

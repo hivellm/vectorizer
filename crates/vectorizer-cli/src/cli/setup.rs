@@ -304,9 +304,11 @@ pub fn display_setup_hint() {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use super::*;
     use std::fs;
+
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn needs_setup_is_false_when_workspace_yml_is_present() {

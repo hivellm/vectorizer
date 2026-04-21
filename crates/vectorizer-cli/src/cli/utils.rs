@@ -5,7 +5,6 @@
 use std::path::PathBuf;
 
 use tracing::{info, warn};
-
 use vectorizer_core::error::{Result, VectorizerError};
 
 /// Utility functions for CLI operations

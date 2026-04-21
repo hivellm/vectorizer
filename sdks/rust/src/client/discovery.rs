@@ -4,9 +4,8 @@
 //! search → bullet-summarise); the other three methods expose the
 //! individual stages so callers can swap or compose them.
 
-use crate::error::{Result, VectorizerError};
-
 use super::VectorizerClient;
+use crate::error::{Result, VectorizerError};
 
 impl VectorizerClient {
     /// End-to-end discovery pipeline with intelligent search and

@@ -7,11 +7,6 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde_json::{Value, json};
 use tracing::{debug, error, info, warn};
-
-use crate::server::VectorizerServer;
-use crate::server::error_middleware::{
-    ErrorResponse, create_conflict_error, create_error_response, create_not_found_error,
-};
 use vectorizer::models::qdrant::{
     PointOperationStatus as QdrantOperationStatus, QdrantBinaryQuantization,
     QdrantBinaryQuantizationConfig, QdrantCollectionConfig, QdrantCollectionInfo,
@@ -25,6 +20,11 @@ use vectorizer::models::qdrant::{
 };
 use vectorizer::models::{Payload, Vector};
 use vectorizer_core::error::VectorizerError;
+
+use crate::server::VectorizerServer;
+use crate::server::error_middleware::{
+    ErrorResponse, create_conflict_error, create_error_response, create_not_found_error,
+};
 
 /// Extract payload schema from collection vectors
 fn extract_payload_schema(

@@ -12,7 +12,6 @@
 use std::path::Path;
 
 use thiserror::Error;
-
 use vectorizer::config::FileUploadConfig;
 
 /// File validation errors

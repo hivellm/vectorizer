@@ -23,13 +23,13 @@ use tokio::io::BufReader;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, warn};
-
-use super::dispatch::{ConnectionAuth, dispatch};
-use crate::server::AuthHandlerState;
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer_protocol::rpc_wire::codec::{read_request, write_response};
 use vectorizer_protocol::rpc_wire::types::{Request, Response};
+
+use super::dispatch::{ConnectionAuth, dispatch};
+use crate::server::AuthHandlerState;
 
 /// Shared state passed into every RPC connection handler.
 #[derive(Clone)]

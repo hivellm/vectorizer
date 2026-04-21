@@ -13,9 +13,10 @@
 
 #![cfg(feature = "candle-models")]
 
+use std::collections::HashMap;
+
 use candle_core::{DType, Device, IndexOp, Tensor};
 use candle_nn::{LayerNorm, VarBuilder};
-use std::collections::HashMap;
 
 #[test]
 fn dtype_set_unchanged() {

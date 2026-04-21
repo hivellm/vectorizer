@@ -7,10 +7,10 @@ use std::sync::Arc;
 
 use async_graphql::{Context, Object};
 use tracing::{info, warn};
+use vectorizer::hub::auth::TenantContext;
 
 use super::super::types::*;
 use super::{GraphQLContext, check_collection_ownership, load_file_upload_config};
-use vectorizer::hub::auth::TenantContext;
 
 pub struct QueryRoot;
 

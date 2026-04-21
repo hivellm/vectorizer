@@ -31,12 +31,7 @@ pub mod cluster;
 // phase4_split-vectorizer-workspace sub-phase 3. Re-exported here so
 // existing `use crate::error::*` / `use vectorizer::codec::*` /
 // `use crate::simd::*` call sites resolve unchanged.
-pub use vectorizer_core::codec;
-pub use vectorizer_core::compression;
-pub use vectorizer_core::error;
-pub use vectorizer_core::parallel;
-pub use vectorizer_core::quantization;
-pub use vectorizer_core::simd;
+pub use vectorizer_core::{codec, compression, error, parallel, quantization, simd};
 pub mod config;
 pub mod db;
 pub mod discovery;

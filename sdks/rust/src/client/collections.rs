@@ -4,10 +4,9 @@
 //! whole — vector-level CRUD lives in [`super::vectors`], search
 //! over a collection lives in [`super::search`].
 
+use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::*;
-
-use super::VectorizerClient;
 
 impl VectorizerClient {
     /// List every collection visible to the authenticated principal.

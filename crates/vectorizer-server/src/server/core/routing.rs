@@ -719,7 +719,6 @@ impl VectorizerServer {
             info!("🔐 Applying HiveHub tenant middleware to routes...");
 
             use axum::middleware::from_fn_with_state;
-
             use vectorizer::hub::middleware::{HubAuthMiddleware, hub_auth_middleware};
 
             let hub_auth = hub_manager.auth().clone();

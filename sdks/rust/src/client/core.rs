@@ -5,10 +5,9 @@
 //! and likely grows to include `/metrics`, `/stats`, and similar
 //! observability endpoints in future releases.
 
+use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::*;
-
-use super::VectorizerClient;
 
 impl VectorizerClient {
     /// Check server health.

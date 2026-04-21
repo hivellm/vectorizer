@@ -6,15 +6,15 @@ use std::path::PathBuf;
 
 use serde_yaml;
 use tracing::{error, info, warn};
+use vectorizer::auth::{AuthManager, Permission, Role};
+use vectorizer::db::VectorStore;
+use vectorizer::models::QuantizationConfig;
+use vectorizer_core::error::Result;
 
 use super::{
     ApiKeyCommands, CliConfig, CollectionCommands, ConfigCommands, DbCommands, ServerCommands,
     UserCommands,
 };
-use vectorizer::auth::{AuthManager, Permission, Role};
-use vectorizer::db::VectorStore;
-use vectorizer::models::QuantizationConfig;
-use vectorizer_core::error::Result;
 
 /// Handle server management commands
 pub async fn handle_server_command(command: ServerCommands, config: &CliConfig) -> Result<()> {

@@ -10,8 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
-use serde_json::Value as JsonValue;
-use serde_json::json;
+use serde_json::{Value as JsonValue, json};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 

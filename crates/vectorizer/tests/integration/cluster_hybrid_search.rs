@@ -141,8 +141,7 @@ async fn remote_hybrid_search_returns_fused_results() {
 
 #[tokio::test]
 async fn cluster_client_falls_back_when_server_lacks_rpc() {
-    use vectorizer::cluster::ClusterClient;
-    use vectorizer::cluster::NodeId;
+    use vectorizer::cluster::{ClusterClient, NodeId};
     use vectorizer::db::sharding::ShardId;
 
     // Server has VectorizerService but NO ClusterService — every cluster RPC

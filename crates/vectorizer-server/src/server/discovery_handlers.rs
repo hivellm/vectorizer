@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
 use serde_json::json;
-
 use vectorizer::VectorStore;
 use vectorizer::discovery::{
     AnswerPlan, AnswerPlanConfig, BroadDiscoveryConfig, Bullet, BulletCategory, ChunkMetadata,

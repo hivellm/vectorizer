@@ -3,7 +3,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use chrono::Utc;
-
 use vectorizer::discovery::{CollectionRef, ScoringConfig, filter_collections, score_collections};
 
 fn coll(name: &str) -> CollectionRef {

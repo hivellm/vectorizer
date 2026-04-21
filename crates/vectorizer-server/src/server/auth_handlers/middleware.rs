@@ -22,12 +22,12 @@
 use axum::extract::State;
 use axum::response::Json;
 use tracing::debug;
-
-use super::state::AuthHandlerState;
-use super::types::AuthErrorResponse;
 use vectorizer::auth::UserClaims;
 use vectorizer::auth::middleware::AuthState;
 use vectorizer::auth::roles::Role;
+
+use super::state::AuthHandlerState;
+use super::types::AuthErrorResponse;
 
 /// Authentication middleware that extracts auth state from request
 /// and adds it to request extensions
