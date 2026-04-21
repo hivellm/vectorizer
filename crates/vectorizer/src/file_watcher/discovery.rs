@@ -830,14 +830,18 @@ mod tests {
             let inside_file = base.path().join("legit.md");
             fs::write(&inside_file, "# legit").unwrap();
 
-            // `glob::Pattern` treats `*` as "no path separator" — so `*.md`
-            // only matches a bare basename, not the absolute path yielded
-            // by the walker. Use `**/*.md` so the include filter matches
-            // `/tmp/.tmpXXX/legit.md` on Linux and the macOS
-            // `/private/var/folders/.../legit.md` canonical form.
+            // `FileWatcherConfig::default()` carries `"**/.*"` in
+            // `exclude_patterns` to keep the production watcher out of
+            // dotfiles, but `tempfile::TempDir` on Linux plants fixtures
+            // under `/tmp/.tmpXXX/...` — a hidden component that the
+            // same glob matches, which filters `legit.md` out before
+            // the symlink check even runs. Drop the default exclude
+            // list in the test so only the symlink-refusal guard
+            // decides what's reachable.
             let config = FileWatcherConfig {
                 watch_paths: Some(vec![base.path().to_path_buf()]),
                 include_patterns: vec!["**/*.md".to_string()],
+                exclude_patterns: Vec::new(),
                 ..FileWatcherConfig::default()
             };
             let discovery = FileDiscovery {
