@@ -103,107 +103,60 @@ class SearchClient(_ApiBase):
         if filter:
             payload["filter"] = filter
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/collections/{collection}/search",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return [SearchResult(**result) for result in data.get("results", [])]
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to search vectors: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to search vectors: {e}")
-
+        return await self._transport.post(f"/collections/{collection}/search", data=payload)
     async def intelligent_search(self, request: IntelligentSearchRequest) -> IntelligentSearchResponse:
         """Advanced intelligent search with multi-query expansion and semantic reranking."""
         try:
-            async with self._transport.post(
-                f"{self.base_url}/intelligent_search",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    filtered_data = {
-                        'results': data.get('results', []),
-                        'total_results': data.get('total_results', 0),
-                        'duration_ms': data.get('duration_ms', 0),
-                        'queries_generated': data.get('queries_generated'),
-                        'collections_searched': data.get('collections_searched'),
-                        'metadata': data.get('metadata'),
-                    }
-                    return IntelligentSearchResponse(**{
-                        k: v for k, v in filtered_data.items()
-                        if v is not None or k in ['results', 'total_results', 'duration_ms']
-                    })
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to perform intelligent search: {response.status}")
+            data = await self._transport.post("/intelligent_search", data=asdict(request))
+            filtered_data = {
+                'results': data.get('results', []),
+                'total_results': data.get('total_results', 0),
+                'duration_ms': data.get('duration_ms', 0),
+                'queries_generated': data.get('queries_generated'),
+                'collections_searched': data.get('collections_searched'),
+                'metadata': data.get('metadata'),
+            }
+            return IntelligentSearchResponse(**{
+                k: v for k, v in filtered_data.items()
+                if v is not None or k in ['results', 'total_results', 'duration_ms']
+            })
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to perform intelligent search: {e}")
 
     async def semantic_search(self, request: SemanticSearchRequest) -> SemanticSearchResponse:
         """Semantic search with advanced reranking and similarity thresholds."""
         try:
-            async with self._transport.post(
-                f"{self.base_url}/semantic_search",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    filtered_data = {
-                        'results': data.get('results', []),
-                        'total_results': data.get('total_results', 0),
-                        'duration_ms': data.get('duration_ms', 0),
-                        'collection': data.get('collection', ''),
-                        'metadata': data.get('metadata'),
-                    }
-                    return SemanticSearchResponse(**{
-                        k: v for k, v in filtered_data.items()
-                        if v is not None or k in ['results', 'total_results', 'duration_ms', 'collection']
-                    })
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to perform semantic search: {response.status}")
+            data = await self._transport.post("/semantic_search", data=asdict(request))
+            filtered_data = {
+                'results': data.get('results', []),
+                'total_results': data.get('total_results', 0),
+                'duration_ms': data.get('duration_ms', 0),
+                'collection': data.get('collection', ''),
+                'metadata': data.get('metadata'),
+            }
+            return SemanticSearchResponse(**{
+                k: v for k, v in filtered_data.items()
+                if v is not None or k in ['results', 'total_results', 'duration_ms', 'collection']
+            })
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to perform semantic search: {e}")
 
     async def contextual_search(self, request: ContextualSearchRequest) -> ContextualSearchResponse:
         """Context-aware search with metadata filtering and contextual reranking."""
         try:
-            async with self._transport.post(
-                f"{self.base_url}/contextual_search",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    filtered_data = {
-                        'results': data.get('results', []),
-                        'total_results': data.get('total_results', 0),
-                        'duration_ms': data.get('duration_ms', 0),
-                        'collection': data.get('collection', ''),
-                        'context_filters': data.get('context_filters'),
-                        'metadata': data.get('metadata'),
-                    }
-                    return ContextualSearchResponse(**{
-                        k: v for k, v in filtered_data.items()
-                        if v is not None or k in ['results', 'total_results', 'duration_ms', 'collection']
-                    })
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to perform contextual search: {response.status}")
+            data = await self._transport.post("/contextual_search", data=asdict(request))
+            filtered_data = {
+                'results': data.get('results', []),
+                'total_results': data.get('total_results', 0),
+                'duration_ms': data.get('duration_ms', 0),
+                'collection': data.get('collection', ''),
+                'context_filters': data.get('context_filters'),
+                'metadata': data.get('metadata'),
+            }
+            return ContextualSearchResponse(**{
+                k: v for k, v in filtered_data.items()
+                if v is not None or k in ['results', 'total_results', 'duration_ms', 'collection']
+            })
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to perform contextual search: {e}")
 
@@ -212,29 +165,19 @@ class SearchClient(_ApiBase):
     ) -> MultiCollectionSearchResponse:
         """Multi-collection search with cross-collection reranking and aggregation."""
         try:
-            async with self._transport.post(
-                f"{self.base_url}/multi_collection_search",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    filtered_data = {
-                        'results': data.get('results', []),
-                        'total_results': data.get('total_results', 0),
-                        'duration_ms': data.get('duration_ms', 0),
-                        'collections_searched': data.get('collections_searched', []),
-                        'results_per_collection': data.get('results_per_collection'),
-                        'metadata': data.get('metadata'),
-                    }
-                    return MultiCollectionSearchResponse(**{
-                        k: v for k, v in filtered_data.items()
-                        if v is not None or k in ['results', 'total_results', 'duration_ms', 'collections_searched']
-                    })
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to perform multi-collection search: {response.status}")
+            data = await self._transport.post("/multi_collection_search", data=asdict(request))
+            filtered_data = {
+                'results': data.get('results', []),
+                'total_results': data.get('total_results', 0),
+                'duration_ms': data.get('duration_ms', 0),
+                'collections_searched': data.get('collections_searched', []),
+                'results_per_collection': data.get('results_per_collection'),
+                'metadata': data.get('metadata'),
+            }
+            return MultiCollectionSearchResponse(**{
+                k: v for k, v in filtered_data.items()
+                if v is not None or k in ['results', 'total_results', 'duration_ms', 'collections_searched']
+            })
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to perform multi-collection search: {e}")
 
@@ -255,36 +198,24 @@ class SearchClient(_ApiBase):
                     "values": request.query_sparse.values,
                 }
 
-            async with self._transport.post(
-                f"{self.base_url}/collections/{request.collection}/hybrid_search",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    results = [
-                        HybridSearchResult(
-                            id=r["id"],
-                            score=r["score"],
-                            vector=r.get("vector"),
-                            payload=r.get("payload"),
-                        )
-                        for r in data.get("results", [])
-                    ]
-                    return HybridSearchResponse(
-                        results=results,
-                        query=data.get("query", request.query),
-                        query_sparse=data.get("query_sparse"),
-                        alpha=data.get("alpha", request.alpha),
-                        algorithm=data.get("algorithm", request.algorithm),
-                        duration_ms=data.get("duration_ms"),
-                    )
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{request.collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to perform hybrid search: {response.status}")
+            data = await self._transport.post(f"/collections/{request.collection}/hybrid_search", data=payload)
+            results = [
+                HybridSearchResult(
+                    id=r["id"],
+                    score=r["score"],
+                    vector=r.get("vector"),
+                    payload=r.get("payload"),
+                )
+                for r in data.get("results", [])
+            ]
+            return HybridSearchResponse(
+                results=results,
+                query=data.get("query", request.query),
+                query_sparse=data.get("query_sparse"),
+                alpha=data.get("alpha", request.alpha),
+                algorithm=data.get("algorithm", request.algorithm),
+                duration_ms=data.get("duration_ms"),
+            )
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to perform hybrid search: {e}")
 
@@ -295,21 +226,9 @@ class SearchClient(_ApiBase):
         logger.debug(f"Batch searching with {len(request.queries)} queries in collection '{collection}'")
 
         try:
-            async with self._transport.post(
-                f"{self.base_url}/batch_search",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"Batch search completed: {data['successful_queries']} successful, {data['failed_queries']} failed")
-                    return BatchSearchResponse(**data)
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to batch search vectors: {response.status}")
+            data = await self._transport.post("/batch_search", data=asdict(request))
+            logger.info(f"Batch search completed: {data['successful_queries']} successful, {data['failed_queries']} failed")
+            return BatchSearchResponse(**data)
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to batch search vectors: {e}")
 
@@ -336,21 +255,7 @@ class SearchClient(_ApiBase):
         payload["broad_k"] = broad_k
         payload["focus_k"] = focus_k
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/discover",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to discover: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to discover: {e}")
-
+        return await self._transport.post("/discover", data=payload)
     async def filter_collections(
         self,
         query: str,
@@ -364,18 +269,7 @@ class SearchClient(_ApiBase):
         if exclude:
             payload["exclude"] = exclude
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/discovery/filter_collections",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to filter collections: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to filter collections: {e}")
-
+        return await self._transport.post("/discovery/filter_collections", data=payload)
     async def score_collections(
         self,
         query: str,
@@ -391,18 +285,7 @@ class SearchClient(_ApiBase):
             "signal_boost_weight": signal_boost_weight
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/discovery/score_collections",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to score collections: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to score collections: {e}")
-
+        return await self._transport.post("/discovery/score_collections", data=payload)
     async def expand_queries(
         self,
         query: str,
@@ -420,18 +303,7 @@ class SearchClient(_ApiBase):
             "include_architecture": include_architecture
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/discovery/expand_queries",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to expand queries: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to expand queries: {e}")
-
+        return await self._transport.post("/discovery/expand_queries", data=payload)
     async def search_by_file_type(
         self,
         collection: str,
@@ -449,18 +321,7 @@ class SearchClient(_ApiBase):
             "return_full_files": return_full_files
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/file/search_by_type",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to search by file type: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to search by file type: {e}")
-
+        return await self._transport.post("/file/search_by_type", data=payload)
     # =============================================================================
     # QDRANT SEARCH + QUERY API
     # =============================================================================
@@ -485,19 +346,7 @@ class SearchClient(_ApiBase):
             if filter:
                 payload["filter"] = filter
 
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/search",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid search request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to search points: {response.status}")
+            return await self._transport.post(f"/qdrant/collections/{collection}/points/search", data=payload)
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to search points: {e}")
 
@@ -505,106 +354,29 @@ class SearchClient(_ApiBase):
         self, collection: str, request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Query points (Qdrant 1.7+ Query API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/query",
-                json=request
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to query points: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to query points: {e}")
-
+        return await self._transport.post(f"/qdrant/collections/{collection}/points/query", data=request)
     async def qdrant_batch_query_points(
         self, collection: str, request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Batch query points (Qdrant 1.7+ Query API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/query/batch",
-                json=request
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to batch query points: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to batch query points: {e}")
-
+        return await self._transport.post(f"/qdrant/collections/{collection}/points/query/batch", data=request)
     async def qdrant_query_points_groups(
         self, collection: str, request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Query points with groups (Qdrant 1.7+ Query API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/query/groups",
-                json=request
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to query points groups: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to query points groups: {e}")
-
+        return await self._transport.post(f"/qdrant/collections/{collection}/points/query/groups", data=request)
     async def qdrant_search_points_groups(
         self, collection: str, request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Search points with groups (Qdrant Search Groups API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/search/groups",
-                json=request
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to search points groups: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to search points groups: {e}")
-
+        return await self._transport.post(f"/qdrant/collections/{collection}/points/search/groups", data=request)
     async def qdrant_search_matrix_pairs(
         self, collection: str, request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Search matrix pairs (Qdrant Search Matrix API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/search/matrix/pairs",
-                json=request
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to search matrix pairs: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to search matrix pairs: {e}")
-
+        return await self._transport.post(f"/qdrant/collections/{collection}/points/search/matrix/pairs", data=request)
     async def qdrant_search_matrix_offsets(
         self, collection: str, request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Search matrix offsets (Qdrant Search Matrix API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/search/matrix/offsets",
-                json=request
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to search matrix offsets: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to search matrix offsets: {e}")
+        return await self._transport.post(f"/qdrant/collections/{collection}/points/search/matrix/offsets", data=request)

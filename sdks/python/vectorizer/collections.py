@@ -191,17 +191,7 @@ class CollectionsClient(_ApiBase):
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/collections"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to list collections: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to list collections: {e}")
-
+        return await self._transport.get("/qdrant/collections")
     async def qdrant_get_collection(self, name: str) -> Dict[str, Any]:
         """
         Get collection information (Qdrant-compatible API).
@@ -217,19 +207,7 @@ class CollectionsClient(_ApiBase):
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/collections/{name}"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{name}' not found")
-                else:
-                    raise ServerError(f"Failed to get collection: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get collection: {e}")
-
+        return await self._transport.get(f"/qdrant/collections/{name}")
     async def qdrant_create_collection(self, name: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create collection (Qdrant-compatible API).
@@ -246,19 +224,4 @@ class CollectionsClient(_ApiBase):
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
-        try:
-            async with self._transport.put(
-                f"{self.base_url}/qdrant/collections/{name}",
-                json={"config": config},
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(
-                        f"Invalid configuration: {error_data.get('message', 'Unknown error')}"
-                    )
-                else:
-                    raise ServerError(f"Failed to create collection: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to create collection: {e}")
+        return await self._transport.put(f"/qdrant/collections/{name}", data={"config": config})

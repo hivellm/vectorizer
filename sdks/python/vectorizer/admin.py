@@ -63,15 +63,7 @@ class AdminClient(_ApiBase):
 
     async def get_indexing_progress(self) -> Dict[str, Any]:
         """Get indexing progress information."""
-        try:
-            async with self._transport.get(f"{self.base_url}/indexing/progress") as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to get indexing progress: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get indexing progress: {e}")
-
+        return await self._transport.get("/indexing/progress")
     # ---- File operations ----
 
     async def get_file_content(
@@ -87,21 +79,7 @@ class AdminClient(_ApiBase):
             "max_size_kb": max_size_kb
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/file/content",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to get file content: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get file content: {e}")
-
+        return await self._transport.post("/file/content", data=payload)
     async def list_files_in_collection(
         self,
         collection: str,
@@ -121,18 +99,7 @@ class AdminClient(_ApiBase):
         if min_chunks:
             payload["min_chunks"] = min_chunks
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/file/list",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to list files: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to list files: {e}")
-
+        return await self._transport.post("/file/list", data=payload)
     async def get_file_summary(
         self,
         collection: str,
@@ -148,18 +115,7 @@ class AdminClient(_ApiBase):
             "max_sentences": max_sentences
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/file/summary",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to get file summary: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get file summary: {e}")
-
+        return await self._transport.post("/file/summary", data=payload)
     async def get_file_chunks_ordered(
         self,
         collection: str,
@@ -177,18 +133,7 @@ class AdminClient(_ApiBase):
             "include_context": include_context
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/file/chunks",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to get file chunks: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get file chunks: {e}")
-
+        return await self._transport.post("/file/chunks", data=payload)
     async def get_project_outline(
         self,
         collection: str,
@@ -204,18 +149,7 @@ class AdminClient(_ApiBase):
             "highlight_key_files": highlight_key_files
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/file/outline",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to get project outline: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get project outline: {e}")
-
+        return await self._transport.post("/file/outline", data=payload)
     async def get_related_files(
         self,
         collection: str,
@@ -233,247 +167,81 @@ class AdminClient(_ApiBase):
             "include_reason": include_reason
         }
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/file/related",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to get related files: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get related files: {e}")
-
+        return await self._transport.post("/file/related", data=payload)
     # ---- Qdrant snapshot & cluster admin ----
 
     async def qdrant_list_collection_snapshots(self, collection: str) -> Dict[str, Any]:
         """List snapshots for a collection (Qdrant-compatible API)."""
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/collections/{collection}/snapshots"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to list snapshots: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to list snapshots: {e}")
-
+        return await self._transport.get(f"/qdrant/collections/{collection}/snapshots")
     async def qdrant_create_collection_snapshot(self, collection: str) -> Dict[str, Any]:
         """Create snapshot for a collection (Qdrant-compatible API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/snapshots"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to create snapshot: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to create snapshot: {e}")
-
+        return await self._transport.post(f"/qdrant/collections/{collection}/snapshots")
     async def qdrant_delete_collection_snapshot(
         self, collection: str, snapshot_name: str
     ) -> Dict[str, Any]:
         """Delete snapshot (Qdrant-compatible API)."""
-        try:
-            async with self._transport.delete(
-                f"{self.base_url}/qdrant/collections/{collection}/snapshots/{snapshot_name}"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Snapshot '{snapshot_name}' not found")
-                else:
-                    raise ServerError(f"Failed to delete snapshot: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to delete snapshot: {e}")
-
+        return await self._transport.delete(f"/qdrant/collections/{collection}/snapshots/{snapshot_name}")
     async def qdrant_recover_collection_snapshot(
         self, collection: str, location: str
     ) -> Dict[str, Any]:
         """Recover collection from snapshot (Qdrant-compatible API)."""
-        try:
-            payload = {"location": location}
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/snapshots/recover",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to recover snapshot: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to recover snapshot: {e}")
-
+        payload = {"location": location}
+        return await self._transport.post(
+            f"/qdrant/collections/{collection}/snapshots/recover",
+            data=payload,
+        )
     async def qdrant_list_all_snapshots(self) -> Dict[str, Any]:
         """List all snapshots (Qdrant-compatible API)."""
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/snapshots"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to list snapshots: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to list snapshots: {e}")
-
+        return await self._transport.get("/qdrant/snapshots")
     async def qdrant_create_full_snapshot(self) -> Dict[str, Any]:
         """Create full snapshot (Qdrant-compatible API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/snapshots"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to create full snapshot: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to create full snapshot: {e}")
-
+        return await self._transport.post("/qdrant/snapshots")
     async def qdrant_list_shard_keys(self, collection: str) -> Dict[str, Any]:
         """List shard keys for a collection (Qdrant-compatible API)."""
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/collections/{collection}/shards"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to list shard keys: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to list shard keys: {e}")
-
+        return await self._transport.get(f"/qdrant/collections/{collection}/shards")
     async def qdrant_create_shard_key(
         self, collection: str, shard_key: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Create shard key (Qdrant-compatible API)."""
-        try:
-            payload = {"shard_key": shard_key}
-            async with self._transport.put(
-                f"{self.base_url}/qdrant/collections/{collection}/shards",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to create shard key: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to create shard key: {e}")
+        payload = {"shard_key": shard_key}
+        return await self._transport.put(
+            f"/qdrant/collections/{collection}/shards",
+            data=payload,
+        )
 
     async def qdrant_delete_shard_key(
         self, collection: str, shard_key: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Delete shard key (Qdrant-compatible API)."""
-        try:
-            payload = {"shard_key": shard_key}
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/shards/delete",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to delete shard key: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to delete shard key: {e}")
-
+        payload = {"shard_key": shard_key}
+        return await self._transport.post(
+            f"/qdrant/collections/{collection}/shards/delete",
+            data=payload,
+        )
     async def qdrant_get_cluster_status(self) -> Dict[str, Any]:
         """Get cluster status (Qdrant-compatible API)."""
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/cluster"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to get cluster status: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get cluster status: {e}")
-
+        return await self._transport.get("/qdrant/cluster")
     async def qdrant_cluster_recover(self) -> Dict[str, Any]:
         """Recover current peer (Qdrant-compatible API)."""
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/cluster/recover"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to recover cluster: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to recover cluster: {e}")
-
+        return await self._transport.post("/qdrant/cluster/recover")
     async def qdrant_remove_peer(self, peer_id: str) -> Dict[str, Any]:
         """Remove peer from cluster (Qdrant-compatible API)."""
-        try:
-            async with self._transport.delete(
-                f"{self.base_url}/qdrant/cluster/peer/{peer_id}"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to remove peer: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to remove peer: {e}")
-
+        return await self._transport.delete(f"/qdrant/cluster/peer/{peer_id}")
     async def qdrant_list_metadata_keys(self) -> Dict[str, Any]:
         """List metadata keys (Qdrant-compatible API)."""
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/cluster/metadata/keys"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to list metadata keys: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to list metadata keys: {e}")
-
+        return await self._transport.get("/qdrant/cluster/metadata/keys")
     async def qdrant_get_metadata_key(self, key: str) -> Dict[str, Any]:
         """Get metadata key (Qdrant-compatible API)."""
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/cluster/metadata/keys/{key}"
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to get metadata key: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get metadata key: {e}")
-
+        return await self._transport.get(f"/qdrant/cluster/metadata/keys/{key}")
     async def qdrant_update_metadata_key(
         self, key: str, value: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Update metadata key (Qdrant-compatible API)."""
-        try:
-            payload = {"value": value}
-            async with self._transport.put(
-                f"{self.base_url}/qdrant/cluster/metadata/keys/{key}",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise ServerError(f"Failed to update metadata key: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to update metadata key: {e}")
-
+        payload = {"value": value}
+        return await self._transport.put(
+            f"/qdrant/cluster/metadata/keys/{key}",
+            data=payload,
+        )
     # ---- File upload operations ----
 
     async def upload_file(
@@ -546,130 +314,13 @@ class AdminClient(_ApiBase):
             if public_key is not None:
                 form_data.add_field('public_key', public_key)
 
-            async with self._transport.post(
-                f"{self.base_url}/files/upload",
-                data=form_data
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    result = FileUploadResponse(**data)
-                    logger.info(
-                        f"File uploaded successfully: {filename} - "
-                        f"{result.chunks_created} chunks, {result.vectors_created} vectors"
-                    )
-                    return result
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(error_data.get("message", "Invalid file"))
-                elif response.status == 413:
-                    raise ValidationError("File too large")
-                else:
-                    raise ServerError(f"Failed to upload file: {response.status}")
-
-        except (ValidationError, ValueError) as e:
-            logger.error(f"Validation error uploading file: {e}")
-            if isinstance(e, ValueError):
-                raise ValidationError(str(e))
-            raise
-        except aiohttp.ClientError as e:
-            logger.error(f"Network error uploading file: {e}")
-            raise NetworkError(f"Failed to upload file: {e}")
-
-    async def upload_file_content(
-        self,
-        content: Union[str, bytes],
-        filename: str,
-        collection_name: str,
-        chunk_size: Optional[int] = None,
-        chunk_overlap: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        public_key: Optional[str] = None
-    ) -> FileUploadResponse:
-        """
-        Upload file content directly for indexing.
-
-        Similar to :meth:`upload_file`, but accepts content directly instead of a path.
-        """
-        try:
-            validate_non_empty_string(filename)
-            validate_non_empty_string(collection_name)
-
-            logger.debug(f"Uploading content as: {filename} to collection: {collection_name}")
-
-            if isinstance(content, str):
-                file_content = content.encode('utf-8')
-            else:
-                file_content = content
-
-            form_data = aiohttp.FormData()
-            form_data.add_field(
-                'file',
-                file_content,
-                filename=filename,
-                content_type='application/octet-stream'
+            data = await self._transport.post("/files/config")
+            result = FileUploadConfig(**data)
+            logger.debug(
+                f"Upload config retrieved: max_size={result.max_file_size_mb}MB, "
+                f"extensions={len(result.allowed_extensions)}"
             )
-            form_data.add_field('collection_name', collection_name)
-
-            if chunk_size is not None:
-                form_data.add_field('chunk_size', str(chunk_size))
-
-            if chunk_overlap is not None:
-                form_data.add_field('chunk_overlap', str(chunk_overlap))
-
-            if metadata is not None:
-                form_data.add_field('metadata', _json.dumps(metadata))
-
-            if public_key is not None:
-                form_data.add_field('public_key', public_key)
-
-            async with self._transport.post(
-                f"{self.base_url}/files/upload",
-                data=form_data
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    result = FileUploadResponse(**data)
-                    logger.info(
-                        f"Content uploaded successfully: {filename} - "
-                        f"{result.chunks_created} chunks, {result.vectors_created} vectors"
-                    )
-                    return result
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(error_data.get("message", "Invalid content"))
-                elif response.status == 413:
-                    raise ValidationError("Content too large")
-                else:
-                    raise ServerError(f"Failed to upload content: {response.status}")
-
-        except (ValidationError, ValueError) as e:
-            logger.error(f"Validation error uploading content: {e}")
-            if isinstance(e, ValueError):
-                raise ValidationError(str(e))
-            raise
-        except aiohttp.ClientError as e:
-            logger.error(f"Network error uploading content: {e}")
-            raise NetworkError(f"Failed to upload content: {e}")
-
-    async def get_upload_config(self) -> FileUploadConfig:
-        """Get file upload configuration from the server."""
-        try:
-            logger.debug("Getting file upload configuration")
-
-            async with self._transport.get(
-                f"{self.base_url}/files/config"
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    result = FileUploadConfig(**data)
-                    logger.debug(
-                        f"Upload config retrieved: max_size={result.max_file_size_mb}MB, "
-                        f"extensions={len(result.allowed_extensions)}"
-                    )
-                    return result
-                else:
-                    raise ServerError(f"Failed to get upload config: {response.status}")
-
+            return result
         except aiohttp.ClientError as e:
             logger.error(f"Network error getting upload config: {e}")
             raise NetworkError(f"Failed to get upload config: {e}")

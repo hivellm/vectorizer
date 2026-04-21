@@ -71,22 +71,7 @@ class VectorsClient(_ApiBase):
 
         payload = {"text": text}
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/embed",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return data.get("embedding", [])
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to generate embedding: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to generate embedding: {e}")
-
+        return await self._transport.post("/embed", data=payload)
     async def insert_texts(
         self,
         collection: str,
@@ -122,23 +107,7 @@ class VectorsClient(_ApiBase):
         if effective_public_key:
             payload["public_key"] = effective_public_key
 
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/collections/{collection}/vectors",
-                json=payload
-            ) as response:
-                if response.status == 201:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to insert vectors: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to insert vectors: {e}")
-
+        return await self._transport.post(f"/collections/{collection}/vectors", data=payload)
     async def get_vector(self, collection: str, vector_id: str) -> Vector:
         """
         Get a specific vector by ID.
@@ -155,20 +124,7 @@ class VectorsClient(_ApiBase):
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
-        try:
-            async with self._transport.get(
-                f"{self.base_url}/collections/{collection}/vectors/{vector_id}"
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    return Vector(**data)
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Vector '{vector_id}' not found in collection '{collection}'")
-                else:
-                    raise ServerError(f"Failed to get vector: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to get vector: {e}")
-
+        return await self._transport.get(f"/collections/{collection}/vectors/{vector_id}")
     async def delete_vectors(self, collection: str, vector_ids: List[str]) -> bool:
         """
         Delete vectors from a collection.
@@ -189,28 +145,13 @@ class VectorsClient(_ApiBase):
         if not vector_ids:
             raise ValidationError("Vector IDs list cannot be empty")
 
-        payload = {
-            "collection": collection,
-            "vector_ids": vector_ids
-        }
-
-        try:
-            async with self._transport.delete(
-                f"{self.base_url}/collections/{collection}/vectors",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return True
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to delete vectors: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to delete vectors: {e}")
-
+        # `POST /batch_delete` is the canonical batch-delete endpoint
+        # on v3.0.0+ (phase8_fix-batch-insert-endpoints follow-up / F5).
+        # The SDK's Transport abstraction keeps `delete(path)`
+        # body-less to match the REST spec; batch deletes go through
+        # a dedicated POST endpoint that accepts `{collection, ids}`.
+        payload = {"collection": collection, "ids": vector_ids}
+        return await self._transport.post("/batch_delete", data=payload)
     # ==================== BATCH OPERATIONS ====================
 
     async def batch_insert_texts(
@@ -236,21 +177,9 @@ class VectorsClient(_ApiBase):
         logger.debug(f"Batch inserting {len(request.texts)} texts into collection '{collection}'")
 
         try:
-            async with self._transport.post(
-                f"{self.base_url}/batch_insert",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"Batch insert completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
-                    return BatchResponse(**data)
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to batch insert texts: {response.status}")
+            data = await self._transport.post("/batch_insert", data=asdict(request))
+            logger.info(f"Batch insert completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
+            return BatchResponse(**data)
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to batch insert texts: {e}")
 
@@ -277,21 +206,9 @@ class VectorsClient(_ApiBase):
         logger.debug(f"Batch updating {len(request.updates)} vectors in collection '{collection}'")
 
         try:
-            async with self._transport.post(
-                f"{self.base_url}/batch_update",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"Batch update completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
-                    return BatchResponse(**data)
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to batch update vectors: {response.status}")
+            data = await self._transport.post("/batch_update", data=asdict(request))
+            logger.info(f"Batch update completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
+            return BatchResponse(**data)
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to batch update vectors: {e}")
 
@@ -318,21 +235,9 @@ class VectorsClient(_ApiBase):
         logger.debug(f"Batch deleting {len(request.vector_ids)} vectors from collection '{collection}'")
 
         try:
-            async with self._transport.post(
-                f"{self.base_url}/batch_delete",
-                json=asdict(request)
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    logger.info(f"Batch delete completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
-                    return BatchResponse(**data)
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid request: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to batch delete vectors: {response.status}")
+            data = await self._transport.post("/batch_delete", data=asdict(request))
+            logger.info(f"Batch delete completed: {data['successful_operations']} successful, {data['failed_operations']} failed")
+            return BatchResponse(**data)
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to batch delete vectors: {e}")
 
@@ -368,19 +273,7 @@ class VectorsClient(_ApiBase):
             if public_key:
                 payload_data["public_key"] = public_key
 
-            async with self._transport.put(
-                f"{self.base_url}/qdrant/collections/{collection}/points",
-                json=payload_data
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid points: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to upsert points: {response.status}")
+            return await self._transport.put(f"/qdrant/collections/{collection}/points", data=payload_data)
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to upsert points: {e}")
 
@@ -407,23 +300,7 @@ class VectorsClient(_ApiBase):
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
-        try:
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/delete",
-                json={"points": point_ids, "wait": wait}
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                elif response.status == 400:
-                    error_data = await response.json()
-                    raise ValidationError(f"Invalid point IDs: {error_data.get('message', 'Unknown error')}")
-                else:
-                    raise ServerError(f"Failed to delete points: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to delete points: {e}")
-
+        return await self._transport.post(f"/qdrant/collections/{collection}/points/delete", data={"points": point_ids, "wait": wait})
     async def qdrant_retrieve_points(
         self,
         collection: str,
@@ -448,24 +325,21 @@ class VectorsClient(_ApiBase):
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
-        try:
-            params = {
+        # Query-string params are inlined into the URL because the
+        # Transport abstraction's `get(path)` does not take a separate
+        # `params=` kwarg — see `vectorizer/_base.py::Transport.get`.
+        from urllib.parse import urlencode
+
+        query = urlencode(
+            {
                 "ids": ",".join(str(pid) for pid in point_ids),
                 "with_payload": str(with_payload).lower(),
-                "with_vector": str(with_vector).lower()
+                "with_vector": str(with_vector).lower(),
             }
-            async with self._transport.get(
-                f"{self.base_url}/qdrant/collections/{collection}/points",
-                params=params
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to retrieve points: {response.status}")
-        except aiohttp.ClientError as e:
-            raise NetworkError(f"Failed to retrieve points: {e}")
+        )
+        return await self._transport.get(
+            f"/qdrant/collections/{collection}/points?{query}"
+        )
 
     async def qdrant_count_points(
         self,
@@ -492,15 +366,6 @@ class VectorsClient(_ApiBase):
             if filter:
                 payload["filter"] = filter
 
-            async with self._transport.post(
-                f"{self.base_url}/qdrant/collections/{collection}/points/count",
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                elif response.status == 404:
-                    raise CollectionNotFoundError(f"Collection '{collection}' not found")
-                else:
-                    raise ServerError(f"Failed to count points: {response.status}")
+            return await self._transport.post(f"/qdrant/collections/{collection}/points/count", data=payload)
         except aiohttp.ClientError as e:
             raise NetworkError(f"Failed to count points: {e}")
