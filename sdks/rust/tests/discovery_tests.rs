@@ -24,7 +24,13 @@ mod discovery_tests {
     }
 
     async fn is_server_available(client: &VectorizerClient) -> bool {
-        client.health_check().await.is_ok()
+        // `/health` is intentionally anonymous, so checking only that
+        // would let these tests run against a production-mode server
+        // that has `auth.enabled: true` — every discovery call then
+        // fails the 401 gate and the tests flake red. Probe an actually
+        // gated route so the skip branch also covers "server up but
+        // this unauthenticated client cannot talk to it".
+        client.health_check().await.is_ok() && client.list_collections().await.is_ok()
     }
 
     // ==================== DISCOVER TESTS ====================
