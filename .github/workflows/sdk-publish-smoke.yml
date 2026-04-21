@@ -1,0 +1,122 @@
+name: SDK publish smoke-install
+
+# Post-publish verification: install each just-published SDK from its
+# canonical registry and exercise a one-line import / construct so a
+# broken tarball surfaces before any downstream consumer hits it.
+#
+# Runs on a tag matching `v3.*.*` (cut at publish time) and on manual
+# dispatch. Each job is independent — a failure in one SDK does not
+# mask another so operators see the full health picture in one run.
+#
+# Introduced for phase8_publish-sdk-v3-to-npm tail 2.2; the individual
+# `pnpm publish` / `cargo publish` / `twine upload` / `dotnet nuget
+# push` / Go tag-push commands live in `sdks/PUBLISHING.md` and stay
+# human-driven because each needs a credential that this workflow
+# deliberately does not carry.
+
+on:
+  push:
+    tags:
+      - 'v3.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'SDK version to smoke-test (e.g. 3.0.0)'
+        required: true
+        default: '3.0.0'
+
+env:
+  SDK_VERSION: ${{ github.event.inputs.version || '3.0.0' }}
+
+jobs:
+  typescript-smoke:
+    name: TypeScript — @hivehub/vectorizer-sdk
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install + import published tarball
+        run: |
+          mkdir smoke && cd smoke
+          pnpm init -y > /dev/null
+          pnpm add "@hivehub/vectorizer-sdk@${SDK_VERSION}"
+          node -e "const sdk = require('@hivehub/vectorizer-sdk'); if (typeof sdk.VectorizerClient !== 'function') { console.error('VectorizerClient export missing'); process.exit(1); } console.log('OK: @hivehub/vectorizer-sdk@' + require('@hivehub/vectorizer-sdk/package.json').version);"
+
+  python-smoke:
+    name: Python — vectorizer (PyPI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: pip install + import
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "vectorizer==${SDK_VERSION}"
+          python -c "from vectorizer import VectorizerClient; print('OK: vectorizer', VectorizerClient.__module__)"
+
+  rust-smoke:
+    name: Rust — vectorizer-sdk (crates.io)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo add + build
+        run: |
+          mkdir smoke && cd smoke
+          cargo init --name smoke
+          cargo add "vectorizer-sdk@${SDK_VERSION}"
+          echo 'fn main() { let _ = std::any::TypeId::of::<vectorizer_sdk::VectorizerClient>(); }' > src/main.rs
+          cargo build
+
+  csharp-smoke:
+    name: C# — Vectorizer.Sdk.Rpc (NuGet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: dotnet add + build
+        run: |
+          mkdir smoke && cd smoke
+          dotnet new console --force
+          dotnet add package Vectorizer.Sdk.Rpc --version "${SDK_VERSION}"
+          cat > Program.cs <<'EOF'
+          using Vectorizer.Rpc;
+          Console.WriteLine("OK: Vectorizer.Sdk.Rpc " + typeof(RpcClient).Assembly.GetName().Version);
+          EOF
+          dotnet build
+
+  go-smoke:
+    name: Go — vectorizer-sdk-go
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      - name: go get + import
+        run: |
+          mkdir smoke && cd smoke
+          go mod init smoke
+          go get "github.com/hivellm/vectorizer-sdk-go@v${SDK_VERSION}"
+          cat > main.go <<'EOF'
+          package main
+
+          import (
+              "fmt"
+              sdk "github.com/hivellm/vectorizer-sdk-go"
+          )
+
+          func main() {
+              var _ *sdk.VectorizerClient
+              fmt.Println("OK: vectorizer-sdk-go")
+          }
+          EOF
+          go build

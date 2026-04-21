@@ -324,6 +324,116 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
 ```
 
+## v3.0.0 Publish Runbook
+
+This is the one-command-per-SDK sequence for cutting a v3 release.
+Every command below is **token-gated** — the maintainer runs them
+from a workstation that has the registry credentials below loaded:
+
+| Credential | Scope | Load via |
+|---|---|---|
+| `NPM_TOKEN` | `@hivehub/vectorizer-sdk` | `npm login` (or `.npmrc` with `//registry.npmjs.org/:_authToken=$NPM_TOKEN`) |
+| `TWINE_PASSWORD` | `vectorizer` on PyPI | `~/.pypirc` or `TWINE_PASSWORD=$PYPI_TOKEN` env |
+| `CARGO_REGISTRY_TOKEN` | `vectorizer-sdk` on crates.io | `cargo login $CARGO_REGISTRY_TOKEN` |
+| `NUGET_API_KEY` | `Vectorizer.Sdk.Rpc` on NuGet | `dotnet nuget push --api-key $NUGET_API_KEY` |
+| `GITHUB_TOKEN` | `sdks/go/v3.0.0` tag push | `git push origin sdks/go/v3.0.0` |
+
+**Pre-publish gate**: confirm every per-SDK follow-up task under
+`phase8_fix-*-sdk-*` is archived (see
+`.rulebook/archive/2026-04-21-*/`).
+
+### 1. TypeScript — `@hivehub/vectorizer-sdk`
+
+```bash
+cd sdks/typescript
+pnpm build
+pnpm test             # vitest; must be green
+pnpm pack             # verify tarball — pnpm prints the file list
+pnpm publish --access public
+```
+
+After publish, re-run `cd gui && rm -rf node_modules pnpm-lock.yaml
+&& pnpm install` to refresh the lockfile against the just-published
+SDK. A successful lockfile refresh unblocks the GUI Electron bump
+and the minimatch transitive alert.
+
+### 2. Rust — `vectorizer-sdk` on crates.io
+
+`vectorizer-sdk` depends on `vectorizer-protocol` (path-only in the
+workspace); crates.io requires both to carry `version = ` in the
+dep declaration AND for `vectorizer-protocol` to be published FIRST.
+
+```bash
+# Publish the protocol crate FIRST — the SDK's published manifest
+# strips the `path = ...` and resolves `vectorizer-protocol` from
+# crates.io on downstream builds.
+cd crates/vectorizer-protocol
+cargo publish --dry-run --allow-dirty   # verify
+cargo publish
+
+# Wait ~1 minute for the crates.io index to pick up the new version,
+# then:
+cd ../../sdks/rust
+# One-time manifest tweak if not already landed: add
+# `version = "3.0.0"` to the `vectorizer-protocol` dep in Cargo.toml.
+cargo publish --dry-run --allow-dirty
+cargo publish
+```
+
+### 3. Python — `vectorizer` on PyPI
+
+```bash
+cd sdks/python
+python -m build
+twine check dist/*
+twine upload dist/vectorizer-3.0.0*
+```
+
+### 4. C# — `Vectorizer.Sdk.Rpc` on NuGet
+
+```bash
+cd sdks/csharp/src/Vectorizer.Rpc
+dotnet pack -c Release
+dotnet nuget push bin/Release/Vectorizer.Sdk.Rpc.3.0.0.nupkg \
+  --source https://api.nuget.org/v3/index.json \
+  --api-key "$NUGET_API_KEY"
+```
+
+### 5. Go — `github.com/hivellm/vectorizer-sdk-go`
+
+Go modules are published via git tags on the module directory:
+
+```bash
+cd sdks/go
+# Make sure the go.mod path matches `github.com/hivellm/vectorizer-sdk-go`
+git tag sdks/go/v3.0.0
+git push origin sdks/go/v3.0.0
+
+# Verify from a clean checkout:
+go install github.com/hivellm/vectorizer-sdk-go@v3.0.0
+```
+
+### 6. Post-publish smoke-install verification
+
+The `sdk-publish-smoke` CI workflow
+([.github/workflows/sdk-publish-smoke.yml](.github/workflows/sdk-publish-smoke.yml))
+installs each just-published SDK from its canonical registry and
+exercises a one-line import / construct so a broken tarball surfaces
+before any downstream consumer hits it. It fires automatically on a
+tag matching `v3.*.*` and can be triggered manually via
+`workflow_dispatch` with a `version` input.
+
+Each language job is independent — a failure in one SDK does not
+mask another so operators see the full health picture in a single
+run. None of the jobs carry publish credentials; they are pure
+post-publish validators.
+
+### 7. After all five publishes are green
+
+Update `sdks/PUBLISHING_STATUS.md` with the published timestamp +
+the tarball / crate / nupkg / module URL for each language, and
+commit the change.
+
 ## Support
 
 For publishing issues or questions:
