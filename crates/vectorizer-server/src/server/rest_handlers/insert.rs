@@ -366,18 +366,23 @@ pub(super) async fn insert_one_text(
             })?;
             last_embedding_len = embedding.len();
 
-            let mut payload_data = json!({
-                "content": chunk.content,
-                "chunk_index": chunk.chunk_index,
-                "file_path": chunk.file_path,
-            });
-            if let Some(obj) = payload_data.as_object_mut() {
-                for (k, v) in &metadata {
-                    if !obj.contains_key(k) {
-                        obj.insert(k.clone(), json!(v));
-                    }
+            // Per the F8 contract, file-navigation fields (file_path,
+            // chunk_index, ...) live under a nested `metadata:` sub-object
+            // so `FileOperations::list_files_in_collection` and related
+            // readers can find them at `payload.data.metadata.file_path`.
+            // `content` stays at the payload-object root for search.
+            let mut metadata_map = serde_json::Map::new();
+            metadata_map.insert("file_path".into(), json!(chunk.file_path));
+            metadata_map.insert("chunk_index".into(), json!(chunk.chunk_index));
+            for (k, v) in &metadata {
+                if !metadata_map.contains_key(k) {
+                    metadata_map.insert(k.clone(), json!(v));
                 }
             }
+            let payload_data = json!({
+                "content": chunk.content,
+                "metadata": serde_json::Value::Object(metadata_map),
+            });
 
             let payload = if let Some(key) = public_key {
                 let encrypted = vectorizer::security::payload_encryption::encrypt_payload(

@@ -10,9 +10,27 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
+use serde_json::Value as JsonValue;
 use serde_json::json;
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
+
+/// Return the metadata view for a vector payload, supporting both the
+/// canonical nested shape (`{content, metadata: {file_path, ...}}`) and
+/// the legacy flat shape (`{content, file_path, ...}`) emitted by pre-v3.0.0
+/// upload / insert paths.
+///
+/// Returns `(view, is_flat)` where `view` is the `Value` that
+/// `.get("file_path")` etc. should be called on, and `is_flat` is true
+/// when the fallback to the flat shape was used — callers may log/count
+/// this for v3.1.0 deprecation tracking.
+#[inline]
+fn metadata_view(payload_data: &JsonValue) -> (&JsonValue, bool) {
+    match payload_data.get("metadata") {
+        Some(v) if v.is_object() => (v, false),
+        _ => (payload_data, true),
+    }
+}
 
 use super::cache::FileLevelCache;
 use super::errors::{FileOperationError, FileOperationResult};
@@ -97,33 +115,47 @@ impl FileOperations {
         // Get all vectors from collection
         let all_vectors = coll.get_all_vectors();
 
-        // Filter vectors by file_path in metadata
+        // Filter vectors by file_path in metadata (dual-shape: nested
+        // `metadata.file_path` canonical, flat `file_path` legacy).
+        let mut flat_shape_hits: usize = 0;
         let mut file_chunks: Vec<_> = all_vectors
             .into_iter()
             .filter_map(|v| {
                 if let Some(payload) = &v.payload {
-                    if let Some(metadata) = payload.data.get("metadata") {
-                        if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
-                            if fp == file_path {
-                                let chunk_index = metadata
-                                    .get("chunk_index")
-                                    .and_then(|v| v.as_u64())
-                                    .unwrap_or(0)
-                                    as usize;
-                                let content = payload
-                                    .data
-                                    .get("content")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("")
-                                    .to_string();
-                                return Some((chunk_index, content, metadata.clone()));
+                    let (metadata, is_flat) = metadata_view(&payload.data);
+                    if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                        if fp == file_path {
+                            if is_flat {
+                                flat_shape_hits += 1;
                             }
+                            let chunk_index = metadata
+                                .get("chunk_index")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0)
+                                as usize;
+                            let content = payload
+                                .data
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            return Some((chunk_index, content, metadata.clone()));
                         }
                     }
                 }
                 None
             })
             .collect();
+        if flat_shape_hits > 0 {
+            debug!(
+                collection = %collection,
+                file_path = %file_path,
+                flat_hits = flat_shape_hits,
+                "get_file_content: read {} chunk(s) via legacy flat payload shape \
+                 (deprecated, will be removed in v3.1.0)",
+                flat_shape_hits
+            );
+        }
 
         if file_chunks.is_empty() {
             return Err(FileOperationError::FileNotFound {
@@ -234,20 +266,32 @@ impl FileOperations {
         // Get all vectors
         let all_vectors = coll.get_all_vectors();
 
-        // Group by file_path
+        // Group by file_path (dual-shape: nested canonical + flat legacy).
         let mut file_map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
+        let mut flat_shape_hits: usize = 0;
 
         for vector in all_vectors {
             if let Some(payload) = &vector.payload {
-                if let Some(metadata) = payload.data.get("metadata") {
-                    if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
-                        file_map
-                            .entry(file_path.to_string())
-                            .or_insert_with(Vec::new)
-                            .push(metadata.clone());
+                let (metadata, is_flat) = metadata_view(&payload.data);
+                if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                    if is_flat {
+                        flat_shape_hits += 1;
                     }
+                    file_map
+                        .entry(file_path.to_string())
+                        .or_insert_with(Vec::new)
+                        .push(metadata.clone());
                 }
             }
+        }
+        if flat_shape_hits > 0 {
+            debug!(
+                collection = %collection,
+                flat_hits = flat_shape_hits,
+                "list_files_in_collection: read {} vector(s) via legacy flat \
+                 payload shape (deprecated, will be removed in v3.1.0)",
+                flat_shape_hits
+            );
         }
 
         // Create FileInfo for each file
@@ -623,41 +667,54 @@ impl FileOperations {
 
         // Get all vectors and filter by file_path
         let all_vectors = coll.get_all_vectors();
+        let mut flat_shape_hits: usize = 0;
         let mut file_chunks: Vec<_> = all_vectors
             .into_iter()
             .filter_map(|v| {
                 if let Some(payload) = &v.payload {
-                    if let Some(metadata) = payload.data.get("metadata") {
-                        if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
-                            if fp == file_path {
-                                let chunk_index = metadata
-                                    .get("chunk_index")
-                                    .and_then(|v| v.as_u64())
-                                    .unwrap_or(0)
-                                    as usize;
-                                let content = payload
-                                    .data
-                                    .get("content")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("")
-                                    .to_string();
-                                let line_start = metadata
-                                    .get("line_start")
-                                    .and_then(|v| v.as_u64())
-                                    .map(|v| v as usize);
-                                let line_end = metadata
-                                    .get("line_end")
-                                    .and_then(|v| v.as_u64())
-                                    .map(|v| v as usize);
-
-                                return Some((chunk_index, content, line_start, line_end));
+                    let (metadata, is_flat) = metadata_view(&payload.data);
+                    if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                        if fp == file_path {
+                            if is_flat {
+                                flat_shape_hits += 1;
                             }
+                            let chunk_index = metadata
+                                .get("chunk_index")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0)
+                                as usize;
+                            let content = payload
+                                .data
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let line_start = metadata
+                                .get("line_start")
+                                .and_then(|v| v.as_u64())
+                                .map(|v| v as usize);
+                            let line_end = metadata
+                                .get("line_end")
+                                .and_then(|v| v.as_u64())
+                                .map(|v| v as usize);
+
+                            return Some((chunk_index, content, line_start, line_end));
                         }
                     }
                 }
                 None
             })
             .collect();
+        if flat_shape_hits > 0 {
+            debug!(
+                collection = %collection,
+                file_path = %file_path,
+                flat_hits = flat_shape_hits,
+                "get_file_chunks_ordered: read {} chunk(s) via legacy flat \
+                 payload shape (deprecated, will be removed in v3.1.0)",
+                flat_shape_hits
+            );
+        }
 
         if file_chunks.is_empty() {
             return Err(FileOperationError::FileNotFound {
@@ -916,46 +973,58 @@ impl FileOperations {
         let mut results = Vec::new();
         let mut seen_files = std::collections::HashSet::new();
 
+        let mut flat_shape_hits: usize = 0;
         for result in search_results {
             if results.len() >= limit {
                 break;
             }
 
             if let Some(payload) = &result.payload {
-                if let Some(metadata) = payload.data.get("metadata") {
-                    if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
-                        let file_type = Self::detect_file_type(file_path);
+                let (metadata, is_flat) = metadata_view(&payload.data);
+                if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                    if is_flat {
+                        flat_shape_hits += 1;
+                    }
+                    let file_type = Self::detect_file_type(file_path);
 
-                        // Check if file type matches
-                        if file_types.contains(&file_type) {
-                            let content = if return_full_files && !seen_files.contains(file_path) {
-                                seen_files.insert(file_path.to_string());
-                                self.get_file_content(collection, file_path, ABSOLUTE_MAX_SIZE_KB)
-                                    .await
-                                    .ok()
-                                    .map(|f| f.content)
-                            } else {
-                                None
-                            };
+                    // Check if file type matches
+                    if file_types.contains(&file_type) {
+                        let content = if return_full_files && !seen_files.contains(file_path) {
+                            seen_files.insert(file_path.to_string());
+                            self.get_file_content(collection, file_path, ABSOLUTE_MAX_SIZE_KB)
+                                .await
+                                .ok()
+                                .map(|f| f.content)
+                        } else {
+                            None
+                        };
 
-                            let chunk_content = payload
-                                .data
-                                .get("content")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
+                        let chunk_content = payload
+                            .data
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
 
-                            results.push(FileTypeSearchMatch {
-                                file_path: file_path.to_string(),
-                                file_type: file_type.clone(),
-                                score: result.score,
-                                matching_chunk: chunk_content,
-                                full_content: content,
-                            });
-                        }
+                        results.push(FileTypeSearchMatch {
+                            file_path: file_path.to_string(),
+                            file_type: file_type.clone(),
+                            score: result.score,
+                            matching_chunk: chunk_content,
+                            full_content: content,
+                        });
                     }
                 }
             }
+        }
+        if flat_shape_hits > 0 {
+            debug!(
+                collection = %collection,
+                flat_hits = flat_shape_hits,
+                "search_by_file_type: read {} hit(s) via legacy flat payload \
+                 shape (deprecated, will be removed in v3.1.0)",
+                flat_shape_hits
+            );
         }
 
         let total_matches = results.len();
@@ -1025,21 +1094,34 @@ impl FileOperations {
         // Group by file and calculate average similarity
         let mut file_scores: HashMap<String, (f32, usize)> = HashMap::new();
 
+        let mut flat_shape_hits: usize = 0;
         for result in search_results {
             if let Some(payload) = &result.payload {
-                if let Some(metadata) = payload.data.get("metadata") {
-                    if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
-                        // Skip the source file itself
-                        if fp == file_path {
-                            continue;
-                        }
-
-                        let entry = file_scores.entry(fp.to_string()).or_insert((0.0, 0));
-                        entry.0 += result.score;
-                        entry.1 += 1;
+                let (metadata, is_flat) = metadata_view(&payload.data);
+                if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
+                    // Skip the source file itself
+                    if fp == file_path {
+                        continue;
                     }
+                    if is_flat {
+                        flat_shape_hits += 1;
+                    }
+
+                    let entry = file_scores.entry(fp.to_string()).or_insert((0.0, 0));
+                    entry.0 += result.score;
+                    entry.1 += 1;
                 }
             }
+        }
+        if flat_shape_hits > 0 {
+            debug!(
+                collection = %collection,
+                file_path = %file_path,
+                flat_hits = flat_shape_hits,
+                "get_related_files: read {} hit(s) via legacy flat payload \
+                 shape (deprecated, will be removed in v3.1.0)",
+                flat_shape_hits
+            );
         }
 
         // Calculate average scores and filter

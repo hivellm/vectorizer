@@ -486,46 +486,47 @@ pub async fn upload_file(
             continue;
         }
 
-        // Build payload with metadata
-        let mut payload_data = json!({
+        // Build payload with metadata. IMPORTANT: per the F8 contract
+        // (docs/releases/v3.0.0-verification.md), `content` stays at the
+        // payload-object root for search.rs, while ALL per-chunk metadata
+        // lives under a `metadata:` sub-object so `list_files_in_collection`
+        // and friends can read `payload.data.metadata.file_path`.
+        let mut metadata_obj = serde_json::Map::new();
+        metadata_obj.insert("file_path".into(), json!(chunk.file_path));
+        metadata_obj.insert("chunk_index".into(), json!(chunk.chunk_index));
+        metadata_obj.insert("language".into(), json!(&language));
+        metadata_obj.insert("source".into(), json!("file_upload"));
+        metadata_obj.insert("original_filename".into(), json!(&filename));
+        metadata_obj.insert("file_extension".into(), json!(&file_extension));
+
+        // Merge chunk metadata, transmutation metadata, and extra metadata
+        // under the nested `metadata:` key so every downstream reader sees
+        // a uniform shape.
+        for (k, v) in &chunk.metadata {
+            metadata_obj.insert(k.clone(), v.clone());
+        }
+        for (k, v) in &transmutation_metadata {
+            metadata_obj.insert(k.clone(), v.clone());
+        }
+        if let Some(ref extra) = extra_metadata {
+            for (k, v) in extra {
+                metadata_obj.insert(k.clone(), v.clone());
+            }
+        }
+
+        // Normalize string values (lowercase) inside metadata only —
+        // `content` stays verbatim because search/embedding compares it
+        // against the embedded vector.
+        for (_k, v) in metadata_obj.iter_mut() {
+            if let Some(s) = v.as_str() {
+                *v = json!(s.to_lowercase());
+            }
+        }
+
+        let payload_value = json!({
             "content": chunk.content,
-            "file_path": chunk.file_path,
-            "chunk_index": chunk.chunk_index,
-            "language": &language,
-            "source": "file_upload",
-            "original_filename": &filename,
-            "file_extension": &file_extension,
+            "metadata": serde_json::Value::Object(metadata_obj),
         });
-
-        // Merge chunk metadata
-        if let Some(obj) = payload_data.as_object_mut() {
-            for (k, v) in &chunk.metadata {
-                obj.insert(k.clone(), v.clone());
-            }
-
-            // Merge transmutation metadata if available
-            for (k, v) in &transmutation_metadata {
-                obj.insert(k.clone(), v.clone());
-            }
-
-            // Merge extra metadata if provided
-            if let Some(ref extra) = extra_metadata {
-                for (k, v) in extra {
-                    obj.insert(k.clone(), v.clone());
-                }
-            }
-        }
-
-        // Normalize and optionally encrypt payload
-        let mut payload_value = payload_data;
-        if let Some(obj) = payload_value.as_object_mut() {
-            // Normalize values
-            for (_k, v) in obj.iter_mut() {
-                if let Some(s) = v.as_str() {
-                    *v = json!(s.to_lowercase());
-                }
-            }
-        }
 
         // Encrypt payload if public_key is provided
         let payload = if let Some(ref key) = public_key {
