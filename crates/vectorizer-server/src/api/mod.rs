@@ -52,17 +52,17 @@
 //!
 //! ## Usage
 //!
-//! ```rust
-//! use vectorizer::api;
+//! ```rust,no_run
+//! use vectorizer_server::api;
 //!
 //! // Access REST handlers through server module
-//! use vectorizer::server::rest_handlers;
+//! use vectorizer_server::server::rest_handlers;
 //!
 //! // Access GraphQL schema
-//! use vectorizer::api::graphql::create_schema;
+//! use vectorizer_server::api::graphql::create_schema;
 //!
 //! // Access Graph API
-//! use vectorizer::api::graph::create_graph_router;
+//! use vectorizer_server::api::graph::create_graph_router;
 //! ```
 //!
 //! ## Documentation
