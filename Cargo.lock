@@ -9437,6 +9437,7 @@ dependencies = [
  "tracing-subscriber",
  "vectorizer",
  "vectorizer-core",
+ "whoami",
 ]
 
 [[package]]
