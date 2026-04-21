@@ -53,16 +53,56 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Exclude test files from the main project -->
+    <!--
+      Exclude test + example trees from the main project.
+
+      The root is laid out with two test project directories
+      (`Vectorizer.Tests\` next to this csproj, `tests\Vectorizer.Rpc.Tests\`
+      one level down) plus two standalone example/demo csprojs
+      (`Examples\`, `ExampleTest\`). Each has its own `.csproj` with the
+      xunit / Microsoft.NET.Test.Sdk refs — they are NOT meant to be
+      glob-pulled into this main library csproj. Before this exclude the
+      root `<Compile Include="**/*.cs">` in the .NET SDK default items was
+      pulling EndpointParserTests.cs et al. into Vectorizer.dll, which
+      then failed with 169 CS0246 errors because this csproj has no
+      xunit reference (probe 4.5, phase8_fix-csharp-sdk-xunit-refs).
+    -->
     <Compile Remove="Vectorizer.Tests\**\*" />
     <Content Remove="Vectorizer.Tests\**\*" />
     <EmbeddedResource Remove="Vectorizer.Tests\**\*" />
     <None Remove="Vectorizer.Tests\**\*" />
+
+    <Compile Remove="tests\**\*" />
+    <Content Remove="tests\**\*" />
+    <EmbeddedResource Remove="tests\**\*" />
+    <None Remove="tests\**\*" />
+
+    <Compile Remove="Examples\**\*" />
+    <Content Remove="Examples\**\*" />
+    <EmbeddedResource Remove="Examples\**\*" />
+    <None Remove="Examples\**\*" />
+
+    <Compile Remove="ExampleTest\**\*" />
+    <Content Remove="ExampleTest\**\*" />
+    <EmbeddedResource Remove="ExampleTest\**\*" />
+    <None Remove="ExampleTest\**\*" />
+
+    <!--
+      `src\Vectorizer.Rpc\` is its own standalone csproj
+      (`src\Vectorizer.Rpc\Vectorizer.Rpc.csproj`) with its own
+      MessagePack-csharp + Microsoft.Extensions.DependencyInjection
+      package refs. Without this exclude, the main Vectorizer.csproj
+      would glob-pull `src\**\*.cs` and fail to resolve those types.
+    -->
+    <Compile Remove="src\**\*" />
+    <Content Remove="src\**\*" />
+    <EmbeddedResource Remove="src\**\*" />
+    <None Remove="src\**\*" />
   </ItemGroup>
-  
+
   <PropertyGroup>
-    <!-- Exclude test directories from default includes -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Vectorizer.Tests\**\*</DefaultItemExcludes>
+    <!-- Exclude test + example + sibling-csproj directories from default includes -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Vectorizer.Tests\**\*;tests\**\*;Examples\**\*;ExampleTest\**\*;src\**\*</DefaultItemExcludes>
   </PropertyGroup>
 
 </Project>

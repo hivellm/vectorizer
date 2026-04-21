@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Vectorizer.Models;
 
 /// <summary>
@@ -101,13 +103,28 @@ public class FileUploadRequest
 /// </summary>
 public class FileUploadResponse
 {
+    [JsonPropertyName("success")]
     public bool Success { get; set; }
+
+    [JsonPropertyName("filename")]
     public string Filename { get; set; } = string.Empty;
+
+    [JsonPropertyName("collection_name")]
     public string CollectionName { get; set; } = string.Empty;
+
+    [JsonPropertyName("chunks_created")]
     public int ChunksCreated { get; set; }
+
+    [JsonPropertyName("vectors_created")]
     public int VectorsCreated { get; set; }
+
+    [JsonPropertyName("file_size")]
     public long FileSize { get; set; }
+
+    [JsonPropertyName("language")]
     public string Language { get; set; } = string.Empty;
+
+    [JsonPropertyName("processing_time_ms")]
     public long ProcessingTimeMs { get; set; }
 }
 
@@ -116,11 +133,22 @@ public class FileUploadResponse
 /// </summary>
 public class FileUploadConfig
 {
+    [JsonPropertyName("max_file_size")]
     public long MaxFileSize { get; set; }
+
+    [JsonPropertyName("max_file_size_mb")]
     public int MaxFileSizeMb { get; set; }
+
+    [JsonPropertyName("allowed_extensions")]
     public List<string> AllowedExtensions { get; set; } = new();
+
+    [JsonPropertyName("reject_binary")]
     public bool RejectBinary { get; set; }
+
+    [JsonPropertyName("default_chunk_size")]
     public int DefaultChunkSize { get; set; }
+
+    [JsonPropertyName("default_chunk_overlap")]
     public int DefaultChunkOverlap { get; set; }
 }
 
