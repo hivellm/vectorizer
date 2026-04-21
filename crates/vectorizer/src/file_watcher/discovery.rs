@@ -830,9 +830,14 @@ mod tests {
             let inside_file = base.path().join("legit.md");
             fs::write(&inside_file, "# legit").unwrap();
 
+            // `glob::Pattern` treats `*` as "no path separator" — so `*.md`
+            // only matches a bare basename, not the absolute path yielded
+            // by the walker. Use `**/*.md` so the include filter matches
+            // `/tmp/.tmpXXX/legit.md` on Linux and the macOS
+            // `/private/var/folders/.../legit.md` canonical form.
             let config = FileWatcherConfig {
                 watch_paths: Some(vec![base.path().to_path_buf()]),
-                include_patterns: vec!["*.md".to_string()],
+                include_patterns: vec!["**/*.md".to_string()],
                 ..FileWatcherConfig::default()
             };
             let discovery = FileDiscovery {

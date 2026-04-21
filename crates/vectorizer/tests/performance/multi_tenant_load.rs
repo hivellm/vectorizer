@@ -61,7 +61,7 @@ impl LoadTestStats {
         let failed = self.failed_requests.load(Ordering::Relaxed);
         let total_latency = self.total_latency_ms.load(Ordering::Relaxed);
 
-        let avg_latency = if total > 0 { total_latency / total } else { 0 };
+        let avg_latency = total_latency.checked_div(total).unwrap_or(0);
         let throughput = total as f64 / duration.as_secs_f64();
         let success_rate = if total > 0 {
             (successful as f64 / total as f64) * 100.0
