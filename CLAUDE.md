@@ -1,126 +1,71 @@
+<!-- RULEBOOK:START v5.3.0 — DO NOT EDIT BY HAND. Regenerated on `rulebook update`.
+     Put project-specific content in AGENTS.override.md or CLAUDE.local.md.
+     Anything outside the RULEBOOK:START/END sentinels is preserved across updates. -->
+
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This project is managed by [@hivehub/rulebook](https://github.com/hivellm/rulebook).
+The authoritative rules come from the imports below. Claude Code loads all of them
+automatically at session start (see [Anthropic memory docs](https://code.claude.com/docs/en/memory#claude-md-imports)).
 
-## Project Overview
+## Project identity & live state
+@.rulebook/STATE.md
 
-Vectorizer is a high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications. It provides sub-3ms search times with HNSW indexing, supports multiple embedding models, and offers full Qdrant API compatibility.
+## Core standards (team-shared, versioned)
+@AGENTS.md
 
-## Critical Requirements
+## Project-specific overrides (user-owned, survives `rulebook update`)
+@AGENTS.override.md
 
-### Rust Edition 2024 - MANDATORY
-- **Cargo.toml edition**: Must be `"2024"` - NEVER change to 2021 or earlier
-- The codebase uses Edition 2024 features for advanced async patterns
+## Session scratchpad (human notes)
+<!-- @.rulebook/PLANS.md (skipped — target file not present) -->
 
-### REST-First Architecture
-When adding features, implement in this order:
-1. Core engine first (business logic in `src/db/`, `src/embedding/`)
-2. REST endpoints second (`src/api/`)
-3. MCP tools third (`src/server/`)
+## Critical rules (highest precedence — apply on every turn)
 
-**NEVER implement features only in MCP** - REST and MCP must have identical functionality.
+1. **Read `AGENTS.md` and `AGENTS.override.md`** before making changes. These contain project-specific conventions that override generic guidance.
+2. **Never revert or discard uncommitted work** — fix forward. Treat the working tree as sacred; investigate before destructive operations.
+3. **Edit files sequentially**, not in parallel. When a task touches 3+ files, decompose into 1–2 file sub-tasks.
+4. **Run `check`/type-check before `test`** — diagnostic-first. Cheap diagnostics catch issues that expensive test suites miss or take longer to surface.
+5. **If a fix fails twice, escalate** — stop, research, or open a team. Do not retry the same approach a third time.
+6. **Prefer MCP tools** (`mcp__rulebook__*` and project-specific MCP servers) over shell commands when the equivalent tool exists.
+7. **Capture learnings**: at the end of significant work, save patterns and anti-patterns to `.rulebook/knowledge/` and insights to `.rulebook/learnings/`.
+8. **Never archive a task** without docs updated, tests written, and tests passing — the task tail enforces this structurally.
 
-## Build and Development Commands
+## Persistent memory
 
-```bash
-# Build
-cargo build --release
+This project uses the Rulebook MCP server for persistent memory across sessions.
 
-# Build with GPU acceleration (macOS Metal)
-cargo build --release --features hive-gpu
+- **Start of session**: `rulebook_memory_search` for relevant prior context.
+- **During work**: `rulebook_memory_save` for decisions, bugs, discoveries, user preferences.
+- **End of session**: `rulebook_session_end` to write a session summary.
 
-# Build with all features
-cargo build --release --features full
+Memory is auto-captured for tool interactions (task create/update/archive, skill enable/disable). Manual saves are required for everything else worth remembering.
 
-# Run server (starts REST on :15002 + MCP)
-./target/release/vectorizer
-cargo run
+## Knowledge base
 
-# Run tests
-cargo test
+Before implementing anything non-trivial:
 
-# Run a single test
-cargo test test_name
+- `rulebook_knowledge_list` — check existing patterns and anti-patterns.
+- `rulebook_learn_list` — review past learnings.
+- `rulebook_decision_list` — review architectural decisions.
 
-# Run tests in a specific module
-cargo test module_name::
+After implementing, capture at least one entry per task:
 
-# Run tests with output
-cargo test -- --nocapture
+- `rulebook_knowledge_add` for reusable patterns or anti-patterns to avoid.
+- `rulebook_learn_capture` for implementation insights that don't belong in code comments.
+- `rulebook_decision_create` for significant architectural choices.
 
-# Format and lint
-cargo fmt
-cargo clippy
+## Task workflow
 
-# Stop server
-pkill vectorizer  # or Ctrl+C
-```
+**MANDATORY: ALWAYS use the Rulebook MCP tools for task management.** Never create task directories or files manually — use `rulebook_task_create`, `rulebook_task_update`, `rulebook_task_archive`, `rulebook_task_list`, `rulebook_task_show`, `rulebook_task_validate`. These tools enforce naming conventions, mandatory tail items, phase structure, and metadata that manual file creation skips.
 
-## Architecture
+1. `rulebook_task_list` to see pending work.
+2. `rulebook_task_create` to create new tasks — **never `mkdir` + `Write` manually**.
+3. Pick the **first unchecked item from the lowest-numbered phase** — never reorder.
+4. Read the task's `proposal.md` and `tasks.md` before touching code.
+5. Implement step by step. Run lint + type-check after each significant change.
+6. `rulebook_task_update` to change task status as you progress.
+7. Mark items `[x]` in `tasks.md` as you finish them.
+8. The mandatory tail (docs + tests + verify) is **not optional** — `rulebook_task_archive` will refuse to close the task otherwise.
 
-```
-Client → REST/MCP → Core Engine → Vector Store
-```
-
-### Key Source Directories
-
-- `src/api/` - HTTP endpoints (Axum-based REST API)
-- `src/db/` - Core database operations (VectorStore, Collection, HNSW indexing)
-- `src/models/` - Data models (Vector, CollectionConfig, SearchResult)
-- `src/embedding/` - Embedding providers (BM25, BERT, MiniLM, TF-IDF)
-- `src/server/` - MCP server implementation
-- `src/grpc/` - gRPC service (Qdrant-compatible)
-- `src/quantization/` - Vector quantization (Scalar, Product Quantization)
-- `src/persistence/` - Storage (MMap, .vecdb format)
-- `src/replication/` - Master-replica replication (BETA)
-- `src/cluster/` - Distributed sharding (BETA)
-- `src/auth/` - JWT + API Key authentication with RBAC
-- `src/cache/` - Query caching
-- `src/discovery/` - File discovery and indexing pipeline
-
-### Test Organization
-
-- `tests/` - Integration tests organized by feature
-- `tests/api/rest/` - REST API integration tests
-- `tests/api/mcp/` - MCP integration tests
-- `tests/grpc/` - gRPC tests
-- `tests/integration/` - Feature integration tests (sharding, clustering, etc.)
-- `tests/replication/` - Replication tests
-- Unit tests are colocated in `src/` modules
-
-## Access Points (Default)
-
-- **REST API / Dashboard**: http://localhost:15002
-- **MCP Server**: ws://localhost:15002/mcp
-- **GraphQL**: http://localhost:15002/graphql
-- **Health Check**: http://localhost:15002/health
-
-## Key Patterns
-
-### Error Handling
-Use `thiserror` for custom error types with `VectorizerError` as the main error type. Propagate errors with `?` operator.
-
-### Concurrency
-- `Arc<RwLock<T>>` for shared state
-- `DashMap` for concurrent key-value operations
-- `parking_lot` locks (not std::sync)
-
-### Serialization
-All API types derive `Serialize, Deserialize` from serde. Use `#[serde(rename_all = "lowercase")]` for enums.
-
-### Async
-Use `tokio` runtime. Never use blocking operations (`std::thread::sleep`) in async code - use `tokio::time::sleep`.
-
-## Feature Flags
-
-- `default = ["hive-gpu", "fastembed"]`
-- `hive-gpu` - GPU acceleration (Metal on macOS)
-- `fastembed` - Fast embedding models with ONNX
-- `full` - All features including real-models, ONNX, Arrow, Parquet, Transmutation
-- `s2s-tests` - Server-to-server tests (requires explicit enable)
-
-## Configuration Files
-
-- `config.yml` - Runtime configuration
-- `workspace.yml` - Workspace/project definitions
-- `config.example.yml` - Configuration reference
+<!-- RULEBOOK:END -->

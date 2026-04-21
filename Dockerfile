@@ -131,8 +131,13 @@
 # Cross-compiling using Docker multi-platform builds
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
 
-# Utilizing Docker layer caching with cargo-chef
-FROM --platform=${BUILDPLATFORM:-linux/amd64} lukemathwalker/cargo-chef:latest-rust-1.88-bookworm AS chef
+# Utilizing Docker layer caching with cargo-chef.
+# Pinned at rust 1.90-bookworm for v3.0.0: `async-graphql@7.2.1` and
+# `asynk-strim@0.1.5` (transitive deps) require rustc 1.89+; Edition
+# 2024 (which every workspace crate declares in its Cargo.toml)
+# requires rustc 1.85+. 1.90 is the current stable floor that
+# satisfies both without tracking a moving nightly target.
+FROM --platform=${BUILDPLATFORM:-linux/amd64} lukemathwalker/cargo-chef:latest-rust-1.90-bookworm AS chef
 
 FROM chef AS planner
 WORKDIR /vectorizer
@@ -161,6 +166,16 @@ FROM chef AS builder
 WORKDIR /vectorizer
 
 COPY --from=xx / /
+
+# NOTE on OPENSSL_DIR leakage: Docker Desktop for Windows + buildx
+# desktop-linux leaks the Windows-host `OPENSSL_DIR` env var
+# (`C:/Program Files/OpenSSL-Win64`) into Linux RUN steps, where
+# `openssl-sys` build script then panics with "OpenSSL include
+# directory does not exist". Setting `ENV OPENSSL_DIR=` to empty
+# also breaks because openssl-sys rejects an empty path. The fix
+# is `unset` inside each affected RUN command — see the explicit
+# `unset OPENSSL_DIR ...` prefix on the cargo-chef cook and the
+# cargo build commands below.
 
 # Install dependencies
 RUN apt-get update \
@@ -211,10 +226,11 @@ ARG RUSTFLAGS
 
 # Build dependencies with cargo-chef (cached layer)
 COPY --from=planner /vectorizer/recipe.json recipe.json
-RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
+RUN unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
+    PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
     PATH="$PATH:/opt/mold/bin" \
     RUSTFLAGS="${LINKER:+-C link-arg=-fuse-ld=}$LINKER $RUSTFLAGS" \
-    xx-cargo chef cook --profile $PROFILE ${NO_DEFAULT_FEATURES:+--no-default-features} ${FEATURES:+--features} $FEATURES --recipe-path recipe.json
+    xx-cargo chef cook --profile $PROFILE --package vectorizer-server --bin vectorizer ${NO_DEFAULT_FEATURES:+--no-default-features} ${FEATURES:+--features} $FEATURES --recipe-path recipe.json
 
 # Build application
 COPY . .
@@ -223,10 +239,11 @@ COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
 ARG GIT_COMMIT_ID
 # Limit parallel jobs to reduce peak memory (avoids OOM in cross-build / low-memory env)
 ENV CARGO_BUILD_JOBS=2
-RUN PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
+RUN unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
+    PKG_CONFIG="/usr/bin/$(xx-info)-pkg-config" \
     PATH="$PATH:/opt/mold/bin" \
     RUSTFLAGS="${LINKER:+-C link-arg=-fuse-ld=}$LINKER $RUSTFLAGS" \
-    xx-cargo build --profile $PROFILE ${NO_DEFAULT_FEATURES:+--no-default-features} ${FEATURES:+--features} $FEATURES --bin vectorizer \
+    xx-cargo build --profile $PROFILE --package vectorizer-server ${NO_DEFAULT_FEATURES:+--no-default-features} ${FEATURES:+--features} $FEATURES --bin vectorizer \
     && PROFILE_DIR=$(if [ "$PROFILE" = dev ]; then echo debug; else echo $PROFILE; fi) \
     && mv target/$(xx-cargo --print-target-triple)/$PROFILE_DIR/vectorizer /vectorizer/vectorizer
 
@@ -252,7 +269,7 @@ ARG GIT_COMMIT_ID
 COPY --from=builder /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=builder /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json
 COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
-COPY --from=builder /vectorizer/config.example.yml /vectorizer/config.yml
+COPY --from=builder /vectorizer/config/config.example.yml /vectorizer/config/config.yml
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer/data /vectorizer/data
 
 WORKDIR /vectorizer
@@ -268,6 +285,10 @@ ENV TZ=Etc/UTC \
     VECTORIZER_PORT=15002 \
     VECTORIZER_ADMIN_USERNAME=admin
 
+# Ports: RPC (binary, recommended primary) listed first per
+# phase6_make-rpc-default-transport. REST (15002) stays exposed for the
+# dashboard, ops tooling, and browser clients.
+EXPOSE 15503
 EXPOSE 15002
 
 # OpenContainer labels for better supply chain attestation

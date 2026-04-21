@@ -496,9 +496,9 @@ Basic server functionality and external interfaces.
 *Production deployment, advanced AI features, and system optimization*
 
 #### Week 49-52: System Optimization & Advanced Features ✅ **COMPLETED**
-- [x] **Advanced Integrations**: LangChain VectorStore (Python & JS), ML framework integrations (PyTorch, TensorFlow)
 - [x] **Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE)
 - [x] **Production Deployment**: Docker containerization with comprehensive DevOps infrastructure
+- [x] ~~**Advanced Integrations**: LangChain VectorStore (Python & JS), ML framework integrations (PyTorch, TensorFlow)~~ — *removed in v3.0.0; the integrations were thin adapters and were dropped in favour of direct SDK use.*
 
 **Milestone 8**: ✅ **Complete** - Production-ready vector database with comprehensive integrations
 
@@ -507,13 +507,16 @@ Basic server functionality and external interfaces.
 ### **Phase 9: Advanced Integrations & Enterprise Features (Month 11-12)** ✅ **CORE INTEGRATIONS COMPLETED**
 *Advanced integrations and ecosystem expansion*
 
-#### Week 53-56: Advanced Integrations & ML Framework Support ✅ **COMPLETED**
-- [x] **LangChain VectorStore**: Complete LangChain integration (Python & JavaScript) for seamless AI workflow
-- [x] **LangChain.js VectorStore**: Complete JavaScript/TypeScript VectorStore implementation
-- [x] **ML Framework Integrations**: PyTorch and TensorFlow integration for custom embeddings
+#### Week 53-56: Advanced Integrations & ML Framework Support ✅ **COMPLETED, then partially removed**
 - [x] **Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
+- [x] ~~**LangChain VectorStore**: Complete LangChain integration (Python & JavaScript)~~ — *removed in v3.0.0*
+- [x] ~~**LangChain.js VectorStore**: Complete JavaScript/TypeScript VectorStore implementation~~ — *removed in v3.0.0*
+- [x] ~~**ML Framework Integrations**: PyTorch and TensorFlow integration for custom embeddings~~ — *removed in v3.0.0*
 
-**Milestone 9**: ✅ **Advanced Integrations Complete** - Production-ready vector database with complete AI ecosystem
+**Milestone 9**: ✅ **Advanced Integrations Complete** — the LangChain / framework integrations
+landed in v1.x and shipped to package registries; v3.0.0 dropped them
+in favour of direct SDK use. The published versions remain installable;
+no new releases will ship.
 
 ---
 
@@ -607,9 +610,9 @@ Basic server functionality and external interfaces.
 - [x] **Performance**: Efficient summarization without impacting indexing speed
 
 ### **Phase 8 Success Criteria** ✅ **ACHIEVED**
-- [x] **Advanced Integrations**: LangChain VectorStore (Python & JS), ML framework integrations (PyTorch, TensorFlow)
 - [x] **Production Deployment**: Docker containerization with comprehensive DevOps infrastructure
 - [x] **Advanced Embedding Models**: ONNX and Real Models (MiniLM, E5, MPNet, GTE) with GPU acceleration
+- [x] ~~**Advanced Integrations**: LangChain VectorStore (Python & JS), ML framework integrations (PyTorch, TensorFlow)~~ — *removed in v3.0.0*
 
 ---
 
@@ -635,8 +638,7 @@ The following features are **intentionally delayed** until after the foundation 
 - **REST Architecture**: High-performance HTTP communication
 - **REST API**: Complete HTTP API with authentication
 - **MCP Integration**: Model Context Protocol for AI IDE integration
-- **Client SDKs**: Python, TypeScript, JavaScript, Rust SDKs
-- **Framework Integrations**: LangChain, PyTorch, TensorFlow
+- **Client SDKs**: Python, TypeScript, JavaScript, Rust, Go, C# SDKs
 - **Advanced Embedding Models**: ONNX and Real Models
 - **Automatic Summarization**: MMR algorithm with multiple methods
 - **DevOps Infrastructure**: Docker and Kubernetes deployment
@@ -683,5 +685,5 @@ The following features are **intentionally delayed** until after the foundation 
 **DevOps Infrastructure**: Complete Docker and Kubernetes deployment configurations (September 28, 2025)
 **Phase 8 Completion**: Advanced Integrations Complete - Production Ready (September 28, 2025)
 **Critical API Fixes**: Vector count consistency, embedding providers, provider defaults (September 29, 2025)
-**Framework Integrations Documentation**: LangChain, PyTorch, TensorFlow comprehensive documentation (September 29, 2025)
+**Framework Integrations Removal**: LangChain (Py + JS), Langflow, n8n, PyTorch, and TensorFlow integrations removed in v3.0.0 (April 19, 2026) in favour of direct SDK use
 **Date**: September 29, 2025

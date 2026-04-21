@@ -13,16 +13,19 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { VectorizerClient } from '../src/client';
+import { isLiveServerAvailable, runIfServer, VECTORIZER_BASE_URL } from './test-helpers';
 
-describe.skip('File Operations', () => {
-  // Skipped: These tests require real indexed files in the server
-  // To run these tests, you need to:
-  // 1. Have a running Vectorizer server
-  // 2. Have files indexed in the test-collection
-  // 3. Run: npm test -- --grep "File Operations"
-  
+// Live-gated: probe 4.1 replaced the unconditional `describe.skip(...)`
+// that was silently masking this entire file-operations suite. The
+// gate now routes through the shared `runIfServer(...)` helper so
+// the suite runs whenever a server is reachable (or when CI sets
+// `VECTORIZER_LIVE_TESTS=1`) and cleanly skips otherwise. See
+// phase8_enable-typescript-sdk-live-tests.
+const live = await isLiveServerAvailable();
+
+runIfServer(live, 'File Operations', () => {
   let client: VectorizerClient;
-  const baseURL = process.env['VECTORIZER_URL'] || 'http://localhost:15002';
+  const baseURL = process.env['VECTORIZER_URL'] ?? VECTORIZER_BASE_URL;
   const testCollection = 'test-collection';
 
   beforeAll(async () => {

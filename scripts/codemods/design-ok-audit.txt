@@ -1,0 +1,131 @@
+src/api/graph.rs:622:    let limit = params.get("limit").and_then(|s| s.parse::<usize>().ok());
+src/api/graphql/schema/mod.rs:160:        .ok()
+src/api/graphql/schema/mod.rs:163:                .ok()
+src/api/graphql/schema/query.rs:119:            .and_then(|c| c.parse::<usize>().ok())
+src/api/graphql/schema/query.rs:274:            .and_then(|c| c.parse::<usize>().ok())
+src/api/graphql/schema/query.rs:329:            .and_then(|c| c.parse::<usize>().ok())
+src/benchmark/system_monitor.rs:280:                    return fields[0].parse().ok();
+src/benchmark/system_monitor.rs:361:                        return first_value.parse().ok();
+src/bin/vectorizer-cli.rs:475:            .filter_map(|line| line.trim().parse().ok())
+src/cli/utils.rs:318:            std::io::Write::flush(&mut std::io::stdout()).ok();
+src/cluster/grpc_service.rs:423:            .ok()
+src/cluster/grpc_service.rs:516:            Uuid::parse_str(&t.tenant_id).ok()
+src/cluster/grpc_service.rs:606:            Uuid::parse_str(&t.tenant_id).ok()
+src/cluster/grpc_service.rs:744:                    .and_then(|p| serde_json::to_string(p).ok());
+src/cluster/ha_manager.rs:110:            config.master_address = addr.parse().ok();
+src/cluster/server_client.rs:296:                                    .and_then(|json| serde_json::from_str(json).ok());
+src/cluster/server_client.rs:407:                                    .and_then(|json| serde_json::from_str(json).ok());
+src/cluster/shard_migrator.rs:390:                    .and_then(|p| serde_json::to_string(p).ok()),
+src/config/workspace.rs:298:        let normalized_path = self.normalize_path(path).ok()?;
+src/db/collection/persistence.rs:280:                .filter_map(|id| self.vectors.get(id).ok().flatten())
+src/db/vector_store/collections.rs:529:            .filter_map(|pv| pv.into_runtime().ok())
+src/db/vector_store/collections.rs:835:        // Previously: `.ok()?` silently conflated "alias does not exist" with
+src/db/vector_store/mod.rs:213:            .ok()
+src/db/vector_store_tests.rs:46:    store.delete_collection("test_list1_unique").ok();
+src/db/vector_store_tests.rs:47:    store.delete_collection("test_list2_unique").ok();
+src/db/vector_store_tests.rs:156:    store.delete_collection("test_stats_unique").ok();
+src/discovery/broad.rs:103:        .and_then(|s| s.parse::<usize>().ok())
+src/discovery/focus.rs:100:        .and_then(|s| s.parse::<usize>().ok())
+src/discovery/hybrid.rs:275:        .and_then(|s| s.parse::<usize>().ok())
+src/discovery/pipeline.rs:44:                self.store.get_collection(name).ok().map(|coll| {
+src/embedding/cache.rs:201:                let content = std::fs::read_to_string(path).ok()?;
+src/embedding/fast_tokenizer.rs:205:        std::fs::create_dir_all(&cache_dir).ok();
+src/embedding/providers/bag_of_words.rs:194:            .and_then(|x| serde_json::from_value(x.clone()).ok())
+src/embedding/providers/bm25.rs:143:            .and_then(|x| serde_json::from_value(x.clone()).ok())
+src/embedding/providers/bm25.rs:149:            .and_then(|x| serde_json::from_value(x.clone()).ok())
+src/embedding/providers/bm25.rs:155:            .and_then(|x| serde_json::from_value(x.clone()).ok())
+src/embedding/providers/char_ngram.rs:207:            .and_then(|x| serde_json::from_value(x.clone()).ok())
+src/embedding/providers/tfidf.rs:244:            .and_then(|x| serde_json::from_value(x.clone()).ok())
+src/embedding/providers/tfidf.rs:248:            .and_then(|x| serde_json::from_value(x.clone()).ok())
+src/file_operations/operations.rs:784:                            .ok()
+src/file_operations/operations.rs:929:                                    .ok()
+src/file_watcher/debouncer.rs:149:                            std::fs::read(&path_clone).ok().map(|content| {
+src/grpc/qdrant_grpc/points.rs:240:                .ok()
+src/hub/client.rs:97:            .ok()
+src/hub/client.rs:98:            .and_then(|v| v.parse().ok())
+src/hub/client.rs:102:            .ok()
+src/hub/client.rs:103:            .and_then(|v| v.parse().ok())
+src/hub/middleware.rs:115:            .and_then(|h| h.to_str().ok())
+src/hub/mod.rs:178:            service_api_key: std::env::var("HIVEHUB_SERVICE_API_KEY").ok(),
+src/hub/request_signing.rs:77:            secret_key: std::env::var("HIVEHUB_SIGNING_SECRET").ok(),
+src/models/mod.rs:245:            serde_json::from_value(self.data.clone()).ok()
+src/monitoring/correlation.rs:35:        .and_then(|v| v.to_str().ok())
+src/monitoring/correlation.rs:62:    CORRELATION_ID.try_with(|id| (**id).clone()).ok()
+src/monitoring/correlation.rs:165:            .and_then(|v| v.to_str().ok());
+src/monitoring/system_collector.rs:98:                    .ok()
+src/parallel/mod.rs:284:            worker.join().ok();
+src/parallel/mod.rs:288:            worker.join().ok();
+src/persistence/mod.rs:70:            .and_then(|p| serde_json::to_string(&p.data).ok());
+src/server/auth_handlers/authenticated.rs:118:        .and_then(|h| h.to_str().ok())
+src/server/core/bootstrap.rs:65:            .ok()
+src/server/core/bootstrap.rs:67:                serde_yaml::from_str::<crate::config::VectorizerConfig>(&content).ok()
+src/server/core/bootstrap.rs:124:            .ok()
+src/server/core/bootstrap.rs:127:                    .ok()
+src/server/core/bootstrap.rs:135:            .ok()
+src/server/core/bootstrap.rs:136:            .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
+src/server/core/bootstrap.rs:268:                    .ok()
+src/server/core/bootstrap.rs:269:                    .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
+src/server/core/bootstrap.rs:493:                            .ok()
+src/server/core/bootstrap.rs:496:                                    .filter_map(|e| e.ok())
+src/server/core/bootstrap.rs:639:                .ok()
+src/server/core/bootstrap.rs:642:                        .ok()
+src/server/core/bootstrap.rs:655:                    .ok()
+src/server/core/bootstrap.rs:658:                            .ok()
+src/server/core/bootstrap.rs:720:                .ok()
+src/server/core/bootstrap.rs:723:                        .ok()
+src/server/core/bootstrap.rs:806:                    .ok()
+src/server/core/bootstrap.rs:809:                            .ok()
+src/server/core/bootstrap.rs:866:                                .ok()
+src/server/core/bootstrap.rs:869:                                        .ok()
+src/server/core/bootstrap.rs:997:                            .ok()
+src/server/core/bootstrap.rs:1000:                                    .ok()
+src/server/core/bootstrap.rs:1035:                    .ok()
+src/server/core/bootstrap.rs:1038:                            .ok()
+src/server/core/bootstrap.rs:1067:            .ok()
+src/server/core/bootstrap.rs:1070:                    .ok()
+src/server/core/bootstrap.rs:1088:                .ok()
+src/server/core/bootstrap.rs:1091:                        .ok()
+src/server/core/routing.rs:1010:            shutdown_rx.await.ok();
+src/server/core/workspace_loader.rs:173:                                            .ok()
+src/server/discovery_handlers.rs:25:            store.get_collection(name).ok().map(|coll| {
+src/server/files/upload.rs:218:                chunk_size = text.parse().ok();
+src/server/files/upload.rs:224:                chunk_overlap = text.parse().ok();
+src/server/graphql_handlers.rs:50:        .and_then(|v| v.to_str().ok())
+src/server/graphql_handlers.rs:56:        .and_then(|v| v.to_str().ok())
+src/server/hub_handlers/tenant.rs:475:        store.cleanup_tenant_data(&tenant_id).ok();
+src/server/hub_handlers/tenant.rs:627:        store.cleanup_tenant_data(&tenant_id).ok();
+src/server/hub_handlers/tenant.rs:664:        store.delete_collection(&collection_name).ok();
+src/server/hub_handlers/tenant.rs:712:        store.delete_collection(&source_collection).ok();
+src/server/hub_handlers/tenant.rs:713:        store.delete_collection(&target_collection).ok();
+src/server/hub_handlers/tenant.rs:768:        store.cleanup_tenant_data(&tenant_a).ok();
+src/server/hub_handlers/tenant.rs:777:        store.cleanup_tenant_data(&tenant_b).ok();
+src/server/hub_handlers/usage.rs:138:            Uuid::parse_str(uuid_str).ok()
+src/server/hub_handlers/usage.rs:299:        .and_then(|h| h.to_str().ok())
+src/server/mcp/handlers.rs:1110:                        .ok(),
+src/server/qdrant/search_handlers.rs:25:        .and_then(|ctx| Uuid::parse_str(&ctx.0.0.tenant_id).ok())
+src/server/qdrant/search_handlers.rs:100:        .ok()?;
+src/server/qdrant/search_handlers.rs:103:    let point = lookup_collection.get_vector(group_id).ok()?;
+src/server/qdrant/search_handlers.rs:305:        .filter_map(|id| collection.get_vector(id).ok().map(|v| v.data))
+src/server/qdrant/search_handlers.rs:319:        .filter_map(|id| collection.get_vector(id).ok().map(|v| v.data))
+src/server/qdrant/search_handlers.rs:609:            .filter_map(|id| collection.get_vector(id).ok().map(|v| v.data))
+src/server/qdrant/search_handlers.rs:626:            .filter_map(|id| collection.get_vector(id).ok().map(|v| v.data))
+src/server/qdrant/vector_handlers.rs:204:                    .and_then(|p| serde_json::to_vec(&p.data).ok());
+src/server/rest_handlers/collections.rs:469:        .and_then(|v| v.parse::<bool>().ok())
+src/server/rest_handlers/common.rs:16:        .and_then(|ctx| Uuid::parse_str(&ctx.0.0.tenant_id).ok())
+src/server/rest_handlers/discovery.rs:124:            state.store.get_collection(name).ok().map(|coll| {
+src/server/rest_handlers/discovery.rs:184:            state.store.get_collection(name).ok().map(|coll| {
+src/server/rest_handlers/discovery.rs:284:            state.store.get_collection(name).ok().map(|coll| {
+src/server/rest_handlers/insert.rs:471:                    let payload_bytes = v.payload.as_ref().and_then(|p| serde_json::to_vec(p).ok());
+src/server/rest_handlers/meta.rs:119:        .and_then(|v| v.parse::<usize>().ok())
+src/server/rest_handlers/meta.rs:144:                .sort_by_key(|e| std::cmp::Reverse(e.metadata().and_then(|m| m.modified()).ok()));
+src/server/rest_handlers/search.rs:176:                        .ok(),
+src/server/rest_handlers/vectors.rs:38:        .and_then(|l| l.parse::<usize>().ok())
+src/server/rest_handlers/vectors.rs:43:        .and_then(|o| o.parse::<usize>().ok())
+src/server/rest_handlers/vectors.rs:47:        .and_then(|s| s.parse::<f32>().ok())
+src/server/setup_handlers.rs:66:            .ok()
+src/server/setup_handlers.rs:67:            .and_then(|content| serde_yaml::from_str::<Value>(&content).ok())
+src/server/setup_handlers.rs:698:                let metadata = entry.metadata().ok();
+src/storage/snapshot.rs:726:                .ok()
+src/storage/snapshot.rs:727:                .and_then(|m| m.modified().ok())
+src/storage/snapshot.rs:730:                    let duration = system_time.duration_since(std::time::UNIX_EPOCH).ok()?;
+src/umicp/transport.rs:110:        .filter_map(|op| serde_json::to_value(op).ok())

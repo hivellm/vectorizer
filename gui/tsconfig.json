@@ -12,10 +12,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "baseUrl": ".",
+    // TS 6 deprecated `baseUrl` (scheduled removal in TS 7). `paths`
+    // entries now resolve relative to the tsconfig file itself.
     "paths": {
-      "@/*": ["src/renderer/*"],
-      "@shared/*": ["src/shared/*"]
+      "@/*": ["./src/renderer/*"],
+      "@shared/*": ["./src/shared/*"]
     },
     "types": ["node", "vite/client"]
   },

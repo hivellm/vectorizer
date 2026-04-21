@@ -30,6 +30,10 @@ securityContext: {}
 
 service:
   type: ClusterIP
+  # RPC (binary, recommended primary) listed first per
+  # phase6_make-rpc-default-transport. REST (15002) stays exposed
+  # for the dashboard, ops tooling, and browser clients.
+  rpcPort: 15503
   port: 15002
   replicationPort: 7001
 

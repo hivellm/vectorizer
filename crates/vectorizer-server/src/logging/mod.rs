@@ -1,0 +1,206 @@
+//! Centralized logging system for Vectorizer
+//!
+//! This module provides a unified logging system that:
+//! - Stores all logs in the `.logs` directory
+//! - Includes date in log file names for better organization
+//! - Automatically cleans up logs older than 1 day
+//! - Provides consistent formatting across all services
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use chrono::{DateTime, Local};
+use tracing::{error, info, warn};
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+
+/// Initialize the centralized logging system
+pub fn init_logging(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    init_logging_with_level(service_name, "info")
+}
+
+/// Initialize the centralized logging system with a specific log level
+pub fn init_logging_with_level(
+    service_name: &str,
+    default_level: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Create logs directory if it doesn't exist — resolved by
+    // vectorizer_core::paths so it lands in the OS-canonical
+    // user-data location (XDG on Linux, Application Support on
+    // macOS, AppData on Windows). Override with VECTORIZER_LOGS_DIR.
+    let logs_dir = vectorizer_core::paths::logs_dir();
+    if !logs_dir.exists() {
+        fs::create_dir_all(&logs_dir)?;
+        if default_level == "debug" || default_level == "info" {
+            info!("Created logs directory: {:?}", logs_dir);
+        }
+    }
+
+    // Clean up old logs before initializing
+    cleanup_old_logs(&logs_dir)?;
+
+    // Generate log filename with date using the standard format
+    let date_str = Local::now().format("%Y-%m-%d").to_string();
+    let log_filename = format!("{}-{}.log", service_name, date_str);
+    let log_path = logs_dir.join(log_filename);
+
+    // Create log file
+    let log_file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)?;
+
+    // Initialize tracing with both console and file output
+    let result = tracing_subscriber::registry()
+        .with(
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| format!("{}={}", service_name, default_level).into()),
+        )
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_target(false)
+                .with_thread_ids(true)
+                .with_thread_names(true),
+        )
+        .with(
+            tracing_subscriber::fmt::layer()
+                // SAFE: `try_clone` only fails on EBADF / file descriptor
+                // exhaustion, both of which are unrecoverable for the
+                // logging subsystem. Panic surfaces the failure at startup
+                // rather than silently dropping log lines.
+                .with_writer({
+                    #[allow(clippy::expect_used)]
+                    move || log_file.try_clone().expect("Failed to clone log file")
+                })
+                .with_target(true)
+                .with_thread_ids(true)
+                .with_thread_names(true)
+                .with_file(true)
+                .with_line_number(true),
+        )
+        .try_init();
+
+    if let Err(e) = result {
+        // Use eprintln here since tracing is not yet initialized
+        eprintln!("Failed to initialize tracing: {}", e);
+        return Err(format!("Failed to initialize tracing: {}", e).into());
+    }
+
+    // Only log initialization message if verbose
+    if default_level == "debug" || default_level == "info" {
+        info!(
+            "Logging initialized for {} - Log file: {:?}",
+            service_name, log_path
+        );
+    }
+    Ok(())
+}
+
+/// Clean up log files older than 1 day
+fn cleanup_old_logs(logs_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let cutoff_time = SystemTime::now() - Duration::from_secs(24 * 60 * 60); // 1 day ago
+
+    if !logs_dir.exists() {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(logs_dir)?;
+    let mut cleaned_count = 0;
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Only process .log files
+        if path.extension().map_or(false, |ext| ext == "log") {
+            if let Ok(metadata) = path.metadata() {
+                if let Ok(modified) = metadata.modified() {
+                    if modified < cutoff_time {
+                        if let Err(e) = fs::remove_file(&path) {
+                            error!("Failed to remove old log file {:?}: {}", path, e);
+                        } else {
+                            cleaned_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if cleaned_count > 0 {
+        info!("Cleaned up {} old log files", cleaned_count);
+    }
+
+    Ok(())
+}
+
+/// Clean up old logs manually (can be called periodically)
+pub fn cleanup_old_logs_manual() -> Result<(), Box<dyn std::error::Error>> {
+    let logs_dir = vectorizer_core::paths::logs_dir();
+    cleanup_old_logs(&logs_dir)
+}
+
+/// Get the current log directory path. Delegates to
+/// [`vectorizer_core::paths::logs_dir`] so the answer is OS-aware
+/// and matches what the binary uses at startup.
+pub fn get_logs_dir() -> PathBuf {
+    vectorizer_core::paths::logs_dir()
+}
+
+/// Get the log file path for a specific service and date
+pub fn get_log_file_path(service_name: &str, date: Option<DateTime<Local>>) -> PathBuf {
+    let logs_dir = get_logs_dir();
+    let date_str = match date {
+        Some(dt) => dt.format("%Y-%m-%d").to_string(),
+        None => Local::now().format("%Y-%m-%d").to_string(),
+    };
+    let filename = format!("{}-{}.log", service_name, date_str);
+    logs_dir.join(filename)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use std::thread;
+    use std::time::Duration;
+
+    use super::*;
+
+    #[test]
+    fn test_get_log_file_path() {
+        // The path is now resolved via vectorizer_core::paths so it's
+        // OS-canonical (XDG / Application Support / AppData) rather
+        // than always `.logs/` in the cwd. Pin only the segments
+        // this test legitimately controls (the service name + the
+        // .log extension).
+        let path = get_log_file_path("test-service", None);
+        assert!(path.to_string_lossy().contains("test-service"));
+        assert!(path.to_string_lossy().contains(".log"));
+    }
+
+    #[test]
+    fn test_cleanup_old_logs() {
+        // This test verifies that the cleanup function runs without errors
+        // Since we can't easily create files with old timestamps without external deps,
+        // we'll just test that the function executes successfully
+        let logs_dir = get_logs_dir();
+        fs::create_dir_all(&logs_dir).unwrap();
+
+        // Create a test log file
+        let test_log = logs_dir.join("test-cleanup.log");
+        fs::write(&test_log, "test log content").unwrap();
+
+        // Run cleanup (should not remove recent files)
+        let result = cleanup_old_logs(&logs_dir);
+        assert!(result.is_ok());
+
+        // The recent file should still exist
+        assert!(test_log.exists());
+
+        // Clean up
+        let _ = fs::remove_file(test_log);
+    }
+}

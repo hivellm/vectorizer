@@ -12,6 +12,17 @@ export default defineConfig(({ mode }) => {
       environment: 'happy-dom',
       setupFiles: './src/test/setup.ts',
       css: true,
+      // Playwright e2e specs live under `e2e/**` and MUST only run
+      // through `playwright test`. Vitest's default include glob
+      // catches `*.spec.ts` across the whole tree; without this
+      // exclude, vitest would load Playwright specs and throw
+      // "Playwright Test did not expect test.describe() to be called
+      // here." (phase8_fix-dashboard-test-setup).
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        'e2e/**',
+      ],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json', 'html'],

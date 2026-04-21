@@ -9,6 +9,12 @@ spec:
   type: ClusterIP
   clusterIP: None
   ports:
+    # RPC (binary, recommended primary) listed first per
+    # phase6_make-rpc-default-transport.
+    - port: {{ .Values.service.rpcPort | default 15503 }}
+      targetPort: rpc
+      protocol: TCP
+      name: rpc
     - port: {{ .Values.service.port }}
       targetPort: http
       protocol: TCP

@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool)]
+
 //! Validation utility tests for the Rust SDK
 
 use vectorizer_sdk::*;

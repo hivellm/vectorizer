@@ -23,6 +23,42 @@ File operations enable:
 - Finding related files
 - Type-aware file search
 
+## Canonical vector-payload shape (v3.0.0+)
+
+Every file-navigation endpoint below reads vectors that carry a nested
+`metadata:` sub-object inside the payload. This is the canonical shape that
+`/files/upload` and the chunked branch of `/insert` / `/batch_insert` emit:
+
+```json
+{
+  "content": "chunk body — stays at the root for search + embedding",
+  "metadata": {
+    "file_path": "src/main.rs",
+    "chunk_index": 0,
+    "original_filename": "main.rs",
+    "language": "rust",
+    "source": "file_upload",
+    "file_extension": "rs"
+  }
+}
+```
+
+`content` lives at the payload root because search and embedding read it
+there. All file-navigation fields (`file_path`, `chunk_index`, any
+user-supplied metadata) live under the nested `metadata:` key.
+
+**Deprecated flat shape (v3.0.x dual-read, removed in v3.1.0).** Pre-v3.0.0
+upload / insert paths wrote these fields flat at the payload root
+(`payload.data.file_path`, `payload.data.chunk_index`, ...). For one
+release, every reader in `FileOperations` falls back to the flat shape when
+the nested `metadata:` object is absent; the server emits a DEBUG log line
+of the form `list_files_in_collection: read N vector(s) via legacy flat
+payload shape (deprecated, will be removed in v3.1.0)` per call so
+operators can quantify how many rows still carry the old shape. When the
+count reaches zero (or the upstream fix is verified in production),
+new writes stop emitting the flat shape on their own — there is no
+migration step needed beyond re-uploading legacy rows if any remain.
+
 ## File Content
 
 ### Get File Content

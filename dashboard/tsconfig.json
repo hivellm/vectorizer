@@ -15,10 +15,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Path aliases */
-    "baseUrl": ".",
+    /* Path aliases — TS 6 resolves `paths` entries relative to the
+       tsconfig file itself; `baseUrl` was removed per the TS 6.0
+       deprecation. */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     /* Linting */

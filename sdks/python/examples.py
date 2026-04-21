@@ -30,7 +30,7 @@ async def basic_example():
     
     # Initialize client
     async with VectorizerClient(
-        base_url="http://localhost:15001",
+        base_url="http://localhost:15002",
         api_key="your-api-key-here"
     ) as client:
         print("✅ Client created successfully")
@@ -401,7 +401,7 @@ async def batch_operations_example():
     print("=== Batch Operations Example ===")
     
     async with VectorizerClient(
-        base_url="http://localhost:15001",
+        base_url="http://localhost:15002",
         api_key="your-api-key-here"
     ) as client:
         
@@ -515,7 +515,7 @@ async def summarization_example():
     print("=== Summarization Example ===")
     
     async with VectorizerClient(
-        base_url="http://localhost:15001",
+        base_url="http://localhost:15002",
         api_key="your-api-key-here"
     ) as client:
         

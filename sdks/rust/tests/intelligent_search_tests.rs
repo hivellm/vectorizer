@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool)]
+
 //! Tests for Intelligent Search features
 //!
 //! This test suite covers:

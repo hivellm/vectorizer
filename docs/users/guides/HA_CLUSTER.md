@@ -48,7 +48,7 @@ EOF
 
 **2. Create master config (`config.ha-master.yml`):**
 
-Copy from `config.example.yml` and change these sections:
+Copy from `config/config.example.yml` and change these sections:
 
 ```yaml
 # server section
@@ -87,7 +87,7 @@ replication:
 **4. Start the cluster:**
 
 ```bash
-docker-compose -f docker-compose.ha.yml up -d
+docker compose --profile ha up -d
 ```
 
 **5. Connect your application:**

@@ -238,16 +238,16 @@ For local development with live builds:
 
 ```bash
 # Build and start
-docker-compose -f docker-compose.dev.yml up --build
+docker compose --profile dev up --build
 
 # Rebuild after code changes
-docker-compose -f docker-compose.dev.yml up --build --force-recreate
+docker compose --profile dev up --build --force-recreate
 
 # Stop
-docker-compose -f docker-compose.dev.yml down
+docker compose --profile dev down
 ```
 
-The `docker-compose.dev.yml`:
+The `docker-compose.yml (dev profile)`:
 - Builds from local Dockerfile
 - Includes debug logging (`RUST_LOG=debug`)
 - Mounts logs directory

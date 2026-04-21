@@ -51,12 +51,13 @@ export class TransportFactory {
         }
         return new HttpClient(config.http);
 
-      case 'umicp':
+      case 'umicp': {
         if (!config.umicp) {
           throw new Error('UMICP configuration is required when using UMICP protocol');
         }
         const umicpClient = new UMICPClient(config.umicp);
         return umicpClient;
+      }
 
       default:
         throw new Error(`Unsupported protocol: ${protocol}`);

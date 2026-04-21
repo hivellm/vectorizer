@@ -18,7 +18,7 @@ public class FileUploadTests
     public async Task UploadFileContent_ShouldSucceed()
     {
         // Arrange
-        var client = new VectorizerClient(_baseUrl);
+        var client = new VectorizerClient(new ClientConfig { BaseUrl = _baseUrl });
         var content = @"
             This is a test document for file upload.
             It contains multiple lines of text to be chunked and indexed.
@@ -49,7 +49,7 @@ public class FileUploadTests
     public async Task UploadFileContentAsync_ShouldSucceed()
     {
         // Arrange
-        var client = new VectorizerClient(_baseUrl);
+        var client = new VectorizerClient(new ClientConfig { BaseUrl = _baseUrl });
         var content = "This is a simple test document for upload.";
         var collectionName = "test-uploads";
 
@@ -71,7 +71,7 @@ public class FileUploadTests
     public async Task UploadFile_WithMetadata_ShouldSucceed()
     {
         // Arrange
-        var client = new VectorizerClient(_baseUrl);
+        var client = new VectorizerClient(new ClientConfig { BaseUrl = _baseUrl });
         var content = "Document with metadata for testing.";
         var metadata = new Dictionary<string, object>
         {
@@ -97,7 +97,7 @@ public class FileUploadTests
     public async Task GetUploadConfig_ShouldReturnConfig()
     {
         // Arrange
-        var client = new VectorizerClient(_baseUrl);
+        var client = new VectorizerClient(new ClientConfig { BaseUrl = _baseUrl });
 
         // Act
         var config = await client.GetUploadConfigAsync();

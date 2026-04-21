@@ -54,7 +54,7 @@ guardrails.check_safe()?;
 let _permit = guardrails.acquire_permit()?;
 ```
 
-### Layer 3: Pre-Build Checks (`scripts/pre-build-check.ps1`)
+### Layer 3: Pre-Build Checks (`scripts/build/pre-build-check.ps1`)
 **230 lines** PowerShell verification
 
 **Checks:**
@@ -69,7 +69,7 @@ let _permit = guardrails.acquire_permit()?;
 9. Recent BSODs
 10. System stability
 
-### Layer 4: Safe Build Script (`scripts/build-windows-safe.ps1`)
+### Layer 4: Safe Build Script (`scripts/build/build-windows-safe.ps1`)
 **152 lines** automated safe build
 
 **Commands:**
@@ -183,8 +183,8 @@ cargo build --profile=safe --no-default-features --features "hive-gpu"
 |------|--------|-------|
 | `build.rs` | Created | 171 |
 | `src/guardrails.rs` | Created | 442 |
-| `scripts/build-windows-safe.ps1` | Created | 152 |
-| `scripts/pre-build-check.ps1` | Created | 230 |
+| `scripts/build/build-windows-safe.ps1` | Created | 152 |
+| `scripts/build/pre-build-check.ps1` | Created | 230 |
 | `config.windows.yml` | Created | 239 |
 | `.cargo/config.toml` | Created | 75 |
 | `Cargo.toml` | Modified | +30 |

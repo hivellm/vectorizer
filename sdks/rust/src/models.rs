@@ -118,14 +118,25 @@ pub struct Collection {
     pub size: Option<serde_json::Value>,
 }
 
-/// Collection information
+/// Collection information.
+///
+/// The v3.0.0 REST surface returns `metric` in Rust-Debug form
+/// (e.g. `"Cosine"`), plus new top-level blocks (`size`, `quantization`,
+/// `normalization`, `status`). Every field beyond `name` + `dimension`
+/// carries `#[serde(default)]` so the model tolerates pre-v3 servers
+/// and future additions (request models keep the strict posture; this
+/// is a response-only struct).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionInfo {
     /// Collection name
     pub name: String,
     /// Vector dimension
     pub dimension: usize,
-    /// Similarity metric used for search
+    /// Similarity metric used for search. The v3 server emits this in
+    /// Rust-Debug form (`"Cosine"` / `"Euclidean"` / `"DotProduct"`);
+    /// callers that compare against `"cosine"` etc. should go through
+    /// `.to_lowercase()`.
+    #[serde(default, alias = "similarity_metric")]
     pub metric: String,
     /// Number of vectors in the collection
     #[serde(default)]
@@ -133,13 +144,28 @@ pub struct CollectionInfo {
     /// Number of documents in the collection
     #[serde(default)]
     pub document_count: usize,
-    /// Creation timestamp
+    /// Creation timestamp (RFC3339). Optional — pre-v3 servers may omit.
+    #[serde(default)]
     pub created_at: String,
-    /// Last update timestamp
+    /// Last update timestamp (RFC3339). Optional — pre-v3 servers may omit.
+    #[serde(default)]
     pub updated_at: String,
-    /// Indexing status
+    /// Indexing status. Absent on the v3 server; some legacy servers send it.
     #[serde(default)]
     pub indexing_status: Option<IndexingStatus>,
+    /// Size block emitted by v3 (`{total, total_bytes, index, index_bytes,
+    /// payload, payload_bytes}`).
+    #[serde(default)]
+    pub size: Option<serde_json::Value>,
+    /// Quantization block emitted by v3 (`{enabled, type, bits}`).
+    #[serde(default)]
+    pub quantization: Option<serde_json::Value>,
+    /// Normalization block emitted by v3.
+    #[serde(default)]
+    pub normalization: Option<serde_json::Value>,
+    /// Ready/indexing/error state emitted by v3.
+    #[serde(default)]
+    pub status: Option<String>,
 }
 
 /// Indexing status

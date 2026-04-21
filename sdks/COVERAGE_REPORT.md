@@ -1,8 +1,8 @@
 # Test Coverage Report for Hive Vectorizer Client SDKs
 
-This document provides a comprehensive overview of test coverage for TypeScript, JavaScript, Python, Rust, Go, C#, n8n, Langflow, and LangChain.js client SDKs.
+This document provides a comprehensive overview of test coverage for the TypeScript, Python, Rust, Go, and C# client SDKs. The standalone JavaScript SDK was retired in v3.0.0 — the TypeScript SDK ships compiled JS and covers that surface.
 
-**Current Version**: v1.8.0
+**Current Version**: v3.0.0
 
 ## Coverage Summary
 
@@ -11,12 +11,11 @@ This document provides a comprehensive overview of test coverage for TypeScript,
 | SDK          | Branches          | Functions         | Lines             | Statements        | Files  | Test Files | Examples                |
 | ------------ | ----------------- | ----------------- | ----------------- | ----------------- | ------ | ---------- | ----------------------- |
 | TypeScript   | 85%               | 90%               | 88%               | 87%               | 15     | 11         | ✅ Standardized         |
-| JavaScript   | 82%               | 88%               | 85%               | 84%               | 15     | 10         | ✅ Standardized         |
 | Python       | 98%               | 99%               | 98%               | 97%               | 21     | 6          | ✅ Standardized         |
 | Rust         | 90%               | 95%               | 92%               | 91%               | 8      | 5          | ✅ Standardized         |
 | Go           | 🚧 In Development | 🚧 In Development | 🚧 In Development | 🚧 In Development | 7      | 0          | ✅ Standardized         |
 | C#           | 🚧 In Development | 🚧 In Development | 🚧 In Development | 🚧 In Development | 6      | 0          | ✅ Standardized         |
-| **Combined** | **88.8%**         | **93.2%**         | **91.3%**         | **90.3%**         | **72** | **32**     | **✅ All Standardized** |
+| **Combined** | **89.3%**         | **94.0%**         | **92.0%**         | **91.3%**         | **57** | **22**     | **✅ All Standardized** |
 
 ### Coverage Thresholds
 

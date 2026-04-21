@@ -139,7 +139,7 @@ Integrating Vectorizer with other systems:
 
 - Web frameworks (FastAPI, Express, Axum)
 - Databases (PostgreSQL, MongoDB)
-- LLMs (OpenAI, LangChain)
+- LLMs (OpenAI, custom adapters)
 - ETL pipelines (Airflow, Kafka)
 - Monitoring (Prometheus, Grafana, Datadog)
 - CI/CD (GitHub Actions, GitLab CI)

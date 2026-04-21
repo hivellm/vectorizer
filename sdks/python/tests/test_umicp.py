@@ -1,13 +1,31 @@
 """
-Tests for UMICP transport
+Tests for UMICP transport.
+
+The UMICP transport backs onto the optional `umicp-python` package.
+Cases that actually exercise the binary transport auto-skip when the
+dep is absent so the suite stays green on minimal installs — parsing
+and configuration cases stay live since they only exercise pure-Python
+code inside `utils.transport`.
 """
 
 import pytest
 import sys
+
 sys.path.insert(0, '..')
 
 from client import VectorizerClient
 from utils.transport import TransportProtocol, parse_connection_string
+
+try:
+    import umicp_python  # type: ignore[import-not-found]
+    UMICP_AVAILABLE = True
+except ImportError:
+    UMICP_AVAILABLE = False
+
+umicp_required = pytest.mark.skipif(
+    not UMICP_AVAILABLE,
+    reason="umicp-python not installed (pip install umicp-python)",
+)
 
 
 class TestConnectionStringParsing:
@@ -45,9 +63,10 @@ class TestConnectionStringParsing:
             parse_connection_string("ftp://localhost", "test-key")
 
 
+@umicp_required
 class TestVectorizerClientUMICP:
     """Test VectorizerClient with UMICP."""
-    
+
     def test_umicp_from_connection_string(self):
         """Test initializing client from UMICP connection string."""
         client = VectorizerClient(
@@ -85,6 +104,7 @@ class TestVectorizerClientUMICP:
         assert client.get_protocol() == "umicp"
 
 
+@umicp_required
 class TestUMICPPerformance:
     """Test UMICP performance benefits."""
     

@@ -116,7 +116,7 @@ We enforce strict performance budgets to maintain quality:
 ## Benchmark Organization
 
 ```
-benchmark/
+benches/
 ├── core/               # Core operations
 │   ├── cache_benchmark.rs
 │   ├── core_operations_benchmark.rs
@@ -171,7 +171,7 @@ PRs are **blocked** if:
 
 Benchmark results are stored in two places:
 
-1. **`benchmark/reports/`** - Manual benchmark reports (30+ files)
+1. **`benches/reports/`** - Manual benchmark reports (30+ files)
    - JSON format for programmatic analysis
    - Markdown format for human reading
    - Timestamped for historical tracking
@@ -217,7 +217,7 @@ criterion_main!(benches);
 ```toml
 [[bench]]
 name = "my_bench"
-path = "benchmark/my_category/my_bench.rs"
+path = "benches/my_category/my_bench.rs"
 harness = false
 required-features = ["benchmarks"]
 ```
@@ -279,12 +279,12 @@ system_profiler SPDisplaysDataType  # Metal
 - **Criterion Documentation**: https://bheisler.github.io/criterion.rs/book/
 - **Rust Performance Book**: https://nnethercote.github.io/perf-book/
 - **HNSW Paper**: https://arxiv.org/abs/1603.09320
-- **Project Benchmarks**: `benchmark/reports/` for historical data
+- **Project Benchmarks**: `benches/reports/` for historical data
 
 ## Support
 
 For benchmark-related issues:
-1. Check existing reports in `benchmark/reports/`
+1. Check existing reports in `benches/reports/`
 2. Review CI benchmark logs in GitHub Actions
 3. Open an issue with benchmark results attached
 4. Tag with `performance` label

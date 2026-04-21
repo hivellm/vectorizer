@@ -2,9 +2,8 @@
  * Unit tests for AppRouter component
  */
 
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { describe, it, expect, vi } from 'vitest';
+import { renderWithProviders, screen } from '@/test-utils/render';
 import AppRouter from '../AppRouter';
 
 // Mock all lazy-loaded pages
@@ -64,26 +63,15 @@ vi.mock('@/components/layout/MainLayout', () => ({
 
 describe('AppRouter', () => {
   it('should render router with MainLayout', () => {
-    render(
-      <BrowserRouter>
-        <AppRouter />
-      </BrowserRouter>
-    );
+    renderWithProviders(<AppRouter />);
 
     expect(screen.getByTestId('main-layout')).toBeInTheDocument();
   });
 
   it('should navigate to overview by default', () => {
-    window.history.pushState({}, '', '/');
-    
-    render(
-      <BrowserRouter>
-        <AppRouter />
-      </BrowserRouter>
-    );
+    renderWithProviders(<AppRouter />, { route: '/' });
 
-    // Should redirect to overview
-    expect(window.location.pathname).toBe('/');
+    // MemoryRouter starts at '/', MainLayout renders regardless of sub-route
+    expect(screen.getByTestId('main-layout')).toBeInTheDocument();
   });
 });
-

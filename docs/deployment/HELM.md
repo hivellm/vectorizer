@@ -298,5 +298,5 @@ kubectl get pvc -l app.kubernetes.io/name=vectorizer
 ## Related Documentation
 
 - [Kubernetes Deployment Guide](./KUBERNETES.md)
-- [Production Guide](../PRODUCTION_GUIDE.md)
+- [Production Guide](./PRODUCTION_GUIDE.md)
 - [Helm Chart README](../../helm/vectorizer/README.md)

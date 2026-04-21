@@ -1,378 +1,20 @@
-[package]
-name = "vectorizer"
-version = "2.5.16"
-edition = "2024"
-authors = ["HiveLLM Contributors"]
-description = "High-performance, in-memory vector database written in Rust"
-license = "Apache-2.0"
-repository = "https://github.com/hivellm/vectorizer"
-keywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similarity-search"]
-categories = ["database", "science"]
-
-[dependencies]
-openraft = { version = "0.10.0-alpha.17", features = ["serde", "type-alias"] }
-openraft-memstore = "0.10.0-alpha.17"
-futures = "0.3"
-ctrlc = { version = "3.5", optional = true }
-dirs = "5.0"
-# Core dependencies
-# Optimized: Use only needed tokio features instead of "full" (saves ~30% compile time)
-tokio = { version = "1.48", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
-axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
-tower = { version = "0.5", default-features = false }
-tower-http = { version = "0.6.7", features = ["cors", "trace", "fs", "set-header"], default-features = false }
-serde = { version = "1.0", features = ["derive"], default-features = false }
-serde_json = { version = "1.0", default-features = false }
-serde_yaml = { version = "0.9", default-features = false }
-bincode = { version = "2.0", features = ["serde"] }
-glob = { version = "0.3", default-features = false }
-# Note: chrono is heavy but used in 166 places - consider migrating to time crate in future
-chrono = { version = "0.4", features = ["serde"], default-features = false }
-sha2 = "0.10"
-walkdir = "2.5"
-notify = "8.2"
-fastrand = "2.3"
-sysinfo = "0.37"
-
-# Index and vector operations
-hnsw_rs = "0.3"
-
-# Intelligent search dependencies
-tantivy = "0.25"  # BM25 full-text search engine
-rrf = "0.1"       # Reciprocal Rank Fusion
-fastembed = { version = "5.4", optional = true } # Embeddings + cross-encoder reranking (requires ONNX Runtime)
-rust-tfidf = "1.1" # TF-IDF similarity fallback
-
-# Linear algebra for basic matrix operations
-ndarray = "0.17.1"
-
-# GPU acceleration via external hive-gpu crate only
-hive-gpu = { version = "0.1", optional = true }
-
-# Parallel processing
-rayon = "1.10"
-crossbeam = "0.8"
-num_cpus = "1.16"
-
-# Memory analysis
-memory-stats = "1.0"
-
-# Data structures
-dashmap = "6.1"
-parking_lot = "0.12"
-once_cell = "1.20"
-arc-swap = "1.7"
-
-# Error handling and logging
-anyhow = { version = "1.0", features = ["backtrace"], default-features = false }
-thiserror = { version = "2.0", default-features = false }
-tracing = { version = "0.1", default-features = false }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"], default-features = false }
-scopeguard = { version = "1.2", default-features = false }
-
-# CLI
-clap = { version = "4.5", features = ["derive", "env"] }
-tar = "0.4"
-flate2 = "1.1"
-
-# HTTP client for status checks (using rustls for musl compatibility)
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
-
-# UMICP protocol integration (v0.2.3 with native JSON types + tool discovery)
-umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
-
-# System utilities
-whoami = "1.5"
-libc = "0.2.178"
-
-# Embedded dashboard assets
-rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
-mime_guess = "2.0"
-
-# Compression and caching
-lz4_flex = "0.12.0"
-memmap2 = "0.9"
-xxhash-rust = { version = "0.8", features = ["xxh3"] }
-zstd = "0.13"
-zip = { version = "6.0", features = ["zstd", "deflate"] }
-crc32fast = "1.4" # For replication checksums
-
-# Text normalization dependencies
-blake3 = { version = "1.5", default-features = false }
-unicode-normalization = { version = "0.1", default-features = false }
-# Note: regex is expensive - consider using simpler string matching where possible
-regex = { version = "1.10", default-features = false, features = ["std", "unicode-perl"] }
-
-# OpenSSL vendored for musl cross-compilation (hf-hub uses native-tls)
-openssl = { version = "0.10", features = ["vendored"], optional = true }
-
-# Authentication and security
-jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
-uuid = { version = "1.22", features = ["v4", "serde"] }
-rand = "0.9"
-hmac = "0.12"           # HMAC for request signing
-base64 = "0.22"         # Base64 encoding for signing secrets
-bcrypt = "0.17"
-aes-gcm = "0.10"  # AES-GCM encryption for auth persistence
-p256 = { version = "0.13", features = ["ecdh", "pem"] }  # ECC for payload encryption
-hex = "0.4"  # Hex encoding/decoding for public keys
-lazy_static = "1.4"
-tower_governor = "0.8"  # Rate limiting middleware
-governor = "0.10.2"       # Rate limiting core
-rustls = "0.23"         # TLS support
-rustls-pemfile = "2.2"  # PEM file parsing for TLS
-tokio-rustls = "0.26"   # Tokio TLS integration
-rcgen = "0.14"          # Certificate generation for testing
-
-# HiveHub Cloud integration
-hivehub-internal-sdk = "1.0"
-
-# CLI utilities
-sys-info = "0.9"
-
-# MCP (Model Context Protocol) dependencies
-tokio-tungstenite = "0.28"
-tokio-stream = { version = "0.1", features = ["sync"] }
-
-# Optional ML dependencies
-candle-core = { version = "0.9.1", optional = true }
-candle-nn = { version = "0.9.1", optional = true }
-candle-transformers = { version = "0.9.1", optional = true }
-tokenizers = { version = "0.22.2", optional = true }
-hf-hub = { version = "0.4.3", optional = true }
-
-# ONNX Runtime for high-performance inference
-ort = { version = "2.0.0-rc.10", optional = true, features = ["half"] }
-
-# Additional serialization formats
-arrow = { version = "57", optional = true }
-parquet = { version = "57", optional = true }
-
-# MCP SDK
-rmcp = { version = "0.10", features = ["server", "macros", "transport-streamable-http-server"] }
-tokio-util = "0.7"
-async-trait = "0.1"
-lru = "0.16.1"
-hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
-hyper-util = { version = "0.1.20", features = ["tokio", "server", "server-auto"] }
-
-# GraphQL API
-async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
-async-graphql-axum = "7.0"
-
-# Monitoring and Observability
-prometheus = "0.14"
-opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
-opentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-tokio"] }
-opentelemetry-prometheus = "0.29"
-opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
-tracing-opentelemetry = "0.32"
-
-# gRPC support
-tonic = { version = "0.14", features = [] }
-tonic-prost = "0.14"
-prost = "0.14"
-prost-types = "0.14"
-
-# Transmutation - Document conversion engine (optional)
-transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
-
-[build-dependencies]
-cc = { version = "1.2.49", features = ["parallel"] }
-winres = "0.1"
-tonic-build = "0.14"
-tonic-prost-build = "0.14"
-# Vendored protoc for cross-compilation (e.g. aarch64-unknown-linux-musl in CI where container has no protoc)
-protoc-bin-vendored = "3.2"
-
-[dev-dependencies]
-criterion = { version = "0.8", features = ["html_reports", "async_tokio"] }
-proptest = "1.9"
-tempfile = "3.8"
-reqwest = { version = "0.12", features = ["json", "multipart"] }
-
-[[bench]]
-name = "filter_benchmark"
-path = "benchmark/filter/filter_benchmark.rs"
-harness = false
-
-[[bench]]
-name = "multi_tenant_overhead"
-path = "benches/multi_tenant_overhead.rs"
-harness = false
-
-
-# Disabled benchmarks - need refactoring for current API
-# [[bin]]
-# name = "benchmark_embeddings"
-# path = "benchmark/scripts/benchmark_embeddings.rs"
-# required-features = ["benchmarks"]
+# Vectorizer Cargo workspace.
 #
-# [[bin]]
-# name = "gpu_benchmark"
-# path = "benchmark/scripts/gpu_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "quantization_benchmark"
-# path = "benchmark/scripts/quantization_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "core_operations_benchmark"
-# path = "benchmark/scripts/core_operations_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "dimension_comparison_benchmark"
-# path = "benchmark/scripts/dimension_comparison_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "combined_optimization_benchmark"
-# path = "benchmark/scripts/combined_optimization_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "scale_benchmark"
-# path = "benchmark/scripts/scale_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "patched_benchmark"
-# path = "benchmark/scripts/patched_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "large_scale_benchmark"
-# path = "benchmark/scripts/large_scale_benchmark.rs"
-# required-features = ["benchmarks"]
+# Sub-phase 1 of phase4_split-vectorizer-workspace ships the
+# skeleton: the existing monolithic crate moved under
+# `crates/vectorizer/` with no module-boundary refactor. Sub-phases
+# 2-5 extract `vectorizer-protocol`, `vectorizer-core`,
+# `vectorizer-server`, and `vectorizer-cli` from there. Sub-phase 6
+# wires `sdks/rust` as a workspace member.
 
-# [[bin]]
-# name = "storage_benchmark"
-# path = "benchmark/scripts/storage_benchmark.rs"
-# required-features = ["benchmarks"]
+[workspace]
+resolver = "2"
+members = ["crates/*", "sdks/rust"]
 
-# [[bin]]
-# name = "diagnostic_benchmark"
-# path = "benchmark/scripts/diagnostic_benchmark.rs"
-# required-features = ["benchmarks"]
-
-[[bin]]
-name = "vectorizer-cli"
-path = "src/bin/vectorizer-cli.rs"
-
-[[bin]]
-name = "vectorizer"
-path = "src/bin/vectorizer.rs"
-
-[[bin]]
-name = "benchmark_grpc_vs_rest"
-path = "benchmark/grpc/benchmark_grpc_vs_rest.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "qdrant_comparison_benchmark"
-path = "benchmark/comparison/qdrant_comparison_benchmark.rs"
-required-features = ["benchmarks"]
-
-[[bin]]
-name = "test_routes"
-path = "scripts/test_routes.rs"
-
-# [[bin]]
-# name = "test_basic_metal"
-# path = "benchmark/scripts/test_basic_metal.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "metal_native_search_benchmark"
-# path = "benchmark/scripts/metal_native_search_benchmark.rs"
-# required-features = ["hive-gpu-metal"]
-
-# [[bin]]
-# name = "metal_hnsw_search_benchmark"
-# path = "benchmark/scripts/metal_hnsw_search_benchmark.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "simple_metal_test"
-# path = "benchmark/scripts/simple_metal_test.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "gpu_scale_benchmark"
-# path = "benchmark/scripts/gpu_scale_benchmark.rs"
-# required-features = ["hive-gpu-wgpu"]
-
-[features]
-default = ["hive-gpu", "fastembed", "transmutation"]
-fastembed = ["dep:fastembed"]
-
-# OpenSSL vendored for musl cross-compilation
-vendored-openssl = ["dep:openssl"]
-
-# GPU acceleration via external hive-gpu crate only (Metal-only currently)
-# Future: CUDA, ROCm, WebGPU support when hive-gpu implements them
-hive-gpu = ["dep:hive-gpu"]
-
-# Legacy features (deprecated - kept for backward compatibility)
-metal-native = ["hive-gpu"]
-gpu-accel = ["hive-gpu"]
-
-# Server-to-Server (S2S) tests - only compile when explicitly enabled
-# Usage: cargo test --features s2s-tests --test grpc_s2s
-s2s-tests = []
-benchmarks = []
-candle-core = ["dep:candle-core"]
-candle-nn = ["dep:candle-nn"]
-candle-transformers = ["dep:candle-transformers"]
-tokenizers = ["dep:tokenizers"]
-hf-hub = ["dep:hf-hub"]
-ort = ["dep:ort"]
-arrow = ["dep:arrow"]
-parquet = ["dep:parquet", "arrow"]
-onnx-models = [
-    "ort",
-    "tokenizers",
-    "hf-hub"
-]
-candle-models = [
-    "candle-core",
-    "candle-nn",
-    "candle-transformers",
-    "tokenizers",
-    "hf-hub"
-]
-
-# Real BERT and MiniLM embeddings (requires candle)
-real-models = ["candle-models"]
-transmutation = ["dep:transmutation"]
-full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
-
-# Unix-specific dependencies (for signal handling)
-[target.'cfg(unix)'.dependencies]
-nix = { version = "0.31", features = ["signal"] }
-
-# [[bin]]
-# name = "gpu_scale_benchmark"
-# path = "benchmark/scripts/gpu_scale_benchmark.rs"
-# required-features = ["wgpu-gpu"]
-#
-# [[bin]]
-# name = "cache_benchmark"
-# path = "benchmark/scripts/cache_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "complete_normalization_benchmark"
-# path = "benchmark/scripts/complete_normalization_benchmark.rs"
-# required-features = ["benchmarks"]
-
-# =============================================================================
-# WORKSPACE LINTS (Based on Qdrant standards)
-# =============================================================================
-[lints.clippy]
+# Centralised lint policy. Per-crate `Cargo.toml` opts in via
+# `[lints] workspace = true`. Mirrors the policy that lived under
+# `[lints.*]` on the monolithic crate before the split.
+[workspace.lints.clippy]
 cast_lossless = "warn"
 doc_link_with_quotes = "warn"
 enum_glob_use = "warn"
@@ -395,16 +37,25 @@ unused_self = "warn"
 used_underscore_binding = "warn"
 match_wildcard_for_single_variants = "warn"
 needless_pass_by_ref_mut = "warn"
+# Every `unsafe {}` block must carry a `// SAFETY:` comment explaining why
+# the invariants hold. Documented in `/.rulebook/specs/RUST.md`.
+undocumented_unsafe_blocks = "deny"
+# `unwrap()` / `expect()` are forbidden in production code under
+# phase4_enforce-no-unwrap-policy. Test modules opt out with
+# `#[allow(clippy::unwrap_used, clippy::expect_used)]` (idiomatic in tests);
+# genuinely-safe call sites carry a `// SAFE:` rationale plus a function /
+# block-scoped `#[allow]`. Documented in `/.rulebook/specs/RUST.md`.
+unwrap_used = "deny"
+expect_used = "deny"
 
-[lints.rust]
+[workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tokio_unstable)'] }
 
-[lints.rustdoc]
+[workspace.lints.rustdoc]
 private_intra_doc_links = "allow"
 
-# =============================================================================
-# RELEASE PROFILES
-# =============================================================================
+# Workspace-wide build profiles. Per-crate `Cargo.toml` files don't
+# need to redeclare these; Cargo applies them across every member.
 [profile.release]
 # Optimized for faster builds while maintaining good performance
 lto = "thin"  # Thin LTO is much faster than "fat" with minimal performance loss
@@ -424,14 +75,14 @@ debug-assertions = true
 lto = false
 opt-level = 0
 incremental = true
-codegen-units = 16  # More units = faster compilation
+codegen-units = 16
 
 # Fast release build (for development/testing)
 [profile.release-fast]
 inherits = "release"
-lto = false  # Disable LTO for fastest builds
+lto = false
 codegen-units = 16
-opt-level = 2  # Slightly less optimization for speed
+opt-level = 2
 incremental = true
 
 # Performance testing profile
@@ -443,43 +94,5 @@ codegen-units = 256
 
 [profile.dev]
 debug = "line-tables-only"
-# Faster dev builds - optimize dependencies but not main code
 opt-level = 0
 incremental = true
-# Optimize dependencies for faster runtime (but slower build)
-# Uncomment if you want faster runtime at cost of slower builds:
-# [profile.dev.package."*"]
-# opt-level = 3
-
-# =============================================================================
-# DEBIAN PACKAGE METADATA
-# =============================================================================
-[package.metadata.deb]
-maintainer = "HiveLLM Contributors <info@hivellm.org>"
-depends = "$auto"
-license-file = ["LICENSE", "0"]
-section = "database"
-priority = "optional"
-extended-description = """\
-Vectorizer is a high-performance vector database and search engine built in Rust. \
-It provides semantic search, document indexing, and AI-powered applications support \
-with sub-3ms search times and comprehensive embedding model support.\
-"""
-assets = [
-    ["target/release/vectorizer", "usr/bin/", "755"],
-    ["target/release/vectorizer-cli", "usr/bin/", "755"],
-    ["README.md", "usr/share/doc/vectorizer/README", "644"],
-    ["config.example.yml", "etc/vectorizer/config.yml", "644"],
-    ["config.example.yml", "etc/vectorizer/", "644"],
-    ["workspace.example.yml", "etc/vectorizer/", "644"],
-    ["dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],
-    ["dashboard/app.js", "usr/share/vectorizer/dashboard/", "644"],
-    ["dashboard/api-client.js", "usr/share/vectorizer/dashboard/", "644"],
-    ["dashboard/search-function.js", "usr/share/vectorizer/dashboard/", "644"],
-    ["dashboard/styles.css", "usr/share/vectorizer/dashboard/", "644"],
-    ["dashboard/favicon.ico", "usr/share/vectorizer/dashboard/", "644"],
-    ["dashboard/icon.png", "usr/share/vectorizer/dashboard/", "644"],
-]
-conf-files = ["/etc/vectorizer/config.yml"]
-maintainer-scripts = "debian/"
-systemd-units = { unit-name = "vectorizer", enable = false }

@@ -150,7 +150,10 @@ export function validateDatabaseStats(stats: DatabaseStats): void {
     try {
       validateCollectionInfo(collection);
     } catch (error) {
-      throw new Error(`Invalid collection info at index ${index}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Invalid collection info at index ${index}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { cause: error },
+      );
     }
   });
 }

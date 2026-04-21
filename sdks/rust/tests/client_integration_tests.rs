@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool)]
+
 //! Client integration tests for the Rust SDK
 //! Tests for client operations, model integration, and data transformation
 
@@ -355,6 +359,10 @@ fn test_collection_info_integration() {
         created_at: "2024-01-01T00:00:00Z".to_string(),
         updated_at: "2024-01-01T00:00:00Z".to_string(),
         indexing_status: Some(indexing_status),
+        size: None,
+        quantization: None,
+        normalization: None,
+        status: None,
     };
 
     // Validate collection info

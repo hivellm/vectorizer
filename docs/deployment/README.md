@@ -10,9 +10,9 @@ Complete deployment guides for Vectorizer in various environments.
 
 ## Quick Links
 
-- [Production Guide](../PRODUCTION_GUIDE.md) - Complete production deployment guide
-- [Monitoring Setup](../MONITORING_SETUP.md) - Monitoring and alerting setup
-- [Backup & Recovery](../BACKUP_RECOVERY.md) - Backup and recovery procedures
+- [Production Guide](./PRODUCTION_GUIDE.md) - Complete production deployment guide
+- [Monitoring Setup](../runbooks/MONITORING_SETUP.md) - Monitoring and alerting setup
+- [Backup & Recovery](../runbooks/BACKUP_RECOVERY.md) - Backup and recovery procedures
 - [Runbooks](../runbooks/) - Operational runbooks
 
 ## Deployment Options
@@ -35,6 +35,18 @@ See [Kubernetes Deployment Guide](./KUBERNETES.md) for details.
 # Deploy with Docker Compose
 docker-compose -f docs/deployment/docker-compose.production.yml up -d
 ```
+
+#### JWT secret for Docker first-run
+
+Production Docker deployments MUST set `VECTORIZER_JWT_SECRET` explicitly
+(e.g. via a Docker secret or env file). For local/dev convenience you can
+opt into first-boot key generation by setting
+`VECTORIZER_AUTO_GEN_JWT_SECRET=1` — the server writes
+`/data/jwt_secret.key` (mode `0o600` on Linux) on the first run and reuses
+it on every restart. Mount `/data` as a persistent volume so the key
+survives container recreation. See
+[`docs/development/security.md#jwt-secret`](../development/security.md#jwt-secret) for details and
+trade-offs.
 
 ### Systemd Service
 

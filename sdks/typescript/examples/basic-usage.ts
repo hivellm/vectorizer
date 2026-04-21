@@ -7,7 +7,7 @@ import { VectorizerClient } from '../src/index';
 async function main() {
   // Create client
   const client = new VectorizerClient({
-    baseURL: 'http://localhost:15001',
+    baseURL: 'http://localhost:15002',
     apiKey: 'your-api-key-here',
     logger: { level: 'info', enabled: true }
   });

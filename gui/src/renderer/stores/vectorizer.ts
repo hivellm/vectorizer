@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { VectorizerClient } from '@hivellm/vectorizer-sdk';
+import { VectorizerClient } from '@hivehub/vectorizer-sdk';
 import type { Collection, SearchResult, IndexingProgress, IndexingStatus } from '@shared/types';
 import { useConnectionsStore } from './connections';
 

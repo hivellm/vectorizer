@@ -2,81 +2,69 @@
 
 High-performance client SDKs for the Hive Vectorizer vector database, available in multiple languages.
 
+All SDKs synchronized at **v3.0.0**. Every SDK accepts both `vectorizer://host[:port]` (RPC, binary MessagePack over TCP — **default in v3.x**, port `15503`) and `http(s)://host[:port]` (REST fallback, port `15002`) URLs through the same endpoint parser.
+
 ## Available SDKs
 
 ### 🟦 TypeScript SDK ✅
 
-- **Package**: `@hivellm/vectorizer-sdk`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: Full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing
-- **Installation**: `npm install @hivellm/vectorizer-sdk`
+- **Package**: `@hivehub/vectorizer-sdk`
+- **Status**: Published on npm (v3.0.0)
+- **Features**: VectorizerRPC + REST, full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing. Ships compiled CommonJS + ESM and works from plain JavaScript projects too.
+- **Installation**: `npm install @hivehub/vectorizer-sdk`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
-
-### 🟨 JavaScript SDK ✅
-
-- **Package**: `@hivellm/vectorizer-sdk-js`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: Modern JavaScript, multiple build formats (CJS, ESM, UMD), intelligent search, Master/Replica routing
-- **Installation**: `npm install @hivellm/vectorizer-sdk-js`
-- **Documentation**: [JavaScript SDK README](./javascript/README.md)
 
 ### 🦀 Rust SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on crates.io (v1.8.0)
-- **Features**: High performance, async/await, MCP support, type safety, intelligent search, Master/Replica routing
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "1.8.0"`
+- **Status**: Published on crates.io (v3.0.0)
+- **Features**: VectorizerRPC + REST, high performance, async/await, MCP support, type safety, intelligent search, Master/Replica routing
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.0.0"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
 ### 🐍 Python SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on PyPI (v1.8.0)
-- **Features**: Async/await support, comprehensive testing, CLI interface, intelligent search, Master/Replica routing
-- **Installation**: `pip install vectorizer-sdk==1.8.0`
+- **Status**: Published on PyPI (v3.0.0)
+- **Features**: VectorizerRPC + REST, async/await support, comprehensive testing, CLI interface, intelligent search, Master/Replica routing
+- **Installation**: `pip install vectorizer-sdk==3.0.0`
 - **Documentation**: [Python SDK README](./python/README.md)
 
-### 🐹 Go SDK 🚧
+### 🐹 Go SDK ✅
 
 - **Package**: `github.com/hivellm/vectorizer-sdk-go`
-- **Status**: In Development (v1.8.0)
-- **Features**: High performance, simple API, comprehensive error handling, intelligent search, Master/Replica routing
-- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go`
+- **Status**: v3.0.0
+- **Features**: VectorizerRPC + REST, high performance, simple API, comprehensive error handling, intelligent search, Master/Replica routing
+- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.0.0`
 - **Repository**: https://github.com/hivellm/vectorizer/tree/main/sdks/go
 - **Documentation**: [Go SDK README](./go/README.md)
 
 ### 🔷 C# SDK ✅
 
-- **Package**: `Vectorizer.Sdk`
-- **Status**: Published on NuGet (v1.8.0)
-- **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Master/Replica routing
-- **Installation**: `dotnet add package Vectorizer.Sdk`
-- **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
+- **Packages**: `Vectorizer.Sdk` (REST), `Vectorizer.Sdk.Rpc` (RPC, new in v3.0.0)
+- **Status**: Published on NuGet (v3.0.0)
+- **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Master/Replica routing. The `Vectorizer.Sdk.Rpc` companion package adds the binary VectorizerRPC transport with MessagePack framing, connection pool, and ASP.NET Core DI.
+- **Installation**: `dotnet add package Vectorizer.Sdk` (+ `dotnet add package Vectorizer.Sdk.Rpc` for RPC)
+- **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk · https://www.nuget.org/packages/Vectorizer.Sdk.Rpc
 - **Documentation**: [C# SDK README](./csharp/README.md)
 
-### 🔌 n8n Integration ✅
+### Removed framework integrations
 
-- **Package**: `@vectorizer/n8n-nodes-vectorizer`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: No-code workflow automation, Collection/Vector/Search operations, RAG pipelines
-- **Installation**: Install via n8n community nodes
-- **Documentation**: [n8n SDK README](./n8n/README.md)
+LangChain (Python + JS), Langflow, n8n, TensorFlow, and PyTorch
+integrations were dropped in v3.0.0. They were thin adapters over the
+core SDK and added support burden out of proportion to their usage.
+Build directly against the language-native SDKs (TypeScript, Python,
+Rust, Go, C#) instead — every operation those integrations exposed is
+one call away on the corresponding SDK.
 
-### 🎨 Langflow Integration ✅
+### Removed standalone JavaScript SDK
 
-- **Package**: `vectorizer-langflow`
-- **Status**: Published on PyPI (v1.8.0)
-- **Features**: LangChain-compatible components, VectorStore, Retriever, Loader
-- **Installation**: `pip install vectorizer-langflow`
-- **Documentation**: [Langflow SDK README](./langflow/README.md)
-
-### ⛓️ LangChain.js Integration ✅
-
-- **Package**: `@vectorizer/langchain-js`
-- **Status**: Published on npm (v1.8.0)
-- **Features**: LangChain.js VectorStore integration
-- **Installation**: `npm install @vectorizer/langchain-js`
-- **Documentation**: [LangChain.js SDK README](./langchain-js/README.md)
+The standalone `@hivehub/vectorizer-sdk-js` package was dropped in
+v3.0.0. The TypeScript SDK ships compiled CommonJS + ESM and is fully
+usable from plain JavaScript — keeping two parallel packages doubled
+maintenance for no functional difference. Replace `@hivehub/vectorizer-sdk-js`
+with `@hivehub/vectorizer-sdk`; the import path and runtime API are
+identical.
 
 ## 🧠 Intelligent Search Features (v1.5.0+)
 
@@ -137,13 +125,13 @@ const contextualResults = await client.contextualSearch({
 
 ## Quick Start
 
-### TypeScript/JavaScript
+### TypeScript / JavaScript
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-client";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key",
 });
 
@@ -176,7 +164,7 @@ const results = await client.searchVectors("documents", {
 from vectorizer import VectorizerClient
 
 client = VectorizerClient(
-    base_url="http://localhost:15001",
+    base_url="http://localhost:15002",
     api_key="your-api-key"
 )
 
@@ -242,41 +230,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-vectorizer-sdk = "1.8.0"
+vectorizer-sdk = "3.0.0"
 ```
 
 ## SDK Comparison Table
 
-| Feature                     | TypeScript   | JavaScript   | Rust         | Python       | Go         | C#           |
-| --------------------------- | ------------ | ------------ | ------------ | ------------ | ---------- | ------------ |
-| **Version**                 | 1.8.0        | 1.8.0        | 1.8.0        | 1.8.0        | 1.8.0      | 1.8.0        |
-| **Status**                  | ✅ Published | ✅ Published | ✅ Published | ✅ Published | 🚧 Dev     | ✅ Published |
-| **Master/Replica Routing**  | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Package Manager**         | npm          | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
-| **Collection Management**   | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Vector Operations**       | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Text Search**             | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Vector Search**           | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Intelligent Search**      | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Semantic Search**         | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Contextual Search**       | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Multi-Collection Search** | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Hybrid Search**           | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Discovery API**           | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **File Operations**         | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Summarization**           | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Embedding Generation**    | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Batch Insert**            | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Batch Search**            | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Batch Update**            | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Batch Delete**            | ✅           | ✅           | ✅           | ✅           | 🚧         | ✅           |
-| **Qdrant Compatibility**    | ✅           | ✅           | ✅           | ✅           | 🚧         | 🚧           |
-| **Async/Await**             | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Type Safety**             | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **Error Handling**          | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
-| **SourceLink**              | ❌           | ❌           | ✅           | ❌           | ❌         | ✅           |
-| **Code Analysis**           | ❌           | ❌           | ✅           | ❌           | ❌         | ✅           |
-| **Documentation**           | ✅           | ✅           | ✅           | ✅           | ✅         | ✅           |
+| Feature                     | TypeScript   | Rust         | Python       | Go         | C#           |
+| --------------------------- | ------------ | ------------ | ------------ | ---------- | ------------ |
+| **Status**                  | ✅ v3.0.0    | ✅ v3.0.0    | ✅ v3.0.0    | ✅ v3.0.0  | ✅ v3.0.0    |
+| **VectorizerRPC**           | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Master/Replica Routing**  | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Package Manager**         | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
+| **Collection Management**   | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Vector Operations**       | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Text Search**             | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Vector Search**           | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Intelligent Search**      | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Semantic Search**         | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Contextual Search**       | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Multi-Collection Search** | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Hybrid Search**           | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Discovery API**           | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **File Operations**         | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Summarization**           | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Embedding Generation**    | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Batch Insert**            | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Batch Search**            | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Batch Update**            | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Batch Delete**            | ✅           | ✅           | ✅           | 🚧         | ✅           |
+| **Qdrant Compatibility**    | ✅           | ✅           | ✅           | 🚧         | 🚧           |
+| **Async/Await**             | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Type Safety**             | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **Error Handling**          | ✅           | ✅           | ✅           | ✅         | ✅           |
+| **SourceLink**              | ❌           | ✅           | ❌           | ❌         | ✅           |
+| **Code Analysis**           | ❌           | ✅           | ❌           | ❌         | ✅           |
+| **Documentation**           | ✅           | ✅           | ✅           | ✅         | ✅           |
 
 ## Features
 
@@ -394,31 +382,30 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   TypeScript    │    │   JavaScript    │    │     Python      │    │      Rust        │
-│      SDK        │    │      SDK        │    │      SDK        │    │      SDK         │
-│     ✅ v1.5.0   │    │     ✅ v1.5.0   │    │   ✅ v1.5.0      │    │     ✅ v1.5.0    │
-│                 │    │                 │    │                 │    │                  │
-│ • Type Safety   │    │ • REST-Only     │    │ • Async/Await   │    │ • High Performance│
-│ • IntelliSense  │    │ • 100% Tests    │    │ • CLI Interface │    │ • Memory Safety  │
-│ • ES2020+       │    │ • Browser Ready │    │ • 100% Tests    │    │ • MCP Support    │
-│ • UMICP Support │    │ • UMICP Support │    │ • Full Features │    │ • SourceLink     │
-│                 │    │                 │    │                 │    │                  │
-│      C# SDK     │    │      Go SDK     │    │                 │    │                  │
-│     ✅ v1.5.0   │    │   🚧 In Dev     │    │                 │    │                  │
-│                 │    │                 │    │                 │    │                  │
-│ • .NET 8.0+     │    │ • High Perf     │    │                 │    │                  │
-│ • SourceLink    │    │ • Simple API    │    │                 │    │                  │
-│ • Code Analysis │    │ • Go Modules    │    │                 │    │                  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │                       │
-         └───────────────────────┼───────────────────────┼───────────────────────┘
-                                 │                       │
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   TypeScript    │    │     Python      │    │      Rust        │
+│      SDK        │    │      SDK        │    │      SDK         │
+│                 │    │                 │    │                  │
+│ • Type Safety   │    │ • Async/Await   │    │ • High Performance│
+│ • IntelliSense  │    │ • CLI Interface │    │ • Memory Safety  │
+│ • ES2020+       │    │ • Full Features │    │ • MCP Support    │
+│ • Works from JS │    │                 │    │ • SourceLink     │
+│                 │    │                 │    │                  │
+│      C# SDK     │    │      Go SDK     │    │                  │
+│  ✅ v3.0.0      │    │  ✅ v3.0.0      │    │                  │
+│                 │    │                 │    │                  │
+│ • .NET 8.0+     │    │ • High Perf     │    │                  │
+│ • SourceLink    │    │ • Simple API    │    │                  │
+│ • Code Analysis │    │ • Go Modules    │    │                  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
                     ┌─────────────────┐    ┌─────────────────┐
                     │  Vectorizer     │    │   MCP Server    │
                     │     Server      │    │                 │
                     │                 │    │ • Model Context │
-                    │ • REST API      │    │ • AI Integration │
+                    │ • REST + RPC    │    │ • AI Integration │
                     │ • MCP Protocol  │    │ • Tool Calling  │
                     │                 │    │ • SSE Transport │
                     └─────────────────┘    └─────────────────┘
@@ -465,8 +452,8 @@ Configure once, use everywhere. The SDK automatically routes operations:
 // TypeScript/JavaScript
 const client = new VectorizerClient({
   hosts: {
-    master: "http://master-node:15001",
-    replicas: ["http://replica1:15001", "http://replica2:15001"],
+    master: "http://master-node:15002",
+    replicas: ["http://replica1:15002", "http://replica2:15002"],
   },
   apiKey: "your-api-key",
   readPreference: "replica", // "master" | "replica" | "nearest"
@@ -493,8 +480,8 @@ const fresh = await client.getVector("documents", "doc1", {
 # Python
 client = VectorizerClient(
     hosts={
-        "master": "http://master-node:15001",
-        "replicas": ["http://replica1:15001", "http://replica2:15001"]
+        "master": "http://master-node:15002",
+        "replicas": ["http://replica1:15002", "http://replica2:15002"]
     },
     api_key="your-api-key",
     read_preference="replica"  # "master" | "replica" | "nearest"
@@ -517,9 +504,9 @@ fresh = await client.get_vector("documents", "doc1", read_preference="master")
 ```rust
 // Rust
 let client = VectorizerClient::builder()
-    .master("http://master-node:15001")
-    .replica("http://replica1:15001")
-    .replica("http://replica2:15001")
+    .master("http://master-node:15002")
+    .replica("http://replica1:15002")
+    .replica("http://replica2:15002")
     .api_key("your-api-key")
     .read_preference(ReadPreference::Replica)
     .build()?;
@@ -544,8 +531,8 @@ let fresh = client.get_vector_with_preference("documents", "doc1", ReadPreferenc
 // Go
 client := vectorizer.NewClient(&vectorizer.Config{
     Hosts: vectorizer.HostConfig{
-        Master:   "http://master-node:15001",
-        Replicas: []string{"http://replica1:15001", "http://replica2:15001"},
+        Master:   "http://master-node:15002",
+        Replicas: []string{"http://replica1:15002", "http://replica2:15002"},
     },
     APIKey:         "your-api-key",
     ReadPreference: vectorizer.ReadPreferenceReplica, // Master | Replica | Nearest
@@ -569,8 +556,8 @@ var client = new VectorizerClient(new ClientConfig
 {
     Hosts = new HostConfig
     {
-        Master = "http://master-node:15001",
-        Replicas = new[] { "http://replica1:15001", "http://replica2:15001" }
+        Master = "http://master-node:15002",
+        Replicas = new[] { "http://replica1:15002", "http://replica2:15002" }
     },
     ApiKey = "your-api-key",
     ReadPreference = ReadPreference.Replica // Master | Replica | Nearest
@@ -639,7 +626,7 @@ For development or single-node deployments:
 ```typescript
 // Single node - no replication
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key",
 });
 ```
@@ -768,22 +755,17 @@ summaries = await client.list_summaries(
 
 ```bash
 # TypeScript SDK
-cd client-sdks/typescript
-npm install
-npm run build
-
-# JavaScript SDK
-cd client-sdks/javascript
+cd sdks/typescript
 npm install
 npm run build
 
 # Python SDK
-cd client-sdks/python
+cd sdks/python
 pip install -r requirements.txt
 python setup.py build
 
 # Rust SDK
-cd client-sdks/rust
+cd sdks/rust
 cargo build
 ```
 
@@ -791,19 +773,15 @@ cargo build
 
 ```bash
 # TypeScript SDK
-cd client-sdks/typescript
-npm test
-
-# JavaScript SDK
-cd client-sdks/javascript
+cd sdks/typescript
 npm test
 
 # Python SDK
-cd client-sdks/python
+cd sdks/python
 python run_tests.py
 
 # Rust SDK
-cd client-sdks/rust
+cd sdks/rust
 cargo test
 ```
 
@@ -811,19 +789,15 @@ cargo test
 
 ```bash
 # TypeScript SDK
-cd client-sdks/typescript
-npm run lint
-
-# JavaScript SDK
-cd client-sdks/javascript
+cd sdks/typescript
 npm run lint
 
 # Python SDK
-cd client-sdks/python
+cd sdks/python
 flake8 src/
 
 # Rust SDK
-cd client-sdks/rust
+cd sdks/rust
 cargo clippy
 ```
 

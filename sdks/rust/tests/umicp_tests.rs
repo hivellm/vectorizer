@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool)]
+
 //! Tests for UMICP transport
 
 #[cfg(feature = "umicp")]

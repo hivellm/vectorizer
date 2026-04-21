@@ -5,14 +5,54 @@
 
 High-performance TypeScript SDK for Vectorizer vector database.
 
-**Package**: `@hivehub/vectorizer-sdk`  
-**Version**: 2.2.0
+**Package**: `@hivehub/vectorizer-sdk`
+**Version**: 3.0.0
+
+## v3.0 — VectorizerRPC is the default transport
+
+Starting with v3.0, the recommended transport is **VectorizerRPC**: a
+binary, length-prefixed MessagePack protocol over raw TCP (port 15503
+by default). It replaces JSON parsing on the hot path with a single
+`@msgpack/msgpack` decode, removes per-request HTTP framing, and
+supports multiplexed call/response on a single long-lived TCP
+connection. The spec is at `docs/specs/VECTORIZER_RPC.md`.
+
+The legacy REST `VectorizerClient` (over `fetch`) stays available for
+browsers (which can't open raw TCP sockets), ops scripts, and
+anything that already targets HTTP.
+
+```typescript
+import { RpcClient } from '@hivehub/vectorizer-sdk';
+
+const client = await RpcClient.connectUrl('vectorizer://127.0.0.1:15503');
+await client.hello({ clientName: 'my-app' });
+
+console.log(await client.listCollections());
+const hits = await client.searchBasic('docs', 'vector database', 5);
+for (const hit of hits) console.log(hit.id, hit.score);
+
+client.close();
+```
+
+### Switching transports
+
+| Goal | API |
+|---|---|
+| Default RPC (Node) | `await RpcClient.connectUrl('vectorizer://host:15503')` |
+| Bare host:port (RPC) | `await RpcClient.connect('host:15503')` |
+| Legacy REST | `new VectorizerClient({ baseURL: 'http://host:15002' })` |
+| Browsers | REST only — `vectorizer://` URLs need raw TCP, which browsers don't expose. |
+
+The standalone JavaScript SDK was retired in v3.0. This TypeScript
+package ships compiled CommonJS + ESM and is fully usable from plain
+JavaScript projects.
 
 ## Features
 
+- ✅ **VectorizerRPC** (default in v3.x): binary, low-latency, multiplexed
 - ✅ **Complete TypeScript Support**: Full type safety and IntelliSense
 - ✅ **Async/Await**: Modern async programming patterns
-- ✅ **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
+- ✅ **Multiple Transport Protocols**: RPC, HTTP/HTTPS, UMICP support
 - ✅ **HTTP Client**: Native fetch-based HTTP client with robust error handling
 - ✅ **UMICP Protocol**: High-performance protocol with compression and encryption
 - ✅ **Comprehensive Validation**: Input validation and error handling
@@ -59,9 +99,55 @@ import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 // Create client
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key-here",
 });
+```
+
+### Package layout (per-surface clients)
+
+`VectorizerClient` is a facade that mixes in nine per-surface clients —
+each one is also exported standalone if you only need a slice of the
+API:
+
+```text
+src/client/
+├── _base.ts        BaseClient + Transport interface (shared plumbing)
+├── core.ts         CoreClient        — health, stats, embed
+├── collections.ts  CollectionsClient — list / get / create / update / delete
+├── vectors.ts     VectorsClient     — single + batch vector ops
+├── search.ts       SearchClient      — vector / text / intelligent / hybrid
+├── discovery.ts    DiscoveryClient   — discover / filter / score / expand
+├── files.ts        FilesClient       — file content + uploads
+├── graph.ts        GraphClient       — nodes / edges / paths
+├── qdrant.ts       QdrantClient      — Qdrant 1.14 compatibility
+├── admin.ts        AdminClient       — dashboard / workspace / backups
+└── index.ts        VectorizerClient facade (mixes all surfaces in)
+```
+
+Per-surface usage when you want a smaller import:
+
+```typescript
+import { SearchClient } from "@hivehub/vectorizer-sdk";
+
+const search = new SearchClient({ baseURL: "http://localhost:15002" });
+const results = await search.searchVectors("documents", { query_vector: [...], limit: 5 });
+```
+
+The `_base.Transport` interface is the seam the upcoming RPC client
+(`phase6_sdk-typescript-rpc`) plugs into — every per-surface client
+calls `Transport` methods, never `fetch` directly. Browser builds keep
+the REST `Transport`; Node / Deno / Bun builds will expose the new
+`RpcTransport` over the canonical `vectorizer://host:15503` URL scheme
+as the default.
+
+```typescript
+// Test / RPC-readiness regression guard:
+class MockTransport implements Transport { /* ... */ }
+const client = new VectorizerClient({ transport: new MockTransport() });
+```
+
+```typescript
 
 // Health check
 const health = await client.healthCheck();
@@ -279,8 +365,8 @@ import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 // Configure with master and replicas - SDK handles routing automatically
 const client = new VectorizerClient({
   hosts: {
-    master: "http://master-node:15001",
-    replicas: ["http://replica1:15001", "http://replica2:15001"],
+    master: "http://master-node:15002",
+    replicas: ["http://replica1:15002", "http://replica2:15002"],
   },
   apiKey: "your-api-key",
   readPreference: "replica", // "master" | "replica" | "nearest"
@@ -346,7 +432,7 @@ For development or single-node deployments:
 ```typescript
 // Single node - no replication
 const client = new VectorizerClient({
-  baseURL: "http://localhost:15001",
+  baseURL: "http://localhost:15002",
   apiKey: "your-api-key",
 });
 ```

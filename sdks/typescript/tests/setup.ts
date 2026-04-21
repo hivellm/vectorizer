@@ -15,7 +15,7 @@ afterAll(() => {
 });
 
 // Mock fetch for tests
-global.fetch = vi.fn().mockImplementation((url: string | URL, options?: RequestInit) => {
+global.fetch = vi.fn().mockImplementation(function (url: string | URL, options?: RequestInit) {
   const urlStr = typeof url === 'string' ? url : url.toString();
   const method = options?.method || 'GET';
   
@@ -359,18 +359,23 @@ global.fetch = vi.fn().mockImplementation((url: string | URL, options?: RequestI
 }) as unknown as typeof fetch;
 
 // Mock AbortController
-global.AbortController = vi.fn().mockImplementation(() => ({
-  abort: vi.fn(),
-  signal: {
-    aborted: false,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  },
-})) as any;
+global.AbortController = vi.fn().mockImplementation(function () {
+  return {
+    abort: vi.fn(),
+    signal: {
+      aborted: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    },
+  };
+}) as any;
 
 // Mock setTimeout and clearTimeout
 const originalSetTimeout = global.setTimeout;
-const mockSetTimeout = vi.fn((callback, delay) => {
+const mockSetTimeout = vi.fn(function (
+  callback: Parameters<typeof originalSetTimeout>[0],
+  delay?: Parameters<typeof originalSetTimeout>[1],
+) {
   return originalSetTimeout(callback, delay);
 });
 
@@ -382,6 +387,6 @@ Object.assign(mockSetTimeout, {
 global.setTimeout = mockSetTimeout as any;
 
 const originalClearTimeout = global.clearTimeout;
-global.clearTimeout = vi.fn((id) => {
+global.clearTimeout = vi.fn(function (id: Parameters<typeof originalClearTimeout>[0]) {
   return originalClearTimeout(id);
 }) as any;

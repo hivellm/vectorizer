@@ -39,7 +39,7 @@ await client.create_collection("my_collection", dimension=384, metric="cosine")
 ### Using TypeScript SDK
 
 ```typescript
-import { VectorizerClient } from "@hivellm/vectorizer-sdk";
+import { VectorizerClient } from "@hivehub/vectorizer-sdk";
 
 const client = new VectorizerClient("http://localhost:15002");
 await client.createCollection("my_collection", {

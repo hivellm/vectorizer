@@ -9,6 +9,11 @@
 *.swo
 *~
 
+# Backup/scratch files (never commit these)
+*.bak
+*.orig
+*.rej
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -68,6 +73,7 @@ docs/_site/
 .env
 .env.local
 config.yml
+config/config.yml
 
 # Vectorizer specific
 .vectorizer
@@ -85,6 +91,8 @@ backups/** */
 
 #cuhnsw
 cuhnsw
+# Server data directory — includes the encrypted auth store and the
+# optionally auto-generated JWT secret (data/jwt_secret.key). Never commit.
 data
 
 workspace.yml
@@ -142,6 +150,7 @@ target/
 temp/
 tmp/
 scripts/.vectorizer-sim/
+!scripts/build
 
 # Claude AI settings (local only, should not be in git)
 .claude/
@@ -150,6 +159,7 @@ scripts/.vectorizer-sim/
 /.rulebook/*
 !/.rulebook/specs/
 !/.rulebook/tasks/
+!/.rulebook/archive/
 !/.rulebook/tasks/**/*.md
 !/.rulebook/rulebook.json
 
@@ -157,3 +167,14 @@ scripts/.vectorizer-sim/
 config.cluster-*.yml
 config.ha-*.yml
 .env
+
+# First-run root credentials (written by auth_handlers on empty install).
+# Must NEVER be committed — cleartext password.
+**/.root_credentials
+data/.root_credentials
+
+CLAUDE.local.md
+.rulebook/backup/
+.rulebook/handoff/_pending.md
+.rulebook/handoff/.urgent
+.rulebook/telemetry/

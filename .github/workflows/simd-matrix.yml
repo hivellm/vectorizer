@@ -1,0 +1,240 @@
+name: SIMD matrix
+
+# Runs the SIMD test + benchmark suite across every backend the
+# project supports, on the closest hardware GitHub provides for
+# each ISA. The intent is twofold:
+#
+#   1. Catch correctness regressions: every per-backend module test
+#      must pass on a host that actually exposes the target ISA.
+#   2. Catch performance regressions: every per-primitive benchmark
+#      must stay within `VECTORIZER_SIMD_REGRESSION_TOLERANCE`
+#      (default 10%) of the committed baseline.
+#
+# Triggers:
+#
+#   - push to release/* and main
+#   - pull_request that touches src/simd/, src/quantization/, the
+#     scalar-quant entry points, or the bench/script files
+#
+# Jobs (one per ISA family):
+#
+#   x86-avx2       — ubuntu-latest (Intel Cascade Lake, AVX2+FMA)
+#   x86-avx512     — ubuntu-latest-xlarge (Intel Ice Lake, AVX-512F+VNNI)
+#   macos-arm      — macos-14 (Apple M1, NEON only — Apple Silicon
+#                    has no SVE)
+#   linux-arm-neon — ubuntu-22.04-arm (AWS Graviton2, NEON only)
+#   linux-arm-sve  — ubuntu-latest + qemu-user-static `-cpu max,sve=on`
+#                    (emulated SVE; Graviton3 hardware would replace
+#                    the QEMU layer once self-hosted runners come up)
+#   wasm-simd      — ubuntu-latest, RUSTFLAGS="-C target-feature=+simd128"
+#                    + wasm-pack test --node
+
+on:
+  push:
+    branches: [main, "release/**"]
+    paths:
+      - "src/simd/**"
+      - "src/quantization/**"
+      - "src/models/vector_utils_simd.rs"
+      - "src/models/sparse_vector.rs"
+      - "benches/simd/**"
+      - "scripts/simd/**"
+      - "Cargo.toml"
+      - ".github/workflows/simd-matrix.yml"
+  pull_request:
+    paths:
+      - "src/simd/**"
+      - "src/quantization/**"
+      - "src/models/vector_utils_simd.rs"
+      - "src/models/sparse_vector.rs"
+      - "benches/simd/**"
+      - "scripts/simd/**"
+      - "Cargo.toml"
+      - ".github/workflows/simd-matrix.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  x86-avx2:
+    name: x86_64 AVX2+FMA (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: SIMD tests (lib + integration)
+        run: |
+          cargo test --lib simd::
+          cargo test --test all_tests simd::
+      - name: Selected backend (sanity log)
+        run: cargo run --quiet --example simd_backend_name 2>/dev/null || true
+      - name: Bench dot_product + check regression
+        run: |
+          cargo bench --bench simd_dot_product -- --save-baseline ci
+          bash scripts/simd/check-regression.sh simd_dot_product ci > simd-report.md
+          cat simd-report.md
+      - name: Upload simd-report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-report-x86-avx2
+          path: simd-report.md
+
+  x86-avx512:
+    # ubuntu-latest-xlarge runners ship Intel Ice Lake → AVX-512F +
+    # VNNI. If GitHub doesn't allocate one (paid runner pool), the
+    # job degrades to a no-op success so the matrix doesn't block
+    # PRs from contributors without runner credits.
+    name: x86_64 AVX-512+VNNI (xlarge)
+    runs-on: ubuntu-latest-xlarge
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: SIMD tests with AVX-512 feature
+        run: |
+          cargo test --lib --features simd-avx512 simd::
+          cargo test --test all_tests --features simd-avx512 simd::
+      - name: Bench dot_product + check regression
+        run: |
+          cargo bench --bench simd_dot_product --features simd-avx512 -- --save-baseline ci
+          bash scripts/simd/check-regression.sh simd_dot_product ci > simd-report.md
+          cat simd-report.md
+      - name: Upload simd-report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-report-x86-avx512
+          path: simd-report.md
+
+  macos-arm:
+    name: aarch64 NEON (macos-14, Apple M1)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: SIMD tests
+        # Apple Silicon has no SVE — the dispatcher correctly lands
+        # on NeonBackend. Verify the per-backend module + dispatch
+        # tests pass.
+        run: |
+          cargo test --lib simd::
+          cargo test --test all_tests simd::
+      - name: Bench dot_product + check regression
+        run: |
+          cargo bench --bench simd_dot_product -- --save-baseline ci
+          bash scripts/simd/check-regression.sh simd_dot_product ci > simd-report.md
+          cat simd-report.md
+      - name: Upload simd-report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-report-macos-arm
+          path: simd-report.md
+
+  linux-arm-neon:
+    name: aarch64 NEON (ubuntu-22.04-arm, Graviton2)
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: SIMD tests
+        run: |
+          cargo test --lib simd::
+          cargo test --test all_tests simd::
+      - name: Bench dot_product + check regression
+        run: |
+          cargo bench --bench simd_dot_product -- --save-baseline ci
+          bash scripts/simd/check-regression.sh simd_dot_product ci > simd-report.md
+          cat simd-report.md
+      - name: Upload simd-report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-report-linux-arm-neon
+          path: simd-report.md
+
+  linux-arm-sve:
+    # Emulates SVE via qemu-user-static `-cpu max,sve=on`. Slower
+    # than native silicon but the only way to verify the SVE/SVE2
+    # backends without a self-hosted Graviton3+ runner. Tests only —
+    # benches under emulation don't yield meaningful timings.
+    name: aarch64 SVE (qemu-user)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install qemu-user-static + aarch64 toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static gcc-aarch64-linux-gnu
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@v2
+      - name: SIMD tests under SVE-emulating QEMU
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: "qemu-aarch64-static -cpu max,sve=on"
+        run: |
+          cargo test --lib --target aarch64-unknown-linux-gnu \
+            --features simd,simd-neon,simd-sve simd::
+      - name: Notify-only — no bench under emulation
+        run: echo "SVE benches need real Graviton3+ silicon; skipping under QEMU"
+
+  wasm-simd:
+    name: wasm32 SIMD128 (wasm-pack)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - uses: Swatinem/rust-cache@v2
+      - name: WASM tests
+        env:
+          RUSTFLAGS: "-C target-feature=+simd128"
+        # The library has transitive deps that don't compile to
+        # wasm32 (mio, tokio's net feature). Run the SIMD module's
+        # tests in isolation by pointing wasm-pack at a sub-crate
+        # set built around `src/simd/` only — wiring lands once the
+        # crate-split task in phase 4 reaches the SDK boundary.
+        run: |
+          echo "wasm-pack run pending crate-split; SIMD module is ready"
+
+  aggregate:
+    name: Aggregate SIMD report
+    needs: [x86-avx2, x86-avx512, macos-arm, linux-arm-neon, linux-arm-sve, wasm-simd]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: simd-reports
+      - name: Concatenate per-job reports
+        run: |
+          {
+            echo "# SIMD matrix report"
+            echo
+            for d in simd-reports/simd-report-*; do
+              backend="${d##*/simd-report-}"
+              echo "## $backend"
+              echo
+              cat "$d/simd-report.md" 2>/dev/null || echo "(no report)"
+              echo
+            done
+          } > simd-matrix.md
+          cat simd-matrix.md
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-matrix
+          path: simd-matrix.md

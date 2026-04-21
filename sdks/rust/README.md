@@ -7,26 +7,146 @@
 High-performance Rust SDK for Vectorizer vector database.
 
 **Package**: `vectorizer-sdk`  
-**Version**: 2.2.0
+**Version**: 3.0.0 (RPC-first; HTTP fallback retained)
 
-## ✅ Status: Ready for Crate Publication
+## ✅ Status: v3.0.0 — VectorizerRPC default transport
 
-**Test Results: 100% Success Rate**
+**v3.x ships with VectorizerRPC** — length-prefixed MessagePack over
+raw TCP — as the recommended primary transport. The HTTP path that
+shipped in 2.x stays available behind the `http` Cargo feature
+(default-on for backward compat). Pick the constructor that matches
+the URL scheme you have:
 
-- ✅ All endpoints tested and functional
-- ✅ Comprehensive error handling
-- ✅ Type-safe API design
-- ✅ Production-ready code
-- ✅ Hybrid search support (dense + sparse vectors)
-- ✅ Qdrant REST API compatibility
-- ✅ Qdrant 1.14.x advanced features (Snapshots, Sharding, Cluster Management, Query API, Search Groups/Matrix, Quantization)
+| URL | Constructor | Transport |
+|---|---|---|
+| `vectorizer://host:15503` | `RpcClient::connect_url(url)` | Binary RPC (recommended) |
+| `vectorizer://host` | `RpcClient::connect_url(url)` | RPC on default port 15503 |
+| `host:15503` (no scheme) | `RpcClient::connect_url(url)` or `RpcClient::connect("host:port")` | RPC |
+| `http://host:15002` | `VectorizerClient` (HTTP path below) | REST (legacy) |
 
-## Quick Start
+## Quick Start (RPC, recommended)
 
 ```toml
 [dependencies]
-vectorizer-sdk = "2.2.0"
+vectorizer-sdk = "3.0"
+tokio = { version = "1", features = ["full"] }
 ```
+
+```rust
+use vectorizer_sdk::rpc::{HelloPayload, RpcClient};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect via the canonical vectorizer:// URL.
+    let client = RpcClient::connect_url("vectorizer://127.0.0.1:15503").await?;
+
+    // HELLO is mandatory before any data-plane command. In single-user
+    // mode (server's `auth.enabled: false`) credentials are ignored;
+    // when auth is enabled, attach a JWT or API key:
+    //   HelloPayload::new("my-app").with_token("<jwt>")
+    let hello = client.hello(HelloPayload::new("my-app/1.0")).await?;
+    println!("server={}, capabilities: {:?}", hello.server_version, hello.capabilities);
+
+    // Typed wrappers cover every v1 command.
+    let collections = client.list_collections().await?;
+    if let Some(name) = collections.first() {
+        let info = client.get_collection_info(name).await?;
+        println!("{name}: {} vectors, dim={}", info.vector_count, info.dimension);
+
+        let hits = client.search_basic(name, "vector database", 5).await?;
+        for hit in &hits {
+            println!("  {} (score={:.3})", hit.id, hit.score);
+        }
+    }
+    Ok(())
+}
+```
+
+See `examples/rpc_quickstart.rs` for the runnable version. Wire spec:
+[`docs/specs/VECTORIZER_RPC.md`](../../docs/specs/VECTORIZER_RPC.md).
+
+### Connection pooling
+
+```rust
+use vectorizer_sdk::rpc::{HelloPayload, RpcPool, pool::RpcPoolConfig};
+
+let pool = RpcPool::new(RpcPoolConfig {
+    address: "127.0.0.1:15503".into(),
+    max_connections: 8,
+    hello: HelloPayload::new("worker"),
+});
+
+let conn = pool.acquire().await?;
+let collections = conn.client().list_collections().await?;
+// `conn` returns to the pool on Drop.
+```
+
+### Error handling
+
+`RpcClient` returns `Result<T, RpcClientError>`. The variants:
+
+- `Io(std::io::Error)` — TCP-level failure.
+- `Server(String)` — server returned `Err(message)`.
+- `ConnectionClosed` — the background reader task exited (peer
+  closed, or write failure mid-call).
+- `NotAuthenticated` — local guard against issuing a data-plane
+  command before `HELLO` succeeded; saves an unnecessary round-trip.
+- `Encode(rmp_serde::encode::Error)` — should be unreachable for v1
+  shapes (every type derives `Serialize`).
+
+## Quick Start (HTTP, legacy)
+
+The 2.x `VectorizerClient` is preserved unchanged. The flat
+1,989-line `client.rs` was split into a per-surface module tree in
+the `phase4_split-sdk-rust-client` refactor — every public method
+keeps its name and signature, but the implementation now lives
+next to the surface it belongs to:
+
+```
+sdks/rust/src/
+├── transport.rs        # Transport trait (impl by HttpTransport, RpcTransport, ...)
+├── http_transport.rs   # REST backend
+├── rpc/                # RPC backend (default in v3.x)
+└── client/             # REST facade, split per API surface
+    ├── mod.rs          # struct VectorizerClient + ctors + with_transport()
+    ├── core.rs         # health_check
+    ├── collections.rs  # list/create/get/delete collection
+    ├── vectors.rs      # get_vector, insert_texts, embed_text
+    ├── search.rs       # search_vectors, intelligent/semantic/contextual/hybrid/multi
+    ├── discovery.rs    # discover, filter/score/expand
+    ├── files.rs        # 10 file-ops + upload + upload_config
+    ├── graph.rs        # 10 graph ops (nodes, edges, path, discovery)
+    └── qdrant.rs       # 25 Qdrant-compatible /qdrant/* endpoints
+```
+
+Rust permits multiple `impl` blocks for the same struct across
+files of the same module, so every per-surface file just adds an
+`impl VectorizerClient { ... }` block. The struct definition,
+constructors, transport selection (`get_read_transport` /
+`get_write_transport`), and the `make_request` helper live in
+`client/mod.rs`; per-surface files only contain the user-facing
+methods.
+
+### RPC-readiness regression guard
+
+`VectorizerClient::with_transport(Arc<dyn Transport>, base_url)` is
+exposed as the test-only entry point that builds the client from
+any `Transport` implementation. The
+`tests/mock_transport_regression.rs` integration test exercises one
+method from each of the eight per-surface modules through an
+in-memory mock, proving the surface modules don't hard-code
+`HttpTransport`. When `phase6_sdk-rust-rpc`'s `RpcTransport` lands,
+it satisfies the same `Transport` trait — every per-surface call
+routes through it without a single per-method edit.
+
+To opt into a slim build with RPC only:
+
+```toml
+[dependencies]
+vectorizer-sdk = { version = "3.0", default-features = false, features = ["rpc"] }
+```
+
+To use the HTTP client:
 
 ```rust
 use vectorizer_sdk::*;
@@ -336,9 +456,9 @@ use vectorizer_rust_sdk::{VectorizerClient, ReadPreference};
 
 // Configure with master and replicas - SDK handles routing automatically
 let client = VectorizerClient::builder()
-    .master("http://master-node:15001")
-    .replica("http://replica1:15001")
-    .replica("http://replica2:15001")
+    .master("http://master-node:15002")
+    .replica("http://replica1:15002")
+    .replica("http://replica2:15002")
     .api_key("your-api-key")
     .read_preference(ReadPreference::Replica)
     .build()?;
@@ -397,7 +517,7 @@ For development or single-node deployments:
 
 ```rust
 // Single node - no replication
-let client = VectorizerClient::new_with_api_key("http://localhost:15001", "your-api-key")?;
+let client = VectorizerClient::new_with_api_key("http://localhost:15002", "your-api-key")?;
 ```
 
 ## API Endpoints

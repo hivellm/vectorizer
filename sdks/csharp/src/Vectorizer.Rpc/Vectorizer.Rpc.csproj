@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);1591;CA1848;CA2007</NoWarn>
+
+    <PackageId>Vectorizer.Sdk.Rpc</PackageId>
+    <Version>3.0.0</Version>
+    <Authors>HiveHub Contributors</Authors>
+    <Company>HiveHub</Company>
+    <Product>Vectorizer.Sdk.Rpc</Product>
+    <Copyright>Copyright © HiveHub 2026</Copyright>
+    <Description>Official .NET client for the Hive Vectorizer RPC (MessagePack) transport. Ships the fast-path client (RpcVectorizerClient), HTTP fallback (HttpVectorizerClient), ASP.NET Core DI extensions, and a connection pool.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/hivellm/vectorizer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/hivellm/vectorizer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>vectorizer;rpc;messagepack;vector-database;semantic-search;aspnetcore;di</PackageTags>
+
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="2.5.187" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Vectorizer.Rpc.Tests" />
+  </ItemGroup>
+
+</Project>

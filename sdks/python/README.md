@@ -6,12 +6,53 @@
 
 A comprehensive Python SDK for the Vectorizer semantic search service.
 
-**Package**: `vectorizer_sdk` (PEP 625 compliant)  
-**Version**: 2.2.0  
+**Package**: `vectorizer_sdk` (PEP 625 compliant)
+**Version**: 3.0.0
 **PyPI**: https://pypi.org/project/vectorizer-sdk/
+
+## v3.0 — VectorizerRPC is the default transport
+
+Starting with v3.0, the recommended transport is **VectorizerRPC**: a
+binary, length-prefixed MessagePack protocol over raw TCP (port 15503
+by default). It replaces JSON parsing on the hot path with a single
+`msgpack.unpackb`, removes per-request HTTP framing, and supports
+multiplexed call/response on a single long-lived TCP connection. The
+spec is at `docs/specs/VECTORIZER_RPC.md` in the parent repo.
+
+The legacy REST `VectorizerClient` (over `aiohttp`) stays available
+for browsers, ops scripts, and anything that already targets HTTP.
+
+```python
+import asyncio
+import vectorizer_sdk
+
+async def main():
+    client = await vectorizer_sdk.connect_async("vectorizer://127.0.0.1:15503")
+    await client.hello(vectorizer_sdk.HelloPayload(client_name="my-app"))
+    print(await client.list_collections())
+    hits = await client.search_basic("docs", "vector database", limit=5)
+    for hit in hits:
+        print(hit.id, hit.score)
+    await client.close()
+
+asyncio.run(main())
+```
+
+A synchronous `RpcClient` is also exported for blocking scripts and
+notebooks; see [`examples/rpc_quickstart.py`](examples/rpc_quickstart.py)
+for a runnable end-to-end example.
+
+### Switching transports
+
+| Goal | API |
+|---|---|
+| Default RPC, async | `await vectorizer_sdk.connect_async("vectorizer://host:15503")` |
+| Default RPC, sync | `vectorizer_sdk.connect("vectorizer://host:15503")` |
+| Legacy REST | `vectorizer_sdk.VectorizerClient(host="...", port=15002)` |
 
 ## Features
 
+- **VectorizerRPC** (default in v3.x): binary, low-latency, multiplexed
 - **Multiple Transport Protocols**: HTTP/HTTPS and UMICP support
 - **UMICP Protocol**: High-performance protocol using umicp-sdk package (v0.3.2+)
 - **Vector Operations**: Insert, search, update, delete vectors
@@ -48,8 +89,56 @@ A comprehensive Python SDK for the Vectorizer semantic search service.
 pip install vectorizer-sdk
 
 # Or specific version
-pip install vectorizer-sdk==2.2.0
+pip install vectorizer-sdk==3.0.0
 ```
+
+## Package Layout (v3.x)
+
+The flat 2,907-line `client.py` was split per API surface in the
+`phase4_split-sdk-python-client` refactor. Everything that used to
+hang off `VectorizerClient` still works — it's now composed from
+focused sub-clients:
+
+```
+sdks/python/
+├── client.py              # compat shim → vectorizer.client
+└── vectorizer/
+    ├── __init__.py        # re-exports VectorizerClient + sub-clients
+    ├── _base.py           # Transport ABC + RestTransport + TransportRouter
+    ├── collections.py     # CollectionsClient
+    ├── vectors.py         # VectorsClient
+    ├── search.py          # SearchClient
+    ├── graph.py           # GraphClient
+    ├── admin.py           # AdminClient
+    └── auth.py            # AuthClient
+```
+
+The legacy flat import still works:
+
+```python
+from vectorizer import VectorizerClient  # recommended
+from client import VectorizerClient       # legacy, still supported
+```
+
+Advanced users can pull a single surface:
+
+```python
+from vectorizer import RestTransport
+from vectorizer.collections import CollectionsClient
+
+transport = RestTransport("http://localhost:15002", api_key="...")
+collections = CollectionsClient(transport)
+info = await collections.list_collections()
+```
+
+`_base.Transport` is an abstract base class. The concrete
+`RestTransport` ships here; the `RpcTransport` from the
+`phase6_sdk-python-rpc` work plugs in by subclassing the same ABC.
+That's why `VectorizerClient("vectorizer://host:15503")` will be the
+canonical default URL scheme once RPC lands — per-surface modules
+already route every call through `Transport`, never through `aiohttp`
+or `httpx` directly. See `docs/specs/VECTORIZER_RPC.md` for the RPC
+URL/port conventions.
 
 ## Quick Start
 
@@ -512,8 +601,8 @@ from vectorizer import VectorizerClient
 # Configure with master and replicas - SDK handles routing automatically
 client = VectorizerClient(
     hosts={
-        "master": "http://master-node:15001",
-        "replicas": ["http://replica1:15001", "http://replica2:15001"]
+        "master": "http://master-node:15002",
+        "replicas": ["http://replica1:15002", "http://replica2:15002"]
     },
     api_key="your-api-key",
     read_preference="replica"  # "master" | "replica" | "nearest"
@@ -572,7 +661,7 @@ For development or single-node deployments, use the simple configuration:
 ```python
 # Single node - no replication
 client = VectorizerClient(
-    base_url="http://localhost:15001",
+    base_url="http://localhost:15002",
     api_key="your-api-key"
 )
 ```

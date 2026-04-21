@@ -4,7 +4,7 @@ module: sdks
 id: sdks-index
 order: 0
 description: Client SDKs for Vectorizer in multiple programming languages
-tags: [sdks, client-libraries, python, typescript, javascript, rust, csharp, go]
+tags: [sdks, client-libraries, python, typescript, rust, csharp, go]
 ---
 
 # SDKs
@@ -24,20 +24,13 @@ Complete Python SDK with async/await support:
 
 ### [TypeScript SDK](./TYPESCRIPT.md)
 
-TypeScript/JavaScript SDK with full type safety:
+TypeScript SDK with full type safety. Ships compiled CommonJS + ESM
+and works from plain JavaScript projects too:
 
-- Installation: `npm install @hivellm/vectorizer-sdk`
+- Installation: `npm install @hivehub/vectorizer-sdk`
 - Complete TypeScript types
 - Async operations
 - Qdrant compatibility
-
-### [JavaScript SDK](./JAVASCRIPT.md)
-
-JavaScript SDK for Node.js:
-
-- Installation: `npm install @hivellm/vectorizer-sdk-js`
-- Simple API
-- Async operations
 
 ### [Rust SDK](./RUST.md)
 
@@ -68,15 +61,15 @@ Go SDK with idiomatic Go patterns:
 
 ## Quick Comparison
 
-| Feature       | Python | TypeScript | JavaScript | Rust | C#  | Go  |
-| ------------- | ------ | ---------- | ---------- | ---- | --- | --- |
-| Type Safety   | ✅     | ✅         | ❌         | ✅   | ✅  | ✅  |
-| Async/Await   | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
-| Qdrant Compat | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
-| Hybrid Search | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
-| Snapshots API | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
-| Sharding API  | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
-| Cluster API   | ✅     | ✅         | ✅         | ✅   | ✅  | ✅  |
+| Feature       | Python | TypeScript | Rust | C#  | Go  |
+| ------------- | ------ | ---------- | ---- | --- | --- |
+| Type Safety   | ✅     | ✅         | ✅   | ✅  | ✅  |
+| Async/Await   | ✅     | ✅         | ✅   | ✅  | ✅  |
+| Qdrant Compat | ✅     | ✅         | ✅   | ✅  | ✅  |
+| Hybrid Search | ✅     | ✅         | ✅   | ✅  | ✅  |
+| Snapshots API | ✅     | ✅         | ✅   | ✅  | ✅  |
+| Sharding API  | ✅     | ✅         | ✅   | ✅  | ✅  |
+| Cluster API   | ✅     | ✅         | ✅   | ✅  | ✅  |
 
 ## Common Operations
 

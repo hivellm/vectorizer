@@ -11,7 +11,7 @@ incremental = true
 # 
 # Option 1: Set environment variable (recommended for flexibility)
 #   export RUSTC_WRAPPER=$(which sccache)
-#   Or use: source scripts/setup-sccache.sh
+#   Or use: source scripts/build/setup-sccache.sh
 #
 # Option 2: Uncomment the line below if sccache is in your PATH:
 # rustc-wrapper = "sccache"
@@ -45,3 +45,29 @@ rustflags = ["-A", "warnings"]
 [net]
 retry = 2
 git-fetch-with-cli = true
+
+# WASM SIMD128 — opt-in for downstream consumers building the crate
+# for `wasm32-unknown-unknown`. Uncomment to enable the
+# `Wasm128Backend` in `src/simd/wasm/simd128.rs`. Without this flag,
+# the WASM build silently falls back to the scalar backend, which is
+# ~4× slower on every distance calculation. See
+# `docs/architecture/simd.md` § "WASM SIMD128 build setup".
+#
+# [target.wasm32-unknown-unknown]
+# rustflags = ["-C", "target-feature=+simd128"]
+
+# Environment variables applied to every cargo invocation from this workspace.
+# force = false means: only set if the user has not already exported the variable.
+[env]
+# Do NOT build OpenSSL from source via `openssl-src` vendoring.
+# - On Linux/macOS: falls back to pkg-config which finds system OpenSSL.
+# - On Windows: requires OPENSSL_DIR (set below on a per-machine basis) OR
+#   vcpkg integration (auto-detected if VCPKG_ROOT is set and vcpkg has openssl).
+# Vendored build needs Perl + `Locale::Maketext::Simple`, which is missing on
+# the typical Git-Bash / msys2 install and breaks `openssl-sys` compilation.
+OPENSSL_NO_VENDOR = { value = "1", force = false }
+
+# Windows default location for OpenSSL-Win64 installer (https://slproweb.com/).
+# Only used if the env var isn't already exported. Other platforms ignore the
+# value because pkg-config is preferred when available.
+OPENSSL_DIR = { value = "C:/Program Files/OpenSSL-Win64", force = false }

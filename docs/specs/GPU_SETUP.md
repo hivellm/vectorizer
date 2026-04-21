@@ -77,8 +77,17 @@ You should see in the logs:
 ```
 🚀 Detecting GPU capabilities...
 ✅ Metal GPU detected and enabled!
-📊 GPU Info: 🍎 Metal - Apple M1 Pro
+📊 GPU Info: 🍎 Metal - Apple M2 Pro (16.0 GB VRAM)
 ```
+
+The name (`Apple M2 Pro`, `Apple M1 Max`, …) and VRAM total come from
+[`hive-gpu`][hive-gpu] 0.2's `GpuContext::device_info()` call — they
+reflect the real hardware, not a static string. If the line reads
+`Apple GPU (unknown)` instead, `hive-gpu` failed to open a Metal
+context; rerun with `RUST_LOG=vectorizer::db::gpu_detection=debug` to
+see the underlying error.
+
+[hive-gpu]: https://github.com/hivellm/hive-gpu
 
 ## Configuration
 

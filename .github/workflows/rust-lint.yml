@@ -49,3 +49,39 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check cargo clippy warnings for all targets and features
         run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Enforce layer boundary — src/models/ must not import src/db/
+        # Foundation layer (models) cannot depend on Core layer (db). Guard
+        # against future regressions of the layering fix in rulebook task
+        # phase5_models-db-layering-violation.
+        run: |
+          if grep -rnE '^use crate::db::|crate::db::' src/models/; then
+            echo "::error::src/models/ imports from crate::db — violates layering"
+            exit 1
+          fi
+      - name: Enforce parking_lot over std::sync for Mutex/RwLock
+        # AGENTS.md mandates parking_lot locks over std::sync variants. This
+        # gate fails the build if any `use std::sync::{...Mutex...}` or
+        # `...RwLock...}` import re-appears in src/. std::sync::Arc, Once,
+        # OnceLock, atomic, and mpsc are NOT flagged (they have no
+        # parking_lot equivalent).
+        run: |
+          if grep -rnE '^use std::sync::\{[^}]*(Mutex|RwLock)' src/; then
+            echo "::error::src/ uses std::sync::Mutex/RwLock — migrate to parking_lot"
+            exit 1
+          fi
+      - name: Enforce Tier-1 no-marker rule (TODO/FIXME/HACK/XXX)
+        # AGENTS.md Tier-1 rule #1 forbids deferral markers in source. Allowed
+        # exceptions are:
+        #   * `TASK(phaseN_<slug>)` comments pointing at a concrete rulebook task
+        #   * lines carrying the `grep-ignore(tier1-markers)` sentinel
+        #     (used by the marker-detection feature itself)
+        # See .rulebook/tasks/phase0_fix-all-todos/ for the rationale.
+        run: bash scripts/ci/check-no-tier1-markers.sh
+      - name: Enforce no-credential-logs in auth-handling code
+        # Fails PR if any log macro in src/auth/ or src/server/auth_handlers.rs
+        # references `password`/`secret`/`api_key` in its format string without
+        # a `// logging-allow(<reason>)` sentinel. Complements `Secret<T>`:
+        # the wrapper protects `{:?}` debug prints; this gate catches
+        # hand-rolled `info!("password = {}", pwd)` leaks.
+        # See .rulebook/tasks/phase1_secret-newtype-and-log-gate/ for rationale.
+        run: bash scripts/ci/check-no-credential-logs.sh

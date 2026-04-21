@@ -1,0 +1,33 @@
+[package]
+name = "vectorizer-protocol"
+version = "3.0.0"
+edition = "2024"
+authors = ["HiveLLM Contributors"]
+description = "Wire protocol types for Vectorizer (RPC + gRPC). Shared between server and SDKs."
+license = "Apache-2.0"
+repository = "https://github.com/hivellm/vectorizer"
+keywords = ["vector-database", "wire-protocol", "rpc", "grpc"]
+categories = ["database", "encoding"]
+
+[dependencies]
+# RPC wire layer (length-prefixed MessagePack)
+serde = { version = "1.0", features = ["derive"], default-features = false }
+serde_json = { version = "1.0", default-features = false }
+rmp-serde = "1"
+tokio = { version = "1.48", features = ["io-util"], default-features = false }
+thiserror = { version = "2.0", default-features = false }
+
+# gRPC runtime types (used by both server impls in vectorizer and clients in sdks/rust)
+tonic = { version = "0.14", features = [] }
+tonic-prost = "0.14"
+prost = "0.14"
+prost-types = "0.14"
+
+[build-dependencies]
+tonic-build = "0.14"
+tonic-prost-build = "0.14"
+# Vendored protoc for cross-compilation (e.g. aarch64-unknown-linux-musl in CI where the container has no protoc)
+protoc-bin-vendored = "3.2"
+
+[lints]
+workspace = true

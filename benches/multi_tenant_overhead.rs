@@ -4,7 +4,10 @@
 #![allow(
     clippy::uninlined_format_args,
     clippy::get_first,
-    clippy::inefficient_to_string
+    clippy::inefficient_to_string,
+    // Bench harness — unwrap is idiomatic for fixed test data setup.
+    clippy::unwrap_used,
+    clippy::expect_used
 )]
 //! - Service header validation
 //! - Tenant context creation

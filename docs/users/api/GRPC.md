@@ -329,6 +329,7 @@ service ClusterService {
     rpc RemoteUpdateVector(RemoteUpdateVectorRequest) returns (RemoteUpdateVectorResponse);
     rpc RemoteDeleteVector(RemoteDeleteVectorRequest) returns (RemoteDeleteVectorResponse);
     rpc RemoteSearchVectors(RemoteSearchVectorsRequest) returns (RemoteSearchVectorsResponse);
+    rpc RemoteHybridSearch(RemoteHybridSearchRequest) returns (RemoteHybridSearchResponse);
 
     // Remote collection operations
     rpc RemoteCreateCollection(RemoteCreateCollectionRequest) returns (RemoteCreateCollectionResponse);
@@ -340,6 +341,38 @@ service ClusterService {
     rpc CheckQuota(CheckQuotaRequest) returns (CheckQuotaResponse);
 }
 ```
+
+### Hybrid Search Across Shards
+
+`RemoteHybridSearch` mirrors the local hybrid entry point so distributed
+sharded collections can fuse dense + sparse results across nodes instead of
+silently degrading to dense-only on the gRPC path.
+
+```protobuf
+message RemoteHybridSearchRequest {
+    string collection_name = 1;
+    repeated float dense_query = 2;
+    optional SparseVector sparse_query = 3;   // omit for dense-only
+    HybridSearchConfig config = 4;
+    repeated uint32 shard_ids = 5;            // optional shard filter
+    optional TenantContext tenant = 6;
+}
+
+message HybridSearchResult {
+    string id = 1;
+    float hybrid_score = 2;
+    optional float dense_score = 3;
+    optional float sparse_score = 4;
+    repeated float vector = 5;
+    optional string payload_json = 6;
+}
+```
+
+**Compatibility:** servers that predate this RPC return
+`tonic::Code::Unimplemented`. The cluster client surfaces that as
+`VectorizerError::Unimplemented` and `DistributedShardedCollection`
+transparently falls back to `RemoteSearchVectors` (dense-only) for that node,
+so mixed-version clusters keep returning results during a rolling upgrade.
 
 ### Multi-Tenant Support
 

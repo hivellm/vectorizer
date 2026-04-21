@@ -37,6 +37,11 @@ spec:
           image: ghcr.io/hivellm/vectorizer:latest
           imagePullPolicy: Always
           ports:
+            # RPC (binary, recommended primary) listed first per
+            # phase6_make-rpc-default-transport.
+            - name: rpc
+              containerPort: 15503
+              protocol: TCP
             - name: http
               containerPort: 15002
               protocol: TCP

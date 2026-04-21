@@ -5,6 +5,14 @@
 .gitignore
 .gitattributes
 
+# .cargo/config.toml carries host-specific paths
+# (`OPENSSL_DIR = "C:/Program Files/OpenSSL-Win64"`, Windows LLD
+# linker paths, sccache wrapper paths, ...) that break the Linux
+# container build. The Linux toolchain inside the container finds
+# OpenSSL via pkg-config + libssl-dev from `xx-apt-get install`,
+# so there is nothing host-side to propagate.
+.cargo/config.toml
+
 # Build artifacts - MUST be excluded to avoid permission errors
 target/
 **/target/
@@ -54,6 +62,9 @@ CHANGELOG.md
 .env.*
 *.local
 
+# First-run root credentials (cleartext password — never bake into image)
+**/.root_credentials
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -74,6 +85,9 @@ pkg/
 # Large directories that are not needed (but NOT src/models which is source code!)
 node_modules/
 **/node_modules/
+# data/ includes the encrypted auth store and the optionally auto-generated
+# JWT secret (data/jwt_secret.key). Exclude from image context — operators
+# should mount a persistent volume instead.
 data/
 **/data/
 logs/
@@ -92,3 +106,8 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Backup / scratch files
+*.bak
+*.orig
+*.rej

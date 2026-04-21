@@ -1,0 +1,106 @@
+{
+  "version": "5.4.0",
+  "installedAt": "2026-04-20T18:56:11.050Z",
+  "updatedAt": "2026-04-20T18:56:11.051Z",
+  "projectId": "Vectorizer",
+  "mode": "full",
+  "features": {
+    "watcher": false,
+    "agent": false,
+    "logging": true,
+    "telemetry": false,
+    "notifications": false,
+    "dryRun": false,
+    "gitHooks": true,
+    "repl": false,
+    "templates": true,
+    "context": true,
+    "health": true,
+    "plugins": false,
+    "parallel": true,
+    "smartContinue": true
+  },
+  "coverageThreshold": 95,
+  "language": "en",
+  "outputLanguage": "en",
+  "cliTools": [],
+  "maxParallelTasks": 1,
+  "timeouts": {
+    "taskExecution": 300000,
+    "cliResponse": 60000,
+    "testRun": 120000
+  },
+  "memory": {
+    "enabled": false,
+    "dbPath": ".rulebook/memory/memory.db",
+    "maxSizeBytes": 524288000,
+    "autoCapture": false,
+    "vectorDimensions": 256
+  },
+  "ralph": {
+    "enabled": true,
+    "maxIterations": 10,
+    "tool": "claude",
+    "maxContextLoss": 3,
+    "securityGate": {
+      "enabled": true,
+      "failOn": "high",
+      "tool": "auto"
+    },
+    "contextCompression": {
+      "enabled": true,
+      "recentCount": 3,
+      "threshold": 5
+    },
+    "parallel": {
+      "enabled": false,
+      "maxWorkers": 3
+    },
+    "planCheckpoint": {
+      "enabled": false,
+      "autoApproveAfterSeconds": 0,
+      "requireApprovalForStories": "all"
+    }
+  },
+  "skills": {
+    "enabled": [
+      "languages/rust",
+      "languages/ruby",
+      "core/agent-automation",
+      "core/dag-workflow",
+      "core/documentation-rules",
+      "core/quality-enforcement",
+      "core/rulebook-task-management",
+      "core/accessibility",
+      "core/analysis",
+      "core/api-design",
+      "core/architect",
+      "core/build-fix",
+      "core/db-design",
+      "core/debug",
+      "core/deploy",
+      "core/docs",
+      "core/handoff",
+      "core/migrate",
+      "core/perf",
+      "core/refactor",
+      "core/research",
+      "core/review",
+      "core/security-audit",
+      "core/agents-lean",
+      "core/agents-override",
+      "core/claude-md-v2",
+      "core/dag",
+      "core/decisions",
+      "core/knowledge",
+      "core/multi-agent",
+      "core/plans",
+      "core/ralph",
+      "core/rulebook",
+      "core/tier1-prohibitions",
+      "core/token-optimization",
+      "core/workspace"
+    ]
+  },
+  "agentsMode": "lean"
+}

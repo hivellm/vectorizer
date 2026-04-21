@@ -1,3 +1,7 @@
+#![allow(warnings)]
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::absurd_extreme_comparisons, clippy::nonminimal_bool)]
+
 //! Comprehensive tests for the Rust SDK
 
 use std::collections::HashMap;
@@ -76,7 +80,10 @@ async fn test_create_collection() {
         Ok(info) => {
             assert_eq!(info.name, collection_name);
             assert_eq!(info.dimension, 384);
-            assert_eq!(info.metric, "cosine");
+            // v3 server emits `metric` in Rust-Debug form ("Cosine");
+            // the create-path helper lowercases it. Normalize on both
+            // sides so either shape passes.
+            assert_eq!(info.metric.to_lowercase(), "cosine");
             // Collection status can be "ready", "created", "pending-0", etc.
             if let Some(ref status) = info.indexing_status {
                 assert!(!status.status.is_empty());
@@ -267,7 +274,7 @@ async fn test_get_collection_info() {
         Ok(info) => {
             assert_eq!(info.name, collection_name);
             assert_eq!(info.dimension, 384);
-            assert_eq!(info.metric, "cosine");
+            assert_eq!(info.metric.to_lowercase(), "cosine");
             if let Some(ref status) = info.indexing_status {
                 assert!(!status.status.is_empty());
             }
@@ -508,4 +515,52 @@ async fn test_performance() {
 
     // Cleanup
     let _ = client.delete_collection(&collection_name).await;
+}
+
+/// Response models must tolerate unknown top-level fields. The v3
+/// server emits blocks the SDK does not model yet (status, size,
+/// normalization, quantization on CollectionInfo; shape adds on
+/// SearchResponse) and future server releases will add more. A
+/// `#[serde(deny_unknown_fields)]` regression here would silently
+/// break every SDK caller the moment the server adds a field.
+#[test]
+fn test_response_models_tolerate_unknown_fields() {
+    // CollectionInfo with an extra top-level field + extras inside
+    // nested blocks the SDK stores as Value.
+    let json = r#"{
+        "name": "c1",
+        "dimension": 384,
+        "metric": "Cosine",
+        "vector_count": 0,
+        "document_count": 0,
+        "created_at": "2026-04-21T00:00:00Z",
+        "updated_at": "2026-04-21T00:00:00Z",
+        "size": { "total": 0, "total_bytes": 0, "future_field": "ok" },
+        "quantization": { "enabled": false, "future_field": 42 },
+        "normalization": { "enabled": false, "future_field": [1, 2, 3] },
+        "status": "ready",
+        "future_top_level_field": { "arbitrary": "payload" }
+    }"#;
+    let info: CollectionInfo = serde_json::from_str(json)
+        .expect("CollectionInfo must tolerate unknown top-level + nested fields");
+    assert_eq!(info.name, "c1");
+    assert_eq!(info.dimension, 384);
+    assert_eq!(info.metric.to_lowercase(), "cosine");
+    assert_eq!(info.status.as_deref(), Some("ready"));
+
+    // Collection response shape — same tolerance requirement.
+    let collection_json = r#"{
+        "name": "c2",
+        "dimension": 512,
+        "metric": "Euclidean",
+        "future_top_level_field": true
+    }"#;
+    let collection: Collection = serde_json::from_str(collection_json)
+        .expect("Collection must tolerate unknown top-level fields");
+    assert_eq!(collection.name, "c2");
+    assert_eq!(collection.dimension, 512);
+    assert_eq!(
+        collection.metric.as_deref().map(str::to_lowercase),
+        Some("euclidean".to_string())
+    );
 }

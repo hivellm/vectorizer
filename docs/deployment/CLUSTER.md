@@ -85,7 +85,7 @@ auth:
 
 ### Docker Compose HA
 
-Use `docker-compose.ha.yml` for a 3-node HA cluster:
+Use `docker compose --profile ha` for a 3-node HA cluster:
 
 ```bash
 # 1. Create .env with credentials
@@ -93,7 +93,7 @@ echo "VECTORIZER_ADMIN_PASSWORD=your-secure-password" > .env
 echo "VECTORIZER_JWT_SECRET=your-secret-key-minimum-32-characters-long" >> .env
 
 # 2. Start cluster
-docker-compose -f docker-compose.ha.yml up -d
+docker compose --profile ha up -d
 ```
 
 Connection URL (single entry point):

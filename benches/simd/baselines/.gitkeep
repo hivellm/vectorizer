@@ -1,0 +1,7 @@
+Baseline JSON files land here once committed by phase 7g's CI matrix.
+The regression-guard script `scripts/simd/check-regression.sh` reads
+files named `simd_<bench>.json` (e.g. `simd_dot_product.json`)
+keyed by `<criterion-group>/<sample-id>` and compares Criterion's
+fresh `target/criterion/**/estimates.json` median estimates against
+them. See `docs/architecture/simd-benchmarks.md` for the full
+workflow.

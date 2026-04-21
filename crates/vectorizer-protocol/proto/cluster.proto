@@ -1,0 +1,369 @@
+syntax = "proto3";
+
+package vectorizer.cluster;
+
+// Cluster service for inter-server communication
+service ClusterService {
+    // Get cluster state from a node
+    rpc GetClusterState(GetClusterStateRequest) returns (GetClusterStateResponse);
+
+    // Update cluster state (heartbeat, membership changes)
+    rpc UpdateClusterState(UpdateClusterStateRequest) returns (UpdateClusterStateResponse);
+
+    // Remote vector operations
+    rpc RemoteInsertVector(RemoteInsertVectorRequest) returns (RemoteInsertVectorResponse);
+    rpc RemoteUpdateVector(RemoteUpdateVectorRequest) returns (RemoteUpdateVectorResponse);
+    rpc RemoteDeleteVector(RemoteDeleteVectorRequest) returns (RemoteDeleteVectorResponse);
+    rpc RemoteSearchVectors(RemoteSearchVectorsRequest) returns (RemoteSearchVectorsResponse);
+    rpc RemoteHybridSearch(RemoteHybridSearchRequest) returns (RemoteHybridSearchResponse);
+
+    // Remote collection operations
+    rpc RemoteCreateCollection(RemoteCreateCollectionRequest) returns (RemoteCreateCollectionResponse);
+    rpc RemoteGetCollectionInfo(RemoteGetCollectionInfoRequest) returns (RemoteGetCollectionInfoResponse);
+    rpc RemoteDeleteCollection(RemoteDeleteCollectionRequest) returns (RemoteDeleteCollectionResponse);
+
+    // Health check
+    rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+    // Quota check across cluster
+    rpc CheckQuota(CheckQuotaRequest) returns (CheckQuotaResponse);
+
+    // Shard data migration: fetch vectors from a shard in paginated batches
+    rpc GetShardVectors(GetShardVectorsRequest) returns (GetShardVectorsResponse);
+
+    // Raft consensus RPCs
+    rpc RaftVote(RaftVoteRequest) returns (RaftVoteResponse);
+    rpc RaftAppendEntries(RaftAppendEntriesRequest) returns (RaftAppendEntriesResponse);
+    rpc RaftSnapshot(RaftSnapshotRequest) returns (RaftSnapshotResponse);
+}
+
+// Tenant context for multi-tenant operations
+// Propagated across cluster nodes for user isolation
+message TenantContext {
+    // Tenant/user ID (UUID format)
+    string tenant_id = 1;
+    // Optional username for logging
+    optional string username = 2;
+    // Tenant permissions (read, write, admin)
+    repeated string permissions = 3;
+    // Request trace ID for distributed tracing
+    optional string trace_id = 4;
+}
+
+// Cluster state messages
+message GetClusterStateRequest {
+    string node_id = 1;
+}
+
+message GetClusterStateResponse {
+    repeated ClusterNode nodes = 1;
+    map<uint32, string> shard_to_node = 2; // shard_id -> node_id
+    uint64 current_epoch = 3;              // cluster's current epoch
+    map<uint32, uint64> shard_epochs = 4;  // per-shard config epochs
+}
+
+message UpdateClusterStateRequest {
+    ClusterNode node = 1;
+    repeated ShardAssignment shard_assignments = 2;
+}
+
+message UpdateClusterStateResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ClusterNode {
+    string id = 1;
+    string address = 2;
+    uint32 grpc_port = 3;
+    NodeStatus status = 4;
+    repeated uint32 shards = 5; // shard IDs
+    NodeMetadata metadata = 6;
+}
+
+enum NodeStatus {
+    ACTIVE = 0;
+    JOINING = 1;
+    LEAVING = 2;
+    UNAVAILABLE = 3;
+}
+
+message NodeMetadata {
+    optional string version = 1;
+    repeated string capabilities = 2;
+    uint64 vector_count = 3;
+    uint64 memory_usage = 4;
+    float cpu_usage = 5;
+}
+
+message ShardAssignment {
+    uint32 shard_id = 1;
+    string node_id = 2;
+    uint64 config_epoch = 3; // epoch of this assignment
+}
+
+// Remote vector operation messages
+message RemoteInsertVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+    repeated float vector = 3;
+    optional string payload_json = 4;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 5;
+}
+
+message RemoteInsertVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteUpdateVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+    repeated float vector = 3;
+    optional string payload_json = 4;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 5;
+}
+
+message RemoteUpdateVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteDeleteVectorRequest {
+    string collection_name = 1;
+    string vector_id = 2;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 3;
+}
+
+message RemoteDeleteVectorResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteSearchVectorsRequest {
+    string collection_name = 1;
+    repeated float query_vector = 2;
+    uint32 limit = 3;
+    optional float threshold = 4;
+    repeated uint32 shard_ids = 5; // Optional: specific shards to search
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 6;
+}
+
+message RemoteSearchVectorsResponse {
+    repeated SearchResult results = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message SearchResult {
+    string id = 1;
+    float score = 2;
+    repeated float vector = 3;
+    optional string payload_json = 4;
+}
+
+// Hybrid search messages — dense + sparse fusion across remote shards.
+//
+// Servers that predate this RPC return `Unimplemented` so callers can fall
+// back to dense-only `RemoteSearchVectors`. Mirrors the local hybrid entry
+// point (see `src/db/hybrid_search.rs`).
+message SparseVector {
+    repeated uint32 indices = 1;
+    repeated float values = 2;
+}
+
+enum HybridScoringAlgorithm {
+    HYBRID_SCORING_RRF = 0;
+    HYBRID_SCORING_WEIGHTED = 1;
+    HYBRID_SCORING_ALPHA_BLEND = 2;
+}
+
+message HybridSearchConfig {
+    uint32 dense_k = 1;
+    uint32 sparse_k = 2;
+    uint32 final_k = 3;
+    double alpha = 4;
+    HybridScoringAlgorithm algorithm = 5;
+}
+
+message RemoteHybridSearchRequest {
+    string collection_name = 1;
+    repeated float dense_query = 2;
+    // Optional sparse query — when absent, server treats it as dense-only.
+    optional SparseVector sparse_query = 3;
+    HybridSearchConfig config = 4;
+    // Optional: restrict to specific shards (empty = all shards on this node).
+    repeated uint32 shard_ids = 5;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 6;
+}
+
+message HybridSearchResult {
+    string id = 1;
+    float hybrid_score = 2;
+    optional float dense_score = 3;
+    optional float sparse_score = 4;
+    repeated float vector = 5;
+    optional string payload_json = 6;
+}
+
+message RemoteHybridSearchResponse {
+    repeated HybridSearchResult results = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+// Remote collection operation messages
+message RemoteCreateCollectionRequest {
+    string collection_name = 1;
+    optional CollectionConfig config = 2;
+    // Tenant context for multi-tenant isolation (owner_id)
+    optional TenantContext tenant = 3;
+}
+
+message RemoteCreateCollectionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RemoteGetCollectionInfoRequest {
+    string collection_name = 1;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 2;
+}
+
+message RemoteGetCollectionInfoResponse {
+    optional CollectionInfo info = 1;
+    bool success = 2;
+    string message = 3;
+}
+
+message RemoteDeleteCollectionRequest {
+    string collection_name = 1;
+    // Tenant context for multi-tenant isolation
+    optional TenantContext tenant = 2;
+}
+
+message RemoteDeleteCollectionResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// Health check messages
+message HealthCheckRequest {
+    string node_id = 1;
+}
+
+message HealthCheckResponse {
+    bool healthy = 1;
+    string message = 2;
+    NodeMetadata metadata = 3;
+}
+
+// Distributed quota check messages
+message CheckQuotaRequest {
+    // Tenant to check quota for
+    TenantContext tenant = 1;
+    // Type of quota to check (collections, vectors, storage)
+    QuotaType quota_type = 2;
+    // Requested amount
+    uint64 requested_amount = 3;
+}
+
+message CheckQuotaResponse {
+    // Whether the quota allows the operation
+    bool allowed = 1;
+    // Current usage
+    uint64 current_usage = 2;
+    // Quota limit
+    uint64 limit = 3;
+    // Remaining quota
+    uint64 remaining = 4;
+    // Error message if not allowed
+    string message = 5;
+}
+
+enum QuotaType {
+    QUOTA_COLLECTIONS = 0;
+    QUOTA_VECTORS = 1;
+    QUOTA_STORAGE = 2;
+}
+
+// Shard vector migration messages
+message GetShardVectorsRequest {
+    // Name of the collection to fetch vectors from
+    string collection_name = 1;
+    // Shard ID to fetch (reserved for future shard-aware filtering)
+    uint32 shard_id = 2;
+    // Pagination offset (number of vectors to skip)
+    uint32 offset = 3;
+    // Maximum number of vectors to return in this batch
+    uint32 limit = 4;
+    // Optional tenant context for multi-tenant isolation
+    optional TenantContext tenant = 5;
+}
+
+message GetShardVectorsResponse {
+    // Vectors returned in this batch
+    repeated VectorData vectors = 1;
+    // Total number of vectors in the shard/collection
+    uint32 total_count = 2;
+    // Whether more vectors are available beyond this batch
+    bool has_more = 3;
+}
+
+message VectorData {
+    // Vector ID
+    string id = 1;
+    // Dense vector values
+    repeated float vector = 2;
+    // Optional payload as JSON string
+    optional string payload_json = 3;
+}
+
+// Reused from vectorizer.proto (simplified for cluster service)
+message CollectionConfig {
+    uint32 dimension = 1;
+    string metric = 2;
+    // Add other fields as needed
+}
+
+message CollectionInfo {
+    string name = 1;
+    uint64 vector_count = 2;
+    uint64 document_count = 3;
+    // Add other fields as needed
+}
+
+// Raft consensus messages
+
+message RaftVoteRequest {
+    bytes data = 1;  // bincode-serialized VoteRequest
+}
+
+message RaftVoteResponse {
+    bytes data = 1;  // bincode-serialized VoteResponse
+}
+
+message RaftAppendEntriesRequest {
+    bytes data = 1;  // bincode-serialized AppendEntriesRequest
+}
+
+message RaftAppendEntriesResponse {
+    bytes data = 1;  // bincode-serialized AppendEntriesResponse
+}
+
+message RaftSnapshotRequest {
+    bytes vote_data = 1;
+    bytes snapshot_meta = 2;
+    bytes snapshot_data = 3;
+}
+
+message RaftSnapshotResponse {
+    bytes data = 1;
+}
+
