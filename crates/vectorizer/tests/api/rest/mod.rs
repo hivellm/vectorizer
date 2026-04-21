@@ -2,6 +2,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+pub mod auth_enforcement_real;
 pub mod batch_insert_real;
 pub mod batch_ops_real;
 #[cfg(test)]

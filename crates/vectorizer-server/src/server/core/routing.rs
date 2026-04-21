@@ -138,12 +138,21 @@ impl VectorizerServer {
                 },
             ));
 
-        // Public routes that don't require authentication (even in production)
+        // Public routes that don't require authentication (even in production).
+        // Includes /health, /prometheus/metrics and the dashboard SPA shell +
+        // embedded assets — operators need the login page to load over
+        // anonymous HTTP before they can present credentials.
         let public_routes = Router::new()
             .route("/health", get(rest_handlers::health_check))
             .route(
                 "/prometheus/metrics",
                 get(rest_handlers::get_prometheus_metrics),
+            )
+            .route("/dashboard", get(embedded_assets::dashboard_root_handler))
+            .route("/dashboard/", get(embedded_assets::dashboard_root_handler))
+            .route(
+                "/dashboard/{*path}",
+                get(embedded_assets::dashboard_handler),
             )
             .with_state(self.clone());
 
@@ -537,18 +546,9 @@ impl VectorizerServer {
                 put(qdrant::cluster_handlers::update_metadata_key),
             )
             // Dashboard - serve embedded static files (production build)
-            // All dashboard assets are embedded in the binary using rust-embed
-            // This allows distributing a single binary without external dependencies
-            //
-            // Route priority for /dashboard/*:
-            // 1. Exact file match (assets/, favicon.ico, etc.) - served with cache headers
-            // 2. SPA fallback - any other route returns index.html for React Router
-            .route("/dashboard", get(embedded_assets::dashboard_root_handler))
-            .route("/dashboard/", get(embedded_assets::dashboard_root_handler))
-            .route(
-                "/dashboard/{*path}",
-                get(embedded_assets::dashboard_handler),
-            )
+            // Dashboard routes moved to `public_routes` so the SPA shell
+            // stays reachable over anonymous HTTP when auth enforcement is
+            // active (the login form is inside the SPA).
             .layer(axum::middleware::from_fn(
                 vectorizer::monitoring::correlation_middleware,
             ))
@@ -691,10 +691,24 @@ impl VectorizerServer {
                  /backups/create, /backups/restore."
             );
 
-            // Merge auth routes
-            rest_routes
-                .merge(public_auth_router)
-                .merge(protected_auth_router)
+            // Gate every data route + every protected auth route behind the
+            // `require_auth_middleware` layer. `/auth/login` +
+            // `/auth/validate-password` (the two genuinely public auth
+            // endpoints) are merged AFTER the layer so they stay anonymous.
+            // `/health` and `/prometheus/metrics` live on the separate
+            // `public_routes` router that is merged onto the final app
+            // without any auth layer (see the `app = Router::new()
+            // .merge(public_routes)...` block further down).
+            info!(
+                "🔐 Auth enforcement ACTIVE — data + protected auth routes now require a valid JWT / API key"
+            );
+            let gated = rest_routes.merge(protected_auth_router).layer(
+                axum::middleware::from_fn_with_state(
+                    auth_state.clone(),
+                    crate::server::auth_handlers::require_auth_middleware,
+                ),
+            );
+            gated.merge(public_auth_router)
         } else {
             rest_routes
         };
