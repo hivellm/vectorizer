@@ -9544,6 +9544,7 @@ dependencies = [
  "lru 0.17.0",
  "memory-stats",
  "mime_guess",
+ "nix 0.31.2",
  "notify",
  "num_cpus",
  "once_cell",

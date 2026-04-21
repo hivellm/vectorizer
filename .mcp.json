@@ -10,7 +10,10 @@
     },
     "vectorizer": {
       "type": "http",
-      "url": "http://127.0.0.1:15002/mcp"
+      "url": "http://127.0.0.1:15002/mcp",
+      "headers": {
+        "X-API-Key": "wAToQ6CpmbhXXMGHaLAf3osAsGomJJcm"
+      }
     }
   }
 }

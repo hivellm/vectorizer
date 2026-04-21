@@ -28,8 +28,23 @@ services:
   # ─────────────────────────────────────────────────────────────────
   vectorizer:
     profiles: [default]
-    image: hivehub/vectorizer:latest
+    # v3.0.0 is not yet published to Docker Hub — `hivehub/vectorizer:latest`
+    # on the Hub is a stale pre-v3 build that requires GLIBC_2.38 and fails
+    # to start on distroless/cc-debian12 (glibc 2.36). Build locally until
+    # the v3.0.0 image is published; compose will use the local tag.
+    image: hivehub/vectorizer:3.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - PROFILE=release
+        - FEATURES=
+        - NO_DEFAULT_FEATURES=1
     container_name: vectorizer
+    # Run as root: distroless nonroot (UID 65532) cannot write through
+    # Windows Docker Desktop bind mounts (host UID ≠ 65532), and the
+    # server needs to create/update config.yml + workspace.yml at boot.
+    user: root
     ports:
       # RPC (binary, recommended primary). Length-prefixed MessagePack
       # over raw TCP — 10x lower per-frame overhead than REST/JSON.
@@ -38,13 +53,9 @@ services:
       - "15002:15002" # REST + MCP (dashboard, ops, browser clients)
       - "15003:15003" # Additional port
     volumes:
-      # Persistent data
+      # Persistent data (config.yml + workspace.yml written here on first boot)
       - ./data:/vectorizer/data
-      - ./../../:/workspace:ro
-      # Workspace configuration for Docker (paths are /workspace/*)
-      - ./workspace.docker.yml:/vectorizer/workspace.yml:ro
-      # Mount parent directories for monorepo access
-      # HiveLLM structure: vectorizer is in hivellm/vectorizer
+      # Mount HiveLLM monorepo root as read-only /workspace for indexing
       - ../../:/workspace:ro
     environment:
       - VECTORIZER_HOST=0.0.0.0

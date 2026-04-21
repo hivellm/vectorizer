@@ -17,7 +17,7 @@ vectorizer-protocol = { path = "../vectorizer-protocol" }
 # umbrella `vectorizer` crate because of bidirectional deps
 # (db→cluster, cache→monitoring, config→{auth,hub}). A future
 # sub-phase resolves those back-refs and narrows this dep.
-vectorizer = { path = "../vectorizer" }
+vectorizer = { path = "../vectorizer", default-features = false }
 
 # HTTP / WebSocket server
 axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
@@ -139,6 +139,10 @@ opentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-toki
 opentelemetry-prometheus = "0.31"
 opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
 tracing-opentelemetry = "0.32"
+
+# Unix-specific dependencies (SIGHUP for graceful restart in admin handler)
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.31", features = ["signal"] }
 
 [[bin]]
 name = "vectorizer"

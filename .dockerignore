@@ -5,6 +5,14 @@
 .gitignore
 .gitattributes
 
+# .cargo/config.toml carries host-specific paths
+# (`OPENSSL_DIR = "C:/Program Files/OpenSSL-Win64"`, Windows LLD
+# linker paths, sccache wrapper paths, ...) that break the Linux
+# container build. The Linux toolchain inside the container finds
+# OpenSSL via pkg-config + libssl-dev from `xx-apt-get install`,
+# so there is nothing host-side to propagate.
+.cargo/config.toml
+
 # Build artifacts - MUST be excluded to avoid permission errors
 target/
 **/target/
