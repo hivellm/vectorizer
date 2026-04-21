@@ -81,8 +81,8 @@ impl VectorizerClient {
             metric: format!("{:?}", metric.unwrap_or_default()).to_lowercase(),
             vector_count: 0,
             document_count: 0,
-            created_at: "".to_string(),
-            updated_at: "".to_string(),
+            created_at: String::new(),
+            updated_at: String::new(),
             indexing_status: Some(crate::models::IndexingStatus {
                 status: "created".to_string(),
                 progress: 0.0,
@@ -90,8 +90,12 @@ impl VectorizerClient {
                 processed_documents: 0,
                 vector_count: 0,
                 estimated_time_remaining: None,
-                last_updated: "".to_string(),
+                last_updated: String::new(),
             }),
+            size: None,
+            quantization: None,
+            normalization: None,
+            status: Some("created".to_string()),
         };
         Ok(info)
     }
