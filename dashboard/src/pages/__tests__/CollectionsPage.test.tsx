@@ -3,10 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@/providers/ThemeProvider';
-import { ToastProvider } from '@/providers/ToastProvider';
+import { renderWithProviders, screen } from '@/test-utils/render';
 import CollectionsPage from '../CollectionsPage';
 
 // Mock hooks
@@ -25,42 +22,24 @@ vi.mock('@/stores/collections', () => ({
     error: null,
     setCollections: vi.fn(),
     setLoading: vi.fn(),
+    setError: vi.fn(),
   }),
 }));
 
-const Wrapper = ({ children }: { children: React.ReactNode }) => (
-  <BrowserRouter>
-    <ThemeProvider>
-      <ToastProvider>
-        {children}
-      </ToastProvider>
-    </ThemeProvider>
-  </BrowserRouter>
-);
-
 describe('CollectionsPage', () => {
   it('should render collections page', () => {
-    render(
-      <Wrapper>
-        <CollectionsPage />
-      </Wrapper>
-    );
-    
+    renderWithProviders(<CollectionsPage />, { route: '/collections' });
+
     // Use getAllByText since "collections" appears multiple times
     const collectionsElements = screen.getAllByText(/collections/i);
     expect(collectionsElements.length).toBeGreaterThan(0);
   });
 
   it('should render create collection button', () => {
-    render(
-      <Wrapper>
-        <CollectionsPage />
-      </Wrapper>
-    );
-    
+    renderWithProviders(<CollectionsPage />, { route: '/collections' });
+
     // Use getAllByText since "create" might appear multiple times
     const createElements = screen.getAllByText(/create|new/i);
     expect(createElements.length).toBeGreaterThan(0);
   });
 });
-
