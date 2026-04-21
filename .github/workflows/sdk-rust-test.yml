@@ -44,7 +44,18 @@ jobs:
       uses: Swatinem/rust-cache@v2
       with:
         workspaces: 'sdks/rust'
-    
+
+    - name: Install system OpenSSL + override leaked Windows OPENSSL_DIR (ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config
+        echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+        echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+        echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+
     - name: Build SDK
       working-directory: ./sdks/rust
       run: cargo build --tests
@@ -93,15 +104,28 @@ jobs:
       with:
         workspaces: 'sdks/rust'
 
+    - name: Install system OpenSSL + override leaked Windows OPENSSL_DIR
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config
+        echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+        echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+        echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+
     - name: Build SDK in release mode
       working-directory: ./sdks/rust
       run: cargo build --release
 
     - name: Check build artifacts
-      working-directory: ./sdks/rust
+      # `sdks/rust` is a workspace member of the root Cargo workspace
+      # so `cargo build` puts artifacts under the ROOT `target/`, not
+      # `sdks/rust/target/`. Look there instead of the old per-crate
+      # path that was correct when the SDK was a standalone workspace.
       run: |
         if [ ! -d "target/release" ]; then
-          echo "Build failed: target/release directory not found"
+          echo "Build failed: target/release directory not found at workspace root"
           exit 1
         fi
         echo "Build artifacts verified successfully"

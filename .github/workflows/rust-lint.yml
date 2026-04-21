@@ -28,8 +28,20 @@ jobs:
           key: clippy
       - name: Update apt
         run: sudo apt-get update
-      - name: Install dependencies
-        run: sudo apt-get install -y clang protobuf-compiler
+      - name: Install dependencies + system OpenSSL
+        run: sudo apt-get install -y clang protobuf-compiler libssl-dev pkg-config
+
+      - name: Override leaked Windows OPENSSL_DIR (runner env quirk)
+        # The ubuntu-latest GH-hosted image currently surfaces
+        # `OPENSSL_DIR=C:/Program Files/OpenSSL-Win64` to Linux jobs,
+        # making openssl-sys panic because that path doesn't exist on
+        # Linux. Empty string also panics. Point at the canonical ubuntu
+        # libssl-dev install location instead.
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
       - name: Setup Node.js for dashboard build
         uses: actions/setup-node@v4
         with:
