@@ -9,6 +9,12 @@
  */
 
 import { VectorizerClient } from '../src/client';
+import { isLiveServerAvailable, runItIfServer } from './test-helpers';
+
+// Live-gated for the per-test `should include citations in evidence`
+// case (probe 4.1). Evaluated once at module load; see
+// phase8_enable-typescript-sdk-live-tests.
+const live = await isLiveServerAvailable();
 
 describe('Discovery Operations', () => {
   let client: VectorizerClient;
@@ -127,8 +133,10 @@ describe('Discovery Operations', () => {
       }
     });
 
-    it.skip('should include citations in evidence', async () => {
-      // Skipped: Requires real indexed data with citations in the server
+    runItIfServer(live, 'should include citations in evidence', async () => {
+      // Requires real indexed data with citations in the server; the
+      // live-server gate above short-circuits this case when the
+      // server is unreachable.
       const params = {
         query: 'system architecture',
         max_bullets: 15,

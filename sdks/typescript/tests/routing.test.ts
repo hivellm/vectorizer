@@ -5,13 +5,22 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { VectorizerClient } from '../src/client';
 import type { ReadPreference } from '../src/models/replication';
+import { isLiveServerAvailable, runIfServer } from './test-helpers';
 
 // Mock fetch for testing
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Skip: Tests written for planned routing API that doesn't match current implementation
-describe.skip('Master/Replica Routing', () => {
+// Live-gated: probe 4.1 replaced the unconditional
+// `describe.skip('Master/Replica Routing', ...)` with this
+// env-guarded gate. The suite's fetch-mocked routing assertions
+// are still valuable even without a real master/replica topology,
+// so the env override (`VECTORIZER_LIVE_TESTS=1`) is the primary
+// entry point and the health-check probe is the secondary one.
+// See phase8_enable-typescript-sdk-live-tests.
+const live = await isLiveServerAvailable();
+
+runIfServer(live, 'Master/Replica Routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockResolvedValue({
