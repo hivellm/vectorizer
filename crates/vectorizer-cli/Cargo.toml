@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-cli"
-version = "3.0.1"
+version = "3.0.2"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "Command-line interface for Vectorizer (vectorizer-cli + create_mcp_key binaries)."

@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-sdk"
-version = "3.0.1"
+version = "3.0.2"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "Rust SDK for Vectorizer — RPC-first (vectorizer://) with HTTP fallback"
@@ -62,7 +62,7 @@ umicp-core = { version = "0.2", optional = true }
 # byte from the server. Now they re-export from the standalone
 # vectorizer-protocol crate so the wire format cannot drift between
 # server and client — they're literally the same types.
-vectorizer-protocol = { path = "../../crates/vectorizer-protocol", version = "3.0.1" }
+vectorizer-protocol = { path = "../../crates/vectorizer-protocol", version = "3.0.2" }
 
 [dev-dependencies]
 tokio-test = "0.4"

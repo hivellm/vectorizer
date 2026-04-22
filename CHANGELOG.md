@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.2] - 2026-04-22
+
+### Changed
+
+- **Runtime base swapped from `gcr.io/distroless/cc-debian12:nonroot` → `dhi.io/debian-base:trixie` (Docker Hardened Image).** Google's distroless is unrecognized by Docker Scout's policy engine (`gcr.io` provenance isn't indexed), so "Approved Base Images" and "Up-to-Date Base Images" were stuck at `Unknown` in the Scout dashboard even after 3.0.1 landed supply-chain attestations. DHI images are Docker-signed, Scout-native, rebuilt weekly, and CIS-compliant — both policies now flip to `Compliant` on the next scan. Bonus: Debian 13 (trixie) ships glibc 2.41 and a fresher `libssl.so.3`, shaving 4 of the 7 non-fixable vulnerabilities the distroless cc-debian12 image inherited from bookworm. Trade-off: +21 MB compressed (67 MB → 88 MB) because debian-base carries bash + full `libssl`/`libcrypto`/`libsystemd`/`libreadline` where distroless cc shipped only the subset `libstdc++` needed. The Rust binary actually needs `libssl.so.3` at runtime — the thinner `dhi.io/static:*-glibc-debian13` variant crashed with `error while loading shared libraries: libssl.so.3: cannot open shared object file` because something in the transitive dep graph (reqwest default features + hyper-tls) still dynamically links OpenSSL even with `--no-default-features` on the server crate. Fixing the link surface is a separate task; for 3.0.2 we take the 21 MB hit and keep the image running.
+- **All `COPY` commands in the runtime stage are `--chown=65532:65532`.** Previous Dockerfile only chowned `/vectorizer/data`; the binary + dashboard + config landed root-owned inside a root-owned `/vectorizer/`, so the server couldn't write `config.yml` or `workspace.yml` into its CWD on first boot — bootstrap reported `Permission denied (os error 13)` unless the container was force-run as root. The `writable-dirs` stage now seeds `/vectorizer` itself as nonroot-owned in the first COPY, and every subsequent COPY preserves that ownership. Image now runs cleanly as its default `nonroot` user (UID 65532) without `--user root` overrides on Linux hosts. The compose `user: root` line stays in the default profile because Windows / macOS Docker Desktop bind mounts still don't align host UIDs, but that's a host-workaround note, not a requirement of the image itself.
+- **`docker-compose.yml` + Dockerfile labels updated** to reflect the new base image (`org.opencontainers.image.base.name`) and to drop the "distroless / near-zero CVEs" copy in favor of accurate DHI / Debian 13 claims.
+
 ## [3.0.1] - 2026-04-22
 
 ### Fixed

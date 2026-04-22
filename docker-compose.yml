@@ -28,11 +28,11 @@ services:
   # ─────────────────────────────────────────────────────────────────
   vectorizer:
     profiles: [default]
-    # `hivehub/vectorizer:3.0.1` is published on Docker Hub (digest + latest
-    # point at the same 66 MB distroless image, UID 65532). The `build:`
-    # block below stays so offline / air-gapped builds work against the
-    # local Dockerfile without needing `docker pull`.
-    image: hivehub/vectorizer:3.0.1
+    # `hivehub/vectorizer:3.0.2` is published on Docker Hub (digest + latest
+    # point at the same ~88 MB Docker Hardened Image, UID 65532, Debian 13).
+    # The `build:` block stays so offline / air-gapped builds work against
+    # the local Dockerfile without needing `docker pull dhi.io/...`.
+    image: hivehub/vectorizer:3.0.2
     build:
       context: .
       dockerfile: Dockerfile
@@ -41,9 +41,10 @@ services:
         - FEATURES=
         - NO_DEFAULT_FEATURES=1
     container_name: vectorizer
-    # Run as root: distroless nonroot (UID 65532) cannot write through
-    # Windows Docker Desktop bind mounts (host UID ≠ 65532), and the
-    # server needs to create/update config.yml + workspace.yml at boot.
+    # Run as root only when bind-mounting `./data` from a Windows / macOS
+    # Docker Desktop host (UID ≠ 65532 → nonroot can't write). On Linux
+    # with a named volume or a UID-65532-owned bind mount, delete this
+    # override and let the image run as its default `nonroot` user.
     user: root
     ports:
       # RPC (binary, recommended primary). Length-prefixed MessagePack

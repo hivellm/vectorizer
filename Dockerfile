@@ -263,24 +263,50 @@ RUN mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
 FROM busybox:stable-musl AS busybox
 
 # ============================================================================
-# RUNTIME IMAGE - Google Distroless (minimal attack surface, near-zero CVEs)
+# RUNTIME IMAGE - Docker Hardened Image (DHI) — Debian 13 base
 # ============================================================================
-# Using distroless/cc for C/C++/Rust binaries with glibc
-FROM gcr.io/distroless/cc-debian12:nonroot AS vectorizer
+# `dhi.io/debian-base:trixie` is Docker's hardened minimal Debian 13 runtime:
+#   - full glibc + libssl/libcrypto + ca-certificates (our Rust binary
+#     dynamically links `libssl.so.3` via indirect reqwest deps even with
+#     rustls on — the Docker `static` variant is too thin and crashes with
+#     `error while loading shared libraries: libssl.so.3`);
+#   - no package manager baked into the runtime image (`package-manager=""`),
+#     bash is included purely so docker exec / Kubernetes liveness probes
+#     can shell in when debugging;
+#   - runs as `nonroot` (UID 65532, same as Google's distroless so the
+#     existing `--chown=65532:65532` lines and compose `user: root` override
+#     stay untouched);
+#   - Docker-signed + Scout-approved by default (flips Scout "Approved Base
+#     Images" and "Up-to-Date Base Images" from Unknown → Compliant);
+#   - rebuilt weekly, Debian 13 (trixie) base carries fewer transitive CVEs
+#     than the Debian 12 bookworm base gcr.io/distroless is on;
+#   - CIS-compliant, end-of-life 2028-08-09.
+# Pull requires `docker login dhi.io` with Docker Hub credentials; CI does
+# the same before `docker buildx build --push`.
+FROM dhi.io/debian-base:trixie AS vectorizer
 
 # Build metadata for supply chain attestation
 ARG BUILD_DATE
 ARG GIT_COMMIT_ID
 
-# Copy binary and assets (distroless has no shell, so direct copy)
-COPY --from=builder /vectorizer/vectorizer /vectorizer/vectorizer
-COPY --from=builder /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json
-COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
-COPY --from=builder /vectorizer/config/config.example.yml /vectorizer/config/config.yml
-COPY --from=writable-dirs --chown=65532:65532 /vectorizer/data /vectorizer/data
+# Copy binary and assets.
+#
+# Every `COPY` is `--chown=65532:65532` so the runtime `nonroot` user
+# owns the whole `/vectorizer` tree — the server writes `config.yml` +
+# `workspace.yml` into CWD on first boot, and without the chown those
+# files land root-owned and the bootstrap fails with
+# `Permission denied (os error 13)`. The first `COPY` from
+# `writable-dirs` also seeds `/vectorizer` itself as nonroot-owned so
+# later COPYs don't implicitly recreate the parent as root.
+COPY --from=writable-dirs --chown=65532:65532 /vectorizer /vectorizer
+COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
+COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json
+COPY --from=dashboard-builder --chown=65532:65532 /dashboard/dist /vectorizer/dashboard/dist
+COPY --from=builder --chown=65532:65532 /vectorizer/config/config.example.yml /vectorizer/config/config.yml
 # Static busybox for the HEALTHCHECK probe. Invoked as
 # `/busybox wget ...` so the single binary covers every applet we'd
-# ever need without seeding a PATH or shell inside the image.
+# ever need without seeding a PATH or shell inside the image. Stays
+# root-owned (perms 755, world-executable) since it's exec-only.
 COPY --from=busybox /bin/busybox /busybox
 
 WORKDIR /vectorizer
@@ -313,7 +339,7 @@ LABEL org.opencontainers.image.version="${GIT_COMMIT_ID:-latest}"
 LABEL org.opencontainers.image.revision="${GIT_COMMIT_ID:-unknown}"
 LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL org.opencontainers.image.base.name="gcr.io/distroless/cc-debian12:nonroot"
+LABEL org.opencontainers.image.base.name="dhi.io/debian-base:trixie"
 
 # Security labels
 LABEL security.scan.enabled="true"
