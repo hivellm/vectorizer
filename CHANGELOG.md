@@ -31,7 +31,7 @@ All notable changes to this project will be documented in this file.
 - **`file_size_budget` test points at the post-split location + bumped search/vectors budgets.** `rest_handlers/` moved from `crates/vectorizer/src/server/…` to `crates/vectorizer-server/src/server/…` during phase4_split-vectorizer-workspace but the test still joined paths against the vectorizer crate's `CARGO_MANIFEST_DIR` and failed with `os error 3`. Prepend `../vectorizer-server/` inside `count_lines`. Two files had legitimately grown past budget — `vectors.rs` 350 → 450 (batch-insert helpers + auto-chunk engine landed in phase6/phase8), `search.rs` 500 → 1000 (hybrid dense+sparse + rank fusion + Qdrant adapters; re-tighten in `phase7_hybrid-search-extraction`).
 - **`manual_checked_division` clippy lint.** `if total > 0 { a/total } else { 0 }` in `crates/vectorizer/tests/performance/multi_tenant_load.rs:64` → `a.checked_div(total).unwrap_or(0)`.
 - **Doctest imports fixed for the post-split crate layout.** `crates/vectorizer-server/src/api/mod.rs`'s module-level `use vectorizer::api;` / `use vectorizer::server::rest_handlers;` / `use vectorizer::api::graphql::create_schema;` / `use vectorizer::api::graph::create_graph_router;` no longer resolve — api + server moved into `vectorizer-server`. Repointed to `vectorizer_server::…` and flagged the block `no_run` (it's a usage hint, not executable).
-- **Codespell `Re-using` → `Reusing`.** `crates/vectorizer-core/src/simd/x86/avx2.rs:118`.
+- **Codespell `Re`-`using` → `Reusing`.** `crates/vectorizer-core/src/simd/x86/avx2.rs:118`.
 
 ### Changed
 

@@ -221,10 +221,26 @@ async fn test_master_replicate_operations() {
         });
     }
 
-    sleep(Duration::from_secs(1)).await;
-
-    // Verify replication
-    let replica_collection = replica_store.get_collection("test").unwrap();
+    // Poll for the replica to materialize the collection + 10 vectors.
+    // Fixed 1s sleep flaked on ubuntu-latest under test-suite contention —
+    // same failure mode as `test_large_payload_replication` (see commit
+    // 7e361411 for the pattern).
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    let replica_collection = loop {
+        match replica_store.get_collection("test") {
+            Ok(c) if c.vector_count() == 10 => break c,
+            _ if std::time::Instant::now() >= deadline => {
+                panic!(
+                    "replica did not replicate `test` (vectors=10) within 30s; \
+                     last state: {:?}",
+                    replica_store
+                        .get_collection("test")
+                        .map(|c| c.vector_count())
+                );
+            }
+            _ => sleep(Duration::from_millis(100)).await,
+        }
+    };
     assert_eq!(replica_collection.vector_count(), 10);
 
     // Verify stats updated

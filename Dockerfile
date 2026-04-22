@@ -297,7 +297,7 @@ ARG GIT_COMMIT_ID
 # files land root-owned and the bootstrap fails with
 # `Permission denied (os error 13)`. The first `COPY` from
 # `writable-dirs` also seeds `/vectorizer` itself as nonroot-owned so
-# later COPYs don't implicitly recreate the parent as root.
+# later copies don't implicitly recreate the parent as root.
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer /vectorizer
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json

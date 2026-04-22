@@ -71,13 +71,16 @@ describe('HttpClient', () => {
 
       const result = await httpClient.get('/test');
 
+      // `test-api-key` is not JWT-shaped (no `.` segments), so the
+      // HttpClient sniff routes it to `X-API-Key` rather than
+      // `Authorization: Bearer` — see http-client.ts::authHeader.
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:15002/test',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-api-key',
+            'X-API-Key': 'test-api-key',
           }),
         })
       );
@@ -144,6 +147,8 @@ describe('HttpClient', () => {
 
       const result = await httpClient.post('/test', requestData);
 
+      // Same `X-API-Key` routing as the GET test above — raw keys
+      // never take the Bearer path.
       expect(mockFetch).toHaveBeenCalledWith(
         'http://localhost:15002/test',
         expect.objectContaining({
@@ -151,7 +156,7 @@ describe('HttpClient', () => {
           body: JSON.stringify(requestData),
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-api-key',
+            'X-API-Key': 'test-api-key',
           }),
         })
       );
