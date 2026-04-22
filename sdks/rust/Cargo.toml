@@ -26,6 +26,14 @@ path = "examples/rpc_quickstart.rs"
 name = "test_master_replica"
 path = "examples/test_master_replica.rs"
 
+[[example]]
+name = "drift_smoke"
+path = "examples/drift_smoke.rs"
+
+[[example]]
+name = "apikey_smoke"
+path = "examples/apikey_smoke.rs"
+
 [dependencies]
 # Dependencies matching vectorizer versions
 serde = { version = "1.0", features = ["derive"] }

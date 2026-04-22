@@ -180,6 +180,9 @@ fn test_search_response_creation() {
     let search_response = SearchResponse {
         results: results.clone(),
         query_time_ms: 15.5,
+        query: None,
+        limit: None,
+        collection: None,
     };
 
     assert_eq!(search_response.results.len(), 2);
@@ -263,6 +266,7 @@ fn test_batch_response_creation() {
         failed_operations: 0,
         duration_ms: 150,
         errors: vec![],
+        results: vec![],
     };
 
     assert!(batch_response.success);

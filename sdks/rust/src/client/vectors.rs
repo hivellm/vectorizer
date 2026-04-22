@@ -10,6 +10,14 @@ use crate::models::*;
 
 impl VectorizerClient {
     /// Fetch one vector by id.
+    ///
+    /// **Server caveat (observed on `hivehub/vectorizer:3.0.x`):** the
+    /// `GET /collections/{c}/vectors/{id}` endpoint currently returns
+    /// HTTP 200 with a synthetic uniform-vector payload
+    /// (`[0.1, 0.1, …]`) even for ids that don't exist. Callers that
+    /// need real miss detection should probe via
+    /// [`VectorizerClient::list_vectors`] or search and not trust an
+    /// `Ok(Vector)` as proof of existence until the server fix ships.
     pub async fn get_vector(&self, collection: &str, vector_id: &str) -> Result<Vector> {
         let response = self
             .make_request(
@@ -24,20 +32,34 @@ impl VectorizerClient {
         Ok(vector)
     }
 
-    /// Insert a batch of texts into a collection. The server
-    /// embeds them with the collection's configured provider.
+    /// Insert a batch of texts into a collection. The server embeds
+    /// each entry with the collection's configured provider (BM25 by
+    /// default; FastEmbed ONNX when selected in `config.yml`).
+    ///
+    /// Wire contract: the server's `POST /insert_texts` handler
+    /// expects `{ "collection": "<name>", "texts": [...] }` — the
+    /// collection is a top-level field in the JSON body, not a path
+    /// segment. The earlier `POST /collections/{c}/documents` path
+    /// this method used was never served (the 3.0.x server returns
+    /// 404 for it) and has been removed.
+    ///
+    /// Per-entry `id` field: the server **reassigns** every inserted
+    /// vector a server-generated UUID regardless of what the caller
+    /// sent. The original client id is stashed as `client_id` on the
+    /// response entry. Callers that need idempotency by client id
+    /// should key off the `client_id` round-trip, not the
+    /// server-assigned UUID.
     pub async fn insert_texts(
         &self,
         collection: &str,
         texts: Vec<BatchTextRequest>,
     ) -> Result<BatchResponse> {
-        let payload = serde_json::json!({ "texts": texts });
+        let payload = serde_json::json!({
+            "collection": collection,
+            "texts": texts,
+        });
         let response = self
-            .make_request(
-                "POST",
-                &format!("/collections/{collection}/documents"),
-                Some(serde_json::to_value(payload)?),
-            )
+            .make_request("POST", "/insert_texts", Some(payload))
             .await?;
         let batch_response: BatchResponse = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!("Failed to parse insert texts response: {e}"))

@@ -200,13 +200,30 @@ pub struct SearchResult {
     pub metadata: Option<HashMap<String, serde_json::Value>>,
 }
 
-/// Search response
+/// Search response.
+///
+/// `query_time_ms` defaults to `0.0` because the v3.0.x server's text
+/// search handler doesn't emit it — callers that need elapsed timing
+/// should measure client-side. Same tolerance applies to the
+/// additional diagnostic fields the server may add in later versions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {
-    /// Search results
+    /// Search results.
+    #[serde(default)]
     pub results: Vec<SearchResult>,
-    /// Query time in milliseconds
+    /// Query time in milliseconds (server-reported; 0.0 when the
+    /// server omits it).
+    #[serde(default)]
     pub query_time_ms: f64,
+    /// Echo of the original query string, if the server returned one.
+    #[serde(default)]
+    pub query: Option<String>,
+    /// Echo of the requested result limit, if the server returned one.
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Echo of the collection name, if the server returned one.
+    #[serde(default)]
+    pub collection: Option<String>,
 }
 
 /// Embedding request
@@ -336,25 +353,80 @@ pub struct BatchInsertRequest {
     pub config: Option<BatchConfig>,
 }
 
-/// Batch response
+/// Batch response.
+///
+/// Tolerant of both the old (pre-v3) `{success, operation, total_operations,
+/// successful_operations, failed_operations, duration_ms, errors}` shape
+/// and the v3.0.x server's `/insert_texts` response
+/// `{collection, count, inserted, failed, results}`. All fields default to
+/// empty/zero/false when absent so callers can match on whichever pair the
+/// running server emits without branching on version.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchResponse {
-    /// Whether the operation was successful
+    /// Whether the operation was successful (pre-v3 shape; v3 emits
+    /// `inserted`/`failed` instead — left `false` and the caller
+    /// should inspect `successful_operations > 0 && failed_operations == 0`).
+    #[serde(default)]
     pub success: bool,
-    /// Collection name
+    /// Collection name (both shapes emit this).
+    #[serde(default)]
     pub collection: String,
-    /// Operation type
+    /// Operation type (pre-v3 only; v3 omits).
+    #[serde(default)]
     pub operation: String,
-    /// Total number of operations
+    /// Total number of operations (pre-v3 shape). v3 emits `count` —
+    /// normalised into this field via the alias.
+    #[serde(default, alias = "count")]
     pub total_operations: usize,
-    /// Number of successful operations
+    /// Number of successful operations (pre-v3 shape). v3 emits
+    /// `inserted` — aliased so either maps onto this field.
+    #[serde(default, alias = "inserted")]
     pub successful_operations: usize,
-    /// Number of failed operations
+    /// Number of failed operations. Same field name in both shapes.
+    #[serde(default, alias = "failed")]
     pub failed_operations: usize,
-    /// Duration in milliseconds
+    /// Duration in milliseconds (pre-v3 only).
+    #[serde(default)]
     pub duration_ms: u64,
-    /// Error messages
+    /// Error messages (pre-v3 shape).
+    #[serde(default)]
     pub errors: Vec<String>,
+    /// Per-entry result records emitted by v3 `/insert_texts`. Each
+    /// record carries the client-sent id (`client_id`) and the
+    /// server-assigned UUIDs under `vector_ids`; use this when the
+    /// server reassigns ids on insert.
+    #[serde(default)]
+    pub results: Vec<BatchResultEntry>,
+}
+
+/// One entry in `BatchResponse::results` as emitted by the v3
+/// `/insert_texts` handler. Carries the client-provided id alongside
+/// the server-assigned vector UUID(s) so callers can round-trip the
+/// mapping when they need idempotency by client id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchResultEntry {
+    /// Original `id` the caller sent in `BatchTextRequest`.
+    #[serde(default)]
+    pub client_id: String,
+    /// Zero-based index of the entry in the original batch.
+    #[serde(default)]
+    pub index: usize,
+    /// `"ok"` or `"error"`.
+    #[serde(default)]
+    pub status: String,
+    /// Whether the server chunked the input (long text → multiple
+    /// vectors).
+    #[serde(default)]
+    pub chunked: bool,
+    /// Server-assigned UUID(s) — one element unless `chunked` is true.
+    #[serde(default)]
+    pub vector_ids: Vec<String>,
+    /// Count of vectors created for this entry (≥1 if `chunked`).
+    #[serde(default)]
+    pub vectors_created: usize,
+    /// Populated only on `status == "error"`.
+    #[serde(default)]
+    pub error: Option<String>,
 }
 
 /// Batch search query
