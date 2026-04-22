@@ -28,11 +28,11 @@ services:
   # ─────────────────────────────────────────────────────────────────
   vectorizer:
     profiles: [default]
-    # v3.0.0 is not yet published to Docker Hub — `hivehub/vectorizer:latest`
-    # on the Hub is a stale pre-v3 build that requires GLIBC_2.38 and fails
-    # to start on distroless/cc-debian12 (glibc 2.36). Build locally until
-    # the v3.0.0 image is published; compose will use the local tag.
-    image: hivehub/vectorizer:3.0.0
+    # `hivehub/vectorizer:3.0.1` is published on Docker Hub (digest + latest
+    # point at the same 66 MB distroless image, UID 65532). The `build:`
+    # block below stays so offline / air-gapped builds work against the
+    # local Dockerfile without needing `docker pull`.
+    image: hivehub/vectorizer:3.0.1
     build:
       context: .
       dockerfile: Dockerfile

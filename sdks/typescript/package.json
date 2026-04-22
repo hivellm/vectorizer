@@ -1,6 +1,6 @@
 {
   "name": "@hivehub/vectorizer-sdk",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "TypeScript SDK for Vectorizer - High-performance vector database. Ships the VectorizerRPC binary transport (default in v3.x) plus the legacy REST client.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
