@@ -41,7 +41,8 @@
     "tailwindcss-animate": "^1.0.7",
     "vis-data": "^8.0.3",
     "vis-network": "^10.0.2",
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.12",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -92,7 +93,14 @@
       "picomatch@<2.3.2": "2.3.2",
       "picomatch@>=4.0.0 <4.0.4": "4.0.4",
       "vite@>=7.0.0 <7.3.2": "7.3.2",
-      "dompurify@<3.4.0": "3.4.0"
+      "dompurify@<3.4.0": "3.4.0",
+      "uuid": "14.0.0"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "vis-data>uuid": "14",
+        "vis-network>uuid": "14"
+      }
     }
   }
 }
