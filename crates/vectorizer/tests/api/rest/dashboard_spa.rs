@@ -12,10 +12,41 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
 
+    /// Probe whether `localhost:15002` is actually a Vectorizer server and not
+    /// some unrelated service that happens to share the port (e.g. the
+    /// sibling `hivehub/nexus` container, which also answers `/health` with a
+    /// completely different shape). Returns true only when `/health` is 200
+    /// **and** the body carries a `version` starting with `3.` — i.e. a v3.x
+    /// Vectorizer. Tests short-circuit with `return` when this gate fails,
+    /// matching the "connection refused" skip branch already in place.
+    async fn vectorizer_server_available() -> bool {
+        let Ok(client) = reqwest::Client::builder()
+            .timeout(Duration::from_secs(2))
+            .build()
+        else {
+            return false;
+        };
+        let Ok(resp) = client.get("http://localhost:15002/health").send().await else {
+            return false;
+        };
+        if !resp.status().is_success() {
+            return false;
+        }
+        let Ok(body) = resp.text().await else {
+            return false;
+        };
+        // Cheap version sniff without pulling serde_json: Vectorizer emits
+        // `"version":"3.x.y"` in its health payload; nexus emits `"1.13.0"`.
+        body.contains("\"version\":\"3.")
+    }
+
     /// Test that the dashboard root returns index.html
     #[tokio::test]
     async fn test_dashboard_root_returns_index_html() {
         // This test requires a running server, skip if not available
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -45,6 +76,9 @@ mod tests {
     /// Test that SPA routes return index.html (not 404)
     #[tokio::test]
     async fn test_spa_routes_return_index_html() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -99,6 +133,9 @@ mod tests {
     /// Test that static assets are served correctly (not index.html)
     #[tokio::test]
     async fn test_static_assets_served_correctly() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -135,6 +172,9 @@ mod tests {
     /// Test that assets have proper cache headers
     #[tokio::test]
     async fn test_assets_have_cache_headers() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -186,6 +226,9 @@ mod tests {
     /// Test that SPA routes have no-cache headers
     #[tokio::test]
     async fn test_spa_routes_have_no_cache_headers() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -224,6 +267,9 @@ mod tests {
     /// Test that API routes are not affected by dashboard fallback
     #[tokio::test]
     async fn test_api_routes_not_affected() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -272,6 +318,9 @@ mod tests {
     /// Test edge cases: long URLs
     #[tokio::test]
     async fn test_long_urls() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -303,6 +352,9 @@ mod tests {
     /// Test edge cases: special characters in URLs
     #[tokio::test]
     async fn test_special_characters_in_urls() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
@@ -341,6 +393,9 @@ mod tests {
     /// Test trailing slash handling
     #[tokio::test]
     async fn test_trailing_slash_handling() {
+        if !vectorizer_server_available().await {
+            return;
+        }
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()
