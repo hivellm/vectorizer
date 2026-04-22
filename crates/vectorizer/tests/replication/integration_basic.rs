@@ -300,20 +300,49 @@ async fn test_master_multiple_replicas_and_stats() {
         });
     }
 
-    sleep(Duration::from_secs(2)).await;
-
-    // Verify all replicas got the data
+    // Poll for every replica to materialize `multi` with 20 vectors.
+    // Fixed 2s sleep flaked on ubuntu-latest under the parallel
+    // nextest matrix (even after serializing the replication group,
+    // the snapshot + incremental replay can exceed 2s on a cold
+    // runner); the deadline-driven poll below is robust while still
+    // finishing in well under 1s on a warm dev box.
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
     for (i, (_replica, store)) in replicas.iter().enumerate() {
-        let collection = store.get_collection("multi").unwrap();
-        assert_eq!(collection.vector_count(), 20, "Replica {i} mismatch");
+        loop {
+            match store.get_collection("multi") {
+                Ok(c) if c.vector_count() == 20 => break,
+                _ if std::time::Instant::now() >= deadline => {
+                    panic!(
+                        "Replica {i} did not replicate `multi` (vectors=20) within 60s; \
+                         last state: {:?}",
+                        store.get_collection("multi").map(|c| c.vector_count())
+                    );
+                }
+                _ => sleep(Duration::from_millis(100)).await,
+            }
+        }
     }
 
     // Test master stats with multiple replicas
     let stats = master.get_stats();
     assert!(stats.master_offset >= 20);
 
-    // Test get_replicas with multiple replicas
-    let replica_infos = master.get_replicas();
+    // Test get_replicas with multiple replicas — also poll because the
+    // master's replica-registration bookkeeping is updated by the
+    // heartbeat task, which can lag the actual TCP connect.
+    let replica_infos = loop {
+        let infos = master.get_replicas();
+        if infos.len() == 3 {
+            break infos;
+        }
+        if std::time::Instant::now() >= deadline {
+            panic!(
+                "master.get_replicas() expected 3 entries within 60s; got {}",
+                infos.len()
+            );
+        }
+        sleep(Duration::from_millis(100)).await;
+    };
     assert_eq!(replica_infos.len(), 3);
 
     for info in replica_infos {
@@ -901,13 +930,13 @@ async fn test_large_payload_replication() {
     // longer under contention.
     let (_replica, replica_store) = create_running_replica(master_addr).await;
 
-    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
     let replica_collection = loop {
         match replica_store.get_collection("large_payload") {
             Ok(c) if c.vector_count() == 1 => break c,
             _ if std::time::Instant::now() >= deadline => {
                 panic!(
-                    "replica did not replicate `large_payload` (vectors=1) within 30s; \
+                    "replica did not replicate `large_payload` (vectors=1) within 60s; \
                      last state: {:?}",
                     replica_store
                         .get_collection("large_payload")

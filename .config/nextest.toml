@@ -1,0 +1,25 @@
+# Nextest config — keep the replication integration suite serialized.
+#
+# `replication::integration::integration_basic::*` spins up real master
+# + replica TCP servers and relies on on-wire timing (heartbeats,
+# snapshot transfer, log replay). Running them in parallel under
+# ubuntu-latest contention surfaced as flaky `CollectionNotFound`
+# panics and replica-count mismatches — the per-test port counter
+# prevents literal port collisions, but the suite still competes for
+# the tokio runtime + loopback bandwidth + the stall-detection
+# timeouts baked into the replication layer. Pinning the test group
+# to `threads-required = "num-test-threads"` makes nextest treat the
+# whole group as exclusive and serialize them.
+
+[test-groups]
+replication-serial = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'test(=replication::integration::integration_basic::)'
+test-group = 'replication-serial'
+
+[[profile.default.overrides]]
+# A couple of sibling replication tests live in the same tree and
+# share the same TCP listener pool.
+filter = 'test(replication::integration)'
+test-group = 'replication-serial'
