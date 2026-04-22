@@ -53,7 +53,15 @@ class HTTPClient:
         if self._session is None or self._session.closed:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
+                # JWT shape → `Authorization: Bearer`; anything else
+                # (raw API keys from `POST /auth/keys`) → `X-API-Key`.
+                # Server middleware won't fall back Bearer → api_key,
+                # so routing has to happen client-side.
+                parts = self.api_key.split(".")
+                if len(parts) == 3 and all(p for p in parts):
+                    headers["Authorization"] = f"Bearer {self.api_key}"
+                else:
+                    headers["X-API-Key"] = self.api_key
             
             timeout_config = aiohttp.ClientTimeout(total=self.timeout)
             self._session = aiohttp.ClientSession(

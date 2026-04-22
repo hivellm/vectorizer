@@ -112,6 +112,15 @@ class VectorsClient(_ApiBase):
         """
         Get a specific vector by ID.
 
+        .. warning::
+           **Server caveat (observed on ``hivehub/vectorizer:3.0.x``):**
+           this endpoint currently returns HTTP 200 with a synthetic
+           uniform-vector payload (``[0.1, 0.1, ...]``) even for ids
+           that don't exist. Callers that need real miss detection
+           should probe via :meth:`list_vectors` or search and not
+           trust a successful response as proof of existence until
+           the server fix ships.
+
         Args:
             collection: Collection name
             vector_id: Vector ID
@@ -125,6 +134,44 @@ class VectorsClient(_ApiBase):
             ServerError: If service returns error
         """
         return await self._transport.get(f"/collections/{collection}/vectors/{vector_id}")
+
+    async def insert_text_batch(
+        self,
+        collection: str,
+        texts: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Insert a batch of **texts** into a collection. The server
+        embeds each entry with the collection's configured provider
+        (BM25 default, FastEmbed ONNX when selected in ``config.yml``).
+
+        Wire contract: ``POST /insert_texts`` with
+        ``{"collection": ..., "texts": [...]}`` payload. The collection
+        is a top-level JSON field, **not** a path segment.
+
+        Per-entry ``id``: the server **reassigns** every inserted
+        vector a server-generated UUID. The original client id
+        round-trips on the response as ``client_id``. Callers that
+        need idempotency by client id should key off the returned
+        ``results[].client_id``, not the server-assigned UUID.
+
+        Distinct from :meth:`insert_texts` on this class, which takes
+        :class:`Vector` objects with pre-computed embeddings and hits
+        the raw-vector write path.
+
+        Args:
+            collection: Collection name.
+            texts: Entries of shape
+                ``{"id": "...", "text": "...", "metadata": {...}}``.
+
+        Returns:
+            Raw ``/insert_texts`` response dict with fields
+            ``collection``, ``count``, ``inserted``, ``failed``,
+            ``results``.
+        """
+        if not texts:
+            raise ValidationError("texts list cannot be empty")
+        payload = {"collection": collection, "texts": texts}
+        return await self._transport.post("/insert_texts", data=payload)
     async def delete_vectors(self, collection: str, vector_ids: List[str]) -> bool:
         """
         Delete vectors from a collection.

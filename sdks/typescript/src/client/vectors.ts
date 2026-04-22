@@ -59,7 +59,55 @@ export class VectorsClient extends BaseClient {
     }
   }
 
-  /** Fetch a single vector by ID. */
+  /**
+   * Insert a batch of texts into a collection. The server embeds each
+   * entry with the collection's configured provider (BM25 default,
+   * FastEmbed ONNX when selected in `config.yml`).
+   *
+   * Wire contract: `POST /insert_texts` with `{ collection, texts }`
+   * payload. The collection is a top-level JSON field, **not** a path
+   * segment — earlier drafts of this SDK POSTed to
+   * `/collections/{c}/documents` which the v3.0.x server 404s.
+   *
+   * Per-entry `id`: the server **reassigns** every inserted vector a
+   * server-generated UUID. The original client id round-trips on the
+   * response as `client_id`. Callers that need idempotency by client
+   * id should key off the returned `results[].client_id`, not the
+   * server-assigned UUID.
+   */
+  public async insertTexts(
+    collectionName: string,
+    texts: Array<{ id: string; text: string; metadata?: Record<string, unknown> }>,
+  ): Promise<BatchResponse> {
+    try {
+      const transport = this.getWriteTransport();
+      const response = await transport.post<BatchResponse>('/insert_texts', {
+        collection: collectionName,
+        texts,
+      });
+      this.logger.info('Texts inserted', { collectionName, count: texts.length });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to insert texts', {
+        collectionName,
+        count: texts.length,
+        error,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch a single vector by ID.
+   *
+   * **Server caveat (observed on `hivehub/vectorizer:3.0.x`):** the
+   * `GET /collections/{c}/vectors/{id}` endpoint currently returns
+   * HTTP 200 with a synthetic uniform-vector payload
+   * (`[0.1, 0.1, …]`) even for ids that don't exist. Callers that
+   * need real miss detection should probe via `listVectors` or
+   * search and not trust a successful response as proof of existence
+   * until the server fix ships.
+   */
   public async getVector(
     collectionName: string,
     vectorId: string,

@@ -274,7 +274,16 @@ class VectorizerClient:
             if self._session is None or self._session.closed:
                 headers = {}
                 if self.api_key:
-                    headers["Authorization"] = f"Bearer {self.api_key}"
+                    # Route JWTs to `Authorization: Bearer` and raw API
+                    # keys to `X-API-Key`. Server middleware treats
+                    # every Bearer string as a JWT and won't fall back
+                    # to the API-key validator — sending a raw key as
+                    # Bearer silently 401s on every gated route.
+                    from ._base import _looks_like_jwt
+                    if _looks_like_jwt(self.api_key):
+                        headers["Authorization"] = f"Bearer {self.api_key}"
+                    else:
+                        headers["X-API-Key"] = self.api_key
 
                 timeout = aiohttp.ClientTimeout(total=self.timeout)
                 self._session = aiohttp.ClientSession(

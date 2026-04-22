@@ -7,6 +7,21 @@
 
 import { NetworkError, ServerError, AuthenticationError, TimeoutError } from '../exceptions';
 
+// Mirrors the same JWT-vs-API-key sniff as `http-client.ts`. Kept
+// local so the two transport modules don't need an extra shared
+// barrel file. See the doc comment there for the full rationale.
+function looksLikeJwt(token: string): boolean {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  return parts.every(p => p.length > 0);
+}
+
+function authHeader(apiKey: string): [string, string] {
+  return looksLikeJwt(apiKey)
+    ? ['Authorization', `Bearer ${apiKey}`]
+    : ['X-API-Key', apiKey];
+}
+
 export interface UMICPClientConfig {
   host: string;
   port: number;
@@ -88,7 +103,8 @@ export class UMICPClient {
     }
 
     if (this.config.apiKey) {
-      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      const [name, value] = authHeader(this.config.apiKey);
+      headers[name] = value;
     }
 
     const controller = new AbortController();
@@ -193,7 +209,8 @@ export class UMICPClient {
     delete headers['Content-Type'];
 
     if (this.config.apiKey) {
-      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+      const [name, value] = authHeader(this.config.apiKey);
+      headers[name] = value;
     }
 
     const controller = new AbortController();

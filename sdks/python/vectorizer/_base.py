@@ -112,6 +112,22 @@ class RestTransport(Transport):
         await self._http.close()
 
 
+def _looks_like_jwt(token: str) -> bool:
+    """Cheap JWT shape sniff: three non-empty base64url-encoded segments
+    joined by ``.``. Raw Vectorizer API keys (from ``POST /auth/keys``)
+    are a single alphanumeric string and fail this check, so they get
+    routed to ``X-API-Key`` rather than ``Authorization: Bearer``.
+
+    The server's auth middleware treats every ``Bearer`` string as a
+    JWT and never falls back to the API-key validator, so sending a
+    raw key under ``Bearer`` silently 401s. This sniff keeps the public
+    ``api_key`` config field unchanged while routing each credential
+    down the header the server actually accepts.
+    """
+    parts = token.split(".")
+    return len(parts) == 3 and all(p for p in parts)
+
+
 @dataclass
 class AuthState:
     """Bearer-token + API-key state shared across surface clients."""
@@ -121,7 +137,9 @@ class AuthState:
     def headers(self) -> dict:
         if not self.api_key:
             return {}
-        return {"Authorization": f"Bearer {self.api_key}"}
+        if _looks_like_jwt(self.api_key):
+            return {"Authorization": f"Bearer {self.api_key}"}
+        return {"X-API-Key": self.api_key}
 
 
 @dataclass

@@ -9470,7 +9470,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer-protocol"
-version = "3.0.2"
+version = "3.0.3"
 dependencies = [
  "prost",
  "prost-types",
@@ -9488,7 +9488,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer-sdk"
-version = "3.0.2"
+version = "3.0.3"
 dependencies = [
  "anyhow",
  "async-trait",

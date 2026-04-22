@@ -15,6 +15,19 @@ import {
   validateEmbeddingResponse,
 } from '../models';
 
+/**
+ * Response from `POST /auth/login`. Full shape includes `token_type`,
+ * `expires_in`, and `user` — this typing keeps the minimum every
+ * caller needs (`accessToken`) while leaving the rest available as
+ * optional fields for those that want the expiry.
+ */
+export interface LoginResponse {
+  accessToken: string;
+  tokenType?: string;
+  expiresIn?: number;
+  user?: { userId: string; username: string; roles: string[] };
+}
+
 export class CoreClient extends BaseClient {
   /** Liveness probe. */
   public async healthCheck(): Promise<{ status: string; timestamp: string }> {
@@ -24,6 +37,50 @@ export class CoreClient extends BaseClient {
       return response;
     } catch (error) {
       this.logger.error('Health check failed', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Exchange `(username, password)` for a JWT via `POST /auth/login`.
+   * The returned `accessToken` is NOT stored on `this` — to use it
+   * for subsequent requests, construct a new client with
+   * `apiKey: token.accessToken`. The HTTP transport sniffs the
+   * three-segment JWT shape and sends it as `Authorization: Bearer …`
+   * rather than `X-API-Key`.
+   *
+   * When the server runs with `auth.enabled: false` this endpoint
+   * returns 404 — no login needed against a no-auth dev server.
+   */
+  public async login(username: string, password: string): Promise<LoginResponse> {
+    try {
+      const raw = await this.transport.post<{
+        access_token: string;
+        token_type?: string;
+        expires_in?: number;
+        user?: { user_id: string; username: string; roles: string[] };
+      }>('/auth/login', { username, password });
+      // `exactOptionalPropertyTypes` in this project rejects explicit
+      // `undefined` on optional fields — build the response shape
+      // conditionally so each optional is either present with a
+      // defined value or omitted entirely.
+      const response: LoginResponse = { accessToken: raw.access_token };
+      if (raw.token_type !== undefined) {
+        response.tokenType = raw.token_type;
+      }
+      if (raw.expires_in !== undefined) {
+        response.expiresIn = raw.expires_in;
+      }
+      if (raw.user !== undefined) {
+        response.user = {
+          userId: raw.user.user_id,
+          username: raw.user.username,
+          roles: raw.user.roles,
+        };
+      }
+      return response;
+    } catch (error) {
+      this.logger.error('Login failed', { username, error });
       throw error;
     }
   }

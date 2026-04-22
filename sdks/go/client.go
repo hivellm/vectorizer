@@ -7,8 +7,29 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
+
+// looksLikeJWT reports whether the given credential looks like a JWT:
+// three non-empty base64url-encoded segments separated by `.`. Raw
+// Vectorizer API keys (from `POST /auth/keys`) are a single
+// alphanumeric string and fail this check, so they're routed to
+// `X-API-Key` rather than `Authorization: Bearer`. The server's auth
+// middleware treats every Bearer string as a JWT and never falls back
+// to the API-key validator.
+func looksLikeJWT(token string) bool {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if p == "" {
+			return false
+		}
+	}
+	return true
+}
 
 // Config holds the client configuration
 type Config struct {
@@ -163,7 +184,16 @@ func (c *Client) request(method, path string, body interface{}, result interface
 
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		// JWT shape → `Authorization: Bearer`; raw API keys (from
+		// `POST /auth/keys`) → `X-API-Key`. The server's auth
+		// middleware treats every Bearer string as a JWT and never
+		// falls back to the API-key validator, so routing must
+		// happen client-side.
+		if looksLikeJWT(c.apiKey) {
+			req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		} else {
+			req.Header.Set("X-API-Key", c.apiKey)
+		}
 	}
 
 	resp, err := c.httpClient.Do(req)

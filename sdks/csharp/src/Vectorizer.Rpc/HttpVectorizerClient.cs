@@ -59,8 +59,38 @@ public sealed class HttpVectorizerClient : IVectorizerClient
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         if (!string.IsNullOrEmpty(_apiKey))
         {
-            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            // JWT shape (three non-empty `.`-separated segments) →
+            // `Authorization: Bearer`; raw API keys from
+            // `POST /auth/keys` → `X-API-Key`. The server's auth
+            // middleware treats every Bearer string as a JWT and
+            // never falls back to the API-key validator, so the
+            // routing has to happen client-side.
+            if (LooksLikeJwt(_apiKey))
+            {
+                _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            }
+            else
+            {
+                _http.DefaultRequestHeaders.Add("X-API-Key", _apiKey);
+            }
         }
+    }
+
+    private static bool LooksLikeJwt(string token)
+    {
+        var parts = token.Split('.');
+        if (parts.Length != 3)
+        {
+            return false;
+        }
+        foreach (var p in parts)
+        {
+            if (string.IsNullOrEmpty(p))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     public EndpointKind Transport => EndpointKind.Rest;

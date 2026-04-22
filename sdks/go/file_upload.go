@@ -114,7 +114,11 @@ func (c *Client) UploadFile(fileContent []byte, filename, collectionName string,
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		if looksLikeJWT(c.apiKey) {
+			req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		} else {
+			req.Header.Set("X-API-Key", c.apiKey)
+		}
 	}
 
 	// Send request
@@ -159,7 +163,11 @@ func (c *Client) GetUploadConfig() (*FileUploadConfig, error) {
 	}
 
 	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		if looksLikeJWT(c.apiKey) {
+			req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		} else {
+			req.Header.Set("X-API-Key", c.apiKey)
+		}
 	}
 
 	resp, err := httpClient.Do(req)
