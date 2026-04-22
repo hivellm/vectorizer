@@ -255,6 +255,13 @@ RUN xx-cargo install cargo-sbom && \
 FROM debian:bookworm-slim AS writable-dirs
 RUN mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
 
+# Static busybox — the runtime is distroless (no shell, no curl, no wget), so
+# docker-compose / orchestrator healthchecks against /health need their own
+# HTTP probe binary. busybox:stable-musl is a ~1 MB static binary that
+# supplies `wget`, satisfying the HEALTHCHECK below without re-introducing a
+# shell or a package manager.
+FROM busybox:stable-musl AS busybox
+
 # ============================================================================
 # RUNTIME IMAGE - Google Distroless (minimal attack surface, near-zero CVEs)
 # ============================================================================
@@ -271,6 +278,10 @@ COPY --from=builder /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx
 COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder /vectorizer/config/config.example.yml /vectorizer/config/config.yml
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer/data /vectorizer/data
+# Static busybox for the HEALTHCHECK probe. Invoked as
+# `/busybox wget ...` so the single binary covers every applet we'd
+# ever need without seeding a PATH or shell inside the image.
+COPY --from=busybox /bin/busybox /busybox
 
 WORKDIR /vectorizer
 
@@ -308,6 +319,13 @@ LABEL org.opencontainers.image.base.name="gcr.io/distroless/cc-debian12:nonroot"
 LABEL security.scan.enabled="true"
 LABEL security.non-root-user="nonroot"
 LABEL security.user-id="65532"
+
+# Healthcheck via static busybox wget against the anonymous /health route.
+# `--spider` issues a HEAD-style probe (no body download), exits 0 on 2xx.
+# `start-period=40s` covers cold-start (dashboard mount + first auto-save
+# snapshot); `interval=30s` keeps load low, `timeout=5s` detects hangs.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD ["/busybox", "wget", "-q", "--spider", "http://127.0.0.1:15002/health"]
 
 # Direct binary execution (no shell in distroless)
 ENTRYPOINT ["/vectorizer/vectorizer"]
