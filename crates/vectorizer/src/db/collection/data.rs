@@ -58,12 +58,28 @@ impl Collection {
         }
 
         // Insert vectors and update index
-        let vectors_len = vectors.len();
         let index = self.index.write();
         let mut vector_order = self.vector_order.write();
+        // Track only NEW IDs so `vector_count` stays in sync with the
+        // underlying storage (both `self.vectors` and `self.quantized_vectors`
+        // replace on duplicate key). Counting every batch element would make
+        // the counter diverge from `self.vectors.len()` under replay, e.g.
+        // when a replica receives overlapping snapshot + streamed ops.
+        let is_quantized = matches!(
+            self.config.quantization,
+            crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
+        );
+        let mut new_inserts: usize = 0;
         for mut vector in vectors {
             let id = vector.id.clone();
             let mut data = vector.data.clone();
+
+            let is_new = if is_quantized {
+                !self.quantized_vectors.lock().contains_key(&id)
+            } else {
+                !self.vectors.contains_key(&id)?
+            };
 
             // Normalize vector for cosine similarity
             if matches!(self.config.metric, DistanceMetric::Cosine) {
@@ -125,8 +141,13 @@ impl Collection {
                 self.vectors.insert(id.clone(), vector.clone())?;
             }
 
-            // Track insertion order for persistence consistency
-            vector_order.push(id.clone());
+            // Track insertion order for persistence consistency.
+            // Only new IDs contribute to order and to `vector_count` — see
+            // the top-of-loop note on replay idempotence.
+            if is_new {
+                vector_order.push(id.clone());
+                new_inserts += 1;
+            }
 
             // Add to index (using full precision for search accuracy)
             index.add(id.clone(), data.clone())?;
@@ -204,8 +225,8 @@ impl Collection {
             }
         }
 
-        // Update vector count
-        *self.vector_count.write() += vectors_len;
+        // Update vector count — only advance by IDs that were genuinely new.
+        *self.vector_count.write() += new_inserts;
 
         // Update timestamp
         *self.updated_at.write() = chrono::Utc::now();
@@ -217,7 +238,7 @@ impl Collection {
         ) {
             let count = *self.vector_count.read();
             // Train when we reach 1000 vectors (good balance between quality and startup time)
-            if count >= 1000 && count < 1000 + vectors_len {
+            if count >= 1000 && count < 1000 + new_inserts {
                 debug!("Auto-training PQ with {} vectors", count);
                 let _ = self.train_pq_if_needed();
             }

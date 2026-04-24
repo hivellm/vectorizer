@@ -481,12 +481,29 @@ async fn test_replica_partial_sync_on_reconnect() {
         });
     }
 
-    // Reconnect - should use partial sync
+    // Reconnect - should use partial sync.
     let (replica2, replica_store2) = create_running_replica(master_addr).await;
-    sleep(Duration::from_secs(1)).await;
 
-    // Verify caught up via partial sync
-    let collection = replica_store2.get_collection("partial").unwrap();
+    // Poll for replica2 to catch up to 15 vectors. Matches the deadline
+    // pattern introduced in commit 0edc0141 for the other integration
+    // tests; replaces a fixed 1s sleep that flaked on CI runners under
+    // snapshot-then-stream load.
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
+    let collection = loop {
+        match replica_store2.get_collection("partial") {
+            Ok(c) if c.vector_count() == 15 => break c,
+            _ if std::time::Instant::now() >= deadline => {
+                panic!(
+                    "replica did not converge on `partial` (vectors=15) within 60s; \
+                     last state: {:?}",
+                    replica_store2
+                        .get_collection("partial")
+                        .map(|c| c.vector_count())
+                );
+            }
+            _ => sleep(Duration::from_millis(100)).await,
+        }
+    };
     assert_eq!(collection.vector_count(), 15);
 
     let offset_after = replica2.get_offset();

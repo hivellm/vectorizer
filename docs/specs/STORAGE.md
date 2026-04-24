@@ -30,6 +30,28 @@ data/
 - Higher disk usage
 - Suitable for active development
 
+#### Legacy single-file format
+
+A second, older path in `crates/vectorizer/src/persistence/mod.rs`
+(`PersistedVectorStore::save` / `load`) writes each collection to an
+individual file — typically named `<collection>.vecdb` or `<collection>.vecdb.gz`
+depending on deployment. **This path is completely distinct from the compact
+ZIP `.vecdb` archive above.** It is:
+
+- **Gzip-compressed JSON**, not ZIP and not bincode. The save path calls
+  `serde_json::to_string(&persisted)` and pipes the bytes through
+  `flate2::GzEncoder` at `Compression::best()`.
+- Wrapped in a `PersistedVectorStore { version: u32, collections: Vec<PersistedCollection> }`
+  envelope (`version` is a `u32`, currently `1`; a mismatch is rejected on load).
+- Backward-compatible: the loader first tries `GzDecoder`, then falls back to
+  reading the file as plain-text JSON for older on-disk data.
+- **No per-file checksum.** Integrity relies on the underlying filesystem and
+  gzip's CRC-32 trailer; there is no SHA-256 sidecar in this path.
+
+Because the format is JSON wrapped in gzip, a legacy file can be inspected
+with `gunzip -c my_collection.vecdb.gz | jq .`. The compact ZIP `.vecdb`
+cannot — it is a ZIP archive and must be opened with `unzip` first.
+
 ### Compact Format (.vecdb)
 
 ```
@@ -48,9 +70,37 @@ data/
 - Atomic updates (write to .tmp, then rename)
 - Efficient backups and portability
 
+**Archive internals:**
+- The `.vecdb` file is a standard ZIP archive produced with `zip::ZipWriter` using `Deflated` compression, so it opens with any off-the-shelf tool (`unzip`, `7z`, Finder, Windows Explorer).
+- Entries inside the ZIP are **JSON documents, not binary blobs**. Each collection is stored as a file named `<collection>_vector_store.bin` whose contents are `serde_json::to_vec(&PersistedVectorStore { version: 1, collections: vec![...] })`. The `.bin` suffix is historical — the bytes are UTF-8 JSON and can be inspected with `unzip -p archive.vecdb my_collection_vector_store.bin | jq .`.
+- Optional per-collection metadata entries (config, tokenizer, etc.) are also JSON.
+- Per-file integrity is guarded by **SHA-256** checksums stored in the sidecar — there is no CRC32 beyond the ZIP container's own built-in CRC-32.
+
 ## Index Format (.vecidx)
 
-The `.vecidx` file contains metadata about the archive:
+The `.vecidx` file is a plain JSON serialization of the `StorageIndex` struct
+defined in `crates/vectorizer/src/storage/index.rs`. It is written alongside
+the `.vecdb` archive on every save and is the authoritative source of integrity
+and size information.
+
+### `StorageIndex` fields (exactly as serialized)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | `String` | Format version, currently `"1.0"` (`STORAGE_VERSION` constant). |
+| `created_at` | `DateTime<Utc>` | ISO-8601 timestamp of first creation. |
+| `updated_at` | `DateTime<Utc>` | ISO-8601 timestamp of the most recent write. |
+| `collections` | `Vec<CollectionIndex>` | One entry per collection (see below). |
+| `total_size` | `u64` | Sum of uncompressed sizes of all entries. |
+| `compressed_size` | `u64` | Sum of compressed sizes inside the ZIP. |
+| `compression_ratio` | `f64` | `compressed_size / total_size`. |
+
+Each `CollectionIndex` has `name`, `files: Vec<FileEntry>`, `vector_count`,
+`dimension`, and a free-form `metadata: HashMap<String, String>`. Each
+`FileEntry` has `path`, `size`, `compressed_size`, `checksum`, and `type`.
+**`checksum` is the hex-encoded SHA-256 digest of the uncompressed entry
+bytes** — not CRC32. A mismatch on load is reported as a clear error through
+`VectorizerError`.
 
 ```json
 {
@@ -62,15 +112,16 @@ The `.vecidx` file contains metadata about the archive:
       "name": "my_collection",
       "files": [
         {
-          "path": "data/my_collection/vectors.bin",
+          "path": "my_collection_vector_store.bin",
           "size": 1048576,
           "compressed_size": 524288,
-          "checksum": "sha256_hash",
+          "checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
           "type": "vectors"
         }
       ],
       "vector_count": 1000,
-      "dimension": 384
+      "dimension": 384,
+      "metadata": {}
     }
   ],
   "total_size": 10485760,
@@ -231,6 +282,31 @@ All write operations use atomic updates to prevent corruption:
 4. Update index (`.vecidx`)
 
 If the process is interrupted, the old `.vecdb` remains intact.
+
+## Backup Safety
+
+When backing up compact storage, treat the archive and its sidecar as a
+single unit:
+
+- **Copy both `<name>.vecdb` and `<name>.vecidx` atomically.** Snapshot the
+  directory (e.g. filesystem snapshot, `rsync --link-dest`, tarball) instead
+  of copying the two files with separate unrelated commands. Losing only the
+  sidecar does not destroy data — the ZIP is self-describing and can still
+  be read — but you lose the recorded SHA-256 checksums and original
+  size/ratio metadata, so integrity verification on load is no longer possible.
+- **SHA-256 validation runs on load.** If an entry's content hash in the
+  archive does not match the digest recorded in `.vecidx`, Vectorizer logs a
+  clear `VectorizerError` and refuses to treat the collection as healthy.
+  Bit-rot and partial writes surface immediately rather than silently
+  corrupting search results.
+- **Never edit files inside the ZIP by hand.** Opening the archive, changing
+  a JSON entry, and re-zipping will break the SHA-256 match and the next
+  load will fail. All mutations must go through the normal API
+  (`VectorStore` / REST / gRPC / MCP) so the index is rewritten with fresh
+  checksums.
+- Snapshots created by `vectorizer snapshot create` already contain matched
+  `.vecdb` + `.vecidx` pairs; copying a snapshot directory is the safest way
+  to ship a point-in-time backup.
 
 ## Migration Safety
 

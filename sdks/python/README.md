@@ -28,6 +28,8 @@ import vectorizer_sdk
 
 async def main():
     client = await vectorizer_sdk.connect_async("vectorizer://127.0.0.1:15503")
+    # `hello` and `search_basic` are RPC-only (not available on the legacy
+    # REST `VectorizerClient`).
     await client.hello(vectorizer_sdk.HelloPayload(client_name="my-app"))
     print(await client.list_collections())
     hits = await client.search_basic("docs", "vector database", limit=5)
@@ -426,6 +428,11 @@ related = await client.get_related_files(
 
 ### Summarization Operations
 
+> WARNING: The `/summarize/*` REST endpoints are documented but not yet wired
+> server-side (see `DOC_GAP_ANALYSIS`). The SDK methods below
+> (`summarize_text`, `summarize_context`) will fail until server wiring is
+> complete.
+
 #### Summarize Text
 Summarize text using various methods:
 
@@ -458,6 +465,11 @@ summary = await client.summarize_context(
 
 ### Workspace Management
 
+> WARNING: `add_workspace`, `list_workspaces`, and `remove_workspace` are
+> exposed via the REST transport through dynamic `__getattr__` delegation,
+> but they are not first-class SDK methods yet. They work at runtime but
+> won't autocomplete in IDEs. A future release will add explicit methods.
+
 #### Add Workspace
 Add a new workspace:
 
@@ -485,6 +497,11 @@ await client.remove_workspace(
 ```
 
 ### Backup Operations
+
+> WARNING: `create_backup`, `list_backups`, and `restore_backup` are
+> exposed via the REST transport through dynamic `__getattr__` delegation,
+> but they are not first-class SDK methods yet. They work at runtime but
+> won't autocomplete in IDEs. A future release will add explicit methods.
 
 #### Create Backup
 Create a backup of collections:
@@ -613,8 +630,11 @@ await client.create_collection("documents", dimension=768)
 await client.insert_texts("documents", [
     {"id": "doc1", "text": "Sample document", "metadata": {"source": "api"}}
 ])
-await client.update_vector("documents", "doc1", metadata={"updated": True})
-await client.delete_vector("documents", "doc1")
+# Update-via-reinsert: re-call `insert_texts` with the same id to replace the record.
+await client.insert_texts("documents", [
+    {"id": "doc1", "text": "Sample document (updated)", "metadata": {"updated": True}}
+])
+await client.delete_vectors("documents", ["doc1"])
 
 # Reads automatically go to replicas (load balanced)
 results = await client.search_vectors("documents", query="sample", limit=10)
@@ -651,7 +671,7 @@ The SDK automatically classifies operations:
 
 | Operation Type | Routed To | Methods |
 |---------------|-----------|---------|
-| **Writes** | Always Master | `insert_texts`, `insert_vectors`, `update_vector`, `delete_vector`, `create_collection`, `delete_collection` |
+| **Writes** | Always Master | `insert_texts`, `insert_vectors`, `delete_vectors`, `create_collection`, `delete_collection` |
 | **Reads** | Based on `read_preference` | `search_vectors`, `get_vector`, `list_collections`, `intelligent_search`, `semantic_search`, `hybrid_search` |
 
 #### Standalone Mode (Single Node)

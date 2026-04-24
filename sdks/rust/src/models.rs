@@ -168,22 +168,39 @@ pub struct CollectionInfo {
     pub status: Option<String>,
 }
 
-/// Indexing status
+/// Indexing status.
+///
+/// Every field carries `#[serde(default)]` to match the tolerant
+/// posture of the parent [`CollectionInfo`] — the v3 server emits a
+/// subset of this shape (`status`/`progress`/`total_documents`/
+/// `processed_documents` plus some extra keys this struct doesn't
+/// model) and omits `vector_count` and `last_updated`, which used to
+/// make `serde_json::from_str::<CollectionInfo>` fail on a
+/// `Collection → JSON → CollectionInfo` round-trip through
+/// `Collection::indexing_status: Option<serde_json::Value>` that
+/// preserves the server's partial shape.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IndexingStatus {
     /// Status
+    #[serde(default)]
     pub status: String,
     /// Progress percentage
+    #[serde(default)]
     pub progress: f32,
     /// Total documents
+    #[serde(default)]
     pub total_documents: usize,
     /// Processed documents
+    #[serde(default)]
     pub processed_documents: usize,
     /// Vector count
+    #[serde(default)]
     pub vector_count: usize,
     /// Estimated time remaining
+    #[serde(default)]
     pub estimated_time_remaining: Option<String>,
     /// Last updated timestamp
+    #[serde(default)]
     pub last_updated: String,
 }
 

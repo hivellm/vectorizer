@@ -15,6 +15,7 @@
 5. [Enhanced Features](#enhanced-features)
 6. [Configuration](#configuration)
 7. [Troubleshooting](#troubleshooting)
+8. [Planned / Not Yet Implemented](#planned--not-yet-implemented)
 
 ---
 
@@ -30,12 +31,15 @@ Vectorizer implements a comprehensive MCP (Model Context Protocol) server that e
 - Automatic session management
 - Modern HTTP/1.1 and HTTP/2 support
 
-**🛠️ Comprehensive Tool Set**
-- **Search Tools**: search_vectors, intelligent_search, semantic_search, contextual_search, multi_collection_search
-- **Collection Management**: list_collections, get_collection_info, create_collection, delete_collection, list_empty_collections, cleanup_empty_collections, get_collection_stats
-- **Vector Operations**: insert_texts, delete_vectors, update_vector, get_vector, embed_text
-- **Batch Operations**: batch_insert_texts, batch_search_vectors, batch_update_vectors, batch_delete_vectors
-- **System Info**: get_database_stats, health_check
+**🛠️ Comprehensive Tool Set** (31 tools registered in `handlers.rs`)
+- **Core Collection/Vector (9)**: `list_collections`, `create_collection`, `get_collection_info`, `insert_text`, `get_vector`, `update_vector`, `delete_vector`, `multi_collection_search`, `search`
+- **Search (4)**: `search_intelligent`, `search_semantic`, `search_extra`, `search_hybrid`
+- **Discovery (2)**: `filter_collections`, `expand_queries`
+- **File Operations (5)**: `get_file_content`, `list_files`, `get_file_chunks`, `get_project_outline`, `get_related_files`
+- **Graph Operations (8)**: `graph_list_nodes`, `graph_get_neighbors`, `graph_find_related`, `graph_find_path`, `graph_create_edge`, `graph_delete_edge`, `graph_discover_edges`, `graph_discover_status`
+- **Collection Maintenance (3)**: `list_empty_collections`, `cleanup_empty_collections`, `get_collection_stats`
+
+See also the **[Planned / Not Yet Implemented](#planned--not-yet-implemented)** section at the bottom for tools historically documented here but not yet wired up (batch ops, `contextual_search`, `embed_text`, `delete_collection`, `get_database_stats`, etc.).
 
 **🚀 Latest Improvements (v0.3.1)**
 - Larger chunks (2048 chars) for better semantic context
@@ -81,18 +85,27 @@ Vectorizer implements a comprehensive MCP (Model Context Protocol) server that e
 
 ## MCP Tools Reference
 
+This reference is aligned with the `match request.name` dispatch in
+`crates/vectorizer-server/src/server/mcp/handlers.rs` and the schema
+declarations in `crates/vectorizer-server/src/server/mcp/tools.rs`. Any
+tool **not** listed below is documented in the
+[Planned / Not Yet Implemented](#planned--not-yet-implemented) section.
+
 ### Search & Retrieval Tools
 
-#### search_vectors
+#### search
 
-Performs semantic search across vectors in a collection.
+Basic vector similarity search in a single collection. The query string
+is embedded with the collection's configured provider (BM25, TF-IDF,
+BERT, MiniLM, etc.) and searched through the HNSW index.
 
 **Parameters**:
 ```json
 {
   "collection": "string",    // Required
   "query": "string",         // Required
-  "limit": "integer"         // Optional, default: 10
+  "limit": 10,               // Optional, default: 10, range 1-100
+  "similarity_threshold": 0.1 // Optional, default: 0.1
 }
 ```
 
@@ -102,7 +115,7 @@ Performs semantic search across vectors in a collection.
   "jsonrpc": "2.0",
   "method": "tools/call",
   "params": {
-    "name": "search_vectors",
+    "name": "search",
     "arguments": {
       "collection": "documents",
       "query": "machine learning algorithms",
@@ -112,41 +125,44 @@ Performs semantic search across vectors in a collection.
 }
 ```
 
-#### intelligent_search
+#### search_intelligent
 
-Advanced multi-query search with semantic reranking and deduplication.
+AI-powered search with automatic query expansion and result
+deduplication across one or more collections. Uses the
+`IntelligentSearchTool` pipeline in
+`vectorizer::intelligent_search::mcp_tools`.
 
 **Parameters**:
 ```json
 {
-  "query": "string",         // Required
-  "collections": ["string"], // Optional, empty = all
-  "max_results": 5,          // Optional, default: 5
-  "domain_expansion": true,  // Optional, default: true
-  "technical_focus": true,   // Optional, default: true
-  "mmr_enabled": true,       // Optional, default: true
-  "mmr_lambda": 0.7          // Optional, default: 0.7
+  "query": "string",            // Required
+  "collections": ["string"],    // Optional; omit to search all collections
+  "max_results": 10,            // Optional, default: 10
+  "domain_expansion": true,     // Optional, default: true
+  "similarity_threshold": 0.1   // Optional, default: 0.1
 }
 ```
 
 **Features**:
 - Generates 4-8 relevant queries automatically
 - Domain-specific knowledge expansion
-- MMR diversification for diverse results
-- Technical and collection bonuses
+- Technical focus reranking (MMR disabled in the MCP path)
+- Cross-collection deduplication
 
-#### semantic_search
+#### search_semantic
 
-Pure semantic search with rigorous filtering.
+Semantic search with basic reranking for a single collection. Wraps
+`SemanticSearchTool` with `semantic_reranking=true` and
+`cross_encoder_reranking=false` (the cross-encoder is disabled in the
+MCP path).
 
 **Parameters**:
 ```json
 {
-  "query": "string",           // Required
-  "collection": "string",      // Required
-  "similarity_threshold": 0.15, // Optional, default: 0.5
-  "semantic_reranking": true,  // Optional, default: true
-  "max_results": 10            // Optional, default: 10
+  "query": "string",            // Required
+  "collection": "string",       // Required
+  "max_results": 10,            // Optional, default: 10
+  "similarity_threshold": 0.1   // Optional, default: 0.1
 }
 ```
 
@@ -155,37 +171,61 @@ Pure semantic search with rigorous filtering.
 - Balanced: 0.1-0.15
 - High Recall: 0.05-0.1
 
-#### contextual_search
+#### search_extra
 
-Context-aware search with metadata filtering.
+Combined search that concatenates and re-ranks results from multiple
+strategies (`basic`, `semantic`, `intelligent`) against a single
+collection, deduplicating by vector id.
 
 **Parameters**:
 ```json
 {
-  "query": "string",           // Required
-  "collection": "string",      // Required
-  "context_filters": {         // Optional
-    "file_extension": ".md",
-    "chunk_index": 0
+  "query": "string",                      // Required
+  "collection": "string",                 // Required
+  "strategies": ["basic", "semantic"],    // Optional, default: ["basic","semantic"]
+  "max_results": 10,                      // Optional, default: 10
+  "similarity_threshold": 0.1             // Optional, default: 0.1
+}
+```
+
+#### search_hybrid
+
+Hybrid search combining dense (HNSW) retrieval and optional sparse
+retrieval, fused with RRF / weighted / alpha blending. The query string
+is embedded with the collection's dense provider; an optional explicit
+`query_sparse` can be supplied.
+
+**Parameters**:
+```json
+{
+  "query": "string",            // Required - dense query text
+  "collection": "string",       // Required
+  "query_sparse": {             // Optional
+    "indices": [int, ...],
+    "values": [float, ...]
   },
-  "context_reranking": true,   // Optional, default: true
-  "context_weight": 0.3,       // Optional, default: 0.3
-  "max_results": 10            // Optional, default: 10
+  "alpha": 0.7,                 // Optional, 0.0 = sparse only, 1.0 = dense only
+  "algorithm": "rrf",           // Optional: "rrf" | "weighted" | "alpha"
+  "dense_k": 20,                // Optional, top-k from dense side
+  "sparse_k": 20,               // Optional, top-k from sparse side
+  "final_k": 10                 // Optional, final result size
 }
 ```
 
 #### multi_collection_search
 
-Cross-collection search with intelligent reranking.
+Search a single query across multiple named collections and return the
+merged top-N. `cross_collection_reranking` is forced to `false` on the
+MCP path.
 
 **Parameters**:
 ```json
 {
-  "query": "string",                  // Required
-  "collections": ["string"],          // Required
-  "max_per_collection": 5,            // Optional, default: 5
-  "max_total_results": 15,            // Optional, default: 20
-  "cross_collection_reranking": true  // Optional, default: true
+  "query": "string",             // Required
+  "collections": ["string"],     // Required
+  "max_per_collection": 5,       // Optional, default: 5
+  "max_total_results": 20,       // Optional, default: 20
+  "similarity_threshold": 0.1    // Optional, default: 0.1
 }
 ```
 
@@ -200,45 +240,16 @@ Retrieves information about all available collections.
 **Response**:
 ```json
 {
-  "collections": [
-    {
-      "name": "documents",
-      "vector_count": 1000,
-      "dimension": 384,
-      "metric": "cosine"
-    }
-  ],
-  "total_count": 1
+  "collections": ["documents", "code", "..."],
+  "total": 3
 }
 ```
 
 #### get_collection_info
 
-Retrieves detailed information about a specific collection.
-
-**Parameters**:
-```json
-{
-  "collection": "string"     // Required
-}
-```
-
-#### create_collection
-
-Creates a new collection with specified configuration.
-
-**Parameters**:
-```json
-{
-  "name": "string",          // Required
-  "dimension": 384,          // Optional, default: 384
-  "metric": "cosine"         // Optional, default: "cosine"
-}
-```
-
-#### delete_collection
-
-Removes an entire collection and all its data.
+Retrieves detailed information about a specific collection (vector
+count, document count, dimension, metric, quantization, normalization
+settings, timestamps).
 
 **Parameters**:
 ```json
@@ -247,15 +258,34 @@ Removes an entire collection and all its data.
 }
 ```
 
+#### create_collection
+
+Creates a new collection with specified configuration. Optionally
+enables per-collection graph tracking.
+
+**Parameters**:
+```json
+{
+  "name": "string",          // Required
+  "dimension": 384,          // Required
+  "metric": "cosine",        // Optional, default: "cosine" ("cosine" | "euclidean")
+  "graph": {                 // Optional
+    "enabled": false
+  }
+}
+```
+
 #### list_empty_collections
 
-Lists all collections that contain no vectors. Useful for identifying collections that can be safely cleaned up.
+Lists all collections that contain no vectors. Useful for identifying
+collections that can be safely cleaned up.
 
 **Parameters**: None
 
 **Response**:
 ```json
 {
+  "status": "success",
   "empty_collections": [
     "collection-name-1",
     "collection-name-2"
@@ -272,40 +302,24 @@ console.log(`Found ${result.count} empty collections`);
 
 #### cleanup_empty_collections
 
-Removes all empty collections from the database. Supports dry-run mode to preview what would be deleted without actually deleting.
+Removes all empty collections from the database. Supports dry-run mode
+to preview what would be deleted without actually deleting.
 
 **Parameters**:
 ```json
 {
-  "dry_run": "boolean"       // Optional, default: false
+  "dry_run": false           // Optional, default: false
 }
 ```
 
 **Response**:
 ```json
 {
-  "deleted_collections": [
-    "empty-collection-1",
-    "empty-collection-2"
-  ],
-  "count": 2,
-  "dry_run": false
+  "status": "success",
+  "dry_run": false,
+  "deleted_count": 2,
+  "message": "Successfully deleted 2 empty collections"
 }
-```
-
-**Example**:
-```javascript
-// Preview what would be deleted
-const preview = await mcpClient.call_tool("cleanup_empty_collections", {
-  dry_run: true
-});
-console.log(`Would delete ${preview.count} collections:`, preview.deleted_collections);
-
-// Actually delete empty collections
-const result = await mcpClient.call_tool("cleanup_empty_collections", {
-  dry_run: false
-});
-console.log(`Deleted ${result.count} empty collections`);
 ```
 
 **Use Cases**:
@@ -316,7 +330,8 @@ console.log(`Deleted ${result.count} empty collections`);
 
 #### get_collection_stats
 
-Retrieves comprehensive statistics about a specific collection, including vector count, memory usage, and configuration.
+Retrieves basic statistics about a specific collection (vector count
+and whether it is empty).
 
 **Parameters**:
 ```json
@@ -328,68 +343,61 @@ Retrieves comprehensive statistics about a specific collection, including vector
 **Response**:
 ```json
 {
-  "name": "docs-architecture",
+  "status": "success",
+  "collection": "docs-architecture",
   "vector_count": 1250,
-  "dimension": 384,
-  "metric": "cosine",
-  "memory_bytes": 1920000,
-  "is_empty": false,
-  "config": {
-    "dimension": 384,
-    "metric": "cosine"
-  }
-}
-```
-
-**Example**:
-```javascript
-const stats = await mcpClient.call_tool("get_collection_stats", {
-  collection: "docs-architecture"
-});
-
-if (stats.is_empty) {
-  console.log(`Collection ${stats.name} is empty and can be deleted`);
-} else {
-  console.log(`Collection ${stats.name} has ${stats.vector_count} vectors`);
-  console.log(`Memory usage: ${(stats.memory_bytes / 1024 / 1024).toFixed(2)} MB`);
+  "is_empty": false
 }
 ```
 
 ### Vector Operations Tools
 
-#### insert_texts
+#### insert_text
 
-Adds texts to a collection with automatic embedding generation.
+Inserts a single text into a collection with automatic embedding
+generation. A UUID vector id is generated by the server. If a
+`public_key` is provided, the payload is encrypted with the project's
+payload-encryption primitive before storage.
 
 **Parameters**:
 ```json
 {
-  "collection": "string",    // Required
-  "vectors": [               // Required (legacy name, actually texts)
-    {
-      "id": "string",        // Required
-      "text": "string",      // Required
-      "metadata": {}         // Optional
-    }
-  ]
+  "collection_name": "string", // Required
+  "text": "string",            // Required
+  "metadata": {},              // Optional
+  "public_key": "string"       // Optional - enables payload encryption
 }
 ```
 
-#### delete_vectors
+**Response**:
+```json
+{
+  "status": "inserted",
+  "vector_id": "uuid",
+  "collection": "docs",
+  "encrypted": false
+}
+```
 
-Removes vectors from a collection by their IDs.
+#### delete_vector
+
+Removes one or more vectors from a collection by their ids. Despite the
+singular name, the parameter `vector_ids` is an array — the handler
+loops and counts successful deletions.
 
 **Parameters**:
 ```json
 {
   "collection": "string",    // Required
-  "vector_ids": ["string"]   // Required
+  "vector_ids": ["string"]   // Required - array, can be a single id
 }
 ```
 
 #### update_vector
 
-Updates an existing vector with new content or metadata.
+Updates an existing vector with new text and/or metadata. If `text` is
+supplied, a fresh embedding is generated and the stored vector is
+replaced. Payload encryption is supported via `public_key`.
 
 **Parameters**:
 ```json
@@ -397,13 +405,15 @@ Updates an existing vector with new content or metadata.
   "collection": "string",    // Required
   "vector_id": "string",     // Required
   "text": "string",          // Optional
-  "metadata": {}             // Optional
+  "metadata": {},            // Optional
+  "public_key": "string"     // Optional - enables payload encryption
 }
 ```
 
 #### get_vector
 
-Retrieves a specific vector by its ID.
+Retrieves a specific vector by its ID, including `data` (the dense
+embedding) and `payload`.
 
 **Parameters**:
 ```json
@@ -413,100 +423,239 @@ Retrieves a specific vector by its ID.
 }
 ```
 
-#### embed_text
+### Discovery Tools
 
-Generates embeddings for text using the configured embedding model.
+#### filter_collections
 
-**Parameters**:
-```json
-{
-  "text": "string"           // Required
-}
-```
-
-### Batch Operations Tools
-
-#### batch_insert_texts
-
-High-performance batch insertion of texts with automatic embedding generation.
+Filter the list of known collections by a query string with optional
+include/exclude glob patterns. Used by the discovery pipeline to scope
+subsequent searches.
 
 **Parameters**:
 ```json
 {
-  "collection": "string",    // Required
-  "texts": [                 // Required
-    {
-      "id": "string",
-      "text": "string",
-      "metadata": {}
-    }
-  ],
-  "provider": "string"       // Optional, default: "bm25"
+  "query": "string",          // Required - free-text or collection keyword
+  "include": ["string"],      // Optional - include patterns
+  "exclude": ["string"]       // Optional - exclude patterns
 }
 ```
 
-#### batch_search_vectors
+#### expand_queries
 
-Execute multiple search queries in a single request.
+Generate query variations and expansions for broader search coverage
+(definition queries, feature queries, architecture queries).
 
 **Parameters**:
 ```json
 {
-  "collection": "string",    // Required
-  "queries": [               // Required
-    {
-      "query": "string",
-      "limit": 10
-    }
-  ]
+  "query": "string",              // Required
+  "max_expansions": 8,            // Optional, default: 8
+  "include_definition": true,     // Optional, default: true
+  "include_features": true,       // Optional, default: true
+  "include_architecture": true    // Optional, default: true
 }
 ```
 
-#### batch_update_vectors
+### File Operations
 
-Batch update existing vectors.
+#### get_file_content
+
+Retrieves complete file content from a collection (reconstructed from
+its chunks), bounded by a size cap.
 
 **Parameters**:
 ```json
 {
   "collection": "string",    // Required
-  "updates": [               // Required
-    {
-      "id": "string",
-      "text": "string",
-      "metadata": {}
-    }
-  ]
+  "file_path": "string",     // Required
+  "max_size_kb": 500         // Optional, default: 500, range 1-5000
 }
 ```
 
-#### batch_delete_vectors
+#### list_files
 
-Batch delete vectors by ID.
+List all indexed files in a collection with metadata and filters
+(file-type allow-list, minimum chunk count, sort order, result cap).
+
+**Parameters**:
+```json
+{
+  "collection": "string",            // Required
+  "filter_by_type": ["rs", "ts"],    // Optional - file extensions
+  "min_chunks": 1,                   // Optional
+  "max_results": 100,                // Optional, default: 100
+  "sort_by": "name"                  // Optional: "name" | "size" | "chunks" | "recent"
+}
+```
+
+#### get_file_chunks
+
+Retrieve file chunks in original (document) order for progressive
+reading. Useful for reconstructing code files or long documents
+without reading the whole file at once.
 
 **Parameters**:
 ```json
 {
   "collection": "string",    // Required
-  "vector_ids": ["string"]   // Required
+  "file_path": "string",     // Required
+  "start_chunk": 0,          // Optional, default: 0
+  "limit": 10,               // Optional, default: 10, range 1-50
+  "include_context": false   // Optional - include prev/next chunk hints
 }
 ```
 
-### System Information Tools
+#### get_project_outline
 
-#### get_database_stats
+Generate a hierarchical project structure overview from the indexed
+files of a collection.
 
-Retrieves comprehensive database statistics and performance metrics.
-
-**Parameters**: None
-
-**Response**:
+**Parameters**:
 ```json
 {
-  "total_collections": 3,
-  "total_vectors": 2500,
-  "total_memory_estimate_bytes": 3840000,
-  "collections": [...]
+  "collection": "string",        // Required
+  "max_depth": 5,                // Optional, default: 5, range 1-10
+  "include_summaries": false,    // Optional
+  "highlight_key_files": true    // Optional - highlights README/etc.
+}
+```
+
+#### get_related_files
+
+Find semantically related files to a given file using vector
+similarity across the same collection, optionally annotated with a
+human-readable reason.
+
+**Parameters**:
+```json
+{
+  "collection": "string",        // Required
+  "file_path": "string",         // Required
+  "max_results": 10,             // Optional, default: 10
+  "similarity_threshold": 0.6,   // Optional, default: 0.6, range 0.0-1.0
+  "include_reason": true         // Optional
+}
+```
+
+### Graph Operations
+
+Eight graph tools expose the per-collection relationship graph
+(`vectorizer::db::graph`). They are registered at
+`crates/vectorizer-server/src/server/mcp/handlers.rs:131-138` and
+backed by `graph_handlers.rs`. A collection must have been created
+with `graph.enabled = true` (or later opted in) for these to return
+meaningful data.
+
+Supported relationship types (used by `relationship_type` fields
+below) are `SIMILAR_TO`, `REFERENCES`, `CONTAINS`, and `DERIVED_FROM`.
+
+#### graph_list_nodes
+
+Lists all nodes in a collection's graph together with their metadata.
+Read-only; useful for inspection and debugging.
+
+**Parameters**:
+```json
+{
+  "collection": "string"     // Required
+}
+```
+
+#### graph_get_neighbors
+
+Returns all direct neighbors of a specific node in the graph together
+with the relationships connecting them.
+
+**Parameters**:
+```json
+{
+  "collection": "string",    // Required
+  "node_id": "string"        // Required
+}
+```
+
+#### graph_find_related
+
+Breadth-first traversal from `node_id` up to `max_hops` edges away,
+optionally filtered by a single relationship type. Useful for
+"everything within N hops of this document" queries.
+
+**Parameters**:
+```json
+{
+  "collection": "string",                  // Required
+  "node_id": "string",                     // Required
+  "max_hops": 2,                           // Optional, default: 2
+  "relationship_type": "SIMILAR_TO"        // Optional: SIMILAR_TO | REFERENCES | CONTAINS | DERIVED_FROM
+}
+```
+
+#### graph_find_path
+
+Finds the shortest path between two nodes in the graph using the
+relationship edges.
+
+**Parameters**:
+```json
+{
+  "collection": "string",    // Required
+  "source": "string",        // Required - source node id
+  "target": "string"         // Required - target node id
+}
+```
+
+#### graph_create_edge
+
+Creates an explicit edge/relationship between two nodes. Mutating;
+`weight` is interpreted by the scoring logic of the graph.
+
+**Parameters**:
+```json
+{
+  "collection": "string",              // Required
+  "source": "string",                  // Required
+  "target": "string",                  // Required
+  "relationship_type": "REFERENCES",   // Required - one of the 4 enum values
+  "weight": 1.0                        // Optional, default: 1.0
+}
+```
+
+#### graph_delete_edge
+
+Deletes an edge/relationship from the graph by its id.
+
+**Parameters**:
+```json
+{
+  "edge_id": "string"        // Required
+}
+```
+
+#### graph_discover_edges
+
+Automatically discover and create `SIMILAR_TO` edges between nodes
+based on semantic similarity. Can run for a single node or an entire
+collection.
+
+**Parameters**:
+```json
+{
+  "collection": "string",        // Required
+  "node_id": "string",           // Optional - if omitted, runs across collection
+  "similarity_threshold": 0.7,   // Optional, default: 0.7
+  "max_per_node": 10             // Optional, default: 10
+}
+```
+
+#### graph_discover_status
+
+Reports edge-discovery progress for a collection (how many nodes have
+edges, overall coverage).
+
+**Parameters**:
+```json
+{
+  "collection": "string"     // Required
 }
 ```
 
@@ -556,7 +705,7 @@ es.onmessage = (event) => {
 
 // REST API calls
 async function searchVectors(collection, query, limit = 10) {
-  const response = await fetch('http://127.0.0.1:15002/search_vectors', {
+  const response = await fetch('http://127.0.0.1:15002/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ collection, query, limit })
@@ -620,7 +769,7 @@ export class VectorizerMCPClient {
       jsonrpc: '2.0',
       method: 'tools/call',
       params: {
-        name: 'search_vectors',
+        name: 'search',
         arguments: { collection, query }
       }
     }));
@@ -718,24 +867,21 @@ mcp:
   
   # Tool configuration
   tools:
-    intelligent_search:
+    search_intelligent:
       max_queries: 8
       domain_expansion: true
       technical_focus: true
       mmr_enabled: true
       mmr_lambda: 0.7
     
-    semantic_search:
+    search_semantic:
       similarity_threshold: 0.15
       semantic_reranking: true
     
     multi_collection_search:
       cross_collection_reranking: true
       max_per_collection: 5
-    
-    contextual_search:
-      context_reranking: true
-      context_weight: 0.3
+    # contextual_search: planned (see "Planned / Not Yet Implemented")
   
   # Caching
   caching:
@@ -780,7 +926,7 @@ curl -H "Authorization: Bearer your-key" http://127.0.0.1:15002/health
 - **Solution**: Automatically resolved in v0.3.1 with collection-specific managers
 
 #### Threshold Too Strict
-- **Issue**: semantic_search with threshold 0.5 returns 0 results
+- **Issue**: search_semantic with threshold 0.5 returns 0 results
 - **Solution**: Use threshold 0.1-0.2 for better results
 
 ### Debug Mode
@@ -806,8 +952,8 @@ tail -f logs/vectorizer.log | grep MCP
 
 ### Performance Optimization
 
-1. **Use Batch Operations**: batch_insert_texts, batch_search_vectors for high performance
-2. **Text-Based Insertion**: Use insert_texts with text content for automatic embedding
+1. **Use Batch Operations**: *(planned — see [Planned / Not Yet Implemented](#planned--not-yet-implemented))*. Until batch tools land, amortise by keeping connections warm and issuing `insert_text` / `search` calls back-to-back on a single session.
+2. **Text-Based Insertion**: Use `insert_text` with text content for automatic embedding
 3. **Appropriate Limits**: Set reasonable limits for search operations
 4. **Connection Reuse**: Maintain persistent connections
 5. **Caching**: Cache frequently accessed data
@@ -915,6 +1061,151 @@ curl http://127.0.0.1:15002/status | jq '.mcp'
   }
 }
 ```
+
+---
+
+## Planned / Not Yet Implemented
+
+> **Status**: These tools appeared in earlier revisions of this
+> document but are **not** present in the live MCP handler dispatch
+> (`crates/vectorizer-server/src/server/mcp/handlers.rs`) at the time
+> of the most recent audit. They are kept here so clients and integrations
+> can see what is on the roadmap, but calling them against the current
+> server will return `"Unknown tool"`.
+
+### Planned Batch Operations
+
+#### batch_insert_texts *(planned)*
+
+High-performance batch insertion of texts with automatic embedding
+generation.
+
+**Proposed parameters**:
+```json
+{
+  "collection": "string",
+  "texts": [
+    { "id": "string", "text": "string", "metadata": {} }
+  ],
+  "provider": "bm25"
+}
+```
+
+#### batch_search_vectors *(planned)*
+
+Execute multiple search queries in a single request.
+
+**Proposed parameters**:
+```json
+{
+  "collection": "string",
+  "queries": [
+    { "query": "string", "limit": 10 }
+  ]
+}
+```
+
+#### batch_update_vectors *(planned)*
+
+Batch update existing vectors.
+
+**Proposed parameters**:
+```json
+{
+  "collection": "string",
+  "updates": [
+    { "id": "string", "text": "string", "metadata": {} }
+  ]
+}
+```
+
+#### batch_delete_vectors *(planned)*
+
+Batch delete vectors by ID.
+
+**Proposed parameters**:
+```json
+{
+  "collection": "string",
+  "vector_ids": ["string"]
+}
+```
+
+### Planned Search
+
+#### contextual_search *(planned)*
+
+Context-aware search with metadata filtering (file extension, chunk
+index, etc.) and optional context reranking. Today, metadata filtering
+is done client-side after `search` / `search_semantic`.
+
+**Proposed parameters**:
+```json
+{
+  "query": "string",
+  "collection": "string",
+  "context_filters": {
+    "file_extension": ".md",
+    "chunk_index": 0
+  },
+  "context_reranking": true,
+  "context_weight": 0.3,
+  "max_results": 10
+}
+```
+
+### Planned Collection Management
+
+#### delete_collection *(planned)*
+
+Removes an entire collection and all its data. Currently exposed only
+via REST, not MCP.
+
+**Proposed parameters**:
+```json
+{
+  "name": "string"
+}
+```
+
+### Planned Vector Operations
+
+#### embed_text *(planned)*
+
+Generate embeddings for arbitrary text using the server's default
+embedding model, without inserting or searching. Today, embeddings are
+only produced implicitly by `insert_text`, `update_vector`, and the
+search tools.
+
+**Proposed parameters**:
+```json
+{
+  "text": "string"
+}
+```
+
+### Planned System Information
+
+#### get_database_stats *(planned)*
+
+Retrieve aggregate database statistics and performance metrics in one
+call.
+
+**Proposed response**:
+```json
+{
+  "total_collections": 3,
+  "total_vectors": 2500,
+  "total_memory_estimate_bytes": 3840000,
+  "collections": [ ]
+}
+```
+
+#### health_check *(planned as an MCP tool)*
+
+Dedicated MCP health tool. Today, health is served via the REST
+endpoint `GET /health`; no `health_check` tool is registered in the
+MCP handler.
 
 ---
 

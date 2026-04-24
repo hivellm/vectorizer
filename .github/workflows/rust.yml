@@ -79,6 +79,50 @@ jobs:
         env:
           # Ensure s2s-tests feature is NOT enabled (explicitly disable it)
           CARGO_BUILD_RUSTFLAGS: ""
+      - name: Build vectorizer server binary
+        # Needed by the SDK integration tests below. Built separately from
+        # `--tests` so both the test binaries and the server bin land in
+        # `target/debug/` together and the step above stays focused.
+        run: cargo build --bin vectorizer
+      - name: Start vectorizer server (SDK integration tests)
+        # Integration tests hit the default endpoint `http://localhost:15002`.
+        # We bind to 127.0.0.1 to satisfy the bind-time auth check and flip
+        # auth off via env var so the client can reach gated endpoints
+        # without credentials. The server is killed in an always-run
+        # cleanup step further below.
+        #
+        # Windows detail: the test step below calls `cargo nextest run
+        # --all-targets`, which may try to re-link `target/debug/vectorizer.exe`.
+        # Windows refuses to delete an executable that is currently mapped by
+        # a running process (`Access is denied. (os error 5)`), so we run the
+        # server from a sidecar copy (`vectorizer-running(.exe)`) and leave
+        # the original artifact free for cargo to replace.
+        env:
+          RUNNER_OS_NAME: ${{ matrix.os }}
+        run: |
+          if [[ "$RUNNER_OS_NAME" == "windows-latest" ]]; then
+            SRC="./target/debug/vectorizer.exe"
+            BIN="./target/debug/vectorizer-running.exe"
+          else
+            SRC="./target/debug/vectorizer"
+            BIN="./target/debug/vectorizer-running"
+          fi
+          cp "$SRC" "$BIN"
+          VECTORIZER_AUTH_ENABLED=false "$BIN" \
+            --host 127.0.0.1 --port 15002 \
+            > vectorizer-test.log 2>&1 &
+          echo $! > vectorizer.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:15002/health >/dev/null 2>&1; then
+              echo "Server ready after ${i}s (pid=$(cat vectorizer.pid))"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server failed to start within 30s; last 50 lines of log:"
+          tail -50 vectorizer-test.log || true
+          exit 1
+        shell: bash
       - name: Run unit and integration tests
         timeout-minutes: 30
         run: cargo nextest run --workspace --all-targets --test-threads 4
@@ -93,6 +137,20 @@ jobs:
           NEXTEST_TIMEOUT: 600s
       - name: Run doc tests
         run: cargo test --workspace --doc
+      - name: Stop vectorizer server
+        # Runs regardless of prior step outcome so the runner doesn't
+        # leave the server hanging on a failed test step.
+        if: always()
+        run: |
+          if [ -f vectorizer.pid ]; then
+            kill "$(cat vectorizer.pid)" 2>/dev/null || true
+            rm -f vectorizer.pid
+          fi
+          if [ -f vectorizer-test.log ]; then
+            echo "=== vectorizer server log (last 200 lines) ==="
+            tail -200 vectorizer-test.log
+          fi
+        shell: bash
       - name: Upload test report
         uses: actions/upload-artifact@v4
         if: always()
