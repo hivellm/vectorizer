@@ -126,7 +126,9 @@ async fn test_insert_texts() {
     let collection_name = format!("test_insert_{}", uuid::Uuid::new_v4());
 
     // Create collection
-    let create_result = client.create_collection(&collection_name, 384, None).await;
+    // 512-dim matches the server's default BM25 embedder so `/insert_texts`
+    // does not fail with a dimension mismatch at the HNSW boundary.
+    let create_result = client.create_collection(&collection_name, 512, None).await;
     if create_result.is_err() {
         // If collection creation fails, skip this test
         return;
@@ -181,7 +183,9 @@ async fn test_search_vectors() {
     let collection_name = format!("test_search_{}", uuid::Uuid::new_v4());
 
     // Create collection
-    let create_result = client.create_collection(&collection_name, 384, None).await;
+    // 512-dim matches the server's default BM25 embedder so `/insert_texts`
+    // does not fail with a dimension mismatch at the HNSW boundary.
+    let create_result = client.create_collection(&collection_name, 512, None).await;
     if create_result.is_err() {
         // If collection creation fails, skip this test
         return;
@@ -224,7 +228,17 @@ async fn test_search_vectors() {
             // Verify result structure
             for result in response.results {
                 assert!(!result.id.is_empty());
-                assert!(result.score >= 0.0 && result.score <= 1.0);
+                // Cosine similarity natural range is `[-1.0, 1.0]`; the
+                // v3 server emits the raw cosine (no `(1 + cos) / 2`
+                // normalisation), so a distant-but-valid hit can land
+                // slightly below zero. Accept the full cosine range
+                // instead of the pre-v3 `[0.0, 1.0]` assumption that
+                // assumed a normalised score.
+                assert!(
+                    (-1.0..=1.0).contains(&result.score),
+                    "score out of cosine range [-1, 1]: {}",
+                    result.score
+                );
             }
         }
         Err(e) => {
@@ -246,7 +260,9 @@ async fn test_get_vector() {
     let collection_name = format!("test_get_vector_{}", uuid::Uuid::new_v4());
 
     // Create collection
-    let create_result = client.create_collection(&collection_name, 384, None).await;
+    // 512-dim matches the server's default BM25 embedder so `/insert_texts`
+    // does not fail with a dimension mismatch at the HNSW boundary.
+    let create_result = client.create_collection(&collection_name, 512, None).await;
     if create_result.is_err() {
         // If collection creation fails, skip this test
         return;
@@ -286,7 +302,9 @@ async fn test_get_collection_info() {
     let collection_name = format!("test_info_{}", uuid::Uuid::new_v4());
 
     // Create collection
-    let create_result = client.create_collection(&collection_name, 384, None).await;
+    // 512-dim matches the server's default BM25 embedder so `/insert_texts`
+    // does not fail with a dimension mismatch at the HNSW boundary.
+    let create_result = client.create_collection(&collection_name, 512, None).await;
     if create_result.is_err() {
         // If collection creation fails, skip this test
         return;
@@ -295,7 +313,11 @@ async fn test_get_collection_info() {
     match client.get_collection_info(&collection_name).await {
         Ok(info) => {
             assert_eq!(info.name, collection_name);
-            assert_eq!(info.dimension, 384);
+            // Aligned with the collection-creation dimension above; the
+            // 512 value matches the BM25 default embedder so the
+            // `insert_texts` sibling tests can round-trip without a
+            // dimension mismatch at the HNSW boundary.
+            assert_eq!(info.dimension, 512);
             assert_eq!(info.metric.to_lowercase(), "cosine");
             if let Some(ref status) = info.indexing_status {
                 assert!(!status.status.is_empty());
@@ -422,7 +444,9 @@ async fn test_batch_operations() {
     let collection_name = format!("test_batch_{}", uuid::Uuid::new_v4());
 
     // Create collection
-    let create_result = client.create_collection(&collection_name, 384, None).await;
+    // 512-dim matches the server's default BM25 embedder so `/insert_texts`
+    // does not fail with a dimension mismatch at the HNSW boundary.
+    let create_result = client.create_collection(&collection_name, 512, None).await;
     if create_result.is_err() {
         // If collection creation fails, skip this test
         return;
@@ -486,7 +510,9 @@ async fn test_performance() {
     let collection_name = format!("test_perf_{}", uuid::Uuid::new_v4());
 
     // Create collection
-    let create_result = client.create_collection(&collection_name, 384, None).await;
+    // 512-dim matches the server's default BM25 embedder so `/insert_texts`
+    // does not fail with a dimension mismatch at the HNSW boundary.
+    let create_result = client.create_collection(&collection_name, 512, None).await;
     if create_result.is_err() {
         // If collection creation fails, skip this test
         return;

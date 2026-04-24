@@ -61,9 +61,27 @@ impl VectorizerClient {
         let response = self
             .make_request("POST", "/insert_texts", Some(payload))
             .await?;
-        let batch_response: BatchResponse = serde_json::from_str(&response).map_err(|e| {
+        let mut batch_response: BatchResponse = serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!("Failed to parse insert texts response: {e}"))
         })?;
+        // v3 omits the pre-v3 `success` field and instead emits
+        // `inserted` / `failed` counts (aliased onto
+        // `successful_operations` / `failed_operations`). The struct
+        // doc-comment tells callers to derive the flag themselves; do
+        // that here once so existing consumers (and the SDK integration
+        // suite) keep working across the shape change.
+        if !batch_response.success
+            && batch_response.failed_operations == 0
+            && batch_response.successful_operations > 0
+        {
+            batch_response.success = true;
+        }
+        // v3 also drops the pre-v3 `operation` tag. The call site here
+        // unambiguously *is* an insert, so fill it in if the server
+        // didn't — callers that assert on the tag keep working.
+        if batch_response.operation.is_empty() {
+            batch_response.operation = "insert".to_string();
+        }
         Ok(batch_response)
     }
 
