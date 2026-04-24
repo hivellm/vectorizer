@@ -190,9 +190,9 @@ Quantization reduces memory usage by storing vectors with fewer bits.
 
 | Bits | Memory Reduction | Accuracy Loss | Use Case               |
 | ---- | ---------------- | ------------- | ---------------------- |
-| 16   | 25%              | <1%           | Maximum accuracy       |
-| 8    | 50%              | 1-2%          | Recommended (default)  |
-| 4    | 75%              | 3-5%          | Maximum memory savings |
+| 16   | 50%              | <1%           | Maximum accuracy       |
+| 8    | 75%              | 1-2%          | Recommended (default)  |
+| 4    | 87.5%            | 3-5%          | Maximum memory savings |
 
 ### Disable Quantization
 

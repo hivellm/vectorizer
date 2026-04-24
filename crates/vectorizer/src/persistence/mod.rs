@@ -62,7 +62,9 @@ pub struct PersistedCollection {
 pub struct PersistedVector {
     id: String,
     data: Vec<f32>,
-    /// Payload serialized as JSON string to satisfy bincode requirements
+    /// Payload serialized as a JSON string so dynamic `serde_json::Value`
+    /// fields round-trip cleanly through any outer codec (the current
+    /// save path uses `serde_json` / gzip, not bincode).
     payload_json: Option<String>,
     /// Whether the vector data is already normalized for cosine similarity
     normalized: bool,
@@ -400,7 +402,8 @@ mod tests {
         let manager = PersistenceManager::new(false);
         manager.save(&data, &path).unwrap();
 
-        // File should be same size (plus some overhead for bincode)
+        // File should be at least as large as the raw payload (codec framing
+        // adds a small length prefix; no compression is applied here).
         let file_size = fs::metadata(&path).unwrap().len();
         assert!(file_size >= 500);
 

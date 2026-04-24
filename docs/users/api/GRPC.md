@@ -9,6 +9,10 @@ Vectorizer exposes two gRPC services:
 1. **VectorizerService**: Native Vectorizer API with hybrid search and advanced features
 2. **Qdrant-Compatible Services**: Full Qdrant gRPC API compatibility for drop-in replacement
 
+## Migration v3.0.0 — SearchResult score precision
+
+In v3.0.0 all score fields in `SearchResult` and `HybridSearchResult` were downgraded from `double` (f64) to `float` (f32) to match the canonical `crate::models::SearchResult` type. **Breaking change**: clients using generated gRPC stubs from pre-v3.0.0 must regenerate against the current `vectorizer.proto`.
+
 ### Default Ports
 
 | Service | Port | Protocol |
@@ -176,7 +180,7 @@ message SearchResponse {
 
 message SearchResult {
     string id = 1;
-    double score = 2;
+    float score = 2;
     repeated float vector = 3;
     map<string, string> payload = 4;
 }
@@ -235,9 +239,9 @@ message HybridSearchConfig {
 
 message HybridSearchResult {
     string id = 1;
-    double hybrid_score = 2;
-    double dense_score = 3;
-    double sparse_score = 4;
+    float hybrid_score = 2;
+    float dense_score = 3;
+    float sparse_score = 4;
     repeated float vector = 5;
     map<string, string> payload = 6;
 }
@@ -339,8 +343,25 @@ service ClusterService {
     // Health and quota
     rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
     rpc CheckQuota(CheckQuotaRequest) returns (CheckQuotaResponse);
+
+    // Internal: shard migration + Raft consensus
+    rpc GetShardVectors(GetShardVectorsRequest) returns (GetShardVectorsResponse);
+    rpc RaftVote(RaftVoteRequest) returns (RaftVoteResponse);
+    rpc RaftAppendEntries(RaftAppendEntriesRequest) returns (RaftAppendEntriesResponse);
+    rpc RaftSnapshot(RaftSnapshotRequest) returns (RaftSnapshotResponse);
 }
 ```
+
+### Cluster Internal RPCs
+
+The following RPCs are **internal** to the cluster: they are used for consensus and shard data migration between nodes and are not intended to be invoked by end users or client SDKs. They are listed here for transparency only — stability and signatures may change between releases without notice.
+
+| RPC | Purpose |
+|-----|---------|
+| `GetShardVectors` | Shard data migration — streams vectors from a shard in paginated batches when ownership is reassigned. |
+| `RaftVote` | Raft consensus — request-vote RPC used during leader election. |
+| `RaftAppendEntries` | Raft consensus — log replication and heartbeat from leader to followers. |
+| `RaftSnapshot` | Raft consensus — install-snapshot RPC used to catch up followers that have fallen behind the log retention window. |
 
 ### Hybrid Search Across Shards
 

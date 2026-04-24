@@ -16,8 +16,20 @@ The Replication API enables master-replica replication for high availability and
 Vectorizer implements **Master-Replica replication**:
 - **1 Master Node** - Accepts writes, replicates to replicas
 - **N Replica Nodes** - Read-only, receive from master
-- **Async Replication** - Non-blocking, eventual consistency
-- **Manual Failover** - Promote replica to master when needed
+- **Async Replication** - Non-blocking, eventual consistency (default)
+- **Optional Sync Replication** - `WriteConcern::{Count(n), All}` for strong consistency
+- **Operator-Initiated Failover** - In this legacy mode, promotion is driven by config/ops; there is no `/promote` REST handler
+
+### Deployment Modes: Legacy Master-Replica vs. HA Cluster
+
+Vectorizer ships **two distinct replication topologies**. The one documented on this page is the legacy master-replica flavor. Pick the mode that matches your requirements:
+
+| Mode                     | Consistency / Writes                             | Failover                                                       | Where to read                                |
+| ------------------------ | ------------------------------------------------ | -------------------------------------------------------------- | -------------------------------------------- |
+| Legacy Master-Replica    | Async by default; optional sync via `WriteConcern` | Operator-initiated: promote a replica by reconfiguring it as master and restarting | This document                                |
+| HA / Cluster (Raft)      | Strong consistency across the quorum             | **Automatic** — Raft detects a missing leader heartbeat (~1-3s), elects a new leader, and redirects writes via HTTP 307 | [Cluster Deployment Guide](../../deployment/CLUSTER.md) |
+
+If you need automatic failover without human intervention, use HA/Cluster mode (Raft). The master-replica endpoints on this page do **not** expose `promote`/`demote` handlers — promotion in this mode is a configuration-level operation.
 
 ### Key Features
 
@@ -222,9 +234,13 @@ List all connected replica nodes (master only).
 **Replica Status Values:**
 
 - `Connected` - Replica is healthy and syncing normally
-- `Syncing` - Replica is performing initial sync
-- `Lagging` - Replica lag exceeds 1000ms threshold
+- `Syncing` - Replica is performing initial sync (offset still 0)
+- `Lagging` - Replica lag exceeds the **1000ms** threshold (hard-coded in `ReplicaInfo::update_status`, `crates/vectorizer/src/replication/types.rs`)
 - `Disconnected` - No heartbeat received for 60+ seconds
+
+These thresholds are evaluated by `ReplicaInfo::update_status()` on every
+heartbeat tick; the lag threshold is currently a compile-time constant and
+is not configurable via YAML or environment variables.
 
 **Example:**
 
@@ -252,12 +268,44 @@ for replica in replicas["replicas"]:
 - Eventual consistency
 - Best for: High-performance applications
 
-### Sync Replication (Future)
+### Sync Replication (Available, v3.0+)
 
-- Master waits for replica acknowledgment
-- Strong consistency
-- Higher latency
-- Best for: Critical data consistency
+Sync replication is implemented and tested. The master exposes the
+`replicate_with_concern(operation, concern, timeout)` API
+(see `crates/vectorizer/src/replication/master.rs`), which blocks until the
+requested number of replica acknowledgements has arrived or the timeout
+expires.
+
+The write concern is modeled by the `WriteConcern` enum
+(`crates/vectorizer/src/replication/types.rs`):
+
+| Variant         | Semantics                                                   |
+| --------------- | ----------------------------------------------------------- |
+| `None`          | Fire-and-forget. Returns as soon as the op is logged locally. This is the default. |
+| `Count(n)`      | Wait for at least `n` replicas to ACK the op before returning. |
+| `All`           | Wait for every currently connected replica to ACK.          |
+
+If the configured number of ACKs is not reached before `timeout`, the call
+returns `ReplicationError::WriteConcernTimeout { required, confirmed, offset }`
+and the caller can retry or surface the error — the operation itself is still
+durably recorded in the master's WAL.
+
+**Rust example:**
+
+```rust
+use std::time::Duration;
+use vectorizer::replication::types::WriteConcern;
+
+// Wait for at least 2 replicas to ACK, or fail after 500ms
+let offset = master
+    .replicate_with_concern(op, WriteConcern::Count(2), Duration::from_millis(500))
+    .await?;
+```
+
+- Best for: critical data consistency, quorum writes, or fencing before
+  surfacing a successful write to the client.
+- Trade-off: each sync write incurs at least one network round-trip to the
+  slowest acknowledged replica.
 
 ## Use Cases
 

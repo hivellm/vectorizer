@@ -132,6 +132,71 @@ The dashboard uses these REST API endpoints:
 - `POST /api/backups/create` - Create backup
 - `POST /api/backups/restore` - Restore backup
 
+### Graph Management
+
+The `GraphPage` (paired with the `useGraph` hook) lets operators inspect and curate the per-collection knowledge graph: browsing nodes and their neighborhoods, finding related items, running shortest-path queries between two nodes, manually authoring or removing edges, and enabling/running automatic graph discovery on a collection. The page surfaces both read-only exploration (neighbors, related, edges list) and mutating workflows (edge CRUD, discovery jobs, enabling graph mode).
+
+- `GET /graph/nodes/{collection}` - List graph nodes in a collection
+- `GET /graph/nodes/{collection}/{node_id}/neighbors` - Get direct neighbors of a node
+- `GET /graph/nodes/{collection}/{node_id}/related` - Get semantically related nodes
+- `POST /graph/path` - Compute a path between two nodes
+- `POST /graph/edges` - Create a graph edge
+- `DELETE /graph/edges/{edge_id}` - Remove a graph edge
+- `GET /graph/collections/{collection}/edges` - List all edges in a collection
+- `POST /graph/discover/{collection}` - Trigger automatic edge discovery
+- `GET /graph/discover/{collection}/status` - Poll discovery job status
+- `POST /graph/enable/{collection}` - Enable graph features for a collection
+- `GET /graph/status/{collection}` - Check whether graph mode is active
+
+Who uses it: knowledge engineers and data curators building or maintaining semantic graphs over indexed collections.
+
+### Cluster Management
+
+The `ClusterPage` provides a control plane view of the distributed cluster: registered nodes, their health and role (leader/follower), shard distribution across nodes, and manual operations such as adding a new node, removing a node, or triggering a rebalance. It is the operational counterpart to the replication/cluster subsystem described in the main architecture docs.
+
+- `GET /api/v1/cluster/nodes` - List cluster nodes
+- `POST /api/v1/cluster/nodes` - Register a new cluster node
+- `GET /api/v1/cluster/nodes/{node_id}` - Get details of a specific node
+- `DELETE /api/v1/cluster/nodes/{node_id}` - Deregister a node
+- `GET /api/v1/cluster/shard-distribution` - Show shard-to-node mapping
+- `POST /api/v1/cluster/rebalance` - Trigger a rebalance of shards
+- `GET /api/v1/cluster/leader` - Identify the current leader node
+- `GET /api/v1/cluster/role` - Report the local node's role
+
+Note: `/api/v1/cluster/leader` and `/api/v1/cluster/role` are user-facing via this page even though they are not yet documented in the main REST API reference (confirmed by iteration 4 audit).
+
+Who uses it: cluster operators and SREs managing distributed Vectorizer deployments.
+
+### User Management
+
+The `UsersPage` exposes basic user administration for the built-in auth system: listing existing users, creating new ones, resetting passwords, and deleting accounts. It is the UI surface over the RBAC user store backing JWT/API-key authentication.
+
+- `GET /auth/users` - List users
+- `POST /auth/users` - Create a new user
+- `PUT /auth/users/{username}/password` - Update a user's password
+- `DELETE /auth/users/{username}` - Delete a user
+
+Who uses it: system administrators provisioning operator access.
+
+### API Key Management
+
+The `ApiKeysPage` (paired with the `useApiKeys` hook) manages machine credentials used by SDKs, CI jobs, and service integrations. Administrators can list all active keys with their scopes, mint new keys, and revoke keys that are no longer needed.
+
+- `GET /auth/keys` - List API keys
+- `POST /auth/keys` - Create (mint) a new API key
+- `DELETE /auth/keys/{id}` - Revoke an API key
+
+Who uses it: system administrators issuing credentials to automated clients.
+
+### Metrics & Workspace Config
+
+Two smaller read-only endpoints round out the dashboard. The metrics panel scrapes the Prometheus exposition for live server metrics (query latency, memory, file-watcher counters), and the workspace config viewer displays the effective `workspace.yml` currently loaded by the server so operators can confirm which projects and paths are being indexed.
+
+- `GET /metrics` - Prometheus exposition (text format)
+- `GET /workspace/config` - Effective workspace configuration
+
+Who uses it: operators and observability engineers monitoring the running server.
+
 ## Troubleshooting
 
 ### Dashboard Not Loading
