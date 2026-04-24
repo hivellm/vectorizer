@@ -99,6 +99,16 @@ impl VectorStore {
         allow_gpu: bool,
         owner_id: Option<uuid::Uuid>,
     ) -> Result<()> {
+        // Reject empty / whitespace-only names at the chokepoint so every
+        // caller (REST, gRPC, MCP, internal utilities) sees the same 400
+        // instead of silently producing a collection whose name is unusable
+        // as a REST path segment.
+        if name.trim().is_empty() {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "collection name cannot be empty".to_string(),
+            });
+        }
+
         debug!("Creating collection '{}' with config: {:?}", name, config);
 
         if self.collections.contains_key(name) {
