@@ -90,14 +90,24 @@ jobs:
         # auth off via env var so the client can reach gated endpoints
         # without credentials. The server is killed in an always-run
         # cleanup step further below.
+        #
+        # Windows detail: the test step below calls `cargo nextest run
+        # --all-targets`, which may try to re-link `target/debug/vectorizer.exe`.
+        # Windows refuses to delete an executable that is currently mapped by
+        # a running process (`Access is denied. (os error 5)`), so we run the
+        # server from a sidecar copy (`vectorizer-running(.exe)`) and leave
+        # the original artifact free for cargo to replace.
         env:
           RUNNER_OS_NAME: ${{ matrix.os }}
         run: |
           if [[ "$RUNNER_OS_NAME" == "windows-latest" ]]; then
-            BIN="./target/debug/vectorizer.exe"
+            SRC="./target/debug/vectorizer.exe"
+            BIN="./target/debug/vectorizer-running.exe"
           else
-            BIN="./target/debug/vectorizer"
+            SRC="./target/debug/vectorizer"
+            BIN="./target/debug/vectorizer-running"
           fi
+          cp "$SRC" "$BIN"
           VECTORIZER_AUTH_ENABLED=false "$BIN" \
             --host 127.0.0.1 --port 15002 \
             > vectorizer-test.log 2>&1 &
