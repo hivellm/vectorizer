@@ -91,7 +91,13 @@ jobs:
             target: x86_64-unknown-linux-gnu
             lib_dir: x86_64-linux-gnu
           - arch: arm64
-            runner: ubuntu-22.04-arm
+            # ubuntu-22.04-arm ships glibc 2.35; the prebuilt
+            # ONNX Runtime that `ort-sys` pulls in references
+            # `__isoc23_strtol` (glibc 2.38+) and `__cxa_call_terminate`
+            # (newer libstdc++), so the link step fails with
+            # `undefined reference`. ubuntu-24.04-arm has glibc 2.39
+            # plus a libstdc++ that resolves both symbols.
+            runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             lib_dir: aarch64-linux-gnu
     runs-on: ${{ matrix.runner }}
@@ -164,8 +170,19 @@ jobs:
       - name: Install cross
         run: cargo install cross --git https://github.com/cross-rs/cross
       - name: Build musl binaries with cross
+        # Wipe the leaked Win64 OPENSSL_DIR / OPENSSL_NO_VENDOR before
+        # cross spawns its container -- Cross.toml passthrough now
+        # forwards the empty values explicitly so openssl-sys does not
+        # try to use the leaked path inside the container either.
+        # `vendored-openssl` is a real vectorizer-server feature now
+        # (proxies to vectorizer/vendored-openssl) so the flag below
+        # actually compiles a static OpenSSL into the musl binary.
+        env:
+          OPENSSL_DIR: ""
+          OPENSSL_NO_VENDOR: ""
         run: |
-          cross build --release --target aarch64-unknown-linux-musl --no-default-features --features vendored-openssl
+          cross build --release --target aarch64-unknown-linux-musl --features vendored-openssl --bin vectorizer
+          cross build --release --target aarch64-unknown-linux-musl --bin vectorizer-cli
           mkdir -p dist
           cp target/aarch64-unknown-linux-musl/release/vectorizer dist/vectorizer-aarch64-unknown-linux-musl
           cp target/aarch64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-aarch64-unknown-linux-musl
@@ -182,9 +199,14 @@ jobs:
     needs: build-dashboard
     strategy:
       matrix:
+        # x86_64-apple-darwin used to live here; dropped because
+        # `ort-sys` (transitive via the `fastembed` default feature)
+        # ships no prebuilt for Intel Mac and the workflow has no
+        # `ORT_STRATEGY=compile` plumbing. Apple Silicon is the only
+        # supported macOS target now -- the sibling
+        # `build-mac-metal-binaries` job covers the same target with
+        # Metal GPU support.
         include:
-          - target: x86_64-apple-darwin
-            os: macos-latest
           - target: aarch64-apple-darwin
             os: macos-latest
     runs-on: ${{ matrix.os }}

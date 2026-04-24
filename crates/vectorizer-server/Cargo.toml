@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-server"
-version = "3.0.5"
+version = "3.0.6"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "HTTP / gRPC / MCP server for Vectorizer."
@@ -153,6 +153,13 @@ path = "src/bin/vectorizer.rs"
 # `tests/grpc_s2s.rs` carries `#![cfg(feature = "s2s-tests")]` and
 # only runs when an external server is reachable.
 s2s-tests = []
+# Proxy the umbrella crate's `vendored-openssl` feature so the musl
+# release build can pass `cargo build --features vendored-openssl`
+# directly and have openssl-sys build statically. The umbrella's
+# feature gates the optional `openssl = { features = ["vendored"] }`
+# dep; without this proxy, `--features vendored-openssl` errored
+# because vectorizer-server has no such feature of its own.
+vendored-openssl = ["vectorizer/vendored-openssl"]
 
 [lints]
 workspace = true

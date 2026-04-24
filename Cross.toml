@@ -16,6 +16,13 @@ passthrough = [
     "OPENSSL_STATIC=1",
     "ORT_STRATEGY=system",
     "ORT_USE_CUDA=0",
+    # Forward the explicit empty values set in the workflow so the
+    # leaked GH-runner OPENSSL_DIR=C:/Program Files/OpenSSL-Win64
+    # (and OPENSSL_NO_VENDOR=1) cannot reach openssl-sys inside the
+    # cross container. Empty values let the vendored-openssl
+    # feature build a static OpenSSL bundled into the binary.
+    "OPENSSL_DIR=",
+    "OPENSSL_NO_VENDOR=",
 ]
 
 [target.aarch64-unknown-linux-musl]
@@ -27,5 +34,12 @@ passthrough = [
     "OPENSSL_STATIC=1",
     "ORT_STRATEGY=system",
     "ORT_USE_CUDA=0",
+    # Forward the explicit empty values set in the workflow so the
+    # leaked GH-runner OPENSSL_DIR=C:/Program Files/OpenSSL-Win64
+    # (and OPENSSL_NO_VENDOR=1) cannot reach openssl-sys inside the
+    # cross container. Empty values let the vendored-openssl
+    # feature build a static OpenSSL bundled into the binary.
+    "OPENSSL_DIR=",
+    "OPENSSL_NO_VENDOR=",
 ]
 
