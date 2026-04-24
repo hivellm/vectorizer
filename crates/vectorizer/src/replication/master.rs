@@ -328,10 +328,32 @@ impl MasterNode {
             }
         });
 
+        // Ops with offset <= `sync_offset` are already covered by the
+        // FullSync/PartialSync sent above. The replica is inserted into the
+        // `replicas` map before the snapshot is captured (so `replicate()`
+        // callers never drop writes targeted at it), which means the fan-out
+        // task can enqueue those same ops into our per-replica `rx` in the
+        // window between registration and snapshot capture. Drop them here
+        // instead of double-applying on the replica — the replica's
+        // `apply_operation` treats `InsertVector` as an idempotent upsert by
+        // id, but `vector_count` used to diverge under replay before the
+        // matching `insert_batch` fix in `collection/data.rs`.
+        let sync_offset = current_offset;
+
         // Send commands to the replica on the write half.
         loop {
             tokio::select! {
                 Some(cmd) = rx.recv() => {
+                    if let ReplicationCommand::Operation(ref op) = cmd {
+                        if op.offset <= sync_offset {
+                            debug!(
+                                "Replica {}: skipping op at offset {} (<= sync_offset {})",
+                                replica_id, op.offset, sync_offset
+                            );
+                            continue;
+                        }
+                    }
+
                     if let Err(e) = Self::send_command_half(&mut write_half, &cmd).await {
                         error!("Failed to send to replica {}: {}", replica_id, e);
                         break;
