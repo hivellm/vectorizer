@@ -49,9 +49,23 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
+          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler libssl-dev pkg-config
           rustup default stable
           rustup update
+      - name: Override leaked Windows OPENSSL_DIR (point at system libssl)
+        # The ubuntu-latest GH-hosted runner image leaks
+        # OPENSSL_DIR=C:/Program Files/OpenSSL-Win64 (and
+        # OPENSSL_NO_VENDOR=1) into Linux jobs, which together make
+        # openssl-sys's build script panic with "OpenSSL include
+        # directory does not exist" before the vendored-openssl
+        # feature can take over. Point at the system libssl-dev
+        # install instead -- same fix applied to rust.yml in 7fad253d.
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+        shell: bash
       - name: Build and publish vectorizer
         uses: taiki-e/upload-rust-binary-action@v1
         with:
@@ -75,9 +89,11 @@ jobs:
           - arch: amd64
             runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            lib_dir: x86_64-linux-gnu
           - arch: arm64
             runner: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
+            lib_dir: aarch64-linux-gnu
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
@@ -87,14 +103,35 @@ jobs:
           name: dashboard-dist
           path: dashboard/dist
       - name: Install dependencies
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc clang cmake protobuf-compiler
+          sudo apt-get install -y gcc clang cmake protobuf-compiler libssl-dev pkg-config
           rustup default stable
           rustup update
-          rustup target add ${{ matrix.target }}
+          rustup target add "$MATRIX_TARGET"
+      - name: Override leaked Windows OPENSSL_DIR (point at system libssl)
+        # See comment on the same step in build-linux-x86_64-gnu above.
+        # `lib_dir` is matrix-driven so the arm64 runner finds
+        # /usr/lib/aarch64-linux-gnu instead of the amd64 path.
+        env:
+          MATRIX_LIB_DIR: ${{ matrix.lib_dir }}
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/$MATRIX_LIB_DIR" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/$MATRIX_LIB_DIR/pkgconfig" >> $GITHUB_ENV
+        shell: bash
       - name: Build (gnu)
-        run: cargo build --release --target ${{ matrix.target }} --no-default-features --features vendored-openssl --bin vectorizer
+        # Drop the bogus `--features vendored-openssl` -- vectorizer-server
+        # has no such feature, and now that the leaked OPENSSL_DIR is
+        # overridden we link against the system libssl-dev installed
+        # above. Drop `--no-default-features` since vectorizer-server
+        # has no relevant defaults (only the opt-in `s2s-tests`).
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
+        run: cargo build --release --target "$MATRIX_TARGET" --bin vectorizer
       - name: Prepare binary for artifact
         run: |
           mkdir -p binaries/linux-${{ matrix.arch }}
