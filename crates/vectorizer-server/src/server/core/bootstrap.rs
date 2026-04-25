@@ -1118,15 +1118,44 @@ impl VectorizerServer {
                                 for attempt in 1..=12 {
                                     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-                                    // Only the leader can propose — check first
+                                    // Only the leader can propose — check first.
                                     if !mgr_clone.is_leader().await {
-                                        // Force a new election attempt — openraft may
-                                        // have given up after initial DNS failures.
-                                        let _ = mgr_clone.raft().trigger().elect().await;
-                                        tracing::warn!(
-                                            attempt,
-                                            "Not leader yet, triggered election retry"
-                                        );
+                                        // Wait for a leader to settle. The previous
+                                        // implementation called `raft().trigger().elect()`
+                                        // here unconditionally on every non-leader pod,
+                                        // which kicked off a new election cycle every
+                                        // 10s even when the cluster had a perfectly
+                                        // valid leader. Result: leader rotated forever
+                                        // (vt3-1 → vt3-2 → vt3-1 …) and AppendEntries
+                                        // streams reset before the AddNode propose
+                                        // could land. Drop the unconditional trigger
+                                        // and only nudge openraft when *no leader at
+                                        // all* is visible after the warm-up window.
+                                        // Use the openraft `WatchReceiver` trait
+                                        // explicitly to keep the import local to
+                                        // this block instead of polluting the
+                                        // bootstrap module's top-level imports.
+                                        use openraft::rt::WatchReceiver as _;
+                                        let leader_visible = mgr_clone
+                                            .raft()
+                                            .metrics()
+                                            .borrow_watched()
+                                            .current_leader
+                                            .is_some();
+                                        if !leader_visible && attempt >= 3 {
+                                            let _ = mgr_clone.raft().trigger().elect().await;
+                                            tracing::warn!(
+                                                attempt,
+                                                "No leader after {}s — triggering election",
+                                                attempt * 10
+                                            );
+                                        } else {
+                                            tracing::debug!(
+                                                attempt,
+                                                leader_visible,
+                                                "Not leader on this node — waiting for current leader to propose AddNode"
+                                            );
+                                        }
                                         continue;
                                     }
 
