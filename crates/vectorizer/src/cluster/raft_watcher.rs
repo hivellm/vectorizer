@@ -126,7 +126,7 @@ impl RaftWatcher {
                             if prev_state != Some(ServerState::Follower) || leader_changed {
                                 // Either we just stepped down, or the leader changed.
                                 let leader_addr =
-                                    resolve_leader_addr(&state_machine, current_leader).await;
+                                    resolve_leader_addr(&raft, &state_machine, current_leader).await;
 
                                 if let Some(ref addr) = leader_addr {
                                     let leader_id = current_leader.unwrap_or(0);
@@ -152,7 +152,7 @@ impl RaftWatcher {
                                         );
                                         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                                         if let Some(addr) =
-                                            resolve_leader_addr(&state_machine, current_leader)
+                                            resolve_leader_addr(&raft, &state_machine, current_leader)
                                                 .await
                                         {
                                             let leader_id = current_leader.unwrap_or(0);
@@ -233,16 +233,35 @@ impl RaftWatcher {
 
 /// Resolve the leader's IP/hostname from the Raft state machine.
 ///
-/// The `nodes` map is populated by `AddNode` commands proposed after bootstrap.
-/// During the initial election (before `AddNode` runs), this may return `None`
-/// — the RaftWatcher logs a warning and retries on the next state change.
+/// Reads the address from the openraft membership config — populated by
+/// `initialize_cluster()` before the first election and always reflects the
+/// authoritative member set, so followers can route the moment a leader is
+/// known. The legacy fallback to the state-machine `nodes` map (populated by
+/// the post-bootstrap `AddNode` proposal) handles dynamically-added nodes that
+/// were never in the initial membership.
 async fn resolve_leader_addr(
+    raft: &super::raft_node::VectorizerRaft,
     state_machine: &Arc<super::raft_node::ClusterStateMachine>,
     leader_id: Option<u64>,
 ) -> Option<String> {
     let leader_id = leader_id?;
-    let state = state_machine.state().await;
 
+    // Primary: openraft membership. Set by `initialize_cluster` and replicated
+    // as part of the Raft log, so every node sees the same map within one
+    // round of `AppendEntries` — no reliance on the state-machine `AddNode`
+    // round-trip that previously stalled before the first stable leader.
+    {
+        let metrics = raft.metrics().borrow_watched().clone();
+        if let Some(info) = metrics.membership_config.membership().get_node(&leader_id)
+            && !info.address.is_empty()
+        {
+            return Some(info.address.clone());
+        }
+    }
+
+    // Secondary: state-machine nodes map, kept for backward compat with
+    // dynamic AddNode flows that introduce members after bootstrap.
+    let state = state_machine.state().await;
     state
         .nodes
         .get(&leader_id)
