@@ -1120,39 +1120,43 @@ impl VectorizerServer {
 
                                     // Only the leader can propose — check first.
                                     if !mgr_clone.is_leader().await {
-                                        // Wait for a leader to settle. The previous
-                                        // implementation called `raft().trigger().elect()`
-                                        // here unconditionally on every non-leader pod,
-                                        // which kicked off a new election cycle every
-                                        // 10s even when the cluster had a perfectly
-                                        // valid leader. Result: leader rotated forever
-                                        // (vt3-1 → vt3-2 → vt3-1 …) and AppendEntries
-                                        // streams reset before the AddNode propose
-                                        // could land. Drop the unconditional trigger
-                                        // and only nudge openraft when *no leader at
-                                        // all* is visible after the warm-up window.
-                                        // Use the openraft `WatchReceiver` trait
-                                        // explicitly to keep the import local to
-                                        // this block instead of polluting the
-                                        // bootstrap module's top-level imports.
+                                        // Nudge openraft only when this node has been
+                                        // stuck in `Candidate` for the warm-up window.
+                                        //
+                                        // Previously this checked `current_leader.is_some()`
+                                        // on the metrics snapshot, but that field is
+                                        // populated only after the leader has received
+                                        // a quorum-ack — there is a real interval where
+                                        // openraft has elected a leader and is following
+                                        // it (state = Follower, vote committed) yet
+                                        // `current_leader` is still `None`. Triggering
+                                        // an election then was a false positive that
+                                        // showed up as repeated "No leader after Ns"
+                                        // warnings on healthy clusters (live test on
+                                        // ermes prod, v3.0.11). Gating on
+                                        // `state == Candidate` is the actual
+                                        // "stuck — no quorum exists" signal.
+                                        use openraft::ServerState;
                                         use openraft::rt::WatchReceiver as _;
-                                        let leader_visible = mgr_clone
-                                            .raft()
-                                            .metrics()
-                                            .borrow_watched()
-                                            .current_leader
-                                            .is_some();
-                                        if !leader_visible && attempt >= 3 {
+                                        let metrics =
+                                            mgr_clone.raft().metrics().borrow_watched().clone();
+                                        let stuck_in_candidate = matches!(
+                                            metrics.state,
+                                            ServerState::Candidate
+                                        );
+                                        if stuck_in_candidate && attempt >= 3 {
                                             let _ = mgr_clone.raft().trigger().elect().await;
                                             tracing::warn!(
                                                 attempt,
-                                                "No leader after {}s — triggering election",
+                                                state = ?metrics.state,
+                                                "Stuck in Candidate after {}s — nudging election",
                                                 attempt * 10
                                             );
                                         } else {
                                             tracing::debug!(
                                                 attempt,
-                                                leader_visible,
+                                                state = ?metrics.state,
+                                                current_leader = ?metrics.current_leader,
                                                 "Not leader on this node — waiting for current leader to propose AddNode"
                                             );
                                         }

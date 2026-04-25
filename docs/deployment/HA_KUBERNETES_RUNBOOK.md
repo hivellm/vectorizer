@@ -263,6 +263,12 @@ spec:
                 fieldRef: { fieldPath: status.podIP }
             - name: VECTORIZER_SERVICE_NAME
               value: "vectorizer-headless.vectorizer-ha.svc.cluster.local"
+            # Pin the data dir to the PVC mount; otherwise the server
+            # falls back to `~/.local/share/vectorizer/` which is
+            # *outside* the PVC and survives nothing. See "Data
+            # directory pitfall" further down.
+            - name: VECTORIZER_DATA_DIR
+              value: "/data/data"
             - name: VECTORIZER_AUTH_ENABLED
               value: "true"
             - name: VECTORIZER_ADMIN_USERNAME
@@ -451,6 +457,77 @@ rolling restart), see the load-test script in
 [`docs/runbooks/PROCEDURES.md`](../runbooks/PROCEDURES.md#ha-load-test).
 
 ---
+
+## Data directory pitfall (must read before deploying)
+
+`vectorizer-core::paths::data_dir()` — the function the server uses to
+locate `vectorizer.vecdb`, snapshots, and the auth files — resolves in
+this order:
+
+1. `$VECTORIZER_DATA_DIR` if set and non-empty.
+2. `dirs::data_dir().join("vectorizer")` — per-OS user data directory
+   (`~/.local/share/vectorizer/` on Linux, `~/Library/Application
+   Support/vectorizer/` on macOS).
+3. `./data` — relative to the current working directory.
+
+A standard StatefulSet template mounts the PVC at `/data` and the
+server runs out of `/vectorizer/`. Without the env override, the
+default Linux path wins — `~/.local/share/vectorizer/` — which is
+**inside the container's writable layer, not on the PVC**. Every
+restart looks like a fresh first-time-setup even when
+`vectorizer.vecdb` is sitting unread on the PVC at `/data/data/`.
+
+The Step 6 manifest above sets `VECTORIZER_DATA_DIR=/data/data`
+explicitly for this reason. Deploys built off the old `k8s/statefulset-ha.yaml`
+(prior to the v3.0.13 release) silently dropped this env var and lost
+visibility into pre-existing data — the data was still on disk, just
+read from the wrong path. If you suspect this happened to a running
+deployment, see [Recovering data lost to the data-dir trap](#recovering-data-lost-to-the-data-dir-trap)
+below.
+
+### Recovering data lost to the data-dir trap
+
+If the API reports zero collections but `kubectl exec <pod> -- ls /data/data`
+shows a `vectorizer.vecdb` file:
+
+```bash
+NS=...           # whatever your namespace is
+STS=...          # StatefulSet name (e.g. ermes-vectorizer)
+
+# 1. Add the env var.
+kubectl set env sts/$STS -n $NS VECTORIZER_DATA_DIR=/data/data
+
+# 2. The auth.enc on the PVC was written by an older deploy with a
+#    different VECTORIZER_JWT_SECRET / VECTORIZER_ADMIN_PASSWORD, so
+#    the current secret won't be able to log in. Back it up and let
+#    the server recreate it from the current env on next boot.
+for p in ${STS}-0 ${STS}-1 ${STS}-2; do
+  kubectl exec "$p" -n "$NS" -- sh -c '
+    cp /data/data/auth.enc /data/data/auth.enc.bak-$(date +%Y-%m-%d)
+    cp /data/data/.auth.key /data/data/.auth.key.bak-$(date +%Y-%m-%d)
+    rm /data/data/auth.enc /data/data/.auth.key
+  '
+done
+
+# 3. Rolling restart: vectorizer.vecdb gets loaded; auth files get
+#    recreated from VECTORIZER_ADMIN_PASSWORD + VECTORIZER_JWT_SECRET.
+kubectl rollout restart sts/$STS -n $NS
+kubectl rollout status sts/$STS -n $NS
+
+# 4. Validate. The collection list should match what was on the PVC.
+ADM_PASS=$(kubectl get secret <your-credentials-secret> -n $NS \
+  -o jsonpath='{.data.VECTORIZER_PASSWORD}' | base64 -d)
+kubectl port-forward -n $NS pod/${STS}-0 18002:15002 &
+TOKEN=$(curl -sS -X POST http://127.0.0.1:18002/auth/login \
+  -H 'content-type: application/json' \
+  -d "{\"username\":\"admin\",\"password\":\"$ADM_PASS\"}" | jq -r .access_token)
+curl -sS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:18002/collections \
+  | jq '{total: (.collections | length), total_vectors: ([.collections[].vector_count] | add)}'
+```
+
+The `.bak` files stay on the PVC in case you need to roll the auth
+state back; delete them once you've confirmed the new admin login
+works.
 
 ## What changed in 3.0.11
 

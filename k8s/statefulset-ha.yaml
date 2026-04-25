@@ -72,6 +72,15 @@ spec:
                   fieldPath: status.podIP
             - name: VECTORIZER_SERVICE_NAME
               value: "ermes-vectorizer-headless.ermes.svc.cluster.local"
+            # Pin the data directory to the mounted PVC. Without this, the
+            # server falls back to the per-OS user data dir
+            # (`~/.local/share/vectorizer/` on Linux), which does NOT live
+            # on the PVC — so every pod restart looks like a "first time
+            # setup" even when `vectorizer.vecdb` is sitting unread on
+            # the PVC. Live test on ermes prod hit this trap on v3.0.11.
+            # See docs/deployment/HA_KUBERNETES_RUNBOOK.md (Data dir).
+            - name: VECTORIZER_DATA_DIR
+              value: "/data/data"
             - name: VECTORIZER_AUTH_ENABLED
               value: "true"
             - name: VECTORIZER_ADMIN_USERNAME
