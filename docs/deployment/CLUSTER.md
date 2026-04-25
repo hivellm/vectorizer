@@ -2,13 +2,23 @@
 
 Complete guide to deploying Vectorizer in a distributed cluster configuration.
 
+> **Looking for the Kubernetes step-by-step?** This file is the architecture
+> reference (Raft + replication shapes, config schema). For a deploy-from-zero
+> playbook against a real K8s cluster — including the gotchas that bit
+> v3.0.0 → v3.0.10 — use the dedicated
+> [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md).
+
 ## Overview
 
 This guide covers deploying Vectorizer across multiple servers for horizontal scalability and high availability.
 
 ## High Availability (HA) Mode
 
-Vectorizer v2.5.0 introduces a hybrid HA architecture combining Raft consensus for metadata and TCP streaming for vector data replication.
+Vectorizer v2.5.0 introduced a hybrid HA architecture combining Raft consensus
+for metadata and TCP streaming for vector data replication. The Kubernetes
+side of that architecture stabilized in v3.0.11; earlier 3.0.x releases hit
+three Raft initialization bugs documented in the
+[HA Runbook](./HA_KUBERNETES_RUNBOOK.md#what-changed-in-3011).
 
 ### Architecture
 

@@ -2,11 +2,20 @@
 
 Quick guide to setting up a Vectorizer cluster for distributed sharding.
 
+> **Deploying on Kubernetes for HA?** This guide covers the standalone /
+> bare-metal cluster topology. For the Raft-based HA cluster on K8s
+> (3-pod StatefulSet, automatic failover, leader election), use
+> [HA on Kubernetes — End-to-End Runbook](../../deployment/HA_KUBERNETES_RUNBOOK.md)
+> instead. The runbook is the only path that's been validated end-to-end
+> against `ghcr.io/hivellm/vectorizer:3.0.11+` and includes the K8s-specific
+> gotchas (init-container template, headless service DNS, JWT-required
+> bind, GHCR tag prefix).
+
 ## Prerequisites
 
 - 2+ servers with Vectorizer installed
 - Network connectivity between servers
-- Same Vectorizer version on all nodes
+- Same Vectorizer version on all nodes (≥ 3.0.11 for HA)
 
 ## Step 1: Configure Each Node
 

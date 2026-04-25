@@ -17,6 +17,13 @@ spec:
       labels:
         app: ermes-vectorizer
     spec:
+      # Required when pulling from ghcr.io/hivellm/vectorizer (private package).
+      # Create the secret with a PAT that has `read:packages`:
+      #   kubectl create secret docker-registry ghcr-credentials \
+      #     -n ermes --docker-server=ghcr.io \
+      #     --docker-username=<gh-user> --docker-password=<pat>
+      imagePullSecrets:
+        - name: ghcr-credentials
       initContainers:
         # Injects the pod hostname as node_id into the config
         - name: config-selector
@@ -34,8 +41,11 @@ spec:
               mountPath: /active-config
       containers:
         - name: vectorizer
-          image: ghcr.io/hivellm/vectorizer:latest
-          imagePullPolicy: Always
+          # Pin to an exact tag so rolling restarts are reproducible.
+          # GHCR tags are *unprefixed*: use `3.0.11`, NOT `v3.0.11`.
+          # See docs/deployment/HA_KUBERNETES_RUNBOOK.md.
+          image: ghcr.io/hivellm/vectorizer:3.0.11
+          imagePullPolicy: IfNotPresent
           ports:
             # RPC (binary, recommended primary) listed first per
             # phase6_make-rpc-default-transport.
@@ -94,7 +104,9 @@ spec:
               memory: "8Gi"
           livenessProbe:
             httpGet:
-              path: /api/status
+              # `/health` is intentionally anonymous; `/api/status` requires a
+              # JWT and would deadlock the readiness gate.
+              path: /health
               port: http
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -102,7 +114,9 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /api/status
+              # `/health` is intentionally anonymous; `/api/status` requires a
+              # JWT and would deadlock the readiness gate.
+              path: /health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 5

@@ -4,7 +4,9 @@ Complete deployment guides for Vectorizer in various environments.
 
 ## Contents
 
-- [Kubernetes Deployment](./KUBERNETES.md) - Complete Kubernetes deployment guide
+- [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md) - Step-by-step playbook for a 3-node Raft cluster on Kubernetes (v3.0.11+, validated end-to-end)
+- [Kubernetes Deployment](./KUBERNETES.md) - General Kubernetes deployment guide (single-node and HA reference)
+- [Cluster Deployment Guide](./CLUSTER.md) - Architecture overview for HA + sharding cluster modes
 - [Docker Compose Production](./docker-compose.production.yml) - Production Docker Compose example
 - [Nginx Reverse Proxy](./nginx.conf) - Nginx configuration for reverse proxy
 
