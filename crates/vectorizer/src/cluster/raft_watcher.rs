@@ -126,7 +126,8 @@ impl RaftWatcher {
                             if prev_state != Some(ServerState::Follower) || leader_changed {
                                 // Either we just stepped down, or the leader changed.
                                 let leader_addr =
-                                    resolve_leader_addr(&raft, &state_machine, current_leader).await;
+                                    resolve_leader_addr(&raft, &state_machine, current_leader)
+                                        .await;
 
                                 if let Some(ref addr) = leader_addr {
                                     let leader_id = current_leader.unwrap_or(0);
@@ -151,9 +152,12 @@ impl RaftWatcher {
                                             "Waiting for leader address in state machine..."
                                         );
                                         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                                        if let Some(addr) =
-                                            resolve_leader_addr(&raft, &state_machine, current_leader)
-                                                .await
+                                        if let Some(addr) = resolve_leader_addr(
+                                            &raft,
+                                            &state_machine,
+                                            current_leader,
+                                        )
+                                        .await
                                         {
                                             let leader_id = current_leader.unwrap_or(0);
                                             let leader_http_url =

@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-server"
-version = "3.0.11"
+version = "3.0.12"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "HTTP / gRPC / MCP server for Vectorizer."
@@ -17,7 +17,12 @@ vectorizer-protocol = { path = "../vectorizer-protocol" }
 # umbrella `vectorizer` crate because of bidirectional deps
 # (db→cluster, cache→monitoring, config→{auth,hub}). A future
 # sub-phase resolves those back-refs and narrows this dep.
-vectorizer = { path = "../vectorizer", default-features = false, features = ["fastembed"] }
+#
+# `default-features = false` keeps the umbrella's `hive-gpu` (Metal-only)
+# off so the binary builds cleanly on Linux. The `fastembed` and other
+# umbrella features are exposed as proxy features below; with the default
+# feature set on, this dep ends up with `fastembed` enabled.
+vectorizer = { path = "../vectorizer", default-features = false }
 
 # HTTP / WebSocket server
 axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
@@ -149,6 +154,19 @@ name = "vectorizer"
 path = "src/bin/vectorizer.rs"
 
 [features]
+# `fastembed` is in the default set: the binary ships with FastEmbed
+# (ONNX Runtime) embedding support out of the box, matching what the
+# release Docker image has shipped since v3.0.0. Slim builds that don't
+# need on-server text embedding can opt out with
+# `cargo build --no-default-features`.
+default = ["fastembed"]
+# Proxy to the umbrella crate's optional `fastembed` feature so the
+# default-feature flip above actually flows through to the dep. Without
+# this proxy the `default = ["fastembed"]` line would error with
+# "feature `fastembed` does not exist" because `vectorizer-server` has
+# no feature of its own; `dep-name/feature-name` syntax forwards into
+# the umbrella's feature graph.
+fastembed = ["vectorizer/fastembed"]
 # Server-to-server gRPC integration tests gated under this flag.
 # `tests/grpc_s2s.rs` carries `#![cfg(feature = "s2s-tests")]` and
 # only runs when an external server is reachable.
