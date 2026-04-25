@@ -1066,19 +1066,45 @@ impl VectorizerServer {
                                 );
                             }
 
-                            // Every node attempts bootstrap — only the first to
-                            // succeed actually initializes; others get "already
-                            // initialized" which is silently ignored.
-                            warn!(
-                                "🗳️ Calling initialize_cluster with {} members...",
-                                members.len()
-                            );
-                            match mgr.initialize_cluster(members).await {
-                                Ok(_) => warn!("✅ Raft cluster initialized successfully"),
-                                Err(e) => warn!(
-                                    "Raft cluster bootstrap: {} (may be normal if already initialized)",
-                                    e
-                                ),
+                            // Only the lowest-ordinal node bootstraps Raft. The
+                            // previous "every node attempts initialize, others get
+                            // 'already initialized'" pattern was wrong: openraft's
+                            // `initialize` writes to the *local* log/vote
+                            // independently on each node, so calling it
+                            // simultaneously on N nodes produces N divergent
+                            // term-1 logs (each node votes for self) and the
+                            // subsequent election permanently rejects every vote
+                            // due to log inconsistency. By gating on the
+                            // lowest-ordinal hostname (`<sts>-0` in a Kubernetes
+                            // StatefulSet, or the alphabetically-first server id
+                            // outside K8s), exactly one node bootstraps; the
+                            // others wait, accept the membership log entry the
+                            // bootstrap node propagates, and join cleanly.
+                            let bootstrap_id = cluster_servers
+                                .iter()
+                                .map(|s| s.id.clone())
+                                .min()
+                                .unwrap_or_default();
+                            let should_bootstrap = my_id_str == bootstrap_id;
+                            if should_bootstrap {
+                                warn!(
+                                    bootstrap_id = %bootstrap_id,
+                                    "🗳️ Calling initialize_cluster with {} members (this node is the bootstrap node)...",
+                                    members.len()
+                                );
+                                match mgr.initialize_cluster(members).await {
+                                    Ok(_) => warn!("✅ Raft cluster initialized successfully"),
+                                    Err(e) => warn!(
+                                        "Raft cluster bootstrap: {} (may be normal if already initialized)",
+                                        e
+                                    ),
+                                }
+                            } else {
+                                warn!(
+                                    bootstrap_id = %bootstrap_id,
+                                    my_id = %my_id_str,
+                                    "⏸️ Skipping initialize_cluster — waiting for bootstrap node to propagate membership"
+                                );
                             }
                             // Register all node addresses in the Raft state machine
                             // so that resolve_leader_addr() can find them. Only the
