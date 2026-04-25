@@ -150,49 +150,19 @@ jobs:
           path: binaries/linux-${{ matrix.arch }}
           retention-days: 1
 
-  build-linux-aarch64-musl:
-    needs: build-dashboard
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Download dashboard artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dashboard-dist
-          path: dashboard/dist
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-multilib clang cmake protobuf-compiler
-          rustup default stable
-          rustup update
-          rustup target add aarch64-unknown-linux-musl
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-      - name: Build musl binaries with cross
-        # Truly *unset* the leaked Win64 OPENSSL_* env vars before
-        # invoking cross. Setting them to "" via `env:` made
-        # openssl-sys treat the empty string as a user-supplied path
-        # and panic on `<empty>/include` -- worse than not unsetting
-        # at all. With these unset and Cross.toml passthrough no
-        # longer forwarding them, openssl-sys falls through to the
-        # vendored-openssl path (now a real vectorizer-server
-        # feature that proxies to vectorizer/vendored-openssl).
-        run: |
-          unset OPENSSL_DIR OPENSSL_NO_VENDOR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR
-          cross build --release --target aarch64-unknown-linux-musl --features vendored-openssl --bin vectorizer
-          cross build --release --target aarch64-unknown-linux-musl --bin vectorizer-cli
-          mkdir -p dist
-          cp target/aarch64-unknown-linux-musl/release/vectorizer dist/vectorizer-aarch64-unknown-linux-musl
-          cp target/aarch64-unknown-linux-musl/release/vectorizer-cli dist/vectorizer-cli-aarch64-unknown-linux-musl
-      - name: Upload musl binaries
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/*
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
+  # build-linux-aarch64-musl: removed in v3.0.8.
+  #
+  # The aarch64 musl artifact has been a perennial release blocker:
+  # `cross` auto-forwards the GH-runner's leaked Win64
+  # OPENSSL_DIR=C:/Program Files/OpenSSL-Win64 into its container even
+  # after the workflow `unset`s it and Cross.toml passthrough is empty,
+  # so openssl-sys panics before vendored-openssl can run. Fixing it
+  # properly means either patching the cross image (Dockerfile.aarch64-
+  # unknown-linux-musl above) to ENV-clear OPENSSL_DIR, or replacing
+  # cross with a native ubuntu-24.04-arm + musl-tools build. Both are
+  # tracked separately; the rest of the matrix (amd64 GNU + Docker
+  # multi-arch + Apple Silicon plain + Apple Silicon Metal + Windows)
+  # ships every other release target.
 
   build-mac-binaries:
     needs: build-dashboard
