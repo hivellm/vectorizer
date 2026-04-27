@@ -115,7 +115,7 @@ glob = { version = "0.3", default-features = false }
 sysinfo = "0.38"
 sha2 = "0.11"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
-rand = "0.9"
+rand = "0.10"
 dirs = "6.0"
 memory-stats = "1.0"
 fastrand = "2.3"
