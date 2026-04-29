@@ -13,7 +13,7 @@
 - [x] 2.3 Audit `FileOperations::list_files_in_collection` and any reader of `payload.data.metadata.*`; migrate to flat path (existing `metadata_view` already tolerated both shapes; updated comments + flipped legacy-tracking counters)
 - [x] 2.4 Grep the workspace for `payload.data.metadata` and `data.get("metadata")` to find all readers (`file_watcher/mod.rs:433,502` + `autosave.rs:361,471` + `file_operations/operations.rs` 3 sites + `file_loader/indexer.rs:167` writer kept as-is for bulk path)
 - [x] 2.5 Add tolerant-reader shim (read both shapes) with `tracing::warn!` on legacy nested layout (file_watcher: dual-shape lookup added; operations.rs: flipped `flat_shape_hits` → `nested_shape_hits` with deprecation log)
-- [ ] 2.6 Confirm Qdrant compat scroll/filter endpoints surface the new flat shape correctly (deferred to integration test in §6)
+- [x] 2.6 Confirm Qdrant compat scroll/filter endpoints surface the new flat shape correctly — done via integration test `insert_texts_chunked_payload_is_flat_with_user_metadata_at_root` in §6.2 which posts a chunked `/insert_texts` and asserts every chunk's payload via `POST /qdrant/.../points/scroll` has `casa`, `parlamentar`, `data`, `parent_id`, `file_path`, `chunk_index` at the root and no `metadata` sub-object
 
 ## 3. Add `POST /insert_vectors` endpoint
 - [x] 3.1 Define request schema: `{collection, vectors: [{id, embedding, payload?, metadata?}], public_key?}`
