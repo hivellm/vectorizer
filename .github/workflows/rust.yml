@@ -124,7 +124,11 @@ jobs:
           exit 1
         shell: bash
       - name: Run unit and integration tests
-        timeout-minutes: 30
+        # The workspace nextest run lives on the edge of the previous
+        # 30-minute budget on stock GitHub runners. 45 minutes gives
+        # slow shared runners breathing room without masking real
+        # test hangs.
+        timeout-minutes: 45
         run: cargo nextest run --workspace --all-targets --test-threads 4
         env:
           # Set test timeouts for integration tests
