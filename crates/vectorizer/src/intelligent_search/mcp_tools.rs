@@ -33,14 +33,14 @@ use crate::intelligent_search::*;
 /// The original `metadata` sub-object is preserved as-is so consumers
 /// that explicitly read `result.metadata.metadata.<field>` keep working
 /// during the deprecation window.
-fn flatten_payload_metadata(payload: &crate::models::Payload) -> HashMap<String, serde_json::Value> {
+fn flatten_payload_metadata(
+    payload: &crate::models::Payload,
+) -> HashMap<String, serde_json::Value> {
     let Some(obj) = payload.data.as_object() else {
         return HashMap::new();
     };
-    let mut out: HashMap<String, serde_json::Value> = obj
-        .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect();
+    let mut out: HashMap<String, serde_json::Value> =
+        obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
     if let Some(nested) = obj.get("metadata").and_then(|v| v.as_object()) {
         for (k, v) in nested {
@@ -1083,7 +1083,10 @@ mod flatten_payload_tests {
             Some("Jack Rocha")
         );
         assert_eq!(m.get("chunk_index").and_then(|v| v.as_u64()), Some(0));
-        assert_eq!(m.get("parent_id").and_then(|v| v.as_str()), Some("camara:2023-07-06T16:32"));
+        assert_eq!(
+            m.get("parent_id").and_then(|v| v.as_str()),
+            Some("camara:2023-07-06T16:32")
+        );
         assert!(
             !m.contains_key("metadata"),
             "flat payload must not introduce a synthetic metadata key"

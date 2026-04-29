@@ -1140,10 +1140,8 @@ impl VectorizerServer {
                                         use openraft::rt::WatchReceiver as _;
                                         let metrics =
                                             mgr_clone.raft().metrics().borrow_watched().clone();
-                                        let stuck_in_candidate = matches!(
-                                            metrics.state,
-                                            ServerState::Candidate
-                                        );
+                                        let stuck_in_candidate =
+                                            matches!(metrics.state, ServerState::Candidate);
                                         if stuck_in_candidate && attempt >= 3 {
                                             let _ = mgr_clone.raft().trigger().elect().await;
                                             tracing::warn!(

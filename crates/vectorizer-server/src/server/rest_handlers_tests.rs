@@ -205,7 +205,7 @@ fn chunk_payload_handles_empty_user_metadata() {
 
 use serde_json::json;
 
-use super::insert::build_vector_payload;
+use super::insert_vectors::build_vector_payload;
 
 #[test]
 fn vector_payload_returns_explicit_payload_verbatim() {

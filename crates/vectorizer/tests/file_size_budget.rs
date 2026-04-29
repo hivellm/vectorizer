@@ -58,8 +58,17 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/insert.rs",
-        550,
-        "single large insert_text handler",
+        700,
+        "insert_text handler + the shared insert_one_text engine + the \
+         pure helpers `validate_client_id`, `build_chunk_payload`, \
+         `parse_metadata` reused by `insert_vectors.rs` (client-id \
+         contract + flat chunk payload landed in phase9)",
+    ),
+    (
+        "src/server/rest_handlers/insert_vectors.rs",
+        300,
+        "insert_vectors handler + insert_one_vector + build_vector_payload \
+         (pre-vectorized bulk-insert path, phase9)",
     ),
     (
         "src/server/rest_handlers/search.rs",
