@@ -1,0 +1,354 @@
+crates/vectorizer/src/file_watcher/usage_example.rs:24:pub async fn setup_integrated_file_watcher() -> Result<IntegratedSyncManager> {
+crates/vectorizer/src/file_watcher/usage_example.rs:60:pub async fn process_file_changes_example() -> Result<()> {
+crates/vectorizer/src/file_watcher/usage_example.rs:119:pub async fn integrate_with_existing_watcher() -> Result<()> {
+crates/vectorizer/src/file_watcher/usage_example.rs:153:pub async fn integrate_with_metrics() -> Result<()> {
+crates/vectorizer/src/file_watcher/hash_validator.rs:20:    pub fn new() -> Self {
+crates/vectorizer/src/file_watcher/hash_validator.rs:28:    pub fn with_enabled(enabled: bool) -> Self {
+crates/vectorizer/src/file_watcher/hash_validator.rs:36:    pub async fn calculate_hash(&self, path: &std::path::Path) -> Result<String, std::io::Error> {
+crates/vectorizer/src/file_watcher/hash_validator.rs:49:    pub async fn calculate_content_hash(&self, content: &str) -> String {
+crates/vectorizer/src/file_watcher/hash_validator.rs:60:    pub async fn has_content_changed(
+crates/vectorizer/src/file_watcher/hash_validator.rs:83:    pub async fn update_hash(&self, path: &std::path::Path) -> Result<(), std::io::Error> {
+crates/vectorizer/src/file_watcher/hash_validator.rs:95:    pub async fn remove_hash(&self, path: &std::path::Path) {
+crates/vectorizer/src/file_watcher/hash_validator.rs:101:    pub async fn clear_hashes(&self) {
+crates/vectorizer/src/file_watcher/hash_validator.rs:107:    pub async fn get_hash(&self, path: &std::path::Path) -> Option<String> {
+crates/vectorizer/src/file_watcher/hash_validator.rs:113:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/file_watcher/hash_validator.rs:118:    pub fn set_enabled(&mut self, enabled: bool) {
+crates/vectorizer/src/file_watcher/hash_validator.rs:123:    pub async fn cached_hashes_count(&self) -> usize {
+crates/vectorizer/src/file_watcher/hash_validator.rs:129:    pub async fn initialize_directory_hashes(
+crates/vectorizer/src/file_watcher/hash_validator.rs:155:    pub async fn get_cached_paths(&self) -> Vec<PathBuf> {
+crates/vectorizer/src/file_watcher/hash_validator.rs:161:    pub async fn validate_hash(
+crates/vectorizer/src/file_watcher/integrated_sync.rs:91:    pub fn new(
+crates/vectorizer/src/file_watcher/integrated_sync.rs:113:    pub async fn process_file_change(&self, event: &FileChangeEventWithMetadata) -> Result<()> {
+crates/vectorizer/src/file_watcher/integrated_sync.rs:354:    pub async fn get_statistics(&self) -> SyncStats {
+crates/vectorizer/src/file_watcher/integrated_sync.rs:360:    pub fn hash_validator(&self) -> Arc<HashValidator> {
+crates/vectorizer/src/file_watcher/integrated_sync.rs:365:    pub fn embedding_cache(&self) -> Arc<EmbeddingCache> {
+crates/vectorizer/src/file_watcher/integrated_sync.rs:370:    pub fn vector_store(&self) -> Arc<VectorStore> {
+crates/vectorizer/src/file_watcher/config.rs:146:    pub fn new() -> Self {
+crates/vectorizer/src/file_watcher/config.rs:151:    pub fn from_yaml_file<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/file_watcher/config.rs:160:    pub fn to_yaml_file<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/file_watcher/config.rs:170:    pub fn validate(&self) -> Result<(), String> {
+crates/vectorizer/src/file_watcher/config.rs:209:    pub fn debounce_duration(&self) -> Duration {
+crates/vectorizer/src/file_watcher/config.rs:214:    pub fn should_process_file(&self, file_path: &std::path::Path) -> bool {
+crates/vectorizer/src/file_watcher/config.rs:252:    pub fn should_process_file_silent(&self, file_path: &std::path::Path) -> bool {
+crates/vectorizer/src/file_watcher/config.rs:292:    pub fn get_collection_for_path(&self, file_path: &std::path::Path) -> Option<String> {
+crates/vectorizer/src/file_watcher/discovery.rs:54:    pub fn new(
+crates/vectorizer/src/file_watcher/discovery.rs:67:    pub async fn discover_existing_files(
+crates/vectorizer/src/file_watcher/discovery.rs:563:    pub async fn sync_with_existing_collections(
+crates/vectorizer/src/file_watcher/discovery.rs:654:    pub async fn detect_unindexed_files(
+crates/vectorizer/src/file_watcher/discovery.rs:712:    pub async fn comprehensive_sync(
+crates/vectorizer/src/file_watcher/debouncer.rs:37:    pub fn new(delay_ms: u64) -> Self {
+crates/vectorizer/src/file_watcher/debouncer.rs:47:    pub async fn set_event_callback<F>(&self, callback: F)
+crates/vectorizer/src/file_watcher/debouncer.rs:56:    pub async fn add_event(&self, event: FileChangeEvent) {
+crates/vectorizer/src/file_watcher/debouncer.rs:83:    pub async fn add_event_with_metadata(&self, event_with_metadata: FileChangeEventWithMetadata) {
+crates/vectorizer/src/file_watcher/debouncer.rs:204:    pub async fn pending_events_count(&self) -> usize {
+crates/vectorizer/src/file_watcher/debouncer.rs:210:    pub async fn clear_pending_events(&self) {
+crates/vectorizer/src/file_watcher/debouncer.rs:216:    pub async fn clear_old_processed_files(&self) {
+crates/vectorizer/src/file_watcher/debouncer.rs:223:    pub fn delay_ms(&self) -> u64 {
+crates/vectorizer/src/file_watcher/debouncer.rs:228:    pub fn set_delay_ms(&mut self, delay_ms: u64) {
+crates/vectorizer/src/file_watcher/metrics.rs:180:    pub fn new() -> Self {
+crates/vectorizer/src/file_watcher/metrics.rs:191:    pub async fn get_metrics(&self) -> FileWatcherMetrics {
+crates/vectorizer/src/file_watcher/metrics.rs:302:    pub async fn reset(&self) {
+crates/vectorizer/src/file_watcher/metrics.rs:352:    pub async fn get_summary(&self) -> String {
+crates/vectorizer/src/file_watcher/metrics.rs:364:    pub async fn record_file_processing_complete(&self, success: bool, processing_time_ms: f64) {
+crates/vectorizer/src/file_watcher/metrics.rs:396:    pub async fn record_discovery(&self, files_found: u64, discovery_time_ms: f64) {
+crates/vectorizer/src/file_watcher/metrics.rs:407:    pub async fn record_sync(
+crates/vectorizer/src/file_watcher/metrics.rs:426:    pub async fn record_error(&self, error_type: &str, error_message: &str) {
+crates/vectorizer/src/file_watcher/metrics.rs:440:    pub async fn update_collection_metrics(
+crates/vectorizer/src/file_watcher/metrics.rs:462:    pub fn record_file_skipped(&self) {
+crates/vectorizer/src/file_watcher/metrics.rs:467:    pub fn record_file_in_progress(&self) {
+crates/vectorizer/src/file_watcher/metrics.rs:474:    pub fn record_file_processing_finished(&self) {
+crates/vectorizer/src/file_watcher/metrics.rs:481:    pub fn record_api_request(&self, success: bool, response_time_ms: f64) {
+crates/vectorizer/src/file_watcher/metrics.rs:509:    pub fn record_restart(&self) {
+crates/vectorizer/src/file_watcher/metrics.rs:514:    pub fn set_running(&self, running: bool) {
+crates/vectorizer/src/file_watcher/metrics.rs:519:    pub fn record_connection_opened(&self) {
+crates/vectorizer/src/file_watcher/metrics.rs:526:    pub fn record_connection_closed(&self) {
+crates/vectorizer/src/file_watcher/metrics.rs:533:    pub fn record_disk_io(&self, bytes: u64) {
+crates/vectorizer/src/file_watcher/metrics.rs:538:    pub fn record_network_io(&self, bytes: u64) {
+crates/vectorizer/src/file_watcher/file_index.rs:32:    pub fn new() -> Self {
+crates/vectorizer/src/file_watcher/file_index.rs:37:    pub fn add_mapping(&mut self, file_path: PathBuf, collection_name: String, last_hash: String) {
+crates/vectorizer/src/file_watcher/file_index.rs:58:    pub fn remove_mapping(&mut self, file_path: &PathBuf, collection_name: &str) {
+crates/vectorizer/src/file_watcher/file_index.rs:78:    pub fn remove_file(&mut self, file_path: &PathBuf) -> Vec<String> {
+crates/vectorizer/src/file_watcher/file_index.rs:99:    pub fn get_collections_for_file(&self, file_path: &PathBuf) -> Vec<String> {
+crates/vectorizer/src/file_watcher/file_index.rs:107:    pub fn get_files_for_collection(&self, collection_name: &str) -> Vec<PathBuf> {
+crates/vectorizer/src/file_watcher/file_index.rs:115:    pub fn get_last_hash(&self, file_path: &PathBuf, collection_name: &str) -> Option<String> {
+crates/vectorizer/src/file_watcher/file_index.rs:127:    pub fn update_hash(&mut self, file_path: &PathBuf, collection_name: &str, new_hash: String) {
+crates/vectorizer/src/file_watcher/file_index.rs:140:    pub fn contains_file(&self, file_path: &PathBuf) -> bool {
+crates/vectorizer/src/file_watcher/file_index.rs:145:    pub fn get_all_files(&self) -> Vec<PathBuf> {
+crates/vectorizer/src/file_watcher/file_index.rs:150:    pub fn get_all_collections(&self) -> Vec<String> {
+crates/vectorizer/src/file_watcher/file_index.rs:155:    pub fn get_stats(&self) -> FileIndexStats {
+crates/vectorizer/src/file_watcher/file_index.rs:164:    pub fn clear(&mut self) {
+crates/vectorizer/src/file_watcher/file_index.rs:170:    pub fn to_json(&self) -> Result<String, serde_json::Error> {
+crates/vectorizer/src/file_watcher/file_index.rs:175:    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+crates/vectorizer/src/file_watcher/watcher.rs:26:    pub fn new(
+crates/vectorizer/src/file_watcher/watcher.rs:41:    pub async fn start(&mut self) -> Result<()> {
+crates/vectorizer/src/file_watcher/watcher.rs:337:    pub fn stop(&mut self) -> Result<()> {
+crates/vectorizer/src/file_watcher/watcher.rs:353:    pub fn is_running(&self) -> bool {
+crates/vectorizer/src/file_watcher/watcher.rs:357:    pub fn get_config(&self) -> &FileWatcherConfig {
+crates/vectorizer/src/file_watcher/watcher.rs:361:    pub fn get_watched_paths(&self) -> Vec<String> {
+crates/vectorizer/src/file_watcher/watcher.rs:371:    pub fn get_event_count(&self) -> u64 {
+crates/vectorizer/src/file_watcher/watcher.rs:375:    pub fn get_last_event_time(&self) -> Option<std::time::SystemTime> {
+crates/vectorizer/src/file_watcher/watcher.rs:379:    pub fn clear_events(&mut self) {
+crates/vectorizer/src/file_watcher/watcher.rs:383:    pub fn get_recent_events(&self, _limit: usize) -> Vec<FileChangeEventWithMetadata> {
+crates/vectorizer/src/file_watcher/operations.rs:20:    pub fn new(
+crates/vectorizer/src/file_watcher/operations.rs:33:    pub async fn process_file_change(
+crates/vectorizer/src/file_watcher/operations.rs:82:    pub async fn index_file(
+crates/vectorizer/src/file_watcher/operations.rs:159:    pub async fn remove_file(&self, file_path: &str, collection_name: &str) -> Result<()> {
+crates/vectorizer/src/file_watcher/operations.rs:187:    pub async fn update_file(
+crates/vectorizer/src/file_watcher/operations.rs:206:    pub async fn index_file_from_path(&self, path: &std::path::Path) -> Result<()> {
+crates/vectorizer/src/file_watcher/operations.rs:412:    pub fn should_process_file(&self, path: &std::path::Path) -> bool {
+crates/vectorizer/src/file_watcher/operations.rs:426:    pub fn determine_collection_name(&self, path: &std::path::Path) -> String {
+crates/vectorizer/src/file_watcher/operations.rs:504:    pub fn get_collection_for_path(&self, path: &std::path::Path) -> Option<String> {
+crates/vectorizer/src/file_watcher/mod.rs:52:pub fn normalize_wsl_path(path_str: &str) -> PathBuf {
+crates/vectorizer/src/file_watcher/mod.rs:97:    pub fn from_notify_event(event: notify::Event) -> Self {
+crates/vectorizer/src/file_watcher/mod.rs:178:    pub fn new(
+crates/vectorizer/src/file_watcher/mod.rs:208:    pub async fn start(&mut self) -> Result<()> {
+crates/vectorizer/src/file_watcher/mod.rs:310:    pub fn initialize_discovery(&mut self) -> Result<()> {
+crates/vectorizer/src/file_watcher/mod.rs:326:    pub async fn discover_existing_files(&self) -> Result<discovery::DiscoveryResult> {
+crates/vectorizer/src/file_watcher/mod.rs:351:    pub async fn sync_with_collections(&self) -> Result<discovery::SyncResult> {
+crates/vectorizer/src/file_watcher/mod.rs:374:    pub async fn detect_unindexed_files(&self) -> Result<Vec<std::path::PathBuf>> {
+crates/vectorizer/src/file_watcher/mod.rs:397:    pub async fn comprehensive_sync(
+crates/vectorizer/src/file_watcher/mod.rs:423:    pub async fn update_with_collection(&self, collection_name: &str) -> Result<()> {
+crates/vectorizer/src/file_watcher/mod.rs:633:    pub async fn stop(&self) -> Result<()> {
+crates/vectorizer/src/file_watcher/mod.rs:658:    pub fn config(&self) -> &FileWatcherConfig {
+crates/vectorizer/src/file_watcher/mod.rs:663:    pub fn update_config(&mut self, config: FileWatcherConfig) {
+crates/vectorizer/src/file_watcher/mod.rs:713:    pub async fn get_metrics(&self) -> FileWatcherMetrics {
+crates/vectorizer/src/file_watcher/mod.rs:718:    pub async fn get_metrics_summary(&self) -> String {
+crates/vectorizer/src/file_watcher/mod.rs:723:    pub async fn record_file_processing(&self, success: bool, processing_time_ms: u64) {
+crates/vectorizer/src/file_watcher/mod.rs:730:    pub async fn record_discovery(&self, files_found: u64, discovery_time_ms: u64) {
+crates/vectorizer/src/file_watcher/mod.rs:737:    pub async fn record_sync(
+crates/vectorizer/src/file_watcher/mod.rs:749:    pub async fn record_error(&self, error_type: &str, error_message: &str) {
+crates/vectorizer/src/file_watcher/mod.rs:754:    pub async fn update_collection_metrics(
+crates/vectorizer/src/file_watcher/mod.rs:766:    pub async fn reset_metrics(&self) {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:45:    pub fn new(
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:57:    pub async fn start(&mut self) -> Result<()> {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:62:    pub fn stop(&self) -> Result<()> {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:67:    pub fn is_running(&self) -> bool {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:71:    pub fn get_config(&self) -> &FileWatcherConfig {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:75:    pub fn get_watched_paths(&self) -> Vec<String> {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:85:    pub fn get_event_count(&self) -> u64 {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:89:    pub fn get_last_event_time(&self) -> Option<std::time::SystemTime> {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:93:    pub fn clear_events(&mut self) {
+crates/vectorizer/src/file_watcher/enhanced_watcher.rs:97:    pub fn get_recent_events(&self, _limit: usize) -> Vec<FileChangeEventWithMetadata> {
+crates/vectorizer/src/file_operations/cache.rs:55:    pub fn new() -> Self {
+crates/vectorizer/src/file_operations/cache.rs:64:    pub async fn get_file_content(&self, key: &str) -> Option<CachedFile> {
+crates/vectorizer/src/file_operations/cache.rs:70:    pub async fn put_file_content(&self, key: String, file: CachedFile) {
+crates/vectorizer/src/file_operations/cache.rs:76:    pub async fn get_summary(&self, key: &str, max_age: Duration) -> Option<FileSummary> {
+crates/vectorizer/src/file_operations/cache.rs:87:    pub async fn put_summary(&self, key: String, summary: FileSummary) {
+crates/vectorizer/src/file_operations/cache.rs:99:    pub async fn get_file_list(
+crates/vectorizer/src/file_operations/cache.rs:114:    pub async fn put_file_list(
+crates/vectorizer/src/file_operations/cache.rs:132:    pub async fn clear_all(&self) {
+crates/vectorizer/src/file_operations/cache.rs:139:    pub async fn clear_collection(&self, collection: &str) {
+crates/vectorizer/src/file_operations/cache.rs:173:    pub async fn stats(&self) -> CacheStats {
+crates/vectorizer/src/file_operations/types.rs:46:    pub fn is_fresh(&self, max_age: std::time::Duration) -> bool {
+crates/vectorizer/src/file_operations/types.rs:50:    pub fn to_content(&self, collection: String) -> FileContent {
+crates/vectorizer/src/file_operations/types.rs:198:    pub fn new(name: &str) -> Self {
+crates/vectorizer/src/file_operations/mcp_integration.rs:22:    pub fn new(file_ops: FileOperations) -> Self {
+crates/vectorizer/src/file_operations/mcp_integration.rs:27:    pub fn register_tools() -> Vec<Value> {
+crates/vectorizer/src/file_operations/mcp_integration.rs:120:    pub async fn handle_get_file_content(&self, params: Value) -> Result<Value, String> {
+crates/vectorizer/src/file_operations/mcp_integration.rs:159:    pub async fn handle_list_files(&self, params: Value) -> Result<Value, String> {
+crates/vectorizer/src/file_operations/mcp_integration.rs:189:    pub async fn handle_get_file_summary(&self, params: Value) -> Result<Value, String> {
+crates/vectorizer/src/file_operations/mcp_integration.rs:291:    pub async fn handle_tool_call(&self, tool_name: &str, params: Value) -> Result<Value, String> {
+crates/vectorizer/src/file_operations/operations.rs:53:    pub fn new() -> Self {
+crates/vectorizer/src/file_operations/operations.rs:60:    pub fn with_store(store: Arc<VectorStore>) -> Self {
+crates/vectorizer/src/file_operations/operations.rs:72:    pub async fn get_file_content(
+crates/vectorizer/src/file_operations/operations.rs:243:    pub async fn list_files_in_collection(
+crates/vectorizer/src/file_operations/operations.rs:358:    pub async fn get_file_summary(
+crates/vectorizer/src/file_operations/operations.rs:636:    pub async fn get_file_chunks_ordered(
+crates/vectorizer/src/file_operations/operations.rs:776:    pub async fn get_project_outline(
+crates/vectorizer/src/file_operations/operations.rs:932:    pub async fn search_by_file_type(
+crates/vectorizer/src/file_operations/operations.rs:1044:    pub async fn get_related_files(
+crates/vectorizer/src/file_operations/operations.rs:1186:    pub async fn clear_cache(&self, collection: &str) {
+crates/vectorizer/src/file_operations/operations.rs:1192:    pub async fn cache_stats(&self) -> super::cache::CacheStats {
+crates/vectorizer/src/file_loader/config.rs:30:    pub fn ensure_hardcoded_excludes(&mut self) {
+crates/vectorizer/src/file_loader/config.rs:47:    pub fn get_hardcoded_excludes() -> Vec<String> {
+crates/vectorizer/src/file_loader/persistence.rs:21:    pub fn new() -> Self {
+crates/vectorizer/src/file_loader/persistence.rs:28:    pub fn collection_exists_in_vecdb(&self, collection_name: &str) -> bool {
+crates/vectorizer/src/file_loader/persistence.rs:45:    pub fn save_collection_legacy_temp(
+crates/vectorizer/src/file_loader/persistence.rs:264:    pub fn compact_and_cleanup(&self) -> Result<usize> {
+crates/vectorizer/src/file_loader/chunker.rs:21:    pub fn new(config: LoaderConfig) -> Self {
+crates/vectorizer/src/file_loader/chunker.rs:26:    pub fn chunk_documents(&self, documents: &[(PathBuf, String)]) -> Result<Vec<DocumentChunk>> {
+crates/vectorizer/src/file_loader/chunker.rs:38:    pub fn chunk_text(&self, text: &str, file_path: &Path) -> Result<Vec<DocumentChunk>> {
+crates/vectorizer/src/file_loader/mod.rs:34:    pub fn with_embedding_manager(
+crates/vectorizer/src/file_loader/mod.rs:51:    pub async fn load_and_index_project(
+crates/vectorizer/src/file_loader/mod.rs:220:    pub fn save_collection_temp(&self, store: &VectorStore) -> Result<()> {
+crates/vectorizer/src/file_loader/mod.rs:227:    pub fn save_tokenizer(&self) -> Result<()> {
+crates/vectorizer/src/file_loader/mod.rs:242:    pub fn compact_all(&self) -> Result<usize> {
+crates/vectorizer/src/file_loader/indexer.rs:24:    pub fn with_embedding_manager(
+crates/vectorizer/src/file_loader/indexer.rs:35:    pub fn build_vocabulary(&mut self, documents: &[(PathBuf, String)]) -> Result<()> {
+crates/vectorizer/src/file_loader/indexer.rs:112:    pub fn create_collection(&self, store: &VectorStore) -> Result<()> {
+crates/vectorizer/src/file_loader/indexer.rs:143:    pub fn store_chunks_parallel(
+crates/vectorizer/src/file_loader/indexer.rs:198:    pub fn save_vocabulary(
+crates/vectorizer/src/monitoring/telemetry.rs:45:pub fn try_init(service_name: &str, otlp_endpoint: Option<String>) -> Result<()> {
+crates/vectorizer/src/monitoring/telemetry.rs:70:pub fn shutdown() {
+crates/vectorizer/src/monitoring/registry.rs:18:pub fn init() -> Result<(), prometheus::Error> {
+crates/vectorizer/src/monitoring/registry.rs:37:pub fn get_registry() -> Arc<RwLock<Registry>> {
+crates/vectorizer/src/monitoring/mod.rs:47:pub fn init() -> Result<()> {
+crates/vectorizer/src/monitoring/mod.rs:58:pub fn export_metrics() -> Result<String> {
+crates/vectorizer/src/monitoring/system_collector.rs:38:    pub fn new(vector_store: Arc<VectorStore>) -> Self {
+crates/vectorizer/src/monitoring/system_collector.rs:46:    pub fn with_config(config: SystemCollectorConfig, vector_store: Arc<VectorStore>) -> Self {
+crates/vectorizer/src/monitoring/system_collector.rs:54:    pub fn start(self) -> tokio::task::JoinHandle<()> {
+crates/vectorizer/src/monitoring/correlation.rs:31:pub fn generate_correlation_id() -> String {
+crates/vectorizer/src/monitoring/correlation.rs:36:pub async fn correlation_middleware(mut req: Request, next: Next) -> Response {
+crates/vectorizer/src/monitoring/correlation.rs:67:pub fn current_correlation_id() -> Option<String> {
+crates/vectorizer/src/monitoring/metrics.rs:144:    pub fn new() -> Self {
+crates/vectorizer/src/monitoring/metrics.rs:395:    pub fn record_tenant_api_request(&self, tenant_id: &str) {
+crates/vectorizer/src/monitoring/metrics.rs:403:    pub fn get_tenant_api_requests(&self, tenant_id: &str) -> u64 {
+crates/vectorizer/src/monitoring/metrics.rs:411:    pub fn register(&self, registry: &Registry) -> Result<(), prometheus::Error> {
+crates/vectorizer/src/monitoring/performance.rs:135:    pub fn new() -> Self {
+crates/vectorizer/src/monitoring/performance.rs:145:    pub async fn record_operation(&self, operation: &str, duration: Duration, success: bool) {
+crates/vectorizer/src/monitoring/performance.rs:206:    pub async fn record_collection_metrics(
+crates/vectorizer/src/monitoring/performance.rs:249:    pub async fn update_system_metrics(&self, metrics: SystemMetrics) {
+crates/vectorizer/src/monitoring/performance.rs:255:    pub async fn generate_report(&self) -> PerformanceReport {
+crates/vectorizer/src/monitoring/performance.rs:292:    pub async fn get_operation_metrics(&self, operation: &str) -> Option<OperationMetrics> {
+crates/vectorizer/src/monitoring/performance.rs:298:    pub async fn get_collection_metrics(&self, collection: &str) -> Option<CollectionMetrics> {
+crates/vectorizer/src/monitoring/performance.rs:304:    pub async fn reset(&self) {
+crates/vectorizer/src/monitoring/performance.rs:316:    pub fn uptime(&self) -> Duration {
+crates/vectorizer/src/monitoring/performance.rs:334:    pub async fn measure_async<F, T>(
+crates/vectorizer/src/monitoring/performance.rs:353:    pub fn measure_sync<F, T>(
+crates/vectorizer/src/security/rbac.rs:61:    pub fn new(name: impl Into<String>, permissions: Vec<Permission>) -> Self {
+crates/vectorizer/src/security/rbac.rs:69:    pub fn has_permission(&self, permission: Permission) -> bool {
+crates/vectorizer/src/security/rbac.rs:74:    pub fn add_permission(&mut self, permission: Permission) {
+crates/vectorizer/src/security/rbac.rs:79:    pub fn remove_permission(&mut self, permission: Permission) {
+crates/vectorizer/src/security/rbac.rs:88:    pub fn viewer() -> Self {
+crates/vectorizer/src/security/rbac.rs:102:    pub fn editor() -> Self {
+crates/vectorizer/src/security/rbac.rs:118:    pub fn admin() -> Self {
+crates/vectorizer/src/security/audit.rs:44:    pub fn new(max_entries: usize) -> Self {
+crates/vectorizer/src/security/audit.rs:52:    pub async fn log(&self, entry: AuditLogEntry) {
+crates/vectorizer/src/security/audit.rs:77:    pub async fn log_auth_attempt(&self, principal: &str, success: bool, reason: Option<&str>) {
+crates/vectorizer/src/security/audit.rs:108:    pub async fn get_entries(&self, limit: usize) -> Vec<AuditLogEntry> {
+crates/vectorizer/src/security/audit.rs:115:    pub async fn count(&self) -> usize {
+crates/vectorizer/src/security/audit.rs:121:    pub async fn clear(&self) {
+crates/vectorizer/src/security/enhanced_security.rs:811:    pub fn new(config: SecurityConfig) -> Self {
+crates/vectorizer/src/security/enhanced_security.rs:824:    pub async fn authenticate_with_mfa(
+crates/vectorizer/src/security/enhanced_security.rs:875:    pub async fn validate_permissions(
+crates/vectorizer/src/security/enhanced_security.rs:908:    pub async fn encrypt_data(&self, data: &[u8]) -> Result<Vec<u8>> {
+crates/vectorizer/src/security/enhanced_security.rs:913:    pub async fn decrypt_data(&self, encrypted_data: &[u8]) -> Result<Vec<u8>> {
+crates/vectorizer/src/security/enhanced_security.rs:918:    pub async fn detect_threats(
+crates/vectorizer/src/security/enhanced_security.rs:926:    pub async fn evaluate_policies(
+crates/vectorizer/src/security/rate_limit.rs:155:    pub fn with_defaults(requests_per_second: u32, burst_size: u32) -> Self {
+crates/vectorizer/src/security/rate_limit.rs:164:    pub fn add_key_override(&mut self, api_key: String, requests_per_second: u32, burst_size: u32) {
+crates/vectorizer/src/security/rate_limit.rs:176:    pub fn assign_key_to_tier(&mut self, api_key: String, tier: String) {
+crates/vectorizer/src/security/rate_limit.rs:181:    pub fn get_key_limits(&self, api_key: &str) -> (u32, u32) {
+crates/vectorizer/src/security/rate_limit.rs:202:    pub fn from_yaml_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+crates/vectorizer/src/security/rate_limit.rs:215:    pub fn to_yaml_file(&self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+crates/vectorizer/src/security/rate_limit.rs:236:    pub fn new(config: RateLimitConfig) -> Self {
+crates/vectorizer/src/security/rate_limit.rs:251:    pub fn from_config_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+crates/vectorizer/src/security/rate_limit.rs:257:    pub fn config(&self) -> &RateLimitConfig {
+crates/vectorizer/src/security/rate_limit.rs:262:    pub fn check_global(&self) -> bool {
+crates/vectorizer/src/security/rate_limit.rs:268:    pub fn check_key(&self, api_key: &str) -> bool {
+crates/vectorizer/src/security/rate_limit.rs:287:    pub fn check_key_with_limits(
+crates/vectorizer/src/security/rate_limit.rs:308:    pub fn check(&self, api_key: Option<&str>) -> bool {
+crates/vectorizer/src/security/rate_limit.rs:331:    pub fn update_key_limits(&self, api_key: &str, requests_per_second: u32, burst_size: u32) {
+crates/vectorizer/src/security/rate_limit.rs:342:    pub fn remove_key(&self, api_key: &str) {
+crates/vectorizer/src/security/rate_limit.rs:347:    pub fn active_key_count(&self) -> usize {
+crates/vectorizer/src/security/rate_limit.rs:353:    pub fn cleanup_expired(&self) {
+crates/vectorizer/src/security/rate_limit.rs:367:    pub fn get_key_info(&self, api_key: &str) -> Option<(u32, u32, bool)> {
+crates/vectorizer/src/security/rate_limit.rs:406:pub async fn rate_limit_middleware(req: Request, next: Next) -> Response {
+crates/vectorizer/src/security/tls.rs:201:pub fn create_server_config(config: &TlsConfig) -> Result<Arc<ServerConfig>> {
+crates/vectorizer/src/security/payload_encryption.rs:103:    pub fn is_encrypted(&self) -> bool {
+crates/vectorizer/src/security/payload_encryption.rs:125:pub fn encrypt_payload(
+crates/vectorizer/src/security/payload_encryption.rs:285:pub fn validate_encrypted_payload(payload: &EncryptedPayload) -> Result<(), EncryptionError> {
+crates/vectorizer/src/intelligent_search/context_formatter.rs:19:    pub fn new(
+crates/vectorizer/src/intelligent_search/context_formatter.rs:32:    pub fn format_context(&self, results: &[IntelligentSearchResult], query: &str) -> String {
+crates/vectorizer/src/intelligent_search/context_formatter.rs:135:    pub fn format_enhanced_context(
+crates/vectorizer/src/intelligent_search/context_formatter.rs:163:    pub fn get_max_content_length(&self) -> usize {
+crates/vectorizer/src/intelligent_search/context_formatter.rs:168:    pub fn get_max_lines_per_result(&self) -> usize {
+crates/vectorizer/src/intelligent_search/context_formatter.rs:173:    pub fn is_metadata_included(&self) -> bool {
+crates/vectorizer/src/intelligent_search/simple_search_engine.rs:17:    pub fn new() -> Self {
+crates/vectorizer/src/intelligent_search/simple_search_engine.rs:24:    pub async fn add_documents(
+crates/vectorizer/src/intelligent_search/simple_search_engine.rs:35:    pub async fn search(
+crates/vectorizer/src/intelligent_search/simple_search_engine.rs:149:    pub fn get_document_count(&self) -> usize {
+crates/vectorizer/src/intelligent_search/simple_search_engine.rs:154:    pub fn get_documents_by_collection(&self, collection: &str) -> Vec<&Document> {
+crates/vectorizer/src/intelligent_search/query_generator.rs:15:    pub fn new(max_queries: usize) -> Self {
+crates/vectorizer/src/intelligent_search/query_generator.rs:20:    pub fn generate_queries(&self, user_query: &str) -> Vec<String> {
+crates/vectorizer/src/intelligent_search/mcp_server_integration.rs:20:    pub fn new() -> Self {
+crates/vectorizer/src/intelligent_search/mcp_server_integration.rs:31:    pub async fn handle_mcp_tool_call(
+crates/vectorizer/src/intelligent_search/mcp_server_integration.rs:73:    pub fn get_available_tools(&self) -> Vec<HashMap<String, Value>> {
+crates/vectorizer/src/intelligent_search/mcp_server_integration.rs:233:    pub async fn handle_rest_request(
+crates/vectorizer/src/intelligent_search/mcp_server_integration.rs:305:    pub fn get_rest_endpoints(&self) -> Vec<HashMap<String, Value>> {
+crates/vectorizer/src/intelligent_search/mod.rs:66:    pub fn new(config: IntelligentSearchConfig) -> Self {
+crates/vectorizer/src/intelligent_search/mod.rs:86:    pub async fn add_documents(&mut self, documents: Vec<Document>) -> Result<(), String> {
+crates/vectorizer/src/intelligent_search/mod.rs:94:    pub async fn search(
+crates/vectorizer/src/intelligent_search/mod.rs:197:    pub fn get_config(&self) -> &IntelligentSearchConfig {
+crates/vectorizer/src/intelligent_search/mod.rs:202:    pub fn update_config(&mut self, config: IntelligentSearchConfig) {
+crates/vectorizer/src/intelligent_search/mmr_diversifier.rs:17:    pub fn new(lambda: f32) -> Self {
+crates/vectorizer/src/intelligent_search/mmr_diversifier.rs:22:    pub fn diversify(
+crates/vectorizer/src/intelligent_search/mmr_diversifier.rs:116:    pub fn get_lambda(&self) -> f32 {
+crates/vectorizer/src/intelligent_search/mmr_diversifier.rs:121:    pub fn set_lambda(&mut self, lambda: f32) {
+crates/vectorizer/src/intelligent_search/mcp_tools.rs:86:    pub fn new(
+crates/vectorizer/src/intelligent_search/mcp_tools.rs:97:    pub fn new_with_store(store: std::sync::Arc<crate::VectorStore>) -> Self {
+crates/vectorizer/src/intelligent_search/mcp_tools.rs:191:    pub async fn handle_intelligent_search(
+crates/vectorizer/src/intelligent_search/mcp_tools.rs:369:    pub async fn handle_multi_collection_search(
+crates/vectorizer/src/intelligent_search/mcp_tools.rs:488:    pub async fn handle_semantic_search(
+crates/vectorizer/src/intelligent_search/mcp_tools.rs:607:    pub async fn handle_contextual_search(
+crates/vectorizer/src/intelligent_search/mcp_tools.rs:721:    pub async fn prioritize_collections_semantically(
+crates/vectorizer/src/intelligent_search/rest_api.rs:119:    pub fn new() -> Self {
+crates/vectorizer/src/intelligent_search/rest_api.rs:129:    pub fn new_with_store(store: std::sync::Arc<crate::VectorStore>) -> Self {
+crates/vectorizer/src/intelligent_search/rest_api.rs:136:    pub async fn handle_intelligent_search(
+crates/vectorizer/src/intelligent_search/rest_api.rs:168:    pub async fn handle_multi_collection_search(
+crates/vectorizer/src/intelligent_search/rest_api.rs:198:    pub async fn handle_semantic_search(
+crates/vectorizer/src/intelligent_search/rest_api.rs:229:    pub async fn handle_contextual_search(
+crates/vectorizer/src/intelligent_search/rest_api.rs:260:    pub fn validate_intelligent_search_request(
+crates/vectorizer/src/intelligent_search/rest_api.rs:284:    pub fn validate_multi_collection_search_request(
+crates/vectorizer/src/intelligent_search/rest_api.rs:312:    pub fn validate_semantic_search_request(
+crates/vectorizer/src/intelligent_search/rest_api.rs:340:    pub fn validate_contextual_search_request(
+crates/vectorizer/src/intelligent_search/rest_api.rs:379:    pub fn get_documentation() -> HashMap<String, serde_json::Value> {
+crates/vectorizer/src/intelligent_search/examples.rs:22:    pub async fn example_intelligent_search() -> Result<(), String> {
+crates/vectorizer/src/intelligent_search/examples.rs:69:    pub async fn example_multi_collection_search() -> Result<(), String> {
+crates/vectorizer/src/intelligent_search/examples.rs:113:    pub async fn example_semantic_search() -> Result<(), String> {
+crates/vectorizer/src/intelligent_search/examples.rs:148:    pub async fn example_contextual_search() -> Result<(), String> {
+crates/vectorizer/src/intelligent_search/examples.rs:193:    pub async fn example_rest_api() -> Result<(), String> {
+crates/vectorizer/src/intelligent_search/examples.rs:230:    pub async fn example_mcp_server_integration() -> Result<(), String> {
+crates/vectorizer/src/intelligent_search/examples.rs:280:    pub async fn run_all_examples() -> Result<(), String> {
+crates/vectorizer/src/cache/query_cache.rs:53:    pub fn new(collection: String, query: String, limit: usize, threshold: Option<f64>) -> Self {
+crates/vectorizer/src/cache/query_cache.rs:67:    pub fn from_vector(
+crates/vectorizer/src/cache/query_cache.rs:88:    pub fn threshold_f64(&self) -> Option<f64> {
+crates/vectorizer/src/cache/query_cache.rs:135:    pub fn new(config: QueryCacheConfig) -> Self {
+crates/vectorizer/src/cache/query_cache.rs:156:    pub fn get(&self, key: &QueryKey) -> Option<T> {
+crates/vectorizer/src/cache/query_cache.rs:203:    pub fn cached_or_compute<F, E>(&self, key: QueryKey, compute: F) -> Result<T, E>
+crates/vectorizer/src/cache/query_cache.rs:216:    pub fn insert(&self, key: QueryKey, value: T) {
+crates/vectorizer/src/cache/query_cache.rs:226:    pub fn invalidate_collection(&self, collection: &str) {
+crates/vectorizer/src/cache/query_cache.rs:240:    pub fn clear(&self) {
+crates/vectorizer/src/cache/query_cache.rs:246:    pub fn stats(&self) -> CacheStats {
+crates/vectorizer/src/cache/query_cache.rs:267:    pub fn reset_stats(&self) {
+crates/vectorizer/src/cache/memory_manager.rs:69:    pub fn is_success(&self) -> bool {
+crates/vectorizer/src/cache/memory_manager.rs:96:    pub fn new(config: CacheMemoryManagerConfig) -> Self {
+crates/vectorizer/src/cache/memory_manager.rs:114:    pub fn disabled() -> Self {
+crates/vectorizer/src/cache/memory_manager.rs:125:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/cache/memory_manager.rs:130:    pub fn current_usage(&self) -> u64 {
+crates/vectorizer/src/cache/memory_manager.rs:135:    pub fn peak_usage(&self) -> u64 {
+crates/vectorizer/src/cache/memory_manager.rs:140:    pub fn available(&self) -> u64 {
+crates/vectorizer/src/cache/memory_manager.rs:146:    pub fn usage_percent(&self) -> f64 {
+crates/vectorizer/src/cache/memory_manager.rs:158:    pub fn try_allocate(&self, bytes: u64) -> AllocationResult {
+crates/vectorizer/src/cache/memory_manager.rs:238:    pub fn deallocate(&self, bytes: u64) {
+crates/vectorizer/src/cache/memory_manager.rs:263:    pub fn record_eviction(&self) {
+crates/vectorizer/src/cache/memory_manager.rs:273:    pub fn stats(&self) -> CacheMemoryStats {
+crates/vectorizer/src/cache/memory_manager.rs:286:    pub fn reset_stats(&self) {
+crates/vectorizer/src/cache/memory_manager.rs:296:    pub fn config(&self) -> &CacheMemoryManagerConfig {
+crates/vectorizer/src/cache/memory_manager.rs:301:    pub fn would_exceed_limit(&self, bytes: u64) -> bool {
+crates/vectorizer/src/cache/memory_manager.rs:310:    pub fn recommended_eviction_size(&self, requested_bytes: u64) -> Option<u64> {
+crates/vectorizer/src/cache/memory_manager.rs:335:pub fn init_global_cache_memory_manager(
+crates/vectorizer/src/cache/memory_manager.rs:348:pub fn get_global_cache_memory_manager() -> Arc<CacheMemoryManager> {
+crates/vectorizer/src/summarization/config.rs:65:    pub fn from_yaml(config: &serde_yaml::Value) -> Result<Self, String> {
+crates/vectorizer/src/summarization/config.rs:253:    pub fn is_method_enabled(&self, method: &SummarizationMethod) -> bool {
+crates/vectorizer/src/summarization/config.rs:262:    pub fn get_method_config(&self, method: &SummarizationMethod) -> Option<&MethodConfig> {
+crates/vectorizer/src/summarization/config.rs:268:    pub fn get_language_config(&self, language: &str) -> Option<&LanguageConfig> {
+crates/vectorizer/src/summarization/config.rs:273:    pub fn validate(&self) -> Result<(), String> {
+crates/vectorizer/src/summarization/methods.rs:35:    pub fn new() -> Self {
+crates/vectorizer/src/summarization/methods.rs:279:    pub fn new() -> Self {
+crates/vectorizer/src/summarization/methods.rs:346:    pub fn new() -> Self {
+crates/vectorizer/src/summarization/methods.rs:419:    pub fn new() -> Self {
+crates/vectorizer/src/summarization/manager.rs:31:    pub fn new(config: SummarizationConfig) -> Result<Self, SummarizationError> {
+crates/vectorizer/src/summarization/manager.rs:50:    pub fn with_default_config() -> Self {
+crates/vectorizer/src/summarization/manager.rs:60:    pub fn with_enabled_config() -> Self {
+crates/vectorizer/src/summarization/manager.rs:68:    pub fn get_config(&self) -> &SummarizationConfig {
+crates/vectorizer/src/summarization/manager.rs:73:    pub fn summarize_text(
+crates/vectorizer/src/summarization/manager.rs:140:    pub fn summarize_context(
+crates/vectorizer/src/summarization/manager.rs:157:    pub fn get_summary(&self, summary_id: &str) -> Option<&SummarizationResult> {
+crates/vectorizer/src/summarization/manager.rs:162:    pub fn list_summaries(
+crates/vectorizer/src/summarization/manager.rs:205:    pub fn is_auto_summarization_enabled(&self) -> bool {
+crates/vectorizer/src/summarization/manager.rs:210:    pub fn get_summary_collection_name(&self) -> &str {
+crates/vectorizer/src/summarization/manager.rs:215:    pub fn get_default_method(&self) -> SummarizationMethod {
+crates/vectorizer/src/summarization/manager.rs:286:    pub fn create_auto_summary_metadata(
+crates/vectorizer/src/summarization/manager.rs:318:    pub fn auto_summarize(
+crates/vectorizer/src/summarization/manager.rs:346:    pub fn get_stats(&self) -> SummarizationStats {

@@ -1,0 +1,211 @@
+crates/vectorizer-cli/src/cli/mod.rs:451:pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
+crates/vectorizer-cli/src/cli/utils.rs:15:    pub fn ensure_directory(path: &PathBuf) -> Result<()> {
+crates/vectorizer-cli/src/cli/utils.rs:28:    pub fn check_file_readable(path: &PathBuf) -> Result<()> {
+crates/vectorizer-cli/src/cli/utils.rs:49:    pub fn check_file_writable(path: &PathBuf) -> Result<()> {
+crates/vectorizer-cli/src/cli/utils.rs:73:    pub fn format_bytes(bytes: u64) -> String {
+crates/vectorizer-cli/src/cli/utils.rs:97:    pub fn format_duration(seconds: u64) -> String {
+crates/vectorizer-cli/src/cli/utils.rs:110:    pub fn confirm_action(message: &str, default: bool) -> Result<bool> {
+crates/vectorizer-cli/src/cli/utils.rs:135:    pub fn get_system_info() -> SystemInfo {
+crates/vectorizer-cli/src/cli/utils.rs:145:    pub fn check_system_requirements() -> Result<()> {
+crates/vectorizer-cli/src/cli/utils.rs:176:    pub fn validate_port(port: u16) -> Result<()> {
+crates/vectorizer-cli/src/cli/utils.rs:194:    pub fn validate_host(host: &str) -> Result<()> {
+crates/vectorizer-cli/src/cli/utils.rs:212:    pub fn generate_secure_string(length: usize) -> Result<String> {
+crates/vectorizer-cli/src/cli/utils.rs:228:    pub fn is_elevated() -> bool {
+crates/vectorizer-cli/src/cli/utils.rs:246:    pub fn get_current_dir() -> Result<PathBuf> {
+crates/vectorizer-cli/src/cli/utils.rs:251:    pub fn set_current_dir(path: &PathBuf) -> Result<()> {
+crates/vectorizer-cli/src/cli/utils.rs:274:    pub fn new(total: u64) -> Self {
+crates/vectorizer-cli/src/cli/utils.rs:283:    pub fn update(&mut self, current: u64) {
+crates/vectorizer-cli/src/cli/utils.rs:289:    pub fn increment(&mut self) {
+crates/vectorizer-cli/src/cli/utils.rs:322:    pub fn finish(&mut self) {
+crates/vectorizer-cli/src/cli/commands.rs:20:pub async fn handle_server_command(command: ServerCommands, config: &CliConfig) -> Result<()> {
+crates/vectorizer-cli/src/cli/commands.rs:81:pub async fn handle_user_command(command: UserCommands, config: &CliConfig) -> Result<()> {
+crates/vectorizer-cli/src/cli/commands.rs:190:pub async fn handle_api_key_command(command: ApiKeyCommands, config: &CliConfig) -> Result<()> {
+crates/vectorizer-cli/src/cli/commands.rs:349:pub async fn handle_collection_command(
+crates/vectorizer-cli/src/cli/commands.rs:471:pub async fn handle_db_command(command: DbCommands, _config: &CliConfig) -> Result<()> {
+crates/vectorizer-cli/src/cli/commands.rs:510:pub async fn handle_config_command(command: ConfigCommands, config: &CliConfig) -> Result<()> {
+crates/vectorizer-cli/src/cli/commands.rs:599:pub async fn handle_status_command(detailed: bool, config: &CliConfig) -> Result<()> {
+crates/vectorizer-cli/src/cli/commands.rs:667:pub async fn handle_snapshot_command(
+crates/vectorizer-cli/src/cli/commands.rs:779:pub async fn handle_storage_command(
+crates/vectorizer-cli/src/cli/config.rs:122:    pub fn load_from_file(path: &PathBuf) -> Result<CliConfig> {
+crates/vectorizer-cli/src/cli/config.rs:140:    pub fn save_to_file(config: &CliConfig, path: &PathBuf) -> Result<()> {
+crates/vectorizer-cli/src/cli/config.rs:151:    pub fn generate_default_file(path: &PathBuf) -> Result<()> {
+crates/vectorizer-cli/src/cli/config.rs:162:    pub fn validate_config(config: &ConfigFile) -> Result<()> {
+crates/vectorizer-cli/src/cli/setup.rs:13:pub async fn run(path: PathBuf) -> anyhow::Result<()> {
+crates/vectorizer-cli/src/cli/setup.rs:162:pub async fn run_wizard() -> anyhow::Result<()> {
+crates/vectorizer-cli/src/cli/setup.rs:196:pub async fn run_docs(sandbox: bool) -> anyhow::Result<()> {
+crates/vectorizer-cli/src/cli/setup.rs:290:pub fn needs_setup() -> bool {
+crates/vectorizer-cli/src/cli/setup.rs:295:pub fn display_setup_hint() {
+crates/vectorizer/src/config/layered.rs:107:pub fn load_layered(
+crates/vectorizer/src/config/layered.rs:159:pub fn merge_yaml(base: Value, override_value: Value) -> Value {
+crates/vectorizer/src/config/layered.rs:194:pub fn mode_from_env() -> Option<String> {
+crates/vectorizer/src/config/enhanced_config.rs:148:    pub fn new(config_path: PathBuf) -> Self {
+crates/vectorizer/src/config/enhanced_config.rs:160:    pub async fn load_config(&mut self) -> Result<()> {
+crates/vectorizer/src/config/enhanced_config.rs:195:    pub async fn save_config(&self) -> Result<()> {
+crates/vectorizer/src/config/enhanced_config.rs:209:    pub fn get_config(&self) -> WorkspaceConfig {
+crates/vectorizer/src/config/enhanced_config.rs:214:    pub fn update_config<F>(&self, updater: F) -> Result<()>
+crates/vectorizer/src/config/enhanced_config.rs:301:    pub fn enable_auto_reload(&mut self, interval_seconds: u64) {
+crates/vectorizer/src/config/enhanced_config.rs:396:    pub async fn create_from_template(
+crates/vectorizer/src/config/enhanced_config.rs:498:    pub fn get_config_as_env_vars(&self) -> HashMap<String, String> {
+crates/vectorizer/src/config/enhanced_config.rs:559:    pub async fn export_config(&self, format: ConfigFormat, output_path: &Path) -> Result<()> {
+crates/vectorizer/src/config/vectorizer.rs:186:    pub fn to_replication_config(&self) -> crate::replication::ReplicationConfig {
+crates/vectorizer/src/config/vectorizer.rs:554:    pub fn from_yaml_file(path: &PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+crates/vectorizer/src/config/vectorizer.rs:561:    pub fn to_yaml_file(&self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+crates/vectorizer/src/config/vectorizer.rs:568:    pub fn from_env() -> Self {
+crates/vectorizer/src/config/file_watcher.rs:65:    pub fn to_file_watcher_config(&self) -> crate::file_watcher::FileWatcherConfig {
+crates/vectorizer/src/config/workspace.rs:55:    pub fn new(path: &str, collection_name: &str) -> Self {
+crates/vectorizer/src/config/workspace.rs:93:    pub fn exists(&self) -> bool {
+crates/vectorizer/src/config/workspace.rs:98:    pub fn absolute_path(&self) -> PathBuf {
+crates/vectorizer/src/config/workspace.rs:135:    pub fn new() -> Self {
+crates/vectorizer/src/config/workspace.rs:151:    pub fn with_config_path(path: PathBuf) -> Self {
+crates/vectorizer/src/config/workspace.rs:208:    pub fn add_workspace(&self, path: &str, collection_name: &str) -> Result<Workspace, String> {
+crates/vectorizer/src/config/workspace.rs:246:    pub fn remove_workspace(&self, path: &str) -> Result<Workspace, String> {
+crates/vectorizer/src/config/workspace.rs:273:    pub fn remove_workspace_by_id(&self, workspace_id: &str) -> Result<Workspace, String> {
+crates/vectorizer/src/config/workspace.rs:297:    pub fn get_workspace(&self, path: &str) -> Option<Workspace> {
+crates/vectorizer/src/config/workspace.rs:306:    pub fn get_workspace_by_id(&self, workspace_id: &str) -> Option<Workspace> {
+crates/vectorizer/src/config/workspace.rs:312:    pub fn list_workspaces(&self) -> Vec<Workspace> {
+crates/vectorizer/src/config/workspace.rs:318:    pub fn list_active_workspaces(&self) -> Vec<Workspace> {
+crates/vectorizer/src/config/workspace.rs:324:    pub fn update_index_stats(&self, workspace_id: &str, file_count: usize) -> Result<(), String> {
+crates/vectorizer/src/config/workspace.rs:340:    pub fn set_active(&self, workspace_id: &str, active: bool) -> Result<(), String> {
+crates/vectorizer/src/config/workspace.rs:355:    pub fn get_collection_for_path(&self, file_path: &str) -> Option<String> {
+crates/vectorizer/src/config/workspace.rs:391:    pub fn get_watch_paths(&self) -> Vec<PathBuf> {
+crates/vectorizer/src/benchmark/config.rs:156:    pub fn new() -> Self {
+crates/vectorizer/src/benchmark/config.rs:161:    pub fn with_dimensions(mut self, dimensions: Vec<usize>) -> Self {
+crates/vectorizer/src/benchmark/config.rs:167:    pub fn with_vector_counts(mut self, vector_counts: Vec<usize>) -> Self {
+crates/vectorizer/src/benchmark/config.rs:173:    pub fn with_measurement_time(mut self, measurement_time: Duration) -> Self {
+crates/vectorizer/src/benchmark/config.rs:179:    pub fn with_sample_size(mut self, sample_size: usize) -> Self {
+crates/vectorizer/src/benchmark/config.rs:185:    pub fn with_warm_up_time(mut self, warm_up_time: Duration) -> Self {
+crates/vectorizer/src/benchmark/config.rs:191:    pub fn with_measurement_iterations(mut self, measurement_iterations: usize) -> Self {
+crates/vectorizer/src/benchmark/config.rs:197:    pub fn with_memory_tracking(mut self, track_memory: bool) -> Self {
+crates/vectorizer/src/benchmark/config.rs:203:    pub fn with_memory_sampling_interval(mut self, interval_ms: u64) -> Self {
+crates/vectorizer/src/benchmark/config.rs:209:    pub fn with_output_directory(mut self, output_directory: String) -> Self {
+crates/vectorizer/src/benchmark/config.rs:215:    pub fn with_hnsw_config(mut self, hnsw_config: HnswBenchmarkConfig) -> Self {
+crates/vectorizer/src/benchmark/config.rs:221:    pub fn with_quantization_config(
+crates/vectorizer/src/benchmark/config.rs:230:    pub fn with_gpu_config(mut self, gpu_config: GpuBenchmarkConfig) -> Self {
+crates/vectorizer/src/benchmark/config.rs:236:    pub fn quick() -> Self {
+crates/vectorizer/src/benchmark/config.rs:246:    pub fn comprehensive() -> Self {
+crates/vectorizer/src/benchmark/config.rs:256:    pub fn regression() -> Self {
+crates/vectorizer/src/benchmark/config.rs:266:    pub fn from_toml_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+crates/vectorizer/src/benchmark/config.rs:273:    pub fn save_to_toml_file(&self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+crates/vectorizer/src/benchmark/config.rs:280:    pub fn validate(&self) -> Result<(), String> {
+crates/vectorizer/src/benchmark/config.rs:322:    pub fn config(&self) -> BenchmarkConfig {
+crates/vectorizer/src/benchmark/config.rs:331:    pub fn from_str(s: &str) -> Result<Self, String> {
+crates/vectorizer/src/benchmark/runner.rs:21:    pub fn new(config: BenchmarkConfig) -> Self {
+crates/vectorizer/src/benchmark/runner.rs:29:    pub fn with_system_monitoring(mut self) -> Self {
+crates/vectorizer/src/benchmark/runner.rs:35:    pub fn benchmark_search(
+crates/vectorizer/src/benchmark/runner.rs:82:    pub fn benchmark_insert(
+crates/vectorizer/src/benchmark/runner.rs:105:    pub fn benchmark_update(
+crates/vectorizer/src/benchmark/runner.rs:149:    pub fn benchmark_delete(
+crates/vectorizer/src/benchmark/runner.rs:172:    pub fn benchmark_concurrent_mixed(
+crates/vectorizer/src/benchmark/runner.rs:194:    pub fn run_comprehensive_benchmark(
+crates/vectorizer/src/benchmark/reporter.rs:24:    pub fn new() -> Self {
+crates/vectorizer/src/benchmark/reporter.rs:34:    pub fn with_output_directory(mut self, directory: String) -> Self {
+crates/vectorizer/src/benchmark/reporter.rs:40:    pub fn with_system_info(mut self, include: bool) -> Self {
+crates/vectorizer/src/benchmark/reporter.rs:46:    pub fn with_detailed_metrics(mut self, include: bool) -> Self {
+crates/vectorizer/src/benchmark/reporter.rs:52:    pub fn with_custom_template(mut self, template: String) -> Self {
+crates/vectorizer/src/benchmark/reporter.rs:58:    pub fn generate_markdown(
+crates/vectorizer/src/benchmark/reporter.rs:235:    pub fn generate_json(
+crates/vectorizer/src/benchmark/reporter.rs:244:    pub fn generate_csv(
+crates/vectorizer/src/benchmark/reporter.rs:282:    pub fn generate_html(
+crates/vectorizer/src/benchmark/reporter.rs:393:    pub fn save_report(
+crates/vectorizer/src/benchmark/reporter.rs:411:    pub fn generate_all_reports(
+crates/vectorizer/src/benchmark/system_monitor.rs:48:    pub fn new() -> Self {
+crates/vectorizer/src/benchmark/system_monitor.rs:60:    pub fn start_monitoring(&mut self, interval_ms: u64) -> Result<(), Box<dyn std::error::Error>> {
+crates/vectorizer/src/benchmark/system_monitor.rs:111:    pub fn stop_monitoring(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+crates/vectorizer/src/benchmark/system_monitor.rs:128:    pub fn get_snapshot(&self) -> SystemSnapshot {
+crates/vectorizer/src/benchmark/system_monitor.rs:149:    pub fn get_cpu_usage(&self) -> f64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:154:    pub fn get_memory_usage(&self) -> f64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:159:    pub fn get_peak_memory(&self) -> f64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:164:    pub fn is_monitoring(&self) -> bool {
+crates/vectorizer/src/benchmark/system_monitor.rs:169:    pub fn get_duration(&self) -> Duration {
+crates/vectorizer/src/benchmark/system_monitor.rs:186:    pub fn get_cpu_time() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:205:    pub fn get_memory_usage() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:219:    pub fn get_available_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:233:    pub fn get_total_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:247:    pub fn get_process_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:261:    pub fn get_thread_count() -> usize {
+crates/vectorizer/src/benchmark/system_monitor.rs:275:    pub fn get_load_average() -> Option<f64> {
+crates/vectorizer/src/benchmark/system_monitor.rs:292:    pub fn get_cpu_time() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:298:    pub fn get_memory_usage() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:316:    pub fn get_available_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:320:    pub fn get_total_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:329:    pub fn get_process_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:343:    pub fn get_thread_count() -> usize {
+crates/vectorizer/src/benchmark/system_monitor.rs:355:    pub fn get_load_average() -> Option<f64> {
+crates/vectorizer/src/benchmark/system_monitor.rs:374:    pub fn get_cpu_time() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:380:    pub fn get_memory_usage() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:398:    pub fn get_available_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:403:    pub fn get_total_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:407:    pub fn get_process_memory() -> u64 {
+crates/vectorizer/src/benchmark/system_monitor.rs:412:    pub fn get_thread_count() -> usize {
+crates/vectorizer/src/benchmark/system_monitor.rs:417:    pub fn get_load_average() -> Option<f64> {
+crates/vectorizer/src/benchmark/data_generator.rs:53:    pub fn new(config: BenchmarkConfig) -> Self {
+crates/vectorizer/src/benchmark/data_generator.rs:61:    pub fn generate_vectors(
+crates/vectorizer/src/benchmark/data_generator.rs:116:    pub fn generate_pattern_vectors(
+crates/vectorizer/src/benchmark/data_generator.rs:169:    pub fn generate_from_real_data(
+crates/vectorizer/src/benchmark/data_generator.rs:182:    pub fn generate_for_scenario(
+crates/vectorizer/src/benchmark/data_generator.rs:365:    pub fn vector_count(&self) -> usize {
+crates/vectorizer/src/benchmark/data_generator.rs:370:    pub fn dimension(&self) -> usize {
+crates/vectorizer/src/benchmark/data_generator.rs:375:    pub fn vectors(&self) -> &[(String, Vec<f32>)] {
+crates/vectorizer/src/benchmark/data_generator.rs:380:    pub fn documents(&self) -> &[String] {
+crates/vectorizer/src/benchmark/data_generator.rs:385:    pub fn queries(&self) -> &[String] {
+crates/vectorizer/src/benchmark/data_generator.rs:390:    pub fn ground_truth_for_query(&self, query_index: usize) -> Option<&[String]> {
+crates/vectorizer/src/benchmark/data_generator.rs:395:    pub fn split(&self, train_ratio: f64) -> (TestData, TestData) {
+crates/vectorizer/src/benchmark/data_generator.rs:438:    pub fn sample(&self, count: usize) -> TestData {
+crates/vectorizer/src/benchmark/utils.rs:12:    pub fn format_duration(duration: Duration) -> String {
+crates/vectorizer/src/benchmark/utils.rs:25:    pub fn format_bytes(bytes: u64) -> String {
+crates/vectorizer/src/benchmark/utils.rs:39:    pub fn format_throughput(ops_per_sec: f64) -> String {
+crates/vectorizer/src/benchmark/utils.rs:50:    pub fn percentage_change(old_value: f64, new_value: f64) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:59:    pub fn speedup_ratio(old_time: f64, new_time: f64) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:68:    pub fn efficiency(speedup: f64, num_threads: usize) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:77:    pub fn coefficient_of_variation(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:90:    pub fn confidence_interval(values: &[f64], confidence: f64) -> (f64, f64) {
+crates/vectorizer/src/benchmark/utils.rs:108:    pub fn percentile_rank(values: &[f64], value: f64) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:118:    pub fn interquartile_range(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:133:    pub fn detect_outliers(values: &[f64]) -> Vec<usize> {
+crates/vectorizer/src/benchmark/utils.rs:159:    pub fn moving_average(values: &[f64], window_size: usize) -> Vec<f64> {
+crates/vectorizer/src/benchmark/utils.rs:177:    pub fn exponential_moving_average(values: &[f64], alpha: f64) -> Vec<f64> {
+crates/vectorizer/src/benchmark/utils.rs:194:    pub fn linear_trend(values: &[f64]) -> (f64, f64) {
+crates/vectorizer/src/benchmark/utils.rs:212:    pub fn correlation_coefficient(x_values: &[f64], y_values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:251:        pub fn new() -> Self {
+crates/vectorizer/src/benchmark/utils.rs:256:        pub fn start(&mut self) {
+crates/vectorizer/src/benchmark/utils.rs:261:        pub fn stop(&mut self) -> Option<Duration> {
+crates/vectorizer/src/benchmark/utils.rs:266:        pub fn elapsed(&self) -> Option<Duration> {
+crates/vectorizer/src/benchmark/utils.rs:271:        pub fn is_running(&self) -> bool {
+crates/vectorizer/src/benchmark/utils.rs:283:    pub fn measure_time<F, R>(f: F) -> (R, Duration)
+crates/vectorizer/src/benchmark/utils.rs:294:    pub async fn measure_time_async<F, Fut, R>(f: F) -> (R, Duration)
+crates/vectorizer/src/benchmark/utils.rs:309:    pub fn get_process_memory() -> u64 {
+crates/vectorizer/src/benchmark/utils.rs:316:    pub fn get_peak_memory() -> u64 {
+crates/vectorizer/src/benchmark/utils.rs:322:    pub fn force_gc() {
+crates/vectorizer/src/benchmark/utils.rs:328:    pub fn allocate_memory(size: usize) -> Vec<u8> {
+crates/vectorizer/src/benchmark/utils.rs:333:    pub fn deallocate_memory(_memory: Vec<u8>) {
+crates/vectorizer/src/benchmark/utils.rs:344:    pub fn ensure_dir_exists(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+crates/vectorizer/src/benchmark/utils.rs:352:    pub fn get_file_size(path: &Path) -> Result<u64, Box<dyn std::error::Error>> {
+crates/vectorizer/src/benchmark/utils.rs:358:    pub fn file_exists(path: &Path) -> bool {
+crates/vectorizer/src/benchmark/utils.rs:363:    pub fn get_file_extension(path: &Path) -> Option<String> {
+crates/vectorizer/src/benchmark/utils.rs:373:    pub fn mean(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:382:    pub fn median(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:399:    pub fn standard_deviation(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:411:    pub fn variance(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:421:    pub fn skewness(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/utils.rs:444:    pub fn kurtosis(values: &[f64]) -> f64 {
+crates/vectorizer/src/benchmark/metrics.rs:48:    pub fn new(operation: String, config: String) -> Self {
+crates/vectorizer/src/benchmark/metrics.rs:70:    pub fn from_latencies(
+crates/vectorizer/src/benchmark/metrics.rs:120:    pub fn add_custom_metric(&mut self, name: String, value: f64) {
+crates/vectorizer/src/benchmark/metrics.rs:125:    pub fn get_custom_metric(&self, name: &str) -> Option<f64> {
+crates/vectorizer/src/benchmark/metrics.rs:193:    pub fn new(config: String, dataset_size: usize, dimension: usize) -> Self {
+crates/vectorizer/src/benchmark/metrics.rs:209:    pub fn add_operation(&mut self, name: String, metrics: OperationMetrics) {
+crates/vectorizer/src/benchmark/metrics.rs:260:    pub fn get_operation(&self, name: &str) -> Option<&OperationMetrics> {
+crates/vectorizer/src/benchmark/metrics.rs:265:    pub fn operation_names(&self) -> Vec<&String> {
+crates/vectorizer/src/benchmark/metrics.rs:371:pub fn percentile(sorted_values: &[f64], p: usize) -> f64 {
+crates/vectorizer/src/benchmark/metrics.rs:388:    pub fn new() -> Self {
+crates/vectorizer/src/benchmark/metrics.rs:396:    pub fn start(&mut self) {
+crates/vectorizer/src/benchmark/metrics.rs:401:    pub fn end(&mut self) -> Option<f64> {
+crates/vectorizer/src/benchmark/metrics.rs:413:    pub fn measurements(&self) -> &[f64] {
+crates/vectorizer/src/benchmark/metrics.rs:418:    pub fn clear(&mut self) {
+crates/vectorizer/src/benchmark/metrics.rs:424:    pub fn count(&self) -> usize {
+crates/vectorizer/src/benchmark/metrics.rs:443:    pub fn new() -> Self {
+crates/vectorizer/src/benchmark/metrics.rs:451:    pub fn record_operation(&mut self) {
+crates/vectorizer/src/benchmark/metrics.rs:456:    pub fn current_throughput(&self) -> f64 {
+crates/vectorizer/src/benchmark/metrics.rs:466:    pub fn total_operations(&self) -> usize {
+crates/vectorizer/src/benchmark/metrics.rs:471:    pub fn elapsed_time(&self) -> Duration {
+crates/vectorizer/src/benchmark/metrics.rs:476:    pub fn reset(&mut self) {

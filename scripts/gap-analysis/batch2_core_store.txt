@@ -1,0 +1,461 @@
+crates/vectorizer/src/db/collection_normalization.rs:21:    pub fn from_config(config: &CollectionConfig, data_dir: &Path) -> Result<Self> {
+crates/vectorizer/src/db/collection_normalization.rs:39:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/db/collection_normalization.rs:46:    pub async fn process_document(
+crates/vectorizer/src/db/collection_normalization.rs:69:    pub fn process_query(&self, query: &str) -> String {
+crates/vectorizer/src/db/collection_normalization.rs:78:    pub async fn is_duplicate(&self, text: &str) -> Result<bool> {
+crates/vectorizer/src/db/collection_normalization.rs:92:    pub fn enrich_payload(&self, mut payload: Payload, processed: &ProcessedDocument) -> Payload {
+crates/vectorizer/src/db/collection_normalization.rs:111:    pub fn create_vector_with_normalization(
+crates/vectorizer/src/db/collection_normalization.rs:131:    pub fn cache_stats(&self) -> Option<crate::normalization::CacheStats> {
+crates/vectorizer/src/db/graph.rs:32:    pub fn all() -> Vec<RelationshipType> {
+crates/vectorizer/src/db/graph.rs:57:    pub fn new(id: String, node_type: String) -> Self {
+crates/vectorizer/src/db/graph.rs:67:    pub fn from_vector(vector_id: &str, payload: Option<&crate::models::Payload>) -> Self {
+crates/vectorizer/src/db/graph.rs:112:    pub fn new(
+crates/vectorizer/src/db/graph.rs:131:    pub fn with_similarity(source: String, target: String, similarity_score: f32) -> Self {
+crates/vectorizer/src/db/graph.rs:165:    pub fn new(collection_name: String) -> Self {
+crates/vectorizer/src/db/graph.rs:176:    pub fn collection_name(&self) -> &str {
+crates/vectorizer/src/db/graph.rs:181:    pub fn add_node(&self, node: Node) -> Result<()> {
+crates/vectorizer/src/db/graph.rs:197:    pub fn get_node(&self, node_id: &str) -> Option<Node> {
+crates/vectorizer/src/db/graph.rs:203:    pub fn remove_node(&self, node_id: &str) -> Result<()> {
+crates/vectorizer/src/db/graph.rs:252:    pub fn add_edge(&self, edge: Edge) -> Result<()> {
+crates/vectorizer/src/db/graph.rs:300:    pub fn remove_edge(&self, edge_id: &str) -> Result<()> {
+crates/vectorizer/src/db/graph.rs:323:    pub fn get_neighbors(
+crates/vectorizer/src/db/graph.rs:361:    pub fn find_related(
+crates/vectorizer/src/db/graph.rs:403:    pub fn find_path(&self, source: &str, target: &str) -> Result<Vec<Node>> {
+crates/vectorizer/src/db/graph.rs:450:    pub fn get_all_nodes(&self) -> Vec<Node> {
+crates/vectorizer/src/db/graph.rs:456:    pub fn get_all_edges(&self) -> Vec<Edge> {
+crates/vectorizer/src/db/graph.rs:462:    pub fn node_count(&self) -> usize {
+crates/vectorizer/src/db/graph.rs:468:    pub fn edge_count(&self) -> usize {
+crates/vectorizer/src/db/graph.rs:474:    pub fn get_connected_components(&self) -> Vec<Vec<String>> {
+crates/vectorizer/src/db/graph.rs:510:    pub fn save_to_file(&self, data_dir: &std::path::Path) -> Result<()> {
+crates/vectorizer/src/db/graph.rs:597:    pub fn load_from_file(collection_name: &str, data_dir: &std::path::Path) -> Result<Self> {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:49:    pub fn new(
+crates/vectorizer/src/db/distributed_sharded_collection.rs:122:    pub fn name(&self) -> &str {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:127:    pub fn config(&self) -> &CollectionConfig {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:132:    pub async fn insert(&self, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:207:    pub async fn insert_batch(&self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:306:    pub async fn update(&self, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:376:    pub async fn delete(&self, vector_id: &str) -> Result<()> {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:435:    pub async fn search(
+crates/vectorizer/src/db/distributed_sharded_collection.rs:562:    pub async fn hybrid_search(
+crates/vectorizer/src/db/distributed_sharded_collection.rs:725:    pub fn hybrid_search_local_only(
+crates/vectorizer/src/db/distributed_sharded_collection.rs:762:    pub async fn vector_count(&self) -> Result<usize> {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:865:    pub fn document_count(&self) -> usize {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:874:    pub async fn document_count_distributed(&self) -> Result<usize> {
+crates/vectorizer/src/db/distributed_sharded_collection.rs:951:    pub fn requantize_existing_vectors(&self) -> Result<()> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:47:    pub fn new(
+crates/vectorizer/src/db/hive_gpu_collection.rs:101:    pub fn new_with_owner(
+crates/vectorizer/src/db/hive_gpu_collection.rs:114:    pub fn name(&self) -> &str {
+crates/vectorizer/src/db/hive_gpu_collection.rs:119:    pub fn config(&self) -> &CollectionConfig {
+crates/vectorizer/src/db/hive_gpu_collection.rs:124:    pub fn dimension(&self) -> usize {
+crates/vectorizer/src/db/hive_gpu_collection.rs:129:    pub fn vector_count(&self) -> usize {
+crates/vectorizer/src/db/hive_gpu_collection.rs:134:    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:139:    pub fn set_owner_id(&mut self, owner_id: Option<uuid::Uuid>) {
+crates/vectorizer/src/db/hive_gpu_collection.rs:144:    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+crates/vectorizer/src/db/hive_gpu_collection.rs:149:    pub fn add_vector(&mut self, vector: Vector) -> Result<usize> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:183:    pub fn add_vectors(&mut self, vectors: Vec<Vector>) -> Result<Vec<usize>> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:226:    pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:267:    pub fn get_vector_by_id(&self, id: &str) -> Result<Vector> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:283:    pub fn get_vector(&self, index: usize) -> Result<Vector> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:301:    pub fn remove_vector(&mut self, id: String) -> Result<()> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:325:    pub fn update(&mut self, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:346:    pub fn load_from_cache(
+crates/vectorizer/src/db/hive_gpu_collection.rs:377:    pub fn load_from_cache_with_hnsw_dump(
+crates/vectorizer/src/db/hive_gpu_collection.rs:395:    pub fn metadata(&self) -> CollectionMetadata {
+crates/vectorizer/src/db/hive_gpu_collection.rs:408:    pub fn estimated_memory_usage(&self) -> usize {
+crates/vectorizer/src/db/hive_gpu_collection.rs:420:    pub fn get_all_vectors(&self) -> Vec<Vector> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:449:    pub fn get_embedding_type(&self) -> String {
+crates/vectorizer/src/db/hive_gpu_collection.rs:454:    pub fn requantize_existing_vectors(&self) -> Result<()> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:460:    pub fn clear(&mut self) -> Result<()> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:522:    pub fn add_vectors_batch(&mut self, vectors: &[Vector]) -> Result<Vec<usize>> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:579:    pub fn search_batch(
+crates/vectorizer/src/db/hive_gpu_collection.rs:646:    pub fn update_vectors_batch(&mut self, vectors: &[Vector]) -> Result<()> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:689:    pub fn remove_vectors_batch(&mut self, ids: &[String]) -> Result<()> {
+crates/vectorizer/src/db/hive_gpu_collection.rs:719:    pub fn backend_type(&self) -> GpuBackendType {
+crates/vectorizer/src/db/auto_save.rs:56:    pub fn new(store: Arc<VectorStore>, _interval_hours: u64) -> Self {
+crates/vectorizer/src/db/auto_save.rs:63:    pub fn new_with_path(
+crates/vectorizer/src/db/auto_save.rs:89:    pub fn has_changes(&self) -> bool {
+crates/vectorizer/src/db/auto_save.rs:94:    pub fn start(&self) -> tokio::task::JoinHandle<()> {
+crates/vectorizer/src/db/auto_save.rs:273:    pub fn mark_changed(&self) {
+crates/vectorizer/src/db/auto_save.rs:278:    pub async fn force_save(&self) -> Result<()> {
+crates/vectorizer/src/db/auto_save.rs:305:    pub fn shutdown(&self) {
+crates/vectorizer/src/db/auto_save.rs:311:    pub async fn time_since_last_save(&self) -> Duration {
+crates/vectorizer/src/db/auto_save.rs:317:    pub fn has_pending_changes(&self) -> bool {
+crates/vectorizer/src/db/auto_save.rs:322:    pub fn cleanup_old_snapshots(&self) -> Result<usize> {
+crates/vectorizer/src/db/quantized_collection.rs:71:    pub fn new(name: String, config: CollectionConfig) -> Result<Self> {
+crates/vectorizer/src/db/quantized_collection.rs:76:    pub fn new_with_quantization(
+crates/vectorizer/src/db/quantized_collection.rs:110:    pub fn name(&self) -> &str {
+crates/vectorizer/src/db/quantized_collection.rs:115:    pub fn config(&self) -> &CollectionConfig {
+crates/vectorizer/src/db/quantized_collection.rs:120:    pub fn quantization_config(&self) -> &QuantizationConfig {
+crates/vectorizer/src/db/quantized_collection.rs:125:    pub fn add_vectors(&self, vectors: &[Vector]) -> Result<()> {
+crates/vectorizer/src/db/quantized_collection.rs:201:    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(String, f32)>> {
+crates/vectorizer/src/db/quantized_collection.rs:221:    pub fn vector_count(&self) -> usize {
+crates/vectorizer/src/db/quantized_collection.rs:226:    pub fn document_count(&self) -> usize {
+crates/vectorizer/src/db/quantized_collection.rs:231:    pub fn metadata(&self) -> CollectionMetadata {
+crates/vectorizer/src/db/quantized_collection.rs:246:    pub fn estimate_memory_usage(&self) -> f64 {
+crates/vectorizer/src/db/quantized_collection.rs:261:    pub fn set_embedding_type(&self, embedding_type: String) {
+crates/vectorizer/src/db/quantized_collection.rs:267:    pub fn get_embedding_type(&self) -> String {
+crates/vectorizer/src/db/hybrid_search.rs:94:    pub fn new(
+crates/vectorizer/src/db/hybrid_search.rs:110:pub fn hybrid_search(
+crates/vectorizer/src/db/storage_backend.rs:31:    pub fn new_memory() -> Self {
+crates/vectorizer/src/db/storage_backend.rs:35:    pub fn new_mmap(storage: MmapVectorStorage) -> Self {
+crates/vectorizer/src/db/storage_backend.rs:44:    pub fn insert(&self, id: String, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/storage_backend.rs:75:    pub fn get(&self, id: &str) -> Result<Option<Vector>> {
+crates/vectorizer/src/db/storage_backend.rs:107:    pub fn contains_key(&self, id: &str) -> Result<bool> {
+crates/vectorizer/src/db/storage_backend.rs:114:    pub fn update(&self, id: &str, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/storage_backend.rs:160:    pub fn remove(&self, id: &str) -> Result<bool> {
+crates/vectorizer/src/db/storage_backend.rs:179:    pub fn len(&self) -> usize {
+crates/vectorizer/src/db/storage_backend.rs:186:    pub fn is_empty(&self) -> bool {
+crates/vectorizer/src/db/sharded_collection.rs:42:    pub fn new(name: String, config: CollectionConfig) -> Result<Self> {
+crates/vectorizer/src/db/sharded_collection.rs:91:    pub fn name(&self) -> &str {
+crates/vectorizer/src/db/sharded_collection.rs:96:    pub fn config(&self) -> &CollectionConfig {
+crates/vectorizer/src/db/sharded_collection.rs:101:    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+crates/vectorizer/src/db/sharded_collection.rs:106:    pub fn set_owner_id(&mut self, owner_id: Option<uuid::Uuid>) {
+crates/vectorizer/src/db/sharded_collection.rs:111:    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+crates/vectorizer/src/db/sharded_collection.rs:116:    pub fn insert(&self, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/sharded_collection.rs:139:    pub fn insert_batch(&self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/sharded_collection.rs:178:    pub fn update(&self, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/sharded_collection.rs:190:    pub fn delete(&self, vector_id: &str) -> Result<()> {
+crates/vectorizer/src/db/sharded_collection.rs:207:    pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+crates/vectorizer/src/db/sharded_collection.rs:223:    pub fn search(
+crates/vectorizer/src/db/sharded_collection.rs:281:    pub fn hybrid_search(
+crates/vectorizer/src/db/sharded_collection.rs:334:    pub fn vector_count(&self) -> usize {
+crates/vectorizer/src/db/sharded_collection.rs:342:    pub fn document_count(&self) -> usize {
+crates/vectorizer/src/db/sharded_collection.rs:350:    pub fn shard_counts(&self) -> HashMap<ShardId, usize> {
+crates/vectorizer/src/db/sharded_collection.rs:358:    pub fn needs_rebalancing(&self) -> bool {
+crates/vectorizer/src/db/sharded_collection.rs:364:    pub fn add_shard(&self, shard_id: ShardId, weight: f32) -> Result<()> {
+crates/vectorizer/src/db/sharded_collection.rs:384:    pub fn remove_shard(&self, shard_id: ShardId) -> Result<()> {
+crates/vectorizer/src/db/sharded_collection.rs:396:    pub fn get_shard_ids(&self) -> Vec<ShardId> {
+crates/vectorizer/src/db/sharded_collection.rs:401:    pub fn get_shard_metadata(&self, shard_id: &ShardId) -> Option<super::sharding::ShardMetadata> {
+crates/vectorizer/src/db/sharded_collection.rs:414:    pub fn requantize_existing_vectors(&self) -> Result<()> {
+crates/vectorizer/src/db/sharding.rs:24:    pub fn new(id: u32) -> Self {
+crates/vectorizer/src/db/sharding.rs:29:    pub fn as_u32(&self) -> u32 {
+crates/vectorizer/src/db/sharding.rs:72:    pub fn new(shard_count: u32, virtual_nodes_per_shard: usize) -> Result<Self> {
+crates/vectorizer/src/db/sharding.rs:131:    pub fn get_shard_for_vector(&self, vector_id: &str) -> ShardId {
+crates/vectorizer/src/db/sharding.rs:149:    pub fn get_shards_for_search(&self, shard_keys: Option<&[ShardId]>) -> Vec<ShardId> {
+crates/vectorizer/src/db/sharding.rs:167:    pub fn add_shard(&mut self, shard_id: ShardId, weight: f32) -> Result<()> {
+crates/vectorizer/src/db/sharding.rs:194:    pub fn remove_shard(&mut self, shard_id: ShardId) -> Result<()> {
+crates/vectorizer/src/db/sharding.rs:218:    pub fn get_shard_ids(&self) -> Vec<ShardId> {
+crates/vectorizer/src/db/sharding.rs:223:    pub fn get_shard_metadata(&self, shard_id: &ShardId) -> Option<&ShardMetadata> {
+crates/vectorizer/src/db/sharding.rs:228:    pub fn update_shard_count(&mut self, shard_id: &ShardId, count: usize) {
+crates/vectorizer/src/db/sharding.rs:235:    pub fn shard_count(&self) -> usize {
+crates/vectorizer/src/db/sharding.rs:251:    pub fn new(collection_name: String, shard_count: u32) -> Result<Self> {
+crates/vectorizer/src/db/sharding.rs:260:    pub fn route_vector(&self, vector_id: &str) -> ShardId {
+crates/vectorizer/src/db/sharding.rs:266:    pub fn route_search(&self, shard_keys: Option<&[ShardId]>) -> Vec<ShardId> {
+crates/vectorizer/src/db/sharding.rs:272:    pub fn add_shard(&self, shard_id: ShardId, weight: f32) -> Result<()> {
+crates/vectorizer/src/db/sharding.rs:278:    pub fn remove_shard(&self, shard_id: ShardId) -> Result<()> {
+crates/vectorizer/src/db/sharding.rs:284:    pub fn get_shard_ids(&self) -> Vec<ShardId> {
+crates/vectorizer/src/db/sharding.rs:290:    pub fn get_shard_metadata(&self, shard_id: &ShardId) -> Option<ShardMetadata> {
+crates/vectorizer/src/db/sharding.rs:296:    pub fn update_shard_count(&self, shard_id: &ShardId, count: usize) {
+crates/vectorizer/src/db/sharding.rs:302:    pub fn collection_name(&self) -> &str {
+crates/vectorizer/src/db/sharding.rs:318:    pub fn new(router: Arc<ShardRouter>, threshold: f32) -> Self {
+crates/vectorizer/src/db/sharding.rs:323:    pub fn calculate_moves_for_add(
+crates/vectorizer/src/db/sharding.rs:349:    pub fn calculate_moves_for_remove(
+crates/vectorizer/src/db/sharding.rs:376:    pub fn needs_rebalancing(&self, shard_counts: &HashMap<ShardId, usize>) -> bool {
+crates/vectorizer/src/db/sharding.rs:398:    pub fn calculate_balance_moves(
+crates/vectorizer/src/db/payload_index.rs:43:    pub fn new(field_name: String, index_type: PayloadIndexType) -> Self {
+crates/vectorizer/src/db/payload_index.rs:437:    pub fn new() -> Self {
+crates/vectorizer/src/db/payload_index.rs:449:    pub fn add_index_config(&self, config: PayloadIndexConfig) {
+crates/vectorizer/src/db/payload_index.rs:502:    pub fn index_vector(&self, vector_id: String, payload: &Payload) {
+crates/vectorizer/src/db/payload_index.rs:587:    pub fn remove_vector(&self, vector_id: &str) {
+crates/vectorizer/src/db/payload_index.rs:615:    pub fn get_ids_for_keyword(&self, field_name: &str, value: &str) -> Option<HashSet<String>> {
+crates/vectorizer/src/db/payload_index.rs:622:    pub fn get_ids_in_range(
+crates/vectorizer/src/db/payload_index.rs:634:    pub fn get_ids_in_float_range(
+crates/vectorizer/src/db/payload_index.rs:646:    pub fn search_text(&self, field_name: &str, query: &str) -> Option<HashSet<String>> {
+crates/vectorizer/src/db/payload_index.rs:653:    pub fn get_ids_in_geo_bounding_box(
+crates/vectorizer/src/db/payload_index.rs:667:    pub fn get_ids_in_geo_radius(
+crates/vectorizer/src/db/payload_index.rs:680:    pub fn get_stats(&self) -> HashMap<String, PayloadIndexStats> {
+crates/vectorizer/src/db/payload_index.rs:707:    pub fn get_config(&self, field_name: &str) -> Option<PayloadIndexConfig> {
+crates/vectorizer/src/db/payload_index.rs:712:    pub fn list_indexed_fields(&self) -> Vec<String> {
+crates/vectorizer/src/db/multi_tenancy.rs:94:    pub fn new(tenant_id: TenantId) -> Self {
+crates/vectorizer/src/db/multi_tenancy.rs:104:    pub fn with_quotas(tenant_id: TenantId, quotas: TenantQuotas) -> Self {
+crates/vectorizer/src/db/multi_tenancy.rs:114:    pub fn can_create_collection(&self) -> Result<()> {
+crates/vectorizer/src/db/multi_tenancy.rs:132:    pub fn can_add_vectors(&self, count: usize) -> Result<()> {
+crates/vectorizer/src/db/multi_tenancy.rs:150:    pub fn can_use_memory(&self, bytes: u64) -> Result<()> {
+crates/vectorizer/src/db/multi_tenancy.rs:168:    pub fn can_use_storage(&self, bytes: u64) -> Result<()> {
+crates/vectorizer/src/db/multi_tenancy.rs:186:    pub fn can_perform_query(&self) -> Result<()> {
+crates/vectorizer/src/db/multi_tenancy.rs:214:    pub fn update_memory_usage(&self, delta: i64) {
+crates/vectorizer/src/db/multi_tenancy.rs:224:    pub fn update_collection_count(&self, delta: i32) {
+crates/vectorizer/src/db/multi_tenancy.rs:234:    pub fn update_vector_count(&self, delta: i64) {
+crates/vectorizer/src/db/multi_tenancy.rs:244:    pub fn update_storage_usage(&self, delta: i64) {
+crates/vectorizer/src/db/multi_tenancy.rs:254:    pub fn get_usage(&self) -> TenantUsage {
+crates/vectorizer/src/db/multi_tenancy.rs:270:    pub fn new() -> Self {
+crates/vectorizer/src/db/multi_tenancy.rs:278:    pub fn register_tenant(&self, tenant_id: TenantId, quotas: Option<TenantQuotas>) {
+crates/vectorizer/src/db/multi_tenancy.rs:290:    pub fn get_tenant(&self, tenant_id: &TenantId) -> Option<TenantMetadata> {
+crates/vectorizer/src/db/multi_tenancy.rs:295:    pub fn associate_collection(&self, collection_name: &str, tenant_id: &TenantId) -> Result<()> {
+crates/vectorizer/src/db/multi_tenancy.rs:335:    pub fn get_collection_tenant(&self, collection_name: &str) -> Option<TenantId> {
+crates/vectorizer/src/db/multi_tenancy.rs:342:    pub fn can_access_collection(&self, tenant_id: &TenantId, collection_name: &str) -> Result<()> {
+crates/vectorizer/src/db/multi_tenancy.rs:357:    pub fn check_tenant_quota(
+crates/vectorizer/src/db/multi_tenancy.rs:381:    pub fn update_usage(&self, tenant_id: &TenantId, update: TenantUsageUpdate) {
+crates/vectorizer/src/db/multi_tenancy.rs:393:    pub fn remove_collection(&self, collection_name: &str) {
+crates/vectorizer/src/db/multi_tenancy.rs:402:    pub fn list_tenants(&self) -> Vec<TenantId> {
+crates/vectorizer/src/db/multi_tenancy.rs:407:    pub fn get_tenant_stats(&self, tenant_id: &TenantId) -> Option<TenantUsage> {
+crates/vectorizer/src/db/raft.rs:114:    pub fn new() -> Self {
+crates/vectorizer/src/db/raft.rs:122:    pub fn set_store(&mut self, store: Arc<crate::db::vector_store::VectorStore>) {
+crates/vectorizer/src/db/raft.rs:127:    pub fn apply(&self, entry: &LogEntry) -> Result<()> {
+crates/vectorizer/src/db/raft.rs:239:    pub fn last_applied_index(&self) -> LogIndex {
+crates/vectorizer/src/db/raft.rs:323:    pub fn new(id: NodeId, config: RaftConfig) -> Self {
+crates/vectorizer/src/db/raft.rs:338:    pub fn set_store(&self, store: Arc<crate::db::vector_store::VectorStore>) {
+crates/vectorizer/src/db/raft.rs:344:    pub fn add_peer(&self, peer_id: NodeId, address: String) {
+crates/vectorizer/src/db/raft.rs:351:    pub fn start(&mut self) -> Result<()> {
+crates/vectorizer/src/db/raft.rs:498:    pub async fn propose(&self, operation: Operation) -> Result<LogIndex> {
+crates/vectorizer/src/db/raft.rs:516:    pub async fn get_state(&self) -> Result<RaftState> {
+crates/vectorizer/src/db/gpu_detection.rs:26:    pub fn name(&self) -> &'static str {
+crates/vectorizer/src/db/gpu_detection.rs:34:    pub fn icon(&self) -> &'static str {
+crates/vectorizer/src/db/gpu_detection.rs:65:    pub fn detect_best_backend() -> GpuBackendType {
+crates/vectorizer/src/db/gpu_detection.rs:87:    pub fn is_metal_available() -> bool {
+crates/vectorizer/src/db/gpu_detection.rs:123:    pub fn get_gpu_info(backend: GpuBackendType) -> Option<GpuInfo> {
+crates/vectorizer/src/db/optimized_hnsw.rs:82:    pub fn new(dimension: usize, config: OptimizedHnswConfig) -> Result<Self> {
+crates/vectorizer/src/db/optimized_hnsw.rs:107:    pub fn add(&self, id: String, data: Vec<f32>) -> Result<()> {
+crates/vectorizer/src/db/optimized_hnsw.rs:129:    pub fn batch_add(&self, vectors: Vec<(String, Vec<f32>)>) -> Result<()> {
+crates/vectorizer/src/db/optimized_hnsw.rs:177:    pub fn flush(&self) -> Result<()> {
+crates/vectorizer/src/db/optimized_hnsw.rs:200:    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(String, f32)>> {
+crates/vectorizer/src/db/optimized_hnsw.rs:246:    pub fn remove(&self, id: &str) -> Result<bool> {
+crates/vectorizer/src/db/optimized_hnsw.rs:263:    pub fn update(&self, id: &str, data: &[f32]) -> Result<()> {
+crates/vectorizer/src/db/optimized_hnsw.rs:279:    pub fn len(&self) -> usize {
+crates/vectorizer/src/db/optimized_hnsw.rs:284:    pub fn is_empty(&self) -> bool {
+crates/vectorizer/src/db/optimized_hnsw.rs:289:    pub fn optimize(&self) -> Result<()> {
+crates/vectorizer/src/db/optimized_hnsw.rs:302:    pub fn get_all_vectors(&self) -> Result<HashMap<String, Vec<f32>>> {
+crates/vectorizer/src/db/optimized_hnsw.rs:307:    pub fn memory_stats(&self) -> MemoryStats {
+crates/vectorizer/src/db/optimized_hnsw.rs:321:    pub fn file_dump<P: AsRef<std::path::Path>>(&self, path: P, basename: &str) -> Result<String> {
+crates/vectorizer/src/db/optimized_hnsw.rs:412:    pub fn load_from_dump<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/db/optimized_hnsw.rs:448:    pub fn format(&self) -> String {
+crates/vectorizer/src/db/collection/quantization.rs:16:    pub fn requantize_existing_vectors(&self) -> Result<()> {
+crates/vectorizer/src/db/collection/quantization.rs:102:    pub fn train_pq_if_needed(&self) -> Result<()> {
+crates/vectorizer/src/db/collection/quantization.rs:169:    pub fn pq_quantize_vector(&self, vector: &[f32]) -> Result<Option<Vec<u8>>> {
+crates/vectorizer/src/db/graph_relationship_discovery.rs:14:pub fn discover_relationships(
+crates/vectorizer/src/db/graph_relationship_discovery.rs:49:pub fn discover_similarity_relationships(
+crates/vectorizer/src/db/graph_relationship_discovery.rs:108:pub fn discover_edges_for_node(
+crates/vectorizer/src/db/graph_relationship_discovery.rs:125:pub fn discover_edges_for_collection(
+crates/vectorizer/src/db/graph_relationship_discovery.rs:184:pub fn discover_reference_relationships(
+crates/vectorizer/src/db/graph_relationship_discovery.rs:217:pub fn discover_contains_relationships(
+crates/vectorizer/src/db/graph_relationship_discovery.rs:249:pub fn discover_derived_from_relationships(
+crates/vectorizer/src/db/graph_relationship_discovery.rs:301:pub fn is_relationship_type_enabled(rel_type: &str, config: &AutoRelationshipConfig) -> bool {
+crates/vectorizer/src/db/wal_integration.rs:29:    pub fn new_disabled() -> Self {
+crates/vectorizer/src/db/wal_integration.rs:37:    pub async fn new(
+crates/vectorizer/src/db/wal_integration.rs:62:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/db/wal_integration.rs:67:    pub async fn log_insert(
+crates/vectorizer/src/db/wal_integration.rs:100:    pub async fn log_update(
+crates/vectorizer/src/db/wal_integration.rs:135:    pub async fn log_delete(
+crates/vectorizer/src/db/wal_integration.rs:153:    pub async fn recover_collection(
+crates/vectorizer/src/db/wal_integration.rs:165:    pub fn wal(&self) -> Option<&Arc<WriteAheadLog>> {
+crates/vectorizer/src/db/wal_integration.rs:170:    pub async fn checkpoint(&self) -> std::result::Result<u64, WALError> {
+crates/vectorizer/src/db/wal_integration.rs:179:    pub async fn should_checkpoint(&self) -> std::result::Result<bool, WALError> {
+crates/vectorizer/src/db/collection/mod.rs:96:    pub fn name(&self) -> &str {
+crates/vectorizer/src/db/collection/mod.rs:101:    pub fn config(&self) -> &CollectionConfig {
+crates/vectorizer/src/db/collection/mod.rs:106:    pub fn new(name: String, config: CollectionConfig) -> Self {
+crates/vectorizer/src/db/collection/mod.rs:111:    pub fn new_with_owner(name: String, config: CollectionConfig, owner_id: uuid::Uuid) -> Self {
+crates/vectorizer/src/db/collection/mod.rs:116:    pub fn new_with_embedding_type(
+crates/vectorizer/src/db/collection/mod.rs:125:    pub fn new_with_owner_and_embedding(
+crates/vectorizer/src/db/collection/mod.rs:227:    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+crates/vectorizer/src/db/collection/mod.rs:232:    pub fn set_owner_id(&mut self, owner_id: Option<uuid::Uuid>) {
+crates/vectorizer/src/db/collection/mod.rs:237:    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+crates/vectorizer/src/db/collection/mod.rs:242:    pub fn metadata(&self) -> CollectionMetadata {
+crates/vectorizer/src/db/collection/mod.rs:255:    pub fn document_count(&self) -> usize {
+crates/vectorizer/src/db/collection/mod.rs:260:    pub fn get_embedding_type(&self) -> String {
+crates/vectorizer/src/db/collection/mod.rs:265:    pub fn set_embedding_type(&self, embedding_type: String) {
+crates/vectorizer/src/db/collection/mod.rs:270:    pub fn vector_count(&self) -> usize {
+crates/vectorizer/src/db/collection/persistence.rs:25:    pub fn estimated_memory_usage(&self) -> usize {
+crates/vectorizer/src/db/collection/persistence.rs:90:    pub fn load_from_cache(
+crates/vectorizer/src/db/collection/persistence.rs:131:    pub fn load_from_cache_with_hnsw_dump(
+crates/vectorizer/src/db/collection/persistence.rs:204:    pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/collection/persistence.rs:268:    pub fn get_all_vectors(&self) -> Vec<Vector> {
+crates/vectorizer/src/db/collection/persistence.rs:292:    pub fn calculate_memory_usage(&self) -> (usize, usize, usize) {
+crates/vectorizer/src/db/collection/persistence.rs:383:    pub fn get_size_info(&self) -> (String, String, String) {
+crates/vectorizer/src/db/collection/graph.rs:21:    pub fn get_graph(&self) -> Option<&Arc<crate::db::graph::Graph>> {
+crates/vectorizer/src/db/collection/graph.rs:26:    pub fn set_graph(&mut self, graph: Arc<crate::db::graph::Graph>) {
+crates/vectorizer/src/db/collection/graph.rs:32:    pub fn populate_graph_if_empty(&mut self) -> Result<()> {
+crates/vectorizer/src/db/collection/graph.rs:152:    pub fn enable_graph(&mut self) -> Result<()> {
+crates/vectorizer/src/db/vector_store/metadata.rs:29:    pub fn get_collection_metadata(&self, name: &str) -> Result<CollectionMetadata> {
+crates/vectorizer/src/db/vector_store/metadata.rs:35:    pub fn stats(&self) -> VectorStoreStats {
+crates/vectorizer/src/db/vector_store/metadata.rs:53:    pub fn get_metadata(&self, key: &str) -> Option<String> {
+crates/vectorizer/src/db/vector_store/metadata.rs:58:    pub fn set_metadata(&self, key: &str, value: String) {
+crates/vectorizer/src/db/vector_store/metadata.rs:63:    pub fn remove_metadata(&self, key: &str) -> Option<String> {
+crates/vectorizer/src/db/vector_store/metadata.rs:68:    pub fn list_metadata_keys(&self) -> Vec<String> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:51:    pub fn name(&self) -> &str {
+crates/vectorizer/src/db/vector_store/collection_type.rs:62:    pub fn config(&self) -> &CollectionConfig {
+crates/vectorizer/src/db/vector_store/collection_type.rs:73:    pub fn owner_id(&self) -> Option<uuid::Uuid> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:84:    pub fn belongs_to(&self, owner_id: &uuid::Uuid) -> bool {
+crates/vectorizer/src/db/vector_store/collection_type.rs:95:    pub fn add_vector(&mut self, _id: String, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:113:    pub fn insert_batch(&mut self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:134:    pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:151:    pub fn hybrid_search(
+crates/vectorizer/src/db/vector_store/collection_type.rs:180:    pub fn metadata(&self) -> CollectionMetadata {
+crates/vectorizer/src/db/vector_store/collection_type.rs:228:    pub fn delete_vector(&mut self, id: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:248:    pub fn update_vector(&mut self, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:263:    pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:282:    pub fn vector_count(&self) -> usize {
+crates/vectorizer/src/db/vector_store/collection_type.rs:294:    pub fn document_count(&self) -> usize {
+crates/vectorizer/src/db/vector_store/collection_type.rs:305:    pub fn estimated_memory_usage(&self) -> usize {
+crates/vectorizer/src/db/vector_store/collection_type.rs:323:    pub fn get_all_vectors(&self) -> Vec<Vector> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:342:    pub fn get_embedding_type(&self) -> String {
+crates/vectorizer/src/db/vector_store/collection_type.rs:353:    pub fn get_graph(&self) -> Option<&std::sync::Arc<crate::db::graph::Graph>> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:364:    pub fn requantize_existing_vectors(&self) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:375:    pub fn calculate_memory_usage(&self) -> (usize, usize, usize) {
+crates/vectorizer/src/db/vector_store/collection_type.rs:398:    pub fn get_size_info(&self) -> (String, String, String) {
+crates/vectorizer/src/db/vector_store/collection_type.rs:454:    pub fn set_embedding_type(&mut self, embedding_type: String) {
+crates/vectorizer/src/db/vector_store/collection_type.rs:482:    pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/db/vector_store/collection_type.rs:506:    pub fn load_vectors_into_memory(&self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collection_type.rs:532:    pub fn fast_load_vectors(&mut self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/collection/index.rs:19:    pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/collection/index.rs:111:    pub fn dump_hnsw_index<P: AsRef<std::path::Path>>(&self, path: P) -> Result<String> {
+crates/vectorizer/src/db/collection/index.rs:118:    pub fn load_hnsw_index_from_dump<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/db/collection/index.rs:127:    pub fn dump_hnsw_index_for_cache<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/db/vector_store/autosave.rs:20:    pub fn enable_auto_save(&self) {
+crates/vectorizer/src/db/vector_store/autosave.rs:41:    pub fn disable_auto_save(&self) {
+crates/vectorizer/src/db/vector_store/autosave.rs:63:    pub fn force_save_all(&self) -> Result<()> {
+crates/vectorizer/src/db/vector_store/autosave.rs:90:    pub fn save_collection_to_file(&self, collection_name: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/wal.rs:158:    pub async fn enable_wal(
+crates/vectorizer/src/db/vector_store/wal.rs:174:    pub async fn recover_from_wal(
+crates/vectorizer/src/db/vector_store/wal.rs:189:    pub async fn recover_and_replay_wal(&self, collection_name: &str) -> Result<usize> {
+crates/vectorizer/src/db/vector_store/wal.rs:316:    pub async fn recover_all_from_wal(&self) -> Result<usize> {
+crates/vectorizer/src/db/async_indexing.rs:71:    pub fn new(
+crates/vectorizer/src/db/async_indexing.rs:106:    pub fn start_rebuild(
+crates/vectorizer/src/db/async_indexing.rs:269:    pub fn swap_index(&self) -> Result<bool> {
+crates/vectorizer/src/db/async_indexing.rs:325:    pub fn get_progress(&self) -> IndexBuildProgress {
+crates/vectorizer/src/db/async_indexing.rs:330:    pub fn is_rebuilding(&self) -> bool {
+crates/vectorizer/src/db/async_indexing.rs:335:    pub fn is_ready(&self) -> bool {
+crates/vectorizer/src/db/async_indexing.rs:340:    pub fn cancel_rebuild(&self) {
+crates/vectorizer/src/db/async_indexing.rs:370:    pub fn get_index(&self) -> Arc<RwLock<OptimizedHnswIndex>> {
+crates/vectorizer/src/db/async_indexing.rs:375:    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<(String, f32)>> {
+crates/vectorizer/src/db/async_indexing.rs:381:    pub fn add(&self, id: String, data: Vec<f32>) -> Result<()> {
+crates/vectorizer/src/db/async_indexing.rs:387:    pub fn batch_add(&self, vectors: Vec<(String, Vec<f32>)>) -> Result<()> {
+crates/vectorizer/src/db/async_indexing.rs:394:    pub fn verify_search_quality(
+crates/vectorizer/src/db/async_indexing.rs:490:    pub fn search_secondary(&self, query: &[f32], k: usize) -> Result<Vec<(String, f32)>> {
+crates/vectorizer/src/db/vector_store/vectors.rs:16:    pub fn insert(&self, collection_name: &str, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/vector_store/vectors.rs:49:    pub fn update(&self, collection_name: &str, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/vector_store/vectors.rs:69:    pub fn delete(&self, collection_name: &str, vector_id: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/vectors.rs:120:    pub fn get_vector(&self, collection_name: &str, vector_id: &str) -> Result<Vector> {
+crates/vectorizer/src/db/vector_store/persistence.rs:22:    pub fn get_data_dir() -> PathBuf {
+crates/vectorizer/src/db/vector_store/persistence.rs:27:    pub fn load_collection_from_cache(
+crates/vectorizer/src/db/vector_store/persistence.rs:62:    pub fn load_collection_from_cache_with_hnsw_dump(
+crates/vectorizer/src/db/vector_store/persistence.rs:101:    pub fn load_all_persisted_collections(&self) -> Result<usize> {
+crates/vectorizer/src/db/vector_store/persistence.rs:470:    pub fn load_dynamic_collections(&mut self) -> Result<usize> {
+crates/vectorizer/src/db/collection/data.rs:19:    pub fn insert_batch(&self, vectors: Vec<Vector>) -> Result<()> {
+crates/vectorizer/src/db/collection/data.rs:251:    pub fn insert(&self, vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/collection/data.rs:256:    pub fn update(&self, mut vector: Vector) -> Result<()> {
+crates/vectorizer/src/db/collection/data.rs:348:    pub fn delete(&self, vector_id: &str) -> Result<()> {
+crates/vectorizer/src/db/collection/data.rs:391:    pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+crates/vectorizer/src/db/collection/data.rs:432:    pub fn search(&self, query_vector: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+crates/vectorizer/src/db/collection/data.rs:494:    pub fn hybrid_search(
+crates/vectorizer/src/db/vector_store/mod.rs:85:    pub fn new() -> Self {
+crates/vectorizer/src/db/vector_store/mod.rs:108:    pub fn new_cpu_only() -> Self {
+crates/vectorizer/src/db/vector_store/mod.rs:126:    pub fn new_with_hive_gpu_config() -> Self {
+crates/vectorizer/src/db/vector_store/mod.rs:143:    pub fn new_auto() -> Self {
+crates/vectorizer/src/db/vector_store/aliases.rs:51:    pub fn list_aliases(&self) -> Vec<(String, String)> {
+crates/vectorizer/src/db/vector_store/aliases.rs:59:    pub fn list_aliases_for_collection(&self, name: &str) -> Result<Vec<String>> {
+crates/vectorizer/src/db/vector_store/aliases.rs:76:    pub fn create_alias(&self, alias: &str, target: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/aliases.rs:123:    pub fn delete_alias(&self, alias: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/aliases.rs:136:    pub fn rename_alias(&self, old_alias: &str, new_alias: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collections.rs:26:    pub fn create_collection(&self, name: &str, config: CollectionConfig) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collections.rs:60:    pub fn create_collection_with_owner(
+crates/vectorizer/src/db/vector_store/collections.rs:90:    pub fn create_collection_cpu_only(&self, name: &str, config: CollectionConfig) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collections.rs:203:    pub fn create_collection_with_quantization(
+crates/vectorizer/src/db/vector_store/collections.rs:290:    pub fn delete_collection(&self, name: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collections.rs:313:    pub fn get_collection(
+crates/vectorizer/src/db/vector_store/collections.rs:568:    pub fn has_collection_in_memory(&self, name: &str) -> bool {
+crates/vectorizer/src/db/vector_store/collections.rs:576:    pub fn get_collection_mut(
+crates/vectorizer/src/db/vector_store/collections.rs:593:    pub fn enable_graph_for_collection(&self, collection_name: &str) -> Result<()> {
+crates/vectorizer/src/db/vector_store/collections.rs:692:    pub fn enable_graph_for_all_workspace_collections(&self) -> Result<Vec<String>> {
+crates/vectorizer/src/db/vector_store/collections.rs:715:    pub fn list_collections(&self) -> Vec<String> {
+crates/vectorizer/src/db/vector_store/collections.rs:745:    pub fn list_collections_for_owner(&self, owner_id: &uuid::Uuid) -> Vec<String> {
+crates/vectorizer/src/db/vector_store/collections.rs:756:    pub fn cleanup_tenant_data(&self, owner_id: &uuid::Uuid) -> Result<usize> {
+crates/vectorizer/src/db/vector_store/collections.rs:783:    pub fn is_collection_empty(&self, name: &str) -> Result<bool> {
+crates/vectorizer/src/db/vector_store/collections.rs:789:    pub fn list_empty_collections(&self) -> Vec<String> {
+crates/vectorizer/src/db/vector_store/collections.rs:797:    pub fn cleanup_empty_collections(&self, dry_run: bool) -> Result<usize> {
+crates/vectorizer/src/db/vector_store/collections.rs:830:    pub fn get_collection_for_owner(
+crates/vectorizer/src/db/vector_store/collections.rs:859:    pub fn is_collection_owned_by(&self, name: &str, owner_id: &uuid::Uuid) -> bool {
+crates/vectorizer/src/db/vector_store/collections.rs:875:    pub fn get_collection_with_owner(
+crates/vectorizer/src/db/vector_store/search.rs:13:    pub fn search(
+crates/vectorizer/src/db/vector_store/search.rs:29:    pub fn hybrid_search(
+crates/vectorizer/src/models/sparse_vector.rs:23:    pub fn new(indices: Vec<usize>, values: Vec<f32>) -> Result<Self, SparseVectorError> {
+crates/vectorizer/src/models/sparse_vector.rs:46:    pub fn from_dense(dense: &[f32]) -> Self {
+crates/vectorizer/src/models/sparse_vector.rs:61:    pub fn to_dense(&self, dimension: usize) -> Vec<f32> {
+crates/vectorizer/src/models/sparse_vector.rs:72:    pub fn nnz(&self) -> usize {
+crates/vectorizer/src/models/sparse_vector.rs:77:    pub fn sparsity(&self, dimension: usize) -> f32 {
+crates/vectorizer/src/models/sparse_vector.rs:85:    pub fn dot_product(&self, other: &SparseVector) -> f32 {
+crates/vectorizer/src/models/sparse_vector.rs:106:    pub fn cosine_similarity(&self, other: &SparseVector) -> f32 {
+crates/vectorizer/src/models/sparse_vector.rs:121:    pub fn norm(&self) -> f32 {
+crates/vectorizer/src/models/sparse_vector.rs:126:    pub fn memory_size(&self) -> usize {
+crates/vectorizer/src/models/sparse_vector.rs:132:    pub fn validate(&self) -> Result<(), SparseVectorError> {
+crates/vectorizer/src/models/sparse_vector.rs:189:    pub fn new() -> Self {
+crates/vectorizer/src/models/sparse_vector.rs:197:    pub fn add(&mut self, id: String, vector: SparseVector) -> Result<(), SparseVectorError> {
+crates/vectorizer/src/models/sparse_vector.rs:220:    pub fn remove(&mut self, id: &str) -> bool {
+crates/vectorizer/src/models/sparse_vector.rs:242:    pub fn search(&self, query: &SparseVector, k: usize) -> Vec<(String, f32)> {
+crates/vectorizer/src/models/sparse_vector.rs:260:    pub fn len(&self) -> usize {
+crates/vectorizer/src/models/sparse_vector.rs:265:    pub fn is_empty(&self) -> bool {
+crates/vectorizer/src/models/vector_utils_simd.rs:14:pub fn dot_product_simd(a: &[f32], b: &[f32]) -> f32 {
+crates/vectorizer/src/models/vector_utils_simd.rs:21:pub fn euclidean_distance_simd(a: &[f32], b: &[f32]) -> f32 {
+crates/vectorizer/src/models/vector_utils_simd.rs:28:pub fn cosine_similarity_simd(a: &[f32], b: &[f32]) -> f32 {
+crates/vectorizer/src/models/mod.rs:59:    pub fn from_vector(vector: Vector, quantization: &QuantizationConfig) -> Self {
+crates/vectorizer/src/models/mod.rs:106:    pub fn to_vector(&self) -> Vector {
+crates/vectorizer/src/models/mod.rs:126:    pub fn memory_size(&self) -> usize {
+crates/vectorizer/src/models/mod.rs:224:    pub fn is_encrypted(&self) -> bool {
+crates/vectorizer/src/models/mod.rs:237:    pub fn from_encrypted(encrypted: crate::security::EncryptedPayload) -> Self {
+crates/vectorizer/src/models/mod.rs:244:    pub fn as_encrypted(&self) -> Option<crate::security::EncryptedPayload> {
+crates/vectorizer/src/models/mod.rs:255:    pub fn normalize(&mut self) {
+crates/vectorizer/src/models/mod.rs:299:    pub fn normalized(&self) -> Self {
+crates/vectorizer/src/models/mod.rs:653:    pub fn is_normalization_enabled(&self) -> bool {
+crates/vectorizer/src/models/mod.rs:662:    pub fn normalization_level(&self) -> Option<String> {
+crates/vectorizer/src/models/mod.rs:671:    pub fn normalization_config(&self) -> Option<&crate::normalization::NormalizationConfig> {
+crates/vectorizer/src/models/mod.rs:685:    pub fn normalize_vector(vector: &[f32]) -> Vec<f32> {
+crates/vectorizer/src/models/mod.rs:694:    pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
+crates/vectorizer/src/models/mod.rs:701:    pub fn euclidean_distance(a: &[f32], b: &[f32]) -> f32 {
+crates/vectorizer/src/models/mod.rs:708:    pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+crates/vectorizer/src/models/mod.rs:713:    pub fn distance_to_similarity(distance: f32, metric: DistanceMetric) -> f32 {
+crates/vectorizer/src/models/mod.rs:748:    pub fn new(id: String, data: Vec<f32>) -> Self {
+crates/vectorizer/src/models/mod.rs:759:    pub fn with_sparse(id: String, sparse: SparseVector, dimension: usize) -> Self {
+crates/vectorizer/src/models/mod.rs:771:    pub fn with_payload(id: String, data: Vec<f32>, payload: Payload) -> Self {
+crates/vectorizer/src/models/mod.rs:782:    pub fn with_sparse_and_payload(
+crates/vectorizer/src/models/mod.rs:799:    pub fn dimension(&self) -> usize {
+crates/vectorizer/src/models/mod.rs:804:    pub fn get_sparse(&self) -> Option<&SparseVector> {
+crates/vectorizer/src/models/mod.rs:809:    pub fn is_sparse(&self) -> bool {
+crates/vectorizer/src/models/mod.rs:816:    pub fn new(data: serde_json::Value) -> Self {
+crates/vectorizer/src/models/mod.rs:821:    pub fn from_serializable<T: serde::Serialize>(value: &T) -> Result<Self, serde_json::Error> {
+crates/vectorizer/src/models/mod.rs:827:    pub fn deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
+crates/vectorizer/src/models/qdrant/filter_processor.rs:20:    pub fn apply_filter(filter: &QdrantFilter, payload: &Payload) -> FilterResult {
+crates/vectorizer/src/models/qdrant/error.rs:93:    pub fn http_status_code(&self) -> u16 {
+crates/vectorizer/src/models/qdrant/error.rs:119:    pub fn message(&self) -> &'static str {
+crates/vectorizer/src/models/qdrant/config.rs:294:    pub fn new(host: &str, port: u16) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:311:    pub fn grpc_port(mut self, port: u16) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:317:    pub fn enable_cors(mut self, enable: bool) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:323:    pub fn max_request_size_mb(mut self, size: u64) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:329:    pub fn max_batch_size(mut self, size: u64) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:335:    pub fn storage(mut self, storage: QdrantStorageConfig) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:341:    pub fn service(mut self, service: QdrantServiceConfig) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:347:    pub fn cluster(mut self, cluster: QdrantClusterConfig) -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:353:    pub fn build(self) -> QdrantServerConfig {
+crates/vectorizer/src/models/qdrant/config.rs:367:    pub fn default() -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:372:    pub fn development() -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:381:    pub fn production() -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:394:    pub fn default() -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:407:    pub fn high_performance() -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:442:    pub fn default() -> Self {
+crates/vectorizer/src/models/qdrant/config.rs:455:    pub fn production() -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:167:    pub fn new() -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:176:    pub fn must(mut self, condition: QdrantCondition) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:182:    pub fn should(mut self, condition: QdrantCondition) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:188:    pub fn must_not(mut self, condition: QdrantCondition) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:194:    pub fn build(self) -> QdrantFilter {
+crates/vectorizer/src/models/qdrant/filter.rs:224:    pub fn match_string(key: &str, value: &str) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:232:    pub fn match_integer(key: &str, value: i64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:240:    pub fn match_bool(key: &str, value: bool) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:248:    pub fn match_any(key: &str) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:256:    pub fn match_text(key: &str, text: &str, match_type: QdrantTextMatchType) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:267:    pub fn range(key: &str, range: QdrantRange) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:275:    pub fn geo_bounding_box(
+crates/vectorizer/src/models/qdrant/filter.rs:290:    pub fn geo_radius(key: &str, center: QdrantGeoPoint, radius: f64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:298:    pub fn values_count(key: &str, values_count: QdrantValuesCount) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:306:    pub fn nested(filter: QdrantFilter) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:316:    pub fn gt(value: f64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:326:    pub fn gte(value: f64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:336:    pub fn lt(value: f64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:346:    pub fn lte(value: f64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:356:    pub fn between(min: f64, max: f64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:366:    pub fn between_inclusive(min: f64, max: f64) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:379:    pub fn gt(value: u32) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:389:    pub fn gte(value: u32) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:399:    pub fn lt(value: u32) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:409:    pub fn lte(value: u32) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:419:    pub fn between(min: u32, max: u32) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:429:    pub fn between_inclusive(min: u32, max: u32) -> Self {
+crates/vectorizer/src/models/qdrant/filter.rs:442:    pub fn new(lat: f64, lon: f64) -> Self {

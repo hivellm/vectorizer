@@ -1,0 +1,334 @@
+crates/vectorizer-server/src/server/replication_handlers.rs:38:pub async fn get_replication_status(
+crates/vectorizer-server/src/server/replication_handlers.rs:79:pub async fn configure_replication(
+crates/vectorizer-server/src/server/replication_handlers.rs:138:pub async fn get_replication_stats(
+crates/vectorizer-server/src/server/replication_handlers.rs:154:pub async fn list_replicas(
+crates/vectorizer-server/src/server/discovery_handlers.rs:39:pub async fn handle_discover(
+crates/vectorizer-server/src/server/discovery_handlers.rs:109:pub async fn handle_filter_collections(
+crates/vectorizer-server/src/server/discovery_handlers.rs:152:pub async fn handle_score_collections(
+crates/vectorizer-server/src/server/discovery_handlers.rs:197:pub async fn handle_expand_queries(
+crates/vectorizer-server/src/server/discovery_handlers.rs:239:pub async fn handle_broad_discovery(
+crates/vectorizer-server/src/server/discovery_handlers.rs:287:pub async fn handle_semantic_focus(
+crates/vectorizer-server/src/server/discovery_handlers.rs:353:pub async fn handle_promote_readme(
+crates/vectorizer-server/src/server/discovery_handlers.rs:403:pub async fn handle_compress_evidence(
+crates/vectorizer-server/src/server/discovery_handlers.rs:464:pub async fn handle_build_answer_plan(
+crates/vectorizer-server/src/server/discovery_handlers.rs:524:pub async fn handle_render_llm_prompt(
+crates/vectorizer-server/src/server/graph_handlers.rs:21:pub async fn handle_graph_list_nodes(
+crates/vectorizer-server/src/server/graph_handlers.rs:67:pub async fn handle_graph_get_neighbors(
+crates/vectorizer-server/src/server/graph_handlers.rs:128:pub async fn handle_graph_find_related(
+crates/vectorizer-server/src/server/graph_handlers.rs:203:pub async fn handle_graph_find_path(
+crates/vectorizer-server/src/server/graph_handlers.rs:275:pub async fn handle_graph_create_edge(
+crates/vectorizer-server/src/server/graph_handlers.rs:360:pub async fn handle_graph_delete_edge(
+crates/vectorizer-server/src/server/graph_handlers.rs:411:pub async fn handle_graph_discover_edges(
+crates/vectorizer-server/src/server/graph_handlers.rs:521:pub async fn handle_graph_discover_status(
+crates/vectorizer-server/src/server/setup_handlers.rs:50:pub async fn get_setup_status(State(state): State<VectorizerServer>) -> Json<SetupStatus> {
+crates/vectorizer-server/src/server/setup_handlers.rs:97:pub async fn analyze_project_directory(
+crates/vectorizer-server/src/server/setup_handlers.rs:127:pub async fn apply_setup_config(
+crates/vectorizer-server/src/server/setup_handlers.rs:378:pub async fn verify_setup(State(state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/setup_handlers.rs:446:pub async fn get_workspace_config() -> Json<Value> {
+crates/vectorizer-server/src/server/setup_handlers.rs:471:pub async fn update_workspace_config(Json(payload): Json<Value>) -> ApiResult<Json<Value>> {
+crates/vectorizer-server/src/server/setup_handlers.rs:513:pub async fn get_configuration_templates() -> Json<Vec<ConfigTemplate>> {
+crates/vectorizer-server/src/server/setup_handlers.rs:525:pub async fn get_configuration_template_by_id(
+crates/vectorizer-server/src/server/setup_handlers.rs:542:pub fn display_first_start_guidance(host: &str, port: u16, collection_count: usize) {
+crates/vectorizer-server/src/server/setup_handlers.rs:589:pub fn needs_setup(collection_count: usize) -> bool {
+crates/vectorizer-server/src/server/setup_handlers.rs:639:pub async fn browse_directory(
+crates/vectorizer-server/src/server/graphql_handlers.rs:27:pub async fn graphql_handler(
+crates/vectorizer-server/src/server/graphql_handlers.rs:78:pub async fn graphql_playground() -> impl IntoResponse {
+crates/vectorizer-server/src/server/error_middleware.rs:24:    pub fn new(error_type: String, message: String, status_code: StatusCode) -> Self {
+crates/vectorizer-server/src/server/error_middleware.rs:34:    pub fn with_details(mut self, details: Value) -> Self {
+crates/vectorizer-server/src/server/error_middleware.rs:39:    pub fn with_request_id(mut self, request_id: String) -> Self {
+crates/vectorizer-server/src/server/error_middleware.rs:113:pub fn create_error_response(
+crates/vectorizer-server/src/server/error_middleware.rs:122:pub fn create_not_found_error(resource_type: &str, resource_id: &str) -> ErrorResponse {
+crates/vectorizer-server/src/server/error_middleware.rs:131:pub fn create_conflict_error(resource_type: &str, resource_id: &str) -> ErrorResponse {
+crates/vectorizer-server/src/server/error_middleware.rs:140:pub fn create_bad_request_error(message: &str) -> ErrorResponse {
+crates/vectorizer-server/src/server/error_middleware.rs:149:pub fn create_validation_error(field: &str, message: &str) -> ErrorResponse {
+crates/vectorizer-server/src/server/embedded_assets.rs:82:pub async fn dashboard_handler(
+crates/vectorizer-server/src/server/embedded_assets.rs:89:pub async fn dashboard_root_handler() -> Response<Body> {
+crates/vectorizer-server/src/server/auth_handlers/public.rs:25:pub async fn validate_password_endpoint(
+crates/vectorizer-server/src/server/auth_handlers/public.rs:39:pub async fn login(
+crates/vectorizer-server/src/server/capabilities.rs:90:pub fn inventory() -> Vec<Capability> {
+crates/vectorizer-server/src/server/capabilities.rs:1035:pub fn assert_inventory_invariants() -> Result<()> {
+crates/vectorizer-server/src/server/auth_handlers/authenticated.rs:32:pub async fn get_me(
+crates/vectorizer-server/src/server/auth_handlers/authenticated.rs:61:pub async fn logout(
+crates/vectorizer-server/src/server/auth_handlers/authenticated.rs:99:pub async fn refresh_token(
+crates/vectorizer-server/src/server/auth_handlers/authenticated.rs:167:pub async fn create_api_key(
+crates/vectorizer-server/src/server/auth_handlers/authenticated.rs:265:pub async fn list_api_keys(
+crates/vectorizer-server/src/server/auth_handlers/authenticated.rs:311:pub async fn revoke_api_key(
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:34:pub async fn discover(
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:107:pub async fn filter_collections(
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:167:pub async fn score_collections(
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:230:pub async fn expand_queries(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:272:pub async fn broad_discovery(
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:337:pub async fn semantic_focus(
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:405:pub async fn promote_readme(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:455:pub async fn compress_evidence(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:516:pub async fn build_answer_plan(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
+crates/vectorizer-server/src/server/rest_handlers/discovery.rs:578:pub async fn render_llm_prompt(Json(payload): Json<Value>) -> Result<Json<Value>, ErrorResponse> {
+crates/vectorizer-server/src/server/auth_handlers/middleware.rs:34:pub async fn auth_middleware(
+crates/vectorizer-server/src/server/auth_handlers/middleware.rs:49:pub async fn require_auth_middleware(
+crates/vectorizer-server/src/server/auth_handlers/middleware.rs:79:pub async fn require_admin_middleware(
+crates/vectorizer-server/src/server/auth_handlers/middleware.rs:126:pub async fn require_admin_from_headers(
+crates/vectorizer-server/src/server/auth_handlers/middleware.rs:201:pub async fn require_admin_for_rest(
+crates/vectorizer-server/src/server/auth_handlers/state.rs:113:    pub fn new(auth_manager: Arc<AuthManager>) -> Self {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:128:    pub async fn new_with_default_admin(auth_manager: Arc<AuthManager>) -> Self {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:138:    pub async fn new_with_root_user(
+crates/vectorizer-server/src/server/auth_handlers/state.rs:305:    pub async fn is_token_blacklisted(&self, token: &str) -> bool {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:310:    pub async fn blacklist_token(&self, token: String) {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:315:    pub async fn cleanup_expired_tokens(&self) {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:335:    pub async fn check_login_rate_limit(&self, key: &str) -> Result<(), (u32, u64)> {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:361:    pub async fn record_failed_login(&self, key: &str) {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:391:    pub async fn clear_login_attempts(&self, key: &str) {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:397:    pub async fn cleanup_expired_login_attempts(&self) {
+crates/vectorizer-server/src/server/auth_handlers/state.rs:417:    pub async fn save_users_to_disk(&self) -> Result<(), String> {
+crates/vectorizer-server/src/server/auth_handlers/admin.rs:32:pub async fn create_user(
+crates/vectorizer-server/src/server/auth_handlers/admin.rs:177:pub async fn list_users(
+crates/vectorizer-server/src/server/auth_handlers/admin.rs:218:pub async fn delete_user(
+crates/vectorizer-server/src/server/auth_handlers/admin.rs:313:pub async fn change_password(
+crates/vectorizer-server/src/server/rest_handlers/meta.rs:22:pub async fn health_check(State(state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/meta.rs:61:pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/meta.rs:83:pub async fn get_indexing_progress(State(state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/meta.rs:106:pub async fn get_status(State(state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/meta.rs:116:pub async fn get_logs(Query(params): Query<HashMap<String, String>>) -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/meta.rs:204:pub async fn get_prometheus_metrics() -> Result<(StatusCode, String), (StatusCode, String)> {
+crates/vectorizer-server/src/server/rest_handlers/intelligent_search.rs:24:pub async fn intelligent_search(
+crates/vectorizer-server/src/server/rest_handlers/intelligent_search.rs:157:pub async fn multi_collection_search(
+crates/vectorizer-server/src/server/rest_handlers/intelligent_search.rs:216:pub async fn semantic_search(
+crates/vectorizer-server/src/server/rest_handlers/intelligent_search.rs:274:pub async fn contextual_search(
+crates/vectorizer-server/src/server/rest_handlers/backups.rs:20:pub async fn list_backups() -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/backups.rs:53:pub async fn create_backup(
+crates/vectorizer-server/src/server/rest_handlers/backups.rs:172:pub async fn restore_backup(
+crates/vectorizer-server/src/server/rest_handlers/backups.rs:341:pub async fn get_backup_directory() -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:26:pub async fn list_vectors(
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:129:pub async fn get_vector(
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:149:pub async fn delete_vector(
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:183:pub async fn update_vector(
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:214:pub async fn delete_vector_generic(
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:237:pub async fn embed_text(
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:423:pub async fn batch_insert_texts(
+crates/vectorizer-server/src/server/rest_handlers/vectors.rs:433:pub async fn insert_texts(
+crates/vectorizer-server/src/server/rest_handlers/files.rs:34:pub async fn get_file_content(
+crates/vectorizer-server/src/server/rest_handlers/files.rs:76:pub async fn list_files_in_collection(
+crates/vectorizer-server/src/server/rest_handlers/files.rs:141:pub async fn get_file_summary(
+crates/vectorizer-server/src/server/rest_handlers/files.rs:194:pub async fn get_file_chunks_ordered(
+crates/vectorizer-server/src/server/rest_handlers/files.rs:243:pub async fn get_project_outline(
+crates/vectorizer-server/src/server/rest_handlers/files.rs:293:pub async fn get_related_files(
+crates/vectorizer-server/src/server/rest_handlers/files.rs:349:pub async fn search_by_file_type(
+crates/vectorizer-server/src/server/rest_handlers/insert.rs:476:pub async fn insert_text(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:37:pub async fn search_vectors_by_text(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:140:pub async fn hybrid_search_vectors(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:319:pub async fn search_by_file(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:477:pub async fn search_vectors(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:508:pub async fn search_vectors_by_collection(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:539:pub async fn batch_search_vectors(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:677:pub async fn batch_update_vectors(
+crates/vectorizer-server/src/server/rest_handlers/search.rs:868:pub async fn batch_delete_vectors(
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:23:pub async fn add_workspace(
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:66:pub async fn remove_workspace(
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:97:pub async fn list_workspaces(State(_state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:124:pub async fn get_config() -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:166:pub async fn update_config(
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:204:pub async fn restart_server(
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:275:pub async fn get_workspace_config() -> Result<Json<Value>, ErrorResponse> {
+crates/vectorizer-server/src/server/rest_handlers/admin.rs:314:pub async fn update_workspace_config(
+crates/vectorizer-server/src/server/rest_handlers/collections.rs:26:pub async fn list_collections(
+crates/vectorizer-server/src/server/rest_handlers/collections.rs:156:pub async fn create_collection(
+crates/vectorizer-server/src/server/rest_handlers/collections.rs:331:pub async fn get_collection(
+crates/vectorizer-server/src/server/rest_handlers/collections.rs:392:pub async fn delete_collection(
+crates/vectorizer-server/src/server/rest_handlers/collections.rs:437:pub async fn force_save_collection(
+crates/vectorizer-server/src/server/rest_handlers/collections.rs:493:pub async fn list_empty_collections(State(state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/rest_handlers/collections.rs:507:pub async fn cleanup_empty_collections(
+crates/vectorizer-server/src/server/core/helpers.rs:165:pub async fn get_file_watcher_metrics(
+crates/vectorizer-server/src/server/mcp/tools.rs:44:pub fn get_mcp_tools() -> Vec<Tool> {
+crates/vectorizer-server/src/server/mcp/tools.rs:969:pub fn tools_from_inventory() -> Vec<Tool> {
+crates/vectorizer-server/src/server/qdrant/handlers.rs:170:pub async fn get_collections(
+crates/vectorizer-server/src/server/qdrant/handlers.rs:221:pub async fn get_collection(
+crates/vectorizer-server/src/server/qdrant/handlers.rs:263:pub async fn create_collection(
+crates/vectorizer-server/src/server/qdrant/handlers.rs:299:pub async fn update_collection(
+crates/vectorizer-server/src/server/qdrant/handlers.rs:406:pub async fn delete_collection(
+crates/vectorizer-server/src/server/core/routing.rs:35:    pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
+crates/vectorizer-server/src/server/mcp/handlers.rs:93:pub async fn handle_mcp_tool(
+crates/vectorizer-server/src/server/core/bootstrap.rs:114:    pub async fn new() -> anyhow::Result<Self> {
+crates/vectorizer-server/src/server/core/bootstrap.rs:119:    pub async fn new_with_root_config(root_config: RootUserConfig) -> anyhow::Result<Self> {
+crates/vectorizer-server/src/server/qdrant/cluster_handlers.rs:29:pub async fn get_cluster_status(
+crates/vectorizer-server/src/server/qdrant/cluster_handlers.rs:82:pub async fn cluster_recover(
+crates/vectorizer-server/src/server/qdrant/cluster_handlers.rs:106:pub async fn remove_peer(
+crates/vectorizer-server/src/server/qdrant/cluster_handlers.rs:143:pub async fn list_metadata_keys(
+crates/vectorizer-server/src/server/qdrant/cluster_handlers.rs:168:pub async fn get_metadata_key(
+crates/vectorizer-server/src/server/qdrant/cluster_handlers.rs:192:pub async fn update_metadata_key(
+crates/vectorizer-server/src/server/qdrant/query_handlers.rs:292:pub async fn query_points(
+crates/vectorizer-server/src/server/qdrant/query_handlers.rs:471:pub async fn batch_query_points(
+crates/vectorizer-server/src/server/qdrant/query_handlers.rs:658:pub async fn query_points_groups(
+crates/vectorizer-server/src/server/qdrant/vector_handlers.rs:77:pub async fn upsert_points(
+crates/vectorizer-server/src/server/qdrant/vector_handlers.rs:281:pub async fn retrieve_points(
+crates/vectorizer-server/src/server/qdrant/vector_handlers.rs:374:pub async fn delete_points(
+crates/vectorizer-server/src/server/qdrant/vector_handlers.rs:460:pub async fn scroll_points(
+crates/vectorizer-server/src/server/qdrant/vector_handlers.rs:579:pub async fn count_points(
+crates/vectorizer-server/src/server/qdrant/search_handlers.rs:139:pub async fn search_points(
+crates/vectorizer-server/src/server/qdrant/search_handlers.rs:260:pub async fn recommend_points(
+crates/vectorizer-server/src/server/qdrant/search_handlers.rs:432:pub async fn batch_search_points(
+crates/vectorizer-server/src/server/qdrant/search_handlers.rs:562:pub async fn batch_recommend_points(
+crates/vectorizer-server/src/server/qdrant/search_handlers.rs:748:pub async fn search_points_groups(
+crates/vectorizer-server/src/server/qdrant/search_handlers.rs:931:pub async fn search_matrix_pairs(
+crates/vectorizer-server/src/server/qdrant/search_handlers.rs:1032:pub async fn search_matrix_offsets(
+crates/vectorizer-server/src/server/files/upload.rs:118:pub async fn upload_file(
+crates/vectorizer-server/src/server/files/upload.rs:589:pub async fn get_upload_config(State(_state): State<VectorizerServer>) -> Json<Value> {
+crates/vectorizer-server/src/server/hub_handlers/tenant.rs:60:pub async fn cleanup_tenant_data(
+crates/vectorizer-server/src/server/hub_handlers/tenant.rs:107:pub async fn get_tenant_statistics(
+crates/vectorizer-server/src/server/hub_handlers/tenant.rs:195:pub async fn migrate_tenant_data(
+crates/vectorizer-server/src/server/qdrant/alias_handlers.rs:25:pub async fn list_aliases(
+crates/vectorizer-server/src/server/qdrant/alias_handlers.rs:44:pub async fn list_collection_aliases(
+crates/vectorizer-server/src/server/qdrant/alias_handlers.rs:71:pub async fn update_aliases(
+crates/vectorizer-server/src/server/mcp/connection_manager.rs:31:    pub fn new(max_connections: usize, connection_timeout: Duration) -> Self {
+crates/vectorizer-server/src/server/mcp/connection_manager.rs:46:    pub async fn register_connection(&self, connection_id: String) -> Result<(), String> {
+crates/vectorizer-server/src/server/mcp/connection_manager.rs:63:    pub async fn unregister_connection(&self, connection_id: &str) {
+crates/vectorizer-server/src/server/mcp/connection_manager.rs:82:    pub async fn cleanup_expired_connections(&self) {
+crates/vectorizer-server/src/server/mcp/connection_manager.rs:101:    pub async fn get_stats(&self) -> ConnectionStats {
+crates/vectorizer-server/src/server/mcp/connection_manager.rs:106:    pub async fn can_accept_connection(&self) -> bool {
+crates/vectorizer-server/src/server/mcp/connection_manager.rs:112:    pub async fn active_connection_count(&self) -> usize {
+crates/vectorizer-server/src/server/hub_handlers/backup.rs:87:pub async fn list_user_backups(
+crates/vectorizer-server/src/server/hub_handlers/backup.rs:128:pub async fn get_user_backup(
+crates/vectorizer-server/src/server/hub_handlers/backup.rs:164:pub async fn create_user_backup(
+crates/vectorizer-server/src/server/hub_handlers/backup.rs:262:pub async fn download_user_backup(
+crates/vectorizer-server/src/server/hub_handlers/backup.rs:331:pub async fn restore_user_backup(
+crates/vectorizer-server/src/server/hub_handlers/backup.rs:407:pub async fn delete_user_backup(
+crates/vectorizer-server/src/server/hub_handlers/backup.rs:454:pub async fn upload_user_backup(
+crates/vectorizer-server/src/server/qdrant/sharding_handlers.rs:25:pub async fn create_shard_key(
+crates/vectorizer-server/src/server/qdrant/sharding_handlers.rs:88:pub async fn delete_shard_key(
+crates/vectorizer-server/src/server/qdrant/sharding_handlers.rs:131:pub async fn list_shard_keys(
+crates/vectorizer-server/src/server/qdrant/snapshot_handlers.rs:24:pub async fn list_collection_snapshots(
+crates/vectorizer-server/src/server/qdrant/snapshot_handlers.rs:86:pub async fn create_collection_snapshot(
+crates/vectorizer-server/src/server/qdrant/snapshot_handlers.rs:144:pub async fn delete_collection_snapshot(
+crates/vectorizer-server/src/server/qdrant/snapshot_handlers.rs:203:pub async fn list_all_snapshots(
+crates/vectorizer-server/src/server/qdrant/snapshot_handlers.rs:254:pub async fn create_full_snapshot(
+crates/vectorizer-server/src/server/qdrant/snapshot_handlers.rs:301:pub async fn recover_collection_snapshot(
+crates/vectorizer-server/src/server/qdrant/snapshot_handlers.rs:355:pub async fn upload_collection_snapshot(
+crates/vectorizer-server/src/server/files/validation.rs:43:    pub fn new(config: FileUploadConfig) -> Self {
+crates/vectorizer-server/src/server/files/validation.rs:48:    pub fn validate_extension(&self, filename: &str) -> Result<String, FileValidationError> {
+crates/vectorizer-server/src/server/files/validation.rs:64:    pub fn validate_size(&self, size: usize) -> Result<(), FileValidationError> {
+crates/vectorizer-server/src/server/files/validation.rs:76:    pub fn is_binary_content(&self, content: &[u8]) -> bool {
+crates/vectorizer-server/src/server/files/validation.rs:106:    pub fn validate_binary(&self, content: &[u8]) -> Result<(), FileValidationError> {
+crates/vectorizer-server/src/server/files/validation.rs:115:    pub fn validate(
+crates/vectorizer-server/src/server/files/validation.rs:141:    pub fn get_language_from_extension(extension: &str) -> &'static str {
+crates/vectorizer-server/src/server/files/validation.rs:218:    pub fn language(&self) -> &'static str {
+crates/vectorizer-server/src/server/hub_handlers/usage.rs:73:pub async fn get_usage_statistics(
+crates/vectorizer-server/src/server/hub_handlers/usage.rs:209:pub async fn get_quota_info(
+crates/vectorizer-server/src/server/hub_handlers/usage.rs:281:pub async fn validate_api_key(
+crates/vectorizer-server/src/server/files/operations.rs:9:pub async fn handle_get_file_chunks_ordered(
+crates/vectorizer-server/src/server/files/operations.rs:55:pub async fn handle_get_project_outline(
+crates/vectorizer-server/src/server/files/operations.rs:101:pub async fn handle_get_related_files(
+crates/vectorizer-server/src/server/files/operations.rs:155:pub async fn handle_search_by_file_type(
+crates/vectorizer-server/src/api/cluster.rs:102:pub fn create_cluster_router() -> Router<ClusterApiState> {
+crates/vectorizer-server/src/api/cluster.rs:396:pub async fn get_cluster_leader(State(_state): State<ClusterApiState>) -> Json<serde_json::Value> {
+crates/vectorizer-server/src/api/cluster.rs:409:pub async fn get_cluster_role(State(_state): State<ClusterApiState>) -> Json<serde_json::Value> {
+crates/vectorizer-server/src/api/advanced_api.rs:533:    pub fn new(name: String) -> Self {
+crates/vectorizer-server/src/api/advanced_api.rs:1003:    pub fn new(config: ApiConfig) -> Self {
+crates/vectorizer-server/src/api/advanced_api.rs:1016:    pub fn add_route(&self, path: String, route: ApiRoute) {
+crates/vectorizer-server/src/api/advanced_api.rs:1022:    pub fn add_middleware(&self, middleware: TestHandler) {
+crates/vectorizer-server/src/api/advanced_api.rs:1028:    pub async fn start(&self) -> Result<()> {
+crates/vectorizer-server/src/api/advanced_api.rs:1039:    pub async fn stop(&self) -> Result<()> {
+crates/vectorizer-server/src/api/advanced_api.rs:1045:    pub async fn handle_request(&self, request: ApiRequest) -> Result<ApiResponse> {
+crates/vectorizer-server/src/api/graph.rs:48:    pub fn new(store: std::sync::Arc<VectorStore>) -> Self {
+crates/vectorizer-server/src/api/graph.rs:57:pub fn create_graph_router() -> Router<GraphApiState> {
+crates/vectorizer-server/src/api/graph.rs:217:pub async fn enable_graph(
+crates/vectorizer-server/src/api/graph.rs:265:pub async fn graph_status(
+crates/vectorizer-server/src/api/graph.rs:304:pub async fn list_nodes(
+crates/vectorizer-server/src/api/graph.rs:339:pub async fn get_neighbors(
+crates/vectorizer-server/src/api/graph.rs:387:pub async fn find_related(
+crates/vectorizer-server/src/api/graph.rs:448:pub async fn find_path(
+crates/vectorizer-server/src/api/graph.rs:500:pub async fn create_edge(
+crates/vectorizer-server/src/api/graph.rs:588:pub async fn list_edges(
+crates/vectorizer-server/src/api/graph.rs:692:pub async fn delete_edge(
+crates/vectorizer-server/src/api/graph.rs:766:pub async fn discover_edges_collection(
+crates/vectorizer-server/src/api/graph.rs:845:pub async fn discover_edges_node(
+crates/vectorizer-server/src/api/graph.rs:922:pub async fn get_discovery_status(
+crates/vectorizer-server/src/api/graphql/schema/mod.rs:45:pub fn create_schema(
+crates/vectorizer-server/src/api/graphql/schema/mod.rs:69:pub fn create_schema_with_auto_save(
+crates/vectorizer-server/src/api/graphql/schema/mod.rs:92:pub fn create_schema_with_hub(
+crates/vectorizer-server/src/api/graphql/types.rs:605:    pub fn ok() -> Self {
+crates/vectorizer-server/src/api/graphql/types.rs:613:    pub fn ok_with_message(msg: impl Into<String>) -> Self {
+crates/vectorizer-server/src/api/graphql/types.rs:621:    pub fn ok_with_count(count: i32) -> Self {
+crates/vectorizer-server/src/api/graphql/types.rs:629:    pub fn err(msg: impl Into<String>) -> Self {
+crates/vectorizer-server/src/api/graphql/types.rs:799:    pub fn success_result(
+crates/vectorizer-server/src/api/graphql/types.rs:821:    pub fn error_result(filename: String, collection_name: String, error: String) -> Self {
+crates/vectorizer/src/auth/jwt_secret.rs:44:pub fn load_or_generate(path: &Path) -> Result<String> {
+crates/vectorizer/src/auth/mod.rs:93:    pub fn validate(&self) -> Result<()> {
+crates/vectorizer/src/auth/mod.rs:198:    pub fn new(config: AuthConfig) -> Result<Self> {
+crates/vectorizer/src/auth/mod.rs:223:    pub fn new_default() -> Result<Self> {
+crates/vectorizer/src/auth/mod.rs:228:    pub async fn create_api_key(
+crates/vectorizer/src/auth/mod.rs:241:    pub async fn validate_api_key(&self, api_key: &str) -> Result<UserClaims> {
+crates/vectorizer/src/auth/mod.rs:261:    pub fn generate_jwt(&self, user_id: &str, username: &str, roles: Vec<Role>) -> Result<String> {
+crates/vectorizer/src/auth/mod.rs:266:    pub fn validate_jwt(&self, token: &str) -> Result<UserClaims> {
+crates/vectorizer/src/auth/mod.rs:318:    pub async fn list_api_keys(&self, user_id: &str) -> Result<Vec<ApiKey>> {
+crates/vectorizer/src/auth/mod.rs:323:    pub async fn revoke_api_key(&self, api_key_id: &str) -> Result<()> {
+crates/vectorizer/src/auth/mod.rs:328:    pub fn config(&self) -> &AuthConfig {
+crates/vectorizer/src/auth/mod.rs:333:    pub async fn register_api_key(&self, key_info: ApiKey) -> Result<()> {
+crates/vectorizer/src/auth/mod.rs:338:    pub async fn delete_api_key(&self, key_id: &str) -> Result<()> {
+crates/vectorizer/src/auth/mod.rs:343:    pub async fn get_api_key_info(&self, key_id: &str) -> Result<ApiKey> {
+crates/vectorizer/src/auth/roles.rs:26:    pub fn permissions(&self) -> Vec<Permission> {
+crates/vectorizer/src/auth/roles.rs:55:    pub fn has_permission(&self, permission: &Permission) -> bool {
+crates/vectorizer/src/auth/roles.rs:60:    pub fn hierarchy_level(&self) -> u8 {
+crates/vectorizer/src/auth/roles.rs:71:    pub fn can_manage_role(&self, other_role: &Role) -> bool {
+crates/vectorizer/src/auth/roles.rs:101:    pub fn description(&self) -> &'static str {
+crates/vectorizer/src/auth/roles.rs:116:    pub fn resource_type(&self) -> &'static str {
+crates/vectorizer/src/auth/roles.rs:142:    pub fn new(user_id: String, roles: Vec<Role>) -> Self {
+crates/vectorizer/src/auth/roles.rs:152:    pub fn with_collection(mut self, collection: String) -> Self {
+crates/vectorizer/src/auth/roles.rs:158:    pub fn with_resource(mut self, resource: String) -> Self {
+crates/vectorizer/src/auth/roles.rs:164:    pub fn has_permission(&self, permission: &Permission) -> bool {
+crates/vectorizer/src/auth/roles.rs:171:    pub fn has_any_permission(&self, permissions: &[Permission]) -> bool {
+crates/vectorizer/src/auth/roles.rs:176:    pub fn has_all_permissions(&self, permissions: &[Permission]) -> bool {
+crates/vectorizer/src/auth/roles.rs:181:    pub fn all_permissions(&self) -> HashSet<Permission> {
+crates/vectorizer/src/auth/roles.rs:192:    pub fn is_admin(&self) -> bool {
+crates/vectorizer/src/auth/roles.rs:197:    pub fn can_admin(&self) -> bool {
+crates/vectorizer/src/auth/roles.rs:208:    pub fn can_access_collection(context: &AccessContext, _collection_name: &str) -> bool {
+crates/vectorizer/src/auth/roles.rs:213:    pub fn can_create_collection(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/roles.rs:218:    pub fn can_delete_collection(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/roles.rs:223:    pub fn can_read_vectors(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/roles.rs:228:    pub fn can_write_vectors(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/roles.rs:233:    pub fn can_delete_vectors(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/roles.rs:238:    pub fn can_manage_api_keys(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/roles.rs:243:    pub fn can_view_logs(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/roles.rs:248:    pub fn can_modify_config(context: &AccessContext) -> bool {
+crates/vectorizer/src/auth/persistence.rs:76:    pub fn new() -> Self {
+crates/vectorizer/src/auth/persistence.rs:102:    pub fn new(data_dir: &PathBuf) -> Self {
+crates/vectorizer/src/auth/persistence.rs:168:    pub fn get_data_dir() -> PathBuf {
+crates/vectorizer/src/auth/persistence.rs:173:    pub fn with_default_dir() -> Self {
+crates/vectorizer/src/auth/persistence.rs:232:    pub fn load(&self) -> Result<AuthDataStore, String> {
+crates/vectorizer/src/auth/persistence.rs:268:    pub fn save(&self, data: &AuthDataStore) -> Result<(), String> {
+crates/vectorizer/src/auth/persistence.rs:300:    pub fn save_user(&self, user: PersistedUser) -> Result<(), String> {
+crates/vectorizer/src/auth/persistence.rs:307:    pub fn remove_user(&self, username: &str) -> Result<(), String> {
+crates/vectorizer/src/auth/persistence.rs:314:    pub fn save_api_key(&self, key: PersistedApiKey) -> Result<(), String> {
+crates/vectorizer/src/auth/persistence.rs:321:    pub fn remove_api_key(&self, key_id: &str) -> Result<(), String> {
+crates/vectorizer/src/auth/persistence.rs:328:    pub fn get_users(&self) -> Result<Vec<PersistedUser>, String> {
+crates/vectorizer/src/auth/persistence.rs:334:    pub fn get_user(&self, username: &str) -> Result<Option<PersistedUser>, String> {
+crates/vectorizer/src/auth/persistence.rs:340:    pub fn get_api_keys_for_user(&self, user_id: &str) -> Result<Vec<PersistedApiKey>, String> {
+crates/vectorizer/src/auth/persistence.rs:350:    pub fn update_api_key_last_used(&self, key_id: &str) -> Result<(), String> {
+crates/vectorizer/src/auth/persistence.rs:360:    pub fn exists(&self) -> bool {
+crates/vectorizer/src/auth/jwt.rs:28:    pub fn new(secret: &str, expiration: u64) -> Result<Self> {
+crates/vectorizer/src/auth/jwt.rs:42:    pub fn generate_token(
+crates/vectorizer/src/auth/jwt.rs:69:    pub fn validate_token(&self, token: &str) -> Result<crate::auth::UserClaims> {
+crates/vectorizer/src/auth/jwt.rs:90:    pub fn refresh_token(&self, old_token: &str) -> Result<String> {
+crates/vectorizer/src/auth/jwt.rs:98:    pub fn expiration(&self) -> u64 {
+crates/vectorizer/src/auth/password.rs:89:pub fn validate_password(password: &str) -> PasswordValidationResult {
+crates/vectorizer/src/auth/password.rs:94:pub fn validate_password_with_requirements(
+crates/vectorizer/src/auth/middleware.rs:38:    pub fn new() -> Self {
+crates/vectorizer/src/auth/middleware.rs:43:    pub async fn extract_auth(
+crates/vectorizer/src/auth/middleware.rs:121:    pub async fn require_auth(
+crates/vectorizer/src/auth/middleware.rs:145:    pub async fn require_role(
+crates/vectorizer/src/auth/middleware.rs:174:    pub async fn require_permission(
+crates/vectorizer/src/auth/middleware.rs:209:    pub async fn rate_limit(
+crates/vectorizer/src/auth/middleware.rs:230:    pub fn unauthorized() -> Self {
+crates/vectorizer/src/auth/middleware.rs:239:    pub fn forbidden() -> Self {
+crates/vectorizer/src/auth/middleware.rs:248:    pub fn rate_limited() -> Self {
+crates/vectorizer/src/auth/api_keys.rs:27:    pub fn new(key_length: usize) -> Result<Self> {
+crates/vectorizer/src/auth/api_keys.rs:62:    pub async fn create_key(
+crates/vectorizer/src/auth/api_keys.rs:94:    pub async fn validate_key(&self, api_key: &str) -> Result<ApiKey> {
+crates/vectorizer/src/auth/api_keys.rs:124:    pub async fn update_last_used(&self, key_id: &str) -> Result<()> {
+crates/vectorizer/src/auth/api_keys.rs:135:    pub async fn list_keys_for_user(&self, user_id: &str) -> Result<Vec<ApiKey>> {
+crates/vectorizer/src/auth/api_keys.rs:148:    pub async fn revoke_key(&self, key_id: &str) -> Result<()> {
+crates/vectorizer/src/auth/api_keys.rs:164:    pub async fn get_key_info(&self, key_id: &str) -> Result<ApiKey> {
+crates/vectorizer/src/auth/api_keys.rs:173:    pub async fn list_all_keys(&self) -> Result<Vec<ApiKey>> {
+crates/vectorizer/src/auth/api_keys.rs:179:    pub async fn cleanup_expired_keys(&self) -> Result<usize> {
+crates/vectorizer/src/auth/api_keys.rs:198:    pub async fn register_key(&self, key_info: ApiKey) -> Result<()> {
+crates/vectorizer/src/auth/api_keys.rs:205:    pub fn hash_key_value(&self, key: &str) -> String {
+crates/vectorizer/src/auth/api_keys.rs:210:    pub async fn delete_key(&self, key_id: &str) -> Result<()> {
+crates/vectorizer/src/auth/secret.rs:31:    pub fn new(inner: T) -> Self {
+crates/vectorizer/src/auth/secret.rs:36:    pub fn expose_secret(&self) -> &T {

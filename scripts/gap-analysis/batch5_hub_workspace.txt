@@ -1,0 +1,330 @@
+crates/vectorizer/src/hub/client.rs:61:    pub fn new(config: HubClientConfig) -> Result<Self> {
+crates/vectorizer/src/hub/client.rs:86:    pub fn from_env() -> Result<Self> {
+crates/vectorizer/src/hub/client.rs:115:    pub async fn health_check(&self) -> Result<()> {
+crates/vectorizer/src/hub/client.rs:145:    pub fn is_connected(&self) -> bool {
+crates/vectorizer/src/hub/client.rs:154:    pub async fn get_user_collections(&self, user_id: &Uuid) -> Result<UserCollectionsResponse> {
+crates/vectorizer/src/hub/client.rs:165:    pub async fn validate_collection(
+crates/vectorizer/src/hub/client.rs:183:    pub async fn update_usage(
+crates/vectorizer/src/hub/client.rs:206:    pub async fn check_quota(&self, request: &QuotaCheckRequest) -> Result<QuotaCheckResponse> {
+crates/vectorizer/src/hub/client.rs:221:    pub async fn generate_vectorizer_key(
+crates/vectorizer/src/hub/client.rs:236:    pub async fn revoke_access_key(&self, key_id: &Uuid) -> Result<()> {
+crates/vectorizer/src/hub/client.rs:255:    pub async fn send_operation_logs(
+crates/vectorizer/src/hub/client.rs:314:    pub fn api_url(&self) -> &str {
+crates/vectorizer/src/hub/client.rs:319:    pub fn service_id(&self) -> String {
+crates/vectorizer/src/hub/client.rs:365:    pub fn new_mock() -> Self {
+crates/vectorizer/src/hub/key_rotation.rs:68:    pub fn is_complete(&self) -> bool {
+crates/vectorizer/src/hub/key_rotation.rs:73:    pub fn old_key_valid(&self) -> bool {
+crates/vectorizer/src/hub/key_rotation.rs:78:    pub fn days_remaining(&self) -> i64 {
+crates/vectorizer/src/hub/key_rotation.rs:98:    pub fn new(client: Arc<HubClient>, grace_period_secs: Option<u64>) -> Self {
+crates/vectorizer/src/hub/key_rotation.rs:113:    pub async fn initiate_rotation(&self, tenant_id: &str, old_key_hash: &str) -> Result<String> {
+crates/vectorizer/src/hub/key_rotation.rs:175:    pub async fn complete_rotation(&self, tenant_id: &str) -> Result<()> {
+crates/vectorizer/src/hub/key_rotation.rs:212:    pub async fn cancel_rotation(&self, tenant_id: &str) -> Result<()> {
+crates/vectorizer/src/hub/key_rotation.rs:236:    pub fn get_rotation_status(&self, tenant_id: &str) -> Option<KeyRotation> {
+crates/vectorizer/src/hub/key_rotation.rs:242:    pub fn is_key_deprecated(&self, key_hash: &str) -> bool {
+crates/vectorizer/src/hub/key_rotation.rs:254:    pub fn is_key_revoked(&self, key_hash: &str) -> bool {
+crates/vectorizer/src/hub/key_rotation.rs:267:    pub fn cleanup_expired(&self) {
+crates/vectorizer/src/hub/key_rotation.rs:304:    pub fn get_all_rotations(&self) -> Vec<KeyRotation> {
+crates/vectorizer/src/hub/key_rotation.rs:310:    pub fn get_expiring_rotations(&self) -> Vec<KeyRotation> {
+crates/vectorizer/src/hub/key_rotation.rs:322:    pub fn validate_with_rotation(&self, key_hash: &str) -> KeyStatus {
+crates/vectorizer/src/hub/key_rotation.rs:346:    pub fn invalidate_key_cache(&self, _key_hash: &str) {
+crates/vectorizer/src/hub/key_rotation.rs:352:    pub fn grace_period(&self) -> Duration {
+crates/vectorizer/src/hub/quota.rs:85:    pub fn can_use(&self, bytes: u64) -> bool {
+crates/vectorizer/src/hub/quota.rs:90:    pub fn remaining(&self) -> u64 {
+crates/vectorizer/src/hub/quota.rs:95:    pub fn usage_percent(&self) -> f64 {
+crates/vectorizer/src/hub/quota.rs:117:    pub fn can_use(&self, count: u64) -> bool {
+crates/vectorizer/src/hub/quota.rs:122:    pub fn remaining(&self) -> u64 {
+crates/vectorizer/src/hub/quota.rs:140:    pub fn can_use(&self) -> bool {
+crates/vectorizer/src/hub/quota.rs:145:    pub fn remaining(&self) -> u64 {
+crates/vectorizer/src/hub/quota.rs:272:    pub fn new(client: Arc<HubClient>, cache_config: &HubCacheConfig) -> Self {
+crates/vectorizer/src/hub/quota.rs:283:    pub async fn check_quota(
+crates/vectorizer/src/hub/quota.rs:341:    pub async fn get_quota(&self, tenant_id: &str) -> Result<QuotaInfo> {
+crates/vectorizer/src/hub/quota.rs:386:    pub async fn enforce(
+crates/vectorizer/src/hub/quota.rs:433:    pub fn invalidate_cache(&self, tenant_id: &str) {
+crates/vectorizer/src/hub/quota.rs:438:    pub fn clear_cache(&self) {
+crates/vectorizer/src/hub/quota.rs:528:    pub fn update_local_usage(
+crates/vectorizer/src/hub/auth.rs:51:    pub fn allows(&self, operation: &str) -> bool {
+crates/vectorizer/src/hub/auth.rs:84:    pub fn is_admin(&self) -> bool {
+crates/vectorizer/src/hub/auth.rs:89:    pub fn can_write(&self) -> bool {
+crates/vectorizer/src/hub/auth.rs:97:    pub fn from_sdk_permission(perm: &AccessKeyPermission) -> Self {
+crates/vectorizer/src/hub/auth.rs:139:    pub fn tenant_id(&self) -> &str {
+crates/vectorizer/src/hub/auth.rs:144:    pub fn has_permission(&self, permission: TenantPermission) -> bool {
+crates/vectorizer/src/hub/auth.rs:150:    pub fn can_perform(&self, operation: &str) -> bool {
+crates/vectorizer/src/hub/auth.rs:155:    pub fn is_admin(&self) -> bool {
+crates/vectorizer/src/hub/auth.rs:160:    pub fn can_admin(&self) -> bool {
+crates/vectorizer/src/hub/auth.rs:165:    pub fn can_write(&self) -> bool {
+crates/vectorizer/src/hub/auth.rs:170:    pub fn highest_permission(&self) -> TenantPermission {
+crates/vectorizer/src/hub/auth.rs:257:    pub fn new(client: Arc<HubClient>, cache_config: &HubCacheConfig) -> Self {
+crates/vectorizer/src/hub/auth.rs:271:    pub async fn validate_api_key(&self, api_key: &str) -> Result<TenantContext> {
+crates/vectorizer/src/hub/auth.rs:340:    pub async fn validate_collection(
+crates/vectorizer/src/hub/auth.rs:434:    pub fn invalidate_cache(&self, api_key: &str) {
+crates/vectorizer/src/hub/auth.rs:440:    pub fn clear_cache(&self) {
+crates/vectorizer/src/hub/auth.rs:487:    pub fn cache_stats(&self) -> (usize, usize) {
+crates/vectorizer/src/hub/usage.rs:43:    pub fn new() -> Self {
+crates/vectorizer/src/hub/usage.rs:48:    pub fn record_insert(&mut self, count: u64, storage_bytes: u64) {
+crates/vectorizer/src/hub/usage.rs:55:    pub fn record_delete(&mut self, count: u64, storage_bytes: u64) {
+crates/vectorizer/src/hub/usage.rs:62:    pub fn record_search(&mut self) {
+crates/vectorizer/src/hub/usage.rs:68:    pub fn record_collection_create(&mut self) {
+crates/vectorizer/src/hub/usage.rs:74:    pub fn record_collection_delete(&mut self) {
+crates/vectorizer/src/hub/usage.rs:80:    pub fn record_request(&mut self) {
+crates/vectorizer/src/hub/usage.rs:85:    pub fn merge(&mut self, other: &UsageMetrics) {
+crates/vectorizer/src/hub/usage.rs:97:    pub fn net_vectors(&self) -> i64 {
+crates/vectorizer/src/hub/usage.rs:102:    pub fn net_storage(&self) -> i64 {
+crates/vectorizer/src/hub/usage.rs:107:    pub fn net_collections(&self) -> i64 {
+crates/vectorizer/src/hub/usage.rs:112:    pub fn has_changes(&self) -> bool {
+crates/vectorizer/src/hub/usage.rs:173:    pub fn new(client: Arc<HubClient>, report_interval_seconds: u64) -> Self {
+crates/vectorizer/src/hub/usage.rs:185:    pub async fn start(&self) -> Result<()> {
+crates/vectorizer/src/hub/usage.rs:236:    pub async fn stop(&self) -> Result<()> {
+crates/vectorizer/src/hub/usage.rs:256:    pub async fn record(&self, collection_id: Uuid, metrics: UsageMetrics) -> Result<()> {
+crates/vectorizer/src/hub/usage.rs:278:    pub fn initialize_collection(
+crates/vectorizer/src/hub/usage.rs:294:    pub fn get_collection_usage(&self, collection_id: &Uuid) -> Option<(u64, u64)> {
+crates/vectorizer/src/hub/usage.rs:302:    pub async fn flush(&self) -> Result<()> {
+crates/vectorizer/src/hub/usage.rs:379:    pub fn is_running(&self) -> bool {
+crates/vectorizer/src/hub/usage.rs:384:    pub fn report_interval(&self) -> Duration {
+crates/vectorizer/src/hub/usage.rs:389:    pub fn collection_count(&self) -> usize {
+crates/vectorizer/src/hub/mcp_gateway.rs:55:    pub fn from_tool_name(name: &str) -> Self {
+crates/vectorizer/src/hub/mcp_gateway.rs:85:    pub fn requires_write(&self) -> bool {
+crates/vectorizer/src/hub/mcp_gateway.rs:97:    pub fn is_read_only(&self) -> bool {
+crates/vectorizer/src/hub/mcp_gateway.rs:142:    pub fn new(hub_manager: Arc<HubManager>) -> Self {
+crates/vectorizer/src/hub/mcp_gateway.rs:151:    pub fn with_buffer_size(hub_manager: Arc<HubManager>, max_logs_buffer: usize) -> Self {
+crates/vectorizer/src/hub/mcp_gateway.rs:160:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/hub/mcp_gateway.rs:168:    pub async fn validate_access_key(&self, access_key: &str) -> Result<TenantContext> {
+crates/vectorizer/src/hub/mcp_gateway.rs:182:    pub async fn authorize_operation(
+crates/vectorizer/src/hub/mcp_gateway.rs:255:    pub fn tenant_collection_name(&self, tenant: &TenantContext, collection_name: &str) -> String {
+crates/vectorizer/src/hub/mcp_gateway.rs:263:    pub fn filter_collections_for_tenant(
+crates/vectorizer/src/hub/mcp_gateway.rs:285:    pub fn display_collection_name(&self, tenant: &TenantContext, full_name: &str) -> String {
+crates/vectorizer/src/hub/mcp_gateway.rs:299:    pub fn log_operation(&self, log: McpOperationLog) {
+crates/vectorizer/src/hub/mcp_gateway.rs:315:    pub fn create_log_entry(
+crates/vectorizer/src/hub/mcp_gateway.rs:343:    pub fn pending_logs_count(&self) -> usize {
+crates/vectorizer/src/hub/mcp_gateway.rs:352:    pub async fn flush_logs(&self) -> Result<usize> {
+crates/vectorizer/src/hub/mcp_gateway.rs:415:    pub async fn record_operation_usage(
+crates/vectorizer/src/hub/mcp_gateway.rs:446:    pub fn hub_manager(&self) -> &Arc<HubManager> {
+crates/vectorizer/src/hub/mcp_gateway.rs:464:    pub fn new(tenant: TenantContext) -> Self {
+crates/vectorizer/src/hub/mcp_gateway.rs:473:    pub fn elapsed_ms(&self) -> u64 {
+crates/vectorizer/src/hub/mod.rs:233:    pub async fn new(config: HubConfig) -> Result<Self> {
+crates/vectorizer/src/hub/mod.rs:273:    pub async fn start(&self) -> Result<()> {
+crates/vectorizer/src/hub/mod.rs:304:    pub async fn stop(&self) -> Result<()> {
+crates/vectorizer/src/hub/mod.rs:321:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/hub/mod.rs:326:    pub fn is_active(&self) -> bool {
+crates/vectorizer/src/hub/mod.rs:331:    pub fn auth(&self) -> &Arc<HubAuth> {
+crates/vectorizer/src/hub/mod.rs:336:    pub fn quota(&self) -> &Arc<QuotaManager> {
+crates/vectorizer/src/hub/mod.rs:341:    pub fn usage(&self) -> &Arc<UsageReporter> {
+crates/vectorizer/src/hub/mod.rs:346:    pub fn key_rotation(&self) -> &Arc<KeyRotationManager> {
+crates/vectorizer/src/hub/mod.rs:351:    pub fn client(&self) -> &Arc<HubClient> {
+crates/vectorizer/src/hub/mod.rs:356:    pub fn config(&self) -> &HubConfig {
+crates/vectorizer/src/hub/mod.rs:361:    pub async fn validate_api_key(&self, api_key: &str) -> Result<TenantContext> {
+crates/vectorizer/src/hub/mod.rs:372:    pub async fn check_quota(
+crates/vectorizer/src/hub/mod.rs:391:    pub async fn record_usage(&self, collection_id: Uuid, metrics: UsageMetrics) -> Result<()> {
+crates/vectorizer/src/hub/mod.rs:400:    pub fn tenant_collection_name(&self, tenant_id: &str, collection_name: &str) -> String {
+crates/vectorizer/src/hub/mod.rs:410:    pub fn parse_tenant_collection(&self, full_name: &str) -> Option<(String, String)> {
+crates/vectorizer/src/hub/mod.rs:425:    pub fn tenant_storage_path(&self, tenant_id: &str, base_path: &str) -> String {
+crates/vectorizer/src/hub/ip_whitelist.rs:125:    pub fn parse(s: &str) -> Result<Self> {
+crates/vectorizer/src/hub/ip_whitelist.rs:172:    pub fn contains(&self, ip: &IpAddr) -> bool {
+crates/vectorizer/src/hub/ip_whitelist.rs:213:    pub fn is_allowed(&self) -> bool {
+crates/vectorizer/src/hub/ip_whitelist.rs:240:    pub fn new(config: IpWhitelistConfig) -> Result<Self> {
+crates/vectorizer/src/hub/ip_whitelist.rs:270:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/hub/ip_whitelist.rs:275:    pub fn check_access(&self, ip: &IpAddr) -> IpAccessResult {
+crates/vectorizer/src/hub/ip_whitelist.rs:326:    pub fn check_access_for_tenant(&self, ip: &IpAddr, tenant_id: &str) -> IpAccessResult {
+crates/vectorizer/src/hub/ip_whitelist.rs:369:    pub fn set_tenant_allowlist(&self, tenant_id: &str, ips: Vec<String>) -> Result<()> {
+crates/vectorizer/src/hub/ip_whitelist.rs:391:    pub fn set_tenant_blocklist(&self, tenant_id: &str, ips: Vec<String>) -> Result<()> {
+crates/vectorizer/src/hub/ip_whitelist.rs:413:    pub fn remove_tenant_rules(&self, tenant_id: &str) {
+crates/vectorizer/src/hub/ip_whitelist.rs:447:    pub fn extract_client_ip(
+crates/vectorizer/src/hub/ip_whitelist.rs:480:    pub fn stats(&self) -> IpWhitelistStats {
+crates/vectorizer/src/hub/backup.rs:167:    pub fn new(config: BackupConfig, store: Arc<VectorStore>) -> Result<Self> {
+crates/vectorizer/src/hub/backup.rs:181:    pub async fn estimate_backup_size(
+crates/vectorizer/src/hub/backup.rs:243:    pub async fn create_backup(
+crates/vectorizer/src/hub/backup.rs:424:    pub async fn list_backups(&self, user_id: &Uuid) -> Result<Vec<UserBackupInfo>> {
+crates/vectorizer/src/hub/backup.rs:463:    pub async fn get_backup(&self, user_id: &Uuid, backup_id: &Uuid) -> Result<UserBackupInfo> {
+crates/vectorizer/src/hub/backup.rs:481:    pub async fn download_backup(&self, user_id: &Uuid, backup_id: &Uuid) -> Result<Vec<u8>> {
+crates/vectorizer/src/hub/backup.rs:509:    pub async fn restore_backup(
+crates/vectorizer/src/hub/backup.rs:654:    pub async fn delete_backup(&self, user_id: &Uuid, backup_id: &Uuid) -> Result<()> {
+crates/vectorizer/src/hub/backup.rs:689:    pub async fn upload_backup(
+crates/vectorizer/src/hub/middleware.rs:60:    pub fn new(error: impl Into<String>, code: impl Into<String>) -> Self {
+crates/vectorizer/src/hub/middleware.rs:68:    pub fn with_details(mut self, details: impl Into<String>) -> Self {
+crates/vectorizer/src/hub/middleware.rs:88:    pub fn new(auth: Arc<HubAuth>, quota: Arc<QuotaManager>, config: HubConfig) -> Self {
+crates/vectorizer/src/hub/middleware.rs:97:    pub fn extract_api_key(req: &Request<Body>) -> Option<String> {
+crates/vectorizer/src/hub/middleware.rs:118:    pub fn is_internal_request(req: &Request<Body>) -> bool {
+crates/vectorizer/src/hub/middleware.rs:123:    pub fn extract_internal_user_id(req: &Request<Body>) -> Option<String> {
+crates/vectorizer/src/hub/middleware.rs:131:    pub fn error_response(status: StatusCode, error: AuthErrorResponse) -> Response {
+crates/vectorizer/src/hub/middleware.rs:142:pub async fn hub_auth_middleware(
+crates/vectorizer/src/hub/middleware.rs:264:pub fn require_permission(
+crates/vectorizer/src/hub/middleware.rs:300:pub fn extract_tenant_context(req: &Request<Body>) -> Option<&TenantContext> {
+crates/vectorizer/src/hub/request_signing.rs:104:    pub fn canonical_string(&self) -> String {
+crates/vectorizer/src/hub/request_signing.rs:112:    pub fn from_headers(
+crates/vectorizer/src/hub/request_signing.rs:180:    pub fn new(config: SigningConfig) -> Result<Self> {
+crates/vectorizer/src/hub/request_signing.rs:197:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/hub/request_signing.rs:202:    pub fn requires_signing(&self, path: &str) -> bool {
+crates/vectorizer/src/hub/request_signing.rs:230:    pub fn validate(&self, request: &SignedRequest) -> Result<()> {
+crates/vectorizer/src/hub/request_signing.rs:350:    pub fn sign_request(
+crates/vectorizer/src/hub/request_signing.rs:390:    pub fn current_timestamp() -> u64 {
+crates/vectorizer/src/hub/request_signing.rs:398:    pub fn generate_nonce() -> String {
+crates/vectorizer/src/hub/request_signing.rs:404:    pub fn cache_stats(&self) -> usize {
+crates/vectorizer/src/hub/request_signing.rs:423:pub fn create_signing_headers(
+crates/vectorizer/src/migration/qdrant/validator.rs:16:    pub fn validate_export(exported: &ExportedCollection) -> Result<ValidationReport> {
+crates/vectorizer/src/migration/qdrant/validator.rs:118:    pub fn validate_integrity(
+crates/vectorizer/src/migration/qdrant/validator.rs:149:    pub fn validate_compatibility(exported: &ExportedCollection) -> CompatibilityReport {
+crates/vectorizer/src/migration/hub_migration.rs:109:    pub fn new(store: Arc<VectorStore>) -> Self {
+crates/vectorizer/src/migration/hub_migration.rs:121:    pub fn with_backup_dir(store: Arc<VectorStore>, backup_dir: PathBuf) -> Self {
+crates/vectorizer/src/migration/hub_migration.rs:130:    pub fn scan_collections(&self) -> Result<Vec<CollectionMigrationRecord>> {
+crates/vectorizer/src/migration/hub_migration.rs:180:    pub fn create_plan(
+crates/vectorizer/src/migration/hub_migration.rs:234:    pub async fn create_backup(&mut self) -> Result<String> {
+crates/vectorizer/src/migration/hub_migration.rs:271:    pub async fn execute(&mut self) -> Result<MigrationResult> {
+crates/vectorizer/src/migration/hub_migration.rs:404:    pub async fn rollback(&self, backup_id: &str) -> Result<()> {
+crates/vectorizer/src/migration/hub_migration.rs:460:    pub fn list_backups(&self) -> Result<Vec<String>> {
+crates/vectorizer/src/migration/hub_migration.rs:485:    pub fn delete_backup(&self, backup_id: &str) -> Result<()> {
+crates/vectorizer/src/migration/hub_migration.rs:502:    pub fn current_plan(&self) -> Option<&MigrationPlan> {
+crates/vectorizer/src/migration/hub_migration.rs:507:    pub fn clear_plan(&mut self) {
+crates/vectorizer/src/migration/hub_migration.rs:520:    pub fn new() -> Self {
+crates/vectorizer/src/migration/hub_migration.rs:527:    pub fn map(&mut self, collection: &str, owner_id: Uuid) {
+crates/vectorizer/src/migration/hub_migration.rs:532:    pub fn load_from_file(&mut self, path: &str) -> Result<()> {
+crates/vectorizer/src/migration/hub_migration.rs:550:    pub fn get_mappings(&self) -> HashMap<String, Uuid> {
+crates/vectorizer/src/migration/hub_migration.rs:555:    pub fn is_mapped(&self, collection: &str) -> bool {
+crates/vectorizer/src/migration/qdrant/config_parser.rs:27:    pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<QdrantConfigFile> {
+crates/vectorizer/src/migration/qdrant/config_parser.rs:50:    pub fn parse_str(content: &str, format: ConfigFormat) -> Result<QdrantConfigFile> {
+crates/vectorizer/src/migration/qdrant/config_parser.rs:64:    pub fn validate(config: &QdrantConfigFile) -> Result<ValidationResult> {
+crates/vectorizer/src/migration/qdrant/config_parser.rs:125:    pub fn convert_to_vectorizer(
+crates/vectorizer/src/migration/qdrant/data_migration.rs:27:    pub async fn export_collection(
+crates/vectorizer/src/migration/qdrant/data_migration.rs:146:    pub fn export_to_file<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/migration/qdrant/data_migration.rs:165:    pub async fn import_collection(
+crates/vectorizer/src/migration/qdrant/data_migration.rs:223:    pub fn import_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<ExportedCollection> {
+crates/vectorizer/src/workspace/project_analyzer.rs:425:pub fn analyze_directory<P: AsRef<Path>>(path: P) -> Result<ProjectAnalysis, String> {
+crates/vectorizer/src/workspace/project_analyzer.rs:680:pub fn analysis_to_project_config(
+crates/vectorizer/src/workspace/validator.rs:28:    pub fn new() -> Self {
+crates/vectorizer/src/workspace/validator.rs:37:    pub fn add_error(&mut self, error: String) {
+crates/vectorizer/src/workspace/validator.rs:43:    pub fn add_warning(&mut self, warning: String) {
+crates/vectorizer/src/workspace/validator.rs:48:    pub fn is_valid(&self) -> bool {
+crates/vectorizer/src/workspace/validator.rs:54:pub fn validate_workspace_config(
+crates/vectorizer/src/workspace/simplified_config.rs:217:    pub fn get_embedding_config<'a>(
+crates/vectorizer/src/workspace/simplified_config.rs:225:    pub fn get_dimension(&self, defaults: &DefaultConfiguration) -> u32 {
+crates/vectorizer/src/workspace/simplified_config.rs:230:    pub fn get_metric<'a>(&'a self, defaults: &'a DefaultConfiguration) -> &'a str {
+crates/vectorizer/src/workspace/simplified_config.rs:235:    pub fn get_indexing_config<'a>(
+crates/vectorizer/src/workspace/simplified_config.rs:243:    pub fn get_processing_config<'a>(
+crates/vectorizer/src/workspace/simplified_config.rs:251:    pub fn to_full_collection_config(
+crates/vectorizer/src/workspace/simplified_config.rs:463:    pub fn to_full_project_config(
+crates/vectorizer/src/workspace/simplified_config.rs:488:    pub fn get_effective_defaults(&self) -> DefaultConfiguration {
+crates/vectorizer/src/workspace/simplified_config.rs:495:    pub fn get_effective_workspace(&self) -> WorkspaceMetadata {
+crates/vectorizer/src/workspace/simplified_config.rs:504:    pub fn to_full_workspace_config(&self) -> crate::workspace::config::WorkspaceConfig {
+crates/vectorizer/src/workspace/simplified_config.rs:705:pub fn parse_simplified_workspace_config<P: AsRef<std::path::Path>>(
+crates/vectorizer/src/workspace/simplified_config.rs:716:pub fn parse_simplified_workspace_config_from_str(
+crates/vectorizer/src/workspace/manager.rs:31:    pub fn new(config: WorkspaceConfig, workspace_root: PathBuf, config_path: PathBuf) -> Self {
+crates/vectorizer/src/workspace/manager.rs:40:    pub fn load_from_file<P: AsRef<Path>>(config_path: P) -> Result<Self> {
+crates/vectorizer/src/workspace/manager.rs:114:    pub fn find_and_load<P: AsRef<Path>>(start_path: P) -> Result<Self> {
+crates/vectorizer/src/workspace/manager.rs:135:    pub fn create_default<P: AsRef<Path>>(workspace_root: P) -> Result<Self> {
+crates/vectorizer/src/workspace/manager.rs:161:    pub fn config(&self) -> &WorkspaceConfig {
+crates/vectorizer/src/workspace/manager.rs:166:    pub fn workspace_root(&self) -> &Path {
+crates/vectorizer/src/workspace/manager.rs:171:    pub fn config_path(&self) -> &Path {
+crates/vectorizer/src/workspace/manager.rs:176:    pub fn enabled_projects(&self) -> Vec<&ProjectConfig> {
+crates/vectorizer/src/workspace/manager.rs:193:    pub fn get_project(&self, name: &str) -> Option<&ProjectConfig> {
+crates/vectorizer/src/workspace/manager.rs:198:    pub fn get_project_path(&self, project_name: &str) -> Result<PathBuf> {
+crates/vectorizer/src/workspace/manager.rs:221:    pub fn get_collection_config(
+crates/vectorizer/src/workspace/manager.rs:249:    pub fn add_project(&mut self, project: ProjectConfig) -> Result<()> {
+crates/vectorizer/src/workspace/manager.rs:293:    pub fn remove_project(&mut self, project_name: &str) -> Result<()> {
+crates/vectorizer/src/workspace/manager.rs:314:    pub fn set_project_enabled(&mut self, project_name: &str, enabled: bool) -> Result<()> {
+crates/vectorizer/src/workspace/manager.rs:339:    pub fn add_collection(
+crates/vectorizer/src/workspace/manager.rs:392:    pub fn remove_collection(&mut self, project_name: &str, collection_name: &str) -> Result<()> {
+crates/vectorizer/src/workspace/manager.rs:434:    pub fn save(&self) -> Result<()> {
+crates/vectorizer/src/workspace/manager.rs:461:    pub fn reload(&mut self) -> Result<()> {
+crates/vectorizer/src/workspace/manager.rs:491:    pub fn get_status(&self) -> WorkspaceStatus {
+crates/vectorizer/src/workspace/manager.rs:506:    pub fn validate(&self) -> ValidationResult {
+crates/vectorizer/src/workspace/setup_config.rs:62:    pub fn from_analysis(analysis: &ProjectAnalysis) -> Self {
+crates/vectorizer/src/workspace/setup_config.rs:98:pub fn generate_workspace_yaml(
+crates/vectorizer/src/workspace/setup_config.rs:181:pub fn write_workspace_config(
+crates/vectorizer/src/workspace/templates.rs:63:pub fn get_templates() -> Vec<ConfigTemplate> {
+crates/vectorizer/src/workspace/templates.rs:73:pub fn get_template_by_id(id: &str) -> Option<ConfigTemplate> {
+crates/vectorizer/src/workspace/parser.rs:16:pub fn parse_workspace_config<P: AsRef<Path>>(path: P) -> Result<WorkspaceConfig> {
+crates/vectorizer/src/workspace/parser.rs:48:pub fn parse_workspace_config_from_str(content: &str) -> Result<WorkspaceConfig> {
+crates/vectorizer/src/workspace/parser.rs:64:pub fn parse_simplified_workspace_config_from_str(
+crates/vectorizer/src/workspace/parser.rs:78:pub fn save_workspace_config<P: AsRef<Path>>(config: &WorkspaceConfig, path: P) -> Result<()> {
+crates/vectorizer/src/workspace/parser.rs:99:pub fn find_workspace_config<P: AsRef<Path>>(start_path: P) -> Result<Option<std::path::PathBuf>> {
+crates/vectorizer/src/workspace/parser.rs:131:pub fn create_default_workspace_config() -> WorkspaceConfig {
+crates/vectorizer/src/workspace/parser.rs:137:pub fn validate_workspace_config_file<P: AsRef<Path>>(path: P) -> Result<()> {
+crates/vectorizer/src/batch/mod.rs:107:    pub fn new(
+crates/vectorizer/src/batch/mod.rs:118:    pub fn with_config(mut self, config: BatchConfig) -> Self {
+crates/vectorizer/src/batch/mod.rs:123:    pub fn build(self) -> BatchProcessor {
+crates/vectorizer/src/batch/config.rs:73:    pub fn production() -> Self {
+crates/vectorizer/src/batch/config.rs:92:    pub fn development() -> Self {
+crates/vectorizer/src/batch/config.rs:111:    pub fn testing() -> Self {
+crates/vectorizer/src/batch/config.rs:130:    pub fn validate(&self) -> Result<(), String> {
+crates/vectorizer/src/batch/config.rs:163:    pub fn get_chunk_size_for_batch(&self, batch_size: usize) -> usize {
+crates/vectorizer/src/batch/config.rs:172:    pub fn is_batch_size_valid(&self, batch_size: usize) -> bool {
+crates/vectorizer/src/batch/config.rs:177:    pub fn estimate_memory_usage(&self, vector_count: usize, vector_dimension: usize) -> usize {
+crates/vectorizer/src/batch/config.rs:187:    pub fn would_exceed_memory_limit(&self, vector_count: usize, vector_dimension: usize) -> bool {
+crates/vectorizer/src/batch/error.rs:105:    pub fn new(
+crates/vectorizer/src/batch/error.rs:124:    pub fn with_retry_count(mut self, retry_count: u32) -> Self {
+crates/vectorizer/src/batch/error.rs:129:    pub fn is_retryable(&self) -> bool {
+crates/vectorizer/src/batch/error.rs:139:    pub fn should_retry(&self, max_retries: u32) -> bool {
+crates/vectorizer/src/batch/error.rs:143:    pub fn error_code(&self) -> String {
+crates/vectorizer/src/batch/error.rs:177:    pub fn new() -> Self {
+crates/vectorizer/src/batch/error.rs:189:    pub fn with_processing_time(mut self, time_ms: f64) -> Self {
+crates/vectorizer/src/batch/error.rs:194:    pub fn add_success(&mut self, result: T) {
+crates/vectorizer/src/batch/error.rs:201:    pub fn add_error(&mut self, error: BatchError) {
+crates/vectorizer/src/batch/error.rs:218:    pub fn success_rate(&self) -> f64 {
+crates/vectorizer/src/batch/error.rs:226:    pub fn has_errors(&self) -> bool {
+crates/vectorizer/src/batch/error.rs:230:    pub fn is_complete_success(&self) -> bool {
+crates/vectorizer/src/batch/error.rs:234:    pub fn is_complete_failure(&self) -> bool {
+crates/vectorizer/src/batch/error.rs:238:    pub fn is_partial_success(&self) -> bool {
+crates/vectorizer/src/batch/error.rs:242:    pub fn get_errors_by_type(&self, error_type: &BatchErrorType) -> Vec<&BatchError> {
+crates/vectorizer/src/batch/error.rs:251:    pub fn get_retryable_errors(&self) -> Vec<&BatchError> {
+crates/vectorizer/src/batch/error.rs:279:    pub fn new() -> Self {
+crates/vectorizer/src/batch/error.rs:292:    pub fn from_result<T>(result: &BatchResult<T>) -> Self {
+crates/vectorizer/src/batch/error.rs:327:pub fn invalid_batch_size_error(
+crates/vectorizer/src/batch/error.rs:343:pub fn memory_limit_exceeded_error(
+crates/vectorizer/src/batch/error.rs:359:pub fn vector_store_error(operation_id: String, vector_id: String, message: String) -> BatchError {
+crates/vectorizer/src/batch/error.rs:368:pub fn embedding_generation_error(
+crates/vectorizer/src/batch/error.rs:381:pub fn timeout_error(operation_id: String, timeout_seconds: u64) -> BatchError {
+crates/vectorizer/src/batch/processor.rs:32:    pub fn new(
+crates/vectorizer/src/batch/processor.rs:62:    pub async fn active_operations(&self) -> HashMap<String, BatchStatus> {
+crates/vectorizer/src/batch/processor.rs:67:    pub async fn batch_insert(
+crates/vectorizer/src/batch/processor.rs:125:    pub async fn batch_update(
+crates/vectorizer/src/batch/processor.rs:163:    pub async fn batch_delete(
+crates/vectorizer/src/batch/processor.rs:201:    pub async fn batch_search(
+crates/vectorizer/src/batch/processor.rs:575:    pub async fn execute_operation(
+crates/vectorizer/src/batch/operations.rs:212:    pub fn new(
+crates/vectorizer/src/batch/operations.rs:225:    pub async fn execute_operation<T: BatchOperationTrait + ?Sized>(
+crates/vectorizer/src/batch/operations.rs:241:    pub async fn get_active_operations(&self) -> HashMap<String, BatchStatus> {
+crates/vectorizer/src/batch/parallel.rs:31:    pub fn new(config: Arc<BatchConfig>) -> Self {
+crates/vectorizer/src/batch/parallel.rs:37:    pub async fn process_chunks<T, R, F, Fut>(
+crates/vectorizer/src/batch/parallel.rs:109:    pub async fn process_items<T, R, F, Fut>(
+crates/vectorizer/src/batch/progress.rs:26:    pub fn new(total_items: usize, sender: Option<mpsc::UnboundedSender<BatchProgress>>) -> Self {
+crates/vectorizer/src/batch/progress.rs:47:    pub async fn update_success(&self) {
+crates/vectorizer/src/batch/progress.rs:55:    pub async fn update_failure(&self) {
+crates/vectorizer/src/batch/progress.rs:63:    pub async fn update_batch(&self, successful: usize, failed: usize) {
+crates/vectorizer/src/batch/progress.rs:72:    pub async fn get_progress(&self) -> BatchProgress {
+crates/vectorizer/src/batch/progress.rs:77:    pub async fn is_complete(&self) -> bool {
+crates/vectorizer/src/batch/progress.rs:104:    pub async fn start_auto_updates(&self) {
+crates/vectorizer/src/batch/progress.rs:144:    pub fn new(width: usize) -> Self {
+crates/vectorizer/src/batch/progress.rs:163:    pub async fn set_progress(&self, progress: BatchProgress) {
+crates/vectorizer/src/batch/progress.rs:168:    pub async fn display(&self) -> String {
+crates/vectorizer/src/batch/progress.rs:216:    pub fn show_percentage(mut self, show: bool) -> Self {
+crates/vectorizer/src/batch/progress.rs:222:    pub fn show_rate(mut self, show: bool) -> Self {
+crates/vectorizer/src/batch/progress.rs:228:    pub fn show_eta(mut self, show: bool) -> Self {
+crates/vectorizer/src/batch/progress.rs:266:    pub fn from_progress(progress: &BatchProgress, total_time: Duration) -> Self {
+crates/vectorizer/src/batch/validation.rs:17:    pub fn new(config: BatchConfig) -> Self {
+crates/vectorizer/src/batch/validation.rs:22:    pub fn validate_batch_insert(
+crates/vectorizer/src/batch/validation.rs:48:    pub fn validate_batch_update(
+crates/vectorizer/src/batch/validation.rs:71:    pub fn validate_batch_delete(
+crates/vectorizer/src/batch/validation.rs:94:    pub fn validate_batch_search(
+crates/vectorizer/src/batch/validation.rs:498:pub fn validate_vector(vector: &Vector) -> Result<(), BatchError> {
+crates/vectorizer/src/batch/validation.rs:505:pub fn validate_vector_id(id: &str) -> Result<(), BatchError> {
+crates/vectorizer/src/batch/validation.rs:512:pub fn validate_collection_name(collection: &str) -> Result<(), BatchError> {
+crates/vectorizer/src/discovery/hybrid.rs:19:    pub fn new(store: Arc<VectorStore>, embedding_manager: Arc<EmbeddingManager>) -> Self {
+crates/vectorizer/src/discovery/hybrid.rs:37:    pub async fn search(
+crates/vectorizer/src/discovery/hybrid.rs:103:    pub async fn search_with_text(
+crates/vectorizer/src/discovery/hybrid.rs:121:    pub async fn search_multi_collection(
+crates/vectorizer/src/discovery/hybrid.rs:297:pub fn reciprocal_rank_fusion(
+crates/vectorizer/src/discovery/readme.rs:7:pub fn promote_readme(
+crates/vectorizer/src/discovery/plan.rs:9:pub fn build_answer_plan(
+crates/vectorizer/src/discovery/render.rs:7:pub fn render_llm_prompt(
+crates/vectorizer/src/discovery/expand.rs:7:pub fn expand_queries_baseline(
+crates/vectorizer/src/discovery/focus.rs:14:pub async fn semantic_focus(
+crates/vectorizer/src/discovery/focus.rs:142:pub fn sentence_quality_score(sentence: &str) -> f32 {
+crates/vectorizer/src/discovery/focus.rs:179:pub fn term_frequency_score(query: &str, content: &str) -> f32 {
+crates/vectorizer/src/discovery/score.rs:9:pub fn score_collections(
+crates/vectorizer/src/discovery/compress.rs:65:pub fn compress_evidence(
+crates/vectorizer/src/discovery/broad.rs:16:pub async fn broad_discovery(
+crates/vectorizer/src/discovery/broad.rs:121:pub fn content_similarity(a: &str, b: &str) -> f32 {
+crates/vectorizer/src/discovery/broad.rs:141:pub fn deduplicate_chunks(mut chunks: Vec<ScoredChunk>, threshold: f32) -> Vec<ScoredChunk> {
+crates/vectorizer/src/discovery/broad.rs:168:pub fn apply_mmr(chunks: Vec<ScoredChunk>, k: usize, lambda: f32) -> Vec<ScoredChunk> {
+crates/vectorizer/src/discovery/pipeline.rs:21:    pub fn new(
+crates/vectorizer/src/discovery/pipeline.rs:34:    pub async fn discover(&self, query: &str) -> DiscoveryResult<DiscoveryResponse> {
+crates/vectorizer/src/discovery/pipeline.rs:183:    pub fn config(&self) -> &DiscoveryConfig {
+crates/vectorizer/src/discovery/filter.rs:46:pub fn filter_collections(

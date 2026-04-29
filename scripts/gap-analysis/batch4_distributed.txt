@@ -1,0 +1,312 @@
+crates/vectorizer/src/cluster/shard_migrator.rs:157:    pub fn new(
+crates/vectorizer/src/cluster/shard_migrator.rs:171:    pub fn list_migrations(&self) -> Vec<MigrationProgress> {
+crates/vectorizer/src/cluster/shard_migrator.rs:177:    pub fn get_migration(&self, migration_id: &str) -> Option<MigrationProgress> {
+crates/vectorizer/src/cluster/shard_migrator.rs:197:    pub async fn migrate_shard_data(
+crates/vectorizer/src/cluster/server_client.rs:52:    pub async fn new(address: &str, node_id: NodeId, timeout: Duration) -> Result<Self> {
+crates/vectorizer/src/cluster/server_client.rs:72:    pub fn node_id(&self) -> &NodeId {
+crates/vectorizer/src/cluster/server_client.rs:77:    pub async fn health_check(&self) -> Result<bool> {
+crates/vectorizer/src/cluster/server_client.rs:98:    pub async fn insert_vector(
+crates/vectorizer/src/cluster/server_client.rs:162:    pub async fn update_vector(
+crates/vectorizer/src/cluster/server_client.rs:213:    pub async fn delete_vector(
+crates/vectorizer/src/cluster/server_client.rs:253:    pub async fn search_vectors(
+crates/vectorizer/src/cluster/server_client.rs:341:    pub async fn hybrid_search(
+crates/vectorizer/src/cluster/server_client.rs:454:    pub async fn get_shard_vectors(
+crates/vectorizer/src/cluster/server_client.rs:498:    pub async fn remote_create_collection(
+crates/vectorizer/src/cluster/server_client.rs:547:    pub async fn remote_delete_collection(
+crates/vectorizer/src/cluster/server_client.rs:582:    pub async fn remote_get_collection_info(
+crates/vectorizer/src/cluster/server_client.rs:622:    pub async fn broadcast_cluster_state(
+crates/vectorizer/src/cluster/server_client.rs:676:    pub async fn get_cluster_state(&self) -> Result<cluster_proto::GetClusterStateResponse> {
+crates/vectorizer/src/cluster/server_client.rs:698:    pub async fn get_collection_info(
+crates/vectorizer/src/cluster/server_client.rs:736:    pub async fn check_quota(
+crates/vectorizer/src/cluster/server_client.rs:797:    pub fn new(timeout: Duration) -> Self {
+crates/vectorizer/src/cluster/server_client.rs:810:    pub async fn get_client(&self, node_id: &NodeId, address: &str) -> Result<ClusterClient> {
+crates/vectorizer/src/cluster/server_client.rs:852:    pub fn remove_client(&self, node_id: &NodeId) {
+crates/vectorizer/src/cluster/server_client.rs:859:    pub fn clear(&self) {
+crates/vectorizer/src/cluster/shard_router.rs:39:    pub fn new(virtual_nodes_per_shard: usize) -> Self {
+crates/vectorizer/src/cluster/shard_router.rs:44:    pub fn with_epoch(virtual_nodes_per_shard: usize, initial_epoch: u64) -> Self {
+crates/vectorizer/src/cluster/shard_router.rs:56:    pub fn get_node_for_shard(&self, shard_id: &ShardId) -> Option<NodeId> {
+crates/vectorizer/src/cluster/shard_router.rs:62:    pub fn get_node_for_vector(&self, vector_id: &str) -> Option<NodeId> {
+crates/vectorizer/src/cluster/shard_router.rs:69:    pub fn get_shard_for_vector(&self, vector_id: &str) -> ShardId {
+crates/vectorizer/src/cluster/shard_router.rs:90:    pub fn assign_shard(&self, shard_id: ShardId, node_id: NodeId) -> u64 {
+crates/vectorizer/src/cluster/shard_router.rs:144:    pub fn get_shard_epoch(&self, shard_id: &ShardId) -> Option<u64> {
+crates/vectorizer/src/cluster/shard_router.rs:149:    pub fn get_all_shard_epochs(&self) -> HashMap<ShardId, u64> {
+crates/vectorizer/src/cluster/shard_router.rs:154:    pub fn current_epoch(&self) -> u64 {
+crates/vectorizer/src/cluster/shard_router.rs:165:    pub fn apply_if_higher_epoch(
+crates/vectorizer/src/cluster/shard_router.rs:219:    pub fn remove_shard(&self, shard_id: &ShardId) -> Option<NodeId> {
+crates/vectorizer/src/cluster/shard_router.rs:237:    pub fn get_shards_for_node(&self, node_id: &NodeId) -> Vec<ShardId> {
+crates/vectorizer/src/cluster/shard_router.rs:246:    pub fn get_nodes(&self) -> Vec<NodeId> {
+crates/vectorizer/src/cluster/shard_router.rs:252:    pub fn get_all_shards(&self) -> Vec<ShardId> {
+crates/vectorizer/src/cluster/shard_router.rs:258:    pub fn shard_count(&self) -> usize {
+crates/vectorizer/src/cluster/shard_router.rs:264:    pub fn rebalance(&self, shard_ids: &[ShardId], node_ids: &[NodeId]) {
+crates/vectorizer/src/cluster/shard_router.rs:305:    pub fn migrate_shard(
+crates/vectorizer/src/cluster/shard_router.rs:337:    pub fn calculate_migration_plan(
+crates/vectorizer/src/cluster/shard_router.rs:431:    pub fn get_shard_for_tenant_vector(&self, tenant_id: &str, vector_id: &str) -> ShardId {
+crates/vectorizer/src/cluster/shard_router.rs:451:    pub fn get_node_for_tenant_vector(&self, tenant_id: &str, vector_id: &str) -> Option<NodeId> {
+crates/vectorizer/src/cluster/shard_router.rs:460:    pub fn get_shard_for_tenant(&self, tenant_id: &str) -> ShardId {
+crates/vectorizer/src/cluster/shard_router.rs:475:    pub fn get_node_for_tenant(&self, tenant_id: &str) -> Option<NodeId> {
+crates/vectorizer/src/cluster/shard_router.rs:485:    pub fn get_shards_for_tenant(&self, tenant_id: &str, num_shards: usize) -> Vec<ShardId> {
+crates/vectorizer/src/cluster/state_sync.rs:36:    pub fn new(
+crates/vectorizer/src/cluster/state_sync.rs:52:    pub async fn start(&self) {
+crates/vectorizer/src/cluster/state_sync.rs:96:    pub fn stop(&self) {
+crates/vectorizer/src/cluster/state_sync.rs:311:    pub async fn broadcast_state(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+crates/vectorizer/src/cluster/state_sync.rs:408:    pub async fn request_state_from_node(
+crates/vectorizer/src/cluster/validator.rs:29:    pub fn ok() -> Self {
+crates/vectorizer/src/cluster/validator.rs:38:    pub fn add_error(&mut self, error: ClusterValidationError) {
+crates/vectorizer/src/cluster/validator.rs:44:    pub fn add_warning(&mut self, warning: ClusterValidationWarning) {
+crates/vectorizer/src/cluster/validator.rs:49:    pub fn has_errors(&self) -> bool {
+crates/vectorizer/src/cluster/validator.rs:54:    pub fn has_warnings(&self) -> bool {
+crates/vectorizer/src/cluster/validator.rs:59:    pub fn error_message(&self) -> String {
+crates/vectorizer/src/cluster/validator.rs:71:    pub fn warning_message(&self) -> String {
+crates/vectorizer/src/cluster/validator.rs:106:    pub fn message(&self) -> String {
+crates/vectorizer/src/cluster/validator.rs:141:    pub fn code(&self) -> &'static str {
+crates/vectorizer/src/cluster/validator.rs:175:    pub fn message(&self) -> String {
+crates/vectorizer/src/cluster/validator.rs:220:    pub fn new() -> Self {
+crates/vectorizer/src/cluster/validator.rs:228:    pub fn with_limits(max_cache_bytes: u64, min_recommended_bytes: u64) -> Self {
+crates/vectorizer/src/cluster/validator.rs:236:    pub fn validate(&self, config: &ClusterConfig) -> ClusterValidationResult {
+crates/vectorizer/src/cluster/validator.rs:259:    pub fn validate_with_file_watcher(
+crates/vectorizer/src/cluster/validator.rs:280:    pub fn validate_storage_type(
+crates/vectorizer/src/cluster/dns_discovery.rs:42:    pub fn new(
+crates/vectorizer/src/cluster/dns_discovery.rs:64:    pub async fn start(&self) {
+crates/vectorizer/src/cluster/dns_discovery.rs:118:    pub fn stop(&self) {
+crates/vectorizer/src/cluster/node.rs:17:    pub fn new(id: String) -> Self {
+crates/vectorizer/src/cluster/node.rs:22:    pub fn as_str(&self) -> &str {
+crates/vectorizer/src/cluster/node.rs:84:    pub fn new(id: NodeId, address: String, grpc_port: u16) -> Self {
+crates/vectorizer/src/cluster/node.rs:97:    pub fn grpc_address(&self) -> String {
+crates/vectorizer/src/cluster/node.rs:102:    pub fn update_heartbeat(&mut self) {
+crates/vectorizer/src/cluster/node.rs:111:    pub fn is_healthy(&self, timeout: Duration) -> bool {
+crates/vectorizer/src/cluster/node.rs:119:    pub fn mark_unavailable(&mut self) {
+crates/vectorizer/src/cluster/node.rs:127:    pub fn mark_active(&mut self) {
+crates/vectorizer/src/cluster/node.rs:136:    pub fn add_shard(&mut self, shard_id: ShardId) {
+crates/vectorizer/src/cluster/node.rs:141:    pub fn remove_shard(&mut self, shard_id: &ShardId) -> bool {
+crates/vectorizer/src/cluster/node.rs:146:    pub fn shard_count(&self) -> usize {
+crates/vectorizer/src/cluster/node.rs:151:    pub fn has_shard(&self, shard_id: &ShardId) -> bool {
+crates/vectorizer/src/cluster/leader_router.rs:54:    pub fn new(local_node_id: u64) -> Self {
+crates/vectorizer/src/cluster/leader_router.rs:68:    pub fn set_leader(&self, leader_id: u64, leader_url: String) {
+crates/vectorizer/src/cluster/leader_router.rs:83:    pub fn clear_leader(&self) {
+crates/vectorizer/src/cluster/leader_router.rs:92:    pub fn is_leader(&self) -> bool {
+crates/vectorizer/src/cluster/leader_router.rs:97:    pub fn role(&self) -> NodeRole {
+crates/vectorizer/src/cluster/leader_router.rs:105:    pub fn leader_redirect_url(&self) -> Option<String> {
+crates/vectorizer/src/cluster/leader_router.rs:114:    pub fn leader_info(&self) -> LeaderInfo {
+crates/vectorizer/src/cluster/raft_node.rs:151:    pub fn new() -> Self {
+crates/vectorizer/src/cluster/raft_node.rs:160:    pub async fn state(&self) -> StateMachineData {
+crates/vectorizer/src/cluster/raft_node.rs:371:    pub fn new() -> Self {
+crates/vectorizer/src/cluster/raft_node.rs:491:    pub fn new() -> Self {
+crates/vectorizer/src/cluster/raft_node.rs:716:    pub async fn new(node_id: u64) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+crates/vectorizer/src/cluster/raft_node.rs:751:    pub async fn initialize_single(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+crates/vectorizer/src/cluster/raft_node.rs:770:    pub async fn initialize_cluster(
+crates/vectorizer/src/cluster/raft_node.rs:800:    pub async fn propose(
+crates/vectorizer/src/cluster/raft_node.rs:809:    pub async fn state(&self) -> StateMachineData {
+crates/vectorizer/src/cluster/raft_node.rs:814:    pub async fn is_leader(&self) -> bool {
+crates/vectorizer/src/cluster/raft_node.rs:822:    pub fn raft(&self) -> &VectorizerRaft {
+crates/vectorizer/src/cluster/grpc_service.rs:32:    pub fn new(
+crates/vectorizer/src/cluster/manager.rs:32:    pub fn new(config: ClusterConfig) -> Result<Self> {
+crates/vectorizer/src/cluster/manager.rs:129:    pub fn local_node_id(&self) -> &NodeId {
+crates/vectorizer/src/cluster/manager.rs:134:    pub fn get_node(&self, node_id: &NodeId) -> Option<ClusterNode> {
+crates/vectorizer/src/cluster/manager.rs:140:    pub fn update_node_status(&self, node_id: &NodeId, status: NodeStatus) {
+crates/vectorizer/src/cluster/manager.rs:154:    pub fn mark_node_unavailable(&self, node_id: &NodeId) {
+crates/vectorizer/src/cluster/manager.rs:159:    pub fn mark_node_active(&self, node_id: &NodeId) {
+crates/vectorizer/src/cluster/manager.rs:164:    pub fn get_nodes(&self) -> Vec<ClusterNode> {
+crates/vectorizer/src/cluster/manager.rs:170:    pub fn get_active_nodes(&self) -> Vec<ClusterNode> {
+crates/vectorizer/src/cluster/manager.rs:180:    pub fn add_node(&self, node: ClusterNode) {
+crates/vectorizer/src/cluster/manager.rs:187:    pub fn remove_node(&self, node_id: &NodeId) -> Option<ClusterNode> {
+crates/vectorizer/src/cluster/manager.rs:197:    pub fn update_node_heartbeat(&self, node_id: &NodeId) {
+crates/vectorizer/src/cluster/manager.rs:205:    pub fn check_node_health(&self, node_id: &NodeId) -> bool {
+crates/vectorizer/src/cluster/manager.rs:220:    pub fn shard_router(&self) -> Arc<DistributedShardRouter> {
+crates/vectorizer/src/cluster/manager.rs:225:    pub fn is_enabled(&self) -> bool {
+crates/vectorizer/src/cluster/raft_watcher.rs:47:    pub fn new(raft_manager: Arc<RaftManager>, ha_manager: Arc<HaManager>) -> Self {
+crates/vectorizer/src/cluster/raft_watcher.rs:56:    pub fn with_http_port(
+crates/vectorizer/src/cluster/raft_watcher.rs:72:    pub fn start(&self) -> JoinHandle<()> {
+crates/vectorizer/src/cluster/collection_sync.rs:25:    pub fn new(
+crates/vectorizer/src/cluster/collection_sync.rs:43:    pub async fn create_collection_with_quorum(
+crates/vectorizer/src/cluster/collection_sync.rs:169:    pub async fn sync_collections(
+crates/vectorizer/src/cluster/ha_manager.rs:39:    pub fn new(
+crates/vectorizer/src/cluster/ha_manager.rs:56:    pub async fn on_become_leader(&self) {
+crates/vectorizer/src/cluster/ha_manager.rs:97:    pub async fn on_become_follower(&self, leader_addr: Option<String>) {
+crates/vectorizer/src/cluster/ha_manager.rs:133:    pub fn master_node(&self) -> Option<Arc<MasterNode>> {
+crates/vectorizer/src/cluster/ha_manager.rs:138:    pub fn replica_node(&self) -> Option<Arc<ReplicaNode>> {
+crates/vectorizer/src/replication/durable_log.rs:46:    pub fn new(max_size: usize, wal_path: Option<PathBuf>) -> ReplicationResult<Self> {
+crates/vectorizer/src/replication/durable_log.rs:75:    pub fn append(&self, operation: VectorOperation) -> ReplicationResult<u64> {
+crates/vectorizer/src/replication/durable_log.rs:118:    pub fn get_operations(&self, from_offset: u64) -> Option<Vec<ReplicationOperation>> {
+crates/vectorizer/src/replication/durable_log.rs:123:    pub fn current_offset(&self) -> u64 {
+crates/vectorizer/src/replication/durable_log.rs:132:    pub fn mark_replicated(&self, offset: u64) {
+crates/vectorizer/src/replication/durable_log.rs:154:    pub fn recover(&mut self) -> ReplicationResult<u64> {
+crates/vectorizer/src/replication/types.rs:228:    pub fn new(id: String, address: SocketAddr) -> Self {
+crates/vectorizer/src/replication/types.rs:247:    pub fn update_status(&mut self) {
+crates/vectorizer/src/replication/types.rs:340:    pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+crates/vectorizer/src/replication/types.rs:351:    pub fn deserialize<'de, D>(deserializer: D) -> Result<SystemTime, D::Error>
+crates/vectorizer/src/replication/replica.rs:67:    pub fn new(config: ReplicationConfig, vector_store: Arc<VectorStore>) -> Self {
+crates/vectorizer/src/replication/replica.rs:77:    pub async fn start(&self) -> ReplicationResult<()> {
+crates/vectorizer/src/replication/replica.rs:465:    pub fn get_stats(&self) -> ReplicationStats {
+crates/vectorizer/src/replication/replica.rs:486:    pub fn is_connected(&self) -> bool {
+crates/vectorizer/src/replication/replica.rs:491:    pub fn get_offset(&self) -> u64 {
+crates/vectorizer/src/replication/config.rs:94:    pub fn master(bind_address: SocketAddr) -> Self {
+crates/vectorizer/src/replication/config.rs:103:    pub fn replica(master_address: SocketAddr) -> Self {
+crates/vectorizer/src/replication/config.rs:112:    pub fn heartbeat_duration(&self) -> Duration {
+crates/vectorizer/src/replication/config.rs:117:    pub fn timeout_duration(&self) -> Duration {
+crates/vectorizer/src/replication/config.rs:122:    pub fn reconnect_duration(&self) -> Duration {
+crates/vectorizer/src/replication/config.rs:130:    pub async fn resolve_master_address(&self) -> Option<SocketAddr> {
+crates/vectorizer/src/replication/sync.rs:31:pub async fn create_snapshot(store: &VectorStore, offset: u64) -> Result<Vec<u8>, String> {
+crates/vectorizer/src/replication/sync.rs:108:pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64, String> {
+crates/vectorizer/src/replication/replication_log.rs:27:    pub fn new(max_size: usize) -> Self {
+crates/vectorizer/src/replication/replication_log.rs:36:    pub fn append(&self, operation: VectorOperation) -> u64 {
+crates/vectorizer/src/replication/replication_log.rs:67:    pub fn current_offset(&self) -> u64 {
+crates/vectorizer/src/replication/replication_log.rs:72:    pub fn get_operations(&self, from_offset: u64) -> Option<Vec<ReplicationOperation>> {
+crates/vectorizer/src/replication/replication_log.rs:108:    pub fn size(&self) -> usize {
+crates/vectorizer/src/replication/replication_log.rs:113:    pub fn clear(&self) {
+crates/vectorizer/src/replication/master.rs:65:    pub fn new(
+crates/vectorizer/src/replication/master.rs:100:    pub async fn start(&self) -> ReplicationResult<()> {
+crates/vectorizer/src/replication/master.rs:429:    pub fn replicate(&self, operation: VectorOperation) -> u64 {
+crates/vectorizer/src/replication/master.rs:457:    pub async fn wait_for_replicas(
+crates/vectorizer/src/replication/master.rs:501:    pub async fn replicate_with_concern(
+crates/vectorizer/src/replication/master.rs:549:    pub fn recover_from_wal(&mut self) -> ReplicationResult<u64> {
+crates/vectorizer/src/replication/master.rs:632:    pub fn get_stats(&self) -> ReplicationStats {
+crates/vectorizer/src/replication/master.rs:676:    pub fn get_replicas(&self) -> Vec<ReplicaInfo> {
+crates/vectorizer/src/persistence/types.rs:83:    pub fn new_workspace(
+crates/vectorizer/src/persistence/types.rs:118:    pub fn new_dynamic(
+crates/vectorizer/src/persistence/types.rs:153:    pub fn update_after_operation(&mut self, vector_count: usize, document_count: usize) {
+crates/vectorizer/src/persistence/types.rs:161:    pub fn is_workspace(&self) -> bool {
+crates/vectorizer/src/persistence/types.rs:166:    pub fn is_dynamic(&self) -> bool {
+crates/vectorizer/src/persistence/types.rs:171:    pub fn calculate_data_checksum(&self) -> String {
+crates/vectorizer/src/persistence/types.rs:187:    pub fn calculate_index_checksum(&self) -> String {
+crates/vectorizer/src/persistence/types.rs:204:    pub fn update_checksums(&mut self) {
+crates/vectorizer/src/persistence/types.rs:281:    pub fn collection_name(&self) -> Option<&str> {
+crates/vectorizer/src/persistence/types.rs:303:    pub fn operation_type(&self) -> &'static str {
+crates/vectorizer/src/persistence/types.rs:315:    pub fn is_data_modifying(&self) -> bool {
+crates/vectorizer/src/persistence/types.rs:361:    pub fn new(id: u64, collection_id: String) -> Self {
+crates/vectorizer/src/persistence/types.rs:374:    pub fn add_operation(&mut self, operation: Operation) {
+crates/vectorizer/src/persistence/types.rs:379:    pub fn commit(&mut self) {
+crates/vectorizer/src/persistence/types.rs:385:    pub fn rollback(&mut self) {
+crates/vectorizer/src/persistence/types.rs:391:    pub fn fail(&mut self) {
+crates/vectorizer/src/persistence/types.rs:397:    pub fn is_completed(&self) -> bool {
+crates/vectorizer/src/persistence/types.rs:407:    pub fn calculate_checksum(&self) -> String {
+crates/vectorizer/src/persistence/wal.rs:90:    pub async fn new<P: AsRef<Path>>(file_path: P, config: WALConfig) -> Result<Self, WALError> {
+crates/vectorizer/src/persistence/wal.rs:156:    pub async fn append(&self, collection_id: &str, operation: Operation) -> Result<u64, WALError> {
+crates/vectorizer/src/persistence/wal.rs:177:    pub async fn append_transaction(&self, transaction: &Transaction) -> Result<u64, WALError> {
+crates/vectorizer/src/persistence/wal.rs:229:    pub async fn read_from(&self, sequence: u64) -> Result<Vec<WALEntry>, WALError> {
+crates/vectorizer/src/persistence/wal.rs:259:    pub async fn read_collection_entries(
+crates/vectorizer/src/persistence/wal.rs:292:    pub async fn checkpoint(&self) -> Result<u64, WALError> {
+crates/vectorizer/src/persistence/wal.rs:335:    pub fn current_sequence(&self) -> u64 {
+crates/vectorizer/src/persistence/wal.rs:340:    pub async fn file_size(&self) -> Result<u64, WALError> {
+crates/vectorizer/src/persistence/wal.rs:349:    pub async fn should_checkpoint(&self) -> Result<bool, WALError> {
+crates/vectorizer/src/persistence/wal.rs:357:    pub async fn validate_integrity(&self) -> Result<(), WALError> {
+crates/vectorizer/src/persistence/wal.rs:395:    pub async fn recover(&self, collection_id: &str) -> Result<Vec<WALEntry>, WALError> {
+crates/vectorizer/src/persistence/wal.rs:421:    pub async fn get_stats(&self) -> Result<WALStats, WALError> {
+crates/vectorizer/src/persistence/enhanced_store.rs:51:    pub async fn new(
+crates/vectorizer/src/persistence/enhanced_store.rs:122:    pub async fn get_collection_metadata(
+crates/vectorizer/src/persistence/enhanced_store.rs:138:    pub async fn list_collections(&self) -> Vec<EnhancedCollectionMetadata> {
+crates/vectorizer/src/persistence/enhanced_store.rs:144:    pub async fn list_workspace_collections(&self) -> Vec<EnhancedCollectionMetadata> {
+crates/vectorizer/src/persistence/enhanced_store.rs:154:    pub async fn list_dynamic_collections(&self) -> Vec<EnhancedCollectionMetadata> {
+crates/vectorizer/src/persistence/enhanced_store.rs:164:    pub async fn create_collection(
+crates/vectorizer/src/persistence/enhanced_store.rs:190:    pub async fn collection_exists(&self, collection_name: &str) -> bool {
+crates/vectorizer/src/persistence/enhanced_store.rs:196:    pub async fn is_workspace_collection(&self, collection_name: &str) -> bool {
+crates/vectorizer/src/persistence/enhanced_store.rs:205:    pub async fn is_dynamic_collection(&self, collection_name: &str) -> bool {
+crates/vectorizer/src/persistence/enhanced_store.rs:214:    pub async fn delete_collection(&self, collection_name: &str) -> Result<(), EnhancedStoreError> {
+crates/vectorizer/src/persistence/enhanced_store.rs:237:    pub async fn insert_vectors(
+crates/vectorizer/src/persistence/enhanced_store.rs:307:    pub async fn search_vectors(
+crates/vectorizer/src/persistence/enhanced_store.rs:325:    pub async fn get_collection_stats(
+crates/vectorizer/src/persistence/enhanced_store.rs:347:    pub async fn get_store_stats(&self) -> Result<StoreStats, EnhancedStoreError> {
+crates/vectorizer/src/persistence/enhanced_store.rs:371:    pub async fn refresh_cache(&self) -> Result<(), EnhancedStoreError> {
+crates/vectorizer/src/persistence/enhanced_store.rs:378:    pub fn workspace_store(&self) -> Arc<VectorStore> {
+crates/vectorizer/src/persistence/enhanced_store.rs:383:    pub fn dynamic_persistence(&self) -> Arc<DynamicCollectionPersistence> {
+crates/vectorizer/src/persistence/mod.rs:113:    pub fn into_runtime(self) -> Result<Vector> {
+crates/vectorizer/src/persistence/mod.rs:135:    pub fn into_runtime_with_payload(self) -> Result<Vector> {
+crates/vectorizer/src/persistence/mod.rs:173:    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+crates/vectorizer/src/persistence/mod.rs:231:    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+crates/vectorizer/src/persistence/mod.rs:317:    pub fn new(compress: bool) -> Self {
+crates/vectorizer/src/persistence/mod.rs:322:    pub fn save<T: Serialize, P: AsRef<Path>>(&self, data: &T, path: P) -> Result<()> {
+crates/vectorizer/src/persistence/mod.rs:337:    pub fn load<T: for<'de> Deserialize<'de>, P: AsRef<Path>>(&self, path: P) -> Result<T> {
+crates/vectorizer/src/persistence/dynamic.rs:103:    pub async fn new(
+crates/vectorizer/src/persistence/dynamic.rs:162:    pub async fn create_collection(
+crates/vectorizer/src/persistence/dynamic.rs:242:    pub async fn collection_exists(&self, collection_name: &str) -> bool {
+crates/vectorizer/src/persistence/dynamic.rs:261:    pub async fn get_collection_by_name(
+crates/vectorizer/src/persistence/dynamic.rs:285:    pub async fn list_collections(
+crates/vectorizer/src/persistence/dynamic.rs:316:    pub async fn begin_transaction(&self, collection_id: &str) -> Result<u64, PersistenceError> {
+crates/vectorizer/src/persistence/dynamic.rs:331:    pub async fn add_to_transaction(
+crates/vectorizer/src/persistence/dynamic.rs:352:    pub async fn commit_transaction(&self, transaction_id: u64) -> Result<(), PersistenceError> {
+crates/vectorizer/src/persistence/dynamic.rs:380:    pub async fn rollback_transaction(&self, transaction_id: u64) -> Result<(), PersistenceError> {
+crates/vectorizer/src/persistence/dynamic.rs:456:    pub async fn delete_collection(&self, collection_name: &str) -> Result<(), PersistenceError> {
+crates/vectorizer/src/persistence/dynamic.rs:479:    pub async fn checkpoint_collection(&self, collection_id: &str) -> Result<(), PersistenceError> {
+crates/vectorizer/src/persistence/dynamic.rs:500:    pub async fn auto_recover(&self) -> Result<(), PersistenceError> {
+crates/vectorizer/src/persistence/dynamic.rs:618:    pub async fn verify_all_integrity(&self) -> Result<(), PersistenceError> {
+crates/vectorizer/src/persistence/dynamic.rs:655:    pub async fn get_stats(&self) -> Result<PersistenceStats, PersistenceError> {
+crates/vectorizer/src/storage/index.rs:97:    pub fn new() -> Self {
+crates/vectorizer/src/storage/index.rs:111:    pub fn add_collection(&mut self, collection: CollectionIndex) {
+crates/vectorizer/src/storage/index.rs:131:    pub fn find_collection(&self, name: &str) -> Option<&CollectionIndex> {
+crates/vectorizer/src/storage/index.rs:136:    pub fn find_collection_mut(&mut self, name: &str) -> Option<&mut CollectionIndex> {
+crates/vectorizer/src/storage/index.rs:141:    pub fn remove_collection(&mut self, name: &str) -> bool {
+crates/vectorizer/src/storage/index.rs:160:    pub fn save(&self, path: &Path) -> Result<()> {
+crates/vectorizer/src/storage/index.rs:170:    pub fn load(path: &Path) -> Result<Self> {
+crates/vectorizer/src/storage/index.rs:180:    pub fn total_vectors(&self) -> usize {
+crates/vectorizer/src/storage/index.rs:185:    pub fn collection_count(&self) -> usize {
+crates/vectorizer/src/storage/index.rs:198:    pub fn new(name: String) -> Self {
+crates/vectorizer/src/storage/index.rs:209:    pub fn add_file(&mut self, file: FileEntry) {
+crates/vectorizer/src/storage/index.rs:214:    pub fn total_size(&self) -> u64 {
+crates/vectorizer/src/storage/index.rs:219:    pub fn compressed_size(&self) -> u64 {
+crates/vectorizer/src/storage/index.rs:226:    pub fn new(
+crates/vectorizer/src/storage/index.rs:244:pub fn detect_file_type(path: &str) -> FileType {
+crates/vectorizer/src/storage/mmap.rs:26:    pub fn open(path: &Path, dimension: usize) -> Result<Self> {
+crates/vectorizer/src/storage/mmap.rs:80:    pub fn append(&mut self, vector: &[f32]) -> Result<usize> {
+crates/vectorizer/src/storage/mmap.rs:128:    pub fn update(&mut self, index: usize, vector: &[f32]) -> Result<()> {
+crates/vectorizer/src/storage/mmap.rs:157:    pub fn get(&self, index: usize) -> Result<Vec<f32>> {
+crates/vectorizer/src/storage/mmap.rs:186:    pub fn len(&self) -> usize {
+crates/vectorizer/src/storage/mmap.rs:191:    pub fn is_empty(&self) -> bool {
+crates/vectorizer/src/storage/mmap.rs:196:    pub fn flush(&self) -> Result<()> {
+crates/vectorizer/src/storage/config.rs:210:    pub fn new() -> Self {
+crates/vectorizer/src/storage/config.rs:215:    pub fn validate(&self) -> crate::error::Result<()> {
+crates/vectorizer/src/storage/config.rs:239:    pub fn snapshots_path(&self) -> PathBuf {
+crates/vectorizer/src/storage/mod.rs:60:pub fn detect_format(data_dir: &Path) -> StorageFormat {
+crates/vectorizer/src/storage/mod.rs:81:pub fn vecdb_path(data_dir: &Path) -> PathBuf {
+crates/vectorizer/src/storage/mod.rs:86:pub fn vecidx_path(data_dir: &Path) -> PathBuf {
+crates/vectorizer/src/storage/mod.rs:91:pub fn snapshots_dir(data_dir: &Path) -> PathBuf {
+crates/vectorizer/src/storage/mod.rs:102:pub fn load_or_initialize(data_dir: &Path) -> Result<usize> {
+crates/vectorizer/src/storage/advanced.rs:76:    pub fn new(base_path: impl AsRef<Path>, config: StorageConfig) -> Result<Self> {
+crates/vectorizer/src/storage/advanced.rs:97:    pub fn store_vectors(&self, collection_name: &str, vectors: &[Vector]) -> Result<()> {
+crates/vectorizer/src/storage/advanced.rs:152:    pub fn load_vectors(&self, collection_name: &str) -> Result<Vec<Vector>> {
+crates/vectorizer/src/storage/advanced.rs:247:    pub fn optimize_storage(&self, collection_name: &str) -> Result<StorageOptimizationResult> {
+crates/vectorizer/src/storage/advanced.rs:316:    pub fn clear_cache(&self, collection_name: &str) -> Result<()> {
+crates/vectorizer/src/storage/advanced.rs:331:    pub fn clear_all_caches(&self) -> Result<()> {
+crates/vectorizer/src/storage/advanced.rs:346:    pub fn get_stats(&self) -> StorageStats {
+crates/vectorizer/src/storage/advanced.rs:351:    pub fn set_logging(&mut self, enabled: bool) {
+crates/vectorizer/src/storage/advanced.rs:356:    pub fn cache_stats(&self) -> CacheStats {
+crates/vectorizer/src/storage/compact.rs:28:    pub fn new(data_dir: impl AsRef<Path>, compression_level: i32, batch_size: usize) -> Self {
+crates/vectorizer/src/storage/compact.rs:38:    pub fn compact_all(&self) -> Result<StorageIndex> {
+crates/vectorizer/src/storage/compact.rs:51:    pub fn compact_from_memory(&self, store: &crate::db::VectorStore) -> Result<StorageIndex> {
+crates/vectorizer/src/storage/compact.rs:266:    pub fn record_operation(&mut self) {
+crates/vectorizer/src/storage/compact.rs:271:    pub fn should_compact(&self) -> bool {
+crates/vectorizer/src/storage/compact.rs:276:    pub fn maybe_compact(&mut self) -> Result<Option<StorageIndex>> {
+crates/vectorizer/src/storage/compact.rs:291:    pub fn force_compact(&mut self) -> Result<StorageIndex> {
+crates/vectorizer/src/storage/compact.rs:298:    pub fn pending_operations(&self) -> usize {
+crates/vectorizer/src/storage/compact.rs:303:    pub fn reset_counter(&mut self) {
+crates/vectorizer/src/storage/compact.rs:308:    pub fn verify_integrity(&self) -> Result<bool> {
+crates/vectorizer/src/storage/compact.rs:337:    pub fn compact_all_with_cleanup(&self, remove_source_files: bool) -> Result<StorageIndex> {
+crates/vectorizer/src/storage/compact.rs:424:    pub fn remove_raw_files(&self) -> Result<usize> {
+crates/vectorizer/src/storage/compact.rs:464:    pub fn compact_if_changed(&mut self) -> Result<Option<StorageIndex>> {
+crates/vectorizer/src/storage/compact.rs:519:pub fn estimate_compression_ratio(data: &[u8]) -> f64 {
+crates/vectorizer/src/storage/migration.rs:23:    pub fn new(data_dir: impl AsRef<Path>, compression_level: i32) -> Self {
+crates/vectorizer/src/storage/migration.rs:31:    pub fn needs_migration(&self) -> bool {
+crates/vectorizer/src/storage/migration.rs:36:    pub fn migrate(&self) -> Result<MigrationResult> {
+crates/vectorizer/src/storage/migration.rs:238:    pub fn rollback(&self, backup_path: &Path) -> Result<()> {
+crates/vectorizer/src/storage/snapshot.rs:31:    pub fn new(
+crates/vectorizer/src/storage/snapshot.rs:52:    pub fn create_snapshot(&self) -> Result<SnapshotInfo> {
+crates/vectorizer/src/storage/snapshot.rs:235:    pub fn list_snapshots(&self) -> Result<Vec<SnapshotInfo>> {
+crates/vectorizer/src/storage/snapshot.rs:288:    pub fn get_snapshot(&self, id: &str) -> Result<Option<SnapshotInfo>> {
+crates/vectorizer/src/storage/snapshot.rs:294:    pub fn restore_snapshot(&self, id: &str) -> Result<()> {
+crates/vectorizer/src/storage/snapshot.rs:325:    pub fn delete_snapshot(&self, id: &str) -> Result<bool> {
+crates/vectorizer/src/storage/snapshot.rs:340:    pub fn import_snapshot(&self, data: &[u8]) -> Result<SnapshotInfo> {
+crates/vectorizer/src/storage/snapshot.rs:431:    pub fn cleanup_old_snapshots(&self) -> Result<usize> {
+crates/vectorizer/src/storage/snapshot.rs:778:    pub fn size_mb(&self) -> f64 {
+crates/vectorizer/src/storage/snapshot.rs:783:    pub fn age_hours(&self) -> i64 {
+crates/vectorizer/src/storage/reader.rs:32:    pub fn new(data_dir: impl AsRef<Path>) -> Result<Self> {
+crates/vectorizer/src/storage/reader.rs:61:    pub fn index(&self) -> Result<StorageIndex> {
+crates/vectorizer/src/storage/reader.rs:66:    pub fn list_collections(&self) -> Result<Vec<String>> {
+crates/vectorizer/src/storage/reader.rs:73:    pub fn get_collection(&self, name: &str) -> Result<Option<CollectionIndex>> {
+crates/vectorizer/src/storage/reader.rs:80:    pub fn read_file(&self, path: &str) -> Result<Vec<u8>> {
+crates/vectorizer/src/storage/reader.rs:129:    pub fn read_collection_files(&self, collection_name: &str) -> Result<HashMap<String, Vec<u8>>> {
+crates/vectorizer/src/storage/reader.rs:145:    pub fn clear_cache(&self) -> Result<()> {
+crates/vectorizer/src/storage/reader.rs:153:    pub fn cache_stats(&self) -> Result<CacheStats> {
+crates/vectorizer/src/storage/reader.rs:167:    pub fn extract_all_collections(&self) -> Result<Vec<crate::persistence::PersistedCollection>> {
+crates/vectorizer/src/storage/reader.rs:190:    pub fn read_collection_in_memory(
+crates/vectorizer/src/storage/reader.rs:366:    pub fn utilization(&self) -> f64 {
+crates/vectorizer/src/storage/writer.rs:28:    pub fn new(data_dir: impl AsRef<Path>, compression_level: i32) -> Self {
+crates/vectorizer/src/storage/writer.rs:36:    pub fn write_archive(&self, collections_dir: &Path) -> Result<StorageIndex> {
+crates/vectorizer/src/storage/writer.rs:62:    pub fn write_from_memory(

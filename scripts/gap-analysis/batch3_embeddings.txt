@@ -1,0 +1,307 @@
+crates/vectorizer/src/embedding/cache.rs:106:    pub fn new(config: CacheConfig) -> Result<Self> {
+crates/vectorizer/src/embedding/cache.rs:136:    pub fn get(&self, content: &str) -> Option<Vec<f32>> {
+crates/vectorizer/src/embedding/cache.rs:149:    pub fn put(&self, content: &str, embedding: &[f32]) -> Result<()> {
+crates/vectorizer/src/embedding/cache.rs:166:    pub fn get_batch(&self, contents: &[&str]) -> Vec<Option<Vec<f32>>> {
+crates/vectorizer/src/embedding/cache.rs:174:    pub fn put_batch(&self, contents: &[&str], embeddings: &[Vec<f32>]) -> Result<()> {
+crates/vectorizer/src/embedding/cache.rs:182:    pub fn contains(&self, content: &str) -> bool {
+crates/vectorizer/src/embedding/cache.rs:190:    pub fn build_from_directory<F>(&self, dir: &Path, embed_fn: F) -> Result<usize>
+crates/vectorizer/src/embedding/cache.rs:233:    pub fn export_to_parquet(&self, output_path: &Path) -> Result<()> {
+crates/vectorizer/src/embedding/cache.rs:305:    pub fn save_metadata(&self) -> Result<()> {
+crates/vectorizer/src/embedding/real_models.rs:52:    pub fn model_id(&self) -> &str {
+crates/vectorizer/src/embedding/real_models.rs:71:    pub fn dimension(&self) -> usize {
+crates/vectorizer/src/embedding/real_models.rs:84:    pub fn needs_prefix(&self) -> bool {
+crates/vectorizer/src/embedding/real_models.rs:114:    pub fn new(model_type: RealModelType) -> Result<Self> {
+crates/vectorizer/src/embedding/real_models.rs:119:    pub fn new_with_cache(
+crates/vectorizer/src/embedding/real_models.rs:272:    pub fn new(model_type: RealModelType) -> Result<Self> {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:72:    pub fn from_pretrained(model_name: &str, config: FastTokenizerConfig) -> Result<Self> {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:109:    pub fn encode(&self, text: &str) -> Result<Vec<u32>> {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:138:    pub fn encode_batch(&self, texts: &[&str]) -> Result<Vec<Vec<u32>>> {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:163:    pub fn encode_chunked(&self, text: &str) -> Result<Vec<Vec<u32>>> {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:193:    pub fn vocab_size(&self) -> usize {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:198:    pub fn clear_cache(&self) {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:269:        pub fn new(model_name: &str) -> Result<Self> {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:275:        pub fn benchmark_single(&self, texts: &[&str]) -> Result<f64> {
+crates/vectorizer/src/embedding/fast_tokenizer.rs:288:        pub fn benchmark_batch(&self, texts: &[&str]) -> Result<f64> {
+crates/vectorizer/src/embedding/config.rs:19:    pub fn new() -> Self {
+crates/vectorizer/src/embedding/config.rs:26:    pub fn provider(mut self, provider: EmbeddingProviderType) -> Self {
+crates/vectorizer/src/embedding/config.rs:32:    pub fn model(mut self, model: String) -> Self {
+crates/vectorizer/src/embedding/config.rs:38:    pub fn dimension(mut self, dimension: usize) -> Self {
+crates/vectorizer/src/embedding/config.rs:44:    pub fn max_length(mut self, max_length: usize) -> Self {
+crates/vectorizer/src/embedding/config.rs:50:    pub fn enable_caching(mut self, enable: bool) -> Self {
+crates/vectorizer/src/embedding/config.rs:56:    pub fn cache_size(mut self, size: usize) -> Self {
+crates/vectorizer/src/embedding/config.rs:62:    pub fn batch_size(mut self, size: usize) -> Self {
+crates/vectorizer/src/embedding/config.rs:68:    pub fn timeout_seconds(mut self, timeout: u64) -> Self {
+crates/vectorizer/src/embedding/config.rs:74:    pub fn build(self) -> EmbeddingConfig {
+crates/vectorizer/src/embedding/config.rs:90:    pub fn fast() -> EmbeddingConfig {
+crates/vectorizer/src/embedding/config.rs:104:    pub fn high_quality() -> EmbeddingConfig {
+crates/vectorizer/src/embedding/config.rs:118:    pub fn balanced() -> EmbeddingConfig {
+crates/vectorizer/src/embedding/config.rs:132:    pub fn memory_efficient() -> EmbeddingConfig {
+crates/vectorizer/src/embedding/config.rs:146:    pub fn real_time() -> EmbeddingConfig {
+crates/vectorizer/src/embedding/config.rs:165:    pub fn validate(config: &EmbeddingConfig) -> Result<(), ValidationError> {
+crates/vectorizer/src/embedding/config.rs:246:    pub fn optimize_for_performance(config: &mut EmbeddingConfig) {
+crates/vectorizer/src/embedding/config.rs:282:    pub fn recommend_for_use_case(use_case: UseCase) -> EmbeddingConfig {
+crates/vectorizer/src/embedding/config.rs:378:    pub fn overall_score(&self) -> f64 {
+crates/vectorizer/src/embedding/provider.rs:17:    pub async fn create_provider(
+crates/vectorizer/src/embedding/provider.rs:51:    pub fn available_providers() -> Vec<EmbeddingProviderType> {
+crates/vectorizer/src/embedding/provider.rs:61:    pub fn get_provider_info(provider_type: &EmbeddingProviderType) -> ProviderInfo {
+crates/vectorizer/src/embedding/provider.rs:153:    pub fn new(default_provider: EmbeddingProviderType) -> Self {
+crates/vectorizer/src/embedding/provider.rs:161:    pub fn register_provider(
+crates/vectorizer/src/embedding/provider.rs:170:    pub fn get_provider(
+crates/vectorizer/src/embedding/provider.rs:178:    pub fn get_default_provider(&self) -> Option<&Arc<dyn EmbeddingProvider>> {
+crates/vectorizer/src/embedding/provider.rs:183:    pub fn set_default_provider(&mut self, provider_type: EmbeddingProviderType) {
+crates/vectorizer/src/embedding/provider.rs:188:    pub fn get_providers(
+crates/vectorizer/src/embedding/provider.rs:195:    pub fn has_provider(&self, provider_type: &EmbeddingProviderType) -> bool {
+crates/vectorizer/src/embedding/provider.rs:200:    pub fn available_providers(&self) -> Vec<EmbeddingProviderType> {
+crates/vectorizer/src/embedding/provider.rs:210:    pub async fn check_health(provider: &dyn EmbeddingProvider) -> ProviderHealth {
+crates/vectorizer/src/embedding/provider.rs:241:    pub async fn check_multiple_providers(
+crates/vectorizer/src/embedding/provider.rs:276:    pub fn is_healthy(&self) -> bool {
+crates/vectorizer/src/embedding/provider.rs:281:    pub fn response_time_ms(&self) -> u64 {
+crates/vectorizer/src/embedding/onnx_models.rs:46:    pub fn model_id(&self) -> &'static str {
+crates/vectorizer/src/embedding/onnx_models.rs:63:    pub fn dimension(&self) -> usize {
+crates/vectorizer/src/embedding/onnx_models.rs:73:    pub fn needs_prefix(&self) -> bool {
+crates/vectorizer/src/embedding/onnx_models.rs:80:    pub fn max_sequence_length(&self) -> usize {
+crates/vectorizer/src/embedding/onnx_models.rs:150:    pub fn new(config: OnnxConfig) -> Result<Self> {
+crates/vectorizer/src/embedding/onnx_models.rs:168:    pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
+crates/vectorizer/src/embedding/onnx_models.rs:178:    pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+crates/vectorizer/src/embedding/onnx_models.rs:210:    pub fn embed_parallel(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+crates/vectorizer/src/embedding/onnx_models.rs:241:    pub fn benchmark_onnx_throughput(
+crates/vectorizer/src/embedding/providers/minilm.rs:35:    pub fn new(dimension: usize) -> Self {
+crates/vectorizer/src/embedding/providers/minilm.rs:49:    pub fn load_model(&mut self) -> Result<()> {
+crates/vectorizer/src/embedding/providers/minilm.rs:58:    pub fn load_model_with_id(&mut self, model_id: &str, use_gpu: bool) -> Result<()> {
+crates/vectorizer/src/embedding/bert.rs:59:    pub fn new(config: BERTConfig) -> Self {
+crates/vectorizer/src/embedding/bert.rs:68:    pub fn default() -> Self {
+crates/vectorizer/src/embedding/bert.rs:73:    pub async fn initialize(&self) -> Result<(), EmbeddingError> {
+crates/vectorizer/src/embedding/bert.rs:173:    pub fn model_info(&self) -> BERTModelInfo {
+crates/vectorizer/src/embedding/bert.rs:235:    pub fn create_default() -> BERTProvider {
+crates/vectorizer/src/embedding/bert.rs:240:    pub fn create_with_config(config: BERTConfig) -> BERTProvider {
+crates/vectorizer/src/embedding/bert.rs:245:    pub async fn create_and_initialize(
+crates/vectorizer/src/embedding/bert.rs:259:    pub fn available_models() -> Vec<BERTModel> {
+crates/vectorizer/src/embedding/candle_models.rs:81:    pub fn load_model(model_id: &str, use_gpu: bool) -> Result<Self> {
+crates/vectorizer/src/embedding/candle_models.rs:174:    pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+crates/vectorizer/src/embedding/candle_models.rs:235:    pub fn dimension(&self) -> usize {
+crates/vectorizer/src/embedding/candle_models.rs:249:    pub fn load_model(model_id: &str, use_gpu: bool) -> Result<Self> {
+crates/vectorizer/src/embedding/candle_models.rs:342:    pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+crates/vectorizer/src/embedding/candle_models.rs:442:    pub fn dimension(&self) -> usize {
+crates/vectorizer/src/embedding/providers/svd.rs:30:    pub fn new(reduced_dimension: usize, vocabulary_size: usize) -> Self {
+crates/vectorizer/src/embedding/providers/svd.rs:40:    pub fn fit_svd(&mut self, texts: &[&str]) -> Result<()> {
+crates/vectorizer/src/embedding/bm25.rs:57:    pub fn new(config: BM25Config) -> Self {
+crates/vectorizer/src/embedding/bm25.rs:69:    pub fn default() -> Self {
+crates/vectorizer/src/embedding/bm25.rs:74:    pub async fn add_documents(&self, documents: &[String]) -> Result<(), EmbeddingError> {
+crates/vectorizer/src/embedding/bm25.rs:219:    pub async fn vocabulary_size(&self) -> usize {
+crates/vectorizer/src/embedding/bm25.rs:224:    pub async fn document_count(&self) -> usize {
+crates/vectorizer/src/embedding/bm25.rs:229:    pub async fn get_vocabulary(&self) -> HashMap<String, usize> {
+crates/vectorizer/src/embedding/bm25.rs:234:    pub async fn get_document_frequencies(&self) -> HashMap<String, usize> {
+crates/vectorizer/src/embedding/bm25.rs:239:    pub async fn set_vocabulary(&self, vocab: HashMap<String, usize>) {
+crates/vectorizer/src/embedding/bm25.rs:244:    pub async fn set_document_frequencies(&self, doc_freqs: HashMap<String, usize>) {
+crates/vectorizer/src/embedding/bm25.rs:249:    pub async fn set_statistics(&self, doc_count: usize, avg_length: f32, total_length: usize) {
+crates/vectorizer/src/embedding/bm25.rs:256:    pub async fn clear(&self) {
+crates/vectorizer/src/embedding/bm25.rs:306:    pub fn create_default() -> BM25Provider {
+crates/vectorizer/src/embedding/bm25.rs:311:    pub fn create_with_config(config: BM25Config) -> BM25Provider {
+crates/vectorizer/src/embedding/bm25.rs:316:    pub async fn create_and_train(
+crates/vectorizer/src/embedding/providers/manager.rs:25:    pub fn new() -> Self {
+crates/vectorizer/src/embedding/providers/manager.rs:33:    pub fn register_provider(&mut self, name: String, provider: Box<dyn EmbeddingProvider>) {
+crates/vectorizer/src/embedding/providers/manager.rs:41:    pub fn set_default_provider(&mut self, name: &str) -> Result<()> {
+crates/vectorizer/src/embedding/providers/manager.rs:54:    pub fn get_provider(&self, name: &str) -> Result<&dyn EmbeddingProvider> {
+crates/vectorizer/src/embedding/providers/manager.rs:62:    pub fn get_provider_mut(&mut self, name: &str) -> Option<&mut Box<dyn EmbeddingProvider>> {
+crates/vectorizer/src/embedding/providers/manager.rs:67:    pub fn get_default_provider(&self) -> Result<&dyn EmbeddingProvider> {
+crates/vectorizer/src/embedding/providers/manager.rs:77:    pub fn get_default_provider_name(&self) -> Option<&str> {
+crates/vectorizer/src/embedding/providers/manager.rs:82:    pub fn embed(&self, text: &str) -> Result<Vec<f32>> {
+crates/vectorizer/src/embedding/providers/manager.rs:87:    pub fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+crates/vectorizer/src/embedding/providers/manager.rs:92:    pub fn embed_with_provider(&self, provider_name: &str, text: &str) -> Result<Vec<f32>> {
+crates/vectorizer/src/embedding/providers/manager.rs:98:    pub fn embed_batch_with_provider(
+crates/vectorizer/src/embedding/providers/manager.rs:107:    pub fn get_provider_dimension(&self, provider_name: &str) -> Result<usize> {
+crates/vectorizer/src/embedding/providers/manager.rs:112:    pub fn list_providers(&self) -> Vec<String> {
+crates/vectorizer/src/embedding/providers/manager.rs:117:    pub fn has_provider(&self, provider_name: &str) -> bool {
+crates/vectorizer/src/embedding/providers/manager.rs:127:    pub fn save_vocabulary_json<P: AsRef<Path>>(&self, provider_name: &str, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/openai.rs:119:    pub fn new(config: OpenAIConfig) -> Self {
+crates/vectorizer/src/embedding/openai.rs:135:    pub fn default() -> Self {
+crates/vectorizer/src/embedding/openai.rs:140:    pub async fn initialize(&self) -> Result<(), EmbeddingError> {
+crates/vectorizer/src/embedding/openai.rs:185:    pub async fn get_usage_stats(&self) -> Option<UsageStats> {
+crates/vectorizer/src/embedding/openai.rs:195:    pub fn available_models() -> Vec<OpenAIModel> {
+crates/vectorizer/src/embedding/openai.rs:275:    pub fn create_default() -> OpenAIProvider {
+crates/vectorizer/src/embedding/openai.rs:280:    pub fn create_with_config(config: OpenAIConfig) -> OpenAIProvider {
+crates/vectorizer/src/embedding/openai.rs:285:    pub async fn create_and_initialize(
+crates/vectorizer/src/embedding/openai.rs:301:    pub async fn create_with_api_key(api_key: String) -> Result<OpenAIProvider, EmbeddingError> {
+crates/vectorizer/src/embedding/providers/bert.rs:37:    pub fn new(dimension: usize) -> Self {
+crates/vectorizer/src/embedding/providers/bert.rs:51:    pub fn load_model(&mut self) -> Result<()> {
+crates/vectorizer/src/embedding/providers/bert.rs:60:    pub fn load_model_with_id(&mut self, model_id: &str, use_gpu: bool) -> Result<()> {
+crates/vectorizer/src/embedding/providers/char_ngram.rs:30:    pub fn new(dimension: usize, n: usize) -> Self {
+crates/vectorizer/src/embedding/providers/char_ngram.rs:39:    pub fn build_vocabulary(&mut self, texts: &[&str]) {
+crates/vectorizer/src/embedding/providers/char_ngram.rs:163:    pub fn save_vocabulary_json<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/char_ngram.rs:184:    pub fn load_vocabulary_json<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/tfidf.rs:23:    pub fn new(dimension: usize) -> Self {
+crates/vectorizer/src/embedding/providers/tfidf.rs:32:    pub fn build_vocabulary(&mut self, texts: &[&str]) {
+crates/vectorizer/src/embedding/providers/tfidf.rs:195:    pub fn save_vocabulary_json<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/tfidf.rs:216:    pub fn load_vocabulary_json<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/mod.rs:30:pub fn try_build_fastembed_provider(
+crates/vectorizer/src/embedding/providers/bag_of_words.rs:29:    pub fn new(dimension: usize) -> Self {
+crates/vectorizer/src/embedding/providers/bag_of_words.rs:37:    pub fn build_vocabulary(&mut self, texts: &[&str]) {
+crates/vectorizer/src/embedding/providers/bag_of_words.rs:153:    pub fn save_vocabulary_json<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/bag_of_words.rs:172:    pub fn load_vocabulary_json<P: AsRef<std::path::Path>>(&mut self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/bm25.rs:36:    pub fn new(dimension: usize) -> Self {
+crates/vectorizer/src/embedding/providers/bm25.rs:50:    pub fn vocabulary_size(&self) -> usize {
+crates/vectorizer/src/embedding/providers/bm25.rs:55:    pub fn extract_vocabulary_data(
+crates/vectorizer/src/embedding/providers/bm25.rs:74:    pub fn restore_vocabulary_data(
+crates/vectorizer/src/embedding/providers/bm25.rs:90:    pub fn save_vocabulary_json<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/bm25.rs:115:    pub fn load_vocabulary_json<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
+crates/vectorizer/src/embedding/providers/bm25.rs:179:    pub fn build_vocabulary(&mut self, texts: &[String]) {
+crates/vectorizer/src/embedding/providers/fastembed.rs:52:    pub fn from_config(model_id: &str, cache_dir: PathBuf) -> Result<Self> {
+crates/vectorizer/src/embedding/providers/fastembed.rs:127:pub fn parse_model_id(id: &str) -> Result<EmbeddingModel> {
+crates/vectorizer-core/src/quantization/binary.rs:25:    pub fn new() -> Self {
+crates/vectorizer-core/src/quantization/binary.rs:34:    pub fn train(&mut self, training_vectors: &[Vec<f32>]) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/binary.rs:61:    pub fn quantize_vector(&self, vector: &[f32]) -> QuantizationResult<Vec<u8>> {
+crates/vectorizer-core/src/quantization/binary.rs:84:    pub fn dequantize_vector(
+crates/vectorizer-core/src/quantization/binary.rs:105:    pub fn threshold(&self) -> f32 {
+crates/vectorizer-core/src/quantization/binary.rs:110:    pub fn is_trained(&self) -> bool {
+crates/vectorizer-core/src/quantization/mod.rs:104:    pub fn memory_savings_percent(&self) -> f64 {
+crates/vectorizer-core/src/quantization/mod.rs:109:    pub fn meets_quality_threshold(&self, threshold: f32) -> bool {
+crates/vectorizer-core/src/quantization/mod.rs:153:    pub fn new(config: QuantizationConfig) -> Self {
+crates/vectorizer-core/src/quantization/mod.rs:169:    pub fn config(&self) -> &QuantizationConfig {
+crates/vectorizer-core/src/quantization/mod.rs:174:    pub fn stats(&self) -> &QuantizationStats {
+crates/vectorizer-core/src/quantization/mod.rs:179:    pub fn update_stats(&mut self, stats: QuantizationStats) {
+crates/vectorizer-core/src/quantization/mod.rs:184:    pub fn meets_quality_requirements(&self) -> bool {
+crates/vectorizer-core/src/quantization/scalar.rs:38:    pub fn new(bits: u8) -> QuantizationResult<Self> {
+crates/vectorizer-core/src/quantization/scalar.rs:57:    pub fn fit(&mut self, vectors: &[Vec<f32>]) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/scalar.rs:84:    pub fn quantize_vector(&self, vector: &[f32]) -> QuantizationResult<Vec<u8>> {
+crates/vectorizer-core/src/quantization/scalar.rs:98:    pub fn dequantize_vector(&self, quantized: &[u8]) -> QuantizationResult<Vec<f32>> {
+crates/vectorizer-core/src/quantization/scalar.rs:264:    pub fn calculate_quantization_error(
+crates/vectorizer-core/src/quantization/scalar.rs:289:    pub fn theoretical_compression_ratio(&self) -> f32 {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:69:    pub fn new(
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:99:    pub fn add_vectors(&mut self, vectors: &[Vec<f32>]) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:149:    pub fn search_quantized(
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:188:    pub fn search_brute_force(
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:209:    pub fn search_hybrid(&self, query: &[f32], k: usize) -> QuantizationResult<Vec<(usize, f32)>> {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:241:    pub fn get_quantization_stats(&self) -> QuantizationResult<HnswQuantizationStats> {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:278:    pub fn clear(&mut self) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:286:    pub fn save_to_storage(&self, collection_name: &str) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:310:    pub fn load_from_storage(&mut self, collection_name: &str) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:377:    pub fn memory_savings_percent(&self) -> f32 {
+crates/vectorizer-core/src/quantization/hnsw_integration.rs:382:    pub fn meets_quality_threshold(&self, threshold: f32) -> bool {
+crates/vectorizer-core/src/quantization/product.rs:52:    pub fn new(config: ProductQuantizationConfig, dimension: usize) -> Self {
+crates/vectorizer-core/src/quantization/product.rs:74:    pub fn train(&mut self, training_vectors: &[Vec<f32>]) -> Result<(), QuantizationError> {
+crates/vectorizer-core/src/quantization/product.rs:241:    pub fn quantize(&self, vector: &[f32]) -> Result<Vec<u8>, QuantizationError> {
+crates/vectorizer-core/src/quantization/product.rs:282:    pub fn reconstruct(&self, codes: &[u8]) -> Result<Vec<f32>, QuantizationError> {
+crates/vectorizer-core/src/quantization/product.rs:314:    pub fn quantization_error(
+crates/vectorizer-core/src/quantization/product.rs:324:    pub fn compression_ratio(&self) -> f32 {
+crates/vectorizer-core/src/quantization/product.rs:331:    pub fn memory_per_vector(&self) -> usize {
+crates/vectorizer-core/src/quantization/storage.rs:103:    pub fn new(config: StorageConfig) -> QuantizationResult<Self> {
+crates/vectorizer-core/src/quantization/storage.rs:122:    pub fn store(
+crates/vectorizer-core/src/quantization/storage.rs:186:    pub fn load(&self, collection_name: &str) -> QuantizationResult<QuantizedVectors> {
+crates/vectorizer-core/src/quantization/storage.rs:251:    pub fn remove(&self, collection_name: &str) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/storage.rs:271:    pub fn list_collections(&self) -> QuantizationResult<Vec<String>> {
+crates/vectorizer-core/src/quantization/storage.rs:297:    pub fn get_stats(&self) -> QuantizationResult<StorageStats> {
+crates/vectorizer-core/src/quantization/storage.rs:348:    pub fn clear_cache(&self) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/storage.rs:359:    pub fn cleanup(&self, max_age_seconds: u64) -> QuantizationResult<()> {
+crates/vectorizer-core/src/quantization/storage.rs:528:    pub fn touch(&mut self) {
+crates/vectorizer-core/src/quantization/storage.rs:536:    pub fn storage_efficiency(&self) -> f32 {
+crates/vectorizer-core/src/compression/config.rs:16:    pub fn new() -> Self {
+crates/vectorizer-core/src/compression/config.rs:23:    pub fn algorithm(mut self, algorithm: CompressionAlgorithm) -> Self {
+crates/vectorizer-core/src/compression/config.rs:29:    pub fn level(mut self, level: u8) -> Self {
+crates/vectorizer-core/src/compression/config.rs:35:    pub fn auto_select(mut self, auto_select: bool) -> Self {
+crates/vectorizer-core/src/compression/config.rs:41:    pub fn min_size_threshold(mut self, threshold: usize) -> Self {
+crates/vectorizer-core/src/compression/config.rs:47:    pub fn enable_stats(mut self, enable: bool) -> Self {
+crates/vectorizer-core/src/compression/config.rs:53:    pub fn build(self) -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:69:    pub fn fast() -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:80:    pub fn balanced() -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:91:    pub fn high_compression() -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:102:    pub fn storage_optimized() -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:113:    pub fn real_time() -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:124:    pub fn none() -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:140:    pub fn validate(config: &CompressionConfig) -> Result<(), String> {
+crates/vectorizer-core/src/compression/config.rs:175:    pub fn recommend_for_data(data_size: usize, data_type: DataType) -> CompressionConfig {
+crates/vectorizer-core/src/compression/config.rs:222:    pub fn detect(data: &[u8]) -> Self {
+crates/vectorizer-core/src/compression/zstd.rs:48:    pub fn new(config: ZstdConfig) -> Self {
+crates/vectorizer-core/src/compression/zstd.rs:53:    pub fn default() -> Self {
+crates/vectorizer-core/src/compression/zstd.rs:58:    pub fn high_compression() -> Self {
+crates/vectorizer-core/src/compression/zstd.rs:69:    pub fn fast() -> Self {
+crates/vectorizer-core/src/compression/zstd.rs:80:    pub fn balanced() -> Self {
+crates/vectorizer-core/src/compression/lz4.rs:44:    pub fn new(config: Lz4Config) -> Self {
+crates/vectorizer-core/src/compression/lz4.rs:49:    pub fn default() -> Self {
+crates/vectorizer-core/src/compression/lz4.rs:54:    pub fn high_compression() -> Self {
+crates/vectorizer-core/src/compression/lz4.rs:64:    pub fn fast() -> Self {
+crates/vectorizer-core/src/compression/mod.rs:85:    pub fn compression_ratio(&self) -> f64 {
+crates/vectorizer-core/src/compression/mod.rs:94:    pub fn space_savings_percent(&self) -> f64 {
+crates/vectorizer-core/src/compression/mod.rs:103:    pub fn compression_throughput_mbps(&self) -> f64 {
+crates/vectorizer-core/src/compression/mod.rs:155:    pub fn new(config: CompressionConfig) -> Self {
+crates/vectorizer-core/src/compression/mod.rs:171:    pub fn config(&self) -> &CompressionConfig {
+crates/vectorizer-core/src/compression/mod.rs:176:    pub fn stats(&self) -> &CompressionStats {
+crates/vectorizer-core/src/compression/mod.rs:181:    pub fn reset_stats(&mut self) {
+crates/vectorizer-core/src/compression/mod.rs:194:    pub fn update_stats(
+crates/vectorizer-core/src/compression/traits.rs:104:    pub fn space_savings_percent(&self) -> f64 {
+crates/vectorizer-core/src/compression/traits.rs:113:    pub fn compression_throughput_mbps(&self) -> f64 {
+crates/vectorizer-core/src/compression/traits.rs:123:    pub fn decompression_throughput_mbps(&self) -> f64 {
+crates/vectorizer-core/src/compression/traits.rs:156:    pub fn efficiency_score(&self) -> f64 {
+crates/vectorizer-core/src/compression/traits.rs:165:    pub fn compare(&self, other: &CompressionBenchmark) -> CompressionComparison {
+crates/vectorizer-core/src/compression/traits.rs:211:    pub fn config(&self) -> CompressionMethodConfig {
+crates/vectorizer/src/normalization/config.rs:47:    pub fn enabled() -> Self {
+crates/vectorizer/src/normalization/config.rs:55:    pub fn conservative() -> Self {
+crates/vectorizer/src/normalization/config.rs:73:    pub fn moderate() -> Self {
+crates/vectorizer/src/normalization/config.rs:91:    pub fn aggressive() -> Self {
+crates/vectorizer/src/normalization/config.rs:109:    pub fn without_cache(mut self) -> Self {
+crates/vectorizer/src/normalization/config.rs:115:    pub fn with_cache_size(mut self, size_bytes: usize) -> Self {
+crates/vectorizer/src/normalization/config.rs:121:    pub fn without_query_normalization(mut self) -> Self {
+crates/vectorizer/src/normalization/detector.rs:78:    pub fn new() -> Self {
+crates/vectorizer/src/normalization/detector.rs:97:    pub fn detect(&self, content: &str, file_path: Option<&Path>) -> ContentType {
+crates/vectorizer/src/normalization/integration.rs:32:    pub fn new(config: NormalizationConfig, data_dir: &Path) -> Result<Self> {
+crates/vectorizer/src/normalization/integration.rs:61:    pub async fn process_document(
+crates/vectorizer/src/normalization/integration.rs:119:    pub fn process_query(&self, query: &str) -> String {
+crates/vectorizer/src/normalization/integration.rs:130:    pub async fn is_duplicate(&self, text: &str) -> Result<bool> {
+crates/vectorizer/src/normalization/integration.rs:144:    pub fn cache_stats(&self) -> Option<super::cache::CacheStats> {
+crates/vectorizer/src/normalization/integration.rs:149:    pub async fn clear_cache(&self) -> Result<()> {
+crates/vectorizer/src/normalization/integration.rs:174:    pub fn embedding_text(&self) -> &str {
+crates/vectorizer/src/normalization/integration.rs:179:    pub fn display_text(&self) -> &str {
+crates/vectorizer/src/normalization/hasher.rs:15:    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+crates/vectorizer/src/normalization/hasher.rs:20:    pub fn as_bytes(&self) -> &[u8; 32] {
+crates/vectorizer/src/normalization/hasher.rs:25:    pub fn to_hex(&self) -> String {
+crates/vectorizer/src/normalization/hasher.rs:30:    pub fn from_hex(s: &str) -> Result<Self, hex::FromHexError> {
+crates/vectorizer/src/normalization/hasher.rs:60:    pub fn new() -> Self {
+crates/vectorizer/src/normalization/hasher.rs:65:    pub fn hash(&self, content: &str) -> ContentHash {
+crates/vectorizer/src/normalization/hasher.rs:71:    pub fn hash_bytes(&self, content: &[u8]) -> ContentHash {
+crates/vectorizer/src/normalization/hasher.rs:77:    pub fn verify(&self, content: &str, expected: &ContentHash) -> bool {
+crates/vectorizer/src/normalization/hasher.rs:104:    pub fn new(
+crates/vectorizer/src/normalization/hasher.rs:125:    pub fn to_bytes(&self) -> Vec<u8> {
+crates/vectorizer/src/normalization/hasher.rs:130:    pub fn from_bytes(bytes: &[u8]) -> Result<Self, crate::codec::Error> {
+crates/vectorizer/src/normalization/hasher.rs:139:    pub fn encode(bytes: impl AsRef<[u8]>) -> String {
+crates/vectorizer/src/normalization/hasher.rs:168:    pub fn decode(s: &str) -> Result<Vec<u8>, FromHexError> {
+crates/vectorizer/src/normalization/normalizer.rs:83:    pub fn new(policy: NormalizationPolicy) -> Self {
+crates/vectorizer/src/normalization/normalizer.rs:91:    pub fn normalize(&self, raw: &str, content_type: Option<ContentType>) -> NormalizedContent {
+crates/vectorizer/src/normalization/normalizer.rs:124:    pub fn normalize_query(&self, query: &str) -> String {
+crates/vectorizer/src/normalization/cache/metrics.rs:35:    pub fn new(enabled: bool) -> Self {
+crates/vectorizer/src/normalization/cache/metrics.rs:53:    pub fn record_hit(&self, tier: &str) {
+crates/vectorizer/src/normalization/cache/metrics.rs:67:    pub fn record_miss(&self) {
+crates/vectorizer/src/normalization/cache/metrics.rs:75:    pub fn record_write(&self) {
+crates/vectorizer/src/normalization/cache/metrics.rs:83:    pub fn record_eviction(&self) {
+crates/vectorizer/src/normalization/cache/metrics.rs:91:    pub fn record_error(&self) {
+crates/vectorizer/src/normalization/cache/metrics.rs:99:    pub fn record_latency(&self, tier: &str, duration: Duration) {
+crates/vectorizer/src/normalization/cache/metrics.rs:115:    pub fn stats(&self) -> CacheStats {
+crates/vectorizer/src/normalization/cache/metrics.rs:148:    pub fn reset(&self) {
+crates/vectorizer/src/normalization/cache/warm_store.rs:30:    pub fn new(base_path: &Path) -> Result<Self> {
+crates/vectorizer/src/normalization/cache/warm_store.rs:47:    pub async fn get(&self, hash: &ContentHash) -> Result<Option<String>> {
+crates/vectorizer/src/normalization/cache/warm_store.rs:75:    pub async fn put(&self, hash: ContentHash, text: &str) -> Result<()> {
+crates/vectorizer/src/normalization/cache/warm_store.rs:113:    pub async fn clear(&self) -> Result<()> {
+crates/vectorizer/src/normalization/cache/warm_store.rs:199:    pub fn len(&self) -> usize {
+crates/vectorizer/src/normalization/cache/warm_store.rs:204:    pub fn is_empty(&self) -> bool {
+crates/vectorizer/src/normalization/cache/blob_store.rs:44:    pub fn new(base_path: &Path, compression_level: i32) -> Result<Self> {
+crates/vectorizer/src/normalization/cache/blob_store.rs:61:    pub async fn get(&self, hash: &ContentHash) -> Result<Option<Vec<u8>>> {
+crates/vectorizer/src/normalization/cache/blob_store.rs:85:    pub async fn put(&self, hash: ContentHash, data: &[u8]) -> Result<()> {
+crates/vectorizer/src/normalization/cache/blob_store.rs:130:    pub async fn clear(&self) -> Result<()> {
+crates/vectorizer/src/normalization/cache/blob_store.rs:186:    pub fn len(&self) -> usize {
+crates/vectorizer/src/normalization/cache/blob_store.rs:191:    pub fn is_empty(&self) -> bool {
+crates/vectorizer/src/normalization/cache/blob_store.rs:196:    pub fn compression_stats(&self) -> CompressionStats {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:42:    pub fn new(max_size: usize) -> Self {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:51:    pub fn get(&self, key: &K) -> Option<V> {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:63:    pub fn put(&self, key: K, value: V) {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:109:    pub fn remove(&self, key: &K) -> Option<V> {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:120:    pub fn clear(&self) {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:129:    pub fn size(&self) -> usize {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:134:    pub fn len(&self) -> usize {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:139:    pub fn is_empty(&self) -> bool {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:144:    pub fn evict(&self, count: usize) -> usize {
+crates/vectorizer/src/normalization/cache/hot_cache.rs:172:    pub fn stats(&self) -> LfuStats {
+crates/vectorizer/src/normalization/cache/mod.rs:105:    pub fn new(config: CacheConfig) -> Result<Self> {
+crates/vectorizer/src/normalization/cache/mod.rs:124:    pub async fn get_normalized(&self, hash: &ContentHash) -> Result<Option<String>> {
+crates/vectorizer/src/normalization/cache/mod.rs:154:    pub async fn put_normalized(&mut self, hash: ContentHash, text: &str) -> Result<()> {
+crates/vectorizer/src/normalization/cache/mod.rs:165:    pub fn stats(&self) -> CacheStats {
+crates/vectorizer/src/normalization/cache/mod.rs:170:    pub async fn clear(&mut self) -> Result<()> {
+crates/vectorizer/src/normalization/cache/mod.rs:178:    pub fn size(&self) -> usize {
+crates/vectorizer/src/normalization/cache/mod.rs:183:    pub fn evict_lfu(&mut self, count: usize) -> usize {
