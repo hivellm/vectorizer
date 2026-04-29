@@ -16,7 +16,7 @@ categories = ["database", "science"]
 # layer to a newer alpha whose behavior we haven't vetted. When a stable
 # 0.10 or 0.11 ships, bump both pins together and retest the HA path
 # (tests/integration/cluster_ha.rs). Risk note published in CHANGELOG.
-openraft = { version = "=0.10.0-alpha.17", features = ["serde", "type-alias"] }
+openraft = { version = "=0.10.0-alpha.18", features = ["serde", "type-alias"] }
 openraft-memstore = "=0.10.0-alpha.17"
 futures = "0.3"
 ctrlc = { version = "3.5", optional = true }
