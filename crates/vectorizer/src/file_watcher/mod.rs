@@ -430,18 +430,27 @@ impl FileWatcherSystem {
 
             for vector in vectors {
                 if let Some(payload) = &vector.payload {
-                    if let Some(metadata) = payload.data.get("metadata") {
-                        if let Some(file_path) = metadata
-                            .get("file_path")
-                            .or_else(|| metadata.get("source"))
-                            .or_else(|| metadata.get("path"))
-                        {
-                            if let Some(path_str) = file_path.as_str() {
-                                let path = std::path::PathBuf::from(path_str);
-                                if path.exists() && !new_files.contains(&path) {
-                                    new_files.push(path.clone());
-                                    tracing::debug!("Added file to watcher: {:?}", path);
-                                }
+                    // Dual-shape read: flat payload (phase9 canonical) puts
+                    // file_path at the root; legacy nested payloads put it
+                    // under `metadata.file_path`. Try both.
+                    let file_path_value = payload
+                        .data
+                        .get("file_path")
+                        .or_else(|| payload.data.get("source"))
+                        .or_else(|| payload.data.get("path"))
+                        .or_else(|| {
+                            payload.data.get("metadata").and_then(|m| {
+                                m.get("file_path")
+                                    .or_else(|| m.get("source"))
+                                    .or_else(|| m.get("path"))
+                            })
+                        });
+                    if let Some(file_path) = file_path_value {
+                        if let Some(path_str) = file_path.as_str() {
+                            let path = std::path::PathBuf::from(path_str);
+                            if path.exists() && !new_files.contains(&path) {
+                                new_files.push(path.clone());
+                                tracing::debug!("Added file to watcher: {:?}", path);
                             }
                         }
                     }
@@ -498,12 +507,21 @@ impl FileWatcherSystem {
                 // Extract file paths from vector payload
                 for vector in vectors {
                     if let Some(payload) = &vector.payload {
-                        // Look for file path in payload metadata
-                        if let Some(metadata) = payload.data.get("metadata") {
-                            if let Some(file_path) = metadata
-                                .get("file_path")
-                                .or_else(|| metadata.get("source"))
-                                .or_else(|| metadata.get("path"))
+                        // Dual-shape read: flat (phase9 canonical) vs.
+                        // legacy nested under `metadata`.
+                        let file_path_value = payload
+                            .data
+                            .get("file_path")
+                            .or_else(|| payload.data.get("source"))
+                            .or_else(|| payload.data.get("path"))
+                            .or_else(|| {
+                                payload.data.get("metadata").and_then(|m| {
+                                    m.get("file_path")
+                                        .or_else(|| m.get("source"))
+                                        .or_else(|| m.get("path"))
+                                })
+                            });
+                        if let Some(file_path) = file_path_value {
                             {
                                 if let Some(path_str) = file_path.as_str() {
                                     let path = std::path::PathBuf::from(path_str);

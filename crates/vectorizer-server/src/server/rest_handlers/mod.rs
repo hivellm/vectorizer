@@ -56,7 +56,7 @@ pub use files::{
     get_file_chunks_ordered, get_file_content, get_file_summary, get_project_outline,
     get_related_files, list_files_in_collection, search_by_file_type,
 };
-pub use insert::insert_text;
+pub use insert::{insert_text, insert_vectors};
 pub use intelligent_search::{
     contextual_search, intelligent_search, multi_collection_search, semantic_search,
 };

@@ -300,6 +300,7 @@ impl VectorizerServer {
             // Vector operations - batch
             .route("/batch_insert", post(rest_handlers::batch_insert_texts))
             .route("/insert_texts", post(rest_handlers::insert_texts))
+            .route("/insert_vectors", post(rest_handlers::insert_vectors))
             .route("/batch_search", post(rest_handlers::batch_search_vectors))
             .route("/batch_update", post(rest_handlers::batch_update_vectors))
             .route("/batch_delete", post(rest_handlers::batch_delete_vectors))

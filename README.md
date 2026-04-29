@@ -63,7 +63,19 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.0.0
+## 🎉 Latest Release: v3.1.0
+
+Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+
+**Added**
+- **`POST /insert_vectors`** — bulk-insert pre-computed embeddings with caller-supplied vector ids. Skips the embedding pipeline; the request body carries the vectors as raw `Vec<f32>`. For clients with their own embedder, idempotent re-ingest by client id, or upsert without auto-chunking. See [`docs/users/api/BATCH.md`](docs/users/api/BATCH.md).
+- **Client `id` honored on `/insert` and `/insert_texts`** — the `id` field on each text entry is now used as the resulting `Vector.id` (non-chunked) or as the prefix for `<id>#<chunk_index>` chunk ids. Re-ingesting the same id upserts in place instead of duplicating; delete-by-doc and citation round-trips no longer need a UUID lookup.
+- **`payload.parent_id`** on chunked vectors — links every chunk back to its source document (the request's `id`, or a single shared UUID v4 when omitted). Lets clients group, count, or delete every chunk of a logical document without re-deriving membership from a defensive `_id` duplicate.
+
+**Changed**
+- **`/insert_texts` chunked payload layout flipped from nested to flat — BREAKING for clients that read `payload.metadata.<field>` directly.** Pre-3.1.0 chunks landed as `{content, metadata: {file_path, chunk_index, _id, casa, parlamentar, ...}}` — Qdrant payload filters `payload.parlamentar = "X"` silently missed every chunked row. 3.1.0 emits `{content, file_path, chunk_index, parent_id, _id, casa, parlamentar, ...}` with every key at the root. Server-side readers (`FileOperations`, `file_watcher`, MCP `search_semantic`) tolerate both shapes during the deprecation window. Migration guide: [CHANGELOG `[3.1.0]`](./CHANGELOG.md#migrating-from-30x-chunked-payloads).
+
+## Previous Release: v3.0.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 
@@ -345,7 +357,7 @@ Cursor / Claude Desktop config:
 
 ## 📦 Client SDKs
 
-All SDKs synchronized at **v3.0.0**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
+Server-side at **v3.1.0**. The Rust SDK tracks server versioning and is also at v3.1.0; the TypeScript, Python, Go, and C# SDKs are on v3.0.x and bump when they need a breaking server contract. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
 
 | SDK | Install |
 |---|---|

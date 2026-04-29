@@ -367,6 +367,7 @@ async fn do_batch_insert_texts(
             auto_chunk,
             chunk_size,
             chunk_overlap,
+            client_id.as_deref(),
         )
         .await;
         drop(timer);

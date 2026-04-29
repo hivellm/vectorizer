@@ -16,6 +16,41 @@ use tracing::error;
 
 use crate::intelligent_search::*;
 
+/// Flatten a vector payload into the `metadata` field MCP tools return on
+/// each search hit.
+///
+/// The current canonical write path (`/insert`, `/insert_texts`,
+/// `/insert_vectors` since phase9) emits flat payloads where user fields
+/// sit at the root: `{content, file_path, chunk_index, parent_id, casa,
+/// parlamentar, ...}`. For these payloads this is a straight clone of
+/// `payload.data` as a map.
+///
+/// Legacy chunk payloads (pre-phase9) wrapped user fields under a
+/// `metadata` sub-object: `{content, metadata: {casa, parlamentar, ...}}`.
+/// To give MCP consumers a single uniform access path
+/// (`result.metadata.<field>`) regardless of when the vector was written,
+/// we lift legacy nested keys to the root. Root keys win on collision.
+/// The original `metadata` sub-object is preserved as-is so consumers
+/// that explicitly read `result.metadata.metadata.<field>` keep working
+/// during the deprecation window.
+fn flatten_payload_metadata(payload: &crate::models::Payload) -> HashMap<String, serde_json::Value> {
+    let Some(obj) = payload.data.as_object() else {
+        return HashMap::new();
+    };
+    let mut out: HashMap<String, serde_json::Value> = obj
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+
+    if let Some(nested) = obj.get("metadata").and_then(|v| v.as_object()) {
+        for (k, v) in nested {
+            out.entry(k.clone()).or_insert_with(|| v.clone());
+        }
+    }
+
+    out
+}
+
 /// MCP Tool: Intelligent Search
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IntelligentSearchTool {
@@ -263,12 +298,7 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .and_then(|p| p.data.as_object())
-                                        .map(|map| {
-                                            map.iter()
-                                                .map(|(k, v)| (k.clone(), v.clone()))
-                                                .collect::<HashMap<String, serde_json::Value>>()
-                                        })
+                                        .map(flatten_payload_metadata)
                                         .unwrap_or_default(),
                                     score_breakdown: Some(ScoreBreakdown {
                                         relevance: result.score,
@@ -401,12 +431,7 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .and_then(|p| p.data.as_object())
-                                        .map(|map| {
-                                            map.iter()
-                                                .map(|(k, v)| (k.clone(), v.clone()))
-                                                .collect::<HashMap<String, serde_json::Value>>()
-                                        })
+                                        .map(flatten_payload_metadata)
                                         .unwrap_or_default(),
                                     score_breakdown: Some(ScoreBreakdown {
                                         relevance: result.score,
@@ -516,12 +541,7 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .and_then(|p| p.data.as_object())
-                                        .map(|map| {
-                                            map.iter()
-                                                .map(|(k, v)| (k.clone(), v.clone()))
-                                                .collect()
-                                        })
+                                        .map(flatten_payload_metadata)
                                         .unwrap_or_default(),
                                     score_breakdown: Some(ScoreBreakdown {
                                         relevance: result.score,
@@ -635,12 +655,7 @@ impl MCPToolHandler {
                                     metadata: result
                                         .payload
                                         .as_ref()
-                                        .and_then(|p| p.data.as_object())
-                                        .map(|map| {
-                                            map.iter()
-                                                .map(|(k, v)| (k.clone(), v.clone()))
-                                                .collect()
-                                        })
+                                        .map(flatten_payload_metadata)
                                         .unwrap_or_default(),
                                     score_breakdown: Some(ScoreBreakdown {
                                         relevance: result.score,
@@ -1039,5 +1054,110 @@ impl MCPToolHandler {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         results
+    }
+}
+
+#[cfg(test)]
+mod flatten_payload_tests {
+    use super::*;
+    use crate::models::Payload;
+    use serde_json::json;
+
+    #[test]
+    fn flat_payload_round_trips_unchanged() {
+        // phase9 canonical chunked payload — already flat, every key
+        // should land at the root of the returned map untouched.
+        let p = Payload::new(json!({
+            "content": "trecho do chunk",
+            "file_path": "text_input",
+            "chunk_index": 0,
+            "parent_id": "camara:2023-07-06T16:32",
+            "casa": "camara",
+            "parlamentar": "Jack Rocha",
+            "_id": "camara:2023-07-06T16:32"
+        }));
+        let m = flatten_payload_metadata(&p);
+        assert_eq!(m.get("casa").and_then(|v| v.as_str()), Some("camara"));
+        assert_eq!(
+            m.get("parlamentar").and_then(|v| v.as_str()),
+            Some("Jack Rocha")
+        );
+        assert_eq!(m.get("chunk_index").and_then(|v| v.as_u64()), Some(0));
+        assert_eq!(m.get("parent_id").and_then(|v| v.as_str()), Some("camara:2023-07-06T16:32"));
+        assert!(
+            !m.contains_key("metadata"),
+            "flat payload must not introduce a synthetic metadata key"
+        );
+    }
+
+    #[test]
+    fn legacy_nested_payload_lifts_keys_to_root() {
+        // pre-phase9 chunked payload — user fields buried under
+        // `metadata.{...}`. flatten_payload_metadata must surface them at
+        // the root so MCP consumers can read `result.metadata.parlamentar`
+        // uniformly across new and legacy collections.
+        let p = Payload::new(json!({
+            "content": "trecho legado",
+            "metadata": {
+                "file_path": "text_input",
+                "chunk_index": 0,
+                "casa": "camara",
+                "parlamentar": "Jack Rocha"
+            }
+        }));
+        let m = flatten_payload_metadata(&p);
+        assert_eq!(m.get("casa").and_then(|v| v.as_str()), Some("camara"));
+        assert_eq!(
+            m.get("parlamentar").and_then(|v| v.as_str()),
+            Some("Jack Rocha")
+        );
+        assert_eq!(
+            m.get("file_path").and_then(|v| v.as_str()),
+            Some("text_input")
+        );
+        // Original nested object is preserved for backwards compatibility
+        // (consumers reading result.metadata.metadata.<field> still work).
+        assert!(
+            m.get("metadata").and_then(|v| v.as_object()).is_some(),
+            "legacy nested object must be preserved alongside lifted keys"
+        );
+    }
+
+    #[test]
+    fn root_keys_win_collisions_against_lifted_legacy_keys() {
+        // If both root and nested have the same key (shouldn't happen in
+        // practice, but be defensive), the root value wins — never let
+        // lifting silently overwrite a key that was explicitly placed at
+        // the root.
+        let p = Payload::new(json!({
+            "casa": "ROOT_VALUE",
+            "metadata": {"casa": "LEGACY_NESTED_VALUE"}
+        }));
+        let m = flatten_payload_metadata(&p);
+        assert_eq!(m.get("casa").and_then(|v| v.as_str()), Some("ROOT_VALUE"));
+    }
+
+    #[test]
+    fn non_object_payload_returns_empty_map() {
+        let p = Payload::new(json!("just a string"));
+        let m = flatten_payload_metadata(&p);
+        assert!(m.is_empty());
+    }
+
+    #[test]
+    fn non_object_metadata_value_is_ignored() {
+        // If `metadata` exists but isn't an object (legacy edge case or
+        // garbage data), it must NOT crash and must NOT contribute keys.
+        let p = Payload::new(json!({
+            "content": "ok",
+            "metadata": "not an object"
+        }));
+        let m = flatten_payload_metadata(&p);
+        assert_eq!(m.get("content").and_then(|v| v.as_str()), Some("ok"));
+        assert_eq!(
+            m.get("metadata").and_then(|v| v.as_str()),
+            Some("not an object"),
+            "non-object metadata stays at root verbatim"
+        );
     }
 }

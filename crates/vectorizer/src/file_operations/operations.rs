@@ -15,14 +15,18 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 /// Return the metadata view for a vector payload, supporting both the
-/// canonical nested shape (`{content, metadata: {file_path, ...}}`) and
-/// the legacy flat shape (`{content, file_path, ...}`) emitted by pre-v3.0.0
-/// upload / insert paths.
+/// canonical flat shape (`{content, file_path, chunk_index, parent_id, ...user fields}`,
+/// emitted by `/insert` and `/insert_texts` since phase9) and the legacy
+/// nested shape (`{content, metadata: {file_path, ...}}`, emitted by
+/// pre-phase9 chunk paths). The flat shape lets Qdrant payload filters
+/// match user fields directly at the payload root.
 ///
 /// Returns `(view, is_flat)` where `view` is the `Value` that
 /// `.get("file_path")` etc. should be called on, and `is_flat` is true
-/// when the fallback to the flat shape was used — callers may log/count
-/// this for v3.1.0 deprecation tracking.
+/// when the new canonical flat shape was used. `is_flat == false`
+/// indicates the legacy nested shape — callers may log/count this for
+/// deprecation tracking; the layout is scheduled for removal in a
+/// future major release.
 #[inline]
 fn metadata_view(payload_data: &JsonValue) -> (&JsonValue, bool) {
     match payload_data.get("metadata") {
@@ -114,9 +118,10 @@ impl FileOperations {
         // Get all vectors from collection
         let all_vectors = coll.get_all_vectors();
 
-        // Filter vectors by file_path in metadata (dual-shape: nested
-        // `metadata.file_path` canonical, flat `file_path` legacy).
-        let mut flat_shape_hits: usize = 0;
+        // Filter vectors by file_path in metadata (dual-shape: flat
+        // `file_path` canonical since phase9, nested `metadata.file_path`
+        // legacy).
+        let mut nested_shape_hits: usize = 0;
         let mut file_chunks: Vec<_> = all_vectors
             .into_iter()
             .filter_map(|v| {
@@ -124,8 +129,8 @@ impl FileOperations {
                     let (metadata, is_flat) = metadata_view(&payload.data);
                     if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
                         if fp == file_path {
-                            if is_flat {
-                                flat_shape_hits += 1;
+                            if !is_flat {
+                                nested_shape_hits += 1;
                             }
                             let chunk_index = metadata
                                 .get("chunk_index")
@@ -145,14 +150,15 @@ impl FileOperations {
                 None
             })
             .collect();
-        if flat_shape_hits > 0 {
+        if nested_shape_hits > 0 {
             debug!(
                 collection = %collection,
                 file_path = %file_path,
-                flat_hits = flat_shape_hits,
-                "get_file_content: read {} chunk(s) via legacy flat payload shape \
-                 (deprecated, will be removed in v3.1.0)",
-                flat_shape_hits
+                nested_hits = nested_shape_hits,
+                "get_file_content: read {} chunk(s) via legacy nested payload shape \
+                 (deprecated since phase9 in favor of flat layout, will be removed \
+                 in a future major release)",
+                nested_shape_hits
             );
         }
 
@@ -265,16 +271,17 @@ impl FileOperations {
         // Get all vectors
         let all_vectors = coll.get_all_vectors();
 
-        // Group by file_path (dual-shape: nested canonical + flat legacy).
+        // Group by file_path (dual-shape: flat canonical since phase9 +
+        // nested legacy).
         let mut file_map: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
-        let mut flat_shape_hits: usize = 0;
+        let mut nested_shape_hits: usize = 0;
 
         for vector in all_vectors {
             if let Some(payload) = &vector.payload {
                 let (metadata, is_flat) = metadata_view(&payload.data);
                 if let Some(file_path) = metadata.get("file_path").and_then(|v| v.as_str()) {
-                    if is_flat {
-                        flat_shape_hits += 1;
+                    if !is_flat {
+                        nested_shape_hits += 1;
                     }
                     file_map
                         .entry(file_path.to_string())
@@ -283,13 +290,14 @@ impl FileOperations {
                 }
             }
         }
-        if flat_shape_hits > 0 {
+        if nested_shape_hits > 0 {
             debug!(
                 collection = %collection,
-                flat_hits = flat_shape_hits,
-                "list_files_in_collection: read {} vector(s) via legacy flat \
-                 payload shape (deprecated, will be removed in v3.1.0)",
-                flat_shape_hits
+                nested_hits = nested_shape_hits,
+                "list_files_in_collection: read {} vector(s) via legacy nested \
+                 payload shape (deprecated since phase9 in favor of flat layout, \
+                 will be removed in a future major release)",
+                nested_shape_hits
             );
         }
 
@@ -666,7 +674,7 @@ impl FileOperations {
 
         // Get all vectors and filter by file_path
         let all_vectors = coll.get_all_vectors();
-        let mut flat_shape_hits: usize = 0;
+        let mut nested_shape_hits: usize = 0;
         let mut file_chunks: Vec<_> = all_vectors
             .into_iter()
             .filter_map(|v| {
@@ -674,8 +682,8 @@ impl FileOperations {
                     let (metadata, is_flat) = metadata_view(&payload.data);
                     if let Some(fp) = metadata.get("file_path").and_then(|v| v.as_str()) {
                         if fp == file_path {
-                            if is_flat {
-                                flat_shape_hits += 1;
+                            if !is_flat {
+                                nested_shape_hits += 1;
                             }
                             let chunk_index = metadata
                                 .get("chunk_index")
@@ -704,14 +712,15 @@ impl FileOperations {
                 None
             })
             .collect();
-        if flat_shape_hits > 0 {
+        if nested_shape_hits > 0 {
             debug!(
                 collection = %collection,
                 file_path = %file_path,
-                flat_hits = flat_shape_hits,
-                "get_file_chunks_ordered: read {} chunk(s) via legacy flat \
-                 payload shape (deprecated, will be removed in v3.1.0)",
-                flat_shape_hits
+                nested_hits = nested_shape_hits,
+                "get_file_chunks_ordered: read {} chunk(s) via legacy nested \
+                 payload shape (deprecated since phase9 in favor of flat layout, \
+                 will be removed in a future major release)",
+                nested_shape_hits
             );
         }
 

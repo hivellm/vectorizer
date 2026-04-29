@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.0] - 2026-04-29
+
+### Added
+
+- **`POST /insert_vectors` — bulk-insert pre-computed embeddings with caller-supplied vector ids.** Skips the embedding pipeline entirely; the request body carries the vectors as raw `Vec<f32>`. Useful when the client already has its own embedder, needs deterministic ids for idempotent re-ingest, or wants to upsert without going through the chunk-and-embed path. Request shape: `{collection, vectors: [{id?, embedding, payload?, metadata?}], public_key?}`. Response shape mirrors `/insert_texts`: `{collection, inserted, failed, count, results: [{index, client_id, status, vector_ids}]}`. Per-entry validation rejects with HTTP 400 when `embedding.len() != collection.dimension`, when the embedding array contains a non-numeric value, or when an explicit `id` violates the client-id contract (see below). Quota / Raft / cache-invalidation post-processing is shared with `/insert_texts`.
+- **`POST /insert` and `POST /insert_texts` honor the request `id` field as the resulting `Vector.id`.** Previously the `id` was parsed and silently echoed back as `client_id` in the response, but the actual stored Vector always got a fresh `Uuid::new_v4()` — re-ingesting the same document produced duplicates and there was no path from a logical client id to the (multiple) UUIDs spawned by chunking. Now: non-chunked inputs use the client `id` verbatim; chunked inputs derive `<client_id>#<chunk_index>` (e.g. `doc:42#0`, `doc:42#1`, ...) so re-running the same `/insert_texts` payload upserts in place instead of duplicating, and `DELETE` / `POST /qdrant/.../points` round-trips by client id work without a UUID lookup. Falling back to a server UUID still works when the request omits `id`, so existing callers that never sent the field are unchanged. Client-id contract: non-empty, length ≤ 256, no leading / trailing whitespace, must not contain `#` (reserved as the chunk-id separator) — violations return HTTP 400 with `error_type: "validation_error"`.
+- **`payload.parent_id` on chunked vectors links chunks back to the source document.** Set to the request's `id` when provided; otherwise a single freshly-minted UUID v4 is shared across every chunk of the same `/insert_texts` entry. Lets clients group, count, or delete every chunk of a logical document without re-deriving membership from the `_id`-in-payload defensive duplicate.
+
+### Changed
+
+- **`/insert_texts` chunked payload layout flipped from nested to flat — BREAKING for clients that read `payload.metadata.<field>` directly.** Pre-3.1.0 chunks landed as `{content, metadata: {file_path, chunk_index, _id, casa, parlamentar, ...}}` — file-navigation fields *and* user metadata buried under a `metadata` sub-object. Qdrant payload filters (`payload.parlamentar = "X"`) silently missed every chunked row because the user fields weren't at the path the filter expected, and MCP `search_semantic` consumers had to read `result.metadata.metadata.parlamentar` (two levels of nesting) instead of the obvious `result.metadata.parlamentar`. 3.1.0 emits a flat shape: `{content, file_path, chunk_index, parent_id, _id, casa, parlamentar, ...}` with every key at the root. Server-provided keys (`content`, `file_path`, `chunk_index`, `parent_id`) take precedence over any colliding keys in user metadata. Non-chunked inputs already stored metadata flat — no change there. Migration: see "Migrating from 3.0.x chunked payloads" below.
+
+  Readers tolerate both shapes during the deprecation window. `FileOperations::{get_file_content, list_files_in_collection, get_file_chunks_ordered}` and `file_watcher`'s discovery loops accept the legacy nested shape, log a `tracing::debug!("…via legacy nested payload shape (deprecated since phase9 in favor of flat layout, will be removed in a future major release)")` once per call, and resolve `file_path` from either path. `mcp_tools.rs::flatten_payload_metadata` (used by all four MCP search tools) lifts legacy nested keys to the root of the returned `metadata` map so MCP consumers can read `result.metadata.<field>` uniformly across new and legacy collections; the original nested object is preserved alongside the lifted keys, so consumers that explicitly read `result.metadata.metadata.<field>` keep working too.
+
+  No automatic on-disk rewrite ships in 3.1.0 — collections written by ≤ 3.0.13 stay nested on disk and rely on the tolerant readers. To migrate to the flat shape, re-ingest the source data through `/insert_texts` against a fresh collection or use `/insert_vectors` if you already hold the embeddings.
+
+### Migrating from 3.0.x chunked payloads
+
+If your client uses Qdrant payload filters or reads `payload.metadata.<field>` directly on chunked vectors:
+
+1. **Audit filter paths.** `payload.parlamentar = "X"` matched zero chunked rows on 3.0.x because the field lived at `payload.metadata.parlamentar`. On 3.1.0 the same filter matches new writes correctly. Old data still lives at `payload.metadata.parlamentar` until re-ingested.
+2. **MCP consumers.** Reads of `result.metadata.<field>` work on both new and legacy data after 3.1.0 — the MCP layer lifts nested keys to the root automatically. No code change required.
+3. **Re-ingest is optional.** Tolerant readers cover the legacy shape during the deprecation window. To converge a collection on the new layout, drop and re-create with `/insert_texts`, or use `/insert_vectors` with embeddings you already computed.
+4. **Idempotent re-ingest.** Send `id` in each `/insert_texts` entry to upsert by client id (`doc:42` non-chunked, `doc:42#N` per chunk). Re-running the same payload now replaces in place instead of duplicating.
+
 ## [3.0.2] - 2026-04-22
 
 ### Changed
