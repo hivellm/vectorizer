@@ -1059,9 +1059,10 @@ impl MCPToolHandler {
 
 #[cfg(test)]
 mod flatten_payload_tests {
+    use serde_json::json;
+
     use super::*;
     use crate::models::Payload;
-    use serde_json::json;
 
     #[test]
     fn flat_payload_round_trips_unchanged() {
