@@ -16,7 +16,7 @@ use crate::server::VectorizerServer;
 use crate::server::error_middleware::ErrorResponse;
 
 /// Resolve the shared bulk-upsert backpressure guard from the running
-/// config. Returns `None` when `config.yml` is unreadable / unparseable
+/// config. Returns `None` when `config.yml` is unreadable / unparsable
 /// so setup-time indexing keeps working on misconfigured deployments.
 /// Tracks issue #263.
 fn backpressure_guard_from_config() -> Option<vectorizer::db::BackpressureGuard> {

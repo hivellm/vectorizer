@@ -16,8 +16,7 @@
 
 use std::time::Duration;
 
-use vectorizer::embedding::Bm25Embedding;
-use vectorizer::embedding::EmbeddingProvider;
+use vectorizer::embedding::{Bm25Embedding, EmbeddingProvider};
 use vectorizer::monitoring::metrics::METRICS;
 
 #[test]

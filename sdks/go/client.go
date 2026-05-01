@@ -164,9 +164,9 @@ func (c *Client) WithMaster() *Client {
 // Issue #263 retry-after constants. Mirror the Rust + Python + TS
 // SDK values so back-pressure behaves consistently across clients.
 const (
-	retryAfterMaxAttempts  = 3
-	retryAfterMaxSeconds   = 30
-	retryAfterDefaultSecs  = 1
+	retryAfterMaxAttempts = 3
+	retryAfterMaxSeconds  = 30
+	retryAfterDefaultSecs = 1
 )
 
 // parseRetryAfterSeconds parses an HTTP `Retry-After` header value
