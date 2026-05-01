@@ -1,0 +1,93 @@
+{
+  "_comment": "Vectorizer backpressure panel definitions (issue #263). Drop these into an existing Grafana dashboard's `panels` array, or import as a standalone row. Datasource UID is hardcoded to 'Prometheus' to match docs/grafana/vectorizer-dashboard.json — replace if your environment uses a different UID.",
+  "panels": [
+    {
+      "title": "Upsert queue depth (per collection)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "description": "Per-collection in-flight upsert depth. Sustained growth means the producer is faster than the writer can drain. Hard limit is configured via `backpressure.upsert_queue_hard_limit` (default 1024).",
+      "targets": [
+        {
+          "expr": "vectorizer_upsert_queue_depth",
+          "legendFormat": "{{collection}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 256 },
+              { "color": "red", "value": 1024 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Vocab-build permits available",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "description": "Free permits on the global BM25 vocab-build semaphore. `0` for sustained windows = writers are queued and CPU is the bottleneck. Capacity is `backpressure.max_concurrent_vocab_builds` (0 = num_cpus).",
+      "targets": [
+        {
+          "expr": "vectorizer_vocab_build_permits_available",
+          "legendFormat": "available",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 2 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Upsert rejections / sec (by reason)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "description": "`queue_full` = HTTP 429 / gRPC RESOURCE_EXHAUSTED returned to the client. `queue_high_water_warn` = depth crossed the high-water mark but admit still succeeded — leading indicator. SDKs honor Retry-After automatically; sustained `queue_full` rate means the producer needs throttling or the hard limit needs raising.",
+      "targets": [
+        {
+          "expr": "rate(vectorizer_upsert_rejected_total[1m])",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps"
+        }
+      }
+    },
+    {
+      "title": "BM25 empty-vocabulary fallbacks / sec",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "description": "Counter is incremented on every empty-vocab fallback regardless of warn rate-limit. Sustained > 0 for an established collection means vocabulary never built — check that file_loader's `build_vocabulary_gated` step completed.",
+      "targets": [
+        {
+          "expr": "rate(vectorizer_bm25_empty_vocab_fallback_total[5m])",
+          "legendFormat": "{{collection}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rps"
+        }
+      }
+    }
+  ]
+}

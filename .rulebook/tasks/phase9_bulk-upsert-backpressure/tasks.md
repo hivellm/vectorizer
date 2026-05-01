@@ -44,9 +44,9 @@
 - [x] 7.3 Parser tests in `sdks/rust/tests/retry_after_parse.rs` (6 tests) and `sdks/python/tests/test_retry_after_parse.py` (6 tests). End-to-end 429 + `Retry-After` wire-format coverage already lives in `crates/vectorizer-server/tests/backpressure_429.rs`; both SDKs share that ground truth.
 
 ## 8. Observability runbook
-- [ ] 8.1 Document the four metrics + how to read them (`docs/operations/backpressure.md`)
-- [ ] 8.2 Document the new config knobs and env vars
-- [ ] 8.3 Add a Grafana panel JSON snippet for queue depth (under `docs/operations/grafana/`)
+- [x] 8.1 `docs/deployment/backpressure.md` covers all five backpressure metrics, what each tells the operator, and how to interpret the dashboard during incidents (sustained queue depth, wedged permits, rising rejection rate, fallback counter on a steady-state collection).
+- [x] 8.2 Same runbook documents the `backpressure:` config block, all four env-var overrides (`CORTEX_VECTORIZER_*`), and tuning guidance (per-collection caps are intentional; hard limit is admission gate not quota).
+- [x] 8.3 `docs/grafana/backpressure-panels.json` ships four production-ready Grafana panels (queue depth, permits available, rejected/sec, fallback/sec) with thresholds + descriptions matching the runbook. Importable into the existing `vectorizer-dashboard.json`.
 
 ## 9. Pre-tail verification
 - [ ] 9.1 Update `CHANGELOG.md` ("Added: backpressure for bulk upserts (#263)")
