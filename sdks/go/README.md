@@ -6,7 +6,36 @@
 High-performance Go SDK for Vectorizer vector database.
 
 **Package**: `github.com/hivellm/vectorizer-sdk-go`
-**Version**: 3.0.0
+**Version**: 3.2.0
+
+## v3.2 — backpressure-aware HTTP client (HTTP 429 + `Retry-After`)
+
+The legacy REST `Client` honors server-side bulk-upsert backpressure
+shipped in Vectorizer 3.2.0
+([#263](https://github.com/hivellm/vectorizer/issues/263)). On HTTP
+`429 Too Many Requests` the client parses `Retry-After` (seconds
+form, 1 s default, 30 s cap) via `parseRetryAfterSeconds`, sleeps,
+and retries up to 3 attempts before surfacing a typed error.
+Pre-3.2.0 clients bounced 429s into a generic 5xx and lost the retry
+budget. Identical semantics ship in every first-party SDK; lock-in
+tests live at `retry_after_test.go`.
+
+## v3.1 — `/insert_vectors` + stable client-id upserts
+
+- `client.InsertVectors(...)` — bulk-insert pre-computed embeddings
+  with caller-supplied vector ids. Skips the embedding pipeline
+  entirely.
+- `Insert` / `InsertText` / `InsertTexts`: the request `ID` is now
+  used verbatim as the stored `Vector.ID` (non-chunked) or as
+  `<id>#<chunk_index>` (chunked). Re-running the same payload
+  upserts in place.
+- Chunked vectors expose a flat payload layout (`{content,
+  file_path, chunk_index, parent_id, ...userMetadata}`); legacy
+  nested payloads from ≤ 3.0.x stay readable during the deprecation
+  window.
+
+Client-id contract: non-empty, length ≤ 256, no leading/trailing
+whitespace, must not contain `#`.
 
 ## v3.0 — VectorizerRPC is the default transport
 
@@ -99,7 +128,7 @@ A runnable end-to-end demo lives at
 go get github.com/hivellm/vectorizer-sdk-go
 
 # Or specific version
-go get github.com/hivellm/vectorizer-sdk-go@v2.2.0
+go get github.com/hivellm/vectorizer-sdk-go@v3.2.0
 ```
 
 ## Quick Start

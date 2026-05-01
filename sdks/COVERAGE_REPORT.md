@@ -2,7 +2,23 @@
 
 This document provides a comprehensive overview of test coverage for the TypeScript, Python, Rust, Go, and C# client SDKs. The standalone JavaScript SDK was retired in v3.0.0 — the TypeScript SDK ships compiled JS and covers that surface.
 
-**Current Version**: v3.0.0
+**Current Version**: v3.2.0
+
+## v3.2.0 — backpressure / Retry-After lock-in tests
+
+Every first-party SDK now ships dedicated tests for the HTTP 429 +
+`Retry-After` retry budget added in
+[#263](https://github.com/hivellm/vectorizer/issues/263). Each test
+file pins the same parser semantics (1 s default, 30 s cap, 3
+attempts) and the typed-error surface raised after retry exhaustion.
+
+| SDK | Test file |
+|---|---|
+| Rust | `sdks/rust/tests/retry_after_parse.rs` |
+| Python | `sdks/python/tests/test_retry_after_parse.py` |
+| TypeScript | `sdks/typescript/tests/retry-after.test.ts` |
+| Go | `sdks/go/retry_after_test.go` |
+| C# | `sdks/csharp/Vectorizer.Tests/RetryAfterTests.cs` |
 
 ## Coverage Summary
 
@@ -13,8 +29,8 @@ This document provides a comprehensive overview of test coverage for the TypeScr
 | TypeScript   | 85%               | 90%               | 88%               | 87%               | 15     | 11         | ✅ Standardized         |
 | Python       | 98%               | 99%               | 98%               | 97%               | 21     | 6          | ✅ Standardized         |
 | Rust         | 90%               | 95%               | 92%               | 91%               | 8      | 5          | ✅ Standardized         |
-| Go           | 🚧 In Development | 🚧 In Development | 🚧 In Development | 🚧 In Development | 7      | 0          | ✅ Standardized         |
-| C#           | 🚧 In Development | 🚧 In Development | 🚧 In Development | 🚧 In Development | 6      | 0          | ✅ Standardized         |
+| Go           | 🚧 partial        | 🚧 partial        | 🚧 partial        | 🚧 partial        | 7      | 4+         | ✅ Standardized         |
+| C#           | 🚧 partial        | 🚧 partial        | 🚧 partial        | 🚧 partial        | 6      | 54+        | ✅ Standardized         |
 | **Combined** | **89.3%**         | **94.0%**         | **92.0%**         | **91.3%**         | **57** | **22**     | **✅ All Standardized** |
 
 ### Coverage Thresholds
@@ -441,9 +457,9 @@ This document provides a comprehensive overview of test coverage for the TypeScr
 - **JavaScript**: 140+ tests (after WebSocket removal)
 - **Python**: 184+ tests (comprehensive test suite - 318% increase)
 - **Rust**: 88+ tests (comprehensive test suite)
-- **Go**: 🚧 Tests pending (SDK in development)
-- **C#**: 🚧 Tests pending (SDK in development)
-- **Total**: 562+ tests (4 SDKs with comprehensive coverage)
+- **Go**: 4+ targeted tests (`qdrant_test.go`, `graph_test.go`, `file_upload_test.go`, `retry_after_test.go`) — broad coverage pending
+- **C#**: 54+ tests in `Vectorizer.Sdk.Rpc` (framing, endpoint, RPC, pool, DI) plus `RetryAfterTests` for the v3.2.0 budget
+- **Total**: 620+ tests (TS + Py + Rust comprehensive; Go + C# targeted with v3.2.0 `Retry-After` lock-in)
 
 ## Coverage Tools and Configuration
 
@@ -588,19 +604,22 @@ The Hive Vectorizer Client SDKs have achieved comprehensive test coverage with 9
 - ✅ **Error Handling**: Complete coverage of all error variants
 - ✅ **Standardized Examples**: Complete basic example with all operations
 
-### Go SDK 🚧 **IN DEVELOPMENT**
+### Go SDK 🚧 **PARTIAL COVERAGE**
 
 - ✅ **Standardized Examples**: Complete basic example with all operations
-- 🚧 **Test Suite**: Pending implementation
-- ✅ **REST-Only Architecture**: Complete REST API implementation
+- ✅ **Targeted tests**: `qdrant_test.go`, `graph_test.go`, `file_upload_test.go`, `retry_after_test.go` (HTTP 429 + `Retry-After` budget locked-in for v3.2.0)
+- 🚧 **Broad coverage suite**: Pending — module-level branch/function coverage not yet measured
+- ✅ **REST + RPC Architecture**: REST + VectorizerRPC client (port 15503)
 - ✅ **Core Features**: Collection management, vector operations, search, intelligent search
 - ✅ **Error Handling**: Comprehensive error types and handling
 
-### C# SDK 🚧 **IN DEVELOPMENT**
+### C# SDK 🚧 **PARTIAL COVERAGE**
 
 - ✅ **Standardized Examples**: Complete basic example with all operations
-- 🚧 **Test Suite**: Pending implementation
-- ✅ **REST-Only Architecture**: Complete REST API implementation
+- ✅ **`Vectorizer.Sdk.Rpc` test suite**: 54 / 0 / 0 framing, endpoint, value round-trip, RPC client, pool, DI tests
+- ✅ **`RetryAfterTests`**: HTTP 429 + `Retry-After` budget locked-in for v3.2.0
+- 🚧 **Legacy `Vectorizer.Sdk` REST suite**: Targeted tests only — branch/function coverage not yet measured
+- ✅ **REST + RPC Architecture**: `IVectorizerClient` over `RpcVectorizerClient` and `HttpVectorizerClient`
 - ✅ **Async/Await Support**: Full async/await pattern implementation
 - ✅ **Type Safety**: Strong typing with .NET 8.0+ features
 - ✅ **Error Handling**: Comprehensive exception handling

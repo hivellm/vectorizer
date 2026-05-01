@@ -7,8 +7,37 @@
 A comprehensive Python SDK for the Vectorizer semantic search service.
 
 **Package**: `vectorizer_sdk` (PEP 625 compliant)
-**Version**: 3.0.0
+**Version**: 3.2.0
 **PyPI**: https://pypi.org/project/vectorizer-sdk/
+
+## v3.2 — backpressure-aware client (HTTP 429 + `Retry-After`)
+
+The REST `VectorizerClient` honors server-side bulk-upsert
+backpressure shipped in Vectorizer 3.2.0
+([#263](https://github.com/hivellm/vectorizer/issues/263)). On HTTP
+`429 Too Many Requests` the client parses `Retry-After` (seconds
+form, 1 s default, 30 s cap), sleeps, and retries up to 3 times
+before raising a typed `RateLimitError`. Pre-3.2.0 clients bounced
+429s into a generic 5xx and lost the retry budget. Identical
+semantics ship in every first-party SDK (Rust, Python, TypeScript,
+Go, C#) — see `tests/test_retry_after_parse.py`.
+
+## v3.1 — `/insert_vectors` + stable client-id upserts
+
+- `insert_vectors(collection, vectors, public_key=None)` — bulk-
+  insert pre-computed embeddings with caller-supplied vector ids.
+  Skips the embedding pipeline entirely.
+- `insert` / `insert_texts`: the request `id` is now used verbatim
+  as the stored `Vector.id` (non-chunked) or as `<id>#<chunk_index>`
+  (chunked). Re-running the same payload upserts in place instead
+  of duplicating.
+- Chunked vectors expose a flat payload layout (`{content,
+  file_path, chunk_index, parent_id, ...user_metadata}`). Legacy
+  nested payloads from ≤ 3.0.x stay readable during the deprecation
+  window.
+
+Client-id contract: non-empty, length ≤ 256, no leading/trailing
+whitespace, must not contain `#`.
 
 ## v3.0 — VectorizerRPC is the default transport
 
@@ -91,7 +120,7 @@ for a runnable end-to-end example.
 pip install vectorizer-sdk
 
 # Or specific version
-pip install vectorizer-sdk==3.0.0
+pip install vectorizer-sdk==3.2.0
 ```
 
 ## Package Layout (v3.x)

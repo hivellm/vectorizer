@@ -6,7 +6,11 @@
 
 **🐳 Docker Hub**: [https://hub.docker.com/r/hivehub/vectorizer](https://hub.docker.com/r/hivehub/vectorizer)
 
-A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications. v3.0.0 ships a binary RPC transport (MessagePack over TCP, port `15503`) as the recommended primary channel alongside REST + MCP on `15002`.
+A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications. The v3.x line ships a binary RPC transport (MessagePack over TCP, port `15503`) as the recommended primary channel alongside REST + MCP on `15002`.
+
+**v3.2.0 highlights** ([#263](https://github.com/hivellm/vectorizer/issues/263)): bounded-resource bulk-upsert backpressure (per-collection upsert admission, BM25 vocab-build semaphore, log rate-limiting), HTTP `429 Too Many Requests` + `Retry-After` on overload, and five new Prometheus metrics under `vectorizer_*`. Validated end-to-end with a docker smoke test that drives ~65 well-formed 429s under a 200-concurrent-insert flood while `/health` stays `healthy`.
+
+**v3.1.0 highlights**: `POST /insert_vectors` for bulk-insert of pre-computed embeddings with caller-supplied vector ids, stable client-id upserts on `/insert` / `/insert_texts` (re-running the same payload upserts in place), and a flat chunked-payload layout (`{content, file_path, chunk_index, parent_id, ...userMetadata}`) — Qdrant payload filters now match every chunked row.
 
 ## 🚀 Quick Start
 
@@ -18,7 +22,7 @@ docker run -d \
   -p 15002:15002 \
   -p 15503:15503 \
   --restart unless-stopped \
-  hivehub/vectorizer:3.0.0
+  hivehub/vectorizer:3.2.0
 ```
 
 First boot creates an admin user and writes credentials to `/root/.local/share/vectorizer/.root_credentials` inside the container (read with `docker exec` + `cat` or `docker cp` — the image is distroless so there's no shell). Rotate via the dashboard or `/auth` API as soon as you've copied them.
@@ -32,7 +36,7 @@ docker run -d \
   -p 15503:15503 \
   -v $(pwd)/vectorizer-data:/vectorizer/data \
   --restart unless-stopped \
-  hivehub/vectorizer:3.0.0
+  hivehub/vectorizer:3.2.0
 ```
 
 The `/vectorizer/data` mount holds the `.vecdb` store, `config.yml`, `workspace.yml`, logs, and the root-credentials file. One mount is enough — the binary creates everything underneath on first boot.
@@ -42,7 +46,7 @@ The `/vectorizer/data` mount holds the `.vecdb` store, `config.yml`, `workspace.
 ```yaml
 services:
   vectorizer:
-    image: hivehub/vectorizer:3.0.0
+    image: hivehub/vectorizer:3.2.0
     container_name: vectorizer
     # Distroless nonroot (UID 65532) refuses host-UID bind mounts on
     # Docker Desktop for Windows / macOS; flip to `user: root` if your
@@ -64,10 +68,12 @@ services:
     restart: unless-stopped
 ```
 
-> ⚠️ **Healthcheck note.** The image is **distroless** — there's no `curl`, `wget`, or `sh`. `test: ["CMD", "curl", ...]` will always mark the container unhealthy. Use an external TCP probe, a reverse-proxy healthcheck against `/health`, or a Kubernetes `httpGet` liveness/readiness probe instead.
+> ✅ **Healthcheck note.** Since v3.0.1 the image ships a static `busybox` at `/busybox` and a built-in `HEALTHCHECK` (`/busybox wget -q --spider http://127.0.0.1:15002/health`). `docker compose ps` reports `(healthy)` once the server is up — no overrides needed. If you customize the healthcheck on Compose / Kubernetes, point it at the same `/busybox wget` command or use a TCP probe; `curl` and `sh` are still absent from the runtime image.
 
-## ✨ Features (v3.0.0)
+## ✨ Features (v3.2.0)
 
+- **🛡️ Backpressure-aware ingest** — bounded-resource bulk-upsert: per-collection admission with `429 Too Many Requests` + `Retry-After` on overload, BM25 vocab-build semaphore, structured `queue_full` MCP error, gRPC `RESOURCE_EXHAUSTED`. Configured via `backpressure.{max_concurrent_vocab_builds,upsert_queue_high_water,upsert_queue_hard_limit}` in `config.yml`. All five first-party SDKs honor `Retry-After` (1 s default, 30 s cap, 3 retries).
+- **🆔 Stable client-id upserts** — `POST /insert_texts` and `POST /insert` use the request `id` verbatim as `Vector.id` (or `<id>#<chunkIndex>` for chunked entries). Re-running the same payload upserts in place. Bulk `POST /insert_vectors` ingests pre-computed embeddings without going through the embedding pipeline.
 - **⚡ VectorizerRPC** — length-prefixed MessagePack over raw TCP on port `15503`, ~10× lower per-frame overhead than REST/JSON. Default binary transport across every SDK (Rust, TypeScript, Go, Python, C#).
 - **🔍 Semantic Search** — Cosine / Euclidean / Dot Product, HNSW indexing, sub-3 ms typical search, hybrid dense + sparse (BM25) with rank fusion.
 - **⚡ SIMD Acceleration** — AVX2 on x86_64, NEON on aarch64, scalar fallback. CPU-feature detection at boot.
@@ -80,14 +86,18 @@ services:
 - **🎯 MCP Integration** — focused tool-per-action MCP 2025-03-26 server on `POST /mcp` (streamable HTTP).
 - **🕸️ Graph Relationships** — relationship discovery + traversal, GUI-backed.
 - **🔒 Auth enforcement** — JWT + API Key with RBAC gating **every** data route when `auth.enabled: true`.
-- **📊 Observability** — Prometheus metrics at `/prometheus/metrics`, OpenTelemetry OTLP export, structured tracing via `RUST_LOG`.
+- **📊 Observability** — Prometheus metrics at `/prometheus/metrics` (now including `upsert_queue_depth`, `upsert_in_flight`, `vocab_build_permits_available`, `upsert_rejected_total{reason}`, `bm25_empty_vocab_fallback_total{collection}`), OpenTelemetry OTLP export, structured tracing via `RUST_LOG`. Operator runbook at [`docs/deployment/backpressure.md`](https://github.com/hivellm/vectorizer/blob/main/docs/deployment/backpressure.md) and importable Grafana panels at [`docs/grafana/backpressure-panels.json`](https://github.com/hivellm/vectorizer/blob/main/docs/grafana/backpressure-panels.json).
 
 ## 📦 Tags
 
 | Tag | Points to | Notes |
 |---|---|---|
-| `3.0.0` | v3.0.0 release | Current stable. Workspace-split crates, RPC-default, Edition 2024. |
-| `latest` | same as `3.0.0` | Updated on every stable tag. Pin to a specific version in production. |
+| `3.2.0` | v3.2.0 release | **Current stable.** Bulk-upsert backpressure, `Retry-After` SDKs, new Prometheus metrics. |
+| `3.1.0` | v3.1.0 release | `/insert_vectors`, stable client-id upserts, flat chunked-payload layout. |
+| `3.0.2` | v3.0.2 release | Docker Hardened Image base (`dhi.io/debian-base:trixie`); ~88 MB compressed; Scout-compliant. |
+| `3.0.1` | v3.0.1 release | Built-in `HEALTHCHECK` via static busybox; SDK CI / build fixes. |
+| `3.0.0` | v3.0.0 release | First v3 cut: workspace-split crates, RPC-default, Edition 2024. |
+| `latest` | same as `3.2.0` | Updated on every stable tag. Pin to a specific version in production. |
 
 Older `1.x` / `2.x` tags remain on Docker Hub for rollback but are no longer receiving updates.
 
@@ -103,7 +113,7 @@ Older `1.x` / `2.x` tags remain on Docker Hub for rollback but are no longer rec
 | `http://localhost:15002/graphql` | GraphQL endpoint |
 | `http://localhost:15002/mcp` | MCP server (streamable HTTP, protocol `2025-03-26`) |
 | `http://localhost:15002/umicp` | UMICP transport discovery |
-| `http://localhost:15002/health` | Health check (anonymous, returns `{"status":"healthy","version":"3.0.0",...}`) |
+| `http://localhost:15002/health` | Health check (anonymous, returns `{"status":"healthy","version":"3.2.0",...}`) |
 | `http://localhost:15002/prometheus/metrics` | Prometheus scrape target |
 
 ## 🛠️ Configuration
@@ -118,6 +128,10 @@ Older `1.x` / `2.x` tags remain on Docker Hub for rollback but are no longer rec
 | `VECTORIZER_ADMIN_USERNAME` | `admin` | Admin username seeded on first boot. |
 | `VECTORIZER_ADMIN_PASSWORD` | *(prompted on boot)* | Admin password. Set this in production or the server writes a generated one to the `.root_credentials` file. |
 | `VECTORIZER_JWT_SECRET` | *(generated)* | Minimum 32 chars for production; share across HA-cluster nodes so JWTs are portable. |
+| `CORTEX_VECTORIZER_BACKPRESSURE_ENABLED` | `true` | v3.2.0+ — global enable for the bulk-upsert backpressure layer. |
+| `CORTEX_VECTORIZER_MAX_CONCURRENT_BUILDS` | `num_cpus` | v3.2.0+ — semaphore for the BM25 vocab-build hot path. |
+| `CORTEX_VECTORIZER_UPSERT_HIGH_WATER` | `256` | v3.2.0+ — per-collection in-flight-depth at which the server emits a structured warn + bumps `upsert_rejected_total{reason="queue_high_water_warn"}` (still admits the request). |
+| `CORTEX_VECTORIZER_UPSERT_HARD_LIMIT` | `1024` | v3.2.0+ — per-collection in-flight-depth at which new upserts are refused with `429 Too Many Requests` + `Retry-After`. |
 | `RUST_LOG` | `info` | Per-module tracing filter, e.g. `vectorizer=debug,hyper=info`. |
 | `TZ` | `Etc/UTC` | Container timezone. |
 | `RUN_MODE` | `production` | `production` or `development`. |
@@ -207,12 +221,13 @@ curl -X POST http://localhost:15002/graph/discover/docs \
 
 ## 🏷️ Image Details
 
-- **Base Image**: `gcr.io/distroless/cc-debian12:nonroot` (minimal attack surface, no shell, near-zero CVEs)
-- **Default User**: nonroot (UID 65532)
+- **Base Image**: `dhi.io/debian-base:trixie` (Docker Hardened Image — Docker-signed, Scout-native, weekly rebuilds, CIS-compliant). v3.0.0 shipped on `gcr.io/distroless/cc-debian12:nonroot`; v3.0.2 swapped to DHI to make Scout's "Approved Base Images" + "Up-to-Date Base Images" policies flip to `Compliant`.
+- **Default User**: nonroot (UID 65532). Every `COPY` in the runtime stage is `--chown=65532:65532` so the binary writes `config.yml` / `workspace.yml` on first boot without `--user root`.
 - **Architectures**: `linux/amd64`, `linux/arm64` (multi-arch manifest)
-- **Compressed Size**: ~66 MB (v3.0.0 default build, `--no-default-features` excludes ONNX/GPU)
+- **Compressed Size**: ~88 MB (v3.0.2+ on DHI; +21 MB vs the original distroless build because debian-base ships `bash` + full `libssl`/`libcrypto`/`libsystemd`/`libreadline`).
+- **Healthcheck**: built-in `HEALTHCHECK ... CMD ["/busybox", "wget", "-q", "--spider", "http://127.0.0.1:15002/health"]` (a static `busybox:stable-musl` is COPY-ed into `/busybox` and used **only** as the healthcheck entrypoint).
 - **Rust Edition**: 2024 (mandatory, pinned rustc ≥ 1.90 per async-graphql / asynk-strim floor)
-- **Build Flags**: `--package vectorizer-server --bin vectorizer --no-default-features`
+- **Build Flags**: `--package vectorizer-server --bin vectorizer --no-default-features` (excludes ONNX / FastEmbed / GPU / Transmutation from the default image to keep the dependency surface small).
 - **Supply Chain**: SPDX SBOM embedded at `/vectorizer/vectorizer.spdx.json`, OpenContainer labels for revision, source, and licenses
 - **License**: Apache-2.0
 
@@ -228,7 +243,7 @@ docker run -d \
   -v $(pwd)/workspace.yml:/vectorizer/workspace.yml \
   -v $(pwd):/workspace:ro \
   --restart unless-stopped \
-  hivehub/vectorizer:3.0.0
+  hivehub/vectorizer:3.2.0
 ```
 
 ### Debug Logging
@@ -239,7 +254,7 @@ docker run -d \
   -p 15002:15002 \
   -e RUST_LOG="vectorizer=debug,vectorizer::replication=trace,hyper=info" \
   -e RUST_BACKTRACE=1 \
-  hivehub/vectorizer:3.0.0
+  hivehub/vectorizer:3.2.0
 ```
 
 ### Pinning by Digest (Production)
@@ -263,8 +278,11 @@ Apache-2.0 License — see [LICENSE](https://github.com/hivellm/vectorizer/blob/
 
 **📦 Pull:**
 ```bash
-docker pull hivehub/vectorizer:3.0.0
+docker pull hivehub/vectorizer:3.2.0
 docker pull hivehub/vectorizer:latest
+# Or pin earlier v3.x stable points:
+docker pull hivehub/vectorizer:3.1.0
+docker pull hivehub/vectorizer:3.0.2
 ```
 
 **🔗 Repository**: [https://hub.docker.com/r/hivehub/vectorizer](https://hub.docker.com/r/hivehub/vectorizer)

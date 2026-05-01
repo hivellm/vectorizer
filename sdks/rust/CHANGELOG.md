@@ -2,6 +2,94 @@
 
 All notable changes to the Hive Vectorizer Rust SDK will be documented in this file.
 
+## [3.2.0] - 2026-05-01
+
+### Added
+
+- **Backpressure-aware HTTP transport.** Honors the server-side
+  bulk-upsert backpressure shipped in Vectorizer 3.2.0
+  ([#263](https://github.com/hivellm/vectorizer/issues/263)). On HTTP
+  `429 Too Many Requests` the client parses `Retry-After` (seconds
+  form), sleeps via `tokio::time::sleep`, and retries — bounded by
+  the same 3-attempt / 30 s-cap / 1 s-default policy used by every
+  other first-party SDK. After retry exhaustion a typed
+  `VectorizerError::RateLimit` is surfaced. Implementation in
+  `src/http_transport.rs::parse_retry_after_secs`; lock-in tests at
+  `tests/retry_after_parse.rs`.
+- `vectorizer-protocol` path dep pinned to the matching server
+  version so `cargo publish` resolves the registry version cleanly.
+
+### Changed
+
+- Version bumped to 3.2.0 to track the server release.
+
+## [3.1.0] - 2026-04-29
+
+### Added
+
+- **`VectorizerClient::insert_vectors(...)`** — bulk-insert pre-
+  computed embeddings with caller-supplied vector ids. Skips the
+  embedding pipeline entirely.
+- **`insert` / `insert_texts` accept `id`** as the stored
+  `Vector.id`. Non-chunked inputs use the client `id` verbatim;
+  chunked inputs derive `<id>#<chunk_index>` (e.g. `doc:42#0`,
+  `doc:42#1`). Re-running the same payload upserts in place.
+- **`payload.parent_id` on chunked vectors** links chunks back to
+  the source document.
+
+### Changed
+
+- **Chunked-payload layout flipped from nested to flat — BREAKING
+  for clients reading `payload.metadata.<field>` directly.** Pre-
+  3.1.0 chunks landed as `{content, metadata: {file_path,
+  chunk_index, ...}}`. 3.1.0 emits `{content, file_path,
+  chunk_index, parent_id, ...}` with every key at the root. Server-
+  provided keys take precedence over user metadata. Readers tolerate
+  both shapes during the deprecation window. See the parent-repo
+  CHANGELOG for the migration matrix.
+
+### Note
+
+Client-id contract: non-empty, length ≤ 256, no leading/trailing
+whitespace, must not contain `#` (reserved as the chunk-id
+separator). Violations return HTTP 400 with
+`error_type: "validation_error"`.
+
+## [3.0.0] - 2026-04-19
+
+### Added
+
+- **VectorizerRPC client** (new default transport in v3.x). Binary,
+  length-prefixed MessagePack over raw TCP (port 15503), spec at
+  `docs/specs/VECTORIZER_RPC.md`. Polyglot parity with the Python,
+  TypeScript, Go, and C# SDKs.
+  - `RpcClient` (`tokio::net::TcpStream`) multiplexes calls on a
+    single TCP connection by `Request.id` into per-call oneshots.
+  - `parse_endpoint_url` — canonical URL parser shared with every
+    other Vectorizer SDK. Accepts `vectorizer://host:port`,
+    `vectorizer://host` (default port 15503), bare `host:port`, and
+    `http(s)://host:port`. Rejects userinfo credentials.
+  - `HelloPayload` / `HelloResponse` — sticky per-connection auth
+    handshake.
+  - `RpcPool` with bounded `max_connections` and an RAII guard.
+  - Typed wrappers: `list_collections`, `get_collection_info`,
+    `get_vector`, `search_basic`. Match the polyglot SDK shapes.
+
+### Changed
+
+- Bumped to v3.0.0 to mark the new default transport. The legacy
+  HTTP path stays available behind the default-on `http` Cargo
+  feature.
+- README rewritten with an RPC-first quickstart and a "Switching
+  transports" matrix.
+
+### Note
+
+The package surface is **additive** for existing 1.x callers:
+`VectorizerClient` and every model still import from the same paths.
+The 3.0 marker reflects that the recommended transport changes —
+there is no forced migration of existing code.
+
 ## [1.3.0] - 2025-11-15
 
 ### Added

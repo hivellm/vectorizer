@@ -7,7 +7,36 @@
 High-performance Rust SDK for Vectorizer vector database.
 
 **Package**: `vectorizer-sdk`  
-**Version**: 3.0.0 (RPC-first; HTTP fallback retained)
+**Version**: 3.2.0 (RPC-first; HTTP fallback retained)
+
+## v3.2 — backpressure-aware HTTP client (HTTP 429 + `Retry-After`)
+
+The HTTP transport honors the server-side bulk-upsert backpressure
+shipped in Vectorizer 3.2.0
+([#263](https://github.com/hivellm/vectorizer/issues/263)). On HTTP
+`429 Too Many Requests` the client parses `Retry-After` (seconds
+form, 1 s default, 30 s cap), sleeps, and retries up to 3 times
+before surfacing `VectorizerError::RateLimit`. Pre-3.2.0 clients
+bounced 429s into a generic 5xx and lost the retry budget. The
+`vectorizer-sdk` parses `Retry-After` via `parse_retry_after_secs`
+in `src/http_transport.rs`; lock-in tests live at
+`tests/retry_after_parse.rs`.
+
+## v3.1 — `/insert_vectors` + stable client-id upserts
+
+- `VectorizerClient::insert_vectors(...)` — bulk-insert pre-computed
+  embeddings with caller-supplied vector ids. Skips the embedding
+  pipeline entirely.
+- `insert` / `insert_texts`: the request `id` is now used verbatim
+  as the stored `Vector.id` (non-chunked) or as `<id>#<chunk_index>`
+  (chunked). Re-running the same payload upserts in place.
+- Chunked vectors expose a flat payload layout (`{content,
+  file_path, chunk_index, parent_id, ...user_metadata}`); legacy
+  nested payloads from ≤ 3.0.x stay readable during the deprecation
+  window.
+
+Client-id contract: non-empty, length ≤ 256, no leading/trailing
+whitespace, must not contain `#`.
 
 ## ✅ Status: v3.0.0 — VectorizerRPC default transport
 
@@ -28,7 +57,7 @@ the URL scheme you have:
 
 ```toml
 [dependencies]
-vectorizer-sdk = "3.0"
+vectorizer-sdk = "3.2"
 tokio = { version = "1", features = ["full"] }
 ```
 

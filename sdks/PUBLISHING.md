@@ -132,11 +132,11 @@ The publishing scripts perform the following steps:
 
 Before publishing, the scripts run:
 
-- **TypeScript SDK**: 352+ tests (✅ Published v3.0.0)
-- **Python SDK**: 184+ tests (✅ Published v3.0.0)
-- **Rust SDK**: 88+ tests (✅ Published v3.0.0)
-- **C# SDK**: Tests included (✅ Published v3.0.0; `Vectorizer.Sdk.Rpc` adds 54 framing/transport tests)
-- **Go SDK**: Tests included (✅ Released v3.0.0)
+- **TypeScript SDK**: 352+ tests (✅ Published v3.2.0)
+- **Python SDK**: 184+ tests (✅ Published v3.2.0)
+- **Rust SDK**: 88+ tests (✅ Published v3.2.0)
+- **C# SDK**: Tests included (✅ Published v3.2.0; `Vectorizer.Sdk.Rpc` adds 54 framing/transport tests)
+- **Go SDK**: Tests included (✅ Released v3.2.0)
 
 ## Manual Publishing (Alternative)
 
@@ -177,7 +177,7 @@ Before publishing, update version numbers in:
 ```json
 // package.json
 {
-  "version": "3.0.0"
+  "version": "3.2.0"
 }
 ```
 
@@ -186,7 +186,7 @@ Before publishing, update version numbers in:
 ```python
 # pyproject.toml
 [project]
-version = "3.0.0"
+version = "3.2.0"
 ```
 
 #### Rust SDK
@@ -194,14 +194,14 @@ version = "3.0.0"
 ```toml
 # Cargo.toml
 [package]
-version = "3.0.0"
+version = "3.2.0"
 ```
 
 #### C# SDK
 
 ```xml
 <!-- Vectorizer.csproj -->
-<Version>3.0.0</Version>
+<Version>3.2.0</Version>
 ```
 
 ### Version Guidelines
@@ -324,7 +324,7 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
 ```
 
-## v3.0.0 Publish Runbook
+## v3.2.0 Publish Runbook
 
 This is the one-command-per-SDK sequence for cutting a v3 release.
 Every command below is **token-gated** — the maintainer runs them
@@ -336,7 +336,7 @@ from a workstation that has the registry credentials below loaded:
 | `TWINE_PASSWORD` | `vectorizer` on PyPI | `~/.pypirc` or `TWINE_PASSWORD=$PYPI_TOKEN` env |
 | `CARGO_REGISTRY_TOKEN` | `vectorizer-sdk` on crates.io | `cargo login $CARGO_REGISTRY_TOKEN` |
 | `NUGET_API_KEY` | `Vectorizer.Sdk.Rpc` on NuGet | `dotnet nuget push --api-key $NUGET_API_KEY` |
-| `GITHUB_TOKEN` | `sdks/go/v3.0.0` tag push | `git push origin sdks/go/v3.0.0` |
+| `GITHUB_TOKEN` | `sdks/go/v3.2.0` tag push | `git push origin sdks/go/v3.2.0` |
 
 **Pre-publish gate**: confirm every per-SDK follow-up task under
 `phase8_fix-*-sdk-*` is archived (see
@@ -375,7 +375,7 @@ cargo publish
 # then:
 cd ../../sdks/rust
 # One-time manifest tweak if not already landed: add
-# `version = "3.0.0"` to the `vectorizer-protocol` dep in Cargo.toml.
+# `version = "3.2.0"` to the `vectorizer-protocol` dep in Cargo.toml.
 cargo publish --dry-run --allow-dirty
 cargo publish
 ```
@@ -386,7 +386,7 @@ cargo publish
 cd sdks/python
 python -m build
 twine check dist/*
-twine upload dist/vectorizer-3.0.0*
+twine upload dist/vectorizer-3.2.0*
 ```
 
 ### 4. C# — `Vectorizer.Sdk.Rpc` on NuGet
@@ -394,7 +394,7 @@ twine upload dist/vectorizer-3.0.0*
 ```bash
 cd sdks/csharp/src/Vectorizer.Rpc
 dotnet pack -c Release
-dotnet nuget push bin/Release/Vectorizer.Sdk.Rpc.3.0.0.nupkg \
+dotnet nuget push bin/Release/Vectorizer.Sdk.Rpc.3.2.0.nupkg \
   --source https://api.nuget.org/v3/index.json \
   --api-key "$NUGET_API_KEY"
 ```
@@ -406,11 +406,11 @@ Go modules are published via git tags on the module directory:
 ```bash
 cd sdks/go
 # Make sure the go.mod path matches `github.com/hivellm/vectorizer-sdk-go`
-git tag sdks/go/v3.0.0
-git push origin sdks/go/v3.0.0
+git tag sdks/go/v3.2.0
+git push origin sdks/go/v3.2.0
 
 # Verify from a clean checkout:
-go install github.com/hivellm/vectorizer-sdk-go@v3.0.0
+go install github.com/hivellm/vectorizer-sdk-go@v3.2.0
 ```
 
 ### 6. Post-publish smoke-install verification

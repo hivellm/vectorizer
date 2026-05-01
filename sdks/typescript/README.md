@@ -6,7 +6,35 @@
 High-performance TypeScript SDK for Vectorizer vector database.
 
 **Package**: `@hivehub/vectorizer-sdk`
-**Version**: 3.0.0
+**Version**: 3.2.0
+
+## v3.2 — backpressure-aware client (HTTP 429 + `Retry-After`)
+
+`VectorizerClient` now honors server-side bulk-upsert backpressure
+introduced in Vectorizer 3.2.0 ([#263](https://github.com/hivellm/vectorizer/issues/263)).
+On HTTP 429 the client parses the `Retry-After` header (seconds form,
+1 s default, 30 s cap), sleeps, and retries up to 3 times before
+surfacing a typed error. Pre-3.2.0 clients bounced 429s into a
+generic 5xx and lost the retry budget.
+
+The same semantics ship in every first-party SDK (Rust, Python,
+TypeScript, Go, C#). See `tests/retry-after.test.ts` for the
+contract.
+
+## v3.1 — `/insert_vectors` + stable client-id upserts
+
+- `insertVectors(collection, vectors, publicKey?)` — bulk-insert
+  pre-computed embeddings with caller-supplied vector ids. Skips the
+  embedding pipeline entirely.
+- `insert` / `insertTexts`: the request `id` is now used verbatim as
+  the stored `Vector.id` (non-chunked) or as `<id>#<chunkIndex>`
+  (chunked), so re-running the same payload upserts in place.
+- Chunked vectors expose a flat payload layout (`{content, file_path,
+  chunk_index, parent_id, ...userMetadata}`). Legacy nested payloads
+  from ≤ 3.0.x stay readable during the deprecation window.
+
+Client-id contract: non-empty, length ≤ 256, no leading/trailing
+whitespace, must not contain `#`.
 
 ## v3.0 — VectorizerRPC is the default transport
 

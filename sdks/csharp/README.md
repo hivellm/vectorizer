@@ -11,8 +11,38 @@ High-performance C# SDK for the Vectorizer vector database.
 
 ## What changed in 3.x
 
-`Vectorizer.Sdk.Rpc` 3.0 introduces the binary VectorizerRPC fast path
-as the default transport:
+**3.2.0 — backpressure-aware HTTP client.** Both `RpcVectorizerClient`
+and `HttpVectorizerClient` honor the server-side bulk-upsert
+backpressure shipped in Vectorizer 3.2.0
+([#263](https://github.com/hivellm/vectorizer/issues/263)). On HTTP
+`429 Too Many Requests` the HTTP transport parses `Retry-After`
+(seconds form, 1 s default, 30 s cap), sleeps, and retries up to 3
+times before throwing a typed `VectorizerException` carrying the 429
+status. Pre-3.2.0 clients bounced 429s into a generic 5xx and lost
+the retry budget. Identical semantics ship in every first-party SDK.
+Lock-in tests at `Vectorizer.Tests/RetryAfterTests.cs`.
+
+**3.1.0 — `/insert_vectors` + stable client-id upserts.**
+
+- `InsertVectorsAsync(...)` — bulk-insert pre-computed embeddings
+  with caller-supplied vector ids. Skips the embedding pipeline
+  entirely.
+- `InsertAsync` / `InsertTextsAsync` accept `Id` as the stored
+  `Vector.Id`. Non-chunked inputs use the client `Id` verbatim;
+  chunked inputs derive `<id>#<chunk_index>` (e.g. `doc:42#0`,
+  `doc:42#1`). Re-running the same payload upserts in place instead
+  of duplicating.
+- Chunked vectors expose a flat payload layout (`{content,
+  file_path, chunk_index, parent_id, ...userMetadata}`); legacy
+  nested payloads from ≤ 3.0.x stay readable during the deprecation
+  window.
+
+Client-id contract: non-empty, length ≤ 256, no leading/trailing
+whitespace, must not contain `#`.
+
+**3.0.0 — VectorizerRPC default transport.** `Vectorizer.Sdk.Rpc` 3.0
+introduces the binary VectorizerRPC fast path as the default
+transport:
 
 - `vectorizer://host[:port]` URLs connect over TCP + MessagePack (default
   port 15503). REST (`http(s)://…`) remains a first-class fallback.
@@ -88,10 +118,10 @@ Any other scheme throws `ArgumentException`. URLs carrying credentials
 in the userinfo section (e.g. `vectorizer://user:pass@host`) are
 rejected — credentials go through the `HELLO` handshake, not the URL.
 
-## Legacy REST client (`Vectorizer.Sdk` 2.x)
+## Legacy REST client (`Vectorizer.Sdk`)
 
 **Package**: `Vectorizer.Sdk`
-**Version**: 2.2.0
+**Version**: 3.2.0
 **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 
 ## Features

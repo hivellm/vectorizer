@@ -1,6 +1,6 @@
 # SDK Publishing Status
 
-All SDKs synchronized at **v3.0.0**. VectorizerRPC (binary MessagePack over TCP, port `15503`) is the default transport in every language; REST (port `15002`) remains available as a fallback via the `http(s)://...` URL scheme.
+All SDKs synchronized at **v3.2.0**. VectorizerRPC (binary MessagePack over TCP, port `15503`) is the default transport in every language; REST (port `15002`) remains available as a fallback via the `http(s)://...` URL scheme.
 
 ## ✅ **Successfully Published**
 
@@ -8,7 +8,7 @@ All SDKs synchronized at **v3.0.0**. VectorizerRPC (binary MessagePack over TCP,
 
 - **Package**: `@hivehub/vectorizer-sdk`
 - **Registry**: npm
-- **Version**: v3.0.0
+- **Version**: v3.2.0
 - **Status**: ✅ Published
 - **Installation**: `npm install @hivehub/vectorizer-sdk`
 - **Note**: Ships compiled CommonJS + ESM and works from plain
@@ -19,7 +19,7 @@ All SDKs synchronized at **v3.0.0**. VectorizerRPC (binary MessagePack over TCP,
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: crates.io
-- **Version**: v3.0.0
+- **Version**: v3.2.0
 - **Status**: ✅ Published successfully
 - **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.0.0"`
 
@@ -27,15 +27,15 @@ All SDKs synchronized at **v3.0.0**. VectorizerRPC (binary MessagePack over TCP,
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: PyPI
-- **Version**: v3.0.0
+- **Version**: v3.2.0
 - **Status**: ✅ Published successfully
 - **Installation**: `pip install vectorizer-sdk==3.0.0`
 
 ### C# SDK
 
-- **Packages**: `Vectorizer.Sdk` (REST), `Vectorizer.Sdk.Rpc` (RPC, new in v3.0.0)
+- **Packages**: `Vectorizer.Sdk` (REST), `Vectorizer.Sdk.Rpc` (RPC, added in v3.0.0)
 - **Registry**: NuGet
-- **Version**: v3.0.0
+- **Version**: v3.2.0
 - **Status**: ✅ Published successfully
 - **Installation**: `dotnet add package Vectorizer.Sdk` (add `Vectorizer.Sdk.Rpc` for the binary transport)
 
@@ -43,9 +43,9 @@ All SDKs synchronized at **v3.0.0**. VectorizerRPC (binary MessagePack over TCP,
 
 - **Package**: `github.com/hivellm/vectorizer-sdk-go`
 - **Registry**: Go Modules (git tag)
-- **Version**: v3.0.0
+- **Version**: v3.2.0
 - **Status**: ✅ Released
-- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.0.0`
+- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.2.0`
 
 ### Removed in v3.0.0
 
@@ -64,12 +64,12 @@ Build directly against the language-native SDKs instead.
 
 | SDK           | Registry   | Version  | Package Name                                |
 | ------------- | ---------- | -------- | ------------------------------------------- |
-| TypeScript    | npm        | v3.0.0   | @hivehub/vectorizer-sdk                     |
-| Rust          | crates.io  | v3.0.0   | vectorizer-sdk                              |
-| Python        | PyPI       | v3.0.0   | vectorizer-sdk                              |
-| C# (REST)     | NuGet      | v3.0.0   | Vectorizer.Sdk                              |
-| C# (RPC)      | NuGet      | v3.0.0   | Vectorizer.Sdk.Rpc                          |
-| Go            | Go Modules | v3.0.0   | github.com/hivellm/vectorizer-sdk-go        |
+| TypeScript    | npm        | v3.2.0   | @hivehub/vectorizer-sdk                     |
+| Rust          | crates.io  | v3.2.0   | vectorizer-sdk                              |
+| Python        | PyPI       | v3.2.0   | vectorizer-sdk                              |
+| C# (REST)     | NuGet      | v3.2.0   | Vectorizer.Sdk                              |
+| C# (RPC)      | NuGet      | v3.2.0   | Vectorizer.Sdk.Rpc                          |
+| Go            | Go Modules | v3.2.0   | github.com/hivellm/vectorizer-sdk-go        |
 
 ## 🔧 **Publishing Infrastructure**
 
@@ -97,6 +97,17 @@ Build directly against the language-native SDKs instead.
 ## 🎯 **SDK Feature Completeness**
 
 All published SDKs are **100% complete** with all latest features implemented.
+
+### New in v3.2.0
+
+- **Backpressure-aware HTTP clients across all five SDKs** ([#263](https://github.com/hivellm/vectorizer/issues/263)). On HTTP `429 Too Many Requests` each client parses `Retry-After` (1 s default, 30 s cap), sleeps, and retries up to 3 times before surfacing a typed error (`RateLimit` / `RateLimitError` / `VectorizerError(status=429)`). Lock-in tests live next to each transport: `tests/retry_after_parse.rs`, `tests/test_retry_after_parse.py`, `tests/retry-after.test.ts`, `retry_after_test.go`, `Vectorizer.Tests/RetryAfterTests.cs`.
+- Version bumped to v3.2.0 across every SDK to track the server release.
+
+### New in v3.1.0
+
+- **`insert_vectors` / `InsertVectors` / `insertVectors` / `InsertVectorsAsync`** on every SDK — bulk-insert pre-computed embeddings with caller-supplied vector ids, skipping the embedding pipeline entirely.
+- **Stable client-id upserts** on `insert` / `insert_texts`. Non-chunked inputs use the request `id` verbatim; chunked inputs derive `<id>#<chunk_index>`. Re-running the same payload upserts in place.
+- **Flat chunked-payload layout** at the SDK boundary (`{content, file_path, chunk_index, parent_id, ...userMetadata}`). Legacy nested payloads from ≤ 3.0.x stay readable during the deprecation window.
 
 ### New in v3.0.0
 
@@ -165,7 +176,7 @@ All SDKs support automatic read/write routing for high-availability deployments:
 
 ## 📊 **Success Metrics**
 
-- **5 out of 5 SDKs** released at v3.0.0 ✅
+- **5 out of 5 SDKs** released at v3.2.0 ✅
 - **100% test coverage** maintained across all SDKs
 - **Cross-platform support** with Bash, PowerShell, and Batch scripts
 - **Comprehensive documentation** with troubleshooting guides

@@ -2,6 +2,63 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [3.2.0] - 2026-05-01
+
+### Added
+
+- **Backpressure-aware HTTP client.** Honors the new server-side
+  bulk-upsert backpressure shipped in Vectorizer 3.2.0
+  ([#263](https://github.com/hivellm/vectorizer/issues/263)). On HTTP
+  `429 Too Many Requests` the client parses `Retry-After` (seconds
+  form), sleeps, and retries — bounded by the same 3-attempt / 30 s-
+  cap / 1 s-default policy used by every other first-party SDK. After
+  retry exhaustion a `VectorizerError` carrying `status: 429` is
+  surfaced. Pre-3.2.0 clients bounced 429s into a generic 5xx and
+  lost the retry budget.
+- New tests at `tests/retry-after.test.ts` lock the parser semantics
+  and the 3-attempt budget.
+
+### Changed
+
+- Version bumped to 3.2.0 to track the server release.
+
+## [3.1.0] - 2026-04-29
+
+### Added
+
+- **`insertVectors(collection, vectors, publicKey?)`** — bulk-insert
+  pre-computed embeddings with caller-supplied vector ids. Skips the
+  embedding pipeline entirely. Useful when the client already has its
+  own embedder or wants idempotent re-ingest by stable id.
+- **`insert` / `insertTexts` accept `id`** as the stored
+  `Vector.id`. Non-chunked inputs use the client `id` verbatim;
+  chunked inputs derive `<id>#<chunkIndex>` (e.g. `doc:42#0`,
+  `doc:42#1`). Re-running the same payload now upserts in place
+  instead of duplicating, and `delete` round-trips by client id work
+  without a UUID lookup.
+- **`payload.parent_id` on chunked vectors** links chunks back to
+  the source document. Set to the request `id` when provided;
+  otherwise a single freshly-minted UUID v4 is shared across every
+  chunk of the same `insertTexts` entry.
+
+### Changed
+
+- **Chunked-payload layout flipped from nested to flat — BREAKING for
+  clients reading `payload.metadata.<field>` directly.** Pre-3.1.0
+  chunks landed as `{content, metadata: {file_path, chunk_index, ...}}`.
+  3.1.0 emits `{content, file_path, chunk_index, parent_id, ...}`
+  with every key at the root. Server-provided keys take precedence
+  over user metadata. Readers tolerate both shapes during the
+  deprecation window. See the parent-repo CHANGELOG for the
+  migration matrix.
+
+### Note
+
+Client-id contract: non-empty, length ≤ 256, no leading/trailing
+whitespace, must not contain `#` (reserved as the chunk-id
+separator). Violations return HTTP 400 with
+`error_type: "validation_error"`.
+
 ## [3.0.0] - 2026-04-19
 
 ### Added
