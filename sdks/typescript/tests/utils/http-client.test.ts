@@ -272,16 +272,25 @@ describe('HttpClient', () => {
     });
 
     it('should handle 429 Too Many Requests', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // Issue #263: HttpClient.request now honors Retry-After on 429
+      // with up to RETRY_AFTER_MAX_ATTEMPTS (3) retries. Mock EVERY
+      // attempt as 429 so the budget is exhausted, and pin Retry-After
+      // to a low value so the test runs in well under the timeout.
+      // parseRetryAfterSeconds floors to 1 s when the header is `0`,
+      // so the total wall time is ~3 s (3 attempts × 1 s).
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 429,
         statusText: 'Too Many Requests',
-        headers: new Headers({ 'content-type': 'application/json' }),
+        headers: new Headers({
+          'content-type': 'application/json',
+          'retry-after': '0',
+        }),
         json: () => Promise.resolve({ message: 'Rate limit exceeded' }),
       } as Response);
 
       await expect(httpClient.get('/test')).rejects.toThrow(RateLimitError);
-    });
+    }, 15000);
 
     it('should handle 500 Internal Server Error', async () => {
       mockFetch.mockResolvedValueOnce({
