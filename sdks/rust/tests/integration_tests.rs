@@ -391,6 +391,9 @@ async fn test_delete_collection() {
 #[tokio::test]
 async fn test_error_handling() {
     let client = VectorizerClient::new_default().unwrap();
+    if !gated_routes_available(&client).await {
+        return;
+    }
 
     // Test non-existent collection
     match client.get_collection_info("non_existent_collection").await {

@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "3.1.0"
+version = "3.2.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -16,8 +16,8 @@ categories = ["database", "science"]
 # layer to a newer alpha whose behavior we haven't vetted. When a stable
 # 0.10 or 0.11 ships, bump both pins together and retest the HA path
 # (tests/integration/cluster_ha.rs). Risk note published in CHANGELOG.
-openraft = { version = "=0.10.0-alpha.17", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.17"
+openraft = { version = "=0.10.0-alpha.18", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.18"
 futures = "0.3"
 ctrlc = { version = "3.5", optional = true }
 dirs = "6.0"

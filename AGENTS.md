@@ -16,6 +16,15 @@ These override everything else. Violation = output rejected.
 7. **Follow task sequence.** Execute `tasks.md` items in the EXACT order listed. No reordering, no cherry-picking, no starting Phase N+1 before Phase N is 100% done. The list is an ORDER, not a MENU.
 8. **Execute the full task in one turn.** Never stop mid-task to ask "should I proceed?" or "want me to also...?". Make autonomous decisions within scope. Only ask for genuine ambiguity, destructive ops, or impossible tasks.
 
+## Editing Discipline (Karpathy-inspired)
+
+Behavioral guidelines that reduce common LLM coding mistakes. Adapted from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills), grounded in [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876).
+
+1. **Think before coding.** State assumptions explicitly. If multiple interpretations exist, present them — don't pick silently. If a simpler approach exists, say so. If something is unclear, stop and ask. Don't hide confusion.
+2. **Simplicity first.** Minimum code that solves the problem. No features beyond what was asked, no abstractions for single-use code, no "flexibility" that wasn't requested, no error handling for impossible scenarios. If you write 200 lines and 50 would do, rewrite.
+3. **Surgical changes.** Touch only what you must. Don't "improve" adjacent code, comments, or formatting. Don't refactor things that aren't broken. Match existing style. If you notice unrelated dead code, mention it — don't delete it. Every changed line must trace directly to the user's request.
+4. **Goal-driven execution.** Define verifiable success criteria upfront. "Add validation" → "write tests for invalid inputs, then make them pass." For multi-step tasks, state a brief plan: `[step] → verify: [check]`. Strong criteria let you loop independently; weak criteria require constant clarification.
+
 ## Critical Rules
 
 - **ALWAYS read `/.rulebook/specs/RULEBOOK.md`** before creating tasks.
