@@ -359,7 +359,7 @@ async fn index_project_with_loader(
 
     // Create embedding manager
     let mut embedding_manager = EmbeddingManager::new();
-    let bm25 = Bm25Embedding::new(512);
+    let bm25 = Bm25Embedding::new(512).with_collection_label(collection_name.to_string());
     embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
     if let Err(e) = embedding_manager.set_default_provider("bm25") {
         error!("Failed to set default embedding provider: {}", e);

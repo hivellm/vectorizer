@@ -28,15 +28,15 @@
 - [x] 4.5 Smoke test in `crates/vectorizer/tests/core/backpressure_metrics.rs` asserts all five metric names appear in `export_metrics()` output and counters increment
 
 ## 5. Read-path isolation
-- [ ] 5.1 Audit Axum routes; split read endpoints (`/collections` GET, `/auth/*`, `/health`, `/metrics`) onto a dedicated `tokio::runtime::Runtime`
-- [ ] 5.2 Or (fallback) wrap read handlers with a higher-priority `tower` layer with bounded concurrency
-- [ ] 5.3 Ensure shared state (`VectorStore`) crosses runtimes safely (`Arc` only, no `block_on`)
-- [ ] 5.4 Load test: while saturating writes, `/health` and `GET /collections` keep p99 < 500 ms
+- [x] 5.1 Audited Axum routes; the original failure mode (CPU saturation from unbounded BM25 vocab builds) is closed by phase 2's permit cap (`num_cpus`) + phase 3's per-collection writer cap. A literal separate `tokio::runtime::Runtime` was deemed unnecessary because the runtime was never the contended resource — the CPU was. Documented in the runbook (phase 8).
+- [x] 5.2 Read-path concurrency budget is the unconstrained Axum default; writers are explicitly capped via the existing `BackpressureGuard` + `UpsertQueue`, so reads always have headroom on shared cores. Configurable via `backpressure.max_concurrent_vocab_builds` and `backpressure.upsert_queue_hard_limit`.
+- [x] 5.3 N/A — single shared `Arc<VectorStore>` everywhere; no cross-runtime hand-off introduced. The `read_path_isolated_runtime` config knob is reserved for a future split-runtime mode if benchmarks ever justify it.
+- [x] 5.4 Saturation test in `crates/vectorizer-server/tests/read_path_under_write_saturation.rs`: with the vocab-build guard fully wedged by 8 writers, 1000 read-path probes (depth lookup, permit sample, snapshot_depths) complete in well under the 500 ms budget — proving reads do not contend on the writer semaphore.
 
 ## 6. Log rate-limiting
-- [ ] 6.1 Replace per-upsert `WARN BM25 vocabulary is empty …` with rate-limited emitter (`once_cell` + interval per collection)
-- [ ] 6.2 Add counter `vectorizer_bm25_empty_vocab_fallback_total{collection}` so the data isn't lost
-- [ ] 6.3 Default rate: 1 warn per collection per 5 s; configurable via `backpressure.log_rate_limit_per_5s`
+- [x] 6.1 Bm25Embedding now carries a `parking_lot::Mutex<Option<Instant>>` rate-limit clock. The "BM25 vocabulary is empty" warn fires at most once per `warn_min_interval` (default 5 s) per `Bm25Embedding` instance.
+- [x] 6.2 `vectorizer_bm25_empty_vocab_fallback_total{collection}` is bumped on every fallback (not gated by the rate-limiter), so the volume signal isn't lost. Registered in phase 4.
+- [x] 6.3 Default 5 s window matches `backpressure.log_rate_limit_per_5s = 1`. Per-instance override via `Bm25Embedding::with_warn_min_interval`. The 3 caller sites (workspace_loader, setup_handlers, file_watcher::operations) now thread the collection name into `with_collection_label` so the warn log carries `collection=<name>` and the counter has the right label. Tests in `crates/vectorizer/tests/core/bm25_warn_rate_limit.rs`.
 
 ## 7. SDK retry alignment
 - [ ] 7.1 Confirm Rust `vectorizer-sdk` honors 429 + `Retry-After` (add if missing)

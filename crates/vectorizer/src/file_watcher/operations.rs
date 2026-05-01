@@ -140,7 +140,8 @@ impl VectorOperations {
             let guard = self.embedding_manager.read().await;
             // Create new embedding manager for this operation
             let mut em = EmbeddingManager::new();
-            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            let bm25 = crate::embedding::Bm25Embedding::new(512)
+                .with_collection_label(collection_name.to_string());
             em.register_provider("bm25".to_string(), Box::new(bm25));
             // SAFE: `bm25` was just registered above, so set_default cannot
             // fail with `ProviderNotFound`.
@@ -262,7 +263,8 @@ impl VectorOperations {
         // Create embedding manager
         let embedding_manager = {
             let mut em = EmbeddingManager::new();
-            let bm25 = crate::embedding::Bm25Embedding::new(512);
+            let bm25 = crate::embedding::Bm25Embedding::new(512)
+                .with_collection_label(collection_name.to_string());
             em.register_provider("bm25".to_string(), Box::new(bm25));
             // SAFE: `bm25` was just registered above, so set_default cannot
             // fail with `ProviderNotFound`.

@@ -382,7 +382,8 @@ pub(super) async fn load_workspace_collections(
 
             // Create embedding manager for this collection
             let mut coll_embedding_manager = vectorizer::embedding::EmbeddingManager::new();
-            let bm25 = vectorizer::embedding::Bm25Embedding::new(collection.embedding.dimension);
+            let bm25 = vectorizer::embedding::Bm25Embedding::new(collection.embedding.dimension)
+                .with_collection_label(collection.name.clone());
             coll_embedding_manager.register_provider("bm25".to_string(), Box::new(bm25));
             coll_embedding_manager.set_default_provider("bm25")?;
 
