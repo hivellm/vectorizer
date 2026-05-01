@@ -56,6 +56,12 @@ pub async fn list_collections(
     // Sort alphabetically for consistent dashboard display
     collections.sort();
 
+    let provider_name = state
+        .embedding_manager
+        .get_default_provider_name()
+        .unwrap_or("unknown")
+        .to_string();
+
     let collection_infos: Vec<Value> = collections.iter().map(|name| {
         match state.store.get_collection(name) {
             Ok(collection) => {
@@ -85,7 +91,7 @@ pub async fn list_collections(
                     "document_count": metadata.document_count,
                     "dimension": config.dimension,
                     "metric": format!("{:?}", config.metric),
-                    "embedding_provider": "bm25",
+                    "embedding_provider": provider_name.clone(),
                     "size": {
                         "total": total_size,
                         "total_bytes": total_bytes,
@@ -122,7 +128,7 @@ pub async fn list_collections(
                 "document_count": 0,
                 "dimension": 512,
                 "metric": "Cosine",
-                "embedding_provider": "bm25",
+                "embedding_provider": provider_name.clone(),
                 "size": {
                     "total": "0 B",
                     "total_bytes": 0,
@@ -362,12 +368,18 @@ pub async fn get_collection(
         })
     };
 
+    let provider_name = state
+        .embedding_manager
+        .get_default_provider_name()
+        .unwrap_or("unknown");
+
     Ok(Json(json!({
         "name": name,
         "vector_count": collection.vector_count(),
         "document_count": metadata.document_count,
         "dimension": config.dimension,
         "metric": format!("{:?}", config.metric),
+        "embedding_provider": provider_name,
         "created_at": metadata.created_at.to_rfc3339(),
         "updated_at": metadata.updated_at.to_rfc3339(),
         "size": {
