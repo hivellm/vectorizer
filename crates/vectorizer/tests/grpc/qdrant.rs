@@ -28,7 +28,10 @@ async fn start_qdrant_test_server(
     use vectorizer_server::grpc::QdrantGrpcService;
 
     let store = Arc::new(VectorStore::new());
-    let service = QdrantGrpcService::new(store.clone());
+    let service = QdrantGrpcService::new(
+        store.clone(),
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    );
 
     let addr = format!("127.0.0.1:{port}").parse()?;
 

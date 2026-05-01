@@ -599,6 +599,11 @@ pub async fn insert_text(
             )
         })?;
 
+    // Issue #263: per-collection admission. Returns 429 with
+    // `Retry-After` when the collection's in-flight depth is at the
+    // configured hard limit; held across this handler via RAII drop.
+    let _admission_ticket = super::common::admit_upsert(&state.upsert_queue, collection_name)?;
+
     let metadata = parse_metadata(&payload);
     let public_key = payload.get("public_key").and_then(|k| k.as_str());
     let auto_chunk = payload

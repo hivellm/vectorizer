@@ -81,7 +81,14 @@ async fn test_graph_find_related_mcp_tool() {
 
     let request = CallToolRequestParams::new("graph_find_related").with_arguments(args);
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
+    let result = handle_mcp_tool(
+        request,
+        store.clone(),
+        embedding_manager.clone(),
+        None,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    )
+    .await;
     assert!(result.is_ok());
 
     let call_result = result.unwrap();
@@ -138,7 +145,14 @@ async fn test_graph_find_path_mcp_tool() {
 
     let request = CallToolRequestParams::new("graph_find_path").with_arguments(args);
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
+    let result = handle_mcp_tool(
+        request,
+        store.clone(),
+        embedding_manager.clone(),
+        None,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    )
+    .await;
     assert!(result.is_ok());
 
     let call_result = result.unwrap();
@@ -182,7 +196,14 @@ async fn test_graph_get_neighbors_mcp_tool() {
 
     let request = CallToolRequestParams::new("graph_get_neighbors").with_arguments(args);
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
+    let result = handle_mcp_tool(
+        request,
+        store.clone(),
+        embedding_manager.clone(),
+        None,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    )
+    .await;
     assert!(result.is_ok());
 
     let call_result = result.unwrap();
@@ -247,7 +268,14 @@ async fn test_graph_create_edge_mcp_tool() {
 
     let request = CallToolRequestParams::new("graph_create_edge").with_arguments(args);
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
+    let result = handle_mcp_tool(
+        request,
+        store.clone(),
+        embedding_manager.clone(),
+        None,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    )
+    .await;
     assert!(result.is_ok());
 
     let call_result = result.unwrap();
@@ -272,7 +300,14 @@ async fn test_graph_mcp_tool_error_handling() {
 
     let request = CallToolRequestParams::new("graph_get_neighbors").with_arguments(args);
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
+    let result = handle_mcp_tool(
+        request,
+        store.clone(),
+        embedding_manager.clone(),
+        None,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    )
+    .await;
     // Should return error for non-existent collection
     assert!(result.is_err() || result.is_ok()); // May return error or empty result
 }
@@ -342,7 +377,14 @@ async fn test_graph_discover_edges_mcp_tool_creates_edges() {
 
     let request = CallToolRequestParams::new("graph_discover_edges").with_arguments(args);
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
+    let result = handle_mcp_tool(
+        request,
+        store.clone(),
+        embedding_manager.clone(),
+        None,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    )
+    .await;
     assert!(result.is_ok(), "Discovery should succeed");
 
     let call_result = result.unwrap();
@@ -459,7 +501,14 @@ async fn test_graph_discover_edges_mcp_tool_node_specific() {
 
     let request = CallToolRequestParams::new("graph_discover_edges").with_arguments(args);
 
-    let result = handle_mcp_tool(request, store.clone(), embedding_manager.clone(), None).await;
+    let result = handle_mcp_tool(
+        request,
+        store.clone(),
+        embedding_manager.clone(),
+        None,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    )
+    .await;
     assert!(result.is_ok(), "Discovery should succeed");
 
     let call_result = result.unwrap();

@@ -1,10 +1,12 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Vectorizer.Models;
+using System.Threading.Tasks;
 using Vectorizer.Exceptions;
-using System.Collections.Generic;
-using System;
+using Vectorizer.Models;
 
 namespace Vectorizer;
 
@@ -365,6 +367,31 @@ public partial class VectorizerClient : IDisposable
             cancellationToken);
     }
 
+    // Issue #263 retry-after constants. Mirror the Rust + Python +
+    // TS + Go SDK values so back-pressure behaves consistently.
+    private const int RetryAfterMaxAttempts = 3;
+    private const int RetryAfterMaxSeconds = 30;
+    private const int RetryAfterDefaultSeconds = 1;
+
+    /// <summary>
+    /// Parse an HTTP <c>Retry-After</c> header value (seconds form
+    /// only). Returns a sensible default for missing/zero/junk and
+    /// caps an unreasonably large server hint. Public for test
+    /// consumption only; not part of the stable SDK API.
+    /// </summary>
+    public static int ParseRetryAfterSeconds(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return RetryAfterDefaultSeconds;
+        }
+        if (!int.TryParse(value.Trim(), out var seconds) || seconds <= 0)
+        {
+            return RetryAfterDefaultSeconds;
+        }
+        return Math.Min(seconds, RetryAfterMaxSeconds);
+    }
+
     private async Task<T> RequestAsync<T>(
         string method,
         string path,
@@ -372,62 +399,90 @@ public partial class VectorizerClient : IDisposable
         CancellationToken cancellationToken)
     {
         var url = _baseUrl + path;
-        HttpRequestMessage request;
+        var bodyJson = body != null ? JsonSerializer.Serialize(body, _jsonOptions) : null;
+        var attemptsRemaining = RetryAfterMaxAttempts;
 
-        if (body != null)
+        while (true)
         {
-            var json = JsonSerializer.Serialize(body, _jsonOptions);
-            request = new HttpRequestMessage(new HttpMethod(method), url)
+            HttpRequestMessage request;
+            if (bodyJson != null)
             {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            };
-        }
-        else
-        {
-            request = new HttpRequestMessage(new HttpMethod(method), url);
-        }
+                request = new HttpRequestMessage(new HttpMethod(method), url)
+                {
+                    Content = new StringContent(bodyJson, Encoding.UTF8, "application/json")
+                };
+            }
+            else
+            {
+                request = new HttpRequestMessage(new HttpMethod(method), url);
+            }
 
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            ErrorResponse? errorResponse = null;
+            if ((int)response.StatusCode == 429)
+            {
+                var retryAfter = ParseRetryAfterSeconds(
+                    response.Headers.TryGetValues("Retry-After", out var values)
+                        ? values.FirstOrDefault()
+                        : null);
+
+                if (attemptsRemaining <= 0)
+                {
+                    ErrorResponse? rateLimited = null;
+                    try { rateLimited = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions); }
+                    catch { /* ignore */ }
+                    throw new VectorizerException(
+                        rateLimited?.ErrorType ?? "queue_full",
+                        $"HTTP 429 after {RetryAfterMaxAttempts} retries: {rateLimited?.Message ?? content}",
+                        429,
+                        rateLimited?.Details);
+                }
+
+                attemptsRemaining--;
+                await Task.Delay(TimeSpan.FromSeconds(retryAfter), cancellationToken);
+                continue;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                ErrorResponse? errorResponse = null;
+                try
+                {
+                    errorResponse = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions);
+                }
+                catch
+                {
+                    // Ignore deserialization errors
+                }
+
+                if (errorResponse != null)
+                {
+                    throw new VectorizerException(
+                        errorResponse.ErrorType ?? "unknown_error",
+                        errorResponse.Message ?? content,
+                        (int)response.StatusCode,
+                        errorResponse.Details);
+                }
+
+                throw new HttpRequestException(
+                    $"Request failed with status {response.StatusCode}: {content}");
+            }
+
+            if (typeof(T) == typeof(object) && string.IsNullOrEmpty(content))
+            {
+                return default(T)!;
+            }
+
             try
             {
-                errorResponse = JsonSerializer.Deserialize<ErrorResponse>(content, _jsonOptions);
+                return JsonSerializer.Deserialize<T>(content, _jsonOptions) ??
+                       throw new InvalidOperationException("Response deserialization returned null");
             }
-            catch
+            catch (JsonException ex)
             {
-                // Ignore deserialization errors
+                throw new InvalidOperationException($"Failed to deserialize response: {content}", ex);
             }
-
-            if (errorResponse != null)
-            {
-                throw new VectorizerException(
-                    errorResponse.ErrorType ?? "unknown_error",
-                    errorResponse.Message ?? content,
-                    (int)response.StatusCode,
-                    errorResponse.Details);
-            }
-
-            throw new HttpRequestException(
-                $"Request failed with status {response.StatusCode}: {content}");
-        }
-
-        if (typeof(T) == typeof(object) && string.IsNullOrEmpty(content))
-        {
-            return default(T)!;
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<T>(content, _jsonOptions) ??
-                   throw new InvalidOperationException("Response deserialization returned null");
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidOperationException($"Failed to deserialize response: {content}", ex);
         }
     }
 

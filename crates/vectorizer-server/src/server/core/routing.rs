@@ -79,6 +79,7 @@ impl VectorizerServer {
         let grpc_cluster_manager = self.cluster_manager.clone();
         let grpc_snapshot_manager = self.snapshot_manager.clone();
         let grpc_raft_manager = self.raft_manager.clone();
+        let grpc_upsert_queue = self.upsert_queue.clone();
         let grpc_handle = tokio::spawn(async move {
             if let Err(e) = Self::start_grpc_server(
                 &grpc_host,
@@ -87,6 +88,7 @@ impl VectorizerServer {
                 grpc_cluster_manager,
                 grpc_snapshot_manager,
                 grpc_raft_manager,
+                grpc_upsert_queue,
             )
             .await
             {
@@ -740,6 +742,7 @@ impl VectorizerServer {
         let umicp_state = crate::umicp::UmicpState {
             store: self.store.clone(),
             embedding_manager: self.embedding_manager.clone(),
+            upsert_queue: self.upsert_queue.clone(),
         };
 
         // Create UMICP routes (needs custom state)
@@ -1172,6 +1175,7 @@ impl VectorizerServer {
         let store = self.store.clone();
         let embedding_manager = self.embedding_manager.clone();
         let cluster_manager = self.cluster_manager.clone();
+        let upsert_queue = self.upsert_queue.clone();
 
         // Create StreamableHTTP service
         let streamable_service = StreamableHttpService::new(
@@ -1180,6 +1184,7 @@ impl VectorizerServer {
                     store: store.clone(),
                     embedding_manager: embedding_manager.clone(),
                     cluster_manager: cluster_manager.clone(),
+                    upsert_queue: upsert_queue.clone(),
                 })
             },
             LocalSessionManager::default().into(),

@@ -3,4 +3,5 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+pub mod backpressure_config;
 pub mod layered_real_files;

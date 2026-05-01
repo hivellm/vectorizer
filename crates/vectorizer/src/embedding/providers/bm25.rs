@@ -14,7 +14,9 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
+use parking_lot::Mutex;
 use tracing::warn;
 
 use crate::embedding::EmbeddingProvider;
@@ -30,6 +32,20 @@ pub struct Bm25Embedding {
     total_docs: usize,                // Total number of documents
     k1: f32,                          // BM25 parameter (typically 1.5)
     b: f32,                           // BM25 parameter (typically 0.75)
+    /// Most recent emit time of the "vocabulary is empty" warn.
+    /// Used to rate-limit the message so a bursty bulk-upsert against
+    /// a freshly-created collection can't flood the log (issue #263,
+    /// phase9 §6). Wrapped in a `Mutex` so `embed(&self, _)` (which
+    /// only takes a shared reference) can mutate it.
+    last_empty_vocab_warn: Mutex<Option<Instant>>,
+    /// Identifier used in the rate-limited warn + the
+    /// `vectorizer_bm25_empty_vocab_fallback_total` counter label.
+    /// Defaults to `"unknown"` for callers that don't set it via
+    /// [`Self::with_collection_label`].
+    collection_label: String,
+    /// Maximum frequency of the "empty vocabulary" warn; defaults to
+    /// 1 emit per 5 s window.
+    warn_min_interval: Duration,
 }
 impl Bm25Embedding {
     /// Create a new BM25 embedding provider
@@ -43,6 +59,43 @@ impl Bm25Embedding {
             total_docs: 0,
             k1: 1.5, // Standard BM25 k1 parameter
             b: 0.75, // Standard BM25 b parameter
+            last_empty_vocab_warn: Mutex::new(None),
+            collection_label: "unknown".to_string(),
+            warn_min_interval: Duration::from_secs(5),
+        }
+    }
+
+    /// Set the collection label used in rate-limited warnings + the
+    /// `vectorizer_bm25_empty_vocab_fallback_total` counter (issue
+    /// #263, phase9 §6). When unset the label defaults to `"unknown"`.
+    pub fn with_collection_label(mut self, label: impl Into<String>) -> Self {
+        self.collection_label = label.into();
+        self
+    }
+
+    /// Override the minimum interval between "empty vocabulary" warns.
+    /// Defaults to 5 s, matching `backpressure.log_rate_limit_per_5s = 1`.
+    pub fn with_warn_min_interval(mut self, interval: Duration) -> Self {
+        self.warn_min_interval = interval;
+        self
+    }
+
+    /// Mutating variant of [`Self::with_collection_label`].
+    pub fn set_collection_label(&mut self, label: impl Into<String>) {
+        self.collection_label = label.into();
+    }
+
+    /// Returns true if the rate-limit window allows a new warn now.
+    /// Side-effect: when true, the "last warn" timestamp is updated.
+    fn should_emit_empty_vocab_warn(&self) -> bool {
+        let now = Instant::now();
+        let mut last = self.last_empty_vocab_warn.lock();
+        match *last {
+            Some(prev) if now.duration_since(prev) < self.warn_min_interval => false,
+            _ => {
+                *last = Some(now);
+                true
+            }
         }
     }
 
@@ -330,22 +383,34 @@ impl EmbeddingProvider for Bm25Embedding {
 
         // If vocabulary is empty, use fallback immediately
         if self.vocabulary.is_empty() {
-            // Safely truncate text for logging (handle Unicode properly)
-            let preview = if text.len() > 100 {
-                // Find the last char boundary before 100 bytes
-                let mut boundary = 100;
-                while boundary > 0 && !text.is_char_boundary(boundary) {
-                    boundary -= 1;
-                }
-                &text[..boundary]
-            } else {
-                text
-            };
-            warn!(
-                "BM25 vocabulary is empty for text '{}' (first {} chars), using hash-based fallback",
-                preview,
-                text.chars().count().min(100)
-            );
+            // Always increment the per-collection fallback counter so
+            // operators see the true volume even when the warn is
+            // rate-limited (issue #263, phase9 §6).
+            crate::monitoring::metrics::METRICS
+                .bm25_empty_vocab_fallback_total
+                .with_label_values(&[&self.collection_label])
+                .inc();
+
+            if self.should_emit_empty_vocab_warn() {
+                // Safely truncate text for logging (handle Unicode properly)
+                let preview = if text.len() > 100 {
+                    let mut boundary = 100;
+                    while boundary > 0 && !text.is_char_boundary(boundary) {
+                        boundary -= 1;
+                    }
+                    &text[..boundary]
+                } else {
+                    text
+                };
+                warn!(
+                    collection = %self.collection_label,
+                    "BM25 vocabulary is empty for text '{}' (first {} chars); \
+                     using hash-based fallback (rate-limited; counter \
+                     vectorizer_bm25_empty_vocab_fallback_total carries the true rate)",
+                    preview,
+                    text.chars().count().min(100),
+                );
+            }
             let fallback = self.fallback_hash_embedding(text);
             // Normalize fallback
             let norm: f32 = fallback.iter().map(|x| x * x).sum::<f32>().sqrt();

@@ -53,7 +53,10 @@ async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::e
     use vectorizer_server::grpc::VectorizerGrpcService;
 
     let store = Arc::new(VectorStore::new());
-    let service = VectorizerGrpcService::new(store.clone());
+    let service = VectorizerGrpcService::new(
+        store.clone(),
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    );
 
     let addr = format!("127.0.0.1:{port}").parse()?;
 

@@ -21,6 +21,10 @@ pub struct UmicpState {
     pub store: std::sync::Arc<vectorizer::db::VectorStore>,
     /// Embedding manager
     pub embedding_manager: std::sync::Arc<vectorizer::embedding::EmbeddingManager>,
+    /// Per-collection upsert admission tracker (issue #263). Routed
+    /// into `handle_mcp_tool` so UMICP-driven inserts honor the same
+    /// queue as REST/gRPC/MCP.
+    pub upsert_queue: std::sync::Arc<vectorizer::db::UpsertQueue>,
 }
 
 /// Health check for UMICP endpoint

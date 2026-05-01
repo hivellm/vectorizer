@@ -147,7 +147,10 @@ async fn cluster_client_falls_back_when_server_lacks_rpc() {
     // Server has VectorizerService but NO ClusterService — every cluster RPC
     // (including RemoteHybridSearch) should answer `Unimplemented`.
     let inner_store = Arc::new(VectorStore::new());
-    let dummy_service = VectorizerGrpcService::new(inner_store);
+    let dummy_service = VectorizerGrpcService::new(
+        inner_store,
+        Arc::new(vectorizer::db::UpsertQueue::permissive()),
+    );
 
     let (endpoint, addr) = bind_free_port().await;
     tokio::spawn(async move {

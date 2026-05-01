@@ -53,6 +53,11 @@ pub struct VectorizerConfig {
     /// MessagePack over raw TCP; see `docs/specs/VECTORIZER_RPC.md`).
     #[serde(default)]
     pub rpc: RpcConfig,
+    /// Bulk-upsert backpressure (issue #263). Bounds vocabulary-build
+    /// concurrency, queues per-collection upsert depth, and emits 429
+    /// once a hard limit is exceeded.
+    #[serde(default)]
+    pub backpressure: BackpressureConfig,
 }
 
 /// VectorizerRPC listener configuration. **Enabled by default in v3.x**
@@ -102,6 +107,126 @@ impl Default for RpcConfig {
             enabled: Self::default_enabled(),
             host: Self::default_host(),
             port: Self::default_port(),
+        }
+    }
+}
+
+/// Bulk-upsert backpressure configuration. Tracks issue
+/// [#263](https://github.com/hivellm/vectorizer/issues/263).
+///
+/// Defaults preserve previous behavior in spirit (generous limits) but
+/// a hard ceiling is now applied so a runaway producer can't cause an
+/// OOM/restart loop. Set `enabled: false` to fully disable enforcement
+/// (metrics still register, reporting zero, for dashboard stability).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackpressureConfig {
+    /// Enforce limits. When false: no permits, no queue caps, no 429.
+    #[serde(default = "BackpressureConfig::default_enabled")]
+    pub enabled: bool,
+
+    /// Maximum concurrent BM25 vocabulary-build operations. `0` means
+    /// "auto" → resolved to [`num_cpus::get`] at runtime.
+    #[serde(default = "BackpressureConfig::default_max_concurrent_vocab_builds")]
+    pub max_concurrent_vocab_builds: usize,
+
+    /// Per-collection in-flight upsert count above which a structured
+    /// warn is emitted but the upsert is still accepted.
+    #[serde(default = "BackpressureConfig::default_upsert_queue_high_water")]
+    pub upsert_queue_high_water: usize,
+
+    /// Per-collection in-flight upsert count above which new upserts
+    /// are rejected with HTTP 429 / gRPC `RESOURCE_EXHAUSTED`.
+    #[serde(default = "BackpressureConfig::default_upsert_queue_hard_limit")]
+    pub upsert_queue_hard_limit: usize,
+
+    /// Value for the `Retry-After` header on 429 responses.
+    #[serde(default = "BackpressureConfig::default_retry_after_seconds")]
+    pub retry_after_seconds: u32,
+
+    /// When true, the read path (`/health`, `GET /collections`,
+    /// `/auth/*`, `/metrics`) runs on a dedicated runtime so it stays
+    /// responsive while index writers are saturated.
+    #[serde(default = "BackpressureConfig::default_read_path_isolated_runtime")]
+    pub read_path_isolated_runtime: bool,
+
+    /// Maximum number of "BM25 vocabulary is empty" warns emitted per
+    /// collection per 5-second window. The full count is always
+    /// reflected in `vectorizer_bm25_empty_vocab_fallback_total`.
+    #[serde(default = "BackpressureConfig::default_log_rate_limit_per_5s")]
+    pub log_rate_limit_per_5s: u32,
+}
+
+impl BackpressureConfig {
+    fn default_enabled() -> bool {
+        true
+    }
+
+    fn default_max_concurrent_vocab_builds() -> usize {
+        0 // 0 = auto = num_cpus::get()
+    }
+
+    fn default_upsert_queue_high_water() -> usize {
+        256
+    }
+
+    fn default_upsert_queue_hard_limit() -> usize {
+        1024
+    }
+
+    fn default_retry_after_seconds() -> u32 {
+        2
+    }
+
+    fn default_read_path_isolated_runtime() -> bool {
+        true
+    }
+
+    fn default_log_rate_limit_per_5s() -> u32 {
+        1
+    }
+
+    /// Resolve `max_concurrent_vocab_builds`, mapping `0` to
+    /// [`num_cpus::get`]. Always returns at least 1 so the semaphore
+    /// never starves.
+    pub fn resolved_max_concurrent_vocab_builds(&self) -> usize {
+        if self.max_concurrent_vocab_builds == 0 {
+            num_cpus::get().max(1)
+        } else {
+            self.max_concurrent_vocab_builds
+        }
+    }
+
+    /// Validate cross-field invariants. Called from
+    /// [`VectorizerConfig::validate`] at startup; fails fast with a
+    /// clear message rather than silently accepting nonsense values.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.retry_after_seconds < 1 {
+            return Err("backpressure.retry_after_seconds must be >= 1".to_string());
+        }
+        if self.upsert_queue_hard_limit == 0 {
+            return Err("backpressure.upsert_queue_hard_limit must be > 0".to_string());
+        }
+        if self.upsert_queue_high_water >= self.upsert_queue_hard_limit {
+            return Err(format!(
+                "backpressure.upsert_queue_high_water ({}) must be < \
+                 backpressure.upsert_queue_hard_limit ({})",
+                self.upsert_queue_high_water, self.upsert_queue_hard_limit,
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl Default for BackpressureConfig {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            max_concurrent_vocab_builds: Self::default_max_concurrent_vocab_builds(),
+            upsert_queue_high_water: Self::default_upsert_queue_high_water(),
+            upsert_queue_hard_limit: Self::default_upsert_queue_hard_limit(),
+            retry_after_seconds: Self::default_retry_after_seconds(),
+            read_path_isolated_runtime: Self::default_read_path_isolated_runtime(),
+            log_rate_limit_per_5s: Self::default_log_rate_limit_per_5s(),
         }
     }
 }
@@ -545,6 +670,7 @@ impl Default for VectorizerConfig {
             file_upload: FileUploadConfig::default(),
             replication: ReplicationYamlConfig::default(),
             rpc: RpcConfig::default(),
+            backpressure: BackpressureConfig::default(),
         }
     }
 }
@@ -589,7 +715,38 @@ impl VectorizerConfig {
             config.logging.level = level;
         }
 
+        // Backpressure overrides (issue #263)
+        if let Ok(v) = std::env::var("CORTEX_VECTORIZER_MAX_CONCURRENT_BUILDS") {
+            if let Ok(n) = v.parse::<usize>() {
+                config.backpressure.max_concurrent_vocab_builds = n;
+            }
+        }
+        if let Ok(v) = std::env::var("CORTEX_VECTORIZER_UPSERT_HIGH_WATER") {
+            if let Ok(n) = v.parse::<usize>() {
+                config.backpressure.upsert_queue_high_water = n;
+            }
+        }
+        if let Ok(v) = std::env::var("CORTEX_VECTORIZER_UPSERT_HARD_LIMIT") {
+            if let Ok(n) = v.parse::<usize>() {
+                config.backpressure.upsert_queue_hard_limit = n;
+            }
+        }
+        if let Ok(v) = std::env::var("CORTEX_VECTORIZER_BACKPRESSURE_ENABLED") {
+            match v.to_ascii_lowercase().as_str() {
+                "1" | "true" | "yes" | "on" => config.backpressure.enabled = true,
+                "0" | "false" | "no" | "off" => config.backpressure.enabled = false,
+                _ => {}
+            }
+        }
+
         config
+    }
+
+    /// Cross-field validation. Called once at startup so misconfigured
+    /// invariants fail loudly instead of silently accepting nonsense.
+    pub fn validate(&self) -> Result<(), String> {
+        self.backpressure.validate()?;
+        Ok(())
     }
 }
 

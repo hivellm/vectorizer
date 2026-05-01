@@ -42,7 +42,14 @@ const BUDGETS: &[(&str, usize, &str)] = &[
         150,
         "module declarations + pub use",
     ),
-    ("src/server/rest_handlers/common.rs", 100, "3 small helpers"),
+    (
+        "src/server/rest_handlers/common.rs",
+        160,
+        "3 small helpers + admit_upsert (issue #263 phase9 §3 — \
+         centralizes the per-collection upsert admission + 429 \
+         translation reused by insert_text, insert_vectors, and \
+         do_batch_insert_texts)",
+    ),
     ("src/server/rest_handlers/meta.rs", 300, "6 small handlers"),
     (
         "src/server/rest_handlers/collections.rs",

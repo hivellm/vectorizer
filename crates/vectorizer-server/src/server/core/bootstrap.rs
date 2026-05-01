@@ -384,9 +384,23 @@ impl VectorizerServer {
         // Create cancellation token for background task
         let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
 
+        // Build the shared BackpressureGuard for the bulk-upsert /
+        // vocab-build path (issue #263). Read once from the parsed
+        // config at boot; if the config can't be parsed we fall back
+        // to None and the workspace loader runs without enforcement
+        // (legacy behavior).
+        let backpressure_guard: Option<vectorizer::db::BackpressureGuard> =
+            std::fs::read_to_string(&config_path)
+                .ok()
+                .and_then(|content| {
+                    serde_yaml::from_str::<vectorizer::config::VectorizerConfig>(&content).ok()
+                })
+                .map(|cfg| vectorizer::db::BackpressureGuard::from_config(&cfg.backpressure));
+
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
+        let backpressure_for_loading = backpressure_guard.clone();
         let watcher_system_for_loading = watcher_system_arc.clone();
         let config_path_for_background = config_path.clone();
         let background_handle = tokio::task::spawn(async move {
@@ -621,6 +635,7 @@ impl VectorizerServer {
                 &store_for_loading,
                 &embedding_manager_for_loading,
                 cancel_rx.clone(),
+                backpressure_for_loading.clone(),
             )
             .await
             {
@@ -1525,6 +1540,33 @@ impl VectorizerServer {
             mcp_hub_gateway,
             raft_manager,
             ha_manager,
+            // Issue #263: per-collection upsert admission tracker.
+            // Re-reads `cfg.backpressure` here so the queue's view of
+            // limits is the same one the workspace loader's guard
+            // already used; both come from the parsed VectorizerConfig.
+            upsert_queue: Arc::new(
+                std::fs::read_to_string(&config_path)
+                    .ok()
+                    .and_then(|content| {
+                        serde_yaml::from_str::<vectorizer::config::VectorizerConfig>(&content).ok()
+                    })
+                    .map(|cfg| vectorizer::db::UpsertQueue::from_config(&cfg.backpressure))
+                    .unwrap_or_else(|| {
+                        vectorizer::db::UpsertQueue::from_config(
+                            &vectorizer::config::BackpressureConfig::default(),
+                        )
+                    }),
+            ),
+            // Issue #263: shared BackpressureGuard. `backpressure_guard`
+            // (built earlier in this function) is the same handle the
+            // workspace loader uses; wrapping it in `Arc` here keeps
+            // it observable from the metrics handler without forcing
+            // every consumer to clone the inner Arc<Semaphore> twice.
+            backpressure_guard: Arc::new(backpressure_guard.clone().unwrap_or_else(|| {
+                vectorizer::db::BackpressureGuard::from_config(
+                    &vectorizer::config::BackpressureConfig::default(),
+                )
+            })),
         })
     }
 }

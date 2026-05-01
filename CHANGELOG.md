@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2026-05-01
+
+### Added
+
+- **Bulk-upsert backpressure ([#263](https://github.com/hivellm/vectorizer/issues/263)).** Three layers of bounded-resource enforcement so a fan-out producer (Cortex `cortex-embedder-worker`, Synap consumers, etc.) can no longer drive the server into the unbounded-CPU restart loop documented in the issue:
+  1. **Bounded BM25 vocabulary-build concurrency.** A shared `tokio::sync::Semaphore` gates the CPU-heavy section of every vocab build. Default `num_cpus::get()`, configurable via `backpressure.max_concurrent_vocab_builds`.
+  2. **Per-collection upsert admission** (REST / gRPC / MCP / UMICP). Once a collection's in-flight depth crosses `backpressure.upsert_queue_hard_limit` (default 1024) new upserts are refused with HTTP `429 Too Many Requests` + `Retry-After`, gRPC `RESOURCE_EXHAUSTED` + `retry-after` metadata, or a structured MCP error `{ code: "queue_full", retryAfterSeconds: N }`. The `backpressure.upsert_queue_high_water` (default 256) emits a structured warn + bumps `vectorizer_upsert_rejected_total{reason="queue_high_water_warn"}` but admits the request.
+  3. **Log rate-limiting** for the `WARN BM25 vocabulary is empty …` line — at most one emit per collection per 5 s window, while the new `vectorizer_bm25_empty_vocab_fallback_total{collection}` counter retains the true volume signal.
+- **Five new Prometheus metrics** under `vectorizer_*`: `upsert_queue_depth{collection}`, `upsert_in_flight{collection}`, `vocab_build_permits_available`, `upsert_rejected_total{reason}`, `bm25_empty_vocab_fallback_total{collection}`. All registered automatically; surface on `GET /prometheus/metrics`.
+- **All five first-party SDKs honor `Retry-After`** — Rust `vectorizer-sdk`, Python `sdks/python/`, TypeScript `sdks/typescript/`, Go `sdks/go/`, and C# `sdks/csharp/`. Each parses the header with identical semantics (1 s default, 30 s cap, 3 retries) and surfaces a typed `RateLimit` / `RateLimitError` / `VectorizerError(status=429)` only after retry exhaustion. Pre-`v3.2.0` clients bounced 429s into a generic 5xx.
+- **Operator runbook** at [`docs/deployment/backpressure.md`](docs/deployment/backpressure.md) and ready-to-import Grafana panels at [`docs/grafana/backpressure-panels.json`](docs/grafana/backpressure-panels.json).
+- **Docker image `hivehub/vectorizer:3.2.0`** validated end-to-end with a smoke test (`scripts/docker_smoke.py`): 200 concurrent inserts against `hard_limit=2` produce ~65 well-formed 429 responses (every one carrying `Retry-After: 1`); the `vectorizer_upsert_rejected_total{reason="queue_full"}` counter delta matches the observed 429 count exactly; `/health` stays `healthy` throughout the flood.
+
+### Build
+
+- **Dashboard `pnpm-lock.yaml` refreshed** to track the `happy-dom: ">=20.8.9"` override that was added in the v3.2.0 dependency refresh. Without this the docker image build fails at the dashboard stage with `ERR_PNPM_OUTDATED_LOCKFILE`.
+
+### Configuration
+
+New `backpressure:` block in `config.example.yml` plus four env-var overrides: `CORTEX_VECTORIZER_BACKPRESSURE_ENABLED`, `CORTEX_VECTORIZER_MAX_CONCURRENT_BUILDS`, `CORTEX_VECTORIZER_UPSERT_HIGH_WATER`, `CORTEX_VECTORIZER_UPSERT_HARD_LIMIT`. Defaults are conservative — existing deployments inherit safe limits without touching their YAML.
+
 ## [3.1.0] - 2026-04-29
 
 ### Added

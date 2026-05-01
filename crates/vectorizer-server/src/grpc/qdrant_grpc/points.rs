@@ -34,6 +34,26 @@ impl Points for QdrantGrpcService {
         let req = request.into_inner();
         info!(collection = %req.collection_name, "Qdrant gRPC: Upsert points");
 
+        // Issue #263: per-collection admission. Held until the end of
+        // this handler via RAII drop on the ticket binding.
+        let _ticket = match self.upsert_queue.try_admit(&req.collection_name) {
+            Ok((ticket, _status)) => ticket,
+            Err(::vectorizer::db::AdmissionError::QueueFull {
+                depth,
+                hard_limit,
+                retry_after_seconds,
+            }) => {
+                let mut status = Status::resource_exhausted(format!(
+                    "upsert queue full for '{}' (depth {} >= hard_limit {}); retry after {}s",
+                    req.collection_name, depth, hard_limit, retry_after_seconds,
+                ));
+                if let Ok(value) = retry_after_seconds.to_string().parse() {
+                    status.metadata_mut().insert("retry-after", value);
+                }
+                return Err(status);
+            }
+        };
+
         let mut collection = self
             .store
             .get_collection_mut(&req.collection_name)

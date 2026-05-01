@@ -18,6 +18,12 @@ pub struct ErrorResponse {
     pub status_code: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_id: Option<String>,
+    /// When set, attach `Retry-After: <seconds>` to the HTTP response.
+    /// Used by the upsert backpressure path (issue #263) to return a
+    /// well-formed 429 that SDK clients can honor without parsing the
+    /// JSON body.
+    #[serde(skip)]
+    pub retry_after_seconds: Option<u32>,
 }
 
 impl ErrorResponse {
@@ -28,6 +34,7 @@ impl ErrorResponse {
             details: None,
             status_code: status_code.as_u16(),
             request_id: None,
+            retry_after_seconds: None,
         }
     }
 
@@ -38,6 +45,14 @@ impl ErrorResponse {
 
     pub fn with_request_id(mut self, request_id: String) -> Self {
         self.request_id = Some(request_id);
+        self
+    }
+
+    /// Attach a `Retry-After: <seconds>` header to the eventual HTTP
+    /// response. Used by the per-collection upsert queue's 429 path
+    /// (issue #263).
+    pub fn with_retry_after(mut self, seconds: u32) -> Self {
+        self.retry_after_seconds = Some(seconds);
         self
     }
 }
@@ -85,6 +100,7 @@ impl From<VectorizerError> for ErrorResponse {
             details,
             status_code: status_code.as_u16(),
             request_id: None,
+            retry_after_seconds: None,
         }
     }
 }
@@ -94,10 +110,20 @@ impl IntoResponse for ErrorResponse {
     fn into_response(self) -> Response {
         let status_code =
             StatusCode::from_u16(self.status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let retry_after = self.retry_after_seconds;
 
         error!("API Error: {} - {}", self.error_type, self.message);
 
-        (status_code, Json(self)).into_response()
+        if let Some(seconds) = retry_after {
+            (
+                status_code,
+                [(axum::http::header::RETRY_AFTER, seconds.to_string())],
+                Json(self),
+            )
+                .into_response()
+        } else {
+            (status_code, Json(self)).into_response()
+        }
     }
 }
 
@@ -156,4 +182,30 @@ pub fn create_validation_error(field: &str, message: &str) -> ErrorResponse {
         "field": field,
         "reason": message
     }))
+}
+
+/// Build a 429 Too Many Requests for the per-collection upsert queue
+/// (issue #263). The response carries `Retry-After: <seconds>` and a
+/// JSON body with the structured queue-full reason.
+pub fn create_queue_full_error(
+    collection: &str,
+    depth: usize,
+    hard_limit: usize,
+    retry_after_seconds: u32,
+) -> ErrorResponse {
+    ErrorResponse::new(
+        "queue_full".to_string(),
+        format!(
+            "upsert queue full for collection '{}' (depth {} >= hard_limit {})",
+            collection, depth, hard_limit,
+        ),
+        StatusCode::TOO_MANY_REQUESTS,
+    )
+    .with_details(json!({
+        "collection": collection,
+        "depth": depth,
+        "hard_limit": hard_limit,
+        "retry_after_seconds": retry_after_seconds,
+    }))
+    .with_retry_after(retry_after_seconds)
 }

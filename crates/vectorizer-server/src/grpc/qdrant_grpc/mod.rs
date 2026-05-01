@@ -32,23 +32,31 @@ use crate::grpc::qdrant_proto::*;
 pub struct QdrantGrpcService {
     store: Arc<VectorStore>,
     snapshot_manager: Option<Arc<vectorizer::storage::SnapshotManager>>,
+    /// Per-collection upsert admission tracker (issue #263). Mirrors
+    /// the native gRPC service: a request that would push the
+    /// collection's in-flight depth past `upsert_queue_hard_limit` is
+    /// refused with `Status::resource_exhausted`.
+    pub(super) upsert_queue: Arc<vectorizer::db::UpsertQueue>,
 }
 
 impl QdrantGrpcService {
-    pub fn new(store: Arc<VectorStore>) -> Self {
+    pub fn new(store: Arc<VectorStore>, upsert_queue: Arc<vectorizer::db::UpsertQueue>) -> Self {
         Self {
             store,
             snapshot_manager: None,
+            upsert_queue,
         }
     }
 
     pub fn with_snapshot_manager(
         store: Arc<VectorStore>,
         snapshot_manager: Arc<vectorizer::storage::SnapshotManager>,
+        upsert_queue: Arc<vectorizer::db::UpsertQueue>,
     ) -> Self {
         Self {
             store,
             snapshot_manager: Some(snapshot_manager),
+            upsert_queue,
         }
     }
 }

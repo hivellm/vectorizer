@@ -2,6 +2,7 @@
 
 pub mod async_indexing;
 pub mod auto_save;
+pub mod backpressure;
 mod collection;
 pub mod collection_normalization;
 pub mod graph;
@@ -9,6 +10,7 @@ pub mod graph_relationship_discovery;
 pub mod hybrid_search;
 pub mod payload_index;
 pub mod storage_backend;
+pub mod upsert_queue;
 
 #[cfg(feature = "hive-gpu")]
 pub mod hive_gpu_collection;
@@ -27,6 +29,7 @@ mod wal_integration;
 
 pub use async_indexing::{AsyncIndexManager, IndexBuildProgress, IndexBuildStatus};
 pub use auto_save::AutoSaveManager;
+pub use backpressure::{BackpressureGuard, BackpressurePermit};
 pub use collection::Collection;
 pub use collection_normalization::CollectionNormalizationHelper;
 pub use distributed_sharded_collection::DistributedShardedCollection;
@@ -47,4 +50,5 @@ pub use raft::{
     LogEntry, LogIndex, NodeId, RaftConfig, RaftNode, RaftRole, RaftState, RaftStateMachine, Term,
 };
 pub use sharding::{ConsistentHashRing, ShardId, ShardRebalancer, ShardRouter};
+pub use upsert_queue::{AdmissionError, AdmissionStatus, UpsertQueue, UpsertTicket};
 pub use vector_store::{CollectionType, VectorStore};
