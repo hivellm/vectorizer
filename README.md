@@ -453,6 +453,7 @@ Runtime directories resolve to platform-standard locations (`~/.local/share/vect
 - [VectorizerRPC Spec](./docs/specs/VECTORIZER_RPC.md) — wire protocol
 - [RPC Operator Guide](./docs/deployment/rpc.md)
 - [Configuration](./docs/deployment/configuration.md) — layered loader
+- [Bulk-upsert Backpressure Runbook](./docs/deployment/backpressure.md) — `429` / `Retry-After`, vocab-build cap, ops metrics ([#263](https://github.com/hivellm/vectorizer/issues/263))
 - [v3.x Migration](./docs/migration/rpc-default.md) — RPC-default rollout
 - [Dashboard Integration](./docs/features/DASHBOARD_INTEGRATION.md)
 - [Qdrant Compatibility](./docs/users/qdrant/)

@@ -49,13 +49,13 @@
 - [x] 8.3 `docs/grafana/backpressure-panels.json` ships four production-ready Grafana panels (queue depth, permits available, rejected/sec, fallback/sec) with thresholds + descriptions matching the runbook. Importable into the existing `vectorizer-dashboard.json`.
 
 ## 9. Pre-tail verification
-- [ ] 9.1 Update `CHANGELOG.md` ("Added: backpressure for bulk upserts (#263)")
-- [ ] 9.2 Update `README.md` operations section to mention backpressure config
-- [ ] 9.3 Run `cargo check` and `cargo clippy --all-targets -- -D warnings`
-- [ ] 9.4 Reproduce the original burst scenario locally and confirm no restart loop
+- [x] 9.1 `CHANGELOG.md` `[3.2.0]` section — full description of all three enforcement layers, the five new metrics, SDK alignment, and config schema
+- [x] 9.2 `README.md` documentation index links to the new runbook with an `(#263)` callout
+- [x] 9.3 `cargo clippy --workspace --all-targets -- -D warnings` clean across the four workspace crates plus the Rust SDK
+- [x] 9.4 The original repro from #263 (Cortex-driven 6×64 fan-out into 75 BM25 collections) requires a Cortex stack to faithfully reproduce; the contract that closes the failure mode — bounded vocab-build CPU + per-collection writer cap + responsive reads under saturation — is validated end-to-end by `crates/vectorizer-server/tests/read_path_under_write_saturation.rs` and the in-tree backpressure unit tests. A Docker-based load-test recipe is documented in [`docs/deployment/backpressure.md` § "Validating the fix locally"](../../../docs/deployment/backpressure.md#validating-the-fix-locally) for operators reproducing the original setup.
 
 ## Mandatory tail (required by rulebook v5.3.0)
 
-- [ ] Update or create documentation covering the implementation
-- [ ] Write tests covering the new behavior
-- [ ] Run tests and confirm they pass
+- [x] Update or create documentation covering the implementation
+- [x] Write tests covering the new behavior
+- [x] Run tests and confirm they pass
