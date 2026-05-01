@@ -16,6 +16,7 @@ use serde_json::{Value, json};
 use tracing::info;
 use vectorizer::hub::middleware::RequestTenantContext;
 
+use super::common::admit_upsert;
 use super::insert::{
     check_insert_quota, ensure_collection_exists, mark_collection_dirty, parse_metadata,
     record_insert_usage, validate_client_id,
@@ -94,6 +95,11 @@ pub async fn insert_vectors(
         vectors_in.len(),
         collection_name
     );
+
+    // Issue #263: per-collection admission. Held across the whole
+    // upsert; releases by RAII when `_admission_ticket` is dropped at
+    // the bottom of the handler.
+    let _admission_ticket = admit_upsert(&state.upsert_queue, &collection_name)?;
 
     ensure_collection_exists(&state, &collection_name)?;
 

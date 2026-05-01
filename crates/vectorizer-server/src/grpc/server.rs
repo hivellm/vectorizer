@@ -52,14 +52,42 @@ fn quantization_config_to_proto(config: &QuantizationConfig) -> Option<proto::Qu
 #[derive(Clone)]
 pub struct VectorizerGrpcService {
     store: Arc<VectorStore>,
+    /// Per-collection upsert admission tracker (issue #263).
+    /// Mirrors REST/MCP: a request that would push the per-collection
+    /// in-flight depth past `upsert_queue_hard_limit` is refused with
+    /// `Status::resource_exhausted` and a retry hint.
+    upsert_queue: Arc<vectorizer::db::UpsertQueue>,
 }
 
 impl VectorizerGrpcService {
     /// Create a new gRPC service instance
-    pub fn new(store: Arc<VectorStore>) -> Self {
+    pub fn new(store: Arc<VectorStore>, upsert_queue: Arc<vectorizer::db::UpsertQueue>) -> Self {
         // Initialize the start time on first service creation
         let _ = *SERVER_START_TIME;
-        Self { store }
+        Self {
+            store,
+            upsert_queue,
+        }
+    }
+
+    /// Translate an [`AdmissionError`] into a gRPC `RESOURCE_EXHAUSTED`
+    /// status carrying a `retry-after` metadata entry. The same
+    /// well-formed status is used by the streaming and unary upsert
+    /// paths in this service.
+    fn queue_full_status(collection: &str, err: vectorizer::db::AdmissionError) -> tonic::Status {
+        let vectorizer::db::AdmissionError::QueueFull {
+            depth,
+            hard_limit,
+            retry_after_seconds,
+        } = err;
+        let mut status = tonic::Status::resource_exhausted(format!(
+            "upsert queue full for '{}' (depth {} >= hard_limit {}); retry after {}s",
+            collection, depth, hard_limit, retry_after_seconds,
+        ));
+        if let Ok(value) = retry_after_seconds.to_string().parse() {
+            status.metadata_mut().insert("retry-after", value);
+        }
+        status
     }
 
     /// Get server uptime in seconds
@@ -203,6 +231,12 @@ impl VectorizerService for VectorizerGrpcService {
             req.collection_name, req.vector_id
         );
 
+        // Issue #263: per-collection admission. Held until handler exit.
+        let _ticket = match self.upsert_queue.try_admit(&req.collection_name) {
+            Ok((ticket, _status)) => ticket,
+            Err(e) => return Err(Self::queue_full_status(&req.collection_name, e)),
+        };
+
         let vector: Vector = (&req)
             .try_into()
             .map_err(|e: VectorizerError| Status::invalid_argument(e.to_string()))?;
@@ -256,6 +290,16 @@ impl VectorizerService for VectorizerGrpcService {
         }
 
         if let Some(collection_name) = current_collection {
+            // Issue #263: per-collection admission gating the streamed
+            // batch. We acquire the ticket here (after the stream is
+            // fully drained) so we don't hold the queue counter while
+            // waiting on a slow client. The ticket is dropped at the
+            // end of this scope, which is after the actual `insert`.
+            let _ticket = match self.upsert_queue.try_admit(&collection_name) {
+                Ok((ticket, _status)) => ticket,
+                Err(e) => return Err(Self::queue_full_status(&collection_name, e)),
+            };
+
             let batch_len = batch.len() as u32;
             match self.store.insert(&collection_name, batch) {
                 Ok(_) => {

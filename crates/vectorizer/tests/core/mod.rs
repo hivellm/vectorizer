@@ -18,4 +18,5 @@ pub mod quantization;
 pub mod simd;
 pub mod storage;
 pub mod storage_integration;
+pub mod upsert_queue;
 pub mod wal;

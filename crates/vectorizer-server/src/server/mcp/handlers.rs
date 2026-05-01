@@ -95,13 +95,14 @@ pub async fn handle_mcp_tool(
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
     cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
+    upsert_queue: Arc<vectorizer::db::UpsertQueue>,
 ) -> Result<CallToolResult, ErrorData> {
     match request.name.as_ref() {
         // Core Collection/Vector Operations
         "list_collections" => handle_list_collections(store).await,
         "create_collection" => handle_create_collection(request, store).await,
         "get_collection_info" => handle_get_collection_info(request, store).await,
-        "insert_text" => handle_insert_text(request, store, embedding_manager).await,
+        "insert_text" => handle_insert_text(request, store, embedding_manager, upsert_queue).await,
         "get_vector" => handle_get_vector(request, store).await,
         "update_vector" => handle_update_vector(request, store, embedding_manager).await,
         "delete_vector" => handle_delete_vectors(request, store).await,
@@ -361,6 +362,7 @@ async fn handle_insert_text(
     request: CallToolRequestParams,
     store: Arc<VectorStore>,
     embedding_manager: Arc<EmbeddingManager>,
+    upsert_queue: Arc<vectorizer::db::UpsertQueue>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
         .arguments
@@ -376,6 +378,30 @@ async fn handle_insert_text(
         .get("text")
         .and_then(|v| v.as_str())
         .ok_or_else(|| ErrorData::invalid_params("Missing text", None))?;
+
+    // Issue #263: per-collection admission. Held until handler exit.
+    let _ticket = match upsert_queue.try_admit(collection_name) {
+        Ok((ticket, _status)) => ticket,
+        Err(vectorizer::db::AdmissionError::QueueFull {
+            depth,
+            hard_limit,
+            retry_after_seconds,
+        }) => {
+            return Err(ErrorData::internal_error(
+                format!(
+                    "queue_full: collection '{}' depth {} >= hard_limit {} (retry after {}s)",
+                    collection_name, depth, hard_limit, retry_after_seconds,
+                ),
+                Some(json!({
+                    "code": "queue_full",
+                    "collection": collection_name,
+                    "depth": depth,
+                    "hard_limit": hard_limit,
+                    "retryAfterSeconds": retry_after_seconds,
+                })),
+            ));
+        }
+    };
 
     let metadata = args.get("metadata").cloned();
     let public_key = args.get("public_key").and_then(|v| v.as_str());

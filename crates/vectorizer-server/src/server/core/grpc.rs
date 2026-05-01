@@ -18,6 +18,7 @@ impl VectorizerServer {
         cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
         snapshot_manager: Option<Arc<vectorizer::storage::SnapshotManager>>,
         raft_manager: Option<Arc<vectorizer::cluster::raft_node::RaftManager>>,
+        upsert_queue: Arc<vectorizer::db::UpsertQueue>,
     ) -> anyhow::Result<()> {
         use tonic::transport::Server;
 
@@ -25,7 +26,7 @@ impl VectorizerServer {
         use crate::grpc::vectorizer::vectorizer_service_server::VectorizerServiceServer;
 
         let addr = format!("{}:{}", host, port).parse()?;
-        let service = VectorizerGrpcService::new(store.clone());
+        let service = VectorizerGrpcService::new(store.clone(), upsert_queue.clone());
 
         info!("🚀 Starting gRPC server on {}", addr);
 
@@ -53,9 +54,9 @@ impl VectorizerServer {
 
             info!("🔗 Adding Qdrant-compatible gRPC services (Collections, Points, Snapshots)");
             let qdrant_service = if let Some(sm) = snapshot_manager {
-                QdrantGrpcService::with_snapshot_manager(store.clone(), sm)
+                QdrantGrpcService::with_snapshot_manager(store.clone(), sm, upsert_queue.clone())
             } else {
-                QdrantGrpcService::new(store.clone())
+                QdrantGrpcService::new(store.clone(), upsert_queue.clone())
             };
 
             // Add all Qdrant services using the same service instance (it implements all traits)

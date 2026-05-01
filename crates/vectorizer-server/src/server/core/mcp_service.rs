@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use vectorizer::VectorStore;
+use vectorizer::db::UpsertQueue;
 use vectorizer::embedding::EmbeddingManager;
 
 /// MCP Service implementation
@@ -15,6 +16,11 @@ pub(super) struct VectorizerMcpService {
     pub(super) store: Arc<VectorStore>,
     pub(super) embedding_manager: Arc<EmbeddingManager>,
     pub(super) cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
+    /// Per-collection upsert admission tracker (issue #263). Mirrors
+    /// REST/gRPC: an upsert tool call that would push the
+    /// collection's in-flight depth past the configured hard limit
+    /// returns a structured error.
+    pub(super) upsert_queue: Arc<UpsertQueue>,
 }
 
 impl rmcp::ServerHandler for VectorizerMcpService {
@@ -66,6 +72,7 @@ impl rmcp::ServerHandler for VectorizerMcpService {
                 self.store.clone(),
                 self.embedding_manager.clone(),
                 self.cluster_manager.clone(),
+                self.upsert_queue.clone(),
             )
             .await
         }

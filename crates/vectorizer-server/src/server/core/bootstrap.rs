@@ -1540,6 +1540,23 @@ impl VectorizerServer {
             mcp_hub_gateway,
             raft_manager,
             ha_manager,
+            // Issue #263: per-collection upsert admission tracker.
+            // Re-reads `cfg.backpressure` here so the queue's view of
+            // limits is the same one the workspace loader's guard
+            // already used; both come from the parsed VectorizerConfig.
+            upsert_queue: Arc::new(
+                std::fs::read_to_string(&config_path)
+                    .ok()
+                    .and_then(|content| {
+                        serde_yaml::from_str::<vectorizer::config::VectorizerConfig>(&content).ok()
+                    })
+                    .map(|cfg| vectorizer::db::UpsertQueue::from_config(&cfg.backpressure))
+                    .unwrap_or_else(|| {
+                        vectorizer::db::UpsertQueue::from_config(
+                            &vectorizer::config::BackpressureConfig::default(),
+                        )
+                    }),
+            ),
         })
     }
 }

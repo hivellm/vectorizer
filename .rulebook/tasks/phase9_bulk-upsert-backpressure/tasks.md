@@ -12,13 +12,13 @@
 - [x] 2.5 Unit test: N permits + M > N concurrent builds — at most N hold permits at once (`tests/core/backpressure.rs::at_most_n_concurrent_holders`)
 
 ## 3. Per-collection upsert queue + 429
-- [ ] 3.1 Add per-collection queue-depth counter (`DashMap<CollectionId, AtomicUsize>`)
-- [ ] 3.2 Increment on upsert ingress, decrement on completion (RAII)
-- [ ] 3.3 When depth > `upsert_queue_hard_limit`, return `429 Too Many Requests`
-- [ ] 3.4 Set `Retry-After: <retry_after_seconds>` header on 429 responses
-- [ ] 3.5 Mirror behavior on the gRPC path (return `RESOURCE_EXHAUSTED` with retry hint)
-- [ ] 3.6 Mirror behavior on the MCP upsert tool (structured error w/ retryAfter)
-- [ ] 3.7 Integration test: flood single collection past hard_limit → asserts 429 + header
+- [x] 3.1 `UpsertQueue` in `crates/vectorizer/src/db/upsert_queue.rs` — `DashMap<String, Arc<AtomicUsize>>` with CAS-style admission so concurrent admits never overshoot the hard limit
+- [x] 3.2 RAII increment on `try_admit` / decrement on `UpsertTicket` Drop (incl. panic unwind)
+- [x] 3.3 REST 429 wired in `insert_text`, `insert_vectors`, and `do_batch_insert_texts` via `common::admit_upsert`
+- [x] 3.4 `Retry-After: <seconds>` set via `ErrorResponse::with_retry_after` + `create_queue_full_error`
+- [x] 3.5 gRPC mirror in `VectorizerGrpcService::insert_vector`/`insert_vectors` and `QdrantGrpcService::upsert` — returns `Status::resource_exhausted` with `retry-after` metadata
+- [x] 3.6 MCP mirror in `handle_insert_text` returning `{ code: "queue_full", retryAfterSeconds: N, … }` via `ErrorData::internal_error` data field
+- [x] 3.7 Integration test in `crates/vectorizer-server/tests/backpressure_429.rs` asserts status 429 + `Retry-After` header + structured JSON body, plus 8 unit tests in `crates/vectorizer/tests/core/upsert_queue.rs` covering CAS-no-overshoot, isolation, hard-limit refusal, RAII drop on unwind
 
 ## 4. Metrics
 - [ ] 4.1 Register gauge `vectorizer_upsert_queue_depth{collection}`

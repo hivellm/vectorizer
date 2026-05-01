@@ -38,7 +38,7 @@ pub mod capabilities;
 mod core;
 mod discovery_handlers;
 mod embedded_assets;
-mod error_middleware;
+pub mod error_middleware;
 pub mod files;
 mod graph_handlers;
 mod graphql_handlers;
@@ -123,6 +123,10 @@ pub struct VectorizerServer {
     pub raft_manager: Option<Arc<vectorizer::cluster::raft_node::RaftManager>>,
     /// HA lifecycle manager (optional, for HA mode)
     pub ha_manager: Option<Arc<vectorizer::cluster::HaManager>>,
+    /// Per-collection upsert queue admission tracker (issue #263).
+    /// REST / gRPC / MCP upsert handlers call `try_admit` and return
+    /// 429 / `RESOURCE_EXHAUSTED` on `AdmissionError::QueueFull`.
+    pub upsert_queue: Arc<vectorizer::db::UpsertQueue>,
 }
 
 /// Configuration for root user credentials.

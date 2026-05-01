@@ -1,6 +1,53 @@
 //! Shared helpers used across multiple REST handler modules.
 
 use uuid::Uuid;
+use vectorizer::db::{AdmissionError, AdmissionStatus, UpsertQueue, UpsertTicket};
+
+use crate::server::error_middleware::{ErrorResponse, create_queue_full_error};
+
+/// Admit one in-flight upsert against the per-collection queue
+/// (issue #263). On hard-limit exceedance returns a 429 with
+/// `Retry-After` already set; on high-water exceedance emits a warn
+/// log and admits the request anyway. The returned [`UpsertTicket`]
+/// MUST be held for the duration of the upsert so the depth counter
+/// decrements when work completes (or panics — Drop is called on
+/// unwind).
+pub(super) fn admit_upsert(
+    queue: &UpsertQueue,
+    collection: &str,
+) -> Result<UpsertTicket, ErrorResponse> {
+    match queue.try_admit(collection) {
+        Ok((ticket, AdmissionStatus::AdmittedNormal)) => Ok(ticket),
+        Ok((ticket, AdmissionStatus::AdmittedHighWater)) => {
+            tracing::warn!(
+                collection = collection,
+                depth = queue.depth(collection),
+                hard_limit = queue.hard_limit(),
+                "upsert queue depth at or above high-water mark",
+            );
+            Ok(ticket)
+        }
+        Err(AdmissionError::QueueFull {
+            depth,
+            hard_limit,
+            retry_after_seconds,
+        }) => {
+            tracing::warn!(
+                collection = collection,
+                depth = depth,
+                hard_limit = hard_limit,
+                retry_after_seconds = retry_after_seconds,
+                "upsert queue full — replying 429",
+            );
+            Err(create_queue_full_error(
+                collection,
+                depth,
+                hard_limit,
+                retry_after_seconds,
+            ))
+        }
+    }
+}
 
 /// Extract tenant ID as UUID from request extensions (if present)
 ///

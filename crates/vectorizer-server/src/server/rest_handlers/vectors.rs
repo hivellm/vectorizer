@@ -283,6 +283,11 @@ async fn do_batch_insert_texts(
         })?
         .to_string();
 
+    // Issue #263: per-collection admission. Acquired before any of
+    // the heavy chunking / embedding work below; held until handler
+    // exit by RAII drop.
+    let _admission_ticket = super::common::admit_upsert(&state.upsert_queue, &collection_name)?;
+
     let texts = payload
         .get("texts")
         .and_then(|t| t.as_array())
