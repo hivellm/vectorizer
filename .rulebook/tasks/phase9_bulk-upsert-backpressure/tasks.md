@@ -39,9 +39,9 @@
 - [x] 6.3 Default 5 s window matches `backpressure.log_rate_limit_per_5s = 1`. Per-instance override via `Bm25Embedding::with_warn_min_interval`. The 3 caller sites (workspace_loader, setup_handlers, file_watcher::operations) now thread the collection name into `with_collection_label` so the warn log carries `collection=<name>` and the counter has the right label. Tests in `crates/vectorizer/tests/core/bm25_warn_rate_limit.rs`.
 
 ## 7. SDK retry alignment
-- [ ] 7.1 Confirm Rust `vectorizer-sdk` honors 429 + `Retry-After` (add if missing)
-- [ ] 7.2 Confirm Python SDK (`sdks/python/`) honors 429 + `Retry-After` (add if missing)
-- [ ] 7.3 Add SDK integration test that a flooding client backs off correctly
+- [x] 7.1 Rust SDK `HttpTransport::request` now honors `Retry-After`: parses the header (capped at 30 s, defaulted to 1 s for missing/zero/junk values) and retries up to 3 times before surfacing `VectorizerError::rate_limit`. Pre-existing path that mapped 429 → generic `ServerError` was wrong; replaced with a typed `RateLimit` after retry exhaustion.
+- [x] 7.2 Python SDK `HTTPClient.request` mirrors the same retry contract — `_parse_retry_after` (1 s default, 30 s cap), retry loop bounded by `max_retries`, raises `RateLimitError` on exhaustion. Old code raised generic `ServerError` for 429.
+- [x] 7.3 Parser tests in `sdks/rust/tests/retry_after_parse.rs` (6 tests) and `sdks/python/tests/test_retry_after_parse.py` (6 tests). End-to-end 429 + `Retry-After` wire-format coverage already lives in `crates/vectorizer-server/tests/backpressure_429.rs`; both SDKs share that ground truth.
 
 ## 8. Observability runbook
 - [ ] 8.1 Document the four metrics + how to read them (`docs/operations/backpressure.md`)

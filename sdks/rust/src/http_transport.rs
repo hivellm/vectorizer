@@ -1,5 +1,7 @@
 //! HTTP transport implementation using reqwest
 
+use std::time::Duration;
+
 use async_trait::async_trait;
 use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use reqwest::{Client, ClientBuilder};
@@ -7,6 +9,17 @@ use serde_json::Value;
 
 use crate::error::{Result, VectorizerError};
 use crate::transport::{Protocol, Transport};
+
+/// Maximum number of times an HTTP 429 will be retried before the
+/// error is surfaced to the caller (issue #263).
+const RETRY_AFTER_MAX_ATTEMPTS: u32 = 3;
+/// Cap on the `Retry-After` header value the client is willing to
+/// honor. A misconfigured server can't pin the client into a long
+/// sleep beyond this.
+const RETRY_AFTER_MAX_SECS: u64 = 30;
+/// Floor on the parsed `Retry-After` value when the header is missing
+/// or zero, so we don't busy-loop the server.
+const RETRY_AFTER_DEFAULT_SECS: u64 = 1;
 
 /// HTTP transport client
 pub struct HttpTransport {
@@ -82,47 +95,100 @@ fn looks_like_jwt(token: &str) -> bool {
 }
 
 impl HttpTransport {
-    /// Make a generic request
+    /// Make a generic request. Honors `Retry-After` on HTTP 429
+    /// responses (issue #263): the client sleeps for the header's
+    /// value (capped) and retries up to [`RETRY_AFTER_MAX_ATTEMPTS`]
+    /// times before surfacing a `RateLimit` error.
     async fn request(&self, method: &str, path: &str, body: Option<&Value>) -> Result<String> {
         let url = format!("{}{}", self.base_url, path);
+        let mut attempts_remaining = RETRY_AFTER_MAX_ATTEMPTS;
 
-        let mut request = match method {
-            "GET" => self.client.get(&url),
-            "POST" => self.client.post(&url),
-            "PUT" => self.client.put(&url),
-            "DELETE" => self.client.delete(&url),
-            _ => {
-                return Err(VectorizerError::configuration(format!(
-                    "Unsupported HTTP method: {method}"
+        loop {
+            let mut request = match method {
+                "GET" => self.client.get(&url),
+                "POST" => self.client.post(&url),
+                "PUT" => self.client.put(&url),
+                "DELETE" => self.client.delete(&url),
+                _ => {
+                    return Err(VectorizerError::configuration(format!(
+                        "Unsupported HTTP method: {method}"
+                    )));
+                }
+            };
+
+            if let Some(data) = body {
+                request = request.json(data);
+            }
+
+            let response = request
+                .send()
+                .await
+                .map_err(|e| VectorizerError::network(format!("HTTP request failed: {e}")))?;
+
+            if response.status().as_u16() == 429 {
+                let retry_after = parse_retry_after_secs(
+                    response
+                        .headers()
+                        .get(reqwest::header::RETRY_AFTER)
+                        .and_then(|v| v.to_str().ok()),
+                );
+                let body_text = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
+
+                if attempts_remaining == 0 {
+                    return Err(VectorizerError::rate_limit(format!(
+                        "HTTP 429 after {RETRY_AFTER_MAX_ATTEMPTS} retries: {body_text}",
+                    )));
+                }
+
+                tracing::info!(
+                    "Vectorizer 429 — sleeping {retry_after:?} before retry \
+                     (remaining attempts={attempts_remaining})",
+                );
+                attempts_remaining -= 1;
+                tokio::time::sleep(retry_after).await;
+                continue;
+            }
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
+                return Err(VectorizerError::server(format!(
+                    "HTTP {status}: {error_text}"
                 )));
             }
-        };
 
-        if let Some(data) = body {
-            request = request.json(data);
-        }
-
-        let response = request
-            .send()
-            .await
-            .map_err(|e| VectorizerError::network(format!("HTTP request failed: {e}")))?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response
+            return response
                 .text()
                 .await
-                .unwrap_or_else(|_| "Unknown error".to_string());
-            return Err(VectorizerError::server(format!(
-                "HTTP {status}: {error_text}"
-            )));
+                .map_err(|e| VectorizerError::network(format!("Failed to read response: {e}")));
         }
-
-        response
-            .text()
-            .await
-            .map_err(|e| VectorizerError::network(format!("Failed to read response: {e}")))
     }
+}
+
+/// Parse a `Retry-After` header value (seconds form only). Returns a
+/// sensible default when missing/unparseable; caps the value so a
+/// misconfigured server can't pin the client into a long sleep.
+///
+/// Public for test consumption only; not part of the stable SDK API.
+#[doc(hidden)]
+pub fn parse_retry_after_secs(value: Option<&str>) -> Duration {
+    let raw = match value {
+        Some(v) => v.trim(),
+        None => return Duration::from_secs(RETRY_AFTER_DEFAULT_SECS),
+    };
+    let secs = raw.parse::<u64>().unwrap_or(RETRY_AFTER_DEFAULT_SECS);
+    let secs = if secs == 0 {
+        RETRY_AFTER_DEFAULT_SECS
+    } else {
+        secs.min(RETRY_AFTER_MAX_SECS)
+    };
+    Duration::from_secs(secs)
 }
 
 #[async_trait]
