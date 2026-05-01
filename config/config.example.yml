@@ -22,6 +22,37 @@ rpc:
   port: 15503 # Vectorizer's slot in the 15500-range binary-transport convention
 
 # =============================================================================
+# BULK-UPSERT BACKPRESSURE (issue #263)
+# =============================================================================
+# Bounds the cost of bursty bulk upserts so a runaway producer cannot
+# saturate the host and trigger the Docker health-check restart loop
+# documented in https://github.com/hivellm/vectorizer/issues/263.
+#
+# Tuning notes:
+#   - max_concurrent_vocab_builds: BM25 vocabulary builds are CPU-heavy.
+#     Capping concurrency to ~num_cpus keeps the process responsive
+#     while still using the host fully. `0` = auto = num_cpus::get().
+#   - upsert_queue_high_water / upsert_queue_hard_limit: per-collection
+#     in-flight upsert depth. high_water emits a warn; hard_limit
+#     replies HTTP 429 / gRPC RESOURCE_EXHAUSTED with `Retry-After`.
+#   - read_path_isolated_runtime: keeps `/health`, `GET /collections`,
+#     `/auth/*` and `/metrics` responsive while writers are saturated.
+#
+# Env overrides (highest priority):
+#   CORTEX_VECTORIZER_BACKPRESSURE_ENABLED=true|false
+#   CORTEX_VECTORIZER_MAX_CONCURRENT_BUILDS=<usize>
+#   CORTEX_VECTORIZER_UPSERT_HIGH_WATER=<usize>
+#   CORTEX_VECTORIZER_UPSERT_HARD_LIMIT=<usize>
+backpressure:
+  enabled: true
+  max_concurrent_vocab_builds: 0 # 0 = auto (num_cpus)
+  upsert_queue_high_water: 256 # per-collection; warn above
+  upsert_queue_hard_limit: 1024 # per-collection; 429 above
+  retry_after_seconds: 2 # value used in 429 Retry-After
+  read_path_isolated_runtime: true
+  log_rate_limit_per_5s: 1 # max "BM25 vocab empty" warns per coll/5s
+
+# =============================================================================
 # FILE WATCHER CONFIGURATION
 # =============================================================================
 file_watcher:

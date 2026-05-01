@@ -1,8 +1,8 @@
 ## 1. Config & scaffolding
-- [ ] 1.1 Add `BackpressureConfig` struct in `src/config.rs` with all fields from proposal
-- [ ] 1.2 Wire env overrides (`CORTEX_VECTORIZER_MAX_CONCURRENT_BUILDS`, `..._UPSERT_HIGH_WATER`, `..._UPSERT_HARD_LIMIT`)
-- [ ] 1.3 Update `config.example.yml` with the new `backpressure:` section + comments
-- [ ] 1.4 Add config validation (high_water < hard_limit, retry_after >= 1)
+- [x] 1.1 Add `BackpressureConfig` struct in `crates/vectorizer/src/config/vectorizer.rs` with all fields from proposal
+- [x] 1.2 Wire env overrides (`CORTEX_VECTORIZER_MAX_CONCURRENT_BUILDS`, `..._UPSERT_HIGH_WATER`, `..._UPSERT_HARD_LIMIT`, `..._BACKPRESSURE_ENABLED`) in `VectorizerConfig::from_env`
+- [x] 1.3 Update `config/config.example.yml` with the new `backpressure:` section + comments
+- [x] 1.4 Add config validation (`BackpressureConfig::validate` + `VectorizerConfig::validate`; high_water < hard_limit, retry_after >= 1, hard_limit > 0)
 
 ## 2. Bounded vocabulary-build concurrency
 - [ ] 2.1 Add `BackpressureGuard` (wraps `Arc<tokio::sync::Semaphore>`) in `src/db/backpressure.rs`
