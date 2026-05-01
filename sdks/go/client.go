@@ -161,72 +161,130 @@ func (c *Client) WithMaster() *Client {
 	return NewClient(&masterConfig)
 }
 
-// request performs an HTTP request
+// Issue #263 retry-after constants. Mirror the Rust + Python + TS
+// SDK values so back-pressure behaves consistently across clients.
+const (
+	retryAfterMaxAttempts  = 3
+	retryAfterMaxSeconds   = 30
+	retryAfterDefaultSecs  = 1
+)
+
+// parseRetryAfterSeconds parses an HTTP `Retry-After` header value
+// (seconds form only). Returns a sane default when missing/zero/junk
+// and caps an unreasonably large server hint.
+func parseRetryAfterSeconds(value string) int {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return retryAfterDefaultSecs
+	}
+	var secs int
+	_, err := fmt.Sscanf(trimmed, "%d", &secs)
+	if err != nil || secs <= 0 {
+		return retryAfterDefaultSecs
+	}
+	if secs > retryAfterMaxSeconds {
+		return retryAfterMaxSeconds
+	}
+	return secs
+}
+
+// request performs an HTTP request. Honors `Retry-After` on HTTP 429
+// (issue #263): sleeps for the header value (capped) and retries up
+// to retryAfterMaxAttempts times before surfacing the error.
 func (c *Client) request(method, path string, body interface{}, result interface{}) error {
 	u, err := url.Parse(c.baseURL + path)
 	if err != nil {
 		return fmt.Errorf("invalid URL: %w", err)
 	}
 
-	var reqBody io.Reader
+	// Marshal body once outside the retry loop; each retry rewinds
+	// from the same bytes via a fresh bytes.Reader.
+	var bodyBytes []byte
 	if body != nil {
-		jsonData, err := json.Marshal(body)
+		bodyBytes, err = json.Marshal(body)
 		if err != nil {
 			return fmt.Errorf("marshal request body: %w", err)
 		}
-		reqBody = bytes.NewBuffer(jsonData)
 	}
 
-	req, err := http.NewRequest(method, u.String(), reqBody)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
+	attemptsRemaining := retryAfterMaxAttempts
 
-	req.Header.Set("Content-Type", "application/json")
-	if c.apiKey != "" {
-		// JWT shape → `Authorization: Bearer`; raw API keys (from
-		// `POST /auth/keys`) → `X-API-Key`. The server's auth
-		// middleware treats every Bearer string as a JWT and never
-		// falls back to the API-key validator, so routing must
-		// happen client-side.
-		if looksLikeJWT(c.apiKey) {
-			req.Header.Set("Authorization", "Bearer "+c.apiKey)
-		} else {
-			req.Header.Set("X-API-Key", c.apiKey)
+	for {
+		var reqBody io.Reader
+		if bodyBytes != nil {
+			reqBody = bytes.NewReader(bodyBytes)
 		}
-	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
+		req, err := http.NewRequest(method, u.String(), reqBody)
+		if err != nil {
+			return fmt.Errorf("create request: %w", err)
+		}
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(respBody, &errResp); err == nil {
-			return &VectorizerError{
-				Type:    errResp.ErrorType,
-				Message: errResp.Message,
-				Status:  resp.StatusCode,
-				Details: errResp.Details,
+		req.Header.Set("Content-Type", "application/json")
+		if c.apiKey != "" {
+			// JWT shape → `Authorization: Bearer`; raw API keys (from
+			// `POST /auth/keys`) → `X-API-Key`. The server's auth
+			// middleware treats every Bearer string as a JWT and never
+			// falls back to the API-key validator, so routing must
+			// happen client-side.
+			if looksLikeJWT(c.apiKey) {
+				req.Header.Set("Authorization", "Bearer "+c.apiKey)
+			} else {
+				req.Header.Set("X-API-Key", c.apiKey)
 			}
 		}
-		return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
-	}
 
-	if result != nil {
-		if err := json.Unmarshal(respBody, result); err != nil {
-			return fmt.Errorf("unmarshal response: %w", err)
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("request failed: %w", err)
 		}
-	}
 
-	return nil
+		respBody, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return fmt.Errorf("read response: %w", err)
+		}
+
+		if resp.StatusCode == http.StatusTooManyRequests {
+			retryAfterSecs := parseRetryAfterSeconds(resp.Header.Get("Retry-After"))
+			if attemptsRemaining <= 0 {
+				var errResp ErrorResponse
+				if jerr := json.Unmarshal(respBody, &errResp); jerr == nil {
+					return &VectorizerError{
+						Type:    errResp.ErrorType,
+						Message: fmt.Sprintf("HTTP 429 after %d retries: %s", retryAfterMaxAttempts, errResp.Message),
+						Status:  resp.StatusCode,
+						Details: errResp.Details,
+					}
+				}
+				return fmt.Errorf("HTTP 429 after %d retries: %s", retryAfterMaxAttempts, string(respBody))
+			}
+			attemptsRemaining--
+			time.Sleep(time.Duration(retryAfterSecs) * time.Second)
+			continue
+		}
+
+		if resp.StatusCode >= 400 {
+			var errResp ErrorResponse
+			if err := json.Unmarshal(respBody, &errResp); err == nil {
+				return &VectorizerError{
+					Type:    errResp.ErrorType,
+					Message: errResp.Message,
+					Status:  resp.StatusCode,
+					Details: errResp.Details,
+				}
+			}
+			return fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
+		}
+
+		if result != nil {
+			if err := json.Unmarshal(respBody, result); err != nil {
+				return fmt.Errorf("unmarshal response: %w", err)
+			}
+		}
+
+		return nil
+	}
 }
 
 // Health checks the server health
