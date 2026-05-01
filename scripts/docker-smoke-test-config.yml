@@ -32,7 +32,7 @@ gpu:
   fallback_to_cpu: true
   preferred_backend: cpu
 auth:
-  enabled: false
+  enabled: true
   jwt_secret: 'docker-smoke-test-only-0000000000000000000000000000000000000000'
   jwt_expiration: 3600
   api_key_length: 32
@@ -42,6 +42,22 @@ hub:
   enabled: false
 cluster:
   enabled: false
+  node_id: null
+  servers: []
+  discovery: static
+  timeout_ms: 5000
+  retry_count: 3
+  memory:
+    max_cache_memory_bytes: 1073741824
+    enforce_mmap_storage: true
+    disable_file_watcher: true
+    cache_warning_threshold: 80
+    strict_validation: true
+  current_epoch: 0
+  dns_name: null
+  dns_resolve_interval: 30
+  raft_node_id: null
+  dns_grpc_port: 15003
 backpressure:
   enabled: true
   max_concurrent_vocab_builds: 1
