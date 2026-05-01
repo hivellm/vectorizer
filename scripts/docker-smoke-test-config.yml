@@ -1,0 +1,52 @@
+# Smoke test config for the v3.2.0 docker image (issue #263).
+# Aggressive backpressure limits so 429 triggers fast.
+rpc:
+  enabled: false
+  host: 127.0.0.1
+  port: 15503
+server:
+  host: 0.0.0.0
+  port: 15002
+  mcp_port: 15003
+  startup_cleanup_empty: false
+file_watcher:
+  enabled: false
+  watch_paths: null
+  recursive: true
+  debounce_delay_ms: 1000
+  include_patterns: ['*.txt']
+  exclude_patterns: ['*.log']
+  min_file_size_bytes: 1
+  max_file_size_bytes: 10485760
+  hash_validation_enabled: false
+  collection_name: workspace-files
+  collection_mapping: null
+logging:
+  level: info
+  log_requests: false
+  log_responses: false
+  log_errors: true
+gpu:
+  enabled: false
+  batch_size: 1000
+  fallback_to_cpu: true
+  preferred_backend: cpu
+auth:
+  enabled: false
+  jwt_secret: 'docker-smoke-test-only-0000000000000000000000000000000000000000'
+  jwt_expiration: 3600
+  api_key_length: 32
+  rate_limit_per_minute: 100000
+  rate_limit_per_hour: 1000000
+hub:
+  enabled: false
+cluster:
+  enabled: false
+backpressure:
+  enabled: true
+  max_concurrent_vocab_builds: 1
+  upsert_queue_high_water: 1
+  upsert_queue_hard_limit: 2
+  retry_after_seconds: 1
+  read_path_isolated_runtime: true
+  log_rate_limit_per_5s: 1
