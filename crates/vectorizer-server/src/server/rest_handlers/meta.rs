@@ -201,7 +201,31 @@ pub async fn get_logs(Query(params): Query<HashMap<String, String>>) -> Json<Val
 }
 
 /// GET /metrics — export Prometheus metrics
-pub async fn get_prometheus_metrics() -> Result<(StatusCode, String), (StatusCode, String)> {
+pub async fn get_prometheus_metrics(
+    State(state): State<VectorizerServer>,
+) -> Result<(StatusCode, String), (StatusCode, String)> {
+    use vectorizer::monitoring::metrics::METRICS;
+
+    // Issue #263: refresh per-collection backpressure gauges right
+    // before we encode the snapshot Prometheus will scrape, so they
+    // reflect the live in-flight depth (atomic counters change
+    // independently of admission events). This keeps the gauges
+    // monotonically accurate without spawning a periodic sampler.
+    for (collection, depth) in state.upsert_queue.snapshot_depths() {
+        let depth_f64 = depth as f64;
+        METRICS
+            .upsert_queue_depth
+            .with_label_values(&[&collection])
+            .set(depth_f64);
+        METRICS
+            .upsert_in_flight
+            .with_label_values(&[&collection])
+            .set(depth_f64);
+    }
+    METRICS
+        .vocab_build_permits_available
+        .set(state.backpressure_guard.available_permits() as f64);
+
     match vectorizer::monitoring::export_metrics() {
         Ok(metrics) => Ok((StatusCode::OK, metrics)),
         Err(e) => {

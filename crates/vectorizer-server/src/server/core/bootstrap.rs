@@ -1557,6 +1557,16 @@ impl VectorizerServer {
                         )
                     }),
             ),
+            // Issue #263: shared BackpressureGuard. `backpressure_guard`
+            // (built earlier in this function) is the same handle the
+            // workspace loader uses; wrapping it in `Arc` here keeps
+            // it observable from the metrics handler without forcing
+            // every consumer to clone the inner Arc<Semaphore> twice.
+            backpressure_guard: Arc::new(backpressure_guard.clone().unwrap_or_else(|| {
+                vectorizer::db::BackpressureGuard::from_config(
+                    &vectorizer::config::BackpressureConfig::default(),
+                )
+            })),
         })
     }
 }

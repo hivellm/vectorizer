@@ -127,6 +127,10 @@ pub struct VectorizerServer {
     /// REST / gRPC / MCP upsert handlers call `try_admit` and return
     /// 429 / `RESOURCE_EXHAUSTED` on `AdmissionError::QueueFull`.
     pub upsert_queue: Arc<vectorizer::db::UpsertQueue>,
+    /// Shared BackpressureGuard for the BM25 vocab-build path
+    /// (issue #263). Held here so the metrics handler can sample
+    /// `vectorizer_vocab_build_permits_available` at scrape time.
+    pub backpressure_guard: Arc<vectorizer::db::BackpressureGuard>,
 }
 
 /// Configuration for root user credentials.

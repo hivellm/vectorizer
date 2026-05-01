@@ -21,11 +21,11 @@
 - [x] 3.7 Integration test in `crates/vectorizer-server/tests/backpressure_429.rs` asserts status 429 + `Retry-After` header + structured JSON body, plus 8 unit tests in `crates/vectorizer/tests/core/upsert_queue.rs` covering CAS-no-overshoot, isolation, hard-limit refusal, RAII drop on unwind
 
 ## 4. Metrics
-- [ ] 4.1 Register gauge `vectorizer_upsert_queue_depth{collection}`
-- [ ] 4.2 Register gauge `vectorizer_upsert_in_flight{collection}`
-- [ ] 4.3 Register counter `vectorizer_upsert_rejected_total{reason}`
-- [ ] 4.4 Register gauge `vectorizer_vocab_build_permits_available`
-- [ ] 4.5 Verify on `/metrics` endpoint with a smoke test
+- [x] 4.1 Register gauge `vectorizer_upsert_queue_depth{collection}` in `monitoring::metrics::Metrics` + sync at /metrics scrape via `UpsertQueue::snapshot_depths`
+- [x] 4.2 Register gauge `vectorizer_upsert_in_flight{collection}` (mirrors depth, separate name for dashboards)
+- [x] 4.3 Register counter `vectorizer_upsert_rejected_total{reason}` — `queue_full` on hard-limit refusal, `queue_high_water_warn` on high-water crossings (bumped from `common::admit_upsert`)
+- [x] 4.4 Register gauge `vectorizer_vocab_build_permits_available` — sampled from `BackpressureGuard::available_permits` in the metrics handler
+- [x] 4.5 Smoke test in `crates/vectorizer/tests/core/backpressure_metrics.rs` asserts all five metric names appear in `export_metrics()` output and counters increment
 
 ## 5. Read-path isolation
 - [ ] 5.1 Audit Axum routes; split read endpoints (`/collections` GET, `/auth/*`, `/health`, `/metrics`) onto a dedicated `tokio::runtime::Runtime`

@@ -12,6 +12,7 @@
 
 pub mod backpressure;
 pub mod backpressure_indexer;
+pub mod backpressure_metrics;
 pub mod collection_cleanup;
 pub mod persistence;
 pub mod quantization;

@@ -92,6 +92,17 @@ impl UpsertQueue {
             .unwrap_or(0)
     }
 
+    /// Snapshot every known collection's current depth. Used by the
+    /// `/prometheus/metrics` handler to refresh per-collection gauges
+    /// at scrape time so reads of stale counters can't mask a depth
+    /// that grew between admissions.
+    pub fn snapshot_depths(&self) -> Vec<(String, usize)> {
+        self.depth
+            .iter()
+            .map(|entry| (entry.key().clone(), entry.value().load(Ordering::Relaxed)))
+            .collect()
+    }
+
     /// Configured hard limit. Useful for metrics labels and for
     /// reporting back in the `Retry-After` response body.
     pub fn hard_limit(&self) -> usize {

@@ -128,6 +128,29 @@ pub struct Metrics {
 
     /// In-memory API request counter per tenant (for fast lookup)
     pub tenant_api_requests: Arc<DashMap<String, AtomicU64>>,
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Backpressure Metrics (issue #263)
+    // ═══════════════════════════════════════════════════════════════════════
+    /// Per-collection in-flight upsert depth.
+    pub upsert_queue_depth: GaugeVec,
+
+    /// Per-collection in-flight upsert count (mirrors `upsert_queue_depth`
+    /// but kept under a distinct name for dashboards that want
+    /// "currently doing work" vs "currently waiting").
+    pub upsert_in_flight: GaugeVec,
+
+    /// Permits available on the global vocab-build semaphore.
+    pub vocab_build_permits_available: Gauge,
+
+    /// Total upserts rejected by the per-collection queue, labelled
+    /// by reason (`queue_full`, `queue_high_water_warn`).
+    pub upsert_rejected_total: CounterVec,
+
+    /// Total times the BM25 empty-vocab fallback was hit per
+    /// collection. Bumped even when the warn log is rate-limited so
+    /// operators don't lose the volume signal.
+    pub bm25_empty_vocab_fallback_total: CounterVec,
 }
 
 impl Metrics {
@@ -388,6 +411,49 @@ impl Metrics {
             .unwrap(),
 
             tenant_api_requests: Arc::new(DashMap::new()),
+
+            // Backpressure metrics (issue #263)
+            upsert_queue_depth: GaugeVec::new(
+                Opts::new(
+                    "vectorizer_upsert_queue_depth",
+                    "Current per-collection in-flight upsert depth",
+                ),
+                &["collection"],
+            )
+            .unwrap(),
+
+            upsert_in_flight: GaugeVec::new(
+                Opts::new(
+                    "vectorizer_upsert_in_flight",
+                    "Per-collection upserts currently being processed",
+                ),
+                &["collection"],
+            )
+            .unwrap(),
+
+            vocab_build_permits_available: Gauge::new(
+                "vectorizer_vocab_build_permits_available",
+                "Permits currently available on the BM25 vocab-build semaphore",
+            )
+            .unwrap(),
+
+            upsert_rejected_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_upsert_rejected_total",
+                    "Total upserts rejected by the per-collection backpressure queue",
+                ),
+                &["reason"],
+            )
+            .unwrap(),
+
+            bm25_empty_vocab_fallback_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_bm25_empty_vocab_fallback_total",
+                    "Total times the BM25 empty-vocab fallback was hit per collection",
+                ),
+                &["collection"],
+            )
+            .unwrap(),
         }
     }
 
@@ -450,6 +516,13 @@ impl Metrics {
         registry.register(Box::new(self.hub_active_tenants.clone()))?;
         registry.register(Box::new(self.hub_usage_reports_total.clone()))?;
         registry.register(Box::new(self.hub_backup_operations_total.clone()))?;
+
+        // Backpressure metrics (issue #263)
+        registry.register(Box::new(self.upsert_queue_depth.clone()))?;
+        registry.register(Box::new(self.upsert_in_flight.clone()))?;
+        registry.register(Box::new(self.vocab_build_permits_available.clone()))?;
+        registry.register(Box::new(self.upsert_rejected_total.clone()))?;
+        registry.register(Box::new(self.bm25_empty_vocab_fallback_total.clone()))?;
 
         Ok(())
     }
