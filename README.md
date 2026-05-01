@@ -63,7 +63,19 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.1.0
+## 🎉 Latest Release: v3.2.0
+
+Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+
+**Added — Bulk-upsert backpressure ([#263](https://github.com/hivellm/vectorizer/issues/263))**
+- **Bounded BM25 vocabulary-build concurrency** — a shared `tokio::sync::Semaphore` caps CPU-heavy vocab builds at `num_cpus::get()` by default. Configurable via `backpressure.max_concurrent_vocab_builds`. Closes the unbounded-CPU restart loop a fan-out producer (Cortex `cortex-embedder-worker`, Synap consumers, etc.) used to trigger.
+- **Per-collection upsert admission** with HTTP `429 Too Many Requests` + `Retry-After`, gRPC `RESOURCE_EXHAUSTED` + `retry-after` metadata, and structured MCP error `{ code: "queue_full", retryAfterSeconds: N }` once a collection's in-flight depth crosses `backpressure.upsert_queue_hard_limit` (default 1024). Wired across REST / gRPC / MCP / UMICP.
+- **Five new Prometheus metrics** on `GET /prometheus/metrics`: `vectorizer_upsert_queue_depth{collection}`, `vectorizer_upsert_in_flight{collection}`, `vectorizer_vocab_build_permits_available`, `vectorizer_upsert_rejected_total{reason}`, `vectorizer_bm25_empty_vocab_fallback_total{collection}`.
+- **All five first-party SDKs** (Rust, Python, TypeScript, Go, C#) honor `Retry-After` automatically: 1 s default, 30 s cap, 3 retries, then a typed `RateLimit*` error. Bulk producers no longer need to throttle to a single worker.
+- **Operator runbook** at [`docs/deployment/backpressure.md`](docs/deployment/backpressure.md) and ready-to-import Grafana panels at [`docs/grafana/backpressure-panels.json`](docs/grafana/backpressure-panels.json).
+- **Log rate-limiting** for the `BM25 vocabulary is empty` warning — at most one emit per collection per 5 s, with the full count preserved in `vectorizer_bm25_empty_vocab_fallback_total`.
+
+## Previous Release: v3.1.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 
@@ -75,7 +87,7 @@ Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 **Changed**
 - **`/insert_texts` chunked payload layout flipped from nested to flat — BREAKING for clients that read `payload.metadata.<field>` directly.** Pre-3.1.0 chunks landed as `{content, metadata: {file_path, chunk_index, _id, casa, parlamentar, ...}}` — Qdrant payload filters `payload.parlamentar = "X"` silently missed every chunked row. 3.1.0 emits `{content, file_path, chunk_index, parent_id, _id, casa, parlamentar, ...}` with every key at the root. Server-side readers (`FileOperations`, `file_watcher`, MCP `search_semantic`) tolerate both shapes during the deprecation window. Migration guide: [CHANGELOG `[3.1.0]`](./CHANGELOG.md#migrating-from-30x-chunked-payloads).
 
-## Previous Release: v3.0.0
+## Earlier Release: v3.0.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 
