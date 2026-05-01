@@ -10,6 +10,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+pub mod backpressure;
 pub mod collection_cleanup;
 pub mod persistence;
 pub mod quantization;

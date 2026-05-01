@@ -5,11 +5,11 @@
 - [x] 1.4 Add config validation (`BackpressureConfig::validate` + `VectorizerConfig::validate`; high_water < hard_limit, retry_after >= 1, hard_limit > 0)
 
 ## 2. Bounded vocabulary-build concurrency
-- [ ] 2.1 Add `BackpressureGuard` (wraps `Arc<tokio::sync::Semaphore>`) in `src/db/backpressure.rs`
-- [ ] 2.2 Acquire permit at the entry of the BM25 vocabulary-build path in `src/embedding/`
-- [ ] 2.3 Default permit count = `num_cpus::get()` when config value is 0
-- [ ] 2.4 Ensure permit is released on all error paths (RAII via Drop)
-- [ ] 2.5 Unit test: N permits + M > N concurrent builds — exactly N run at a time
+- [x] 2.1 Add `BackpressureGuard` (wraps `Arc<tokio::sync::Semaphore>`) in `crates/vectorizer/src/db/backpressure.rs`
+- [ ] 2.2 Acquire permit at the entry of the BM25 vocabulary-build path in `crates/vectorizer/src/embedding/`
+- [x] 2.3 Default permit count = `num_cpus::get()` when config value is 0 (via `BackpressureConfig::resolved_max_concurrent_vocab_builds` + clamp `>=1` in guard)
+- [x] 2.4 Ensure permit is released on all error paths (RAII via Drop on `BackpressurePermit`; covered by `core::backpressure::drop_releases_on_unwind`)
+- [x] 2.5 Unit test: N permits + M > N concurrent builds — at most N hold permits at once (`tests/core/backpressure.rs::at_most_n_concurrent_holders`)
 
 ## 3. Per-collection upsert queue + 429
 - [ ] 3.1 Add per-collection queue-depth counter (`DashMap<CollectionId, AtomicUsize>`)
