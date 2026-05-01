@@ -6,7 +6,7 @@
 
 ## 2. Bounded vocabulary-build concurrency
 - [x] 2.1 Add `BackpressureGuard` (wraps `Arc<tokio::sync::Semaphore>`) in `crates/vectorizer/src/db/backpressure.rs`
-- [ ] 2.2 Acquire permit at the entry of the BM25 vocabulary-build path in `crates/vectorizer/src/embedding/`
+- [x] 2.2 Acquire permit at the entry of the BM25 vocabulary-build path: `Indexer::build_vocabulary_gated` + `FileLoader::set_backpressure`; plumbed through `workspace_loader`, `setup_handlers`, and `file_watcher::operations`. Bootstrap reads `BackpressureConfig` from `config.yml` and passes a shared guard.
 - [x] 2.3 Default permit count = `num_cpus::get()` when config value is 0 (via `BackpressureConfig::resolved_max_concurrent_vocab_builds` + clamp `>=1` in guard)
 - [x] 2.4 Ensure permit is released on all error paths (RAII via Drop on `BackpressurePermit`; covered by `core::backpressure::drop_releases_on_unwind`)
 - [x] 2.5 Unit test: N permits + M > N concurrent builds — at most N hold permits at once (`tests/core/backpressure.rs::at_most_n_concurrent_holders`)

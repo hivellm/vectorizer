@@ -19,6 +19,7 @@ pub use persistence::Persistence;
 use tracing::{debug, info, warn};
 
 use crate::VectorStore;
+use crate::db::BackpressureGuard;
 use crate::embedding::EmbeddingManager;
 
 /// Thin file loader orchestrator - uses existing infrastructure
@@ -45,6 +46,20 @@ impl FileLoader {
             indexer,
             persistence,
         }
+    }
+
+    /// Attach a shared [`BackpressureGuard`] so the vocab-build step
+    /// of [`Self::load_and_index_project`] is bounded across loaders
+    /// (issue #263). Cheap to call — the guard wraps an `Arc`.
+    pub fn with_backpressure(mut self, guard: BackpressureGuard) -> Self {
+        self.indexer.set_backpressure(guard);
+        self
+    }
+
+    /// Mutating variant of [`Self::with_backpressure`] for callers
+    /// that already own a `&mut FileLoader`.
+    pub fn set_backpressure(&mut self, guard: BackpressureGuard) {
+        self.indexer.set_backpressure(guard);
     }
 
     /// Load and index a project (main entry point)
@@ -91,8 +106,9 @@ impl FileLoader {
             collection_name
         );
 
-        // Step 3: Build vocabulary
-        self.indexer.build_vocabulary(&documents)?;
+        // Step 3: Build vocabulary (gated by BackpressureGuard if set
+        // — see issue #263 for why this matters under bursty load).
+        self.indexer.build_vocabulary_gated(&documents).await?;
 
         // Step 4: Create collection
         self.indexer.create_collection(store)?;

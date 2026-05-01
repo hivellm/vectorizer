@@ -9,6 +9,7 @@ use tracing::{info, warn};
 use super::config::{DocumentChunk, LoaderConfig};
 use crate::{
     VectorStore,
+    db::BackpressureGuard,
     embedding::EmbeddingManager, // Use existing EmbeddingManager
     models::{CollectionConfig, DistanceMetric, HnswConfig, Payload, QuantizationConfig, Vector},
 };
@@ -17,6 +18,9 @@ use crate::{
 pub struct Indexer {
     config: LoaderConfig,
     embedding_manager: EmbeddingManager,
+    /// Optional backpressure guard for the vocab-build path (issue #263).
+    /// When `None`, builds run unbounded (legacy behavior).
+    backpressure: Option<BackpressureGuard>,
 }
 
 impl Indexer {
@@ -28,7 +32,36 @@ impl Indexer {
         Self {
             config,
             embedding_manager,
+            backpressure: None,
         }
+    }
+
+    /// Attach a [`BackpressureGuard`] so vocab-build calls go through
+    /// the per-host concurrency cap (issue #263).
+    pub fn with_backpressure(mut self, guard: BackpressureGuard) -> Self {
+        self.backpressure = Some(guard);
+        self
+    }
+
+    /// Mutating variant of [`Self::with_backpressure`] for call sites
+    /// that already own a `&mut Indexer`.
+    pub fn set_backpressure(&mut self, guard: BackpressureGuard) {
+        self.backpressure = Some(guard);
+    }
+
+    /// Async wrapper around [`Self::build_vocabulary`] that acquires a
+    /// permit from the configured [`BackpressureGuard`] before running
+    /// the CPU-heavy vocabulary build. When no guard is attached, this
+    /// is equivalent to calling the sync method directly.
+    ///
+    /// The permit is held for the full duration of the build and
+    /// released by RAII drop, including on panic unwind.
+    pub async fn build_vocabulary_gated(&mut self, documents: &[(PathBuf, String)]) -> Result<()> {
+        let _permit = match self.backpressure.as_ref() {
+            Some(guard) => Some(guard.acquire().await),
+            None => None,
+        };
+        self.build_vocabulary(documents)
     }
 
     /// Build vocabulary (delegates to EmbeddingManager)

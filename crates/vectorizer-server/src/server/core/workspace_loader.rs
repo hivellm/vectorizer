@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use tracing::{debug, info, warn};
 use vectorizer::VectorStore;
+use vectorizer::db::BackpressureGuard;
 use vectorizer::embedding::EmbeddingManager;
 
 /// Load file watcher configuration from workspace.yml
@@ -50,6 +51,7 @@ pub(super) async fn load_workspace_collections(
     store: &Arc<VectorStore>,
     embedding_manager: &Arc<EmbeddingManager>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    backpressure: Option<BackpressureGuard>,
 ) -> anyhow::Result<usize> {
     use std::path::Path;
 
@@ -386,6 +388,13 @@ pub(super) async fn load_workspace_collections(
 
             let mut loader =
                 FileLoader::with_embedding_manager(loader_config, coll_embedding_manager);
+            // Issue #263: gate the BM25 vocab-build behind a shared
+            // semaphore so concurrent collection loads can't saturate
+            // the host. `backpressure` is None when bootstrap couldn't
+            // resolve a config — legacy behavior.
+            if let Some(guard) = backpressure.clone() {
+                loader.set_backpressure(guard);
+            }
 
             match loader
                 .load_and_index_project(&project_path.to_string_lossy(), store)

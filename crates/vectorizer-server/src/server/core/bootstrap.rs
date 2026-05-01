@@ -384,9 +384,23 @@ impl VectorizerServer {
         // Create cancellation token for background task
         let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
 
+        // Build the shared BackpressureGuard for the bulk-upsert /
+        // vocab-build path (issue #263). Read once from the parsed
+        // config at boot; if the config can't be parsed we fall back
+        // to None and the workspace loader runs without enforcement
+        // (legacy behavior).
+        let backpressure_guard: Option<vectorizer::db::BackpressureGuard> =
+            std::fs::read_to_string(&config_path)
+                .ok()
+                .and_then(|content| {
+                    serde_yaml::from_str::<vectorizer::config::VectorizerConfig>(&content).ok()
+                })
+                .map(|cfg| vectorizer::db::BackpressureGuard::from_config(&cfg.backpressure));
+
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
+        let backpressure_for_loading = backpressure_guard.clone();
         let watcher_system_for_loading = watcher_system_arc.clone();
         let config_path_for_background = config_path.clone();
         let background_handle = tokio::task::spawn(async move {
@@ -621,6 +635,7 @@ impl VectorizerServer {
                 &store_for_loading,
                 &embedding_manager_for_loading,
                 cancel_rx.clone(),
+                backpressure_for_loading.clone(),
             )
             .await
             {

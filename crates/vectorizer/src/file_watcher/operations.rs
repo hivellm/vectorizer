@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::VectorStore;
+use crate::db::BackpressureGuard;
 use crate::embedding::EmbeddingManager;
 use crate::error::{Result, VectorizerError};
 use crate::file_loader::{FileLoader, LoaderConfig};
@@ -14,6 +15,10 @@ pub struct VectorOperations {
     vector_store: Arc<VectorStore>,
     embedding_manager: Arc<RwLock<EmbeddingManager>>,
     config: crate::file_watcher::FileWatcherConfig,
+    /// Shared with the workspace loader so file-watcher-driven
+    /// re-indexing competes for the same vocab-build permits as the
+    /// initial bulk load (issue #263). `None` = legacy unbounded.
+    backpressure: Option<BackpressureGuard>,
 }
 
 impl VectorOperations {
@@ -26,7 +31,21 @@ impl VectorOperations {
             vector_store,
             embedding_manager,
             config,
+            backpressure: None,
         }
+    }
+
+    /// Attach a shared [`BackpressureGuard`] so file-watcher-driven
+    /// re-indexing shares the same per-host vocab-build cap as the
+    /// initial bulk load. Cheap to call — the guard wraps an `Arc`.
+    pub fn with_backpressure(mut self, guard: BackpressureGuard) -> Self {
+        self.backpressure = Some(guard);
+        self
+    }
+
+    /// Mutating variant of [`Self::with_backpressure`].
+    pub fn set_backpressure(&mut self, guard: BackpressureGuard) {
+        self.backpressure = Some(guard);
     }
 
     /// Process file change event
@@ -130,6 +149,9 @@ impl VectorOperations {
             em
         };
         let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
+        if let Some(guard) = self.backpressure.clone() {
+            loader.set_backpressure(guard);
+        }
 
         // Process the file
         match loader
