@@ -658,7 +658,7 @@ select.input {
   letter-spacing: 0.06em;
 }
 
-mark {
+body[data-console="1"] mark {
   background: rgba(229,51,122,0.18);
   color: var(--magenta-hi);
   padding: 0 2px;
@@ -676,10 +676,10 @@ mark {
 .kv dd { margin: 0; font-family: var(--font-mono); color: var(--text); }
 
 /* SCROLLBAR */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 5px; border: 2px solid var(--bg); }
-::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+body[data-console="1"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+body[data-console="1"] ::-webkit-scrollbar-track { background: var(--bg); }
+body[data-console="1"] ::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 5px; border: 2px solid var(--bg); }
+body[data-console="1"] ::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
 
 /* COMMAND PALETTE */
 .cmd-overlay {
@@ -736,13 +736,6 @@ mark {
   100% { opacity: 0.6; }
 }
 .live { animation: pulse 1.6s ease-in-out infinite; }
-
-/* FOCUS ring for tweak panel handle */
-.tweaks-fab {
-  position: fixed;
-  right: 18px; bottom: 18px;
-  z-index: 50;
-}
 
 /* small helpers */
 .row { display: flex; align-items: center; gap: 10px; }
