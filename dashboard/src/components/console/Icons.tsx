@@ -12,6 +12,8 @@ interface InternalProps extends Omit<IconProps, 'd'> {
 
 const Icon = ({ d, size = 16, fill = 'none', strokeWidth = 1.6, ...rest }: InternalProps) => (
   <svg
+    aria-hidden="true"
+    focusable="false"
     width={size}
     height={size}
     viewBox="0 0 24 24"

@@ -24,4 +24,17 @@ describe('Icons', () => {
     expect(container.querySelector('svg')!.getAttribute('width')).toBe('20');
     expect(container.querySelector('svg')!.getAttribute('height')).toBe('20');
   });
+
+  it('marks decorative icons aria-hidden by default', () => {
+    const { container } = render(<Icons.bell />);
+    expect(container.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelector('svg')!.getAttribute('focusable')).toBe('false');
+  });
+
+  it('allows consumers to override aria-hidden when icon stands alone', () => {
+    const { container } = render(<Icons.bell aria-hidden={false} role="img" aria-label="Notifications" />);
+    expect(container.querySelector('svg')!.getAttribute('aria-hidden')).toBe('false');
+    expect(container.querySelector('svg')!.getAttribute('role')).toBe('img');
+    expect(container.querySelector('svg')!.getAttribute('aria-label')).toBe('Notifications');
+  });
 });
