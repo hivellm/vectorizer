@@ -227,8 +227,8 @@ curl -X POST http://localhost:15002/graph/discover/docs \
 - **Compressed Size**: ~88 MB (v3.0.2+ on DHI; +21 MB vs the original distroless build because debian-base ships `bash` + full `libssl`/`libcrypto`/`libsystemd`/`libreadline`).
 - **Healthcheck**: built-in `HEALTHCHECK ... CMD ["/busybox", "wget", "-q", "--spider", "http://127.0.0.1:15002/health"]` (a static `busybox:stable-musl` is COPY-ed into `/busybox` and used **only** as the healthcheck entrypoint).
 - **Rust Edition**: 2024 (mandatory, pinned rustc ≥ 1.90 per async-graphql / asynk-strim floor)
-- **Build Flags**: `--package vectorizer-server --bin vectorizer --no-default-features` (excludes ONNX / FastEmbed / GPU / Transmutation from the default image to keep the dependency surface small).
-- **Supply Chain**: SPDX SBOM embedded at `/vectorizer/vectorizer.spdx.json`, OpenContainer labels for revision, source, and licenses
+- **Build Flags**: `--package vectorizer-server --bin vectorizer --no-default-features` (excludes ONNX / FastEmbed / GPU / Transmutation from the default image to keep the dependency surface small). The container binary is compiled with the dedicated `release-docker` Cargo profile (`lto = false`, `codegen-units = 16`, inherits `release` otherwise) — same opt-level=3 + strip behavior as the host `cargo build --release`, but ~30% faster to compile inside BuildKit at the cost of ~10–15% lower throughput on hot paths versus a host-built `release` binary. Operators chasing peak per-op throughput should rebuild from source with the workspace `release` profile.
+- **Supply Chain**: per-arch SBOM and SLSA `mode=max` provenance attached as in-toto attestations to the multi-arch manifest list (Docker Scout reads from there). Inspect with `docker buildx imagetools inspect hivehub/vectorizer:<tag>`. OpenContainer labels carry revision, source, and license metadata.
 - **License**: Apache-2.0
 
 ## 🔧 Advanced Usage

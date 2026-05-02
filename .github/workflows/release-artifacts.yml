@@ -284,14 +284,37 @@ jobs:
           bin: vectorizer-cli
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Docker: multi-platform image pushed to GitHub Container Registry (ghcr.io).
-  # Zero secrets — usa GITHUB_TOKEN automático.
+  # Docker: per-arch single-platform image build on a NATIVE runner (no
+  # QEMU emulation), pushed by digest. The sibling
+  # `publish-docker-manifest` job downstream stitches both digests into a
+  # single multi-arch manifest list and pushes the human-readable tags
+  # to both ghcr.io (always) and `hivehub/vectorizer` on Docker Hub
+  # (gated on `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` repo secrets).
+  #
+  # See `docs/development/docker-builds.md` for the full pipeline
+  # diagram and the rationale (phase10_optimize-docker-build-time).
   publish-docker:
     needs:
       - build-dashboard
       - build-linux-gnu-for-docker
       - build-linux-x86_64-gnu
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            platform: linux/amd64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+    runs-on: ${{ matrix.runner }}
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write   # required for SLSA provenance attestation
     steps:
       - uses: actions/checkout@v6
       - name: Download dashboard artifacts
@@ -299,16 +322,11 @@ jobs:
         with:
           name: dashboard-dist
           path: dashboard/dist
-      - name: Download Linux binary (amd64)
+      - name: Download Linux binary (${{ matrix.arch }})
         uses: actions/download-artifact@v4
         with:
-          name: linux-binaries-amd64
-          path: binaries/linux-amd64
-      - name: Download Linux binary (arm64)
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-binaries-arm64
-          path: binaries/linux-arm64
+          name: linux-binaries-${{ matrix.arch }}
+          path: binaries/linux-${{ matrix.arch }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Set version from tag
@@ -320,8 +338,81 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Docker metadata (tags + labels)
-        id: meta
+      - name: Login to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push by digest (${{ matrix.platform }})
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.artifacts
+          push: true
+          platforms: ${{ matrix.platform }}
+          # Push by digest (no tag) — the manifest job below assembles
+          # the human-readable tags from these digests.
+          outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
+          provenance: mode=max
+          sbom: true
+          build-args: |
+            GIT_COMMIT_ID=${{ steps.version.outputs.VERSION }}
+            BUILD_DATE=${{ github.event.release.published_at }}
+          # GHA cache scoped per-arch so amd64 and arm64 don't fight
+          # for the same cache key.
+          cache-from: type=gha,scope=docker-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=docker-${{ matrix.arch }}
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-digest-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Manifest list assembly: stitches the per-arch digests pushed by the
+  # matrix job above into a single multi-arch manifest list, tags it
+  # on both ghcr.io and (when secrets are configured) Docker Hub. Final
+  # step runs `docker scout policy` against the published manifest as a
+  # supply-chain gate — fails the workflow on policy regression.
+  publish-docker-manifest:
+    needs: publish-docker
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: docker-digest-*
+          merge-multiple: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Docker metadata (ghcr.io)
+        id: meta-ghcr
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
@@ -329,17 +420,56 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
-      - name: Build and push Docker image (from artifacts)
-        uses: docker/build-push-action@v6
+      - name: Docker metadata (Docker Hub)
+        id: meta-hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/metadata-action@v6
         with:
-          context: .
-          file: ./docker/Dockerfile.artifacts
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            GIT_COMMIT_ID=${{ steps.version.outputs.VERSION }}
-            BUILD_DATE=${{ github.event.release.published_at }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          images: hivehub/vectorizer
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Create manifest list (ghcr.io)
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta-ghcr.outputs.json }}
+      - name: Create manifest list (Docker Hub)
+        if: env.DOCKERHUB_USERNAME != ''
+        working-directory: /tmp/digests
+        # Same per-arch digests as the ghcr.io step — buildx
+        # imagetools transparently re-tags / cross-pushes the manifest
+        # list to the Docker Hub repo without re-uploading layers.
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta-hub.outputs.json }}
+      - name: Inspect manifest list
+        run: |
+          PRIMARY=$(jq -cr '.tags[0]' <<< "${{ steps.meta-ghcr.outputs.json }}")
+          docker buildx imagetools inspect "$PRIMARY"
+      - name: Resolve published version tag
+        id: version
+        # The release tag arrives as `refs/tags/v3.x.y`; strip the `v`
+        # to match the metadata-action's `{{version}}` output, which is
+        # what both ghcr.io and Docker Hub were tagged with above.
+        run: |
+          ref="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=${ref#v}" >> "$GITHUB_OUTPUT"
+      - name: Docker Scout policy gate
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/scout-action@v1
+        with:
+          command: policy
+          image: hivehub/vectorizer:${{ steps.version.outputs.VERSION }}
+          organization: hivehub
+          platform: linux/amd64
+          exit-code: true
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}

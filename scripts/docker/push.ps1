@@ -1,21 +1,34 @@
-# Script to push Docker image to Docker Hub
+# Script to push a previously-built Docker image to Docker Hub.
 # Usage: .\scripts\docker-push.ps1 -Tag 2.1.0
-# 
-# For building with attestations (recommended for better Docker Scout score):
-#   .\scripts\docker-build.ps1 -Tag 2.1.0 -Push
+#
+# This script does NOT rebuild — it only re-tags the local image and
+# pushes. For a build + push that benefits from the
+# `hivehub/vectorizer-cache:buildx` registry cache, use:
+#   .\scripts\docker\build-push.ps1 -Tag 2.1.0
+# (see docs/development/docker-builds.md for the cache lifecycle).
+#
+# `CacheRepo` / `CacheTag` are accepted for parameter-surface parity with
+# build-push.ps1 + build.ps1 — they are referenced in the help banner but
+# never passed to docker, since `docker push` has no cache concept.
 
 param(
     [Parameter(Mandatory=$false)]
     [string]$Username,
-    
+
     [Parameter(Mandatory=$false)]
     [string]$Tag = "latest",
-    
+
     [Parameter(Mandatory=$false)]
     [string]$Repository = "vectorizer",
-    
+
     [Parameter(Mandatory=$false)]
-    [string]$Organization = "hivehub"
+    [string]$Organization = "hivehub",
+
+    [Parameter(Mandatory=$false)]
+    [string]$CacheRepo = "hivehub/vectorizer-cache",
+
+    [Parameter(Mandatory=$false)]
+    [string]$CacheTag = "buildx"
 )
 
 $ImageName = "vectorizer"

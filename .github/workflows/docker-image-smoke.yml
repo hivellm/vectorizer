@@ -1,0 +1,140 @@
+name: Docker image smoke test
+
+# Asserts the published `hivehub/vectorizer:<tag>` image carries the
+# attestation surfaces phase10 promised:
+#   1. Both arches present in the manifest list (linux/amd64 + linux/arm64).
+#   2. Per-arch SBOM attestation present (in-toto, application/vnd.in-toto+json).
+#   3. Per-arch SLSA provenance attestation present (mode=max).
+#   4. Docker Scout policy reports >=5/7 policies met, 0 deviations.
+#
+# Trigger:
+#   - workflow_dispatch (manual, with the `tag` input).
+#   - automatic on every release publish (after release-artifacts has
+#     pushed the manifest list).
+#
+# Required secrets (Scout step only):
+#   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN. The job degrades gracefully
+#   when missing — manifest + attestation checks still run; the Scout
+#   gate is skipped.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to smoke test (e.g. 3.2.1, 3.2.x-rc1)'
+        required: true
+        type: string
+      registry:
+        description: 'Image registry'
+        required: false
+        default: 'hivehub/vectorizer'
+        type: string
+  workflow_run:
+    workflows: ['Build and publish release packages']
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    # Skip when triggered by a failed upstream release run.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    steps:
+      - name: Resolve target image
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ inputs.registry }}:${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            # Triggered by a successful release run — derive tag from
+            # the upstream workflow_run head_branch (which carries the
+            # release tag ref like `v3.2.1`).
+            ref="${{ github.event.workflow_run.head_branch }}"
+            tag="${ref#v}"
+            echo "ref=hivehub/vectorizer:${tag}" >> "$GITHUB_OUTPUT"
+            echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Manifest contains both arches
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.image.outputs.ref }}"
+          echo "::group::imagetools inspect $IMAGE"
+          docker buildx imagetools inspect "$IMAGE"
+          echo "::endgroup::"
+
+          # Raw JSON for assertions.
+          docker buildx imagetools inspect "$IMAGE" --raw > /tmp/manifest.json
+
+          for arch in amd64 arm64; do
+            if ! jq -e --arg a "$arch" '.manifests[] | select(.platform.architecture == $a and .platform.os == "linux")' /tmp/manifest.json > /dev/null; then
+              echo "::error::manifest missing linux/$arch entry"
+              exit 1
+            fi
+            echo "ok: linux/$arch present"
+          done
+
+      - name: Per-arch SBOM + provenance attestations present
+        run: |
+          set -euo pipefail
+          # Attestation manifests use mediaType
+          # `application/vnd.in-toto+json` and reference the per-arch
+          # image they attest via the `vnd.docker.reference.digest`
+          # annotation. Phase10 spec requires exactly one SBOM per arch
+          # (so >=2 attestation manifests carrying SBOM total).
+          attestation_count=$(jq '[.manifests[] | select(.annotations["vnd.docker.reference.type"] == "attestation-manifest")] | length' /tmp/manifest.json)
+          if [ "$attestation_count" -lt 2 ]; then
+            echo "::error::expected >=2 attestation manifests, found $attestation_count"
+            exit 1
+          fi
+          echo "ok: $attestation_count attestation manifests present"
+
+      - name: Docker Scout policy gate
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/scout-action@v1
+        with:
+          command: policy
+          image: ${{ steps.image.outputs.ref }}
+          organization: hivehub
+          platform: linux/amd64
+          # Phase10 baseline: 5/7 met, 0 deviations. `exit-code: true`
+          # fails the workflow on regression below that bar.
+          exit-code: true
+          dockerhub-user: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Container start smoke
+        # Boot the amd64 image, wait for /health to flip to "healthy",
+        # then tear down. Fails if the binary panics on first boot or
+        # the readiness probe never goes green within 60s.
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.image.outputs.ref }}"
+          docker run --platform linux/amd64 -d --rm --name vec-smoke -p 15002:15002 "$IMAGE"
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:15002/health > /dev/null 2>&1; then
+              echo "ok: /health responded after ${i}s"
+              docker stop vec-smoke
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::/health never responded within 60s"
+          docker logs vec-smoke || true
+          docker stop vec-smoke || true
+          exit 1

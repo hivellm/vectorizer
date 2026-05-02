@@ -85,6 +85,20 @@ codegen-units = 16
 opt-level = 2
 incremental = true
 
+# Container build profile — drops LTO and bumps codegen-units so peak
+# rustc memory + wall time stay sane inside Docker BuildKit. Selected
+# by `Dockerfile` via `xx-cargo build --profile release-docker`. Host
+# `cargo build --release` is unaffected; operators chasing peak runtime
+# perf can still rebuild with the workspace `release` profile.
+# Trade-off: shipped binary is ~10-15% slower on hot paths versus the
+# `release` profile (acceptable inside a container; documented in
+# `docs/development/docker-builds.md`).
+[profile.release-docker]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = false
+
 # Performance testing profile
 [profile.perf]
 inherits = "release"

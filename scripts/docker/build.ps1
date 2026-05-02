@@ -4,17 +4,30 @@
 param(
     [Parameter(Mandatory=$false)]
     [string]$Tag = "latest",
-    
+
     [Parameter(Mandatory=$false)]
     [string]$Repository = "vectorizer",
-    
+
     [Parameter(Mandatory=$false)]
-    [string]$Organization = "hivehub"
+    [string]$Organization = "hivehub",
+
+    # Read-only cache repo. Defaults to the dedicated
+    # `hivehub/vectorizer-cache:buildx` tag seeded by build-push.ps1.
+    # Pass `-NoCache` for a fully cold build.
+    [Parameter(Mandatory=$false)]
+    [string]$CacheRepo = "hivehub/vectorizer-cache",
+
+    [Parameter(Mandatory=$false)]
+    [string]$CacheTag = "buildx",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$NoCache
 )
 
 $ImageName = "vectorizer"
 $FullTag = "${Organization}/${Repository}:${Tag}"
 $SourceTag = "${ImageName}:${Tag}"
+$CacheRef = "${CacheRepo}:${CacheTag}"
 
 # Get git commit ID for build metadata
 $GitCommitId = git rev-parse --short HEAD 2>$null
@@ -32,15 +45,28 @@ Write-Host "   Git Commit: $GitCommitId" -ForegroundColor Yellow
 Write-Host "   Build Date: $BuildDate" -ForegroundColor Yellow
 Write-Host ""
 
-# Build command
+# Build command — buildx for registry cache support. `--load` materializes
+# the host-arch image into the local docker daemon (so existing
+# `docker run vectorizer:$Tag` flows keep working). Multi-arch + push is
+# the build-push.ps1 path.
 $buildArgs = @(
-    "build",
+    "buildx", "build",
     "--tag", $SourceTag,
     "--tag", $FullTag,
     "--build-arg", "GIT_COMMIT_ID=$GitCommitId",
     "--build-arg", "BUILD_DATE=$BuildDate",
-    "."
+    "--load"
 )
+
+if (-not $NoCache) {
+    Write-Host "   Cache: ${CacheRef} (read-only registry pull)" -ForegroundColor Yellow
+    $buildArgs += "--cache-from"
+    $buildArgs += "type=registry,ref=${CacheRef}"
+} else {
+    Write-Host "   Cache: disabled (-NoCache)" -ForegroundColor Yellow
+}
+
+$buildArgs += "."
 
 Write-Host "🚀 Starting build..." -ForegroundColor Cyan
 docker @buildArgs

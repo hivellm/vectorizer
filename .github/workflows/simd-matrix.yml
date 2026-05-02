@@ -64,6 +64,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Override leaked Windows OPENSSL_DIR (runner env quirk)
+        # ubuntu-latest GH-hosted image leaks
+        # OPENSSL_DIR=C:/Program Files/OpenSSL-Win64 into Linux jobs,
+        # making openssl-sys's build.rs panic. Point at system libssl
+        # (preinstalled on the runner image). Same pattern as rust.yml.
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
       - name: SIMD tests (lib + integration)
         run: |
           cargo test --lib simd::
@@ -94,6 +104,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Override leaked Windows OPENSSL_DIR (runner env quirk)
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
       - name: SIMD tests with AVX-512 feature
         run: |
           cargo test --lib --features simd-avx512 simd::
@@ -143,6 +159,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Override leaked Windows OPENSSL_DIR (runner env quirk)
+        # arm64 runner: aarch64 multiarch libdir.
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
       - name: SIMD tests
         run: |
           cargo test --lib simd::
@@ -177,6 +200,14 @@ jobs:
         with:
           targets: aarch64-unknown-linux-gnu
       - uses: Swatinem/rust-cache@v2
+      - name: Override leaked Windows OPENSSL_DIR (runner env quirk)
+        # Host is x86_64 ubuntu-latest; cross-compile target is aarch64,
+        # but build-script deps still link openssl natively on the host.
+        run: |
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
       - name: SIMD tests under SVE-emulating QEMU
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
