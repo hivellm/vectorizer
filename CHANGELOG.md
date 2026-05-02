@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [3.2.1] - 2026-05-01
+
+### Fixed
+
+- **`GET /collections` reports the real default embedding provider.** The list endpoint hardcoded `"embedding_provider": "bm25"` for every collection regardless of the provider actually registered at bootstrap, so dashboards and clients showed `bm25` even on deployments running fastembed (`all-mpnet-base-v2`, dim 768) or any other provider. The field now reflects `EmbeddingManager::get_default_provider_name()` (e.g. `fastembed:all-mpnet-base-v2`), with an `"unknown"` fallback that should never trigger in practice since bootstrap always registers a default. Embedding output and indexing were never affected — only the JSON label was wrong.
+- **`GET /collections/{name}` exposes `embedding_provider` for parity.** The single-collection endpoint omitted the field entirely while the list endpoint returned it; consumers had to special-case the difference. Both endpoints now populate the field from the same source.
+
 ## [Unreleased]
 
 ### Build
@@ -13,6 +21,7 @@ All notable changes to this project will be documented in this file.
   4. **Native arm64 in CI + Docker Hub publish.** `release-artifacts.yml::publish-docker` now runs as a per-arch matrix (`ubuntu-latest` for amd64, `ubuntu-24.04-arm` for arm64), each pushing by digest; a sibling `publish-docker-manifest` job stitches the digests into a multi-arch manifest list and publishes it to both `ghcr.io/hivellm/vectorizer` and `hivehub/vectorizer` (the Docker Hub push and the `docker scout policy` gate are conditioned on `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` repo secrets). Eliminates QEMU emulation from the arm64 docker build path.
 
   Operator runbook lives at [`docs/development/docker-builds.md`](docs/development/docker-builds.md). The dual Cargo profile contract is documented there and on Docker Hub via [`docker/dockerhub-readme.md`](docker/dockerhub-readme.md).
+
 
 ## [3.2.0] - 2026-05-01
 
