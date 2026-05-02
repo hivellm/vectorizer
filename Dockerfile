@@ -210,8 +210,12 @@ ENV TARGETPLATFORM=${TARGETPLATFORM:-linux/amd64}
 # Install cross-compilation dependencies including OpenSSL
 RUN xx-apt-get install -y pkg-config gcc g++ libc6-dev libssl-dev
 
-# Select Cargo profile (e.g., release, dev or ci)
-ARG PROFILE=release
+# Select Cargo profile. Default is `release-docker` (defined in workspace
+# `Cargo.toml`): inherits `release`, but disables LTO and bumps
+# codegen-units to 16 so peak rustc memory + wall time stay sane inside
+# BuildKit. Override at build time with `--build-arg PROFILE=release` if
+# you need the workspace `release` binary (LTO=thin, codegen-units=4).
+ARG PROFILE=release-docker
 
 # Enable crate features (empty = use default features; set to disable defaults)
 ARG FEATURES
@@ -247,9 +251,13 @@ RUN unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
     && PROFILE_DIR=$(if [ "$PROFILE" = dev ]; then echo debug; else echo $PROFILE; fi) \
     && mv target/$(xx-cargo --print-target-triple)/$PROFILE_DIR/vectorizer /vectorizer/vectorizer
 
-# Generate SBOM
-RUN xx-cargo install cargo-sbom && \
-    cargo sbom > vectorizer.spdx.json
+# SBOM is provided by BuildKit's `--sbom=true` syft attestation
+# (attached per-arch to the manifest list). The previous in-image
+# `cargo sbom > vectorizer.spdx.json` step recompiled `cargo-sbom`
+# from source on every build, once per arch (~1m × N arches), and
+# produced a file no downstream consumer reads — Scout policies
+# already pull from the syft attestation. See spec at
+# `.rulebook/tasks/phase10_optimize-docker-build-time/specs/build/spec.md`.
 
 # Writable data dir for distroless nonroot (binary needs ./data writable or it exits on startup)
 FROM debian:bookworm-slim AS writable-dirs
@@ -300,7 +308,6 @@ ARG GIT_COMMIT_ID
 # later copies don't implicitly recreate the parent as root.
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer /vectorizer
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
-COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer.spdx.json /vectorizer/vectorizer.spdx.json
 COPY --from=dashboard-builder --chown=65532:65532 /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder --chown=65532:65532 /vectorizer/config/config.example.yml /vectorizer/config/config.yml
 # Static busybox for the HEALTHCHECK probe. Invoked as

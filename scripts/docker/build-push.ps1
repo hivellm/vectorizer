@@ -4,16 +4,30 @@
 param(
     [Parameter(Mandatory=$false)]
     [string]$Tag = "latest",
-    
+
     [Parameter(Mandatory=$false)]
     [string]$Repository = "vectorizer",
-    
+
     [Parameter(Mandatory=$false)]
-    [string]$Organization = "hivehub"
+    [string]$Organization = "hivehub",
+
+    # Buildx registry cache repo. Defaults to the dedicated
+    # `hivehub/vectorizer-cache:buildx` tag (see
+    # docs/development/docker-builds.md). Pass `-NoCache` to skip the
+    # cache layer entirely (cold build).
+    [Parameter(Mandatory=$false)]
+    [string]$CacheRepo = "hivehub/vectorizer-cache",
+
+    [Parameter(Mandatory=$false)]
+    [string]$CacheTag = "buildx",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$NoCache
 )
 
 $ImageName = "vectorizer"
 $FullTag = "${Organization}/${Repository}:${Tag}"
+$CacheRef = "${CacheRepo}:${CacheTag}"
 
 # Get git commit ID for build metadata
 $GitCommitId = git rev-parse --short HEAD 2>$null
@@ -56,9 +70,21 @@ $buildArgs = @(
     "--build-arg", "BUILD_DATE=$BuildDate",
     "--provenance", "mode=max",
     "--sbom", "true",
-    "--push",
-    "."
+    "--push"
 )
+
+# Buildx registry cache: read previous layers, write new ones with
+# `mode=max` so every intermediate layer is cached (not just the final
+# image). Skipped when -NoCache is passed.
+if (-not $NoCache) {
+    Write-Host "   Cache: ${CacheRef} (registry, mode=max)" -ForegroundColor Yellow
+    $buildArgs += "--cache-from"
+    $buildArgs += "type=registry,ref=${CacheRef}"
+    $buildArgs += "--cache-to"
+    $buildArgs += "type=registry,ref=${CacheRef},mode=max"
+} else {
+    Write-Host "   Cache: disabled (-NoCache)" -ForegroundColor Yellow
+}
 
 # If tag is not "latest", also tag as latest
 if ($Tag -ne "latest") {
@@ -66,6 +92,8 @@ if ($Tag -ne "latest") {
     $buildArgs += "--tag"
     $buildArgs += $latestTag
 }
+
+$buildArgs += "."
 
 docker @buildArgs
 

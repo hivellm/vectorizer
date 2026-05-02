@@ -47,6 +47,7 @@ Internal analysis documents:
 - [Contributing](./specs/CONTRIBUTING.md)
 - [Code Guidelines](./specs/CODE_GUIDELINES.md)
 - [Testing Coverage](./specs/TESTING_COVERAGE.md)
+- [Docker build pipeline](./development/docker-builds.md) — operator runbook for the `hivehub/vectorizer` image (registry cache, dual Cargo profile, native arm64 CI path, troubleshooting)
 
 ### For Operations
 - [Docker Guide](./specs/DOCKER.md)

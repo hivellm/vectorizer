@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Build
+
+- **Docker build pipeline overhaul ([phase10](.rulebook/tasks/phase10_optimize-docker-build-time/)).** Cuts cold local multi-arch build time from ~30–45m to ~15–20m and warm time to under 10m via four changes:
+  1. **Buildx registry cache.** Local scripts (`scripts/docker/build-push.ps1`, `scripts/docker/build.ps1`) now read and write `hivehub/vectorizer-cache:buildx` on Docker Hub by default. Pass `-NoCache` to opt out.
+  2. **Dedicated `release-docker` Cargo profile.** Defined in workspace `Cargo.toml`; `lto = false`, `codegen-units = 16`, `incremental = false`. `Dockerfile` selects it via `ARG PROFILE=release-docker` (default). The host `cargo build --release` flow is unchanged. Trade-off: ~10–15% lower throughput on hot paths vs a host-built `release` binary, in exchange for ~30% faster compile and ~50% lower peak rustc memory.
+  3. **Drop in-image `cargo sbom`.** The `RUN xx-cargo install cargo-sbom && cargo sbom > vectorizer.spdx.json` step (which recompiled `cargo-sbom` once per arch and produced a file no consumer reads) is gone. SBOM is provided exclusively by BuildKit's `--sbom=true` syft attestation, which already attaches per-arch in-toto SBOMs to the manifest list. The runtime image no longer carries `/vectorizer/vectorizer.spdx.json`.
+  4. **Native arm64 in CI + Docker Hub publish.** `release-artifacts.yml::publish-docker` now runs as a per-arch matrix (`ubuntu-latest` for amd64, `ubuntu-24.04-arm` for arm64), each pushing by digest; a sibling `publish-docker-manifest` job stitches the digests into a multi-arch manifest list and publishes it to both `ghcr.io/hivellm/vectorizer` and `hivehub/vectorizer` (the Docker Hub push and the `docker scout policy` gate are conditioned on `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` repo secrets). Eliminates QEMU emulation from the arm64 docker build path.
+
+  Operator runbook lives at [`docs/development/docker-builds.md`](docs/development/docker-builds.md). The dual Cargo profile contract is documented there and on Docker Hub via [`docker/dockerhub-readme.md`](docker/dockerhub-readme.md).
+
 ## [3.2.0] - 2026-05-01
 
 ### Added

@@ -70,6 +70,27 @@ cargo clippy
 pkill vectorizer  # or Ctrl+C
 ```
 
+### Docker build (multi-arch)
+
+```powershell
+# Build + push hivehub/vectorizer:<tag> with the buildx registry cache
+# (see docs/development/docker-builds.md for the full pipeline).
+.\scripts\docker\build-push.ps1 -Tag 3.x.y
+
+# Local-only build (host arch, no push); reads the registry cache
+# read-only.
+.\scripts\docker\build.ps1 -Tag dev
+
+# Cold build (skip cache) — for baseline measurement.
+.\scripts\docker\build-push.ps1 -Tag bench-baseline -NoCache
+```
+
+The container binary is compiled with the dedicated `release-docker`
+Cargo profile (`lto = false`, `codegen-units = 16`). The host
+`cargo build --release` flow above is unaffected and continues to use
+the workspace `release` profile (`lto = "thin"`, `codegen-units = 4`).
+
+
 ## Architecture
 
 ```
