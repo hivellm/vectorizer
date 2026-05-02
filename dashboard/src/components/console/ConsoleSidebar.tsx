@@ -83,16 +83,25 @@ export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
       <div className="sidebar-section" style={{ marginTop: 'auto' }}>
         <nav className="sidebar-nav">
           {SECONDARY.map(renderItem)}
-          <div
+          <button
+            type="button"
             className="nav-item"
             onClick={onToggleCollapsed}
-            role="button"
             title="Collapse"
-            style={collapsed ? { justifyContent: 'center', padding: '8px 0' } : undefined}
+            style={{
+              background: 'none',
+              border: '1px solid transparent',
+              width: '100%',
+              textAlign: 'inherit',
+              cursor: 'pointer',
+              font: 'inherit',
+              color: 'inherit',
+              ...(collapsed ? { justifyContent: 'center', padding: '8px 0' } : {}),
+            }}
           >
             <Icons.panel2 className="icon" />
             {!collapsed && <span>Collapse sidebar</span>}
-          </div>
+          </button>
         </nav>
       </div>
 
