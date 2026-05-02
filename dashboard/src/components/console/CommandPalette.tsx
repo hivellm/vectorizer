@@ -45,12 +45,16 @@ export function CommandPalette({ open, onClose, onNavigate }: Props) {
   };
 
   return (
-    <div className="cmd-overlay" onClick={onClose} role="dialog" aria-modal>
+    <div className="cmd-overlay" onClick={onClose} role="dialog" aria-modal aria-label="Command palette">
       <div className="cmd-panel" onClick={(e) => e.stopPropagation()}>
         <input
           className="cmd-input"
           placeholder="Search or type a command…"
           autoFocus
+          role="combobox"
+          aria-expanded
+          aria-controls="cmdk-list"
+          aria-activedescendant={flat[active] ? `cmdk-${flat[active].to}` : undefined}
           value={q}
           onChange={(e) => { setQ(e.target.value); setActive(0); }}
           onKeyDown={(e) => {
@@ -60,7 +64,7 @@ export function CommandPalette({ open, onClose, onNavigate }: Props) {
             if (e.key === 'Escape')   onClose();
           }}
         />
-        <div className="cmd-list">
+        <div className="cmd-list" role="listbox" id="cmdk-list">
           {Object.entries(
             flat.reduce<Record<string, CmdItem[]>>((acc, it) => {
               (acc[it.section] ??= []).push(it);
@@ -75,6 +79,9 @@ export function CommandPalette({ open, onClose, onNavigate }: Props) {
                 return (
                   <div
                     key={it.to}
+                    id={`cmdk-${it.to}`}
+                    role="option"
+                    aria-selected={idx === active}
                     className={`cmd-row ${idx === active ? 'active' : ''}`}
                     onClick={() => go(it)}
                     onMouseEnter={() => setActive(idx)}

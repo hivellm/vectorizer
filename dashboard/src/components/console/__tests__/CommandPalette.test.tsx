@@ -33,4 +33,21 @@ describe('CommandPalette', () => {
     fireEvent.keyDown(screen.getByPlaceholderText(/Search or type a command/), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('marks dialog with accessible name', () => {
+    setup();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.getAttribute('aria-label')).toBe('Command palette');
+  });
+
+  it('exposes combobox + listbox semantics with aria-activedescendant', () => {
+    setup();
+    const input = screen.getByRole('combobox');
+    expect(input.getAttribute('aria-controls')).toBe('cmdk-list');
+    // First filtered item is "Go to Overview" → /overview → cmdk-/overview
+    expect(input.getAttribute('aria-activedescendant')).toBe('cmdk-/overview');
+    const options = screen.getAllByRole('option');
+    expect(options.length).toBeGreaterThan(0);
+    expect(options[0].getAttribute('aria-selected')).toBe('true');
+  });
 });
