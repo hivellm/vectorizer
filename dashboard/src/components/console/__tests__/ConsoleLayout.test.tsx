@@ -42,4 +42,22 @@ describe('ConsoleLayout', () => {
     fireEvent.keyDown(window, { key: 'k', metaKey: true });
     expect(screen.getByPlaceholderText(/Search or type a command/)).toBeTruthy();
   });
+
+  it('does not open palette when ⌘K fires inside an input', () => {
+    render(
+      <MemoryRouter initialEntries={['/overview']}>
+        <AuthProvider>
+          <Routes>
+            <Route element={<ConsoleLayout />}>
+              <Route path="/overview" element={<input data-testid="probe" />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    const probe = screen.getByTestId('probe') as HTMLInputElement;
+    probe.focus();
+    fireEvent.keyDown(probe, { key: 'k', metaKey: true, bubbles: true });
+    expect(screen.queryByPlaceholderText(/Search or type a command/)).toBeNull();
+  });
 });

@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { Outlet } from 'react-router-dom';
 import { renderWithProviders, screen } from '@/test-utils/render';
 import AppRouter from '../AppRouter';
 
@@ -55,23 +56,21 @@ vi.mock('@/pages/TestPage', () => ({
   default: () => <div>Test Page</div>,
 }));
 
-vi.mock('@/components/layout/MainLayout', () => ({
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="main-layout">{children}</div>
-  ),
+vi.mock('@/components/console', () => ({
+  ConsoleLayout: () => <div data-testid="console-layout"><Outlet /></div>,
 }));
 
 describe('AppRouter', () => {
-  it('should render router with MainLayout', () => {
+  it('should render router with ConsoleLayout', () => {
     renderWithProviders(<AppRouter />);
 
-    expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    expect(screen.getByTestId('console-layout')).toBeInTheDocument();
   });
 
   it('should navigate to overview by default', () => {
     renderWithProviders(<AppRouter />, { route: '/' });
 
-    // MemoryRouter starts at '/', MainLayout renders regardless of sub-route
-    expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    // MemoryRouter starts at '/', ConsoleLayout renders regardless of sub-route
+    expect(screen.getByTestId('console-layout')).toBeInTheDocument();
   });
 });
