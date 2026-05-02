@@ -53,8 +53,10 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ("src/server/rest_handlers/meta.rs", 300, "6 small handlers"),
     (
         "src/server/rest_handlers/collections.rs",
-        550,
-        "7 handlers incl. list/create",
+        560,
+        "7 handlers incl. list/create; +13 LOC in v3.2.1 to surface \
+         the real default embedding_provider name in list/get \
+         responses (was hardcoded \"bm25\")",
     ),
     (
         "src/server/rest_handlers/vectors.rs",

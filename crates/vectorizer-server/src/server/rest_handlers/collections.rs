@@ -56,7 +56,11 @@ pub async fn list_collections(
     // Sort alphabetically for consistent dashboard display
     collections.sort();
 
-    let provider_name = state.embedding_manager.get_default_provider_name().unwrap_or("unknown").to_string();
+    let provider_name = state
+        .embedding_manager
+        .get_default_provider_name()
+        .unwrap_or("unknown")
+        .to_string();
 
     let collection_infos: Vec<Value> = collections.iter().map(|name| {
         match state.store.get_collection(name) {
@@ -364,7 +368,10 @@ pub async fn get_collection(
         })
     };
 
-    let provider_name = state.embedding_manager.get_default_provider_name().unwrap_or("unknown");
+    let provider_name = state
+        .embedding_manager
+        .get_default_provider_name()
+        .unwrap_or("unknown");
 
     Ok(Json(json!({
         "name": name,
