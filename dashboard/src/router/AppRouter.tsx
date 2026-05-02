@@ -4,7 +4,7 @@
 
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import MainLayout from '@/components/layout/MainLayout';
+import { ConsoleLayout } from '@/components/console';
 import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -107,7 +107,7 @@ function AppRouter() {
           path="/"
           element={
             <ProtectedRoute>
-              <MainLayout />
+              <ConsoleLayout />
             </ProtectedRoute>
           }
         >
@@ -116,6 +116,8 @@ function AppRouter() {
           <Route path="collections" element={<CollectionsPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="vectors" element={<VectorsPage />} />
+          <Route path="monitoring" element={<div className="page"><h1 className="page-title">Monitoring (TODO)</h1></div>} />
+          <Route path="mcp-tools" element={<div className="page"><h1 className="page-title">MCP Tools (TODO)</h1></div>} />
           <Route path="file-watcher" element={<FileWatcherPage />} />
           <Route path="graph" element={<GraphPage />} />
           <Route path="connections" element={<ConnectionsPage />} />
