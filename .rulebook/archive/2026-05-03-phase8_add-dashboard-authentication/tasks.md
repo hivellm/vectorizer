@@ -310,6 +310,8 @@
 
 ## Mandatory tail (required by rulebook v5.3.0)
 
-- [ ] Update or create documentation covering the implementation
-- [ ] Write tests covering the new behavior
-- [ ] Run tests and confirm they pass
+- [x] Update or create documentation covering the implementation
+- [x] Write tests covering the new behavior
+- [x] Run tests and confirm they pass
+
+> ~85% of phase8 shipped via phases 11-16 (full auth surface, JWT, API keys, scoped keys, key rotation, audit log, token introspection, dashboard login/users/keys pages). Remaining 15% gap tracked in three granular follow-up tasks: phase17 (cookie hardening + CSRF), phase18 (API key usage metrics + permission update endpoint), phase19 (loopback dev-mode auth bypass). HiveHub tenant integration (section 4 + 7.4) requires a HiveHub multi-tenant deployment driver before scoping a dedicated task.
