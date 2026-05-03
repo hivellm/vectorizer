@@ -35,9 +35,27 @@ impl VectorizerServer {
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
 
+        // Phase17 BOOT GUARD: refuse to start if the operator left the
+        // `auth.cookies.insecure_dev` escape hatch on while binding to
+        // a non-loopback host. The flag is intended for plain-HTTP
+        // loopback dev only; exposing the dashboard on all interfaces
+        // without `Secure` cookies would let any plain-HTTP intermediary
+        // harvest the session.
+        let is_production_bind = host == "0.0.0.0";
+        if let Some(ref auth_state) = self.auth_handler_state {
+            let cookie_cfg = &auth_state.auth_manager.config().cookies;
+            if let Err(msg) = crate::server::auth_handlers::cookies::validate_dev_mode_against_host(
+                host, cookie_cfg,
+            ) {
+                error!("❌ SECURITY ERROR: {msg}");
+                error!("   Set auth.cookies.insecure_dev: false in config.yml,");
+                error!("   or bind to --host 127.0.0.1 for local development.");
+                return Err(anyhow::anyhow!(msg));
+            }
+        }
+
         // SECURITY CHECK: When binding to 0.0.0.0 (production), require authentication
         // Either standard auth or HiveHub integration must be enabled
-        let is_production_bind = host == "0.0.0.0";
         if is_production_bind {
             let has_auth = self.auth_handler_state.is_some();
             let has_hub = self.hub_manager.is_some();
@@ -786,6 +804,18 @@ impl VectorizerServer {
                  /backups/create, /backups/restore."
             );
 
+            // Phase17: gate POST/PUT/DELETE/PATCH on `/auth/*` behind the
+            // CSRF middleware. The middleware no-ops on read methods,
+            // exempts /auth/login + /auth/validate-password (which mint
+            // the CSRF token in the first place), and bypasses API-key
+            // requests (header-bearer credentials are not subject to the
+            // cross-origin attack the CSRF token defends against).
+            let protected_auth_router =
+                protected_auth_router.layer(axum::middleware::from_fn_with_state(
+                    auth_state.clone(),
+                    crate::server::auth_handlers::csrf::require_csrf_middleware,
+                ));
+
             // Gate every data route + every protected auth route behind the
             // `require_auth_middleware` layer. `/auth/login` +
             // `/auth/validate-password` (the two genuinely public auth
@@ -872,10 +902,22 @@ impl VectorizerServer {
             .route("/backups/restore", post(rest_handlers::restore_backup))
             .with_state(self.clone());
         let admin_router = if let Some(auth_state) = self.auth_handler_state.clone() {
-            admin_router.layer(axum::middleware::from_fn_with_state(
-                auth_state,
-                crate::server::auth_handlers::require_admin_middleware,
-            ))
+            // Phase17: stack the CSRF gate INSIDE the admin gate so an
+            // unauthenticated caller still gets a clean 401 (from the
+            // admin middleware) instead of the 403 the CSRF gate would
+            // emit when no session JWT is present. Layer order in axum
+            // is outer-first: the LAST `.layer()` call becomes the
+            // OUTERMOST middleware. So we attach CSRF first (inner) and
+            // require_admin last (outer, runs first on inbound).
+            admin_router
+                .layer(axum::middleware::from_fn_with_state(
+                    auth_state.clone(),
+                    crate::server::auth_handlers::csrf::require_csrf_middleware,
+                ))
+                .layer(axum::middleware::from_fn_with_state(
+                    auth_state,
+                    crate::server::auth_handlers::require_admin_middleware,
+                ))
         } else {
             admin_router
         };

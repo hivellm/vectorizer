@@ -41,6 +41,22 @@ pub const LEGACY_INSECURE_DEFAULT_SECRET: &str =
 /// `JwtManager::new` and `ConfigManager::validate_config`.
 pub const MIN_JWT_SECRET_LEN: usize = 32;
 
+/// Cookie hardening configuration for dashboard session + CSRF cookies.
+///
+/// Phase17: every dashboard cookie is emitted with `HttpOnly; Secure;
+/// SameSite=Strict; Path=/` by default. The `insecure_dev` escape hatch
+/// drops only the `Secure` flag so a developer can run the dashboard
+/// against plain-HTTP `127.0.0.1`. Boot rejects this flag when binding
+/// to `0.0.0.0` — see `VectorizerServer::start`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CookieConfig {
+    /// Drop the `Secure` cookie attribute. INTENDED FOR LOCAL DEVELOPMENT
+    /// ONLY against plain-HTTP `127.0.0.1`. Boot fails if this is `true`
+    /// while binding to `0.0.0.0`.
+    #[serde(default)]
+    pub insecure_dev: bool,
+}
+
 /// Authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
@@ -61,6 +77,9 @@ pub struct AuthConfig {
     pub rate_limit_per_hour: u32,
     /// Enable authentication (default: true)
     pub enabled: bool,
+    /// Cookie hardening configuration (phase17).
+    #[serde(default)]
+    pub cookies: CookieConfig,
 }
 
 impl Default for AuthConfig {
@@ -77,6 +96,7 @@ impl Default for AuthConfig {
             rate_limit_per_minute: 100,
             rate_limit_per_hour: 1000,
             enabled: true,
+            cookies: CookieConfig::default(),
         }
     }
 }

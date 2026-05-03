@@ -424,6 +424,38 @@ export const authMiddleware: Middleware = async (context, next) => {
 };
 
 /**
+ * Phase17 — read the `XSRF-TOKEN` cookie minted by the backend at login
+ * and echo it on the `X-CSRF-Token` header for every mutating request.
+ * The backend's CSRF middleware (see `auth_handlers::csrf`) rejects POST
+ * / PUT / PATCH / DELETE on `/auth/*` and `/admin/*` with HTTP 403 when
+ * the header is missing or doesn't match the token bound to the
+ * caller's session JWT.
+ */
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(
+    new RegExp('(?:^|;\\s*)' + escaped + '=([^;]*)'),
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+export const csrfMiddleware: Middleware = async (context, next) => {
+  if (MUTATING_METHODS.has(context.method.toUpperCase())) {
+    const csrf = readCookie('XSRF-TOKEN');
+    if (csrf) {
+      context.headers = {
+        ...context.headers,
+        'X-CSRF-Token': csrf,
+      };
+    }
+  }
+  return next();
+};
+
+/**
  * Create default middleware stack
  */
 export function createDefaultMiddlewareStack(options?: {
@@ -444,6 +476,11 @@ export function createDefaultMiddlewareStack(options?: {
 
   // Authentication (add JWT token to headers before request)
   manager.use(authMiddleware);
+
+  // Phase17: CSRF — echo XSRF-TOKEN cookie on every mutating request so
+  // the backend's CSRF middleware (under /auth/* and /admin/*) accepts
+  // the request. No-op on GET/HEAD/OPTIONS.
+  manager.use(csrfMiddleware);
 
   // Timeout (before request)
   if (options?.timeout) {

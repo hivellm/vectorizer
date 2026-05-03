@@ -298,3 +298,220 @@ async fn router_admin_layer_returns_200_for_admin_token() {
     let status = dispatch(router, Some(format!("Bearer {admin_token}"))).await;
     assert_eq!(status, axum::http::StatusCode::OK);
 }
+
+// --- Phase17: CSRF middleware tests
+//
+// Build a minimal axum router with the CSRF middleware layered on a
+// no-op POST handler, then prove the middleware:
+// - rejects POST without `X-CSRF-Token` (403)
+// - accepts POST with a header matching the stored token
+// - rejects POST with a wrong header (403)
+// - exempts /auth/login + /auth/validate-password
+// - bypasses GET (read methods)
+// - bypasses requests carrying X-API-Key (header-bearer credentials)
+
+async fn csrf_router_for_test(state: AuthHandlerState, route: &'static str) -> axum::Router {
+    use axum::Router;
+    use axum::routing::{get, post};
+
+    async fn ok_handler() -> &'static str {
+        "ok"
+    }
+
+    Router::new()
+        .route(route, post(ok_handler))
+        .route(route, get(ok_handler))
+        .layer(axum::middleware::from_fn_with_state(
+            state,
+            super::csrf::require_csrf_middleware,
+        ))
+}
+
+async fn dispatch_csrf(
+    router: axum::Router,
+    method: &str,
+    path: &str,
+    cookie: Option<&str>,
+    csrf_header: Option<&str>,
+    api_key: Option<&str>,
+) -> axum::http::StatusCode {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    let mut builder = Request::builder().method(method).uri(path);
+    if let Some(c) = cookie {
+        builder = builder.header(axum::http::header::COOKIE, c);
+    }
+    if let Some(h) = csrf_header {
+        builder = builder.header("X-CSRF-Token", h);
+    }
+    if let Some(k) = api_key {
+        builder = builder.header("X-API-Key", k);
+    }
+    let req = builder.body(Body::empty()).expect("build request");
+    router.oneshot(req).await.expect("router oneshot").status()
+}
+
+#[tokio::test]
+async fn csrf_post_without_header_returns_403() {
+    let (state, _token) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = csrf_router_for_test(state, "/auth/users").await;
+    let status = dispatch_csrf(router, "POST", "/auth/users", None, None, None).await;
+    assert_eq!(status, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn csrf_post_with_matching_header_succeeds() {
+    let (state, jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    state
+        .store_csrf_token(jwt.clone(), "csrf-token-value".to_string())
+        .await;
+
+    let router = csrf_router_for_test(state, "/auth/users").await;
+    let cookie = format!("vectorizer_session={jwt}");
+    let status = dispatch_csrf(
+        router,
+        "POST",
+        "/auth/users",
+        Some(&cookie),
+        Some("csrf-token-value"),
+        None,
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn csrf_post_with_mismatched_header_returns_403() {
+    let (state, jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    state
+        .store_csrf_token(jwt.clone(), "expected".to_string())
+        .await;
+
+    let router = csrf_router_for_test(state, "/auth/users").await;
+    let cookie = format!("vectorizer_session={jwt}");
+    let status = dispatch_csrf(
+        router,
+        "POST",
+        "/auth/users",
+        Some(&cookie),
+        Some("wrong-token"),
+        None,
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn csrf_get_bypasses_check() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = csrf_router_for_test(state, "/auth/users").await;
+    let status = dispatch_csrf(router, "GET", "/auth/users", None, None, None).await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn csrf_login_path_is_exempt() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = csrf_router_for_test(state, "/auth/login").await;
+    let status = dispatch_csrf(router, "POST", "/auth/login", None, None, None).await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn csrf_validate_password_path_is_exempt() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = csrf_router_for_test(state, "/auth/validate-password").await;
+    let status = dispatch_csrf(router, "POST", "/auth/validate-password", None, None, None).await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn csrf_api_key_request_bypasses_check() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = csrf_router_for_test(state, "/auth/users").await;
+    let status = dispatch_csrf(router, "POST", "/auth/users", None, None, Some("some-key")).await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn csrf_authorization_header_path_works() {
+    let (state, jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    state
+        .store_csrf_token(jwt.clone(), "csrf-tok".to_string())
+        .await;
+
+    let router = csrf_router_for_test(state, "/auth/users").await;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    let req = Request::builder()
+        .method("POST")
+        .uri("/auth/users")
+        .header(axum::http::header::AUTHORIZATION, format!("Bearer {jwt}"))
+        .header("X-CSRF-Token", "csrf-tok")
+        .body(Body::empty())
+        .unwrap();
+    let status = router.oneshot(req).await.unwrap().status();
+    assert_eq!(status, axum::http::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn csrf_unknown_session_returns_403() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::Admin]).await;
+    let router = csrf_router_for_test(state, "/auth/users").await;
+    let cookie = "vectorizer_session=unknown-jwt";
+    let status = dispatch_csrf(
+        router,
+        "POST",
+        "/auth/users",
+        Some(cookie),
+        Some("any-token"),
+        None,
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::FORBIDDEN);
+}
+
+// --- Phase17: state-level CSRF binding lifecycle
+
+#[tokio::test]
+async fn csrf_store_and_get_returns_bound_token() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::User]).await;
+    state
+        .store_csrf_token("jwt-1".to_string(), "csrf-1".to_string())
+        .await;
+    assert_eq!(
+        state.get_csrf_token("jwt-1").await,
+        Some("csrf-1".to_string())
+    );
+    assert_eq!(state.get_csrf_token("jwt-missing").await, None);
+}
+
+#[tokio::test]
+async fn csrf_drop_returns_and_removes_binding() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::User]).await;
+    state
+        .store_csrf_token("jwt-1".to_string(), "csrf-1".to_string())
+        .await;
+    let dropped = state.drop_csrf_token("jwt-1").await;
+    assert_eq!(dropped, Some("csrf-1".to_string()));
+    assert_eq!(state.get_csrf_token("jwt-1").await, None);
+}
+
+#[tokio::test]
+async fn csrf_rotate_moves_binding_to_new_jwt() {
+    let (state, _jwt) = test_state_with_user_roles(vec![Role::User]).await;
+    state
+        .store_csrf_token("old".to_string(), "csrf-stable".to_string())
+        .await;
+    let kept = state.rotate_csrf_token("old", "new".to_string()).await;
+    assert_eq!(kept, Some("csrf-stable".to_string()));
+    assert_eq!(state.get_csrf_token("old").await, None);
+    assert_eq!(
+        state.get_csrf_token("new").await,
+        Some("csrf-stable".to_string())
+    );
+}

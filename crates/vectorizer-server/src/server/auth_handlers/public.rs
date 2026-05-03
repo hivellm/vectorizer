@@ -8,10 +8,14 @@
 //!   clients (e.g. sign-up forms showing live strength feedback).
 
 use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::Json;
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Json, Response};
 use tracing::{debug, error, info, warn};
 
+use super::cookies::{
+    CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, append_set_cookie, build_session_cookie,
+    generate_csrf_token,
+};
 use super::state::AuthHandlerState;
 use super::types::{
     AuthErrorResponse, LoginRequest, LoginResponse, UserInfo, ValidatePasswordRequest,
@@ -36,10 +40,23 @@ pub async fn validate_password_endpoint(
 }
 
 /// Login endpoint - POST /auth/login
+///
+/// On success, the response carries:
+/// - the legacy `access_token` JSON body (preserved for SDK callers + the
+///   Authorization-header path used by the dashboard's existing
+///   `authMiddleware`),
+/// - a hardened `Set-Cookie: vectorizer_session=…; HttpOnly; Secure;
+///   SameSite=Strict; Path=/; Max-Age=<exp>` carrying the same JWT for
+///   browser-side use, and
+/// - a sibling `Set-Cookie: XSRF-TOKEN=…; SameSite=Strict; Path=/;
+///   Max-Age=<exp>` (no `HttpOnly`) so the SPA can read the token via
+///   `document.cookie` and echo it in the `X-CSRF-Token` header on every
+///   mutating request. The CSRF middleware (see `auth_handlers::csrf`)
+///   validates that header against the token bound to this JWT.
 pub async fn login(
     State(state): State<AuthHandlerState>,
     Json(request): Json<LoginRequest>,
-) -> Result<Json<LoginResponse>, (StatusCode, Json<AuthErrorResponse>)> {
+) -> Result<Response, (StatusCode, Json<AuthErrorResponse>)> {
     debug!("Login attempt for user: {}", request.username);
 
     // Check rate limiting first
@@ -117,16 +134,36 @@ pub async fn login(
             )
         })?;
 
+    // Phase17: bind a freshly-generated CSRF token to this JWT and emit
+    // the hardened Set-Cookie pair.
+    let csrf = generate_csrf_token();
+    state.store_csrf_token(token.clone(), csrf.clone()).await;
+
+    let cookie_cfg = &state.auth_manager.config().cookies;
+    let max_age = state.auth_manager.config().jwt_expiration;
+
+    let mut headers = HeaderMap::new();
+    append_set_cookie(
+        &mut headers,
+        build_session_cookie(SESSION_COOKIE_NAME, &token, max_age, true, cookie_cfg),
+    );
+    append_set_cookie(
+        &mut headers,
+        build_session_cookie(CSRF_COOKIE_NAME, &csrf, max_age, false, cookie_cfg),
+    );
+
     info!("User '{}' logged in successfully", request.username);
 
-    Ok(Json(LoginResponse {
+    let body = Json(LoginResponse {
         access_token: token,
         token_type: "Bearer".to_string(),
-        expires_in: state.auth_manager.config().jwt_expiration,
+        expires_in: max_age,
         user: UserInfo {
             user_id: user.user_id.clone(),
             username: user.username.clone(),
             roles: user.roles.iter().map(|r| format!("{:?}", r)).collect(),
         },
-    }))
+    });
+
+    Ok((headers, body).into_response())
 }

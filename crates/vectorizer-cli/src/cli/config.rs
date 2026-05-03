@@ -265,6 +265,7 @@ impl ConfigManager {
                 rate_limit_per_minute: config_file.auth.rate_limit_per_minute,
                 rate_limit_per_hour: config_file.auth.rate_limit_per_hour,
                 enabled: config_file.auth.enabled,
+                cookies: vectorizer::auth::CookieConfig::default(),
             },
             database: super::DatabaseConfig {
                 persistence_path: PathBuf::from(config_file.database.persistence_path),

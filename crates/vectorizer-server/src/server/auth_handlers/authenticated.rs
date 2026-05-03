@@ -15,18 +15,37 @@
 
 use axum::Extension;
 use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::Json;
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Json, Response};
 use tracing::{error, info};
 use vectorizer::auth::middleware::AuthState;
 use vectorizer::auth::persistence::PersistedApiKey;
 use vectorizer::auth::roles::{Permission, Role};
 
+use super::cookies::{
+    CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, append_set_cookie, build_session_cookie,
+    build_session_cookie_clear, generate_csrf_token, read_cookie,
+};
 use super::state::AuthHandlerState;
 use super::types::{
     ApiKeyInfo, AuthErrorResponse, CreateApiKeyRequest, CreateApiKeyResponse, ListApiKeysResponse,
     LogoutResponse, RefreshTokenResponse, UserInfo,
 };
+
+/// Extract the JWT presented by the request, preferring the
+/// `vectorizer_session` cookie and falling back to the `Authorization`
+/// header. Phase17 introduces the cookie path; the header path stays for
+/// SDK / programmatic callers that hit `/auth/refresh` directly.
+fn extract_jwt(headers: &HeaderMap) -> Option<String> {
+    if let Some(cookie_jwt) = read_cookie(headers, SESSION_COOKIE_NAME) {
+        return Some(cookie_jwt.to_string());
+    }
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.to_string())
+}
 
 /// Get current user info - GET /auth/me
 pub async fn get_me(
@@ -56,13 +75,14 @@ pub async fn get_me(
 
 /// Logout endpoint - POST /auth/logout
 ///
-/// Invalidates the current JWT token by adding it to a blacklist.
-/// The token will remain invalid until it expires naturally.
+/// Invalidates the current JWT token by adding it to a blacklist, drops
+/// the CSRF binding, and emits expired `Set-Cookie` headers so the
+/// browser scrubs the session + CSRF cookies immediately.
 pub async fn logout(
     State(state): State<AuthHandlerState>,
     Extension(auth_state): Extension<AuthState>,
     request: axum::extract::Request,
-) -> Result<Json<LogoutResponse>, (StatusCode, Json<AuthErrorResponse>)> {
+) -> Result<Response, (StatusCode, Json<AuthErrorResponse>)> {
     if !auth_state.authenticated {
         return Err((
             StatusCode::UNAUTHORIZED,
@@ -73,34 +93,45 @@ pub async fn logout(
         ));
     }
 
-    // Extract the token from the Authorization header to blacklist it
-    if let Some(auth_header) = request.headers().get(axum::http::header::AUTHORIZATION) {
-        if let Ok(auth_str) = auth_header.to_str() {
-            if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                state.blacklist_token(token.to_string()).await;
-                info!(
-                    "User '{}' logged out, token blacklisted",
-                    auth_state.user_claims.username
-                );
-            }
-        }
+    if let Some(token) = extract_jwt(request.headers()) {
+        state.blacklist_token(token.clone()).await;
+        let _ = state.drop_csrf_token(&token).await;
+        info!(
+            "User '{}' logged out, token blacklisted",
+            auth_state.user_claims.username
+        );
     }
 
-    Ok(Json(LogoutResponse {
+    let cookie_cfg = &state.auth_manager.config().cookies;
+    let mut headers = HeaderMap::new();
+    append_set_cookie(
+        &mut headers,
+        build_session_cookie_clear(SESSION_COOKIE_NAME, true, cookie_cfg),
+    );
+    append_set_cookie(
+        &mut headers,
+        build_session_cookie_clear(CSRF_COOKIE_NAME, false, cookie_cfg),
+    );
+
+    let body = Json(LogoutResponse {
         status: "ok".to_string(),
         message: "Logged out successfully".to_string(),
-    }))
+    });
+
+    Ok((headers, body).into_response())
 }
 
 /// Refresh token endpoint - POST /auth/refresh
 ///
-/// Generates a new JWT token with extended expiration.
-/// The old token remains valid until it expires (unless logout is called).
+/// Generates a new JWT, rotates the CSRF binding onto it (preserving the
+/// existing CSRF value so the SPA does not need to re-read it), and emits
+/// fresh `Set-Cookie` headers for both the session and the CSRF cookies.
+/// The old JWT remains valid until it expires unless `logout` is called.
 pub async fn refresh_token(
     State(state): State<AuthHandlerState>,
     Extension(auth_state): Extension<AuthState>,
     request: axum::extract::Request,
-) -> Result<Json<RefreshTokenResponse>, (StatusCode, Json<AuthErrorResponse>)> {
+) -> Result<Response, (StatusCode, Json<AuthErrorResponse>)> {
     if !auth_state.authenticated {
         return Err((
             StatusCode::UNAUTHORIZED,
@@ -111,13 +142,7 @@ pub async fn refresh_token(
         ));
     }
 
-    // Get the current token from Authorization header
-    let current_token = request
-        .headers()
-        .get(axum::http::header::AUTHORIZATION)
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .map(|s| s.to_string());
+    let current_token = extract_jwt(request.headers());
 
     // Check if the current token is blacklisted
     if let Some(ref token) = current_token {
@@ -151,16 +176,49 @@ pub async fn refresh_token(
             )
         })?;
 
+    // Phase17: re-bind the existing CSRF token to the new JWT, or mint a
+    // fresh one if none was bound (e.g. legacy header-only callers).
+    let csrf = match current_token.as_deref() {
+        Some(old) => state
+            .rotate_csrf_token(old, new_token.clone())
+            .await
+            .unwrap_or_else(|| {
+                let fresh = generate_csrf_token();
+                fresh
+            }),
+        None => generate_csrf_token(),
+    };
+    // Ensure the new JWT has a CSRF binding even if rotate fell through
+    // to the fresh-token branch.
+    state
+        .store_csrf_token(new_token.clone(), csrf.clone())
+        .await;
+
+    let cookie_cfg = &state.auth_manager.config().cookies;
+    let max_age = state.auth_manager.config().jwt_expiration;
+
+    let mut headers = HeaderMap::new();
+    append_set_cookie(
+        &mut headers,
+        build_session_cookie(SESSION_COOKIE_NAME, &new_token, max_age, true, cookie_cfg),
+    );
+    append_set_cookie(
+        &mut headers,
+        build_session_cookie(CSRF_COOKIE_NAME, &csrf, max_age, false, cookie_cfg),
+    );
+
     info!(
         "Token refreshed for user '{}'",
         auth_state.user_claims.username
     );
 
-    Ok(Json(RefreshTokenResponse {
+    let body = Json(RefreshTokenResponse {
         access_token: new_token,
         token_type: "Bearer".to_string(),
-        expires_in: state.auth_manager.config().jwt_expiration,
-    }))
+        expires_in: max_age,
+    });
+
+    Ok((headers, body).into_response())
 }
 
 /// Create API key - POST /auth/keys

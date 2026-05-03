@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Security
+
+- **Hardened dashboard cookies + CSRF (phase17).** Closes the cookie + CSRF gaps phase8 enumerated (audit sections 1.9 + 6.5–6.6).
+  - `POST /auth/login` and `POST /auth/refresh` now set a hardened `vectorizer_session` cookie carrying the JWT, and a sibling `XSRF-TOKEN` cookie carrying a 32-byte random CSRF token. Both cookies are emitted with `SameSite=Strict; Path=/; Max-Age=<jwt_exp>`. The session cookie is `HttpOnly; Secure`; the CSRF cookie is `Secure` but readable so the SPA can echo it.
+  - New `require_csrf_middleware` rejects `POST/PUT/PATCH/DELETE` requests under `/auth/*` and `/admin/*` with HTTP 403 when the `X-CSRF-Token` header is missing or does not match the token bound to the caller's session JWT. `GET/HEAD/OPTIONS` requests bypass the check; `/auth/login` and `/auth/validate-password` are exempt; `X-API-Key` requests are exempt (header-bearer credentials are not subject to the cross-origin attack the CSRF token defends against).
+  - `POST /auth/logout` emits expired `Set-Cookie` headers for both cookies and drops the CSRF binding.
+  - New `auth.cookies.insecure_dev` config flag (default `false`) drops only the `Secure` attribute for plain-HTTP `127.0.0.1` development. Boot fails with a clear error when the flag is `true` while binding to any non-loopback host (most importantly `0.0.0.0`).
+  - `dashboard/src/lib/api-middleware.ts` adds a `csrfMiddleware` that reads the `XSRF-TOKEN` cookie and echoes it in `X-CSRF-Token` on every mutating request.
+  - Backward compatibility: the legacy `access_token` field in the login response body is preserved so existing SDK callers and the dashboard's `Authorization: Bearer` middleware continue to work; the cookie is purely additive for browser-side use.
+
 ## [3.7.0] - 2026-05-02
 
 ### Added
