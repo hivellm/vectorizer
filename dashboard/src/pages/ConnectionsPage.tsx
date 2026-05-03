@@ -1,15 +1,57 @@
 /**
- * Connections page - Manage database connections
+ * Connections page — console-themed restyle.
+ *
+ * Visual restyle only: behaviour (managing the list of user-saved
+ * Vectorizer server profiles via `useConnections` — local + remote
+ * endpoints with optional bearer-token auth, per-row health checks,
+ * setting an active connection) is preserved from the pre-redesign
+ * version. The redesign brief has no dedicated mockup for Connections,
+ * so this page applies the established Phase 3 recipe:
+ *   - `.page` + `.page-head` shell with title/sub + toolbar buttons
+ *   - `Kpi` strip with the headline counts (total / online / active)
+ *   - real `<Tbl>` with rows-per-connection (Name, Endpoint, Type,
+ *     Auth, Status, actions)
+ *   - `StatusPill` for the health column, `Pill` for type / auth chips
+ *   - `.btn` actions with `Icons.*`
+ *   - no Tailwind utility classes, no `dark:` variants, no
+ *     `@untitledui/icons` imports
+ *
+ * The legacy Add / Edit Modal dialogs are kept as inline panels with
+ * `// TODO(actions)` notes until the console design ships a modal
+ * primitive — same approach as BackupsPage / FileWatcherPage / UsersPage.
  */
 
-import { useState, useEffect } from 'react';
-import { useConnections, Connection } from '@/hooks/useConnections';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
+import { useEffect, useState } from 'react';
+import { useConnections, type Connection } from '@/hooks/useConnections';
 import { useToastContext } from '@/providers/ToastProvider';
-import { CheckCircle, XCircle, RefreshCw01, Plus, Trash01, Edit01, AlertCircle } from '@untitledui/icons';
+import {
+  Icons,
+  Pill,
+  StatusPill,
+  Card,
+  CardHead,
+  CardBody,
+  Kpi,
+  Tbl,
+  Th,
+  Td,
+} from '@/components/console';
+
+interface FormState {
+  name: string;
+  host: string;
+  port: number;
+  type: 'local' | 'remote';
+  token: string;
+}
+
+const EMPTY_FORM: FormState = {
+  name: '',
+  host: 'localhost',
+  port: 15002,
+  type: 'local',
+  token: '',
+};
 
 function ConnectionsPage() {
   const {
@@ -25,83 +67,77 @@ function ConnectionsPage() {
   } = useConnections();
   const toast = useToastContext();
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingConnection, setEditingConnection] = useState<Connection | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    host: 'localhost',
-    port: 15002,
-    type: 'local' as 'local' | 'remote',
-    token: '',
-  });
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<Connection | null>(null);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [checking, setChecking] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check health of all connections on mount
     if (connections.length > 0) {
       checkAllConnectionsHealth();
     }
+    // Mirror the legacy mount-only health probe: run once after the
+    // initial load, not on every connections change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleAdd = () => {
-    setFormData({
-      name: '',
-      host: 'localhost',
-      port: 15002,
-      type: 'local',
-      token: '',
-    });
-    setShowAddModal(true);
+  const openAdd = () => {
+    setForm(EMPTY_FORM);
+    setAddOpen(true);
   };
 
-  const handleEdit = (connection: Connection) => {
-    setEditingConnection(connection);
-    setFormData({
-      name: connection.name,
-      host: connection.host,
-      port: connection.port,
-      type: connection.type,
-      token: connection.auth?.token || '',
+  const openEdit = (conn: Connection) => {
+    setEditing(conn);
+    setForm({
+      name: conn.name,
+      host: conn.host,
+      port: conn.port,
+      type: conn.type,
+      token: conn.auth?.token ?? '',
     });
-    setShowEditModal(true);
+    setEditOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!formData.name || !formData.host || !formData.port) {
+  const closeAll = () => {
+    setAddOpen(false);
+    setEditOpen(false);
+    setEditing(null);
+  };
+
+  const handleSave = () => {
+    if (!form.name || !form.host || !form.port) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     try {
-      if (showAddModal) {
+      if (addOpen) {
         const id = addConnection({
-          name: formData.name,
-          host: formData.host,
-          port: formData.port,
-          type: formData.type,
-          auth: formData.token ? { token: formData.token } : undefined,
+          name: form.name,
+          host: form.host,
+          port: form.port,
+          type: form.type,
+          auth: form.token ? { token: form.token } : undefined,
         });
         toast.success('Connection added successfully');
-        // Check health after adding
+        // Mirror the legacy 500ms-delayed health probe so the new row's
+        // status is populated shortly after creation.
         setTimeout(() => checkConnectionHealth(id), 500);
-      } else if (editingConnection) {
-        updateConnection(editingConnection.id, {
-          name: formData.name,
-          host: formData.host,
-          port: formData.port,
-          type: formData.type,
-          auth: formData.token ? { token: formData.token } : undefined,
+      } else if (editing) {
+        updateConnection(editing.id, {
+          name: form.name,
+          host: form.host,
+          port: form.port,
+          type: form.type,
+          auth: form.token ? { token: form.token } : undefined,
         });
         toast.success('Connection updated successfully');
-        // Check health after updating
-        setTimeout(() => checkConnectionHealth(editingConnection.id), 500);
+        setTimeout(() => checkConnectionHealth(editing.id), 500);
       }
-      setShowAddModal(false);
-      setShowEditModal(false);
-      setEditingConnection(null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save connection');
+      closeAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save connection');
     }
   };
 
@@ -121,313 +157,321 @@ function ConnectionsPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  // Map the localStorage health enum onto a StatusPill known status.
+  // 'online' → healthy (green), 'connecting' → indexing (amber),
+  // 'offline' → error (red). Anything else falls through as muted.
+  const statusToPill = (status: Connection['status']): string => {
     switch (status) {
       case 'online':
-        return <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />;
-      case 'offline':
-        return <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />;
+        return 'healthy';
       case 'connecting':
-        return <RefreshCw01 className="w-5 h-5 text-yellow-600 dark:text-yellow-400 animate-spin" />;
+        return 'indexing';
+      case 'offline':
+        return 'error';
       default:
-        return <AlertCircle className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />;
+        return status;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'offline':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      case 'connecting':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      default:
-        return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-400';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <RefreshCw01 className="w-8 h-8 text-neutral-400 dark:text-neutral-500 animate-spin" />
-      </div>
-    );
-  }
+  const onlineCount = connections.filter((c) => c.status === 'online').length;
+  const offlineCount = connections.filter((c) => c.status === 'offline').length;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">Connections</h1>
-          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 mt-1">
-            Manage connections to Vectorizer servers
-          </p>
+          <h1 className="page-title">Connections</h1>
+          <p className="page-sub">Manage connections to Vectorizer servers</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={checkAllConnectionsHealth}>
-            <RefreshCw01 className="w-4 h-4 mr-2" />
-            Check All
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleAdd}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Connection
-          </Button>
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            className="btn"
+            onClick={checkAllConnectionsHealth}
+            disabled={loading || connections.length === 0}
+          >
+            <Icons.refresh size={13} />
+            Check all
+          </button>
+          <button className="btn primary" onClick={openAdd}>
+            <Icons.plus size={13} />
+            New connection
+          </button>
         </div>
       </div>
 
-      {/* Connections List */}
-      {connections.length === 0 ? (
-        <Card>
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center">
-              <AlertCircle className="w-8 h-8 text-neutral-400 dark:text-neutral-500" />
-            </div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
-              No Connections
-            </h3>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
-              Add your first connection to get started
-            </p>
-            <Button variant="primary" onClick={handleAdd}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Connection
-            </Button>
+      <Card>
+        <CardHead title="Overview" sub={loading ? 'loading…' : undefined} />
+        <CardBody>
+          <div className="row" style={{ gap: 24, flexWrap: 'wrap' }}>
+            <Kpi label="Total connections" value={String(connections.length)} />
+            <Kpi
+              label="Online"
+              value={String(onlineCount)}
+              accent={onlineCount > 0 ? 'teal' : 'none'}
+            />
+            <Kpi
+              label="Offline"
+              value={String(offlineCount)}
+              accent={offlineCount > 0 ? 'magenta' : 'none'}
+            />
+            <Kpi
+              label="Active"
+              value={
+                activeConnectionId
+                  ? connections.find((c) => c.id === activeConnectionId)?.name ?? '—'
+                  : '—'
+              }
+            />
           </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {connections.map((connection) => (
-            <Card key={connection.id}>
-              <div className="space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                      {connection.name}
-                    </h3>
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded uppercase ${
-                        connection.type === 'local'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                          : 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-                      }`}
-                    >
-                      {connection.type}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(connection.status)}
-                    <span
-                      className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor(connection.status)}`}
-                    >
-                      {connection.status}
-                    </span>
-                  </div>
-                </div>
+        </CardBody>
+      </Card>
 
-                {/* Details */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-neutral-500 dark:text-neutral-400">Endpoint:</span>
-                    <p className="text-neutral-900 dark:text-white font-mono mt-1">
-                      {connection.host}:{connection.port}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-neutral-500 dark:text-neutral-400">Authentication:</span>
-                    <p className="text-neutral-900 dark:text-white mt-1">
-                      {connection.auth?.token ? 'Token configured' : 'None'}
-                    </p>
-                  </div>
-                </div>
+      <div style={{ height: 14 }} />
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleCheckHealth(connection.id)}
-                    disabled={checking === connection.id}
-                    isLoading={checking === connection.id}
+      <Card>
+        <CardHead
+          title="Saved connections"
+          sub={
+            connections.length > 0
+              ? `${connections.length} server${connections.length === 1 ? '' : 's'}`
+              : undefined
+          }
+        />
+        <CardBody tight>
+          {loading && connections.length === 0 ? (
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              Loading connections…
+            </div>
+          ) : connections.length === 0 ? (
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              No connections yet · Add one above to point at a Vectorizer server.
+            </div>
+          ) : (
+            <Tbl>
+              <thead>
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Endpoint</Th>
+                  <Th>Type</Th>
+                  <Th>Auth</Th>
+                  <Th>Status</Th>
+                  <Th />
+                </tr>
+              </thead>
+              <tbody>
+                {connections.map((conn) => {
+                  const isActive = activeConnectionId === conn.id;
+                  return (
+                    <tr key={conn.id}>
+                      <Td>
+                        <div className="row" style={{ gap: 8 }}>
+                          <Icons.globe size={13} className="muted" />
+                          <span style={{ fontWeight: 500 }}>{conn.name}</span>
+                          {isActive && (
+                            <Pill tone="teal">active</Pill>
+                          )}
+                        </div>
+                      </Td>
+                      <Td>
+                        <span className="mono">
+                          {conn.host}:{conn.port}
+                        </span>
+                      </Td>
+                      <Td>
+                        <Pill tone={conn.type === 'local' ? 'muted' : 'magenta'}>
+                          {conn.type}
+                        </Pill>
+                      </Td>
+                      <Td>
+                        {conn.auth?.token ? (
+                          <Pill tone="amber">token</Pill>
+                        ) : (
+                          <span style={{ color: 'var(--text-3)' }}>—</span>
+                        )}
+                      </Td>
+                      <Td>
+                        <StatusPill status={statusToPill(conn.status)} />
+                      </Td>
+                      <Td>
+                        <div
+                          className="row"
+                          style={{ gap: 4, justifyContent: 'flex-end' }}
+                        >
+                          <button
+                            className="btn sm"
+                            onClick={() => handleCheckHealth(conn.id)}
+                            disabled={checking === conn.id}
+                            aria-label={`Check health of ${conn.name}`}
+                          >
+                            <Icons.refresh size={11} />
+                            {checking === conn.id ? 'Checking…' : 'Check'}
+                          </button>
+                          {!isActive && (
+                            <button
+                              className="btn sm"
+                              onClick={() => setActiveConnection(conn.id)}
+                              aria-label={`Set ${conn.name} as active`}
+                            >
+                              <Icons.check size={11} />
+                              Set active
+                            </button>
+                          )}
+                          <button
+                            className="btn sm"
+                            onClick={() => openEdit(conn)}
+                            aria-label={`Edit ${conn.name}`}
+                          >
+                            <Icons.settings size={11} />
+                            Edit
+                          </button>
+                          <button
+                            className="btn sm"
+                            onClick={() => handleDelete(conn.id)}
+                            aria-label={`Delete ${conn.name}`}
+                          >
+                            <Icons.trash size={11} />
+                            Delete
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Tbl>
+          )}
+        </CardBody>
+      </Card>
+
+      {(addOpen || editOpen) && (
+        <>
+          <div style={{ height: 14 }} />
+          {/* TODO(actions): replace inline panel with a real modal once
+              the console design ships a modal primitive. */}
+          <Card>
+            <CardHead
+              title={addOpen ? 'Add connection' : `Edit connection · ${editing?.name ?? ''}`}
+              right={
+                <button className="btn sm" onClick={closeAll}>
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
+            />
+            <CardBody>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label
+                  className="col"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                >
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Name</span>
+                  <input
+                    className="input"
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="My local server"
+                  />
+                </label>
+                <div
+                  className="row"
+                  style={{ gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}
+                >
+                  <label
+                    className="col"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      flex: '1 1 200px',
+                    }}
                   >
-                    <RefreshCw01 className="w-4 h-4 mr-2" />
-                    Check Health
-                  </Button>
-                  {activeConnectionId !== connection.id && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setActiveConnection(connection.id)}
+                    <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Host</span>
+                    <input
+                      className="input"
+                      type="text"
+                      value={form.host}
+                      onChange={(e) => setForm({ ...form, host: e.target.value })}
+                      placeholder="localhost"
+                    />
+                  </label>
+                  <label
+                    className="col"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      flex: '0 0 140px',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Port</span>
+                    <input
+                      className="input"
+                      type="number"
+                      value={form.port}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          port: parseInt(e.target.value, 10) || 15002,
+                        })
+                      }
+                      placeholder="15002"
+                    />
+                  </label>
+                  <label
+                    className="col"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      flex: '0 0 140px',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Type</span>
+                    <select
+                      className="input"
+                      value={form.type}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          type: e.target.value as 'local' | 'remote',
+                        })
+                      }
                     >
-                      Set Active
-                    </Button>
-                  )}
-                  {activeConnectionId === connection.id && (
-                    <span className="text-xs font-medium text-primary-600 dark:text-primary-400">
-                      Active
-                    </span>
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleEdit(connection)}
-                  >
-                    <Edit01 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleDelete(connection.id)}
-                  >
-                    <Trash01 className="w-4 h-4" />
-                  </Button>
+                      <option value="local">Local</option>
+                      <option value="remote">Remote</option>
+                    </select>
+                  </label>
+                </div>
+                <label
+                  className="col"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                >
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                    Auth token (optional)
+                  </span>
+                  <input
+                    className="input"
+                    type="password"
+                    value={form.token}
+                    onChange={(e) => setForm({ ...form, token: e.target.value })}
+                    placeholder="Bearer token"
+                  />
+                </label>
+                <div className="row" style={{ gap: 8, marginTop: 4 }}>
+                  <button className="btn primary" onClick={handleSave}>
+                    <Icons.check size={13} />
+                    {addOpen ? 'Add connection' : 'Save changes'}
+                  </button>
+                  <button className="btn" onClick={closeAll}>
+                    Cancel
+                  </button>
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            </CardBody>
+          </Card>
+        </>
       )}
-
-      {/* Add Connection Modal */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Add Connection"
-        size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleSave}>
-              Add Connection
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <Input
-            label="Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="My Local Server"
-            required
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Host"
-              value={formData.host}
-              onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-              placeholder="localhost"
-              required
-            />
-            <Input
-              label="Port"
-              type="number"
-              value={formData.port}
-              onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 15002 })}
-              placeholder="15002"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Type
-            </label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as 'local' | 'remote' })}
-              className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="local">Local</option>
-              <option value="remote">Remote</option>
-            </select>
-          </div>
-          <Input
-            label="Auth Token (Optional)"
-            type="password"
-            value={formData.token}
-            onChange={(e) => setFormData({ ...formData, token: e.target.value })}
-            placeholder="Enter authentication token"
-          />
-        </div>
-      </Modal>
-
-      {/* Edit Connection Modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingConnection(null);
-        }}
-        title="Edit Connection"
-        size="md"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowEditModal(false);
-                setEditingConnection(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleSave}>
-              Save Changes
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <Input
-            label="Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="My Local Server"
-            required
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Host"
-              value={formData.host}
-              onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-              placeholder="localhost"
-              required
-            />
-            <Input
-              label="Port"
-              type="number"
-              value={formData.port}
-              onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) || 15002 })}
-              placeholder="15002"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Type
-            </label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as 'local' | 'remote' })}
-              className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="local">Local</option>
-              <option value="remote">Remote</option>
-            </select>
-          </div>
-          <Input
-            label="Auth Token (Optional)"
-            type="password"
-            value={formData.token}
-            onChange={(e) => setFormData({ ...formData, token: e.target.value })}
-            placeholder="Enter authentication token"
-          />
-        </div>
-      </Modal>
     </div>
   );
 }
