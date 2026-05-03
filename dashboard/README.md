@@ -191,3 +191,54 @@ When adding new features:
 4. Add API methods in `src/lib/api-client.ts` if needed
 5. Update this README if adding major features
 
+## Hybrid styling (console + Tailwind)
+
+The dashboard currently runs **two style systems side-by-side**. New code
+should pick the right one based on where it lives.
+
+### Primary: console design system
+
+Source of truth for every page and shell chrome:
+
+- `src/styles/console.css` — design tokens, layout primitives, dark theme.
+- `src/components/console/*` — `Card`, `Stat`, `Tbl`, `Btn`, `Tag`, `Field`,
+  `ConsoleSidebar`, `ConsoleTopbar`, `CommandPalette`, etc.
+
+All routes mounted under `ConsoleLayout` (Phase 1.8) and every page rewritten
+in Phase 2/3 use this system **exclusively**. Pages must NOT introduce
+Tailwind utility classes — use console primitives + inline `style={{ }}`
+escape hatches that rely on the `--c-*` CSS variables defined in
+`console.css`.
+
+### Legacy: Tailwind v4
+
+Still required by 24 shared components that have not been migrated to
+console primitives yet:
+
+- `src/components/ui/*` — `Modal`, `Input`, `Select`, `Checkbox`, `Dropdown`,
+  `Toast`, `StatCard`, `PasswordStrengthIndicator`, `CodeEditor`.
+- `src/components/modals/*` — every modal (Create/Delete/Details for
+  collections, vectors, edges, files, plus `DiscoveryConfigModal`,
+  `PathFinderModal`, `FileUploadModal`).
+- `src/components/FileBrowser.tsx`, `WelcomeBanner.tsx`, `ProtectedRoute.tsx`,
+  `ErrorBoundary.tsx`, `LoadingState.tsx`.
+
+Tailwind v4 is wired through:
+
+- `dashboard/src/styles/theme.css` — `@import "tailwindcss"` plus the
+  `@theme {}` block that pins primary/gray to grayscale-only tokens.
+- `dashboard/vite.config.ts` — `@tailwindcss/vite` plugin.
+- `package.json` deps: `tailwindcss`, `@tailwindcss/vite`, `tailwind-merge`,
+  `tailwindcss-animate`, `tailwindcss-react-aria-components`.
+
+### TODO markers
+
+Several Phase 2/3 page rewrites left `// TODO(actions)`,
+`// TODO(workspace-modal)`, `// TODO(graph-modals)`, and
+`// TODO(api-docs-section)` comments where modal triggers still mount the
+old Tailwind-styled modals. Each marker is a future migration point: replace
+the trigger with a console-native modal primitive, then delete the
+Tailwind-only shared component once nothing imports it. When the last
+shared component is migrated, drop Tailwind v4 entirely (delete `theme.css`,
+remove the Vite plugin, prune the five `tailwindcss*` packages).
+
