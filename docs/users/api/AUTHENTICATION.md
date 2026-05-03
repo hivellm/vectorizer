@@ -35,6 +35,67 @@ export VECTORIZER_JWT_SECRET="your-secure-secret-key"
 export VECTORIZER_JWT_EXPIRATION=3600
 ```
 
+## Local Development — Skip Auth on Loopback
+
+Local dev against the dashboard / SDK normally requires:
+
+1. Setting a JWT secret in `config.yml` (or via env var).
+2. Logging in with the auto-generated root credentials to get a JWT.
+3. Echoing the token in every test request.
+
+For single-operator dev on a machine you own with a plain-HTTP loopback bind, that ceremony is pure friction. The `auth.dev_mode_skip_loopback` flag lets you opt out of credential validation **without** disabling auth in production builds:
+
+```yaml
+# config.yml
+auth:
+  enabled: true
+  jwt_secret: "your-secure-secret-key-at-least-32-chars"
+  dev_mode_skip_loopback: true   # ⚠️ loopback only — see below
+```
+
+When the flag is `true`:
+
+- Every request runs as the synthetic principal `local-dev-admin` (carries `Role::Admin`, no scopes).
+- Every response carries `X-Vectorizer-Dev-Mode: true` so tooling, logs, and integration tests can spot that the request bypassed credential validation.
+- The CSRF middleware no-ops (there is no session JWT to bind a token to in dev mode).
+- Boot logs a multi-line `WARN` banner so the operator sees the security posture immediately:
+
+```text
+════════════════════════════════════════════════════════════════════
+⚠️  AUTH IS DISABLED FOR LOOPBACK — DO NOT EXPOSE THIS BUILD
+⚠️  auth.dev_mode_skip_loopback = true
+⚠️  Every request runs as the synthetic 'local-dev-admin' principal.
+⚠️  Responses carry the X-Vectorizer-Dev-Mode: true header.
+⚠️  Bind is 127.0.0.1 — boot rejected this flag on any non-loopback host.
+════════════════════════════════════════════════════════════════════
+```
+
+### Loopback-only — boot guard
+
+The flag is only honoured when the server binds to a loopback address (`127.0.0.1`, `::1`, or `localhost`). Booting with `dev_mode_skip_loopback: true` AND `--host 0.0.0.0` (or any LAN IP) **fails fast**:
+
+```text
+❌ SECURITY ERROR: auth.dev_mode_skip_loopback=true is only permitted on a
+   loopback bind (127.0.0.1, ::1, localhost); refusing to start with host=0.0.0.0
+   Set auth.dev_mode_skip_loopback: false in config.yml,
+   or bind to --host 127.0.0.1 for local development.
+```
+
+The flag is an opt-in convenience for local dev and intentionally cannot be enabled in any deployment that is reachable from the network.
+
+### Quick try-it
+
+```bash
+# 1. Enable in config.yml: auth.dev_mode_skip_loopback: true
+# 2. Start on loopback:
+./target/release/vectorizer --host 127.0.0.1 --port 15002
+
+# 3. No Authorization header needed:
+curl -i http://127.0.0.1:15002/collections
+# < HTTP/1.1 200 OK
+# < x-vectorizer-dev-mode: true
+```
+
 ## First Start & Default Admin
 
 When authentication is enabled and no users exist, Vectorizer automatically creates a default admin user:

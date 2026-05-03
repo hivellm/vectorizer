@@ -299,6 +299,141 @@ async fn router_admin_layer_returns_200_for_admin_token() {
     assert_eq!(status, axum::http::StatusCode::OK);
 }
 
+// --- Dev-mode auth-skip (loopback) tests
+
+async fn dev_mode_state(enabled: bool) -> AuthHandlerState {
+    use vectorizer::auth::{AuthConfig, AuthManager, Secret};
+
+    let config = AuthConfig {
+        jwt_secret: Secret::new("z".repeat(64)),
+        enabled: true,
+        dev_mode_skip_loopback: enabled,
+        ..AuthConfig::default()
+    };
+    let manager = Arc::new(AuthManager::new(config).expect("valid auth config"));
+    AuthHandlerState::new(manager)
+}
+
+async fn dev_mode_router(state: AuthHandlerState) -> axum::Router {
+    use axum::Router;
+    use axum::routing::{get, post};
+
+    async fn ok_handler() -> &'static str {
+        "ok"
+    }
+
+    Router::new()
+        .route("/protected", get(ok_handler))
+        .route("/admin/test", post(ok_handler))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            super::middleware::require_admin_middleware,
+        ))
+        .layer(axum::middleware::from_fn_with_state(
+            state,
+            super::middleware::require_auth_middleware,
+        ))
+}
+
+async fn dispatch_dev_mode(
+    router: axum::Router,
+    method: &str,
+    path: &str,
+) -> (axum::http::StatusCode, axum::http::HeaderMap) {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    let req = Request::builder()
+        .method(method)
+        .uri(path)
+        .body(Body::empty())
+        .expect("build request");
+    let response = router.oneshot(req).await.expect("router oneshot");
+    (response.status(), response.headers().clone())
+}
+
+#[tokio::test]
+async fn dev_mode_off_rejects_anon_request_with_401() {
+    let state = dev_mode_state(false).await;
+    let router = dev_mode_router(state).await;
+    let (status, headers) = dispatch_dev_mode(router, "GET", "/protected").await;
+    assert_eq!(status, axum::http::StatusCode::UNAUTHORIZED);
+    assert!(headers.get(super::middleware::DEV_MODE_HEADER).is_none());
+}
+
+#[tokio::test]
+async fn dev_mode_on_short_circuits_anon_get_to_200() {
+    let state = dev_mode_state(true).await;
+    let router = dev_mode_router(state).await;
+    let (status, headers) = dispatch_dev_mode(router, "GET", "/protected").await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+    assert_eq!(
+        headers
+            .get(super::middleware::DEV_MODE_HEADER)
+            .and_then(|v| v.to_str().ok()),
+        Some("true"),
+    );
+}
+
+#[tokio::test]
+async fn dev_mode_on_lets_anon_admin_post_through() {
+    let state = dev_mode_state(true).await;
+    let router = dev_mode_router(state).await;
+    let (status, headers) = dispatch_dev_mode(router, "POST", "/admin/test").await;
+    assert_eq!(status, axum::http::StatusCode::OK);
+    assert_eq!(
+        headers
+            .get(super::middleware::DEV_MODE_HEADER)
+            .and_then(|v| v.to_str().ok()),
+        Some("true"),
+    );
+}
+
+#[tokio::test]
+async fn dev_mode_off_blocks_anon_admin_post_with_401() {
+    let state = dev_mode_state(false).await;
+    let router = dev_mode_router(state).await;
+    let (status, _) = dispatch_dev_mode(router, "POST", "/admin/test").await;
+    assert_eq!(status, axum::http::StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn dev_mode_local_admin_state_carries_admin_role() {
+    use vectorizer::auth::roles::Role;
+    let auth = super::middleware::local_dev_admin_state();
+    assert!(auth.authenticated);
+    assert_eq!(auth.user_claims.username, "local-dev-admin");
+    assert!(auth.user_claims.roles.contains(&Role::Admin));
+}
+
+#[tokio::test]
+async fn dev_mode_admin_helper_short_circuits_without_credentials() {
+    let state = dev_mode_state(true).await;
+    let headers = axum::http::HeaderMap::new();
+    let auth = require_admin_from_headers(&state, &headers)
+        .await
+        .expect("dev-mode admin helper must succeed without any headers");
+    assert!(auth.authenticated);
+    assert_eq!(auth.user_claims.username, "local-dev-admin");
+}
+
+// --- Loopback host predicate (used by both phase17 cookie boot guard
+// and the dev-mode boot guard).
+
+#[test]
+fn loopback_host_predicate_recognises_aliases() {
+    use crate::server::auth_handlers::cookies::is_loopback_host;
+    assert!(is_loopback_host("127.0.0.1"));
+    assert!(is_loopback_host("::1"));
+    assert!(is_loopback_host("localhost"));
+    assert!(is_loopback_host("LocalHost"));
+    assert!(is_loopback_host("  127.0.0.1  "));
+    assert!(!is_loopback_host("0.0.0.0"));
+    assert!(!is_loopback_host("192.168.1.10"));
+    assert!(!is_loopback_host("10.0.0.1"));
+}
+
 // --- Phase17: CSRF middleware tests
 //
 // Build a minimal axum router with the CSRF middleware layered on a

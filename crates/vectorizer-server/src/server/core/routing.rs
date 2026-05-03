@@ -43,14 +43,42 @@ impl VectorizerServer {
         // harvest the session.
         let is_production_bind = host == "0.0.0.0";
         if let Some(ref auth_state) = self.auth_handler_state {
-            let cookie_cfg = &auth_state.auth_manager.config().cookies;
+            let cfg = auth_state.auth_manager.config();
             if let Err(msg) = crate::server::auth_handlers::cookies::validate_dev_mode_against_host(
-                host, cookie_cfg,
+                host,
+                &cfg.cookies,
             ) {
                 error!("❌ SECURITY ERROR: {msg}");
                 error!("   Set auth.cookies.insecure_dev: false in config.yml,");
                 error!("   or bind to --host 127.0.0.1 for local development.");
                 return Err(anyhow::anyhow!(msg));
+            }
+
+            // BOOT GUARD: refuse to start with `auth.dev_mode_skip_loopback`
+            // engaged on any non-loopback bind. The flag short-circuits
+            // every credential check; exposing it on `0.0.0.0` (or any LAN
+            // interface) would make the entire server world-writable.
+            if cfg.dev_mode_skip_loopback
+                && !crate::server::auth_handlers::cookies::is_loopback_host(host)
+            {
+                let msg = format!(
+                    "auth.dev_mode_skip_loopback=true is only permitted on a loopback bind \
+                     (127.0.0.1, ::1, localhost); refusing to start with host={host}"
+                );
+                error!("❌ SECURITY ERROR: {msg}");
+                error!("   Set auth.dev_mode_skip_loopback: false in config.yml,");
+                error!("   or bind to --host 127.0.0.1 for local development.");
+                return Err(anyhow::anyhow!(msg));
+            }
+
+            if cfg.dev_mode_skip_loopback {
+                warn!("════════════════════════════════════════════════════════════════════");
+                warn!("⚠️  AUTH IS DISABLED FOR LOOPBACK — DO NOT EXPOSE THIS BUILD");
+                warn!("⚠️  auth.dev_mode_skip_loopback = true");
+                warn!("⚠️  Every request runs as the synthetic 'local-dev-admin' principal.");
+                warn!("⚠️  Responses carry the X-Vectorizer-Dev-Mode: true header.");
+                warn!("⚠️  Bind is {host} — boot rejected this flag on any non-loopback host.");
+                warn!("════════════════════════════════════════════════════════════════════");
             }
         }
 

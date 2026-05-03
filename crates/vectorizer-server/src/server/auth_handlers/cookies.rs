@@ -131,9 +131,7 @@ pub fn validate_dev_mode_against_host(host: &str, config: &CookieConfig) -> Resu
     if !config.insecure_dev {
         return Ok(());
     }
-    let normalized = host.trim().to_ascii_lowercase();
-    let is_loopback = matches!(normalized.as_str(), "127.0.0.1" | "::1" | "localhost");
-    if is_loopback {
+    if is_loopback_host(host) {
         Ok(())
     } else {
         Err(format!(
@@ -141,6 +139,14 @@ pub fn validate_dev_mode_against_host(host: &str, config: &CookieConfig) -> Resu
              (127.0.0.1, ::1, localhost); refusing to start with host={host}"
         ))
     }
+}
+
+/// True when `host` is one of the recognised loopback aliases. Shared
+/// by the cookie boot guard and the dev-mode-auth-skip boot guard so
+/// they apply the exact same loopback predicate.
+pub fn is_loopback_host(host: &str) -> bool {
+    let normalized = host.trim().to_ascii_lowercase();
+    matches!(normalized.as_str(), "127.0.0.1" | "::1" | "localhost")
 }
 
 /// Read a cookie value from the inbound `Cookie:` header. Returns the

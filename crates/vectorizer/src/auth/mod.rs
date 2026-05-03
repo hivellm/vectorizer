@@ -80,6 +80,16 @@ pub struct AuthConfig {
     /// Cookie hardening configuration for dashboard sessions.
     #[serde(default)]
     pub cookies: CookieConfig,
+    /// Local-development convenience: when `true`, the auth middleware
+    /// short-circuits with an implicit `local-dev-admin` principal and
+    /// every response carries the `X-Vectorizer-Dev-Mode: true`
+    /// header. The boot path refuses to start with this flag set on
+    /// any non-loopback host (`0.0.0.0`, LAN IPs, etc.) so the only
+    /// way to engage it is to bind explicitly to `127.0.0.1`, `::1`,
+    /// or `localhost`. Defaults to `false`; absent payloads
+    /// deserialize cleanly thanks to `#[serde(default)]`.
+    #[serde(default)]
+    pub dev_mode_skip_loopback: bool,
 }
 
 impl Default for AuthConfig {
@@ -97,6 +107,7 @@ impl Default for AuthConfig {
             rate_limit_per_hour: 1000,
             enabled: true,
             cookies: CookieConfig::default(),
+            dev_mode_skip_loopback: false,
         }
     }
 }

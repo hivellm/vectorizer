@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Loopback dev-mode auth bypass.** Closes phase8 audit gap 7.5. New `auth.dev_mode_skip_loopback` config flag (default `false`) lets local developers run the dashboard / SDK against `127.0.0.1` without minting a JWT or echoing tokens on every cURL.
+  - When the flag is `true`, the auth middleware short-circuits with a synthetic `local-dev-admin` principal (`Role::Admin`, empty scopes) and every response carries `X-Vectorizer-Dev-Mode: true` so tooling, logs, and integration tests can spot the bypass. The CSRF middleware no-ops in the same mode (no session JWT to bind a token to).
+  - Boot fails fast with a clear error when the flag is `true` and the bind host is anything other than `127.0.0.1`, `::1`, or `localhost`. The loopback predicate is now centralised so the cookie boot guard and the dev-mode boot guard apply the same definition.
+  - Boot logs a multi-line `WARN` banner ("AUTH IS DISABLED FOR LOOPBACK — DO NOT EXPOSE THIS BUILD") whenever the flag is engaged so the operator sees the security posture immediately.
+  - Documented in `docs/users/api/AUTHENTICATION.md` under "Local Development".
+
+### Added
+
 - **API key usage metrics + permission update.** Closes phase8 audit gaps 9A.6 + 9A.11 + 9B.8.
   - Server now tracks a per-key `usage_count` (atomic, lock-free on the validation hot path) and a per-key per-day ring buffer (default 30 days). Every successful `AuthManager::validate_api_key` bumps both. Counter persists via the existing `AuthPersistence` flush; old payloads deserialize with `usage_count: 0`.
   - New `PUT /auth/keys/{id}/permissions` (admin-gated) replaces a key's `permissions` (and optionally `scopes`) without rotating the credential. `key_hash`, `id`, `user_id`, `created_at` stay immutable. Empty permission list is rejected with 400; unknown id with 404.

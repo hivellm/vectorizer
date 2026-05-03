@@ -36,6 +36,13 @@ pub async fn auth_middleware(
     mut request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
+    if dev_mode_active(&state) {
+        request.extensions_mut().insert(local_dev_admin_state());
+        let mut response = next.run(request).await;
+        mark_dev_mode_response(&mut response);
+        return response;
+    }
+
     let headers = request.headers().clone();
     let query = request.uri().query().map(str::to_string);
     let auth_state = extract_auth_from_parts(&state, &headers, query.as_deref()).await;
@@ -53,6 +60,13 @@ pub async fn require_auth_middleware(
 ) -> axum::response::Response {
     use axum::http::StatusCode;
     use axum::response::IntoResponse;
+
+    if dev_mode_active(&state) {
+        request.extensions_mut().insert(local_dev_admin_state());
+        let mut response = next.run(request).await;
+        mark_dev_mode_response(&mut response);
+        return response;
+    }
 
     let headers = request.headers().clone();
     let query = request.uri().query().map(str::to_string);
@@ -83,6 +97,13 @@ pub async fn require_admin_middleware(
 ) -> axum::response::Response {
     use axum::http::StatusCode;
     use axum::response::IntoResponse;
+
+    if dev_mode_active(&state) {
+        request.extensions_mut().insert(local_dev_admin_state());
+        let mut response = next.run(request).await;
+        mark_dev_mode_response(&mut response);
+        return response;
+    }
 
     let headers = request.headers().clone();
     let query = request.uri().query().map(str::to_string);
@@ -129,6 +150,10 @@ pub async fn require_admin_from_headers(
 ) -> Result<AuthState, (axum::http::StatusCode, Json<AuthErrorResponse>)> {
     use axum::http::StatusCode;
     use axum::http::header::AUTHORIZATION;
+
+    if dev_mode_active(state) {
+        return Ok(local_dev_admin_state());
+    }
 
     let unauthenticated = || {
         (
@@ -294,4 +319,46 @@ fn anonymous_auth_state() -> AuthState {
         },
         authenticated: false,
     }
+}
+
+/// Header name added to every response handled by the dev-mode
+/// short-circuit, so tooling (curl, integration tests, log scrapers)
+/// can spot that the request bypassed credential validation.
+pub const DEV_MODE_HEADER: &str = "X-Vectorizer-Dev-Mode";
+
+/// Check whether the loopback dev-mode auth-skip flag is engaged.
+/// Centralised so the handful of middleware entry points share the
+/// exact same predicate (no risk of one path checking the flag and
+/// another not).
+pub fn dev_mode_active(state: &AuthHandlerState) -> bool {
+    state.auth_manager.config().dev_mode_skip_loopback
+}
+
+/// Synthetic principal injected into request extensions when
+/// `dev_mode_skip_loopback` is engaged. Tagged with `Role::Admin` so
+/// every route — including the admin gates in `auth_admin.rs` — lets
+/// the request through. The username `local-dev-admin` makes the
+/// principal recognisable in audit logs and `tracing` output.
+pub fn local_dev_admin_state() -> AuthState {
+    AuthState {
+        user_claims: UserClaims {
+            user_id: "local-dev-admin".to_string(),
+            username: "local-dev-admin".to_string(),
+            roles: vec![Role::Admin],
+            iat: 0,
+            exp: 0,
+            scopes: vec![],
+        },
+        authenticated: true,
+    }
+}
+
+/// Append `X-Vectorizer-Dev-Mode: true` to a response. Used by every
+/// middleware that consults `dev_mode_active` so the marker is visible
+/// regardless of which gate the request hit.
+pub fn mark_dev_mode_response(response: &mut axum::response::Response) {
+    response.headers_mut().insert(
+        DEV_MODE_HEADER,
+        axum::http::HeaderValue::from_static("true"),
+    );
 }

@@ -44,6 +44,16 @@ pub async fn require_csrf_middleware(
     request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
+    // Dev-mode short-circuit: when `auth.dev_mode_skip_loopback` is on
+    // (and the boot guard has confirmed we are bound to a loopback
+    // address) the CSRF check would have nothing to validate against —
+    // there is no session JWT, no cookie, no header. Skip the gate so
+    // the rest of the dev-mode story (no Authorization header, no CSRF
+    // token) is internally consistent.
+    if super::middleware::dev_mode_active(&state) {
+        return next.run(request).await;
+    }
+
     let method = request.method();
     if matches!(*method, Method::GET | Method::HEAD | Method::OPTIONS) {
         return next.run(request).await;
