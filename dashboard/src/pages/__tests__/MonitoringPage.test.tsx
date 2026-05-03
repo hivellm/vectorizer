@@ -19,6 +19,24 @@ vi.mock('@/hooks/useMetrics', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useStats', () => ({
+  useStats: () => ({
+    stats: {
+      status: 'healthy',
+      cache: {
+        size: 7000,
+        capacity: 10000,
+        hits: 4_210_000,
+        misses: 258_000,
+        evictions: 1204,
+        hitRate: 0.942,
+      },
+    },
+    loading: false,
+    error: null,
+  }),
+}));
+
 describe('MonitoringPage', () => {
   it('renders the page heading and the four metric cards', () => {
     render(<MemoryRouter><MonitoringPage /></MemoryRouter>);

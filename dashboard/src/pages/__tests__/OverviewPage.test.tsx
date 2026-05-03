@@ -28,6 +28,21 @@ vi.mock('@/hooks/useMetrics', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useStats', () => ({
+  useStats: () => ({
+    stats: {
+      status: 'healthy',
+      cache: { size: 0, capacity: 0, hits: 0, misses: 0, evictions: 0, hitRate: 0.942 },
+    },
+    loading: false,
+    error: null,
+  }),
+}));
+
+vi.mock('@/hooks/useEvents', () => ({
+  useEvents: () => ({ events: [], loading: false, error: null, available: false }),
+}));
+
 vi.mock('@/stores/collections', () => ({
   useCollectionsStore: () => ({
     collections: [

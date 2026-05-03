@@ -1,4 +1,5 @@
 import { useMetrics } from '@/hooks/useMetrics';
+import { useStats } from '@/hooks/useStats';
 import {
   Icons,
   Sparkline,
@@ -10,19 +11,25 @@ import {
   KeyValue,
   KeyValueRow,
 } from '@/components/console';
+import { formatBytes, formatNumber, formatRelativeTime } from '@/utils/formatters';
 
 // TODO(metrics-history): sparkline series stay synthetic until a
 // /metrics?range=24h endpoint streams a real point series.
 const SPARK = (n: number, base: number, amp: number): number[] =>
   Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
-// TODO(stats-endpoint): per-card numbers (REST/MCP breakdown, p99, 5xx
-// rate, SIMD primitive throughput, WAL sequence, cache hits/misses/
-// evictions) wire to real values in Task 4.3.
+// TODO(stats-endpoint): the REST/MCP throughput breakdown, p99, 5xx rate
+// and SIMD primitive throughput stay synthetic — the backend does not yet
+// expose these in /stats or /health. WAL sequence/size/checkpoint also
+// stay synthetic until /health (or a /wal endpoint) starts emitting them.
+// Cache hits/misses/evictions/hit-rate are now live (from /health).
 
 function MonitoringPage() {
   const { metrics } = useMetrics();
+  const { stats } = useStats();
   const total = metrics.qps;
+  const cache = stats.cache;
+  const hitPct = Math.max(0, Math.min(100, cache.hitRate * 100));
 
   return (
     <div className="page">
@@ -193,7 +200,10 @@ function MonitoringPage() {
                   Sequence
                 </div>
                 <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  8,811,998
+                  {/* TODO(stats-endpoint): backend /health does not yet emit
+                      wal.sequence — useStats picks it up automatically once
+                      it does. */}
+                  {stats.walSequence !== undefined ? formatNumber(stats.walSequence) : '8,811,998'}
                 </div>
               </div>
               <div>
@@ -204,7 +214,9 @@ function MonitoringPage() {
                   Size on disk
                 </div>
                 <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  284 MB
+                  {/* TODO(stats-endpoint): backend /health does not yet emit
+                      wal.size_bytes. */}
+                  {stats.walSizeBytes !== undefined ? formatBytes(stats.walSizeBytes, 0) : '284 MB'}
                 </div>
               </div>
               <div>
@@ -215,7 +227,11 @@ function MonitoringPage() {
                   Last checkpoint
                 </div>
                 <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  2m ago
+                  {/* TODO(stats-endpoint): backend /health does not yet emit
+                      wal.last_checkpoint. */}
+                  {stats.walLastCheckpointAt
+                    ? formatRelativeTime(stats.walLastCheckpointAt)
+                    : '2m ago'}
                 </div>
               </div>
             </div>
@@ -250,7 +266,7 @@ function MonitoringPage() {
         <Card>
           <CardHead
             title="Query Cache"
-            right={<Pill tone="green" className="mono">94.2% hit rate</Pill>}
+            right={<Pill tone="green" className="mono">{`${hitPct.toFixed(1)}% hit rate`}</Pill>}
           />
           <CardBody>
             <div className="grid grid-4" style={{ gap: 14, marginBottom: 14 }}>
@@ -265,7 +281,7 @@ function MonitoringPage() {
                   className="tnum"
                   style={{ fontSize: 18, fontWeight: 600, color: 'var(--green)' }}
                 >
-                  4.21M
+                  {formatNumber(cache.hits)}
                 </div>
               </div>
               <div>
@@ -279,7 +295,7 @@ function MonitoringPage() {
                   className="tnum"
                   style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-2)' }}
                 >
-                  258K
+                  {formatNumber(cache.misses)}
                 </div>
               </div>
               <div>
@@ -293,7 +309,7 @@ function MonitoringPage() {
                   className="tnum"
                   style={{ fontSize: 18, fontWeight: 600, color: 'var(--amber)' }}
                 >
-                  1,204
+                  {formatNumber(cache.evictions)}
                 </div>
               </div>
               <div>

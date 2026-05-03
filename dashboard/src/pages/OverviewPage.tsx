@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useCollections } from '@/hooks/useCollections';
 import { useMetrics } from '@/hooks/useMetrics';
+import { useStats } from '@/hooks/useStats';
+import { useEvents } from '@/hooks/useEvents';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
 import {
@@ -27,10 +29,22 @@ import type { Collection } from '@/hooks/useCollections';
 const SPARK = (n: number, base: number, amp: number): number[] =>
   Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
+// Map a server event level to the console.css dot tone. Levels follow the
+// reference design: ok→green, warn→amber, info→teal, error→red.
+function eventDotTone(level: string): 'green' | 'amber' | 'teal' | 'red' {
+  const l = level.toLowerCase();
+  if (l === 'ok') return 'green';
+  if (l === 'warn' || l === 'warning') return 'amber';
+  if (l === 'error' || l === 'err' || l === 'fail') return 'red';
+  return 'teal';
+}
+
 function OverviewPage() {
   const { listCollections } = useCollections();
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
   const { metrics } = useMetrics();
+  const { stats } = useStats();
+  const events = useEvents();
   const ref = useRef<NodeJS.Timeout | null>(null);
 
   const fetchCollections = async () => {
@@ -65,13 +79,15 @@ function OverviewPage() {
   const totalVectors = list.reduce((s, c) => s + (c.vector_count ?? 0), 0);
   const top = list.slice(0, 6);
 
-  // Real KPIs come from /stats via useMetrics. The backend currently only
-  // surfaces total_vectors + cache stats; qps / cpu / mem / connections
-  // stay at 0 until a richer dashboard-metrics endpoint lands (Task 4.3).
+  // Real KPIs come from /stats (totals) + /health (cache) via useMetrics +
+  // useStats. The backend doesn't yet surface qps / cpu / mem / connections,
+  // so those KPIs stay at 0 until a richer dashboard-metrics endpoint lands.
   const qps = metrics.qps;
   const cpu = metrics.cpuPercent;
   const mem = metrics.memPercent;
   const conns = metrics.connections;
+  // /health emits hit_rate as 0..1; clamp + scale for the percentage KPI.
+  const cacheHitPct = Math.max(0, Math.min(100, stats.cache.hitRate * 100));
 
   return (
     <div className="page">
@@ -137,7 +153,7 @@ function OverviewPage() {
               Cache hit rate
             </>
           }
-          value="94.2"
+          value={cacheHitPct.toFixed(1)}
           unit="%"
           delta={{ tone: 'up', text: '+1.8% vs 24h' }}
           spark={{ data: SPARK(20, 94, 2), color: 'var(--green)' }}
@@ -251,9 +267,31 @@ function OverviewPage() {
           />
           <CardBody tight>
             <div className="scroll-body">
-              <div style={{ padding: 24, color: 'var(--text-2)' }}>
-                Wire events feed in Task 4.2.
-              </div>
+              {events.available && events.events.length > 0 ? (
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  {events.events.map((e, i) => (
+                    <li
+                      key={`${e.ts}-${i}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 14px',
+                        borderBottom: '1px solid var(--line)',
+                        fontSize: 12,
+                      }}
+                    >
+                      <span className={`dot ${eventDotTone(e.level)}`} aria-hidden="true" />
+                      <span className="muted mono" style={{ fontSize: 11, minWidth: 92 }}>
+                        {e.ts}
+                      </span>
+                      <span style={{ color: 'var(--text-1)' }}>{e.msg}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div style={{ padding: 24, color: 'var(--text-2)' }}>No recent events</div>
+              )}
             </div>
           </CardBody>
         </Card>
