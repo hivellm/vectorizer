@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [3.3.0] - 2026-05-03
 
-### Added
+### Security
+
+- **Hardened dashboard cookies + CSRF.** Closes the cookie + CSRF gaps phase8 enumerated (audit sections 1.9 + 6.5–6.6).
+  - `POST /auth/login` and `POST /auth/refresh` now set a hardened `vectorizer_session` cookie carrying the JWT, and a sibling `XSRF-TOKEN` cookie carrying a 32-byte random CSRF token. Both cookies are emitted with `SameSite=Strict; Path=/; Max-Age=<jwt_exp>`. The session cookie is `HttpOnly; Secure`; the CSRF cookie is `Secure` but readable so the SPA can echo it.
+  - New `require_csrf_middleware` rejects `POST/PUT/PATCH/DELETE` requests under `/auth/*` and `/admin/*` with HTTP 403 when the `X-CSRF-Token` header is missing or does not match the token bound to the caller's session JWT. `GET/HEAD/OPTIONS` requests bypass the check; `/auth/login` and `/auth/validate-password` are exempt; `X-API-Key` requests are exempt (header-bearer credentials are not subject to the cross-origin attack the CSRF token defends against).
+  - `POST /auth/logout` emits expired `Set-Cookie` headers for both cookies and drops the CSRF binding.
+  - New `auth.cookies.insecure_dev` config flag (default `false`) drops only the `Secure` attribute for plain-HTTP `127.0.0.1` development. Boot fails with a clear error when the flag is `true` while binding to any non-loopback host (most importantly `0.0.0.0`).
+  - `dashboard/src/lib/api-middleware.ts` adds a `csrfMiddleware` that reads the `XSRF-TOKEN` cookie and echoes it in `X-CSRF-Token` on every mutating request.
+  - Backward compatibility: the legacy `access_token` field in the login response body is preserved so existing SDK callers and the dashboard's `Authorization: Bearer` middleware continue to work; the cookie is purely additive for browser-side use.
 
 - **Loopback dev-mode auth bypass.** Closes phase8 audit gap 7.5. New `auth.dev_mode_skip_loopback` config flag (default `false`) lets local developers run the dashboard / SDK against `127.0.0.1` without minting a JWT or echoing tokens on every cURL.
   - When the flag is `true`, the auth middleware short-circuits with a synthetic `local-dev-admin` principal (`Role::Admin`, empty scopes) and every response carries `X-Vectorizer-Dev-Mode: true` so tooling, logs, and integration tests can spot the bypass. The CSRF middleware no-ops in the same mode (no session JWT to bind a token to).
@@ -14,36 +22,14 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **API key usage metrics + permission update.** Closes phase8 audit gaps 9A.6 + 9A.11 + 9B.8.
-  - Server now tracks a per-key `usage_count` (atomic, lock-free on the validation hot path) and a per-key per-day ring buffer (default 30 days). Every successful `AuthManager::validate_api_key` bumps both. Counter persists via the existing `AuthPersistence` flush; old payloads deserialize with `usage_count: 0`.
-  - New `PUT /auth/keys/{id}/permissions` (admin-gated) replaces a key's `permissions` (and optionally `scopes`) without rotating the credential. `key_hash`, `id`, `user_id`, `created_at` stay immutable. Empty permission list is rejected with 400; unknown id with 404.
-  - New `GET /auth/keys/{id}/usage?window=<n>` (admin-gated) returns the per-day counter ring (default 7, max 30) plus the live key view and a window total. Days with zero validations are still included so the dashboard sparkline is gap-free.
-  - `GET /auth/keys` list response now carries `usage_count` and `usage_24h` per row so the dashboard renders the new "Last 24h" + "Total" columns without an N+1 fetch.
-  - SDK parity across Rust, TypeScript, and Python: `update_api_key_permissions(id, request)` + `get_api_key_usage(id, window_days?)` plus the supporting model types `ApiKeyView`, `ApiKeyUsageReport`, `ApiKeyUsageBucket`, `ApiKeyScope`, `UpdateApiKeyPermissionsRequest`. The existing `ApiKey` struct gains a `usage_count` field (additive).
-  - Dashboard `ApiKeysPage.tsx` adds the `Last 24h` + `Total` columns and a `Usage` button per row that opens a detail modal with a 14-day SVG sparkline (new `Sparkline.tsx` component), per-day bucket table, last-24h count, and window total.
-
-### Security
-
-- **Hardened dashboard cookies + CSRF (phase17).** Closes the cookie + CSRF gaps phase8 enumerated (audit sections 1.9 + 6.5–6.6).
-  - `POST /auth/login` and `POST /auth/refresh` now set a hardened `vectorizer_session` cookie carrying the JWT, and a sibling `XSRF-TOKEN` cookie carrying a 32-byte random CSRF token. Both cookies are emitted with `SameSite=Strict; Path=/; Max-Age=<jwt_exp>`. The session cookie is `HttpOnly; Secure`; the CSRF cookie is `Secure` but readable so the SPA can echo it.
-  - New `require_csrf_middleware` rejects `POST/PUT/PATCH/DELETE` requests under `/auth/*` and `/admin/*` with HTTP 403 when the `X-CSRF-Token` header is missing or does not match the token bound to the caller's session JWT. `GET/HEAD/OPTIONS` requests bypass the check; `/auth/login` and `/auth/validate-password` are exempt; `X-API-Key` requests are exempt (header-bearer credentials are not subject to the cross-origin attack the CSRF token defends against).
-  - `POST /auth/logout` emits expired `Set-Cookie` headers for both cookies and drops the CSRF binding.
-  - New `auth.cookies.insecure_dev` config flag (default `false`) drops only the `Secure` attribute for plain-HTTP `127.0.0.1` development. Boot fails with a clear error when the flag is `true` while binding to any non-loopback host (most importantly `0.0.0.0`).
-  - `dashboard/src/lib/api-middleware.ts` adds a `csrfMiddleware` that reads the `XSRF-TOKEN` cookie and echoes it in `X-CSRF-Token` on every mutating request.
-  - Backward compatibility: the legacy `access_token` field in the login response body is preserved so existing SDK callers and the dashboard's `Authorization: Bearer` middleware continue to work; the cookie is purely additive for browser-side use.
-
-## [3.7.0] - 2026-05-02
-
-### Added
-
-- **Cluster admin endpoints (phase15).** Five new server routes for production cluster operations:
+- **Cluster admin endpoints.** Five new server routes for production cluster operations:
   - `POST /cluster/failover` — promote a replica to primary with a pre-flight WAL-lag check (returns 409 when replica lag exceeds `max_lag_segments`, default 1). Residual loss window documented in `src/replication/state.rs`.
   - `POST /cluster/replicas/{id}/resync` — force a full snapshot + WAL replay on a lagging replica.
   - `POST /cluster/peers` — add a peer node (member or observer role) to the cluster; complements the existing Qdrant-compatible remove-peer endpoint.
   - `POST /cluster/rebalance` — trigger shard rebalance across all active nodes using insert-before-delete invariant; returns a job ID immediately while the moves complete asynchronously.
   - `GET /cluster/rebalance/status` — poll progress of the active or last completed rebalance job.
 
-- **Auth/RBAC admin endpoints (phase15).** Four new server routes for production multi-tenant deployments:
+- **Auth/RBAC admin endpoints.** Four new server routes for production multi-tenant deployments:
   - `POST /auth/keys/{id}/rotate` — atomic key rotation with a configurable grace window (default 300 s). Both the old and new token are accepted during the window; only the new token is accepted after. Returns `{ old_key_id, new_key_id, new_token, grace_until }`.
   - `POST /auth/keys` (extended body) — existing endpoint now accepts an optional `scopes: [{ collection, permissions }]` array. Keys with a non-empty scopes list are collection-scoped and are denied on collections not listed. Keys with an empty list have no implicit access (default-deny). Existing global-key callers that omit `scopes` are unaffected.
   - `POST /auth/introspect` — RFC 7662 token introspection. Accepts any JWT or API key in the request body and returns `{ active, scope, sub, exp }`.
@@ -61,12 +47,13 @@ All notable changes to this project will be documented in this file.
 
 - **Cluster peer-add / rebalance** (`vectorizer::cluster::rebalance`). `add_peer()`, `rebalance()`, `rebalance_status()` with process-wide `OnceLock` job tracking and per-shard checkpoint advancement.
 
-### Breaking change: none
-Existing API keys, JWT tokens, and `POST /auth/keys` callers are fully backward-compatible. The `scopes` field on `UserClaims` and `ApiKey` defaults to an empty `Vec` so old serialized data deserializes correctly.
-
-## [3.3.0] - 2026-05-02
-
-### Added
+- **API key usage metrics + permission update.** Closes phase8 audit gaps 9A.6 + 9A.11 + 9B.8.
+  - Server now tracks a per-key `usage_count` (atomic, lock-free on the validation hot path) and a per-key per-day ring buffer (default 30 days). Every successful `AuthManager::validate_api_key` bumps both. Counter persists via the existing `AuthPersistence` flush; old payloads deserialize with `usage_count: 0`.
+  - New `PUT /auth/keys/{id}/permissions` (admin-gated) replaces a key's `permissions` (and optionally `scopes`) without rotating the credential. `key_hash`, `id`, `user_id`, `created_at` stay immutable. Empty permission list is rejected with 400; unknown id with 404.
+  - New `GET /auth/keys/{id}/usage?window=<n>` (admin-gated) returns the per-day counter ring (default 7, max 30) plus the live key view and a window total. Days with zero validations are still included so the dashboard sparkline is gap-free.
+  - `GET /auth/keys` list response now carries `usage_count` and `usage_24h` per row so the dashboard renders the new "Last 24h" + "Total" columns without an N+1 fetch.
+  - SDK parity across Rust, TypeScript, and Python: `update_api_key_permissions(id, request)` + `get_api_key_usage(id, window_days?)` plus the supporting model types `ApiKeyView`, `ApiKeyUsageReport`, `ApiKeyUsageBucket`, `ApiKeyScope`, `UpdateApiKeyPermissionsRequest`. The existing `ApiKey` struct gains a `usage_count` field (additive).
+  - Dashboard `ApiKeysPage.tsx` adds the `Last 24h` + `Total` columns and a `Usage` button per row that opens a detail modal with a 14-day SVG sparkline (new `Sparkline.tsx` component), per-day bucket table, last-24h count, and window total.
 
 - **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** New server endpoint plus three SDK methods so Cortex's consolidation-tier pruner can demote vectors between hot/warm/cold collections without re-embedding:
   - **Server**: `POST /collections/{src}/vectors/move` with body `{destination, ids}`. Inserts into `dst` BEFORE deleting from `src` — a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id status (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populates `results` without aborting the batch. See `docs/users/api/API_REFERENCE.md` for the full contract.
