@@ -51,7 +51,11 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Summarization** — extractive, keyword, sentence, abstractive (OpenAI GPT).
 
 ### Security
-- **JWT + API Key** authentication with RBAC.
+- **JWT + API Key** authentication with RBAC, **scoped API keys** (per-collection permissions), **atomic key rotation** with grace window, **RFC 7662 token introspection**, **admin audit log** (in-memory ring + daily-rotated JSONL).
+- **API key usage metrics** — per-key `usage_count` (atomic, lock-free) plus a 30-day per-day ring buffer surfaced via `GET /auth/keys/{id}/usage`.
+- **Permission update without rotation** — `PUT /auth/keys/{id}/permissions` swaps `permissions`/`scopes` while keeping `key_hash`/`id`/`user_id`/`created_at` immutable.
+- **Hardened dashboard cookies + CSRF** — login/refresh emit `vectorizer_session` (`HttpOnly; Secure; SameSite=Strict`) plus a sibling `XSRF-TOKEN` cookie; `require_csrf_middleware` guards every mutating `/auth/*` and `/admin/*` request. `auth.cookies.insecure_dev` opt-out for plain-HTTP loopback dev (boot rejects it on `0.0.0.0`).
+- **Loopback dev-mode auth bypass** — `auth.dev_mode_skip_loopback` short-circuits credential validation as `local-dev-admin` and stamps `X-Vectorizer-Dev-Mode: true` on every response. Boot fails on any non-loopback host.
 - **JWT secret is mandatory** — boot refuses to start with empty / default / <32 char secrets when auth is enabled.
 - **First-run root credentials** written to `{data_dir}/.root_credentials` (0o600), never logged.
 - **Payload encryption** — optional ECC-P256 + AES-256-GCM, zero-knowledge, per-collection policies ([docs](docs/features/encryption/README.md)).
@@ -63,7 +67,57 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.2.0
+## 🎉 Latest Release: v3.3.0
+
+Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+
+**Security — Hardened dashboard cookies + CSRF**
+- `POST /auth/login` and `POST /auth/refresh` now set a hardened `vectorizer_session` cookie (`HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=<jwt_exp>`) carrying the JWT, plus a sibling `XSRF-TOKEN` cookie carrying a 32-byte random CSRF token (non-`HttpOnly` so the SPA can echo it).
+- New `require_csrf_middleware` rejects `POST/PUT/PATCH/DELETE` requests under `/auth/*` and `/admin/*` with HTTP 403 unless the `X-CSRF-Token` header matches the token bound to the caller's session JWT. `GET/HEAD/OPTIONS`, `/auth/login`, `/auth/validate-password`, and `X-API-Key` requests bypass the gate.
+- `POST /auth/logout` emits expired `Set-Cookie` headers for both cookies and drops the CSRF binding.
+- New `auth.cookies.insecure_dev` config flag (default `false`) drops only `Secure` for plain-HTTP `127.0.0.1` development. Boot rejects the flag on any non-loopback host.
+- `dashboard/src/lib/api-middleware.ts` adds a `csrfMiddleware` that reads the `XSRF-TOKEN` cookie and echoes it on every mutating request. Legacy `access_token` JSON body preserved for SDK / `Authorization: Bearer` callers.
+
+**Security — Loopback dev-mode auth bypass**
+- New `auth.dev_mode_skip_loopback` config flag (default `false`) lets local devs run the dashboard / SDK against `127.0.0.1` without minting a JWT or echoing tokens on every cURL.
+- When on: middleware short-circuits with a synthetic `local-dev-admin` principal (`Role::Admin`) and every response carries `X-Vectorizer-Dev-Mode: true`. CSRF middleware no-ops in the same mode.
+- Boot fails fast when the flag is on and the bind host is anything other than `127.0.0.1`, `::1`, or `localhost`. Multi-line `WARN` banner emitted at boot when engaged on a loopback bind.
+- See `docs/users/api/AUTHENTICATION.md` → "Local Development".
+
+**Added — API key usage metrics + permission update**
+- Per-key `usage_count` (atomic, lock-free on the validation hot path) plus a 30-day per-key per-day ring buffer. Every successful `validate_api_key` bumps both. Counter persists across restarts; old payloads deserialize with `usage_count: 0`.
+- New `PUT /auth/keys/{id}/permissions` (admin-gated) replaces a key's permissions/scopes without rotating the credential. `key_hash`/`id`/`user_id`/`created_at` stay immutable.
+- New `GET /auth/keys/{id}/usage?window=<n>` (admin-gated) returns the per-day counter ring (default 7, max 30) plus live key view + window total. Zero-count days included so consumers render gap-free sparklines.
+- `GET /auth/keys` list response now carries `usage_count` + `usage_24h` per row — dashboard renders `Last 24h` + `Total` columns without an N+1 fetch.
+- SDK parity (Rust / TypeScript / Python): `update_api_key_permissions`, `get_api_key_usage`, plus `ApiKeyView`, `ApiKeyUsageReport`, `ApiKeyUsageBucket`, `ApiKeyScope`, `UpdateApiKeyPermissionsRequest`. `ApiKey` gains `usage_count` (additive).
+- Dashboard `ApiKeysPage.tsx` adds the new columns and a `Usage` button that opens a modal with a 14-day SVG sparkline (new dependency-free `Sparkline.tsx`) + per-day bucket table.
+
+**Added — Cluster admin endpoints**
+- `POST /cluster/failover` — promote a replica with a pre-flight WAL-lag check (HTTP 409 when lag exceeds `max_lag_segments`).
+- `POST /cluster/replicas/{id}/resync` — force a full snapshot + WAL replay on a lagging replica.
+- `POST /cluster/peers` — add a member or observer peer.
+- `POST /cluster/rebalance` + `GET /cluster/rebalance/status` — async shard rebalance using insert-before-delete invariant; poll the job by id.
+
+**Added — Auth / RBAC admin endpoints**
+- `POST /auth/keys/{id}/rotate` — atomic key rotation with a 300 s grace window. Returns `{old_key_id, new_key_id, new_token, grace_until}`.
+- `POST /auth/keys` (extended) — optional `scopes: [{collection, permissions}]` for collection-scoped keys; empty list = default-deny on scope-aware routes. Existing global-key callers unaffected.
+- `POST /auth/introspect` — RFC 7662 token introspection for any JWT or API key.
+- `GET /auth/audit` — admin-only audit log query (in-memory ring + daily-rotated JSONL files), filterable by `from`, `to`, `actor`, `action`.
+- New `AuditLogger` ships record events through an unbounded `mpsc` channel — never blocks the handler hot-path.
+
+**Added — Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265))**
+- `POST /collections/{src}/vectors/move` — cross-collection move with insert-before-delete invariant; per-id status (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) so a mid-batch crash leaves a recoverable duplicate, never data loss. See [`docs/users/api/API_REFERENCE.md`](docs/users/api/API_REFERENCE.md).
+- All three SDKs (Rust / TypeScript / Python): `delete_vector`, `delete_vectors` (batch with per-id `DeleteReport`), `move_to_collection` (cross-collection with `MoveReport`). TypeScript / Python `delete_vectors` now return the canonical `DeleteReport` shape — callers asserting on the old `{deleted: number}` / `bool` shapes need to read `report.deleted` / `report.results`.
+
+**Build — Docker pipeline overhaul**
+- Cuts cold local multi-arch build from ~30–45 min to ~15–20 min, warm to under 10 min via four changes:
+  1. **Buildx registry cache** on `hivehub/vectorizer-cache:buildx` (opt out with `-NoCache`).
+  2. **Dedicated `release-docker` Cargo profile** (`lto = false`, `codegen-units = 16`, `incremental = false`) — ~30 % faster compile, ~50 % lower peak rustc memory; ~10–15 % lower throughput on hot paths vs the host `release` profile, which is unchanged.
+  3. **Drop in-image `cargo sbom`** — SBOM now exclusively from BuildKit's `--sbom=true` syft attestation.
+  4. **Native arm64 in CI + Docker Hub publish** — per-arch matrix, manifest-list stitched and pushed to both `ghcr.io/hivellm/vectorizer` and `hivehub/vectorizer`. Eliminates QEMU emulation from the arm64 build.
+- Operator runbook: [`docs/development/docker-builds.md`](docs/development/docker-builds.md).
+
+## Previous Release: v3.2.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 
@@ -75,7 +129,7 @@ Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 - **Operator runbook** at [`docs/deployment/backpressure.md`](docs/deployment/backpressure.md) and ready-to-import Grafana panels at [`docs/grafana/backpressure-panels.json`](docs/grafana/backpressure-panels.json).
 - **Log rate-limiting** for the `BM25 vocabulary is empty` warning — at most one emit per collection per 5 s, with the full count preserved in `vectorizer_bm25_empty_vocab_fallback_total`.
 
-## Previous Release: v3.1.0
+## Older Release: v3.1.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 
@@ -87,7 +141,7 @@ Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 **Changed**
 - **`/insert_texts` chunked payload layout flipped from nested to flat — BREAKING for clients that read `payload.metadata.<field>` directly.** Pre-3.1.0 chunks landed as `{content, metadata: {file_path, chunk_index, _id, casa, parlamentar, ...}}` — Qdrant payload filters `payload.parlamentar = "X"` silently missed every chunked row. 3.1.0 emits `{content, file_path, chunk_index, parent_id, _id, casa, parlamentar, ...}` with every key at the root. Server-side readers (`FileOperations`, `file_watcher`, MCP `search_semantic`) tolerate both shapes during the deprecation window. Migration guide: [CHANGELOG `[3.1.0]`](./CHANGELOG.md#migrating-from-30x-chunked-payloads).
 
-## Earlier Release: v3.0.0
+## Older Release: v3.0.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
 
