@@ -1,59 +1,37 @@
-/**
- * Unit tests for OverviewPage component
- */
-
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@/providers/ThemeProvider';
-import { ToastProvider } from '@/providers/ToastProvider';
+import { MemoryRouter } from 'react-router-dom';
 import OverviewPage from '../OverviewPage';
 
-// Mock hooks
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
-    listCollections: vi.fn().mockResolvedValue([
-      { name: 'collection1', dimension: 512, metric: 'cosine', vector_count: 100 },
-      { name: 'collection2', dimension: 256, metric: 'euclidean', vector_count: 50 },
-    ]),
+    listCollections: async () => [
+      { name: 'docs', dimension: 384, vector_count: 1200, status: 'healthy', metric: 'cosine' },
+      { name: 'code', dimension: 768, vector_count: 8000, status: 'indexing', metric: 'cosine' },
+    ],
   }),
 }));
 
-const Wrapper = ({ children }: { children: React.ReactNode }) => (
-  <BrowserRouter>
-    <ThemeProvider>
-      <ToastProvider>
-        {children}
-      </ToastProvider>
-    </ThemeProvider>
-  </BrowserRouter>
-);
+vi.mock('@/stores/collections', () => ({
+  useCollectionsStore: () => ({
+    collections: [
+      { name: 'docs', dimension: 384, vector_count: 1200, status: 'healthy' },
+      { name: 'code', dimension: 768, vector_count: 8000, status: 'indexing' },
+    ],
+    loading: false,
+    error: null,
+    setCollections: vi.fn(),
+    setLoading: vi.fn(),
+    setError: vi.fn(),
+  }),
+}));
 
 describe('OverviewPage', () => {
-  it('should render overview page', async () => {
-    render(
-      <Wrapper>
-        <OverviewPage />
-      </Wrapper>
-    );
-    
-    // Wait for page to load and check for collections text
-    await waitFor(() => {
-      expect(screen.getByText(/collections/i)).toBeInTheDocument();
-    });
-  });
-
-  it('should render stats cards', async () => {
-    render(
-      <Wrapper>
-        <OverviewPage />
-      </Wrapper>
-    );
-    
-    // Wait for data to load
-    await waitFor(() => {
-      expect(screen.getByText(/collections/i)).toBeInTheDocument();
-    });
+  it('renders KPI strip and top collections table', () => {
+    render(<MemoryRouter><OverviewPage /></MemoryRouter>);
+    expect(screen.getByRole('heading', { name: /Overview/i })).toBeTruthy();
+    expect(screen.getByText(/Total vectors/i)).toBeTruthy();
+    expect(screen.getByText('docs')).toBeTruthy();
+    expect(screen.getByText('code')).toBeTruthy();
   });
 });
-
