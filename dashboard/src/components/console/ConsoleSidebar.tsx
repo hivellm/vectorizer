@@ -1,30 +1,11 @@
-import { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import AuthContext from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { Icons } from './Icons';
 import { HexLogo } from './primitives/HexLogo';
+import { NAV, type NavEntry } from './nav';
 
-interface NavEntry {
-  to: string;
-  label: string;
-  icon: keyof typeof Icons;
-  badge?: string;
-}
-
-const PRIMARY: NavEntry[] = [
-  { to: '/overview', label: 'Overview', icon: 'dashboard' },
-  { to: '/collections', label: 'Collections', icon: 'collections' },
-  { to: '/search', label: 'Search', icon: 'search' },
-  { to: '/vectors', label: 'Vectors', icon: 'vectors' },
-  { to: '/monitoring', label: 'Monitoring', icon: 'activity' },
-  { to: '/cluster', label: 'Replication', icon: 'globe' },
-  { to: '/api-keys', label: 'API Keys', icon: 'keys' },
-  { to: '/mcp-tools', label: 'MCP Tools', icon: 'mcp' },
-];
-
-const SECONDARY: NavEntry[] = [
-  { to: '/configuration', label: 'Settings', icon: 'settings' },
-];
+const PRIMARY = NAV.filter((n) => !n.secondary);
+const SECONDARY = NAV.filter((n) => n.secondary);
 
 interface Props {
   collapsed: boolean;
@@ -33,10 +14,7 @@ interface Props {
 
 export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
   const location = useLocation();
-  // Use context directly (not useAuth) so the sidebar can render even when
-  // not wrapped in AuthProvider (e.g. in isolated tests). The `user && ...`
-  // guard below handles the missing-context / unauthenticated case.
-  const auth = useContext(AuthContext);
+  const auth = useOptionalAuth();
   const user = auth?.user ?? null;
   const isActive = (to: string) =>
     location.pathname === to || location.pathname.startsWith(to + '/');
@@ -49,7 +27,6 @@ export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
         to={n.to}
         className={`nav-item ${isActive(n.to) ? 'active' : ''}`}
         title={collapsed ? n.label : undefined}
-        style={collapsed ? { justifyContent: 'center', padding: '8px 0' } : undefined}
       >
         <Icon className="icon" />
         {!collapsed && <span>{n.label}</span>}
@@ -59,11 +36,8 @@ export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
   };
 
   return (
-    <aside className="sidebar" style={collapsed ? { width: 60 } : undefined}>
-      <div
-        className="sidebar-brand"
-        style={collapsed ? { padding: '16px 0', justifyContent: 'center' } : undefined}
-      >
+    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+      <div className="sidebar-brand">
         <HexLogo size={28} />
         {!collapsed && (
           <>
@@ -96,7 +70,6 @@ export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
               cursor: 'pointer',
               font: 'inherit',
               color: 'inherit',
-              ...(collapsed ? { justifyContent: 'center', padding: '8px 0' } : {}),
             }}
           >
             <Icons.panel2 className="icon" />
@@ -107,7 +80,9 @@ export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
 
       {!collapsed && user && (
         <div className="sidebar-footer">
-          <div className="avatar">{user.username.slice(0, 2).toUpperCase()}</div>
+          <div className="avatar">
+            {user.username.slice(0, 2).toUpperCase() || 'VZ'}
+          </div>
           <div className="info">
             <div className="n">{user.username}</div>
             <div className="e">role: {user.roles?.[0] ?? 'User'}</div>

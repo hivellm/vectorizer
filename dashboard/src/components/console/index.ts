@@ -14,3 +14,4 @@ export { ConsoleLayout } from './ConsoleLayout';
 export { ConsoleSidebar } from './ConsoleSidebar';
 export { ConsoleTopbar } from './ConsoleTopbar';
 export { CommandPalette } from './CommandPalette';
+export { NAV, CRUMBS, type NavEntry } from './nav';

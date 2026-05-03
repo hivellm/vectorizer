@@ -4,26 +4,7 @@ import { ToastProvider } from '@/providers/ToastProvider';
 import { ConsoleSidebar } from './ConsoleSidebar';
 import { ConsoleTopbar } from './ConsoleTopbar';
 import { CommandPalette } from './CommandPalette';
-
-const CRUMBS: Record<string, string[]> = {
-  '/overview':       ['Vectorizer', 'Overview'],
-  '/collections':    ['Vectorizer', 'Collections'],
-  '/search':         ['Vectorizer', 'Search Playground'],
-  '/vectors':        ['Vectorizer', 'Vector Browser'],
-  '/monitoring':     ['Vectorizer', 'Monitoring'],
-  '/cluster':        ['Vectorizer', 'Replication'],
-  '/api-keys':       ['Vectorizer', 'API Keys'],
-  '/mcp-tools':      ['Vectorizer', 'MCP Tools'],
-  '/configuration':  ['Vectorizer', 'Settings'],
-  '/file-watcher':   ['Vectorizer', 'File Watcher'],
-  '/graph':          ['Vectorizer', 'Graph'],
-  '/connections':    ['Vectorizer', 'Connections'],
-  '/workspace':      ['Vectorizer', 'Workspace'],
-  '/logs':           ['Vectorizer', 'Logs'],
-  '/backups':        ['Vectorizer', 'Backups'],
-  '/users':          ['Vectorizer', 'Users'],
-  '/docs':           ['Vectorizer', 'API Docs'],
-};
+import { CRUMBS } from './nav';
 
 export function ConsoleLayout() {
   const [collapsed, setCollapsed] = useState(false);

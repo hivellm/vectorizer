@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icons } from './Icons';
+import { NAV } from './nav';
 
 interface CmdItem {
   label: string;
@@ -9,16 +10,13 @@ interface CmdItem {
   section: string;
 }
 
-const ITEMS: CmdItem[] = [
-  { section: 'Navigation', label: 'Go to Overview',     to: '/overview',     icon: 'dashboard',   hint: 'G O' },
-  { section: 'Navigation', label: 'Go to Collections',  to: '/collections',  icon: 'collections', hint: 'G C' },
-  { section: 'Navigation', label: 'Go to Search',       to: '/search',       icon: 'search',      hint: 'G S' },
-  { section: 'Navigation', label: 'Go to Vectors',      to: '/vectors',      icon: 'vectors',     hint: 'G V' },
-  { section: 'Navigation', label: 'Go to Monitoring',   to: '/monitoring',   icon: 'activity',    hint: 'G M' },
-  { section: 'Navigation', label: 'Go to API Keys',     to: '/api-keys',     icon: 'keys',        hint: 'G K' },
-  { section: 'Navigation', label: 'Go to MCP Tools',    to: '/mcp-tools',    icon: 'mcp' },
-  { section: 'Navigation', label: 'Go to Settings',     to: '/configuration',icon: 'settings' },
-];
+const ITEMS: CmdItem[] = NAV.map((n) => ({
+  section: 'Navigation',
+  label: n.label === 'Overview' ? 'Go to Overview' : `Go to ${n.label}`,
+  to: n.to,
+  icon: n.icon,
+  hint: n.hint,
+}));
 
 interface Props {
   open: boolean;

@@ -194,6 +194,11 @@ code, kbd, pre, .mono { font-family: var(--font-mono); }
 .sidebar-footer .info .n { font-size: 12px; font-weight: 500; }
 .sidebar-footer .info .e { font-size: 10px; color: var(--text-2); font-family: var(--font-mono); }
 
+/* Collapsed sidebar polish */
+.sidebar.collapsed { width: 60px; }
+.sidebar.collapsed .sidebar-brand { padding: 16px 0; justify-content: center; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 8px 0; }
+
 /* MAIN */
 .main {
   min-width: 0;
