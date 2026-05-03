@@ -12,6 +12,22 @@ vi.mock('@/hooks/useCollections', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useMetrics', () => ({
+  useMetrics: () => ({
+    metrics: {
+      qps: 0,
+      p99Ms: 0,
+      cpuPercent: 0,
+      memPercent: 0,
+      connections: 0,
+      cacheHitRate: 0,
+      totalVectors: 0,
+    },
+    loading: false,
+    error: null,
+  }),
+}));
+
 vi.mock('@/stores/collections', () => ({
   useCollectionsStore: () => ({
     collections: [

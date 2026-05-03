@@ -1,3 +1,4 @@
+import { useMetrics } from '@/hooks/useMetrics';
 import {
   Icons,
   Sparkline,
@@ -8,18 +9,20 @@ import {
   Bar,
   KeyValue,
   KeyValueRow,
-  useTick,
 } from '@/components/console';
 
+// TODO(metrics-history): sparkline series stay synthetic until a
+// /metrics?range=24h endpoint streams a real point series.
 const SPARK = (n: number, base: number, amp: number): number[] =>
   Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
-// TODO(metrics-endpoint): wire real values from /metrics in Task 4.1.
-// TODO(stats-endpoint):   wire real values from /stats   in Task 4.3.
+// TODO(stats-endpoint): per-card numbers (REST/MCP breakdown, p99, 5xx
+// rate, SIMD primitive throughput, WAL sequence, cache hits/misses/
+// evictions) wire to real values in Task 4.3.
 
 function MonitoringPage() {
-  const tick = useTick(1500);
-  const total = 2480 + Math.round(Math.sin(tick / 2) * 120);
+  const { metrics } = useMetrics();
+  const total = metrics.qps;
 
   return (
     <div className="page">

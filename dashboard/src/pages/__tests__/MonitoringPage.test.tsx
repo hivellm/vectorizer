@@ -1,7 +1,23 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import MonitoringPage from '../MonitoringPage';
+
+vi.mock('@/hooks/useMetrics', () => ({
+  useMetrics: () => ({
+    metrics: {
+      qps: 0,
+      p99Ms: 0,
+      cpuPercent: 0,
+      memPercent: 0,
+      connections: 0,
+      cacheHitRate: 0,
+      totalVectors: 0,
+    },
+    loading: false,
+    error: null,
+  }),
+}));
 
 describe('MonitoringPage', () => {
   it('renders the page heading and the four metric cards', () => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useCollections } from '@/hooks/useCollections';
+import { useMetrics } from '@/hooks/useMetrics';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
 import {
@@ -17,19 +18,20 @@ import {
   Td,
   KeyValue,
   KeyValueRow,
-  useTick,
 } from '@/components/console';
 import { formatNumber } from '@/utils/formatters';
 import type { Collection } from '@/hooks/useCollections';
 
+// TODO(metrics-history): sparkline series stay synthetic until a
+// /metrics?range=24h endpoint streams a real point series.
 const SPARK = (n: number, base: number, amp: number): number[] =>
   Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
 function OverviewPage() {
   const { listCollections } = useCollections();
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
+  const { metrics } = useMetrics();
   const ref = useRef<NodeJS.Timeout | null>(null);
-  const tick = useTick(2000);
 
   const fetchCollections = async () => {
     setLoading(true);
@@ -63,11 +65,13 @@ function OverviewPage() {
   const totalVectors = list.reduce((s, c) => s + (c.vector_count ?? 0), 0);
   const top = list.slice(0, 6);
 
-  // TODO(metrics-endpoint): synthetic until Task 4.1 wires /metrics
-  const qps = 2480 + Math.round(Math.sin(tick / 2) * 120);
-  const cpu = 38 + Math.sin(tick / 2.5) * 6;
-  const mem = 62.4 + Math.sin(tick / 3) * 1.2;
-  const conns = 184 + Math.round(Math.cos(tick) * 14);
+  // Real KPIs come from /stats via useMetrics. The backend currently only
+  // surfaces total_vectors + cache stats; qps / cpu / mem / connections
+  // stay at 0 until a richer dashboard-metrics endpoint lands (Task 4.3).
+  const qps = metrics.qps;
+  const cpu = metrics.cpuPercent;
+  const mem = metrics.memPercent;
+  const conns = metrics.connections;
 
   return (
     <div className="page">
