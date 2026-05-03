@@ -117,59 +117,7 @@ Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
   4. **Native arm64 in CI + Docker Hub publish** — per-arch matrix, manifest-list stitched and pushed to both `ghcr.io/hivellm/vectorizer` and `hivehub/vectorizer`. Eliminates QEMU emulation from the arm64 build.
 - Operator runbook: [`docs/development/docker-builds.md`](docs/development/docker-builds.md).
 
-## Previous Release: v3.2.0
-
-Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
-
-**Added — Bulk-upsert backpressure ([#263](https://github.com/hivellm/vectorizer/issues/263))**
-- **Bounded BM25 vocabulary-build concurrency** — a shared `tokio::sync::Semaphore` caps CPU-heavy vocab builds at `num_cpus::get()` by default. Configurable via `backpressure.max_concurrent_vocab_builds`. Closes the unbounded-CPU restart loop a fan-out producer (Cortex `cortex-embedder-worker`, Synap consumers, etc.) used to trigger.
-- **Per-collection upsert admission** with HTTP `429 Too Many Requests` + `Retry-After`, gRPC `RESOURCE_EXHAUSTED` + `retry-after` metadata, and structured MCP error `{ code: "queue_full", retryAfterSeconds: N }` once a collection's in-flight depth crosses `backpressure.upsert_queue_hard_limit` (default 1024). Wired across REST / gRPC / MCP / UMICP.
-- **Five new Prometheus metrics** on `GET /prometheus/metrics`: `vectorizer_upsert_queue_depth{collection}`, `vectorizer_upsert_in_flight{collection}`, `vectorizer_vocab_build_permits_available`, `vectorizer_upsert_rejected_total{reason}`, `vectorizer_bm25_empty_vocab_fallback_total{collection}`.
-- **All five first-party SDKs** (Rust, Python, TypeScript, Go, C#) honor `Retry-After` automatically: 1 s default, 30 s cap, 3 retries, then a typed `RateLimit*` error. Bulk producers no longer need to throttle to a single worker.
-- **Operator runbook** at [`docs/deployment/backpressure.md`](docs/deployment/backpressure.md) and ready-to-import Grafana panels at [`docs/grafana/backpressure-panels.json`](docs/grafana/backpressure-panels.json).
-- **Log rate-limiting** for the `BM25 vocabulary is empty` warning — at most one emit per collection per 5 s, with the full count preserved in `vectorizer_bm25_empty_vocab_fallback_total`.
-
-## Older Release: v3.1.0
-
-Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
-
-**Added**
-- **`POST /insert_vectors`** — bulk-insert pre-computed embeddings with caller-supplied vector ids. Skips the embedding pipeline; the request body carries the vectors as raw `Vec<f32>`. For clients with their own embedder, idempotent re-ingest by client id, or upsert without auto-chunking. See [`docs/users/api/BATCH.md`](docs/users/api/BATCH.md).
-- **Client `id` honored on `/insert` and `/insert_texts`** — the `id` field on each text entry is now used as the resulting `Vector.id` (non-chunked) or as the prefix for `<id>#<chunk_index>` chunk ids. Re-ingesting the same id upserts in place instead of duplicating; delete-by-doc and citation round-trips no longer need a UUID lookup.
-- **`payload.parent_id`** on chunked vectors — links every chunk back to its source document (the request's `id`, or a single shared UUID v4 when omitted). Lets clients group, count, or delete every chunk of a logical document without re-deriving membership from a defensive `_id` duplicate.
-
-**Changed**
-- **`/insert_texts` chunked payload layout flipped from nested to flat — BREAKING for clients that read `payload.metadata.<field>` directly.** Pre-3.1.0 chunks landed as `{content, metadata: {file_path, chunk_index, _id, casa, parlamentar, ...}}` — Qdrant payload filters `payload.parlamentar = "X"` silently missed every chunked row. 3.1.0 emits `{content, file_path, chunk_index, parent_id, _id, casa, parlamentar, ...}` with every key at the root. Server-side readers (`FileOperations`, `file_watcher`, MCP `search_semantic`) tolerate both shapes during the deprecation window. Migration guide: [CHANGELOG `[3.1.0]`](./CHANGELOG.md#migrating-from-30x-chunked-payloads).
-
-## Older Release: v3.0.0
-
-Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
-
-**Breaking**
-- **RPC is default transport** (`rpc.enabled: true`, port `15503`). REST stays on `15002`. Migration guide: [`docs/migration/rpc-default.md`](docs/migration/rpc-default.md). Opt out with `rpc.enabled: false`.
-- **gRPC `SearchResult.score` narrowed `double` → `float`**. Clients on the pre-v3 proto must regenerate.
-- **JWT secret must be explicitly configured** — no more insecure default. Generate via `openssl rand -hex 64` and inject via `VECTORIZER_JWT_SECRET`.
-- **Configs moved under `config/`** — `config.yml` → `config/config.yml`, presets under `config/presets/`. Legacy `./config.yml` still works with a deprecation warning (removed in v3.1).
-- **Cargo workspace split** — `vectorizer-core`, `vectorizer-protocol`, `vectorizer`, `vectorizer-server`, `vectorizer-cli`. Callers reaching into the server layer need to switch from `vectorizer::{server,api,grpc,logging,umicp}::*` to `vectorizer_server::*`.
-
-**Removed**
-- **Standalone JavaScript SDK dropped** — TypeScript SDK ships compiled CJS + ESM, usable from plain JS. Migrate `@hivehub/vectorizer-sdk-js` → `@hivehub/vectorizer-sdk`.
-- **TypeScript SDK scope is `@hivehub`**, not `@hivellm` (docs corrected).
-- **Framework integration packages dropped** — `langchain`, `langchain-js`, `langflow`, `n8n`, `tensorflow`, `pytorch` adapters. Published versions stay installable; integrate against native SDKs directly.
-
-**Added**
-- **Layered config loader** — `VECTORIZER_MODE=dev|production` merges `config/modes/<mode>.yml` over base. Deep YAML merge with null-clear semantics. See [`docs/deployment/configuration.md`](docs/deployment/configuration.md).
-- **Docker collapsed to one compose** with profiles — `docker compose --profile <default|dev|ha|hub> up -d`.
-- **C# SDK RPC transport** (`Vectorizer.Sdk.Rpc` 3.0.0) — TCP + MessagePack framing, connection pool, ASP.NET Core DI.
-- **`#![deny(missing_docs)]` + `cargo doc -D warnings` CI gate** — cleared 2,219 missing-docs warnings to 0.
-- **`unwrap_used` / `expect_used` denied workspace-wide** — every production `.unwrap()` either returns `Result` or sits behind a documented `#[allow]`.
-
-**Changed**
-- **`rmcp` 0.10 → 1.5** — MCP SDK major rewrite; builder-based construction across every handler.
-- **Second-pass dep migrations** — reqwest 0.13, arrow/parquet 58, zip 8, tantivy 0.26, hmac 0.13 + sha2 0.11, hf-hub 0.5, sysinfo 0.38, candle 0.10.2, bcrypt 0.19, openraft pinned `=0.10.0-alpha.17`.
-- **Frontend majors** — React 19, react-router 7, TypeScript 6 (dashboard), vitest 4, eslint 10, Electron 41, Vue-router 5 (GUI).
-- **`parking_lot` migration complete** — all `std::sync::{Mutex,RwLock}` off the hot path; CI grep gate prevents regression.
-- **Hot-path `rand` / `hmac` / `tonic 0.14` / `prost 0.14` / `bincode 2.0`** upgraded.
+For prior releases see [CHANGELOG.md](./CHANGELOG.md).
 
 ## 🚀 Quick Start
 
