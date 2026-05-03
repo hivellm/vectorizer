@@ -29,6 +29,7 @@ const ApiKeysPage = lazy(() => import('@/pages/ApiKeysPage'));
 const SetupWizardPage = lazy(() => import('@/pages/SetupWizardPage'));
 const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 const ClusterPage = lazy(() => import('@/pages/ClusterPage'));
+const MonitoringPage = lazy(() => import('@/pages/MonitoringPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -116,7 +117,7 @@ function AppRouter() {
           <Route path="collections" element={<CollectionsPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="vectors" element={<VectorsPage />} />
-          <Route path="monitoring" element={<div className="page"><h1 className="page-title">Monitoring (TODO)</h1></div>} />
+          <Route path="monitoring" element={<MonitoringPage />} />
           <Route path="mcp-tools" element={<div className="page"><h1 className="page-title">MCP Tools (TODO)</h1></div>} />
           <Route path="file-watcher" element={<FileWatcherPage />} />
           <Route path="graph" element={<GraphPage />} />
