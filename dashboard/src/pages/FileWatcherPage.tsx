@@ -1,15 +1,62 @@
 /**
- * File Watcher page - Monitor file changes
+ * File Watcher page — console-themed restyle.
+ *
+ * Visual restyle only: behaviour (status polling, start/stop,
+ * configuration mutation, metrics rendering) is preserved from the
+ * pre-redesign version. The redesign brief has no dedicated mockup for
+ * File Watcher, so this page applies the established Phase 3 recipe:
+ *   - `.page` + `.page-head` shell
+ *   - console `Card` / `CardHead` / `CardBody`
+ *   - console `Tbl` / `Th` / `Td` for the watched-paths list
+ *   - `.btn` + `Icons.*` for actions
+ *   - `StatusPill` / `Pill` for the runtime status
+ *   - `Kpi` cards for the metrics dashboards
+ *   - no Tailwind utility classes, no `dark:` variants
  */
 
 import { useEffect, useState } from 'react';
 import { useFileWatcher, FileWatcherStatus, FileWatcherMetrics } from '@/hooks/useFileWatcher';
-import LoadingState from '@/components/LoadingState';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
 import { useToastContext } from '@/providers/ToastProvider';
 import { formatNumber } from '@/utils/formatters';
-import { Play, Square, RefreshCw01, Settings01, AlertCircle, CheckCircle } from '@untitledui/icons';
+import {
+  Icons,
+  Pill,
+  StatusPill,
+  Card,
+  CardHead,
+  CardBody,
+  Kpi,
+  Tbl,
+  Th,
+  Td,
+} from '@/components/console';
+
+function formatUptime(seconds: number | null | undefined): string {
+  const sec = seconds ?? 0;
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+  const hours = Math.floor(sec / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+}
+
+function formatBytes(bytes: number | null | undefined): string {
+  const b = bytes ?? 0;
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(2)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function statusToken(status: FileWatcherStatus | null): {
+  token: string;
+  label: string;
+  tone: 'green' | 'amber' | 'muted';
+} {
+  if (!status) return { token: 'warning', label: 'unknown', tone: 'muted' };
+  if (status.running) return { token: 'healthy', label: 'running', tone: 'green' };
+  if (status.enabled) return { token: 'warning', label: 'enabled · not running', tone: 'amber' };
+  return { token: 'warning', label: 'disabled', tone: 'muted' };
+}
 
 function FileWatcherPage() {
   const { getStatus, getMetrics, updateConfig } = useFileWatcher();
@@ -29,15 +76,15 @@ function FileWatcherPage() {
     try {
       const [statusData, metricsData] = await Promise.all([
         getStatus(),
-        getMetrics().catch(() => null), // Metrics might not be available
+        getMetrics().catch(() => null),
       ]);
 
       setStatus(statusData);
       setMetrics(metricsData);
-      
+
       // Determine if running based on metrics
       if (metricsData && metricsData.timing.uptime_seconds > 0) {
-        setStatus(prev => prev ? { ...prev, running: true } : null);
+        setStatus((prev) => (prev ? { ...prev, running: true } : null));
       }
     } catch (err) {
       console.error('Error loading file watcher data:', err);
@@ -49,9 +96,9 @@ function FileWatcherPage() {
 
   useEffect(() => {
     loadData();
-    // Auto-refresh every 5 seconds
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleStart = async () => {
@@ -88,402 +135,390 @@ function FileWatcherPage() {
     }
   };
 
-  const formatUptime = (seconds: number | null | undefined): string => {
-    const sec = seconds ?? 0;
-    if (sec < 60) return `${sec}s`;
-    if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
-    const hours = Math.floor(sec / 3600);
-    const minutes = Math.floor((sec % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  };
-
-  const formatBytes = (bytes: number | null | undefined): string => {
-    const b = bytes ?? 0;
-    if (b < 1024) return `${b} B`;
-    if (b < 1024 * 1024) return `${(b / 1024).toFixed(2)} KB`;
-    return `${(b / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
-  if (loading && !status) {
-    return <LoadingState message="Loading file watcher..." />;
-  }
+  const isRunning = !!status?.running;
+  const isEnabled = !!status?.enabled;
+  const pathCount = status?.watch_paths.length ?? 0;
+  const excludeCount = status?.exclude_patterns.length ?? 0;
+  const st = statusToken(status);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">File Watcher</h1>
-          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 mt-1">
-            Monitor and index file changes automatically
-          </p>
+          <h1 className="page-title">File Watcher</h1>
+          <p className="page-sub">Monitor filesystem paths for changes and auto-reindex</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
+        <div className="row" style={{ gap: 8 }}>
+          <Pill tone={st.tone}>
+            <span className={`dot ${st.tone === 'muted' ? '' : st.tone}`} />
+            {st.label}
+          </Pill>
+          <button
+            className="btn"
             onClick={() => {
               setConfigForm(status || {});
               setConfigOpen(true);
             }}
           >
-            <Settings01 className="w-4 h-4 mr-2" />
+            <Icons.settings size={13} />
             Configure
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={loadData}
-          >
-            <RefreshCw01 className="w-4 h-4 mr-2" />
+          </button>
+          <button className="btn" onClick={loadData} disabled={loading}>
+            <Icons.refresh size={13} />
             Refresh
-          </Button>
-          {status?.enabled && status?.running ? (
-            <Button variant="danger" size="sm" onClick={handleStop}>
-              <Square className="w-4 h-4 mr-2" />
+          </button>
+          {isEnabled && isRunning ? (
+            <button className="btn" onClick={handleStop}>
+              <Icons.x size={13} />
               Stop
-            </Button>
+            </button>
           ) : (
-            <Button variant="primary" size="sm" onClick={handleStart}>
-              <Play className="w-4 h-4 mr-2" />
+            <button className="btn primary" onClick={handleStart}>
+              <Icons.bolt size={13} />
               Start
-            </Button>
+            </button>
           )}
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-            <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
-          </div>
+        <div style={{ marginBottom: 14 }}>
+          <Card>
+            <CardBody>
+              <div className="row" style={{ gap: 8 }}>
+                <Pill tone="red">error</Pill>
+                <span style={{ color: 'var(--text-2)' }}>{error}</span>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       )}
 
-      {/* Status Card */}
-      {status && (
-        <Card>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Status</h2>
-              <div className="flex items-center gap-2">
-                {status.running ? (
-                  <>
-                    <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <span className="text-sm font-medium text-green-600 dark:text-green-400">Running</span>
-                  </>
-                ) : status.enabled ? (
-                  <>
-                    <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    <span className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Enabled (Not Running)</span>
-                  </>
-                ) : (
-                  <>
-                    <Square className="w-5 h-5 text-neutral-400 dark:text-neutral-500" />
-                    <span className="text-sm font-medium text-neutral-400 dark:text-neutral-500">Disabled</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Watch Paths</span>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                  {status.watch_paths.length > 0 ? status.watch_paths.length : 'Auto-discover'}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Auto Discovery</span>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                  {status.auto_discovery ? 'Enabled' : 'Disabled'}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Auto Update</span>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                  {status.enable_auto_update ? 'Enabled' : 'Disabled'}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Hot Reload</span>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                  {status.hot_reload ? 'Enabled' : 'Disabled'}
-                </p>
-              </div>
-            </div>
-
-            {status.watch_paths.length > 0 && (
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Watched Paths:</span>
-                <ul className="mt-2 space-y-1">
-                  {status.watch_paths.map((path, index) => (
-                    <li key={index} className="text-sm font-mono text-neutral-700 dark:text-neutral-300">
-                      {path}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {status.exclude_patterns.length > 0 && (
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Exclude Patterns:</span>
-                <ul className="mt-2 space-y-1">
-                  {status.exclude_patterns.map((pattern, index) => (
-                    <li key={index} className="text-sm font-mono text-neutral-700 dark:text-neutral-300">
-                      {pattern}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+      <Card>
+        <CardHead
+          title="Status"
+          sub={loading && !status ? 'loading…' : undefined}
+          right={<StatusPill status={st.token} />}
+        />
+        <CardBody>
+          <div
+            className="row"
+            style={{ gap: 24, flexWrap: 'wrap', marginBottom: 14 }}
+          >
+            <Kpi label="Watch paths" value={pathCount > 0 ? pathCount : 'auto'} />
+            <Kpi
+              label="Auto discovery"
+              value={status?.auto_discovery ? 'on' : 'off'}
+              accent={status?.auto_discovery ? 'teal' : 'none'}
+            />
+            <Kpi
+              label="Auto update"
+              value={status?.enable_auto_update ? 'on' : 'off'}
+              accent={status?.enable_auto_update ? 'teal' : 'none'}
+            />
+            <Kpi
+              label="Hot reload"
+              value={status?.hot_reload ? 'on' : 'off'}
+              accent={status?.hot_reload ? 'magenta' : 'none'}
+            />
           </div>
-        </Card>
-      )}
+        </CardBody>
+      </Card>
 
-      {/* Metrics Card */}
-      {metrics && (
+      <div style={{ height: 14 }} />
+
+      <Card>
+        <CardHead
+          title="Watched paths"
+          sub={pathCount > 0 ? `${pathCount} configured` : undefined}
+        />
+        <CardBody tight>
+          {pathCount === 0 ? (
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              No watch paths configured · Auto-discover is{' '}
+              {status?.auto_discovery ? 'on' : 'off'}.
+            </div>
+          ) : (
+            <Tbl>
+              <thead>
+                <tr>
+                  <Th>Path</Th>
+                  <Th>Recursive</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {status!.watch_paths.map((p) => (
+                  <tr key={p}>
+                    <Td className="mono" style={{ fontSize: 12 }}>
+                      {p}
+                    </Td>
+                    <Td>
+                      <Pill tone="muted">
+                        <Icons.check size={11} />
+                        recursive
+                      </Pill>
+                    </Td>
+                    <Td>
+                      <StatusPill status={isRunning ? 'healthy' : 'warning'} />
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Tbl>
+          )}
+        </CardBody>
+      </Card>
+
+      {excludeCount > 0 && (
         <>
-          {/* File Metrics */}
+          <div style={{ height: 14 }} />
           <Card>
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">File Metrics</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Total Processed</span>
-                <p className="text-xl font-bold text-neutral-900 dark:text-white mt-1">
-                  {formatNumber(metrics.files.total_files_processed)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Success</span>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-1">
-                  {formatNumber(metrics.files.files_processed_success)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Errors</span>
-                <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-1">
-                  {formatNumber(metrics.files.files_processed_error)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Skipped</span>
-                <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">
-                  {formatNumber(metrics.files.files_skipped)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Discovered</span>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                  {formatNumber(metrics.files.files_discovered)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Removed</span>
-                <p className="text-xl font-bold text-neutral-600 dark:text-neutral-400 mt-1">
-                  {formatNumber(metrics.files.files_removed)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">In Progress</span>
-                <p className="text-xl font-bold text-purple-600 dark:text-purple-400 mt-1">
-                  {formatNumber(metrics.files.files_in_progress)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Realtime Indexed</span>
-                <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-1">
-                  {formatNumber(metrics.files.files_indexed_realtime)}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Performance Metrics */}
-          <Card>
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">Performance Metrics</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Uptime</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatUptime(metrics.timing.uptime_seconds)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Avg Processing Time</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {(metrics.timing.avg_file_processing_ms ?? 0).toFixed(2)}ms
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Avg Discovery Time</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {(metrics.timing.avg_discovery_ms ?? 0).toFixed(2)}ms
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Avg Sync Time</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {(metrics.timing.avg_sync_ms ?? 0).toFixed(2)}ms
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Peak Processing Time</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {metrics.timing.peak_processing_ms ?? 0}ms
-                </p>
-              </div>
-              {metrics.timing.last_activity && (
-                <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Last Activity</span>
-                  <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                    {new Date(metrics.timing.last_activity).toLocaleString()}
-                  </p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* System Metrics */}
-          <Card>
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">System Metrics</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Memory Usage</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatBytes(metrics.system.memory_usage_bytes ?? 0)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">CPU Usage</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {(metrics.system.cpu_usage_percent ?? 0).toFixed(2)}%
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Thread Count</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatNumber(metrics.system.thread_count)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Active File Handles</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatNumber(metrics.system.active_file_handles)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Disk I/O Ops/sec</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatNumber(metrics.system.disk_io_ops_per_sec)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Network I/O</span>
-                <p className="text-lg font-semibold text-neutral-900 dark:text-white mt-1">
-                  {formatBytes(metrics.system.network_io_bytes_per_sec ?? 0)}/s
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Status Metrics */}
-          <Card>
-            <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">Health Status</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Status</span>
-                <p className={`text-lg font-semibold mt-1 ${metrics.status.is_healthy !== false ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {metrics.status.is_healthy !== false ? 'Healthy' : 'Unhealthy'}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Total Errors</span>
-                <p className="text-lg font-semibold text-red-600 dark:text-red-400 mt-1">
-                  {formatNumber(metrics.status.total_errors ?? 0)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Total Warnings</span>
-                <p className="text-lg font-semibold text-yellow-600 dark:text-yellow-400 mt-1">
-                  {formatNumber(metrics.status.total_warnings ?? 0)}
-                </p>
-              </div>
-              {metrics.status.last_error && (
-                <div className="sm:col-span-3">
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Last Error</span>
-                  <p className="text-sm font-mono text-red-600 dark:text-red-400 mt-1 break-all">
-                    {metrics.status.last_error}
-                  </p>
-                </div>
-              )}
-            </div>
+            <CardHead
+              title="Exclude patterns"
+              sub={`${excludeCount} pattern${excludeCount === 1 ? '' : 's'}`}
+            />
+            <CardBody tight>
+              <Tbl>
+                <thead>
+                  <tr>
+                    <Th>Pattern</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {status!.exclude_patterns.map((pat) => (
+                    <tr key={pat}>
+                      <Td className="mono" style={{ fontSize: 12 }}>
+                        {pat}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Tbl>
+            </CardBody>
           </Card>
         </>
       )}
 
-      {/* Configuration Modal */}
+      {metrics && (
+        <>
+          <div style={{ height: 14 }} />
+          <Card>
+            <CardHead title="File metrics" />
+            <CardBody>
+              <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
+                <Kpi label="Processed" value={formatNumber(metrics.files.total_files_processed)} />
+                <Kpi
+                  label="Success"
+                  value={formatNumber(metrics.files.files_processed_success)}
+                  accent="teal"
+                />
+                <Kpi
+                  label="Errors"
+                  value={formatNumber(metrics.files.files_processed_error)}
+                  accent={metrics.files.files_processed_error > 0 ? 'magenta' : 'none'}
+                />
+                <Kpi
+                  label="Skipped"
+                  value={formatNumber(metrics.files.files_skipped)}
+                  accent="amber"
+                />
+                <Kpi label="Discovered" value={formatNumber(metrics.files.files_discovered)} />
+                <Kpi label="Removed" value={formatNumber(metrics.files.files_removed)} />
+                <Kpi label="In progress" value={formatNumber(metrics.files.files_in_progress)} />
+                <Kpi
+                  label="Realtime indexed"
+                  value={formatNumber(metrics.files.files_indexed_realtime)}
+                  accent="teal"
+                />
+              </div>
+            </CardBody>
+          </Card>
+
+          <div style={{ height: 14 }} />
+          <Card>
+            <CardHead title="Performance" />
+            <CardBody>
+              <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
+                <Kpi label="Uptime" value={formatUptime(metrics.timing.uptime_seconds)} />
+                <Kpi
+                  label="Avg processing"
+                  value={(metrics.timing.avg_file_processing_ms ?? 0).toFixed(2)}
+                  unit="ms"
+                />
+                <Kpi
+                  label="Avg discovery"
+                  value={(metrics.timing.avg_discovery_ms ?? 0).toFixed(2)}
+                  unit="ms"
+                />
+                <Kpi
+                  label="Avg sync"
+                  value={(metrics.timing.avg_sync_ms ?? 0).toFixed(2)}
+                  unit="ms"
+                />
+                <Kpi
+                  label="Peak processing"
+                  value={(metrics.timing.peak_processing_ms ?? 0).toString()}
+                  unit="ms"
+                />
+                {metrics.timing.last_activity && (
+                  <Kpi
+                    label="Last activity"
+                    value={new Date(metrics.timing.last_activity).toLocaleString()}
+                  />
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
+          <div style={{ height: 14 }} />
+          <Card>
+            <CardHead title="System" />
+            <CardBody>
+              <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
+                <Kpi label="Memory" value={formatBytes(metrics.system.memory_usage_bytes)} />
+                <Kpi
+                  label="CPU"
+                  value={(metrics.system.cpu_usage_percent ?? 0).toFixed(2)}
+                  unit="%"
+                />
+                <Kpi label="Threads" value={formatNumber(metrics.system.thread_count)} />
+                <Kpi
+                  label="File handles"
+                  value={formatNumber(metrics.system.active_file_handles)}
+                />
+                <Kpi
+                  label="Disk I/O"
+                  value={formatNumber(metrics.system.disk_io_ops_per_sec)}
+                  unit="ops/s"
+                />
+                <Kpi
+                  label="Network"
+                  value={formatBytes(metrics.system.network_io_bytes_per_sec)}
+                  unit="/s"
+                />
+              </div>
+            </CardBody>
+          </Card>
+
+          <div style={{ height: 14 }} />
+          <Card>
+            <CardHead
+              title="Health"
+              right={
+                <StatusPill
+                  status={metrics.status.is_healthy !== false ? 'healthy' : 'error'}
+                />
+              }
+            />
+            <CardBody>
+              <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
+                <Kpi
+                  label="Errors"
+                  value={formatNumber(metrics.status.total_errors ?? 0)}
+                  accent={(metrics.status.total_errors ?? 0) > 0 ? 'magenta' : 'none'}
+                />
+                <Kpi
+                  label="Warnings"
+                  value={formatNumber(metrics.status.total_warnings ?? 0)}
+                  accent={(metrics.status.total_warnings ?? 0) > 0 ? 'amber' : 'none'}
+                />
+              </div>
+              {metrics.status.last_error && (
+                <div
+                  className="mono"
+                  style={{
+                    marginTop: 14,
+                    padding: 10,
+                    fontSize: 12,
+                    color: 'var(--magenta-hi)',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 4,
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {metrics.status.last_error}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </>
+      )}
+
       {configOpen && status && (
-        <Card>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Configuration</h2>
-              <Button variant="ghost" size="sm" onClick={() => setConfigOpen(false)}>
-                Close
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  Auto Discovery
+        <>
+          <div style={{ height: 14 }} />
+          {/* TODO(actions): replace inline panel with a real modal once
+              the console design ships a modal primitive. */}
+          <Card>
+            <CardHead
+              title="Configuration"
+              right={
+                <button className="btn sm" onClick={() => setConfigOpen(false)}>
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
+            />
+            <CardBody>
+              <div className="col" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label
+                  className="row"
+                  style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
+                >
+                  <span style={{ color: 'var(--text-2)' }}>Auto discovery</span>
+                  <input
+                    type="checkbox"
+                    checked={configForm.auto_discovery ?? status.auto_discovery}
+                    onChange={(e) =>
+                      setConfigForm({ ...configForm, auto_discovery: e.target.checked })
+                    }
+                  />
                 </label>
-                <input
-                  type="checkbox"
-                  checked={configForm.auto_discovery ?? status.auto_discovery}
-                  onChange={(e) => setConfigForm({ ...configForm, auto_discovery: e.target.checked })}
-                  className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  Auto Update
+                <label
+                  className="row"
+                  style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
+                >
+                  <span style={{ color: 'var(--text-2)' }}>Auto update</span>
+                  <input
+                    type="checkbox"
+                    checked={configForm.enable_auto_update ?? status.enable_auto_update}
+                    onChange={(e) =>
+                      setConfigForm({ ...configForm, enable_auto_update: e.target.checked })
+                    }
+                  />
                 </label>
-                <input
-                  type="checkbox"
-                  checked={configForm.enable_auto_update ?? status.enable_auto_update}
-                  onChange={(e) => setConfigForm({ ...configForm, enable_auto_update: e.target.checked })}
-                  className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  Hot Reload
+                <label
+                  className="row"
+                  style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}
+                >
+                  <span style={{ color: 'var(--text-2)' }}>Hot reload</span>
+                  <input
+                    type="checkbox"
+                    checked={configForm.hot_reload ?? status.hot_reload}
+                    onChange={(e) =>
+                      setConfigForm({ ...configForm, hot_reload: e.target.checked })
+                    }
+                  />
                 </label>
-                <input
-                  type="checkbox"
-                  checked={configForm.hot_reload ?? status.hot_reload}
-                  onChange={(e) => setConfigForm({ ...configForm, hot_reload: e.target.checked })}
-                  className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                />
+                <div className="row" style={{ gap: 8, marginTop: 4 }}>
+                  <button
+                    className="btn primary"
+                    onClick={handleSaveConfig}
+                    disabled={saving}
+                  >
+                    <Icons.check size={13} />
+                    {saving ? 'Saving…' : 'Save changes'}
+                  </button>
+                  <button className="btn" onClick={() => setConfigOpen(false)}>
+                    Cancel
+                  </button>
+                </div>
               </div>
-
-              <div className="flex gap-2">
-                <Button variant="primary" onClick={handleSaveConfig} disabled={saving} isLoading={saving}>
-                  Save Changes
-                </Button>
-                <Button variant="secondary" onClick={() => setConfigOpen(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
+            </CardBody>
+          </Card>
+        </>
       )}
     </div>
   );
