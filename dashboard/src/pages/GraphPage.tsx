@@ -1,19 +1,38 @@
 /**
- * Graph Relationships page - Visualize vector relationships
- * Uses vis-network for Neo4j-style graph visualization
+ * Graph Relationships page — console-themed restyle.
+ *
+ * Visual restyle only: the imperative vis-network mount (ref + ctor +
+ * DataSet + event wiring), the cache logic, the relationship/edge
+ * algorithms, and every API call site are preserved verbatim from the
+ * pre-redesign version. The redesign brief has no dedicated mockup for
+ * the Graph page, so this applies the established Phase 3 recipe:
+ *   - `.page` + `.page-head` shell
+ *   - console `Card` / `CardHead` / `CardBody`
+ *   - `.field` + `<input className="input">` form controls
+ *   - `.btn` / `.btn primary` for actions
+ *   - `Pill` / `StatusPill` / `Icons.*` from console primitives
+ *   - vis-network container is wrapped in a `Card` so it inherits the
+ *     dark theme; the network ctor + ref are otherwise untouched
+ *
+ * Triggered modals (EdgeCreate, EdgeDetails, PathFinder, DiscoveryConfig)
+ * still use the legacy `@/components/ui/*` Modal/Button/Input/Select
+ * primitives. Their wiring (props, callbacks, state) is preserved here;
+ * the modals themselves will be migrated in a follow-up sweep.
+ *   // TODO(graph-modals): migrate modal internals to console primitives
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Network, Options } from 'vis-network';
 import { useGraph, GraphNode, GraphEdge, NeighborInfo, RelatedNodeInfo } from '@/hooks/useGraph';
 import { useCollections } from '@/hooks/useCollections';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select, SelectOption } from '@/components/ui/Select';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToastContext } from '@/providers/ToastProvider';
-import { RefreshCw01 } from '@untitledui/icons';
+import {
+  Icons,
+  Pill,
+  Card,
+  CardHead,
+  CardBody,
+} from '@/components/console';
 import EdgeCreateModal from '@/components/modals/EdgeCreateModal';
 import EdgeDetailsModal from '@/components/modals/EdgeDetailsModal';
 import PathFinderModal from '@/components/modals/PathFinderModal';
@@ -31,13 +50,6 @@ interface CachedGraphData {
 
 const GRAPH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 const graphCache = new Map<string, CachedGraphData>();
-
-// SVG icons
-const SearchIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
 
 function GraphPage() {
   const {
@@ -113,9 +125,9 @@ function GraphPage() {
       try {
         const status = await getGraphStatus(selectedCollection);
         if (cancelled) return;
-        
+
         setGraphEnabled(status.enabled);
-        
+
         if (!status.enabled) {
           console.log(`[GraphPage] Graph not enabled for collection '${selectedCollection}'`);
           setNodes([]);
@@ -678,156 +690,185 @@ function GraphPage() {
     [selectedCollection, discoveryNodeId, discoverEdges, discoverEdgesForNode, handleRefresh, toast]
   );
 
+  const selectedNodeObj = selectedNode ? nodes.find((n) => n.id === selectedNode) : undefined;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">Graph Relationships</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mt-1">Visualize relationships between vectors</p>
+          <h1 className="page-title">Graph Relationships</h1>
+          <p className="page-sub">Visualize relationships between vectors</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            className="btn primary"
             onClick={() => setShowEdgeCreateModal(true)}
             disabled={loading || !selectedCollection || nodes.length < 2}
           >
+            <Icons.plus size={13} />
             Create Edge
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
+          </button>
+          <button
+            className="btn"
             onClick={() => setShowPathFinderModal(true)}
             disabled={loading || !selectedCollection || nodes.length < 2}
           >
+            <Icons.search size={13} />
             Find Path
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
+            className="btn"
             onClick={() => {
               setDiscoveryNodeId(undefined);
               setShowDiscoveryModal(true);
             }}
             disabled={loading || !selectedCollection}
           >
-            <RefreshCw01 className="w-4 h-4 mr-2" />
+            <Icons.sparkles size={13} />
             Discover Edges
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading || !selectedCollection}>
-            <RefreshCw01 className="w-4 h-4 mr-2" />
+          </button>
+          <button className="btn" onClick={handleRefresh} disabled={loading || !selectedCollection}>
+            <Icons.refresh size={13} />
             Refresh
-          </Button>
+          </button>
         </div>
       </div>
 
-      {/* Controls */}
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
-          <div>
-            <Select
-              label="Collection"
-              value={selectedCollection}
-              onChange={(value) => setSelectedCollection(value)}
-              placeholder="Select collection"
-            >
-              {collections.map((col) => (
-                <SelectOption key={col.name} id={col.name} value={col.name}>
-                  {col.name}
-                </SelectOption>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <Select
-              label="Relationship Type"
-              value={relationshipFilter}
-              onChange={(value) => setRelationshipFilter(value)}
-            >
-              <SelectOption id="all" value="all">
-                All Types
-              </SelectOption>
-              {relationshipTypes.map((type) => (
-                <SelectOption key={type} id={type} value={type}>
-                  {type}
-                </SelectOption>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-              Search Node
-            </label>
-            <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-neutral-400 z-10" />
-              <Input
+        <CardHead title="Controls" />
+        <CardBody>
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: '1fr 1fr 1fr auto',
+              gap: 10,
+              alignItems: 'end',
+            }}
+          >
+            <div className="field">
+              <label className="field-label" htmlFor="graph-collection">Collection</label>
+              <select
+                id="graph-collection"
+                className="input"
+                value={selectedCollection}
+                onChange={(e) => setSelectedCollection(e.target.value)}
+              >
+                <option value="">Select collection</option>
+                {collections.map((col) => (
+                  <option key={col.name} value={col.name}>
+                    {col.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="graph-rel-type">Relationship type</label>
+              <select
+                id="graph-rel-type"
+                className="input"
+                value={relationshipFilter}
+                onChange={(e) => setRelationshipFilter(e.target.value)}
+              >
+                <option value="all">All Types</option>
+                {relationshipTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="graph-search">Search node</label>
+              <input
+                id="graph-search"
+                className="input"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by ID or type..."
-                className="pl-10"
+                placeholder="Search by ID or type…"
               />
             </div>
+            <div className="row" style={{ gap: 8 }}>
+              {networkInstanceRef.current && (
+                <>
+                  <button
+                    className="btn"
+                    onClick={() => networkInstanceRef.current?.fit({ animation: true })}
+                    title="Fit to Screen"
+                  >
+                    Fit
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      networkInstanceRef.current?.moveTo({
+                        position: { x: 0, y: 0 },
+                        scale: 1,
+                        animation: true,
+                      });
+                      setSelectedNode(null);
+                    }}
+                    title="Reset View"
+                  >
+                    Reset
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex items-end gap-2 min-h-[42px]">
-            {networkInstanceRef.current && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => networkInstanceRef.current?.fit({ animation: true })}
-                  title="Fit to Screen"
-                >
-                  Fit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    networkInstanceRef.current?.moveTo({ position: { x: 0, y: 0 }, scale: 1, animation: true });
-                    setSelectedNode(null);
-                  }}
-                  title="Reset View"
-                >
-                  Reset
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+        </CardBody>
       </Card>
 
-      {/* Graph Visualization */}
-      <Card>
-        <div className="relative">
-          {(loading || rendering) && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-neutral-900/80 z-10 backdrop-blur-sm">
-              <LoadingSpinner size="lg" />
-              <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">
-                {loading ? 'Loading graph data...' : 'Rendering graph layout...'}
-              </p>
-            </div>
-          )}
+      <div style={{ height: 14 }} />
 
+      <Card>
+        <CardHead
+          title="Visualization"
+          sub={
+            selectedCollection
+              ? `${nodes.length} nodes · ${edges.length} edges`
+              : undefined
+          }
+          right={
+            (loading || rendering) ? (
+              <Pill tone="amber">
+                <span className="dot amber" />
+                {loading ? 'loading' : 'rendering'}
+              </Pill>
+            ) : graphEnabled === true && nodes.length > 0 ? (
+              <Pill tone="green">
+                <span className="dot green" />
+                ready
+              </Pill>
+            ) : undefined
+          }
+        />
+        <CardBody>
           {!selectedCollection ? (
-            <div className="text-center py-12">
-              <p className="text-neutral-500 dark:text-neutral-400">Select a collection to view graph</p>
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              Select a collection to view graph
             </div>
           ) : graphEnabled === false ? (
-            <div className="text-center py-12 space-y-4">
-              <div className="w-16 h-16 mx-auto bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </div>
+            <div
+              className="col"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 12,
+                padding: '32px 16px',
+                textAlign: 'center',
+              }}
+            >
+              <Icons.layers size={32} />
               <div>
-                <h3 className="text-lg font-medium text-neutral-900 dark:text-white">Graph Not Enabled</h3>
-                <p className="text-neutral-500 dark:text-neutral-400 mt-1">
-                  Graph relationships are not enabled for collection "{selectedCollection}"
-                </p>
+                <div style={{ color: 'var(--text-1)', fontWeight: 600 }}>Graph Not Enabled</div>
+                <div style={{ color: 'var(--text-2)', marginTop: 4 }}>
+                  Graph relationships are not enabled for collection &ldquo;{selectedCollection}&rdquo;
+                </div>
               </div>
-              <Button
-                variant="primary"
+              <button
+                className="btn primary"
                 onClick={async () => {
                   setEnablingGraph(true);
                   try {
@@ -846,145 +887,194 @@ function GraphPage() {
                 }}
                 disabled={enablingGraph}
               >
-                {enablingGraph ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Enabling...
-                  </>
-                ) : (
-                  'Enable Graph'
-                )}
-              </Button>
+                <Icons.bolt size={13} />
+                {enablingGraph ? 'Enabling…' : 'Enable Graph'}
+              </button>
             </div>
           ) : nodes.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-neutral-500 dark:text-neutral-400">No graph data available for this collection</p>
-              <p className="text-sm text-neutral-400 dark:text-neutral-500 mt-2">
-                Try discovering edges using the "Discover Edges" button
-              </p>
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              <div>No graph data available for this collection</div>
+              <div style={{ color: 'var(--text-3, var(--text-2))', fontSize: 12, marginTop: 6 }}>
+                Try discovering edges using the &ldquo;Discover Edges&rdquo; button
+              </div>
             </div>
           ) : (
             <div
               ref={networkRef}
-              className="border border-neutral-200 dark:border-neutral-700 rounded-lg"
-              style={{ width: '100%', height: '800px', backgroundColor: 'transparent' }}
+              style={{
+                width: '100%',
+                height: '800px',
+                backgroundColor: 'var(--surface-2, transparent)',
+                border: '1px solid var(--border)',
+                borderRadius: 4,
+              }}
             />
           )}
-
-          {/* Node details panel */}
-          {selectedNode && (
-            <div className="mt-4 p-4 bg-neutral-50 dark:bg-neutral-800 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-neutral-900 dark:text-white">Node Details</h3>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedNode(null)}>
-                  ×
-                </Button>
-              </div>
-              {(() => {
-                const node = nodes.find((n) => n.id === selectedNode);
-                if (!node) return null;
-                return (
-                  <div className="space-y-3">
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="font-medium text-neutral-700 dark:text-neutral-300">ID:</span>{' '}
-                        <span className="text-neutral-600 dark:text-neutral-400">{node.id}</span>
-                      </div>
-                      <div>
-                        <span className="font-medium text-neutral-700 dark:text-neutral-300">Type:</span>{' '}
-                        <span className="text-neutral-600 dark:text-neutral-400">{node.node_type}</span>
-                      </div>
-                      {Object.keys(node.metadata).length > 0 && (
-                        <div>
-                          <span className="font-medium text-neutral-700 dark:text-neutral-300">Metadata:</span>
-                          <pre className="mt-1 p-2 bg-white dark:bg-neutral-900 rounded text-xs overflow-auto">
-                            {JSON.stringify(node.metadata, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Node actions */}
-                    <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
-                      <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-2">Actions</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewNeighbors(node.id)}
-                        >
-                          View Neighbors
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleFindRelated(node.id)}
-                        >
-                          Find Related
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setDiscoveryNodeId(node.id);
-                            setShowDiscoveryModal(true);
-                          }}
-                        >
-                          Discover Edges
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Show neighbors if available */}
-                    {neighbors.length > 0 && (
-                      <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
-                        <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                          Neighbors ({neighbors.length})
-                        </p>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {neighbors.map((neighbor) => (
-                            <div
-                              key={neighbor.node.id}
-                              className="text-xs text-neutral-600 dark:text-neutral-400 p-2 bg-white dark:bg-neutral-900 rounded"
-                            >
-                              <span className="font-mono">{neighbor.node.id.substring(0, 30)}...</span>
-                              <span className="ml-2 text-neutral-500">via {neighbor.edge.relationship_type}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Show related nodes if available */}
-                    {relatedNodes.length > 0 && (
-                      <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
-                        <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-                          Related Nodes ({relatedNodes.length})
-                        </p>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {relatedNodes.map((related) => (
-                            <div
-                              key={related.node.id}
-                              className="text-xs text-neutral-600 dark:text-neutral-400 p-2 bg-white dark:bg-neutral-900 rounded"
-                            >
-                              <span className="font-mono">{related.node.id.substring(0, 30)}...</span>
-                              <span className="ml-2 text-neutral-500">
-                                (distance: {related.distance}, weight: {related.weight.toFixed(2)})
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
+        </CardBody>
       </Card>
 
-      {/* Modals */}
+      {selectedNode && selectedNodeObj && (
+        <>
+          <div style={{ height: 14 }} />
+          <Card>
+            <CardHead
+              title="Node details"
+              right={
+                <button className="btn sm" onClick={() => setSelectedNode(null)}>
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
+            />
+            <CardBody>
+              <div className="col" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <Pill tone="muted">
+                    id: <span className="mono">{selectedNodeObj.id}</span>
+                  </Pill>
+                  <Pill tone="teal">type: {selectedNodeObj.node_type}</Pill>
+                </div>
+                {Object.keys(selectedNodeObj.metadata).length > 0 && (
+                  <div>
+                    <div
+                      style={{ color: 'var(--text-2)', fontSize: 12, marginBottom: 4 }}
+                    >
+                      Metadata
+                    </div>
+                    <pre
+                      className="mono"
+                      style={{
+                        margin: 0,
+                        padding: 10,
+                        fontSize: 12,
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 4,
+                        overflow: 'auto',
+                        color: 'var(--text-1)',
+                      }}
+                    >
+                      {JSON.stringify(selectedNodeObj.metadata, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                <div>
+                  <div style={{ color: 'var(--text-2)', fontSize: 12, marginBottom: 6 }}>
+                    Actions
+                  </div>
+                  <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                    <button className="btn sm" onClick={() => handleViewNeighbors(selectedNodeObj.id)}>
+                      <Icons.collections size={11} />
+                      View Neighbors
+                    </button>
+                    <button className="btn sm" onClick={() => handleFindRelated(selectedNodeObj.id)}>
+                      <Icons.activity size={11} />
+                      Find Related
+                    </button>
+                    <button
+                      className="btn sm"
+                      onClick={() => {
+                        setDiscoveryNodeId(selectedNodeObj.id);
+                        setShowDiscoveryModal(true);
+                      }}
+                    >
+                      <Icons.sparkles size={11} />
+                      Discover Edges
+                    </button>
+                  </div>
+                </div>
+
+                {neighbors.length > 0 && (
+                  <div>
+                    <div style={{ color: 'var(--text-2)', fontSize: 12, marginBottom: 6 }}>
+                      Neighbors ({neighbors.length})
+                    </div>
+                    <div
+                      className="col"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                        maxHeight: 160,
+                        overflow: 'auto',
+                      }}
+                    >
+                      {neighbors.map((neighbor) => (
+                        <div
+                          key={neighbor.node.id}
+                          className="row"
+                          style={{
+                            gap: 8,
+                            alignItems: 'center',
+                            padding: 8,
+                            background: 'var(--surface-2)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 4,
+                            fontSize: 12,
+                          }}
+                        >
+                          <span className="mono" style={{ color: 'var(--text-1)' }}>
+                            {neighbor.node.id.length > 30
+                              ? `${neighbor.node.id.substring(0, 30)}…`
+                              : neighbor.node.id}
+                          </span>
+                          <Pill tone="muted">via {neighbor.edge.relationship_type}</Pill>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {relatedNodes.length > 0 && (
+                  <div>
+                    <div style={{ color: 'var(--text-2)', fontSize: 12, marginBottom: 6 }}>
+                      Related nodes ({relatedNodes.length})
+                    </div>
+                    <div
+                      className="col"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                        maxHeight: 160,
+                        overflow: 'auto',
+                      }}
+                    >
+                      {relatedNodes.map((related) => (
+                        <div
+                          key={related.node.id}
+                          className="row"
+                          style={{
+                            gap: 8,
+                            alignItems: 'center',
+                            padding: 8,
+                            background: 'var(--surface-2)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 4,
+                            fontSize: 12,
+                          }}
+                        >
+                          <span className="mono" style={{ color: 'var(--text-1)' }}>
+                            {related.node.id.length > 30
+                              ? `${related.node.id.substring(0, 30)}…`
+                              : related.node.id}
+                          </span>
+                          <Pill tone="muted">distance: {related.distance}</Pill>
+                          <Pill tone="muted">weight: {related.weight.toFixed(2)}</Pill>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+        </>
+      )}
+
+      {/* Modals — wiring preserved verbatim. Modal internals still use
+          legacy `@/components/ui/*` primitives; restyle in a follow-up.
+          // TODO(graph-modals): migrate modal internals to console primitives */}
       <EdgeCreateModal
         isOpen={showEdgeCreateModal}
         onClose={() => setShowEdgeCreateModal(false)}
