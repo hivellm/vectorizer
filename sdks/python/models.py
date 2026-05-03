@@ -1165,3 +1165,96 @@ class FileUploadConfig:
             raise ValueError("default_chunk_size must be at least 1")
         if self.default_chunk_overlap < 0:
             raise ValueError("default_chunk_overlap cannot be negative")
+
+
+# ===== TIER-DEMOTION REPORTS (issue #265) =====
+
+
+@dataclass
+class VectorOpResult:
+    """Per-vector outcome for ``delete_vectors`` and
+    ``move_to_collection`` calls.
+
+    Attributes:
+        id: Vector id this row refers to. ``None`` when the request
+            payload contained a non-string entry that the server
+            rejected upfront.
+        status: One of ``"ok"``, ``"missing_in_src"``,
+            ``"dst_insert_failed"``, ``"src_delete_failed"``,
+            ``"error"`` (delete only).
+        error: Server-side error message; populated when
+            ``status != "ok"``.
+        index: Index of this entry in the request's ``ids`` array
+            (delete only).
+    """
+
+    status: str
+    id: Optional[str] = None
+    error: Optional[str] = None
+    index: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "VectorOpResult":
+        return cls(
+            status=str(data["status"]),
+            id=data.get("id"),
+            error=data.get("error"),
+            index=data.get("index"),
+        )
+
+
+@dataclass
+class DeleteReport:
+    """Aggregate outcome of a ``delete_vectors`` call against
+    ``POST /batch_delete``.
+
+    Server contract: ``{collection, count, deleted, failed, results}``.
+    Per-id failures populate ``results`` without aborting the batch.
+    """
+
+    collection: str
+    count: int
+    deleted: int
+    failed: int
+    results: List[VectorOpResult]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DeleteReport":
+        return cls(
+            collection=str(data["collection"]),
+            count=int(data.get("count", 0)),
+            deleted=int(data.get("deleted", 0)),
+            failed=int(data.get("failed", 0)),
+            results=[VectorOpResult.from_dict(r) for r in data.get("results", [])],
+        )
+
+
+@dataclass
+class MoveReport:
+    """Aggregate outcome of a ``move_to_collection`` call against
+    ``POST /collections/{src}/vectors/move`` (issue #265).
+
+    Server invariant: vectors are inserted into ``dst`` BEFORE being
+    deleted from ``src``. A mid-batch failure leaves a recoverable
+    duplicate, never data loss. Per-id failures populate ``results``
+    without aborting the batch — operators chasing tier-demotion
+    sweeps want partial progress, not abort-on-first-error.
+    """
+
+    src: str
+    dst: str
+    requested: int
+    moved: int
+    failed: int
+    results: List[VectorOpResult]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "MoveReport":
+        return cls(
+            src=str(data["src"]),
+            dst=str(data["dst"]),
+            requested=int(data.get("requested", 0)),
+            moved=int(data.get("moved", 0)),
+            failed=int(data.get("failed", 0)),
+            results=[VectorOpResult.from_dict(r) for r in data.get("results", [])],
+        )

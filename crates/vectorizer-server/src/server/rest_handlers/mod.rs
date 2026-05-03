@@ -71,7 +71,7 @@ pub use search::{
 };
 pub use vectors::{
     batch_insert_texts, delete_vector, delete_vector_generic, embed_text, get_vector, insert_texts,
-    list_vectors, update_vector,
+    list_vectors, move_vectors, update_vector,
 };
 
 #[cfg(test)]

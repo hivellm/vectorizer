@@ -516,8 +516,29 @@ const updated = await client.updateVector("documents", "vector-id", {
 // Delete vector
 await client.deleteVector("documents", "vector-id");
 
-// Delete multiple vectors
-await client.deleteVectors("documents", ["id1", "id2", "id3"]);
+// Delete multiple vectors — returns DeleteReport with per-id status.
+const deleteReport = await client.deleteVectors("documents", [
+  "id1",
+  "id2",
+  "id3",
+]);
+console.log(`deleted=${deleteReport.deleted} failed=${deleteReport.failed}`);
+
+// Tier demotion: move vectors between collections without re-embedding
+// (issue #265). The server inserts into `dst` BEFORE deleting from
+// `src`, so a mid-batch crash leaves a recoverable duplicate, never
+// data loss. Per-id outcomes (`ok | missing_in_src |
+// dst_insert_failed | src_delete_failed`) populate `results` without
+// aborting the batch.
+const moveReport = await client.moveToCollection("hot", "warm", [
+  "vec-1",
+  "vec-2",
+]);
+for (const row of moveReport.results) {
+  if (row.status !== "ok") {
+    console.warn("move failed", row);
+  }
+}
 ```
 
 ### Search Operations

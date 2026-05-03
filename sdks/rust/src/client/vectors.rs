@@ -85,6 +85,80 @@ impl VectorizerClient {
         Ok(batch_response)
     }
 
+    /// Delete a single vector by id from a collection.
+    ///
+    /// Calls `DELETE /collections/{collection}/vectors/{vector_id}`.
+    /// Returns `Ok(())` on 2xx; the server treats "not found" as a
+    /// 4xx that surfaces as a `VectorizerError::NotFound`-class error
+    /// via the shared error mapper.
+    ///
+    /// Companion to [`Self::delete_vectors`] (batch) and
+    /// [`Self::move_to_collection`] (cross-collection move). See
+    /// issue #265 for the tier-demotion use case.
+    pub async fn delete_vector(&self, collection: &str, vector_id: &str) -> Result<()> {
+        self.make_request(
+            "DELETE",
+            &format!("/collections/{collection}/vectors/{vector_id}"),
+            None,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Delete a batch of vectors from a single collection. Per-id
+    /// failures (e.g. not-found) are captured in
+    /// [`DeleteReport::results`] without aborting the batch.
+    ///
+    /// Calls `POST /batch_delete` with `{"collection": ..., "ids": [...]}`.
+    pub async fn delete_vectors(&self, collection: &str, ids: &[String]) -> Result<DeleteReport> {
+        let payload = serde_json::json!({
+            "collection": collection,
+            "ids": ids,
+        });
+        let response = self
+            .make_request("POST", "/batch_delete", Some(payload))
+            .await?;
+        let report: DeleteReport = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse delete_vectors response: {e}"))
+        })?;
+        Ok(report)
+    }
+
+    /// Move vectors from `src` to `dst` without re-embedding (issue #265).
+    ///
+    /// Calls `POST /collections/{src}/vectors/move` with
+    /// `{"destination": dst, "ids": [...]}`. Server invariant: the
+    /// destination insert lands BEFORE the source delete, so a
+    /// mid-batch crash leaves a recoverable duplicate (never data
+    /// loss). Per-id outcomes (`ok`, `missing_in_src`,
+    /// `dst_insert_failed`, `src_delete_failed`) populate
+    /// [`MoveReport::results`] without aborting the batch.
+    ///
+    /// Typical use: tier-demotion pruner that walks a hot collection
+    /// and relocates aged vectors to a warm/cold collection.
+    pub async fn move_to_collection(
+        &self,
+        src: &str,
+        dst: &str,
+        ids: &[String],
+    ) -> Result<MoveReport> {
+        let payload = serde_json::json!({
+            "destination": dst,
+            "ids": ids,
+        });
+        let response = self
+            .make_request(
+                "POST",
+                &format!("/collections/{src}/vectors/move"),
+                Some(payload),
+            )
+            .await?;
+        let report: MoveReport = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse move_to_collection response: {e}"))
+        })?;
+        Ok(report)
+    }
+
     /// Generate an embedding for `text` using either the supplied
     /// `model` name or the server default.
     pub async fn embed_text(&self, text: &str, model: Option<&str>) -> Result<EmbeddingResponse> {

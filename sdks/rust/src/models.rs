@@ -17,6 +17,81 @@ pub use graph::*;
 pub mod file_upload;
 pub use file_upload::*;
 
+// ===== TIER-DEMOTION REPORTS (issue #265) =====
+
+/// Per-vector outcome for a `delete_vectors` or `move_to_collection`
+/// call. The `status` string is one of:
+///
+/// - `ok` — vector was deleted (delete) or moved (move) successfully.
+/// - `missing_in_src` — id was not present in the source collection.
+/// - `dst_insert_failed` — destination rejected the insert (move only;
+///   typically a dim/encoding mismatch).
+/// - `src_delete_failed` — destination accepted the insert but the
+///   source delete failed (move only; the vector now exists in BOTH
+///   collections — recoverable on retry).
+/// - `error` — generic per-id failure (delete only).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VectorOpResult {
+    /// Vector id this row refers to. May be missing when the request
+    /// payload contained a non-string entry that the server rejected.
+    #[serde(default)]
+    pub id: Option<String>,
+
+    /// One of `ok | missing_in_src | dst_insert_failed |
+    /// src_delete_failed | error` — see [`VectorOpResult`] doc.
+    pub status: String,
+
+    /// Server-side error message, populated when `status != "ok"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+
+    /// Index of this entry in the request's `ids` array (delete only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index: Option<usize>,
+}
+
+/// Aggregate outcome of a `delete_vectors` call against
+/// `POST /batch_delete`. Mirrors the server contract:
+/// `{collection, count, deleted, failed, results}`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DeleteReport {
+    /// Source collection name, echoed by the server.
+    pub collection: String,
+    /// Total ids the request asked to delete.
+    #[serde(default)]
+    pub count: usize,
+    /// Successfully deleted ids.
+    pub deleted: usize,
+    /// Ids that failed (missing or backend error).
+    pub failed: usize,
+    /// Per-id outcomes, in request order.
+    pub results: Vec<VectorOpResult>,
+}
+
+/// Aggregate outcome of a `move_to_collection` call against
+/// `POST /collections/{src}/vectors/move` (issue #265).
+///
+/// Server invariant: vectors are inserted into `dst` BEFORE being
+/// deleted from `src`, so a mid-batch failure leaves a recoverable
+/// duplicate (never data loss). Per-id failures populate `results`
+/// without aborting the batch — operators chasing tier-demotion sweeps
+/// want partial progress, not an abort-on-first-error contract.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct MoveReport {
+    /// Source collection name, echoed by the server.
+    pub src: String,
+    /// Destination collection name, echoed by the server.
+    pub dst: String,
+    /// Total ids the request asked to move.
+    pub requested: usize,
+    /// Successfully moved ids (insert + delete both succeeded).
+    pub moved: usize,
+    /// Ids that failed at any step.
+    pub failed: usize,
+    /// Per-id outcomes, in request order.
+    pub results: Vec<VectorOpResult>,
+}
+
 // ===== CLIENT-SIDE REPLICATION CONFIGURATION =====
 
 /// Read preference for routing read operations.

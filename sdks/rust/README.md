@@ -572,6 +572,43 @@ let client = VectorizerClient::new_with_api_key("http://localhost:15002", "your-
 
 - `embed_text()` - Generate embeddings (endpoint not available)
 
+## Tier demotion (issue #265)
+
+Three methods cover the cortex consolidation-tier pruner pattern:
+delete one vector, batch-delete by id, and move vectors between
+collections without re-embedding.
+
+```rust
+use vectorizer_sdk::VectorizerClient;
+
+let client = VectorizerClient::new(Default::default());
+
+// Single delete.
+client.delete_vector("hot", "vec-1").await?;
+
+// Batch delete with per-id status.
+let report = client
+    .delete_vectors("hot", &vec!["vec-2".into(), "vec-3".into()])
+    .await?;
+println!("deleted={}, failed={}", report.deleted, report.failed);
+
+// Tier demotion: move aged vectors hot → warm without re-embedding.
+let aged: Vec<String> = collect_aged_ids().await?;
+let mv = client
+    .move_to_collection("hot", "warm", &aged)
+    .await?;
+for row in mv.results.iter().filter(|r| r.status != "ok") {
+    eprintln!("move failed: id={:?} status={} err={:?}",
+              row.id, row.status, row.error);
+}
+```
+
+The `move_to_collection` server endpoint inserts into `dst` BEFORE
+deleting from `src`. A mid-batch crash leaves a recoverable duplicate
+(never data loss). Per-id outcomes (`ok | missing_in_src |
+dst_insert_failed | src_delete_failed`) populate `MoveReport.results`
+without aborting the batch.
+
 ## Examples
 
 Run the examples to see the SDK in action:

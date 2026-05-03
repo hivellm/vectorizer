@@ -2,6 +2,19 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [3.3.0] - 2026-05-02
+
+### Added
+
+- **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorsClient`:
+  - `deleteVector(collection, vectorId): Promise<void>` calling `DELETE /collections/{c}/vectors/{id}`.
+  - `moveToCollection(src, dst, ids): Promise<MoveReport>` calling `POST /collections/{src}/vectors/move`. Server invariant: dst-insert-before-src-delete; a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id outcomes (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populate `MoveReport.results` without aborting the batch.
+- New types under `@hivehub/vectorizer-sdk`: `DeleteReport`, `MoveReport`, `VectorOpResult`, `VectorOpStatus`.
+
+### Changed
+
+- **`deleteVectors` now returns `DeleteReport`.** The 3.2 implementation posted to a non-existent `/collections/{c}/vectors/delete` route and returned `{ deleted: number }`. The 3.3 contract aligns with the real server route (`POST /batch_delete`) and surfaces the full per-id status array via `DeleteReport`. Callers asserting on `result.deleted` keep working; callers destructuring the old shape need to read from `report.deleted` / `report.results`.
+
 ## [3.2.0] - 2026-05-01
 
 ### Added

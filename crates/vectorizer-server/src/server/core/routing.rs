@@ -299,6 +299,12 @@ impl VectorizerServer {
                 "/collections/{name}/vectors/{id}",
                 delete(rest_handlers::delete_vector),
             )
+            // Issue #265: cross-collection move (tier demotion).
+            // Insert-before-delete invariant — see handler doc.
+            .route(
+                "/collections/{name}/vectors/move",
+                post(rest_handlers::move_vectors),
+            )
             // Vector operations - batch
             .route("/batch_insert", post(rest_handlers::batch_insert_texts))
             .route("/insert_texts", post(rest_handlers::insert_texts))

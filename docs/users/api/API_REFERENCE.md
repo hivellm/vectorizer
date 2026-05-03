@@ -374,6 +374,60 @@ Delete a vector from a collection.
 curl -X DELETE http://localhost:15002/collections/my_collection/vectors/vector_001
 ```
 
+### Move Vectors Between Collections
+
+Relocate vectors from one collection to another **without
+re-embedding** (issue #265). The destination must already exist;
+the handler reads each vector by id, inserts into `dst` carrying
+the raw vector data + payload as-is, then deletes from `src`. The
+**dst-insert-before-src-delete** ordering is the documented
+invariant: a mid-batch crash leaves a recoverable duplicate, never
+data loss.
+
+Per-id failures populate `results` without aborting the batch.
+Operators chasing tier-demotion sweeps want partial progress, not
+abort-on-first-error.
+
+**Endpoint:** `POST /collections/{src}/vectors/move`
+
+**Request Body:**
+
+```json
+{
+  "destination": "cortex.consolidation.pq",
+  "ids": ["vec-1", "vec-2"]
+}
+```
+
+**Response:**
+
+```json
+{
+  "src": "cortex.consolidation.fp32",
+  "dst": "cortex.consolidation.pq",
+  "requested": 2,
+  "moved": 2,
+  "failed": 0,
+  "results": [
+    { "id": "vec-1", "status": "ok" },
+    { "id": "vec-2", "status": "ok" }
+  ]
+}
+```
+
+**Per-id status values:**
+
+| Status              | Meaning                                                                  |
+|---------------------|--------------------------------------------------------------------------|
+| `ok`                | Inserted into `dst` and deleted from `src`.                              |
+| `missing_in_src`    | Vector id not found in source.                                           |
+| `dst_insert_failed` | Destination rejected the insert (typical: dim/encoding mismatch). Source vector preserved. |
+| `src_delete_failed` | Insert succeeded but source delete failed. Vector exists in BOTH collections (recoverable on retry). |
+
+**Errors:**
+
+- `400 validation_error` — `ids` is empty, missing, or `destination` equals the source collection.
+
 ### List Vectors
 
 List all vectors in a collection.

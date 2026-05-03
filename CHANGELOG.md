@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [3.3.0] - 2026-05-02
+
+### Added
+
+- **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** New server endpoint plus three SDK methods so Cortex's consolidation-tier pruner can demote vectors between hot/warm/cold collections without re-embedding:
+  - **Server**: `POST /collections/{src}/vectors/move` with body `{destination, ids}`. Inserts into `dst` BEFORE deleting from `src` — a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id status (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populates `results` without aborting the batch. See `docs/users/api/API_REFERENCE.md` for the full contract.
+  - **All three SDKs (Rust 3.3, TypeScript 3.3, Python 3.3)**: `delete_vector` (single), `delete_vectors` (batch with per-id `DeleteReport`), `move_to_collection` (cross-collection move with `MoveReport`). The TypeScript and Python `delete_vectors` methods previously returned ad-hoc shapes (`{deleted: number}` / `bool`); they now return the canonical `DeleteReport` with the server's full per-id status array. Existing callers asserting on the old shapes will need to update to `report.deleted` / `report.results`.
 
 ### Build
 

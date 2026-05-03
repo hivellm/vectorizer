@@ -8,6 +8,7 @@
 //! - `embed_text`          — POST /embed
 //! - `batch_insert_texts`  — POST /batch/insert
 //! - `insert_texts`        — POST /texts
+//! - `move_vectors`        — POST /collections/{name}/vectors/move
 
 use std::collections::HashMap;
 
@@ -442,4 +443,140 @@ pub async fn insert_texts(
     Json(payload): Json<Value>,
 ) -> Result<Json<Value>, ErrorResponse> {
     do_batch_insert_texts(state, tenant_ctx, payload).await
+}
+
+/// POST /collections/{src}/vectors/move — relocate vectors between
+/// collections without re-embedding (issue #265).
+///
+/// Body: `{destination: string, ids: [string]}`. The handler reads each
+/// vector from `src`, inserts it into `dst` carrying its raw vector
+/// data + payload as-is, and only then deletes it from `src`. The
+/// dst-insert-before-src-delete ordering is the documented invariant:
+/// a mid-batch crash leaves a recoverable duplicate, never data loss.
+///
+/// Per-id status (one of `ok | missing_in_src | dst_insert_failed |
+/// src_delete_failed`) is recorded in `results` without aborting the
+/// batch — operators want partial progress for tier-demotion sweeps.
+///
+/// Both source and destination caches are invalidated when at least
+/// one vector successfully moved.
+pub async fn move_vectors(
+    State(state): State<VectorizerServer>,
+    Path(src_collection): Path<String>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let dst_collection = payload
+        .get("destination")
+        .and_then(|d| d.as_str())
+        .ok_or_else(|| {
+            create_validation_error("destination", "missing or invalid destination parameter")
+        })?
+        .to_string();
+
+    let ids_value = payload
+        .get("ids")
+        .and_then(|i| i.as_array())
+        .ok_or_else(|| create_validation_error("ids", "missing or invalid ids parameter"))?
+        .clone();
+
+    if ids_value.is_empty() {
+        return Err(create_validation_error(
+            "ids",
+            "ids array must contain at least one entry",
+        ));
+    }
+
+    if src_collection == dst_collection {
+        return Err(create_validation_error(
+            "destination",
+            "destination must differ from source collection",
+        ));
+    }
+
+    info!(
+        "Moving {} vectors from '{}' to '{}'",
+        ids_value.len(),
+        src_collection,
+        dst_collection,
+    );
+
+    let mut moved: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<Value> = Vec::with_capacity(ids_value.len());
+
+    for entry in ids_value.iter() {
+        let id = match entry.as_str() {
+            Some(s) => s.to_string(),
+            None => {
+                failed += 1;
+                results.push(json!({
+                    "id": null,
+                    "status": "missing_in_src",
+                    "error": "id must be a string",
+                }));
+                continue;
+            }
+        };
+
+        let vector = match state.store.get_vector(&src_collection, &id) {
+            Ok(v) => v,
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "id": id,
+                    "status": "missing_in_src",
+                    "error": format!("{}", e),
+                }));
+                continue;
+            }
+        };
+
+        if let Err(e) = state.store.insert(&dst_collection, vec![vector]) {
+            failed += 1;
+            results.push(json!({
+                "id": id,
+                "status": "dst_insert_failed",
+                "error": format!("{}", e),
+            }));
+            continue;
+        }
+
+        if let Err(e) = state.store.delete(&src_collection, &id) {
+            failed += 1;
+            results.push(json!({
+                "id": id,
+                "status": "src_delete_failed",
+                "error": format!("{}", e),
+            }));
+            continue;
+        }
+
+        moved += 1;
+        results.push(json!({
+            "id": id,
+            "status": "ok",
+        }));
+    }
+
+    if moved > 0 {
+        state.query_cache.invalidate_collection(&src_collection);
+        state.query_cache.invalidate_collection(&dst_collection);
+        if let Some(ref auto_save) = state.auto_save_manager {
+            auto_save.mark_changed();
+        }
+    }
+
+    info!(
+        "Move from '{}' to '{}' complete: {} moved, {} failed",
+        src_collection, dst_collection, moved, failed
+    );
+
+    Ok(Json(json!({
+        "src": src_collection,
+        "dst": dst_collection,
+        "requested": ids_value.len(),
+        "moved": moved,
+        "failed": failed,
+        "results": results,
+    })))
 }

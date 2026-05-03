@@ -663,7 +663,16 @@ await client.insert_texts("documents", [
 await client.insert_texts("documents", [
     {"id": "doc1", "text": "Sample document (updated)", "metadata": {"updated": True}}
 ])
-await client.delete_vectors("documents", ["doc1"])
+report = await client.delete_vectors("documents", ["doc1"])
+print(f"deleted={report.deleted} failed={report.failed}")
+
+# Tier demotion: move vectors between collections without re-embedding
+# (issue #265). Insert into dst lands BEFORE delete from src so a
+# mid-batch crash leaves a recoverable duplicate, never data loss.
+mv = await client.move_to_collection("hot", "warm", ["vec-1", "vec-2"])
+for row in mv.results:
+    if row.status != "ok":
+        print(f"move failed id={row.id!r} status={row.status} err={row.error!r}")
 
 # Reads automatically go to replicas (load balanced)
 results = await client.search_vectors("documents", query="sample", limit=10)

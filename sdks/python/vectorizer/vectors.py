@@ -26,6 +26,8 @@ try:
         BatchInsertRequest,
         BatchResponse,
         BatchUpdateRequest,
+        DeleteReport,
+        MoveReport,
         Vector,
     )
 except ImportError:  # pragma: no cover
@@ -40,6 +42,8 @@ except ImportError:  # pragma: no cover
         BatchInsertRequest,
         BatchResponse,
         BatchUpdateRequest,
+        DeleteReport,
+        MoveReport,
         Vector,
     )
 
@@ -172,22 +176,57 @@ class VectorsClient(_ApiBase):
             raise ValidationError("texts list cannot be empty")
         payload = {"collection": collection, "texts": texts}
         return await self._transport.post("/insert_texts", data=payload)
-    async def delete_vectors(self, collection: str, vector_ids: List[str]) -> bool:
-        """
-        Delete vectors from a collection.
+    async def delete_vector(self, collection: str, vector_id: str) -> None:
+        """Delete a single vector by id (issue #265).
+
+        Calls ``DELETE /collections/{collection}/vectors/{vector_id}``.
+        Server treats not-found as an error; a successful return means
+        the vector was removed.
+
+        Companion to :meth:`delete_vectors` (batch) and
+        :meth:`move_to_collection` (cross-collection move).
 
         Args:
-            collection: Collection name
-            vector_ids: List of vector IDs to delete
-
-        Returns:
-            True if deleted successfully
+            collection: Collection name.
+            vector_id: Vector id to delete.
 
         Raises:
-            CollectionNotFoundError: If collection doesn't exist
-            ValidationError: If vector IDs are invalid
-            NetworkError: If unable to connect to service
-            ServerError: If service returns error
+            ValidationError: If ``vector_id`` is empty.
+            CollectionNotFoundError: If the collection does not exist.
+            NetworkError: If the transport fails.
+            ServerError: If the server returns a non-2xx status.
+        """
+        if not vector_id:
+            raise ValidationError("vector_id cannot be empty")
+        await self._transport.delete(f"/collections/{collection}/vectors/{vector_id}")
+
+    async def delete_vectors(
+        self, collection: str, vector_ids: List[str]
+    ) -> DeleteReport:
+        """Delete a batch of vectors from a single collection.
+
+        Calls ``POST /batch_delete`` with ``{collection, ids}``. Per-id
+        failures (e.g. not-found) populate :attr:`DeleteReport.results`
+        without aborting the batch.
+
+        .. note::
+           Issue #265: prior 3.2 versions returned ``bool``. The 3.3
+           contract surfaces the server's full per-id status array via
+           :class:`DeleteReport` so callers can audit which vectors
+           failed and why.
+
+        Args:
+            collection: Collection name.
+            vector_ids: Vector ids to delete (must be non-empty).
+
+        Returns:
+            :class:`DeleteReport` with per-id outcomes.
+
+        Raises:
+            ValidationError: If ``vector_ids`` is empty.
+            CollectionNotFoundError: If the collection does not exist.
+            NetworkError: If the transport fails.
+            ServerError: If the server returns a non-2xx status.
         """
         if not vector_ids:
             raise ValidationError("Vector IDs list cannot be empty")
@@ -198,7 +237,53 @@ class VectorsClient(_ApiBase):
         # body-less to match the REST spec; batch deletes go through
         # a dedicated POST endpoint that accepts `{collection, ids}`.
         payload = {"collection": collection, "ids": vector_ids}
-        return await self._transport.post("/batch_delete", data=payload)
+        data = await self._transport.post("/batch_delete", data=payload)
+        return DeleteReport.from_dict(data)
+
+    async def move_to_collection(
+        self, src: str, dst: str, ids: List[str]
+    ) -> MoveReport:
+        """Move vectors between collections without re-embedding (issue #265).
+
+        Calls ``POST /collections/{src}/vectors/move`` with
+        ``{destination, ids}``.
+
+        Server invariant: the destination insert lands BEFORE the
+        source delete. A mid-batch failure leaves a recoverable
+        duplicate (never data loss). Per-id outcomes
+        (``ok``, ``missing_in_src``, ``dst_insert_failed``,
+        ``src_delete_failed``) populate
+        :attr:`MoveReport.results` without aborting the batch.
+
+        Typical use: a tier-demotion pruner that walks a hot
+        collection and relocates aged vectors into a warm/cold tier.
+
+        Args:
+            src: Source collection name.
+            dst: Destination collection name (must differ from ``src``).
+            ids: Vector ids to move (must be non-empty).
+
+        Returns:
+            :class:`MoveReport` with per-id outcomes.
+
+        Raises:
+            ValidationError: If ``ids`` is empty or ``src == dst``.
+            CollectionNotFoundError: If a collection does not exist.
+            NetworkError: If the transport fails.
+            ServerError: If the server returns a non-2xx status.
+        """
+        if not ids:
+            raise ValidationError("ids list cannot be empty")
+        if src == dst:
+            raise ValidationError(
+                "destination must differ from source collection"
+            )
+
+        payload = {"destination": dst, "ids": ids}
+        data = await self._transport.post(
+            f"/collections/{src}/vectors/move", data=payload
+        )
+        return MoveReport.from_dict(data)
     # ==================== BATCH OPERATIONS ====================
 
     async def batch_insert_texts(

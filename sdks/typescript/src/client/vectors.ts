@@ -15,6 +15,8 @@ import {
   BatchSearchResponse,
   BatchUpdateRequest,
   CreateVectorRequest,
+  DeleteReport,
+  MoveReport,
   ReadOptions,
   UpdateVectorRequest,
   Vector,
@@ -169,23 +171,82 @@ export class VectorsClient extends BaseClient {
     }
   }
 
-  /** Bulk-delete vectors by ID. (Master-only.) */
+  /**
+   * Bulk-delete vectors by ID. (Master-only.)
+   *
+   * Calls `POST /batch_delete`. Per-id failures (e.g. not-found)
+   * populate [[DeleteReport.results]] without aborting the batch.
+   *
+   * Issue #265: prior 3.2 versions of this method posted to a
+   * non-existent `/collections/{c}/vectors/delete` endpoint and
+   * returned `{ deleted: number }`. The 3.3 contract aligns with
+   * the server's real `/batch_delete` route and surfaces the full
+   * per-id status array.
+   */
   public async deleteVectors(
     collectionName: string,
     vectorIds: string[],
-  ): Promise<{ deleted: number }> {
+  ): Promise<DeleteReport> {
     try {
       const transport = this.getWriteTransport();
-      const response = await transport.post<{ deleted: number }>(
-        `/collections/${collectionName}/vectors/delete`,
-        { vector_ids: vectorIds },
-      );
-      this.logger.info('Vectors deleted', { collectionName, count: vectorIds.length });
+      const response = await transport.post<DeleteReport>('/batch_delete', {
+        collection: collectionName,
+        ids: vectorIds,
+      });
+      this.logger.info('Vectors deleted', {
+        collectionName,
+        requested: vectorIds.length,
+        deleted: response.deleted,
+        failed: response.failed,
+      });
       return response;
     } catch (error) {
       this.logger.error('Failed to delete vectors', {
         collectionName,
         count: vectorIds.length,
+        error,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Move vectors from `src` to `dst` without re-embedding (issue #265).
+   *
+   * Calls `POST /collections/{src}/vectors/move` with
+   * `{ destination, ids }`. Server invariant: dst-insert-before-src-
+   * delete, so a mid-batch crash leaves a recoverable duplicate, never
+   * data loss. Per-id outcomes (`ok`, `missing_in_src`,
+   * `dst_insert_failed`, `src_delete_failed`) populate
+   * [[MoveReport.results]] without aborting the batch.
+   *
+   * Typical use: a tier-demotion pruner that walks a hot collection
+   * and relocates aged vectors to a warm/cold collection.
+   */
+  public async moveToCollection(
+    src: string,
+    dst: string,
+    ids: string[],
+  ): Promise<MoveReport> {
+    try {
+      const transport = this.getWriteTransport();
+      const response = await transport.post<MoveReport>(
+        `/collections/${src}/vectors/move`,
+        { destination: dst, ids },
+      );
+      this.logger.info('Vectors moved', {
+        src,
+        dst,
+        requested: response.requested,
+        moved: response.moved,
+        failed: response.failed,
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to move vectors', {
+        src,
+        dst,
+        count: ids.length,
         error,
       });
       throw error;
