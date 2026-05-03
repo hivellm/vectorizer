@@ -1,58 +1,58 @@
-/**
- * Unit tests for ConfigurationPage component
- */
-
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@/providers/ThemeProvider';
-import { ToastProvider } from '@/providers/ToastProvider';
+import { MemoryRouter } from 'react-router-dom';
 import ConfigurationPage from '../ConfigurationPage';
 
-// Mock hooks
+// Mock the API client. The Settings page hits the legacy /config endpoint;
+// the rewrite preserves that endpoint exactly. Returning a parsed object lets
+// the General/Defaults KeyValue cards derive labels even before the dynamic
+// js-yaml import resolves in jsdom/happy-dom.
 vi.mock('@/hooks/useApiClient', () => ({
   useApiClient: () => ({
-    get: vi.fn().mockResolvedValue({}),
-    post: vi.fn().mockResolvedValue({}),
+    get: vi.fn(async () => ({
+      server: { host: '127.0.0.1', port: 15002, data_dir: '/var/lib/vectorizer' },
+      collections: {
+        defaults: {
+          metric: 'cosine',
+          embedding: { model: 'bm25' },
+          index: { type: 'hnsw' },
+          quantization: { type: 'sq' },
+        },
+      },
+      logging: { level: 'info' },
+    })),
+    post: vi.fn(async () => ({ ok: true })),
+    put: vi.fn(async () => ({ ok: true })),
   }),
 }));
 
-const Wrapper = ({ children }: { children: React.ReactNode }) => (
-  <BrowserRouter>
-    <ThemeProvider>
-      <ToastProvider>
-        {children}
-      </ToastProvider>
-    </ThemeProvider>
-  </BrowserRouter>
-);
+// Toast is wired through the existing ToastProvider context.
+vi.mock('@/providers/ToastProvider', () => ({
+  useToastContext: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+  }),
+}));
 
-describe('ConfigurationPage', () => {
-  it('should render configuration page', async () => {
-    render(
-      <Wrapper>
-        <ConfigurationPage />
-      </Wrapper>
-    );
-    
-    // Wait for page to load
-    await waitFor(() => {
-      expect(screen.getByText(/configuration|settings|general|advanced|file watcher/i)).toBeInTheDocument();
-    });
+// Skip the Monaco mount in the test environment — it's network/canvas heavy
+// and not what this test is verifying.
+vi.mock('@/components/ui/CodeEditor', () => ({
+  default: () => <div data-testid="code-editor-stub">[CodeEditor]</div>,
+}));
+
+describe('ConfigurationPage (Settings)', () => {
+  it('renders the page heading and the three Settings cards', async () => {
+    render(<MemoryRouter><ConfigurationPage /></MemoryRouter>);
+    expect(await screen.findByRole('heading', { name: /Settings/i })).toBeTruthy();
+    expect(screen.getByText(/General/i)).toBeTruthy();
+    expect(screen.getByText(/Defaults/i)).toBeTruthy();
+    expect(screen.getByText(/Raw config/i)).toBeTruthy();
   });
 
-  it('should render configuration tabs', async () => {
-    render(
-      <Wrapper>
-        <ConfigurationPage />
-      </Wrapper>
-    );
-    
-    // Wait for tabs to load - use getAllByText since tabs might appear multiple times
-    await waitFor(() => {
-      const tabs = screen.getAllByText(/general|advanced|file watcher/i);
-      expect(tabs.length).toBeGreaterThan(0);
-    }, { timeout: 3000 });
+  it('embeds the (stubbed) Monaco editor for raw config editing', async () => {
+    render(<MemoryRouter><ConfigurationPage /></MemoryRouter>);
+    expect(await screen.findByTestId('code-editor-stub')).toBeTruthy();
   });
 });
-
