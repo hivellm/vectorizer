@@ -1,26 +1,61 @@
 /**
- * Users Management Page
- * Admin-only page to manage dashboard users
+ * Users page — console-themed restyle.
+ *
+ * Visual restyle only: behaviour (loading the user list, creating a
+ * user, changing a user password, and deleting a user) is preserved
+ * from the pre-redesign version. The redesign brief has no dedicated
+ * mockup for Users, so this page applies the established Phase 3
+ * recipe:
+ *   - `.page` + `.page-head` shell with title/sub + toolbar buttons
+ *   - console `Card` / `CardHead` / `CardBody`, `Tbl` / `Th` / `Td`
+ *   - `Pill` for the role chips (Admin = magenta, write/User = teal,
+ *     ReadOnly/read = muted)
+ *   - `.btn` actions with `Icons.*`
+ *   - no Tailwind utility classes, no `dark:` variants
+ *   - drop `@untitledui/icons` and `@/components/ui/*` imports
+ *
+ * The legacy "Create user", "Change password" and "Delete user"
+ * modals are rendered as inline panels below the table — flagged with
+ * `// TODO(actions)` until the console design ships a modal primitive
+ * (matches the modal-deferral pattern from BackupsPage / FileWatcher).
  */
 
 import { useEffect, useState } from 'react';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useAuth } from '@/contexts/AuthContext';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
-import { Input } from '@/components/ui/Input';
-import { Select, SelectOption } from '@/components/ui/Select';
-import PasswordStrengthIndicator from '@/components/ui/PasswordStrengthIndicator';
 import { useToastContext } from '@/providers/ToastProvider';
-import LoadingState from '@/components/LoadingState';
 import { formatDate } from '@/utils/formatters';
+import {
+  Icons,
+  Pill,
+  type PillTone,
+  Card,
+  CardHead,
+  CardBody,
+  Tbl,
+  Th,
+  Td,
+} from '@/components/console';
 
 interface User {
   user_id: string;
   username: string;
   roles: string[];
   created_at?: string;
+  last_login_at?: string | null;
+}
+
+// Role names map to redesign tones. Backend currently emits PascalCase
+// (`Admin`, `User`, `ReadOnly`, ...) — the brief mocks reference the
+// lowercase shorthand (`admin`, `write`, `read`). Both are recognised.
+function rolePillTone(role: string): PillTone {
+  const r = role.toLowerCase();
+  if (r === 'admin') return 'magenta';
+  if (r === 'write' || r === 'user' || r === 'apiuser' || r === 'service') {
+    return 'teal';
+  }
+  if (r === 'read' || r === 'readonly' || r === 'viewer') return 'muted';
+  return 'default';
 }
 
 function UsersPage() {
@@ -32,9 +67,9 @@ function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   const [createForm, setCreateForm] = useState({
@@ -50,18 +85,16 @@ function UsersPage() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : undefined;
 
   const loadUsers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.get<{ users: User[] }>('/auth/users', {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await api.get<{ users?: User[] }>('/auth/users', {
+        headers: authHeader,
       });
-      setUsers(data.users || []);
+      setUsers(Array.isArray(data?.users) ? data.users : []);
     } catch (err) {
       console.error('Error loading users:', err);
       setError(err instanceof Error ? err.message : 'Failed to load users');
@@ -70,7 +103,17 @@ function UsersPage() {
     }
   };
 
-  const handleCreateUser = async () => {
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openCreate = () => {
+    setCreateForm({ username: '', password: '', confirmPassword: '', role: 'Viewer' });
+    setCreateOpen(true);
+  };
+
+  const handleCreate = async () => {
     if (!createForm.username.trim()) {
       toast.error('Username is required');
       return;
@@ -90,18 +133,21 @@ function UsersPage() {
         username: createForm.username,
         password: createForm.password,
         roles: [createForm.role],
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      }, { headers: authHeader });
       toast.success(`User "${createForm.username}" created successfully`);
-      setShowCreateModal(false);
-      setCreateForm({ username: '', password: '', confirmPassword: '', role: 'Viewer' });
-      loadUsers();
+      setCreateOpen(false);
+      await loadUsers();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create user');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openPassword = (user: User) => {
+    setSelectedUser(user);
+    setPasswordForm({ newPassword: '', confirmPassword: '' });
+    setPasswordOpen(true);
   };
 
   const handleChangePassword = async () => {
@@ -120,12 +166,9 @@ function UsersPage() {
     try {
       await api.put(`/auth/users/${selectedUser.username}/password`, {
         new_password: passwordForm.newPassword,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      }, { headers: authHeader });
       toast.success('Password changed successfully');
-      setShowPasswordModal(false);
-      setPasswordForm({ newPassword: '', confirmPassword: '' });
+      setPasswordOpen(false);
       setSelectedUser(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to change password');
@@ -134,18 +177,23 @@ function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async () => {
+  const openDelete = (user: User) => {
+    setSelectedUser(user);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
     if (!selectedUser) return;
 
     setSubmitting(true);
     try {
       await api.delete(`/auth/users/${selectedUser.username}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: authHeader,
       });
       toast.success(`User "${selectedUser.username}" deleted`);
-      setShowDeleteModal(false);
+      setDeleteOpen(false);
       setSelectedUser(null);
-      loadUsers();
+      await loadUsers();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete user');
     } finally {
@@ -153,170 +201,312 @@ function UsersPage() {
     }
   };
 
-  const openPasswordModal = (user: User) => {
-    setSelectedUser(user);
-    setPasswordForm({ newPassword: '', confirmPassword: '' });
-    setShowPasswordModal(true);
-  };
-
-  const openDeleteModal = (user: User) => {
-    setSelectedUser(user);
-    setShowDeleteModal(true);
-  };
-
-  if (loading) {
-    return <LoadingState message="Loading users..." />;
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <Card>
-          <div className="p-6 text-center">
-            <p className="text-red-500 mb-4">{error}</p>
-            <Button onClick={loadUsers}>Retry</Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">
-            User Management
-          </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            Manage dashboard users and their access
+          <h1 className="page-title">Users</h1>
+          <p className="page-sub">
+            Manage dashboard users and their access · {users.length} active
           </p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          + Create User
-        </Button>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn" onClick={loadUsers} disabled={loading}>
+            <Icons.refresh size={13} />
+            Refresh
+          </button>
+          <button className="btn primary" onClick={openCreate}>
+            <Icons.plus size={13} />
+            Create user
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div style={{ marginBottom: 14 }}>
+          <Card>
+            <CardBody>
+              <div className="row" style={{ gap: 8 }}>
+                <Pill tone="red">error</Pill>
+                <span style={{ color: 'var(--text-2)' }}>{error}</span>
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+      )}
 
       <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                <th className="text-left py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Username</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Role</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Created</th>
-                <th className="text-right py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
+        <CardHead
+          title="Users"
+          sub={loading ? 'loading…' : users.length > 0 ? `${users.length} active` : undefined}
+        />
+        <CardBody tight>
+          {users.length === 0 && !loading && !error ? (
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              No users yet · Create one above to grant dashboard access.
+            </div>
+          ) : (
+            <Tbl>
+              <thead>
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-neutral-500">
-                    No users found
-                  </td>
+                  <Th>Username</Th>
+                  <Th>Roles</Th>
+                  <Th>Created</Th>
+                  <Th>Last login</Th>
+                  <Th>Actions</Th>
                 </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.user_id} className="border-b border-neutral-100 dark:border-neutral-800 last:border-0">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center">
-                          <span className="text-sm font-medium text-white">
-                            {user.username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium text-neutral-900 dark:text-white">{user.username}</p>
-                          {currentUser?.username === user.username && (
-                            <span className="text-xs text-indigo-600 dark:text-indigo-400">(You)</span>
+              </thead>
+              <tbody>
+                {users.map((user) => {
+                  const isCurrent = currentUser?.username === user.username;
+                  const isAdminUser = user.username === 'admin';
+                  return (
+                    <tr key={user.user_id}>
+                      <Td>
+                        <div className="row" style={{ gap: 8 }}>
+                          <Icons.shield size={13} className="muted" />
+                          <span style={{ fontWeight: 500 }}>{user.username}</span>
+                          {isCurrent && (
+                            <Pill tone="teal" className="mono">
+                              you
+                            </Pill>
                           )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      {user.roles.map((role) => (
-                        <span
-                          key={role}
-                          className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${
-                            role === 'Admin'
-                              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                              : 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
-                          }`}
-                        >
-                          {role}
-                        </span>
-                      ))}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-neutral-500 dark:text-neutral-400">
-                      {user.created_at ? formatDate(user.created_at) : '-'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="secondary" size="sm" onClick={() => openPasswordModal(user)} title="Change Password">
-                          Password
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => openDeleteModal(user)}
-                          disabled={user.username === 'admin' || user.username === currentUser?.username}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </Td>
+                      <Td>
+                        <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
+                          {user.roles.length === 0 ? (
+                            <span style={{ color: 'var(--text-3)' }}>—</span>
+                          ) : (
+                            user.roles.map((role) => (
+                              <Pill key={role} tone={rolePillTone(role)} className="mono">
+                                {role}
+                              </Pill>
+                            ))
+                          )}
+                        </div>
+                      </Td>
+                      <Td className="num muted">
+                        {user.created_at ? formatDate(user.created_at) : '—'}
+                      </Td>
+                      <Td className="num muted">
+                        {user.last_login_at ? formatDate(user.last_login_at) : '—'}
+                      </Td>
+                      <Td>
+                        <div className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+                          <button
+                            className="btn sm"
+                            onClick={() => openPassword(user)}
+                            aria-label={`Change password for ${user.username}`}
+                          >
+                            <Icons.keys size={11} />
+                            Password
+                          </button>
+                          <button
+                            className="btn sm"
+                            onClick={() => openDelete(user)}
+                            disabled={isAdminUser || isCurrent}
+                            aria-label={`Delete ${user.username}`}
+                          >
+                            <Icons.trash size={11} />
+                            Delete
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Tbl>
+          )}
+        </CardBody>
       </Card>
 
-      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create User">
-        <div className="space-y-4">
-          <Input label="Username" value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })} placeholder="Enter username" />
-          <div>
-            <Input label="Password" type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Enter password" />
-            <PasswordStrengthIndicator password={createForm.password} />
-          </div>
-          <Input label="Confirm Password" type="password" value={createForm.confirmPassword} onChange={(e) => setCreateForm({ ...createForm, confirmPassword: e.target.value })} placeholder="Confirm password" />
-          <Select label="Role" value={createForm.role} onChange={(value) => setCreateForm({ ...createForm, role: value })}>
-            <SelectOption id="Viewer" value="Viewer">Viewer - Read-only access</SelectOption>
-            <SelectOption id="Admin" value="Admin">Admin - Full access</SelectOption>
-          </Select>
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateUser} disabled={submitting}>{submitting ? 'Creating...' : 'Create User'}</Button>
-          </div>
-        </div>
-      </Modal>
+      {createOpen && (
+        <>
+          <div style={{ height: 14 }} />
+          {/* TODO(actions): replace inline panel with a real modal once
+              the console design ships a modal primitive. */}
+          <Card>
+            <CardHead
+              title="Create user"
+              right={
+                <button className="btn sm" onClick={() => setCreateOpen(false)}>
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
+            />
+            <CardBody>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label className="col" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Username</span>
+                  <input
+                    className="input"
+                    type="text"
+                    value={createForm.username}
+                    onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
+                    placeholder="alice"
+                  />
+                </label>
+                <label className="col" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Password</span>
+                  <input
+                    className="input"
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                    placeholder="At least 6 characters"
+                  />
+                </label>
+                <label className="col" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Confirm password</span>
+                  <input
+                    className="input"
+                    type="password"
+                    value={createForm.confirmPassword}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, confirmPassword: e.target.value })
+                    }
+                    placeholder="Repeat password"
+                  />
+                </label>
+                <label className="col" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Role</span>
+                  <select
+                    className="input"
+                    value={createForm.role}
+                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
+                  >
+                    <option value="Viewer">Viewer — Read-only access</option>
+                    <option value="Admin">Admin — Full access</option>
+                  </select>
+                </label>
+                <div className="row" style={{ gap: 8, marginTop: 4, justifyContent: 'flex-end' }}>
+                  <button
+                    className="btn"
+                    onClick={() => setCreateOpen(false)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button className="btn primary" onClick={handleCreate} disabled={submitting}>
+                    <Icons.plus size={11} />
+                    {submitting ? 'Creating…' : 'Create user'}
+                  </button>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </>
+      )}
 
-      <Modal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} title={`Change Password for ${selectedUser?.username || ''}`}>
-        <div className="space-y-4">
-          <div>
-            <Input label="New Password" type="password" value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} placeholder="Enter new password" />
-            <PasswordStrengthIndicator password={passwordForm.newPassword} />
-          </div>
-          <Input label="Confirm Password" type="password" value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} placeholder="Confirm new password" />
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="secondary" onClick={() => setShowPasswordModal(false)}>Cancel</Button>
-            <Button onClick={handleChangePassword} disabled={submitting}>{submitting ? 'Changing...' : 'Change Password'}</Button>
-          </div>
-        </div>
-      </Modal>
+      {passwordOpen && selectedUser && (
+        <>
+          <div style={{ height: 14 }} />
+          {/* TODO(actions): replace inline panel with a real modal once
+              the console design ships a modal primitive. */}
+          <Card>
+            <CardHead
+              title={`Change password — ${selectedUser.username}`}
+              right={
+                <button className="btn sm" onClick={() => setPasswordOpen(false)}>
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
+            />
+            <CardBody>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label className="col" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>New password</span>
+                  <input
+                    className="input"
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) =>
+                      setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                    }
+                    placeholder="At least 6 characters"
+                  />
+                </label>
+                <label className="col" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Confirm password</span>
+                  <input
+                    className="input"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) =>
+                      setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                    }
+                    placeholder="Repeat password"
+                  />
+                </label>
+                <div className="row" style={{ gap: 8, marginTop: 4, justifyContent: 'flex-end' }}>
+                  <button
+                    className="btn"
+                    onClick={() => setPasswordOpen(false)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn primary"
+                    onClick={handleChangePassword}
+                    disabled={submitting}
+                  >
+                    <Icons.keys size={11} />
+                    {submitting ? 'Changing…' : 'Change password'}
+                  </button>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </>
+      )}
 
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete User">
-        <div className="space-y-4">
-          <p className="text-neutral-600 dark:text-neutral-400">
-            Are you sure you want to delete user <strong>{selectedUser?.username}</strong>? This action cannot be undone.
-          </p>
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-            <Button variant="danger" onClick={handleDeleteUser} disabled={submitting}>{submitting ? 'Deleting...' : 'Delete User'}</Button>
-          </div>
-        </div>
-      </Modal>
+      {deleteOpen && selectedUser && (
+        <>
+          <div style={{ height: 14 }} />
+          {/* TODO(actions): replace inline panel with a real modal once
+              the console design ships a modal primitive. */}
+          <Card>
+            <CardHead
+              title="Delete user"
+              right={
+                <button className="btn sm" onClick={() => setDeleteOpen(false)}>
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
+            />
+            <CardBody>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p style={{ color: 'var(--text-2)' }}>
+                  Are you sure you want to delete user{' '}
+                  <strong style={{ color: 'var(--text-1)' }}>
+                    {selectedUser.username}
+                  </strong>
+                  ? This action cannot be undone.
+                </p>
+                <div className="row" style={{ gap: 8, marginTop: 4, justifyContent: 'flex-end' }}>
+                  <button
+                    className="btn"
+                    onClick={() => setDeleteOpen(false)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                  <button className="btn primary" onClick={handleDelete} disabled={submitting}>
+                    <Icons.trash size={11} />
+                    {submitting ? 'Deleting…' : 'Delete user'}
+                  </button>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
