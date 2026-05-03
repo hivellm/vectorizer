@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-protocol"
-version = "3.3.0"
+version = "3.8.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "Wire protocol types for Vectorizer (RPC + gRPC). Shared between server and SDKs."
@@ -31,3 +31,4 @@ protoc-bin-vendored = "3.2"
 
 [lints]
 workspace = true
+

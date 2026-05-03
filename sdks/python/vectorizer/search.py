@@ -20,6 +20,7 @@ try:
         BatchSearchResponse,
         ContextualSearchRequest,
         ContextualSearchResponse,
+        ExplainResponse,
         HybridSearchRequest,
         HybridSearchResponse,
         HybridSearchResult,
@@ -32,17 +33,18 @@ try:
         SemanticSearchResponse,
     )
 except ImportError:  # pragma: no cover
-    from exceptions import (
+    from exceptions import (  # type: ignore[import-not-found]
         CollectionNotFoundError,
         NetworkError,
         ServerError,
         ValidationError,
     )
-    from models import (
+    from models import (  # type: ignore[import-not-found]
         BatchSearchRequest,
         BatchSearchResponse,
         ContextualSearchRequest,
         ContextualSearchResponse,
+        ExplainResponse,
         HybridSearchRequest,
         HybridSearchResponse,
         HybridSearchResult,
@@ -304,6 +306,33 @@ class SearchClient(_ApiBase):
         }
 
         return await self._transport.post("/discovery/expand_queries", data=payload)
+    async def search_by_file(
+        self,
+        collection: str,
+        file_path: str,
+        limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Search a collection for vectors associated with a given file path.
+
+        Calls ``POST /collections/{name}/search/file`` with ``{file_path, limit?}``.
+        Returns a raw search-response dict (may be empty if the file is not indexed).
+
+        Args:
+            collection: Collection name.
+            file_path: File path to search within.
+            limit: Maximum number of results (default 10).
+
+        Returns:
+            Raw search-response dict with ``results`` list.
+        """
+        payload: Dict[str, Any] = {
+            "file_path": file_path,
+            "limit": limit if limit is not None else 10,
+        }
+        return await self._transport.post(
+            f"/collections/{collection}/search/file", data=payload
+        )
+
     async def search_by_file_type(
         self,
         collection: str,
@@ -380,3 +409,46 @@ class SearchClient(_ApiBase):
     ) -> Dict[str, Any]:
         """Search matrix offsets (Qdrant Search Matrix API)."""
         return await self._transport.post(f"/qdrant/collections/{collection}/points/search/matrix/offsets", data=request)
+
+    # ── Phase-14: observability ────────────────────────────────────────────────
+
+    async def explain_search(
+        self,
+        collection: str,
+        vector: List[float],
+        k: Optional[int] = None,
+    ) -> ExplainResponse:
+        """Run a search and return the full HNSW execution trace (phase14).
+
+        Calls ``POST /collections/{name}/explain`` with
+        ``{"vector": [f32…], "k": <int>}``.
+
+        The trace includes ``visited_nodes``, ``ef_search``,
+        ``hnsw_search_ms``, ``payload_filter_evals``,
+        ``quantization_score_ms``, and ``total_ms``. Results are identical
+        to a normal search — the real code path is instrumented, there is
+        no separate explain engine.
+
+        Args:
+            collection: Collection to search.
+            vector: Query vector (must match the collection's dimension).
+            k: Number of nearest neighbours to retrieve (default 10).
+
+        Returns:
+            :class:`ExplainResponse` with search results and a full trace.
+
+        Raises:
+            ValidationError: If ``vector`` is empty.
+            CollectionNotFoundError: If the collection does not exist.
+            NetworkError: If the transport fails.
+            ServerError: If the server returns a non-2xx status.
+        """
+        if not vector:
+            raise ValidationError("vector cannot be empty")
+        payload: Dict[str, Any] = {"vector": list(vector)}
+        if k is not None:
+            payload["k"] = k
+        data = await self._transport.post(
+            f"/collections/{collection}/explain", data=payload
+        )
+        return ExplainResponse.from_dict(data if isinstance(data, dict) else {})

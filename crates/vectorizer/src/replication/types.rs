@@ -327,6 +327,16 @@ pub enum ReplicationError {
         confirmed: usize,
         offset: u64,
     },
+
+    /// Failover rejected: replica lag exceeds the configured maximum.
+    #[error(
+        "Failover rejected for replica '{replica_id}': lag {lag_operations} > max {max_allowed}"
+    )]
+    LagTooHigh {
+        replica_id: String,
+        lag_operations: u64,
+        max_allowed: u64,
+    },
 }
 
 pub type ReplicationResult<T> = Result<T, ReplicationError>;

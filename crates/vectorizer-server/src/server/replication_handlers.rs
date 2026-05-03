@@ -168,3 +168,140 @@ pub async fn list_replicas(
         "count": replicas.len()
     })))
 }
+
+// ---------------------------------------------------------------------------
+// Phase-15 cluster admin handlers
+// ---------------------------------------------------------------------------
+
+/// Request body for POST /cluster/failover
+#[derive(Debug, Deserialize)]
+pub struct ClusterFailoverRequest {
+    /// ID of the replica to promote to primary.
+    pub replica_id: String,
+    /// Maximum tolerated WAL-segment lag before rejecting the failover.
+    /// Defaults to `DEFAULT_MAX_FAILOVER_LAG_SEGMENTS` (1).
+    pub max_lag_segments: Option<u64>,
+}
+
+/// POST /cluster/failover — promote a replica to primary.
+///
+/// Performs a pre-flight WAL-lag check and returns 409 if the replica is
+/// too far behind.  See `vectorizer::replication::state` for the residual
+/// loss-window caveat.
+pub async fn cluster_failover(
+    State(state): State<VectorizerServer>,
+    Json(request): Json<ClusterFailoverRequest>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let master = state.master_node.as_ref().ok_or_else(|| {
+        create_bad_request_error("Failover requires this node to be running as master")
+    })?;
+
+    let max_lag = request
+        .max_lag_segments
+        .unwrap_or(vectorizer::replication::DEFAULT_MAX_FAILOVER_LAG_SEGMENTS);
+
+    match vectorizer::replication::state::failover_to(master, &request.replica_id, max_lag) {
+        Ok(report) => {
+            info!(
+                "Failover completed: replica '{}' promoted (lag={})",
+                report.promoted_replica_id, report.residual_lag_operations
+            );
+            Ok(Json(json!(report)))
+        }
+        Err(vectorizer::replication::ReplicationError::LagTooHigh {
+            lag_operations,
+            max_allowed,
+            ..
+        }) => Err(super::error_middleware::ErrorResponse::new(
+            "lag_too_high".to_string(),
+            format!(
+                "Replica lag {} exceeds max allowed {}. Drain writes or increase max_lag_segments.",
+                lag_operations, max_allowed
+            ),
+            axum::http::StatusCode::CONFLICT,
+        )),
+        Err(e) => Err(create_bad_request_error(&e.to_string())),
+    }
+}
+
+/// POST /cluster/replicas/{id}/resync — force a full resync on a replica.
+pub async fn cluster_resync_replica(
+    State(state): State<VectorizerServer>,
+    Path(replica_id): Path<String>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let master = state.master_node.as_ref().ok_or_else(|| {
+        create_bad_request_error("Resync requires this node to be running as master")
+    })?;
+
+    let report = vectorizer::replication::state::force_resync(master, &replica_id)
+        .map_err(|e| create_bad_request_error(&e.to_string()))?;
+
+    info!(
+        "Force-resync initiated for replica '{}' at offset={}",
+        report.replica_id, report.snapshot_offset
+    );
+
+    Ok(Json(json!(report)))
+}
+
+/// Request body for POST /cluster/peers
+#[derive(Debug, Deserialize)]
+pub struct AddPeerRequest {
+    /// Address of the new peer (host:port).
+    pub address: String,
+    /// Role: "member" (default) or "observer".
+    #[serde(default)]
+    pub role: String,
+}
+
+/// POST /cluster/peers — add a peer to the cluster.
+pub async fn cluster_add_peer(
+    State(state): State<VectorizerServer>,
+    Json(request): Json<AddPeerRequest>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let cluster_mgr = state
+        .cluster_manager
+        .as_ref()
+        .ok_or_else(|| create_bad_request_error("Cluster mode is not enabled on this node"))?;
+
+    let role = if request.role.to_lowercase() == "observer" {
+        vectorizer::cluster::rebalance::PeerRole::Observer
+    } else {
+        vectorizer::cluster::rebalance::PeerRole::Member
+    };
+
+    let info = vectorizer::cluster::rebalance::add_peer(cluster_mgr, request.address, role)
+        .map_err(|e| create_bad_request_error(&e.to_string()))?;
+
+    info!("Peer '{}' added to cluster", info.node_id);
+    Ok(Json(json!(info)))
+}
+
+/// POST /cluster/rebalance — trigger a shard rebalance.
+pub async fn cluster_rebalance(
+    State(state): State<VectorizerServer>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let cluster_mgr = state
+        .cluster_manager
+        .as_ref()
+        .ok_or_else(|| create_bad_request_error("Cluster mode is not enabled on this node"))?;
+
+    let job = vectorizer::cluster::rebalance::rebalance(cluster_mgr)
+        .map_err(|e| create_bad_request_error(&e.to_string()))?;
+
+    info!("Rebalance job {} started", job.job_id);
+    Ok(Json(json!(job)))
+}
+
+/// GET /cluster/rebalance/status — return progress of the active rebalance.
+pub async fn cluster_rebalance_status(
+    State(_state): State<VectorizerServer>,
+) -> Result<Json<Value>, ErrorResponse> {
+    match vectorizer::cluster::rebalance::rebalance_status() {
+        Some(job) => Ok(Json(json!(job))),
+        None => Ok(Json(json!({
+            "status": "idle",
+            "message": "No rebalance has been triggered on this node"
+        }))),
+    }
+}

@@ -1483,6 +1483,12 @@ impl VectorizerServer {
                         store: store_arc.clone(),
                         embedding_manager: embedding_manager_arc.clone(),
                         auth: auth_handler_state.clone(),
+                        master_node: master_node.clone(),
+                        replica_node: replica_node.clone(),
+                        cluster_manager: cluster_manager.clone(),
+                        slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
+                            vectorizer::cache::slow_query::SlowQueryConfig::default(),
+                        ),
                     };
                     if let Err(e) = crate::protocol::rpc::spawn_rpc_listener(rpc_state, addr).await
                     {
@@ -1512,6 +1518,9 @@ impl VectorizerServer {
             master_node,
             replica_node,
             query_cache,
+            slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
+                vectorizer::cache::slow_query::SlowQueryConfig::default(),
+            ),
             background_task: Arc::new(tokio::sync::Mutex::new(Some((
                 background_handle,
                 cancel_tx,

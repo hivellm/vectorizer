@@ -2,6 +2,55 @@
 
 All notable changes to the Hive Vectorizer Go SDK will be documented in this file.
 
+## [3.8.0] - 2026-05-02
+
+### Added
+
+- **Phase 16 full RPC command catalog.** Typed Go methods on `*rpc.Client`
+  covering every command in `rpc_capability_names()` (95 commands across 8
+  domain groups). New response struct types in `rpc/types_phase16.go`.
+  Methods follow existing PascalCase + `Rpc` suffix convention to avoid
+  collision with REST SDK names (e.g. `MoveVectorsRpc`, `RotateApiKeyRpc`).
+- Collections (5 new): `CreateCollectionRpc`, `DeleteCollectionRpc`,
+  `ListEmptyCollections`, `CleanupEmptyCollections`, `ForceSaveCollection`.
+- Vectors (15 new): `InsertVectorRpc`, `InsertTextVectorRpc`,
+  `UpdateVectorRpc`, `DeleteVectorRpc`, `ListVectors`, `EmbedText`,
+  `BatchInsertVectors`, `BatchInsertTexts`, `BatchSearch`,
+  `BatchUpdateVectors`, `BatchDeleteVectors`, `MoveVectorsRpc`,
+  `CopyVectorsRpc`, `DeleteByFilterRpc`, `BulkUpdateMetadataRpc`,
+  `SetVectorExpiry`.
+- Search (7 new): `SearchIntelligent`, `SearchByText`, `SearchByFile`,
+  `SearchHybrid`, `SearchSemantic`, `SearchContextual`,
+  `SearchMultiCollection`, `SearchExplain`.
+- Discovery (10 new): `Discover`, `FilterCollections`, `ScoreCollections`,
+  `ExpandQueries`, `BroadDiscovery`, `SemanticFocus`, `PromoteReadme`,
+  `CompressEvidence`, `BuildAnswerPlan`, `RenderLlmPrompt`.
+- File ops (7 new): `FileContent`, `FileList`, `FileSummary`, `FileChunks`,
+  `FileOutline`, `FileRelated`, `FileSearchByType`.
+- Graph (10 new): `GraphListNodes`, `GraphNeighbors`, `GraphFindRelated`,
+  `GraphFindPath`, `GraphCreateEdge`, `GraphDeleteEdge`, `GraphListEdges`,
+  `GraphDiscoverEdges`, `GraphDiscoverEdgesForNode`, `GraphDiscoveryStatus`.
+- Admin (16 new): `AdminStats`, `AdminStatus`, `AdminLogs`,
+  `AdminIndexingProgress`, `AdminConfigGet`, `AdminConfigUpdate`,
+  `AdminBackupsList`, `AdminBackupsCreate`, `AdminBackupsRestore`,
+  `AdminWorkspacesList`, `AdminWorkspaceGet`, `AdminWorkspaceAdd`,
+  `AdminWorkspaceRemove`, `AdminRestart`, `AdminSlowQueriesList`,
+  `AdminSlowQueriesConfig`.
+- Auth (11 new): `AuthMe`, `AuthLogout`, `AuthRefreshToken`,
+  `AuthValidatePassword`, `AuthApiKeysCreate`, `AuthApiKeysList`,
+  `AuthApiKeysRevoke`, `RotateApiKeyRpc`, `AuthApiKeysCreateScoped`,
+  `AuthIntrospect`, `AuthAudit`.
+- Replication (4 new): `ReplicationStatus`, `ReplicationConfigure`,
+  `ReplicationStats`, `ReplicationReplicasList`.
+- Cluster (5 new): `ClusterFailover`, `ClusterReplicaResync`,
+  `ClusterPeerAdd`, `ClusterRebalance`, `ClusterRebalanceStatus`.
+- 10 wire-shape unit tests in `rpc/commands_phase16_test.go` (one per
+  domain group) using the in-process fake-server pattern.
+
+### Changed
+
+- Version bumped to 3.8.0 to track Vectorizer server 3.8.
+
 ## [3.2.0] - 2026-05-01
 
 ### Added

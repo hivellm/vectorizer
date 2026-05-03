@@ -32,7 +32,48 @@ export {
 // Importing commands has the side effect of attaching typed wrappers
 // as methods on RpcClient. Must come AFTER client export.
 import './commands';
-export { CollectionInfo, SearchHit } from './commands';
+export type {
+  CollectionInfo,
+  SearchHit,
+  CreateCollectionResult,
+  CleanupEmptyResult,
+  VectorWriteResult,
+  BatchItemResult,
+  BatchInsertResult,
+  BatchUpdateResult,
+  BatchDeleteResult,
+  BatchSearchResult,
+  MoveRpcResult,
+  CopyRpcResult,
+  DeleteByFilterRpcResult,
+  BulkUpdateMetadataRpcResult,
+  SetExpiryResult,
+  EmbedResult,
+  VectorListResult,
+  SearchTrace,
+  SearchExplainResult,
+  DiscoverResult,
+  ScoredCollection,
+  ExpandQueriesResult,
+  DiscoveryChunk,
+  CompressBullet,
+  AnswerPlanSection,
+  AnswerPlanResult,
+  RenderPromptResult,
+  GraphDiscoveryStatus,
+  DiscoverEdgesResult,
+  DiscoverEdgesForNodeResult,
+  AdminStats,
+  AdminStatus,
+  SlowQueryConfigResult,
+  AuthMeResult,
+  RefreshTokenResult,
+  ValidatePasswordResult,
+  ApiKeyCreated,
+  RotatedApiKey,
+  ReplicationConfigureResult,
+  RebalanceStatus,
+} from './commands';
 
 export type { ConnectOptions, HelloPayload, HelloResponse } from './client';
 export {

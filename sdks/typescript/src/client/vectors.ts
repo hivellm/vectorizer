@@ -4,6 +4,7 @@
  * `insertVectors` writes through the Qdrant-compatible upsert endpoint
  * to share the optimised batch path with the Qdrant surface; the
  * remaining single-vector operations use the dedicated REST routes.
+ * Phase12 adds: insertText (single), listVectors, getVectorByPath.
  */
 
 import { BaseClient } from './_base';
@@ -23,6 +24,7 @@ import {
   validateCreateVectorRequest,
   validateVector,
 } from '../models';
+import type { VectorPage, BulkUpdateReport, CopyReport, DeleteByFilterReport } from '../models';
 
 export class VectorsClient extends BaseClient {
   /** Insert vectors via the Qdrant-compatible point upsert. (Master-only.) */
@@ -343,6 +345,231 @@ export class VectorsClient extends BaseClient {
       return response;
     } catch (error) {
       this.logger.error('Batch delete failed', { collection, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Insert a single text document into a collection (auto-chunking when
+   * the text is long). Calls `POST /insert` with `{collection, id, text, metadata?}`.
+   *
+   * Returns the first server-assigned vector id as a synthetic `Vector`.
+   * Server response: `{message, vectors_created, vector_ids, collection, chunked}`.
+   */
+  public async insertText(
+    collectionName: string,
+    id: string,
+    text: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<Vector> {
+    try {
+      const transport = this.getWriteTransport();
+      const payload: Record<string, unknown> = {
+        collection: collectionName,
+        id,
+        text,
+      };
+      if (metadata !== undefined) {
+        payload['metadata'] = metadata;
+      }
+      const val = await transport.post<Record<string, unknown>>('/insert', payload);
+      const assignedId =
+        (
+          (val['vector_ids'] as string[] | undefined)
+        )?.[0] ?? id;
+      this.logger.info('Text inserted', { collectionName, id, assignedId });
+      return { id: assignedId, data: [] };
+    } catch (error) {
+      this.logger.error('Failed to insert text', { collectionName, id, error });
+      throw error;
+    }
+  }
+
+  /**
+   * List vectors in a collection with pagination.
+   * Calls `GET /collections/{name}/vectors?limit=&offset=`.
+   *
+   * `page` is multiplied by `limit` to derive the byte-offset the server
+   * expects. Pass `undefined` for both to use server defaults (limit=10, offset=0).
+   */
+  public async listVectors(
+    collectionName: string,
+    page?: number,
+    limit?: number,
+  ): Promise<VectorPage> {
+    try {
+      const transport = this.getReadTransport();
+      const limitVal = limit ?? 10;
+      const offsetVal = (page ?? 0) * limitVal;
+      const response = await transport.get<VectorPage>(
+        `/collections/${collectionName}/vectors?limit=${limitVal}&offset=${offsetVal}`,
+      );
+      this.logger.debug('Vectors listed', { collectionName, total: response.total });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to list vectors', { collectionName, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch a single vector by id via the path-based GET endpoint.
+   * Calls `GET /collections/{name}/vectors/{id}`.
+   *
+   * Note: the server currently returns a synthetic uniform-vector payload
+   * even for ids that do not exist. Use `listVectors` for real miss detection.
+   */
+  public async getVectorByPath(
+    collectionName: string,
+    vectorId: string,
+    options?: ReadOptions,
+  ): Promise<Vector> {
+    try {
+      const transport = this.getReadTransport(options);
+      const val = await transport.get<Record<string, unknown>>(
+        `/collections/${collectionName}/vectors/${vectorId}`,
+      );
+      const resolvedId =
+        typeof val['id'] === 'string' ? val['id'] : vectorId;
+      const rawArr = val['vector'];
+      const data: number[] = Array.isArray(rawArr)
+        ? (rawArr as unknown[]).map((x) => (typeof x === 'number' ? x : 0))
+        : [];
+      const payload = val['payload'];
+      const result: import('../models').Vector = { id: resolvedId, data };
+      if (payload !== null && typeof payload === 'object') {
+        result.metadata = payload as Record<string, unknown>;
+      }
+      this.logger.debug('Vector fetched by path', { collectionName, vectorId });
+      return result;
+    } catch (error) {
+      this.logger.error('Failed to get vector by path', { collectionName, vectorId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Delete every vector in a collection that matches a Qdrant-style metadata
+   * filter (phase13).
+   *
+   * Calls `POST /collections/{name}/vectors/delete_by_filter` with
+   * `{"filter": <filter>}`. An empty filter is rejected by the server with 400
+   * to prevent accidental full-collection wipes.
+   *
+   * Response: `{scanned, matched, deleted, results}`.
+   */
+  public async deleteByFilter(
+    collectionName: string,
+    filter: Record<string, unknown>,
+  ): Promise<DeleteByFilterReport> {
+    try {
+      const transport = this.getWriteTransport();
+      const response = await transport.post<DeleteByFilterReport>(
+        `/collections/${collectionName}/vectors/delete_by_filter`,
+        { filter },
+      );
+      this.logger.info('Vectors deleted by filter', {
+        collectionName,
+        deleted: response.deleted,
+        matched: response.matched,
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to delete vectors by filter', { collectionName, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Apply a JSON-merge-patch to the payload of every vector matching a filter
+   * (phase13).
+   *
+   * Calls `POST /collections/{name}/vectors/bulk_update_metadata` with
+   * `{"filter": <filter>, "patch": <patch>}`. Patch is applied with RFC 7396
+   * semantics: keys in `patch` overwrite existing values; `null` values remove keys.
+   *
+   * Response: `{scanned, matched, updated, results}`.
+   */
+  public async bulkUpdateMetadata(
+    collectionName: string,
+    filter: Record<string, unknown>,
+    patch: Record<string, unknown>,
+  ): Promise<BulkUpdateReport> {
+    try {
+      const transport = this.getWriteTransport();
+      const response = await transport.post<BulkUpdateReport>(
+        `/collections/${collectionName}/vectors/bulk_update_metadata`,
+        { filter, patch },
+      );
+      this.logger.info('Bulk metadata updated', {
+        collectionName,
+        updated: response.updated,
+        matched: response.matched,
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to bulk update metadata', { collectionName, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Copy vectors from `src` to `dst` without re-embedding (phase13).
+   *
+   * Unlike `moveToCollection`, the source vectors are NOT deleted.
+   * Calls `POST /collections/{src}/vectors/copy` with
+   * `{"destination": dst, "ids": [...]}`.
+   *
+   * Per-id status: `ok | missing_in_src | dst_insert_failed`.
+   * Response: `{src, dst, requested, copied, failed, results}`.
+   */
+  public async copyVectors(
+    src: string,
+    dst: string,
+    ids: string[],
+  ): Promise<CopyReport> {
+    try {
+      const transport = this.getWriteTransport();
+      const response = await transport.post<CopyReport>(
+        `/collections/${src}/vectors/copy`,
+        { destination: dst, ids },
+      );
+      this.logger.info('Vectors copied', {
+        src,
+        dst,
+        requested: response.requested,
+        copied: response.copied,
+        failed: response.failed,
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to copy vectors', { src, dst, count: ids.length, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Set or clear a per-vector expiry timestamp (phase13).
+   *
+   * Calls `PATCH /collections/{name}/vectors/{id}/expiry` with
+   * `{"expires_at": <unix_ms>}`. Pass `null` to clear an existing expiry.
+   * The timestamp is stored as `__expires_at` inside the vector payload and
+   * is read by the per-collection TTL reaper.
+   */
+  public async setVectorExpiry(
+    collectionName: string,
+    vectorId: string,
+    expiresAt: number | null,
+  ): Promise<void> {
+    try {
+      const transport = this.getWriteTransport();
+      await transport.patch(
+        `/collections/${collectionName}/vectors/${vectorId}/expiry`,
+        { expires_at: expiresAt },
+      );
+      this.logger.info('Vector expiry set', { collectionName, vectorId, expiresAt });
+    } catch (error) {
+      this.logger.error('Failed to set vector expiry', { collectionName, vectorId, error });
       throw error;
     }
   }

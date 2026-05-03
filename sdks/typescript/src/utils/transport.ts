@@ -30,6 +30,7 @@ export interface ITransport {
   get<T = unknown>(url: string, config?: RequestConfig): Promise<T>;
   post<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T>;
   put<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T>;
+  patch<T = unknown>(url: string, data?: unknown, config?: RequestConfig): Promise<T>;
   delete<T = unknown>(url: string, config?: RequestConfig): Promise<T>;
   postFormData<T = unknown>(url: string, formData: FormData, config?: RequestConfig): Promise<T>;
 }

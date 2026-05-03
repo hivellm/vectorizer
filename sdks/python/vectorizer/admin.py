@@ -2,14 +2,16 @@
 
 Groups: health and indexing progress, file content/listing/summary/chunks,
 project outline and related files, Qdrant-compatible cluster/snapshot
-admin endpoints, and file-upload endpoints.
+admin endpoints, file-upload endpoints, and phase12 admin methods:
+stats, status, logs, force-save, empty-collection cleanup, config
+management, backup management, server restart, and workspace management.
 """
 
 from __future__ import annotations
 
 import json as _json
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 
@@ -20,17 +22,45 @@ try:
         ServerError,
         ValidationError,
     )
-    from ..models import FileUploadConfig, FileUploadResponse
+    from ..models import (
+        AddWorkspaceRequest,
+        BackupInfo,
+        CleanupReport,
+        CreateBackupRequest,
+        FileUploadConfig,
+        FileUploadResponse,
+        LogEntry,
+        LogsQuery,
+        RestoreBackupRequest,
+        ServerStatus,
+        SlowQueryConfig,
+        SlowQueryEntry,
+        Stats,
+    )
     from ..utils.validation import validate_non_empty_string
 except ImportError:  # pragma: no cover
-    from exceptions import (
+    from exceptions import (  # type: ignore[import-not-found]
         CollectionNotFoundError,
         NetworkError,
         ServerError,
         ValidationError,
     )
-    from models import FileUploadConfig, FileUploadResponse
-    from utils.validation import validate_non_empty_string
+    from models import (  # type: ignore[import-not-found]
+        AddWorkspaceRequest,
+        BackupInfo,
+        CleanupReport,
+        CreateBackupRequest,
+        FileUploadConfig,
+        FileUploadResponse,
+        LogEntry,
+        LogsQuery,
+        RestoreBackupRequest,
+        ServerStatus,
+        SlowQueryConfig,
+        SlowQueryEntry,
+        Stats,
+    )
+    from utils.validation import validate_non_empty_string  # type: ignore[import-not-found]
 
 from ._base import _ApiBase
 
@@ -242,6 +272,209 @@ class AdminClient(_ApiBase):
             f"/qdrant/cluster/metadata/keys/{key}",
             data=payload,
         )
+    # ---- phase12 admin methods ----
+
+    async def get_stats(self) -> Stats:
+        """Aggregate collection and vector counts.
+
+        Calls ``GET /stats``.
+
+        Returns:
+            :class:`Stats` with collections, total_vectors, uptime_seconds, version.
+        """
+        data = await self._transport.get("/stats")
+        return Stats.from_dict(data if isinstance(data, dict) else {})
+
+    async def get_status(self) -> ServerStatus:
+        """Server liveness, version, and uptime.
+
+        Calls ``GET /status``.
+
+        Returns:
+            :class:`ServerStatus` with online, version, uptime_seconds, collections_count.
+        """
+        data = await self._transport.get("/status")
+        return ServerStatus.from_dict(data if isinstance(data, dict) else {})
+
+    async def get_logs(self, params: Optional[LogsQuery] = None) -> List[LogEntry]:
+        """Tail recent log lines.
+
+        Calls ``GET /logs?lines=N&level=LEVEL``.
+
+        Args:
+            params: Optional :class:`LogsQuery` with ``lines`` and ``level`` filters.
+
+        Returns:
+            List of :class:`LogEntry` objects.
+        """
+        qs_parts: List[str] = []
+        if params is not None:
+            if params.lines is not None:
+                qs_parts.append(f"lines={params.lines}")
+            if params.level is not None:
+                qs_parts.append(f"level={params.level}")
+        endpoint = "/logs" if not qs_parts else "/logs?" + "&".join(qs_parts)
+        data = await self._transport.get(endpoint)
+        if isinstance(data, dict):
+            raw_logs = data.get("logs", [])
+        else:
+            raw_logs = []
+        return [LogEntry.from_dict(entry) for entry in raw_logs]
+
+    async def force_save_collection(self, collection: str) -> None:
+        """Flush one collection to disk immediately.
+
+        Calls ``POST /collections/{name}/force-save``.
+
+        Args:
+            collection: Collection name to flush.
+        """
+        await self._transport.post(f"/collections/{collection}/force-save")
+
+    async def list_empty_collections(self) -> List[str]:
+        """List collections that contain zero vectors.
+
+        Calls ``GET /collections/empty``.
+
+        Returns:
+            List of collection names with no vectors.
+        """
+        data = await self._transport.get("/collections/empty")
+        if isinstance(data, list):
+            return [str(v) for v in data]
+        if isinstance(data, dict):
+            return [str(v) for v in data.get("collections", [])]
+        return []
+
+    async def cleanup_empty_collections(self) -> CleanupReport:
+        """Delete all empty collections in one call.
+
+        Calls ``DELETE /collections/cleanup``.
+
+        Returns:
+            :class:`CleanupReport` with success, removed count, and names.
+        """
+        data = await self._transport.delete("/collections/cleanup")
+        return CleanupReport.from_dict(data if isinstance(data, dict) else {})
+
+    async def get_config(self) -> Dict[str, Any]:
+        """Read the server's current ``config.yml``.
+
+        Calls ``GET /config``.
+
+        Returns:
+            Free-form dict mirroring the server's configuration.
+        """
+        return await self._transport.get("/config")
+
+    async def update_config(self, patch: Dict[str, Any]) -> Dict[str, Any]:
+        """Overwrite the server's ``config.yml`` (admin).
+
+        Calls ``POST /config`` with the full config object.
+
+        Args:
+            patch: Configuration dict to write.
+
+        Returns:
+            The config as echoed back by the server.
+        """
+        return await self._transport.post("/config", data=patch)
+
+    async def list_backups(self) -> List[BackupInfo]:
+        """List all server-side backup files.
+
+        Calls ``GET /backups``.
+
+        Returns:
+            List of :class:`BackupInfo` entries.
+        """
+        data = await self._transport.get("/backups")
+        if isinstance(data, dict):
+            raw = data.get("backups", [])
+        else:
+            raw = []
+        return [BackupInfo.from_dict(b) for b in raw]
+
+    async def create_backup(self, request: CreateBackupRequest) -> BackupInfo:
+        """Create a new backup (admin).
+
+        Calls ``POST /backups/create`` with ``{name, collections}``.
+
+        Args:
+            request: :class:`CreateBackupRequest` with name and optional collection list.
+
+        Returns:
+            :class:`BackupInfo` for the newly created backup.
+        """
+        payload: Dict[str, Any] = {"name": request.name, "collections": request.collections}
+        data = await self._transport.post("/backups/create", data=payload)
+        return BackupInfo.from_dict(data if isinstance(data, dict) else {})
+
+    async def restore_backup(self, request: RestoreBackupRequest) -> None:
+        """Restore a backup from the server's backup directory (admin).
+
+        Calls ``POST /backups/restore`` with ``{backup_id}``.
+
+        Args:
+            request: :class:`RestoreBackupRequest` with the backup id.
+        """
+        await self._transport.post("/backups/restore", data={"backup_id": request.backup_id})
+
+    async def restart_server(self) -> None:
+        """Initiate a graceful server restart (admin).
+
+        Calls ``POST /admin/restart``. The server responds before the
+        process actually restarts; callers should poll ``/health`` until
+        the server is back.
+        """
+        await self._transport.post("/admin/restart")
+
+    async def list_workspaces(self) -> List[Dict[str, Any]]:
+        """List configured workspace directories.
+
+        Calls ``GET /workspace/list``.
+
+        Returns:
+            List of workspace config dicts (free-form JSON per workspace entry).
+        """
+        data = await self._transport.get("/workspace/list")
+        if isinstance(data, dict):
+            return list(data.get("workspaces", []))
+        return []
+
+    async def get_workspace_config(self) -> Dict[str, Any]:
+        """Read the workspace configuration file.
+
+        Calls ``GET /workspace/config``.
+
+        Returns:
+            Free-form dict mirroring the workspace configuration.
+        """
+        return await self._transport.get("/workspace/config")
+
+    async def add_workspace(self, request: AddWorkspaceRequest) -> None:
+        """Register a new workspace directory (admin).
+
+        Calls ``POST /workspace/add`` with ``{path, collection_name}``.
+
+        Args:
+            request: :class:`AddWorkspaceRequest` with path and collection_name.
+        """
+        await self._transport.post(
+            "/workspace/add",
+            data={"path": request.path, "collection_name": request.collection_name},
+        )
+
+    async def remove_workspace(self, name: str) -> None:
+        """Remove a registered workspace directory (admin).
+
+        Calls ``POST /workspace/remove`` with ``{path}``.
+
+        Args:
+            name: The workspace path to remove.
+        """
+        await self._transport.post("/workspace/remove", data={"path": name})
+
     # ---- File upload operations ----
 
     async def upload_file(
@@ -324,3 +557,61 @@ class AdminClient(_ApiBase):
         except aiohttp.ClientError as e:
             logger.error(f"Network error getting upload config: {e}")
             raise NetworkError(f"Failed to get upload config: {e}")
+
+    # ── Phase-14: observability ────────────────────────────────────────────────
+
+    async def list_slow_queries(self) -> List[SlowQueryEntry]:
+        """List slow-query ring-buffer entries (phase14).
+
+        Calls ``GET /slow_queries``. Returns entries in the order they were
+        recorded (oldest first). Use :meth:`set_slow_query_config` to tune
+        the threshold and capacity.
+
+        Returns:
+            List of :class:`SlowQueryEntry` recorded since the last restart
+            or capacity eviction.
+
+        Raises:
+            NetworkError: If the transport fails.
+            ServerError: If the server returns a non-2xx status.
+        """
+        data = await self._transport.get("/slow_queries")
+        if isinstance(data, dict):
+            items = data.get("entries", [])
+        else:
+            items = []
+        return [SlowQueryEntry.from_dict(e) for e in items]
+
+    async def set_slow_query_config(
+        self,
+        threshold_ms: int,
+        capacity: int,
+    ) -> SlowQueryConfig:
+        """Reconfigure the slow-query ring buffer (phase14).
+
+        Calls ``POST /slow_queries/config`` with
+        ``{"threshold_ms": <int>, "capacity": <int>}``.
+
+        Existing entries are retained. If the new capacity is smaller than
+        the current entry count the oldest entries are evicted by the server.
+
+        Args:
+            threshold_ms: Minimum query duration (ms) to record.
+            capacity: Maximum ring-buffer size (entries).
+
+        Returns:
+            :class:`SlowQueryConfig` echoed back by the server.
+
+        Raises:
+            ValidationError: If ``capacity`` is zero or negative.
+            NetworkError: If the transport fails.
+            ServerError: If the server returns a non-2xx status.
+        """
+        if capacity <= 0:
+            raise ValidationError("capacity must be at least 1")
+        payload: Dict[str, Any] = {
+            "threshold_ms": threshold_ms,
+            "capacity": capacity,
+        }
+        data = await self._transport.post("/slow_queries/config", data=payload)
+        return SlowQueryConfig.from_dict(data if isinstance(data, dict) else {})

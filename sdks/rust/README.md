@@ -609,6 +609,236 @@ deleting from `src`. A mid-batch crash leaves a recoverable duplicate
 dst_insert_failed | src_delete_failed`) populate `MoveReport.results`
 without aborting the batch.
 
+## Control surface (3.4)
+
+### Admin / observability
+
+```rust
+use vectorizer_sdk::VectorizerClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = VectorizerClient::new_default()?;
+
+    // Server health, uptime, collection/vector counts
+    let stats = client.get_stats().await?;
+    println!("Total vectors: {}", stats.total_vectors);
+
+    let status = client.get_status().await?;
+    println!("Server v{}, uptime: {}s", status.version, status.uptime);
+
+    // Recent logs
+    let logs = client.get_logs(vectorizer_sdk::models::LogsQuery {
+        lines: Some(50),
+        level: Some("INFO".to_string()),
+    }).await?;
+    for entry in logs {
+        println!("{}: {}", entry.timestamp, entry.message);
+    }
+
+    // Per-collection indexing progress
+    let progress = client.get_indexing_progress().await?;
+    for (collection, pct) in &progress.progress {
+        println!("{}: {:.1}% complete", collection, pct);
+    }
+
+    // Force flush one collection
+    client.force_save_collection("my_docs").await?;
+
+    // List and clean empty collections
+    let empty = client.list_empty_collections().await?;
+    if !empty.is_empty() {
+        let report = client.cleanup_empty_collections().await?;
+        println!("Cleaned up {} empty collections", report.deleted);
+    }
+
+    // List workspaces
+    let workspaces = client.list_workspaces().await?;
+    println!("Workspaces: {:?}", workspaces);
+
+    Ok(())
+}
+```
+
+### Auth
+
+```rust
+use vectorizer_sdk::VectorizerClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = VectorizerClient::new_default()?;
+
+    // Current user info
+    let me = client.me().await?;
+    println!("Logged in as: {} (roles: {:?})", me.username, me.roles);
+
+    // Refresh token with extended TTL
+    let new_token = client.refresh_token().await?;
+    println!("Token refreshed, expires in: {} seconds", new_token.expires_in);
+
+    // Validate password before creating account
+    let report = client.validate_password("MySecure123!").await?;
+    println!("Valid: {}, feedback: {:?}", report.valid, report.feedback);
+
+    // Create API key for programmatic access
+    let key_req = vectorizer_sdk::models::CreateApiKeyRequest {
+        name: "integration-key".to_string(),
+        expires_in: Some(86400 * 365), // 1 year
+    };
+    let api_key = client.create_api_key(key_req).await?;
+    println!("API Key: {}", api_key.api_key.unwrap_or_default());
+
+    // List and revoke API keys
+    let keys = client.list_api_keys().await?;
+    for key in keys {
+        println!("Key: {} (expires: {})", key.id, key.expires_at);
+    }
+    client.revoke_api_key(&keys[0].id).await?;
+
+    // Change password
+    client.change_password("newPassword123!").await?;
+
+    // Logout
+    client.logout().await?;
+
+    Ok(())
+}
+```
+
+### Replication
+
+```rust
+use vectorizer_sdk::VectorizerClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = VectorizerClient::new_default()?;
+
+    // Check replication role and status
+    let status = client.get_replication_status().await?;
+    println!("Role: {}, enabled: {}", status.role, status.enabled);
+
+    // Get replication statistics (master/replica lag, sync status)
+    let stats = client.get_replication_stats().await?;
+    println!("Bytes synced: {}", stats.bytes_synced);
+
+    // List all replicas connected to this master
+    let replicas = client.list_replicas().await?;
+    for replica in replicas {
+        println!("Replica: {} (lag: {}ms)", replica.address, replica.lag_ms);
+    }
+
+    Ok(())
+}
+```
+
+### Discovery pipeline
+
+The discovery pipeline chains six stages from broad search to final LLM-ready prompt:
+
+```rust
+use vectorizer_sdk::VectorizerClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = VectorizerClient::new_default()?;
+
+    // Stage 1: Broad discovery — multi-query search across all collections
+    let broad_req = vectorizer_sdk::models::BroadDiscoveryRequest {
+        query: "machine learning algorithms".to_string(),
+        collections: None,
+        max_results: Some(20),
+    };
+    let broad = client.broad_discovery(broad_req).await?;
+    println!("Found {} broad results", broad.results.len());
+
+    // Stage 2: Semantic focus — narrow search to top collection
+    let focus_req = vectorizer_sdk::models::SemanticFocusRequest {
+        query: "neural networks".to_string(),
+        collection: "research".to_string(),
+        max_results: Some(10),
+    };
+    let focused = client.semantic_focus(focus_req).await?;
+    println!("Focused results: {}", focused.results.len());
+
+    // Stage 3: Promote README — elevate high-quality chunks
+    let promote_req = vectorizer_sdk::models::PromoteReadmeRequest {
+        results: focused.results,
+        readme_boost: Some(2.0),
+    };
+    let promoted = client.promote_readme(promote_req).await?;
+
+    // Stage 4: Compress evidence — distill to bullet points
+    let compress_req = vectorizer_sdk::models::CompressEvidenceRequest {
+        chunks: promoted.results,
+        max_bullets: Some(15),
+    };
+    let bullets = client.compress_evidence(compress_req).await?;
+    println!("Evidence bullets: {:?}", bullets.bullets);
+
+    // Stage 5: Build answer plan — organize bullets into sections
+    let plan_req = vectorizer_sdk::models::AnswerPlanRequest {
+        evidence: bullets.bullets,
+        max_sections: Some(5),
+    };
+    let plan = client.build_answer_plan(plan_req).await?;
+    println!("Sections: {:?}", plan.sections);
+
+    // Stage 6: Render LLM prompt — final markdown string for LLM
+    let prompt_req = vectorizer_sdk::models::RenderPromptRequest {
+        plan,
+        style: Some("formal".to_string()),
+    };
+    let llm_prompt = client.render_llm_prompt(prompt_req).await?;
+    println!("LLM prompt:\n{}", llm_prompt.markdown);
+
+    Ok(())
+}
+```
+
+### Hub backups
+
+```rust
+use vectorizer_sdk::VectorizerClient;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = VectorizerClient::new_default()?;
+
+    let user_id = "user-123";
+
+    // List user's backups
+    let backups = client.list_user_backups(user_id).await?;
+    for backup in &backups {
+        println!("Backup: {} (size: {} bytes)", backup.id, backup.size_bytes);
+    }
+
+    // Create a new backup
+    let backup_req = vectorizer_sdk::models::CreateUserBackupRequest {
+        user_id: user_id.to_string(),
+        name: "full-backup-2024-01".to_string(),
+        description: Some("January full backup".to_string()),
+        collections: None, // backup all
+    };
+    let backup = client.create_user_backup(backup_req).await?;
+    println!("Created backup: {}", backup.id);
+
+    // Restore a backup
+    let restore_req = vectorizer_sdk::models::RestoreUserBackupRequest {
+        user_id: user_id.to_string(),
+        backup_id: backup.id.clone(),
+    };
+    client.restore_user_backup(restore_req).await?;
+    println!("Restore started");
+
+    // Delete old backup
+    client.delete_user_backup(user_id, &backups[0].id).await?;
+
+    Ok(())
+}
+```
+
 ## Examples
 
 Run the examples to see the SDK in action:

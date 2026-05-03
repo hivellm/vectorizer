@@ -580,3 +580,425 @@ pub async fn move_vectors(
         "results": results,
     })))
 }
+
+/// POST /collections/{name}/vectors/delete_by_filter — delete every vector
+/// matching a Qdrant-style metadata predicate.
+///
+/// Body: `{"filter": <QdrantFilter>}`
+///
+/// An empty filter (all `must`/`should`/`must_not` absent or empty) is
+/// rejected with 400 to prevent accidental collection wipes.
+///
+/// Response: `{"scanned": N, "matched": N, "deleted": N, "results": [...]}`
+pub async fn delete_by_filter(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, crate::server::error_middleware::ErrorResponse> {
+    use vectorizer::models::qdrant::filter::{QdrantFilter, QdrantFilterBuilder};
+    use vectorizer::models::qdrant::filter_processor::FilterProcessor;
+
+    let filter: QdrantFilter = payload
+        .get("filter")
+        .ok_or_else(|| {
+            crate::server::error_middleware::create_validation_error(
+                "filter",
+                "missing filter field",
+            )
+        })
+        .and_then(|f| {
+            serde_json::from_value(f.clone()).map_err(|e| {
+                crate::server::error_middleware::create_validation_error(
+                    "filter",
+                    &format!("invalid filter: {}", e),
+                )
+            })
+        })?;
+
+    // Reject empty filter — no accidental full-collection wipe.
+    let is_empty = filter.must.as_ref().map_or(true, |v| v.is_empty())
+        && filter.should.as_ref().map_or(true, |v| v.is_empty())
+        && filter.must_not.as_ref().map_or(true, |v| v.is_empty());
+    if is_empty {
+        return Err(crate::server::error_middleware::create_validation_error(
+            "filter",
+            "empty filter is not allowed; provide at least one condition to prevent accidental wipes",
+        ));
+    }
+
+    // Scan collection for matching vectors.
+    let collection = state
+        .store
+        .get_collection(&collection_name)
+        .map_err(crate::server::error_middleware::ErrorResponse::from)?;
+
+    let all_vectors = collection.get_all_vectors();
+    let scanned = all_vectors.len();
+
+    let matching_ids: Vec<String> = all_vectors
+        .into_iter()
+        .filter_map(|v| {
+            let payload = v.payload.as_ref()?;
+            if FilterProcessor::apply_filter(&filter, payload) {
+                Some(v.id)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let matched = matching_ids.len();
+    let mut deleted: usize = 0;
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(matched);
+
+    for id in &matching_ids {
+        match state.store.delete(&collection_name, id) {
+            Ok(()) => {
+                deleted += 1;
+                results.push(json!({"id": id, "status": "deleted"}));
+            }
+            Err(e) => {
+                results.push(json!({"id": id, "status": "error", "error": e.to_string()}));
+            }
+        }
+    }
+
+    if deleted > 0 {
+        state.query_cache.invalidate_collection(&collection_name);
+        if let Some(ref auto_save) = state.auto_save_manager {
+            auto_save.mark_changed();
+        }
+    }
+
+    info!(
+        "delete_by_filter '{}': scanned={} matched={} deleted={}",
+        collection_name, scanned, matched, deleted
+    );
+
+    Ok(Json(json!({
+        "scanned": scanned,
+        "matched": matched,
+        "deleted": deleted,
+        "results": results,
+    })))
+}
+
+/// POST /collections/{name}/vectors/bulk_update_metadata — apply a
+/// JSON-merge patch to the payload of every vector matching a filter.
+///
+/// Body: `{"filter": <QdrantFilter>, "patch": {...}}`
+///
+/// The `patch` is applied with JSON-merge-patch semantics (RFC 7396):
+/// keys in `patch` overwrite the existing payload values; null values
+/// remove keys. The raw vector data and dimensions are never modified.
+///
+/// Response: `{"scanned": N, "matched": N, "updated": N, "results": [...]}`
+pub async fn bulk_update_metadata(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, crate::server::error_middleware::ErrorResponse> {
+    use vectorizer::models::qdrant::filter::QdrantFilter;
+    use vectorizer::models::qdrant::filter_processor::FilterProcessor;
+
+    let filter: QdrantFilter = payload
+        .get("filter")
+        .ok_or_else(|| {
+            crate::server::error_middleware::create_validation_error(
+                "filter",
+                "missing filter field",
+            )
+        })
+        .and_then(|f| {
+            serde_json::from_value(f.clone()).map_err(|e| {
+                crate::server::error_middleware::create_validation_error(
+                    "filter",
+                    &format!("invalid filter: {}", e),
+                )
+            })
+        })?;
+
+    let patch = payload.get("patch").cloned().ok_or_else(|| {
+        crate::server::error_middleware::create_validation_error("patch", "missing patch field")
+    })?;
+
+    let collection = state
+        .store
+        .get_collection(&collection_name)
+        .map_err(crate::server::error_middleware::ErrorResponse::from)?;
+
+    let all_vectors = collection.get_all_vectors();
+    let scanned = all_vectors.len();
+
+    let matching: Vec<vectorizer::models::Vector> = all_vectors
+        .into_iter()
+        .filter(|v| {
+            v.payload
+                .as_ref()
+                .map_or(false, |p| FilterProcessor::apply_filter(&filter, p))
+        })
+        .collect();
+
+    let matched = matching.len();
+    let mut updated: usize = 0;
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(matched);
+
+    for mut vector in matching {
+        // Apply JSON-merge-patch to payload.
+        let new_payload_data = if let Some(existing) = vector.payload.as_ref() {
+            json_merge_patch(existing.data.clone(), patch.clone())
+        } else {
+            patch.clone()
+        };
+
+        vector.payload = Some(vectorizer::models::Payload {
+            data: new_payload_data,
+        });
+
+        let id = vector.id.clone();
+        match state.store.update(&collection_name, vector) {
+            Ok(()) => {
+                updated += 1;
+                results.push(json!({"id": id, "status": "updated"}));
+            }
+            Err(e) => {
+                results.push(json!({"id": id, "status": "error", "error": e.to_string()}));
+            }
+        }
+    }
+
+    if updated > 0 {
+        state.query_cache.invalidate_collection(&collection_name);
+        if let Some(ref auto_save) = state.auto_save_manager {
+            auto_save.mark_changed();
+        }
+    }
+
+    info!(
+        "bulk_update_metadata '{}': scanned={} matched={} updated={}",
+        collection_name, scanned, matched, updated
+    );
+
+    Ok(Json(json!({
+        "scanned": scanned,
+        "matched": matched,
+        "updated": updated,
+        "results": results,
+    })))
+}
+
+/// Apply JSON-merge-patch (RFC 7396) to `target` using `patch`.
+///
+/// * Object keys in `patch` that are not `null` overwrite the same key in `target`.
+/// * `null` values in `patch` remove the corresponding key from `target`.
+/// * Non-object patches replace `target` entirely.
+fn json_merge_patch(mut target: serde_json::Value, patch: serde_json::Value) -> serde_json::Value {
+    match (target.as_object_mut(), patch) {
+        (Some(target_map), serde_json::Value::Object(patch_map)) => {
+            for (key, value) in patch_map {
+                if value.is_null() {
+                    target_map.remove(&key);
+                } else {
+                    let existing = target_map.remove(&key).unwrap_or(serde_json::Value::Null);
+                    target_map.insert(key, json_merge_patch(existing, value));
+                }
+            }
+            serde_json::Value::Object(target_map.clone())
+        }
+        (_, patch) => patch,
+    }
+}
+
+/// POST /collections/{src}/vectors/copy — copy (NOT move) vectors to a
+/// destination collection carrying raw vector data + payload unchanged.
+///
+/// Body: `{"destination": "dst_collection", "ids": ["id1", "id2", ...]}`
+///
+/// Per-id status: `ok | missing_in_src | dst_insert_failed`
+///
+/// Response: `{"src", "dst", "requested", "copied", "failed", "results"}`
+pub async fn copy_vectors(
+    State(state): State<VectorizerServer>,
+    Path(src_collection): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, crate::server::error_middleware::ErrorResponse> {
+    let dst_collection = payload
+        .get("destination")
+        .and_then(|d| d.as_str())
+        .ok_or_else(|| {
+            crate::server::error_middleware::create_validation_error(
+                "destination",
+                "missing or invalid destination parameter",
+            )
+        })?
+        .to_string();
+
+    let ids_value = payload
+        .get("ids")
+        .and_then(|i| i.as_array())
+        .ok_or_else(|| {
+            crate::server::error_middleware::create_validation_error(
+                "ids",
+                "missing or invalid ids parameter",
+            )
+        })?
+        .clone();
+
+    if ids_value.is_empty() {
+        return Err(crate::server::error_middleware::create_validation_error(
+            "ids",
+            "ids array must contain at least one entry",
+        ));
+    }
+
+    if src_collection == dst_collection {
+        return Err(crate::server::error_middleware::create_validation_error(
+            "destination",
+            "destination must differ from source collection",
+        ));
+    }
+
+    info!(
+        "Copying {} vectors from '{}' to '{}'",
+        ids_value.len(),
+        src_collection,
+        dst_collection,
+    );
+
+    let mut copied: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(ids_value.len());
+
+    for entry in ids_value.iter() {
+        let id = match entry.as_str() {
+            Some(s) => s.to_string(),
+            None => {
+                failed += 1;
+                results.push(json!({
+                    "id": null,
+                    "status": "missing_in_src",
+                    "error": "id must be a string",
+                }));
+                continue;
+            }
+        };
+
+        let vector = match state.store.get_vector(&src_collection, &id) {
+            Ok(v) => v,
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "id": id,
+                    "status": "missing_in_src",
+                    "error": format!("{}", e),
+                }));
+                continue;
+            }
+        };
+
+        // Insert into destination — source is untouched (copy, not move).
+        if let Err(e) = state.store.insert(&dst_collection, vec![vector]) {
+            failed += 1;
+            results.push(json!({
+                "id": id,
+                "status": "dst_insert_failed",
+                "error": format!("{}", e),
+            }));
+            continue;
+        }
+
+        copied += 1;
+        results.push(json!({"id": id, "status": "ok"}));
+    }
+
+    if copied > 0 {
+        state.query_cache.invalidate_collection(&dst_collection);
+        if let Some(ref auto_save) = state.auto_save_manager {
+            auto_save.mark_changed();
+        }
+    }
+
+    info!(
+        "Copy from '{}' to '{}' complete: {} copied, {} failed",
+        src_collection, dst_collection, copied, failed
+    );
+
+    Ok(Json(json!({
+        "src": src_collection,
+        "dst": dst_collection,
+        "requested": ids_value.len(),
+        "copied": copied,
+        "failed": failed,
+        "results": results,
+    })))
+}
+
+/// PATCH /collections/{name}/vectors/{id}/expiry — set per-vector expiry.
+///
+/// Body: `{"expires_at": <unix_ms>}` — pass `null` to clear expiry.
+///
+/// The `expires_at` value is stored as `__expires_at` inside the vector's
+/// JSON payload and is read by the per-collection TTL reaper.
+pub async fn set_vector_expiry(
+    State(state): State<VectorizerServer>,
+    Path((collection_name, vector_id)): Path<(String, String)>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, crate::server::error_middleware::ErrorResponse> {
+    // `expires_at` may be null (clear) or an integer.
+    let expires_at_opt: Option<i64> = match payload.get("expires_at") {
+        None => {
+            return Err(crate::server::error_middleware::create_validation_error(
+                "expires_at",
+                "missing expires_at field; pass null to clear",
+            ));
+        }
+        Some(serde_json::Value::Null) => None,
+        Some(v) => match v.as_i64() {
+            Some(ts) => Some(ts),
+            None => {
+                return Err(crate::server::error_middleware::create_validation_error(
+                    "expires_at",
+                    "expires_at must be a Unix millisecond timestamp (integer) or null",
+                ));
+            }
+        },
+    };
+
+    let mut vector = state
+        .store
+        .get_vector(&collection_name, &vector_id)
+        .map_err(crate::server::error_middleware::ErrorResponse::from)?;
+
+    // Update or clear the expiry field.
+    let payload_mut = vector
+        .payload
+        .get_or_insert_with(|| vectorizer::models::Payload {
+            data: serde_json::json!({}),
+        });
+
+    match expires_at_opt {
+        Some(ts) => payload_mut.set_expires_at(ts),
+        None => payload_mut.clear_expires_at(),
+    }
+
+    state
+        .store
+        .update(&collection_name, vector)
+        .map_err(crate::server::error_middleware::ErrorResponse::from)?;
+
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
+    info!(
+        "set_vector_expiry '{}' in '{}': expires_at={:?}",
+        vector_id, collection_name, expires_at_opt
+    );
+
+    Ok(Json(json!({
+        "id": vector_id,
+        "collection": collection_name,
+        "expires_at": expires_at_opt,
+        "status": "ok",
+    })))
+}

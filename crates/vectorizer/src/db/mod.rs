@@ -10,6 +10,7 @@ pub mod graph_relationship_discovery;
 pub mod hybrid_search;
 pub mod payload_index;
 pub mod storage_backend;
+pub mod ttl_reaper;
 pub mod upsert_queue;
 
 #[cfg(feature = "hive-gpu")]
@@ -50,5 +51,6 @@ pub use raft::{
     LogEntry, LogIndex, NodeId, RaftConfig, RaftNode, RaftRole, RaftState, RaftStateMachine, Term,
 };
 pub use sharding::{ConsistentHashRing, ShardId, ShardRebalancer, ShardRouter};
+pub use ttl_reaper::{DEFAULT_REAPER_INTERVAL_SECS, TtlReaper};
 pub use upsert_queue::{AdmissionError, AdmissionStatus, UpsertQueue, UpsertTicket};
 pub use vector_store::{CollectionType, VectorStore};

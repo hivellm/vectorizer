@@ -127,6 +127,23 @@ export class HttpClient {
   }
 
   /**
+   * Make a PATCH request.
+   */
+  public async patch<T = unknown>(url: string, data?: unknown, requestConfig?: RequestConfig): Promise<T> {
+    const requestOptions: RequestInit & RequestConfig = {
+      method: 'PATCH',
+      ...requestConfig,
+    };
+
+    if (data) {
+      requestOptions.body = JSON.stringify(data);
+    }
+
+    const response = await this.request<T>(url, requestOptions);
+    return response;
+  }
+
+  /**
    * Make a DELETE request.
    */
   public async delete<T = unknown>(url: string, requestConfig?: RequestConfig): Promise<T> {

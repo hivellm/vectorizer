@@ -67,6 +67,7 @@ pub use mcp::handlers::handle_mcp_tool;
 pub use mcp::tools as mcp_tools;
 pub use mcp::tools::get_mcp_tools;
 use vectorizer::VectorStore;
+use vectorizer::cache::SlowQueryRing;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer::file_watcher::{FileWatcherSystem, MetricsCollector};
 
@@ -89,6 +90,8 @@ pub struct VectorizerServer {
     pub master_node: Option<Arc<vectorizer::replication::MasterNode>>,
     pub replica_node: Option<Arc<vectorizer::replication::ReplicaNode>>,
     pub query_cache: Arc<vectorizer::cache::query_cache::QueryCache<serde_json::Value>>,
+    /// In-memory slow-query ring buffer (phase-14).
+    pub slow_query_ring: SlowQueryRing,
     pub(super) background_task: Arc<
         tokio::sync::Mutex<
             Option<(

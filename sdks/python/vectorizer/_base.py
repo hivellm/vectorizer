@@ -64,6 +64,10 @@ class Transport(ABC):
     async def delete(self, path: str) -> Any:
         """Issue a DELETE to ``path`` and return the body."""
 
+    @abstractmethod
+    async def patch(self, path: str, data: Optional[Any] = None) -> Any:
+        """Issue a PATCH to ``path`` with ``data`` and return the body."""
+
     async def connect(self) -> None:
         """Open any resources the transport needs. Default: no-op."""
 
@@ -107,6 +111,9 @@ class RestTransport(Transport):
 
     async def delete(self, path: str) -> Any:
         return await self._http.delete(path)
+
+    async def patch(self, path: str, data: Optional[Any] = None) -> Any:
+        return await self._http.patch(path, data)
 
     async def close(self) -> None:
         await self._http.close()

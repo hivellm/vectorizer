@@ -121,6 +121,10 @@ impl Transport for UmicpTransport {
         self.request("DELETE", path, None).await
     }
 
+    async fn patch(&self, path: &str, data: Option<&Value>) -> Result<String> {
+        self.request("PATCH", path, data).await
+    }
+
     fn protocol(&self) -> Protocol {
         Protocol::Umicp
     }

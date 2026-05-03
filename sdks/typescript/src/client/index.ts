@@ -26,6 +26,9 @@ import { FilesClient } from './files';
 import { GraphClient } from './graph';
 import { QdrantClient } from './qdrant';
 import { AdminClient } from './admin';
+import { AuthClient } from './auth';
+import { ReplicationClient } from './replication';
+import { HubClient } from './hub';
 
 export { BaseClient, VectorizerClientConfig, Transport } from './_base';
 export { CoreClient } from './core';
@@ -37,6 +40,9 @@ export { FilesClient } from './files';
 export { GraphClient } from './graph';
 export { QdrantClient } from './qdrant';
 export { AdminClient } from './admin';
+export { AuthClient } from './auth';
+export { ReplicationClient } from './replication';
+export { HubClient } from './hub';
 
 // Standard TS mixin recipe: declare the merged interface so callers
 // see every surface's methods, then copy the prototypes at runtime.
@@ -50,7 +56,10 @@ export interface VectorizerClient
     FilesClient,
     GraphClient,
     QdrantClient,
-    AdminClient {}
+    AdminClient,
+    AuthClient,
+    ReplicationClient,
+    HubClient {}
 
 export class VectorizerClient extends BaseClient {
   constructor(config: VectorizerClientConfig = {}) {
@@ -95,4 +104,7 @@ applyMixins(VectorizerClient, [
   GraphClient,
   QdrantClient,
   AdminClient,
+  AuthClient,
+  ReplicationClient,
+  HubClient,
 ]);

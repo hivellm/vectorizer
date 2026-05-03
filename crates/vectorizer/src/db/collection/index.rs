@@ -1,18 +1,22 @@
 //! HNSW index operations — fast batch load, dump/load to disk,
-//! and cache directory integration.
+//! cache directory integration, and online reindex.
 //!
 //! The index itself is built incrementally via [`Collection::insert_batch`]
-//! (in [`data`]); this module owns the bulk-load and persistence paths
-//! that reconstitute the index from the `.vecdb` cache or flush it
+//! (in [`data`]); this module owns the bulk-load, persistence, and reindex
+//! paths that reconstitute the index from the `.vecdb` cache or flush it
 //! back out to disk.
 //!
 //! [`data`]: super::data
 
+use std::sync::Arc;
+
+use parking_lot::RwLock;
 use tracing::{debug, info, warn};
 
 use super::Collection;
+use crate::db::optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
 use crate::error::{Result, VectorizerError};
-use crate::models::Vector;
+use crate::models::{HnswConfig, Vector};
 
 impl Collection {
     /// Fast load vectors with HNSW index building
@@ -103,6 +107,89 @@ impl Collection {
             "Fast loaded {} vectors into collection '{}' with HNSW index",
             vector_order.len(),
             self.name
+        );
+        Ok(())
+    }
+
+    /// Rebuild the HNSW index with new parameters from existing stored vectors.
+    ///
+    /// # Durability
+    ///
+    /// Takes the `vector_order` write-lock for the duration of the rebuild so
+    /// that concurrent inserts queue behind this operation — identical to the
+    /// reencode pattern in phase13. The swap is atomic from the caller's
+    /// perspective: either the entire new index is in place or the old one is
+    /// unchanged.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the collection is empty (nothing to reindex) or if
+    /// the underlying HNSW index construction fails.
+    pub fn reindex_with_params(&self, new_params: HnswConfig) -> Result<()> {
+        // Take the write lock to serialise concurrent writes during the swap.
+        let vector_order = self.vector_order.write();
+
+        let vector_count = vector_order.len();
+        if vector_count == 0 {
+            return Err(VectorizerError::Storage(format!(
+                "collection '{}' is empty; nothing to reindex",
+                self.name
+            )));
+        }
+
+        info!(
+            "reindex_with_params '{}': rebuilding HNSW (M={}, ef_construction={}) for {} vectors",
+            self.name, new_params.m, new_params.ef_construction, vector_count
+        );
+
+        let new_hnsw_cfg = OptimizedHnswConfig {
+            max_connections: new_params.m,
+            max_connections_0: new_params.m * 2,
+            ef_construction: new_params.ef_construction,
+            seed: new_params.seed,
+            distance_metric: self.config.metric,
+            parallel: true,
+            initial_capacity: vector_count.max(1_024),
+            batch_size: 1_000,
+        };
+
+        // Build the new index offline.
+        let new_index = OptimizedHnswIndex::new(self.config.dimension, new_hnsw_cfg)
+            .map_err(|e| VectorizerError::Storage(format!("failed to create new HNSW: {}", e)))?;
+
+        let use_quantization = matches!(
+            self.config.quantization,
+            crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
+        );
+
+        // Collect (id, raw_f32_data) pairs from existing storage.
+        let mut batch: Vec<(String, Vec<f32>)> = Vec::with_capacity(vector_count);
+
+        for id in vector_order.iter() {
+            let data = if use_quantization {
+                if let Some(qv) = self.quantized_vectors.lock().get(id) {
+                    qv.to_vector().data
+                } else {
+                    continue;
+                }
+            } else {
+                match self.vectors.get(id) {
+                    Ok(Some(v)) => v.data,
+                    _ => continue,
+                }
+            };
+            batch.push((id.clone(), data));
+        }
+
+        new_index.batch_add(batch)?;
+
+        // Atomic swap: replace the live index with the new one.
+        *self.index.write() = new_index;
+
+        info!(
+            "reindex_with_params '{}': completed ({} vectors indexed with M={})",
+            self.name, vector_count, new_params.m
         );
         Ok(())
     }

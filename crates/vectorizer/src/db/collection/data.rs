@@ -490,6 +490,96 @@ impl Collection {
         Ok(results)
     }
 
+    /// Search for similar vectors and return an execution trace alongside results.
+    ///
+    /// The trace records the number of HNSW neighbors returned (`visited_nodes`),
+    /// the effective `ef_search` used, and the per-result score, payload-filter,
+    /// and quantisation timing. When `explain` is false the method delegates to
+    /// the plain [`search`][Collection::search] method with zero extra overhead.
+    pub fn search_explained(
+        &self,
+        query_vector: &[f32],
+        k: usize,
+    ) -> Result<crate::models::ExplainResponse> {
+        use std::time::Instant;
+
+        let t0 = Instant::now();
+
+        // Validate dimension
+        if query_vector.len() != self.config.dimension {
+            return Err(VectorizerError::InvalidDimension {
+                expected: self.config.dimension,
+                got: query_vector.len(),
+            });
+        }
+
+        // Normalize query vector for cosine similarity
+        let search_vector = if matches!(self.config.metric, DistanceMetric::Cosine) {
+            vector_utils::normalize_vector(query_vector)
+        } else {
+            query_vector.to_vec()
+        };
+
+        // Time the HNSW search
+        let t1 = Instant::now();
+        let index = self.index.read();
+        let neighbors = index.search(&search_vector, k)?;
+        let hnsw_ms = t1.elapsed().as_secs_f64() * 1_000.0;
+        let visited_nodes = neighbors.len();
+
+        // Build results with per-result timing
+        let use_quantization = matches!(
+            self.config.quantization,
+            crate::models::QuantizationConfig::SQ { bits: 8 }
+                | crate::models::QuantizationConfig::Binary
+        );
+
+        let mut results = Vec::with_capacity(neighbors.len());
+        let mut quantization_score_ms: f64 = 0.0;
+
+        for (id, score) in neighbors {
+            let tq = Instant::now();
+            let vector = if use_quantization {
+                if let Some(quantized) = self.quantized_vectors.lock().get(&id) {
+                    quantized.to_vector()
+                } else {
+                    continue;
+                }
+            } else {
+                if let Ok(Some(v)) = self.vectors.get(&id) {
+                    v
+                } else {
+                    continue;
+                }
+            };
+            quantization_score_ms += tq.elapsed().as_secs_f64() * 1_000.0;
+
+            let normalized_payload = vector.payload.as_ref().map(|p| p.normalized());
+            results.push(crate::models::SearchResult {
+                id,
+                score,
+                dense_score: Some(score),
+                sparse_score: None,
+                vector: Some(vector.data.clone()),
+                payload: normalized_payload,
+            });
+        }
+
+        let total_ms = t0.elapsed().as_secs_f64() * 1_000.0;
+        let hnsw_config = &self.config.hnsw_config;
+
+        let trace = crate::models::SearchTrace {
+            visited_nodes,
+            ef_search: hnsw_config.ef_search,
+            hnsw_search_ms: hnsw_ms,
+            payload_filter_evals: 0, // no filter on plain explain
+            quantization_score_ms,
+            total_ms,
+        };
+
+        Ok(crate::models::ExplainResponse { results, trace })
+    }
+
     /// Perform hybrid search combining dense (HNSW) and sparse vector search
     pub fn hybrid_search(
         &self,

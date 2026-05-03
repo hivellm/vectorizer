@@ -83,6 +83,9 @@ impl Transport for MockTransport {
     async fn delete(&self, path: &str) -> Result<String> {
         self.dispatch("DELETE", path)
     }
+    async fn patch(&self, path: &str, _data: Option<&Value>) -> Result<String> {
+        self.dispatch("PATCH", path)
+    }
     fn protocol(&self) -> Protocol {
         Protocol::Http
     }

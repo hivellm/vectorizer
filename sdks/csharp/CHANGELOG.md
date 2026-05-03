@@ -7,6 +7,73 @@ Two NuGet packages share this changelog:
 - `Vectorizer.Sdk.Rpc` — RPC-first client (recommended).
 - `Vectorizer.Sdk` — legacy REST-only client.
 
+## [3.8.0] - 2026-05-02
+
+### Added
+
+- **Phase 16 RPC typed wrappers** — `Vectorizer.Sdk.Rpc` now ships typed
+  `async Task<T>` extension methods on `RpcClient` for all ~95 v1 RPC
+  commands exposed in `rpc_capability_names()`.  The following command
+  groups are covered:
+  - **Collections** — `CreateCollectionAsync`, `DeleteCollectionAsync`,
+    `ListEmptyCollectionsAsync`, `CleanupEmptyCollectionsAsync`,
+    `ForceSaveCollectionAsync`
+  - **Vectors** — `InsertVectorAsync`, `InsertTextVectorAsync`,
+    `UpdateVectorAsync`, `DeleteVectorAsync`, `ListVectorsAsync`,
+    `EmbedTextAsync`, `BatchInsertVectorsAsync`, `BatchInsertTextsAsync`,
+    `BatchSearchAsync`, `BatchUpdateVectorsAsync`, `BatchDeleteVectorsAsync`,
+    `MoveVectorsAsync`, `CopyVectorsAsync`, `DeleteByFilterAsync`,
+    `BulkUpdateMetadataAsync`, `SetVectorExpiryAsync`
+  - **Search** — `SearchByTextAsync`, `SearchByFileAsync`,
+    `SearchHybridAsync`, `SearchSemanticAsync`, `SearchContextualAsync`,
+    `SearchMultiCollectionAsync`, `SearchExplainAsync`
+  - **Discovery** — `DiscoverAsync`, `FilterCollectionsAsync`,
+    `ScoreCollectionsAsync`, `ExpandQueriesAsync`, `BroadDiscoveryAsync`,
+    `SemanticFocusAsync`, `PromoteReadmeAsync`, `CompressEvidenceAsync`,
+    `BuildAnswerPlanAsync`, `RenderLlmPromptAsync`
+  - **File ops** — `FileContentAsync`, `FileListAsync`, `FileSummaryAsync`,
+    `FileChunksAsync`, `FileOutlineAsync`, `FileRelatedAsync`,
+    `FileSearchByTypeAsync`
+  - **Graph** — `GraphListNodesAsync`, `GraphNeighborsAsync`,
+    `GraphFindRelatedAsync`, `GraphFindPathAsync`, `GraphCreateEdgeAsync`,
+    `GraphDeleteEdgeAsync`, `GraphListEdgesAsync`, `GraphDiscoverEdgesAsync`,
+    `GraphDiscoverEdgesForNodeAsync`, `GraphDiscoveryStatusAsync`
+  - **Admin** — `AdminStatsAsync`, `AdminStatusAsync`, `AdminLogsAsync`,
+    `AdminIndexingProgressAsync`, `AdminConfigGetAsync`,
+    `AdminConfigUpdateAsync`, `AdminBackupsListAsync`,
+    `AdminBackupsCreateAsync`, `AdminBackupsRestoreAsync`,
+    `AdminWorkspacesListAsync`, `AdminWorkspaceGetAsync`,
+    `AdminWorkspaceAddAsync`, `AdminWorkspaceRemoveAsync`,
+    `AdminRestartAsync`, `AdminSlowQueriesListAsync`,
+    `AdminSlowQueriesConfigAsync`
+  - **Auth / RBAC** — `AuthMeAsync`, `AuthLogoutAsync`,
+    `AuthRefreshTokenAsync`, `AuthValidatePasswordAsync`,
+    `AuthApiKeysCreateAsync`, `AuthApiKeysListAsync`,
+    `AuthApiKeysRevokeAsync`, `AuthApiKeysRotateAsync`,
+    `AuthApiKeysCreateScopedAsync`, `AuthIntrospectAsync`, `AuthAuditAsync`
+  - **Replication** — `ReplicationStatusAsync`, `ReplicationConfigureAsync`,
+    `ReplicationStatsAsync`, `ReplicationReplicasListAsync`
+  - **Cluster** — `ClusterFailoverAsync`, `ClusterReplicaResyncAsync`,
+    `ClusterPeerAddAsync`, `ClusterRebalanceAsync`,
+    `ClusterRebalanceStatusAsync`
+- Response DTOs added to `Vectorizer.Rpc` namespace: `CreateCollectionResult`,
+  `CleanupEmptyResult`, `VectorWriteResult`, `BatchItemResult`,
+  `BatchInsertResult`, `BatchUpdateResult`, `BatchDeleteResult`,
+  `BatchSearchResult`, `MoveVectorsResult`, `CopyVectorsResult`,
+  `DeleteByFilterResult`, `BulkUpdateMetadataResult`, `SetExpiryResult`,
+  `EmbedResult`, `VectorListResult`, `SearchTrace`, `SearchExplainResult`,
+  `DiscoverResult`, `ScoredCollection`, `ExpandQueriesResult`,
+  `DiscoveryChunk`, `CompressBullet`, `AnswerPlanSection`, `AnswerPlanResult`,
+  `RenderPromptResult`, `GraphDiscoveryStatus`, `DiscoverEdgesResult`,
+  `DiscoverEdgesForNodeResult`, `AdminStats`, `AdminStatus`,
+  `SlowQueryConfigResult`, `AuthMeResult`, `RefreshTokenResult`,
+  `ValidatePasswordResult`, `ApiKeyCreated`, `RotatedApiKey`,
+  `ReplicationConfigureResult`, `RebalanceStatus`.
+
+### Changed
+
+- Version bumped to 3.8.0 in both `Vectorizer.Sdk` and `Vectorizer.Sdk.Rpc`.
+
 ## [3.2.0] - 2026-05-01
 
 ### Added

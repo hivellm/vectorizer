@@ -282,28 +282,31 @@ fn test_batch_response_creation() {
 #[test]
 fn test_batch_search_query_creation() {
     let query = BatchSearchQuery {
-        query: "machine learning".to_string(),
+        query: Some("machine learning".to_string()),
+        vector: None,
         limit: Some(10),
-        score_threshold: Some(0.8),
+        threshold: Some(0.8),
     };
 
-    assert_eq!(query.query, "machine learning");
+    assert_eq!(query.query.as_deref(), Some("machine learning"));
     assert_eq!(query.limit, Some(10));
-    assert_eq!(query.score_threshold, Some(0.8));
+    assert_eq!(query.threshold, Some(0.8));
 }
 
 #[test]
 fn test_batch_search_request_creation() {
     let queries = vec![
         BatchSearchQuery {
-            query: "first query".to_string(),
+            query: Some("first query".to_string()),
+            vector: None,
             limit: Some(5),
-            score_threshold: None,
+            threshold: None,
         },
         BatchSearchQuery {
-            query: "second query".to_string(),
+            query: Some("second query".to_string()),
+            vector: None,
             limit: Some(10),
-            score_threshold: Some(0.7),
+            threshold: Some(0.7),
         },
     ];
 
@@ -313,8 +316,14 @@ fn test_batch_search_request_creation() {
     };
 
     assert_eq!(batch_search.queries.len(), 2);
-    assert_eq!(batch_search.queries[0].query, "first query");
-    assert_eq!(batch_search.queries[1].query, "second query");
+    assert_eq!(
+        batch_search.queries[0].query.as_deref(),
+        Some("first query")
+    );
+    assert_eq!(
+        batch_search.queries[1].query.as_deref(),
+        Some("second query")
+    );
 }
 
 #[test]

@@ -180,6 +180,13 @@ export class UMICPClient {
   }
 
   /**
+   * Make a PATCH request.
+   */
+  public async patch<T = unknown>(url: string, data?: unknown, requestConfig?: RequestConfig): Promise<T> {
+    return this.request<T>('PATCH', url, data, requestConfig);
+  }
+
+  /**
    * Make a DELETE request.
    */
   public async delete<T = unknown>(url: string, requestConfig?: RequestConfig): Promise<T> {

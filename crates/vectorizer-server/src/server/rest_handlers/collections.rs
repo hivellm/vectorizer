@@ -1,12 +1,19 @@
 //! Collection-level REST handlers.
 //!
-//! - `list_collections`       — GET  /collections
-//! - `create_collection`      — POST /collections
-//! - `get_collection`         — GET  /collections/{name}
-//! - `delete_collection`      — DELETE /collections/{name}
-//! - `force_save_collection`  — POST /collections/{name}/save  (GUI)
-//! - `list_empty_collections` — GET  /collections/empty        (GUI)
-//! - `cleanup_empty_collections` — DELETE /collections/cleanup (GUI)
+//! - `list_collections`          — GET    /collections
+//! - `create_collection`         — POST   /collections
+//! - `get_collection`            — GET    /collections/{name}
+//! - `delete_collection`         — DELETE /collections/{name}
+//! - `force_save_collection`     — POST   /collections/{name}/save  (GUI)
+//! - `list_empty_collections`    — GET    /collections/empty        (GUI)
+//! - `cleanup_empty_collections` — DELETE /collections/cleanup      (GUI)
+//! - `reencode_collection`       — POST   /collections/{name}/reencode
+//! - `set_collection_ttl`        — POST   /collections/{name}/ttl
+//! - `rename_collection`         — POST   /collections/{name}/rename
+//! - `reindex_collection`        — POST   /collections/{name}/reindex
+//! - `create_native_snapshot`    — POST   /collections/{name}/snapshot
+//! - `list_native_snapshots`     — GET    /collections/{name}/snapshots
+//! - `restore_native_snapshot`   — POST   /collections/{name}/snapshots/{id}/restore
 
 use axum::Extension;
 use axum::extract::{Path, Query, State};
@@ -541,4 +548,387 @@ pub async fn cleanup_empty_collections(
             ))
         }
     }
+}
+
+/// POST /collections/{name}/reencode — re-quantize an existing collection
+/// in-place without re-embedding.
+///
+/// Body: `{"target_encoding": "sq8" | "binary" | "fp32"}`
+///
+/// # Durability guarantee
+///
+/// Writes are serialised for the duration of the reencode by taking the
+/// collection's `vector_order` write-lock. This is the write-lock fallback
+/// described in the phase13 spec: the atomic double-buffer swap without
+/// write-locking requires a secondary mirror index for concurrent inserts,
+/// which adds non-trivial complexity. The write-lock approach is correct
+/// and safe; for very large collections operators should schedule during a
+/// maintenance window.
+///
+/// Response: `{"job_id", "collection", "state", "target_encoding", "progress"}`
+pub async fn reencode_collection(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    use vectorizer::db::CollectionType;
+
+    let target_encoding = payload
+        .get("target_encoding")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            crate::server::error_middleware::create_validation_error(
+                "target_encoding",
+                "missing or invalid target_encoding; valid values: sq8, binary, fp32",
+            )
+        })?
+        .to_string();
+
+    info!(
+        "reencode_collection '{}' → '{}'",
+        collection_name, target_encoding
+    );
+
+    // Verify the collection exists before spawning work.
+    state
+        .store
+        .get_collection(&collection_name)
+        .map_err(ErrorResponse::from)?;
+
+    let store = state.store.clone();
+    let col_name = collection_name.clone();
+    let enc = target_encoding.clone();
+
+    // Run the reencode synchronously on a blocking thread so we don't
+    // stall the tokio executor (reencode holds locks for potentially
+    // several seconds).
+    let result = tokio::task::spawn_blocking(move || {
+        let coll_ref = store.get_collection(&col_name)?;
+        match &*coll_ref {
+            CollectionType::Cpu(c) => c.reencode_inplace(&enc),
+            CollectionType::Sharded(_) => Err(vectorizer::error::VectorizerError::Storage(
+                "reencode is not supported on sharded collections".to_string(),
+            )),
+            CollectionType::DistributedSharded(_) => {
+                Err(vectorizer::error::VectorizerError::Storage(
+                    "reencode is not supported on distributed collections".to_string(),
+                ))
+            }
+            // HiveGpu variant exists when the umbrella `vectorizer` crate is
+            // built with the default feature set (hive-gpu in default).
+            // Workspace feature unification means vectorizer-server sees the
+            // variant even though it doesn't carry the feature flag itself.
+            #[allow(unreachable_patterns)]
+            _ => Err(vectorizer::error::VectorizerError::Storage(
+                "reencode is not supported on this collection type".to_string(),
+            )),
+        }
+    })
+    .await
+    .map_err(|e| {
+        crate::server::error_middleware::create_bad_request_error(&format!(
+            "reencode task error: {}",
+            e
+        ))
+    })?
+    .map_err(ErrorResponse::from)?;
+
+    // Mark for auto-save so the new encoding is persisted.
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
+    info!(
+        "reencode_collection '{}' → '{}' completed",
+        collection_name, target_encoding
+    );
+
+    let _ = result;
+    Ok(Json(json!({
+        "job_id": format!("reencode-{}-{}", collection_name, chrono::Utc::now().timestamp()),
+        "collection": collection_name,
+        "state": "completed",
+        "target_encoding": target_encoding,
+        "progress": 1.0,
+    })))
+}
+
+/// POST /collections/{name}/ttl — set or clear per-collection TTL.
+///
+/// Body: `{"ttl_secs": 3600}` — vectors inserted after this call will
+/// expire `ttl_secs` seconds after insertion. Pass `null` (or omit the
+/// field) to clear the collection-level TTL.
+///
+/// The TTL is stored as collection metadata and applied by the per-
+/// collection TTL reaper. Existing vectors are NOT retroactively expired;
+/// only subsequent insertions that carry `__expires_at` in their payload
+/// are affected.
+///
+/// To set a per-vector expiry directly use
+/// `PATCH /collections/{name}/vectors/{id}/expiry`.
+pub async fn set_collection_ttl(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    // Verify collection exists.
+    state
+        .store
+        .get_collection(&collection_name)
+        .map_err(ErrorResponse::from)?;
+
+    let ttl_secs: Option<u64> = match payload.get("ttl_secs") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(v) => match v.as_u64() {
+            Some(s) => Some(s),
+            None => {
+                return Err(crate::server::error_middleware::create_validation_error(
+                    "ttl_secs",
+                    "ttl_secs must be a non-negative integer or null",
+                ));
+            }
+        },
+    };
+
+    // Persist TTL configuration as store metadata with a namespaced key.
+    let meta_key = format!("ttl:{}", collection_name);
+    match ttl_secs {
+        Some(secs) => {
+            state.store.set_metadata(&meta_key, secs.to_string());
+            info!(
+                "set_collection_ttl '{}': ttl_secs={}",
+                collection_name, secs
+            );
+        }
+        None => {
+            state.store.remove_metadata(&meta_key);
+            info!("set_collection_ttl '{}': TTL cleared", collection_name);
+        }
+    }
+
+    Ok(Json(json!({
+        "collection": collection_name,
+        "ttl_secs": ttl_secs,
+        "status": "ok",
+    })))
+}
+
+// ─── Phase-14: schema-evolution handlers ────────────────────────────────────
+
+/// POST /collections/{name}/rename
+///
+/// Body: `{"new_name": "…"}`
+///
+/// Atomically renames the collection and keeps the old name as a
+/// grace-window alias for one minor version so existing clients keep
+/// working without reconfiguration.
+///
+/// The alias is in-memory only and does not survive a restart.
+pub async fn rename_collection(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, ErrorResponse> {
+    let new_name = payload
+        .get("new_name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            crate::server::error_middleware::create_validation_error(
+                "new_name",
+                "missing or invalid new_name parameter",
+            )
+        })?;
+
+    state
+        .store
+        .rename_collection(&collection_name, new_name)
+        .map_err(ErrorResponse::from)?;
+
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
+    info!("rename_collection '{}' → '{}'", collection_name, new_name);
+
+    Ok(Json(json!({
+        "old_name": collection_name,
+        "new_name": new_name,
+        "alias_retained": collection_name,
+        "status": "ok",
+    })))
+}
+
+/// POST /collections/{name}/reindex
+///
+/// Body: `{"m": 32, "ef_construction": 200, "ef_search": 100}`
+///
+/// Rebuilds the HNSW index with new parameters from existing stored
+/// vectors — no re-embedding required. The collection write-lock is
+/// held for the duration so concurrent inserts queue behind the swap.
+///
+/// Returns a job-style response for SDK symmetry.
+pub async fn reindex_collection(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, ErrorResponse> {
+    let m = payload.get("m").and_then(|v| v.as_u64()).unwrap_or(16) as usize;
+    let ef_construction = payload
+        .get("ef_construction")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(200) as usize;
+    let ef_search = payload
+        .get("ef_search")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(100) as usize;
+
+    let new_params = vectorizer::models::HnswConfig {
+        m,
+        ef_construction,
+        ef_search,
+        seed: None,
+    };
+
+    // Verify the collection exists before spawning blocking work.
+    state
+        .store
+        .get_collection(&collection_name)
+        .map_err(ErrorResponse::from)?;
+
+    let store = state.store.clone();
+    let col_name = collection_name.clone();
+
+    let result =
+        tokio::task::spawn_blocking(move || store.reindex_collection(&col_name, new_params))
+            .await
+            .map_err(|e| {
+                crate::server::error_middleware::create_bad_request_error(&format!(
+                    "reindex task error: {}",
+                    e
+                ))
+            })?
+            .map_err(ErrorResponse::from)?;
+
+    let _ = result;
+
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
+    info!(
+        "reindex_collection '{}' completed (M={}, ef_construction={}, ef_search={})",
+        collection_name, m, ef_construction, ef_search
+    );
+
+    Ok(Json(json!({
+        "job_id": format!("reindex-{}-{}", collection_name, chrono::Utc::now().timestamp()),
+        "collection": collection_name,
+        "state": "completed",
+        "params": { "m": m, "ef_construction": ef_construction, "ef_search": ef_search },
+        "progress": 1.0,
+    })))
+}
+
+/// POST /collections/{name}/snapshot
+///
+/// Creates a native per-collection snapshot (gzip-compressed JSON,
+/// stored under `<data_dir>/collection_snapshots/<name>/`).
+pub async fn create_native_snapshot(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+) -> Result<Json<serde_json::Value>, ErrorResponse> {
+    let store = state.store.clone();
+    let col_name = collection_name.clone();
+
+    let info = tokio::task::spawn_blocking(move || store.snapshot_collection_native(&col_name))
+        .await
+        .map_err(|e| {
+            crate::server::error_middleware::create_bad_request_error(&format!(
+                "snapshot task error: {}",
+                e
+            ))
+        })?
+        .map_err(ErrorResponse::from)?;
+
+    info!(
+        "create_native_snapshot '{}': id={}",
+        collection_name, info.id
+    );
+
+    Ok(Json(json!({
+        "id": info.id,
+        "collection": info.collection,
+        "created_at": info.created_at.to_rfc3339(),
+        "size_bytes": info.size_bytes,
+        "status": "ok",
+    })))
+}
+
+/// GET /collections/{name}/snapshots
+///
+/// Lists all native snapshots for the collection (newest first).
+pub async fn list_native_snapshots(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+) -> Result<Json<serde_json::Value>, ErrorResponse> {
+    let snapshots = state
+        .store
+        .list_native_snapshots(&collection_name)
+        .map_err(ErrorResponse::from)?;
+
+    let items: Vec<serde_json::Value> = snapshots
+        .iter()
+        .map(|s| {
+            json!({
+                "id": s.id,
+                "collection": s.collection,
+                "created_at": s.created_at.to_rfc3339(),
+                "size_bytes": s.size_bytes,
+            })
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "collection": collection_name,
+        "snapshots": items,
+        "total": items.len(),
+    })))
+}
+
+/// POST /collections/{name}/snapshots/{id}/restore
+///
+/// Restores the collection from a native snapshot. Drops the current
+/// in-memory state and replaces it with the snapshot data.
+pub async fn restore_native_snapshot(
+    State(state): State<VectorizerServer>,
+    Path((collection_name, snapshot_id)): Path<(String, String)>,
+) -> Result<Json<serde_json::Value>, ErrorResponse> {
+    let store = state.store.clone();
+    let col_name = collection_name.clone();
+    let snap_id = snapshot_id.clone();
+
+    tokio::task::spawn_blocking(move || store.restore_native_snapshot(&col_name, &snap_id))
+        .await
+        .map_err(|e| {
+            crate::server::error_middleware::create_bad_request_error(&format!(
+                "restore task error: {}",
+                e
+            ))
+        })?
+        .map_err(ErrorResponse::from)?;
+
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
+    info!(
+        "restore_native_snapshot '{}' from snapshot '{}'",
+        collection_name, snapshot_id
+    );
+
+    Ok(Json(json!({
+        "collection": collection_name,
+        "snapshot_id": snapshot_id,
+        "status": "restored",
+    })))
 }

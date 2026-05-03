@@ -156,18 +156,18 @@ class GraphClient(_ApiBase):
             validate_non_empty_string(edge_id)
             logger.debug(f"Deleting graph edge: {edge_id}")
 
-            data = await self._transport.delete(f"/graph/collections/{collection}/edges")
-            result = ListEdgesResponse(**data)
-            logger.debug(f"Graph edges listed: {result.count} edges found")
-            return result
+            data = await self._transport.delete(f"/graph/edges/{edge_id}")
+            success = data.get("success", False) if isinstance(data, dict) else bool(data)
+            logger.debug(f"Graph edge deleted: edge_id={edge_id}, success={success}")
+            return success
         except (ValidationError, ValueError) as e:
-            logger.error(f"Validation error listing graph edges: {e}")
+            logger.error(f"Validation error deleting graph edge: {e}")
             if isinstance(e, ValueError):
                 raise ValidationError(str(e))
             raise
         except aiohttp.ClientError as e:
-            logger.error(f"Network error listing graph edges: {e}")
-            raise NetworkError(f"Failed to list graph edges: {e}")
+            logger.error(f"Network error deleting graph edge: {e}")
+            raise NetworkError(f"Failed to delete graph edge: {e}")
 
     async def discover_graph_edges(
         self,

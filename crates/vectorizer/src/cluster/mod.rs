@@ -12,6 +12,7 @@ mod manager;
 mod node;
 pub mod raft_node;
 pub mod raft_watcher;
+pub mod rebalance;
 mod server_client;
 pub mod shard_migrator;
 mod shard_router;
@@ -32,6 +33,7 @@ pub use raft_node::{
     ClusterCommand, ClusterResponse, ClusterStateMachine, RaftManager, TypeConfig,
 };
 pub use raft_watcher::RaftWatcher;
+pub use rebalance::{PeerInfo, PeerRole, RebalanceJob, RebalanceStatus};
 pub use server_client::{ClusterClient, ClusterClientPool};
 pub use shard_router::DistributedShardRouter;
 pub use state_sync::ClusterStateSynchronizer;

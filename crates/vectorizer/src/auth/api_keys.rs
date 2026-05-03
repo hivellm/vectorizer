@@ -82,6 +82,9 @@ impl ApiKeyManager {
             last_used: None,
             expires_at,
             active: true,
+            scopes: Vec::new(),
+            grace_until: None,
+            rotated_to: None,
         };
 
         let mut keys = self.keys.write().await;
@@ -90,29 +93,45 @@ impl ApiKeyManager {
         Ok((api_key, key_info))
     }
 
-    /// Validate an API key and return key information
+    /// Validate an API key and return key information.
+    ///
+    /// A rotated key whose `grace_until` has not yet passed is still
+    /// accepted so that deployed clients can roll over without a 401 gap.
     pub async fn validate_key(&self, api_key: &str) -> Result<ApiKey> {
         let key_hash = self.hash_key(api_key);
+        let now = chrono::Utc::now().timestamp() as u64;
         let keys = self.keys.read().await;
 
-        // Find the key by hash
-        for (_, key_info) in keys.iter() {
+        for key_info in keys.values() {
             // Hash comparison against a freshly computed hash. Same algorithm on
             // both sides, so a simple byte-equal is correct (the hash itself is
             // already a constant-size digest; no plaintext leaks).
-            if key_info.key_hash.expose_secret() == &key_hash && key_info.active {
-                // Check expiration
-                if let Some(expires_at) = key_info.expires_at {
-                    let now = chrono::Utc::now().timestamp() as u64;
-                    if now > expires_at {
-                        return Err(VectorizerError::AuthenticationError(
-                            "API key has expired".to_string(),
-                        ));
+            if key_info.key_hash.expose_secret() != &key_hash {
+                continue;
+            }
+
+            if !key_info.active {
+                // Rotated-but-within-grace: still accept.
+                if let Some(grace) = key_info.grace_until {
+                    if now <= grace {
+                        return Ok(key_info.clone());
                     }
                 }
-
-                return Ok(key_info.clone());
+                return Err(VectorizerError::AuthenticationError(
+                    "API key has been revoked".to_string(),
+                ));
             }
+
+            // Check expiration
+            if let Some(expires_at) = key_info.expires_at {
+                if now > expires_at {
+                    return Err(VectorizerError::AuthenticationError(
+                        "API key has expired".to_string(),
+                    ));
+                }
+            }
+
+            return Ok(key_info.clone());
         }
 
         Err(VectorizerError::AuthenticationError(
@@ -210,6 +229,64 @@ impl ApiKeyManager {
     pub async fn delete_key(&self, key_id: &str) -> Result<()> {
         let mut keys = self.keys.write().await;
         keys.remove(key_id);
+        Ok(())
+    }
+
+    /// Create a new API key with per-collection scopes.
+    ///
+    /// Identical to `create_key` except the resulting key carries the
+    /// supplied `scopes`.  An empty `scopes` vec means default-deny on
+    /// scope-enforced routes.
+    pub async fn create_key_with_scopes(
+        &self,
+        user_id: &str,
+        name: &str,
+        permissions: Vec<crate::auth::roles::Permission>,
+        expires_at: Option<u64>,
+        scopes: Vec<crate::auth::TokenScope>,
+    ) -> Result<(String, ApiKey)> {
+        let key_id = Uuid::new_v4().to_string();
+        let api_key = self.generate_key();
+        let key_hash = self.hash_key(&api_key);
+        let now = chrono::Utc::now().timestamp() as u64;
+
+        let key_info = ApiKey {
+            id: key_id.clone(),
+            name: name.to_string(),
+            key_hash: crate::auth::Secret::new(key_hash),
+            user_id: user_id.to_string(),
+            permissions,
+            created_at: now,
+            last_used: None,
+            expires_at,
+            active: true,
+            scopes,
+            grace_until: None,
+            rotated_to: None,
+        };
+
+        let mut keys = self.keys.write().await;
+        keys.insert(key_id, key_info.clone());
+
+        Ok((api_key, key_info))
+    }
+
+    /// Record that `old_key_id` was rotated to `new_key_id` and set its
+    /// grace window.  The old key remains `active = true` until
+    /// `grace_until` so callers can roll over without a 401 gap.
+    pub async fn set_rotation_metadata(
+        &self,
+        old_key_id: &str,
+        new_key_id: String,
+        grace_until: u64,
+    ) -> Result<()> {
+        let mut keys = self.keys.write().await;
+        let key = keys.get_mut(old_key_id).ok_or_else(|| {
+            VectorizerError::NotFound(format!("API key {} not found", old_key_id))
+        })?;
+        key.rotated_to = Some(new_key_id);
+        key.grace_until = Some(grace_until);
+        // Keep active = true; the validate_key path checks grace_until.
         Ok(())
     }
 }

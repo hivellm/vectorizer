@@ -36,7 +36,17 @@ pub mod pool;
 pub mod types;
 
 pub use client::{HelloPayload, HelloResponse, RpcClient, RpcClientError};
-pub use commands::{CollectionInfo, SearchHit};
+pub use commands::{
+    AdminStats, AdminStatus, AnswerPlanResult, AnswerPlanSection, ApiKeyCreated, AuthMeResult,
+    BatchDeleteResult, BatchInsertResult, BatchItemResult, BatchSearchResult, BatchUpdateResult,
+    BulkUpdateMetadataRpcResult, CleanupEmptyResult, CollectionInfo, CompressBullet, CopyRpcResult,
+    CreateCollectionResult, DeleteByFilterRpcResult, DiscoverEdgesForNodeResult,
+    DiscoverEdgesResult, DiscoverResult, DiscoveryChunk, EmbedResult, ExpandQueriesResult,
+    GraphDiscoveryStatus, MoveRpcResult, RebalanceStatus, RefreshTokenResult, RenderPromptResult,
+    ReplicationConfigureResult, RotatedApiKey, SearchExplainResult, SearchHit, SearchTrace,
+    SetExpiryResult, SlowQueryConfigResult, ValidatePasswordResult, VectorListResult,
+    VectorWriteResult,
+};
 pub use endpoint::{Endpoint, ParseError, parse_endpoint};
 pub use pool::RpcPool;
 pub use types::{Request, Response, VectorizerValue};

@@ -172,7 +172,11 @@ class HTTPClient:
     async def delete(self, path: str) -> Any:
         """Make a DELETE request."""
         return await self.request("DELETE", path)
-    
+
+    async def patch(self, path: str, data: Optional[Dict[str, Any]] = None) -> Any:
+        """Make a PATCH request."""
+        return await self.request("PATCH", path, data)
+
     def _handle_error(self, status: int, error_text: str) -> Exception:
         """Handle HTTP errors and convert to appropriate exceptions."""
         message = f"HTTP {status}: {error_text}"

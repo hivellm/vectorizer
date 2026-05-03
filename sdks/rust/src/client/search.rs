@@ -11,7 +11,7 @@ use crate::error::{Result, VectorizerError};
 use crate::models::hybrid_search::{
     HybridScoringAlgorithm, HybridSearchRequest, HybridSearchResponse,
 };
-use crate::models::*;
+use crate::models::{ExplainRequest, ExplainResponse, ExplainTrace, *};
 
 impl VectorizerClient {
     /// Text search against one collection. The server embeds the
@@ -127,6 +127,60 @@ impl VectorizerClient {
         })
     }
 
+    /// Search a collection for vectors associated with a given file path.
+    ///
+    /// Calls `POST /collections/{name}/search/file` with `{file_path, limit?}`.
+    /// Returns a [`SearchResponse`] (may be empty if the file is not indexed).
+    pub async fn search_by_file(
+        &self,
+        collection: &str,
+        request: SearchByFileRequest,
+    ) -> Result<SearchResponse> {
+        let url = format!("/collections/{collection}/search/file");
+        let payload = serde_json::json!({
+            "file_path": request.file_path,
+            "limit": request.limit.unwrap_or(10),
+        });
+        let response = self.make_request("POST", &url, Some(payload)).await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse search_by_file response: {e}"))
+        })
+    }
+
+    // ── Phase-14: observability ────────────────────────────────────────────────
+
+    /// Run a search and return the full HNSW execution trace (phase14).
+    ///
+    /// Calls `POST /collections/{name}/explain` with
+    /// `{"vector": [f32…], "k": <u64>}`.
+    ///
+    /// The trace includes: `visited_nodes`, `ef_search`, `hnsw_search_ms`,
+    /// `payload_filter_evals`, `quantization_score_ms`, and `total_ms`. The
+    /// results are identical to a normal search — there is no separate explain
+    /// engine; the real code path is instrumented.
+    pub async fn explain_search(
+        &self,
+        collection: &str,
+        request: crate::models::ExplainRequest,
+    ) -> Result<crate::models::ExplainResponse> {
+        let mut payload = serde_json::json!({ "vector": request.vector });
+        if let Some(k) = request.k {
+            payload
+                .as_object_mut()
+                .map(|o| o.insert("k".to_string(), serde_json::json!(k)));
+        }
+        let response = self
+            .make_request(
+                "POST",
+                &format!("/collections/{collection}/explain"),
+                Some(payload),
+            )
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse explain_search response: {e}"))
+        })
+    }
+
     /// Hybrid search combining dense and sparse vectors with one of
     /// three scoring algorithms (RRF, weighted, alpha-blending).
     pub async fn hybrid_search(
@@ -154,5 +208,77 @@ impl VectorizerClient {
         serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!("Failed to parse hybrid search response: {e}"))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{ExplainRequest, ExplainResponse, ExplainTrace};
+    use serde_json::json;
+
+    #[test]
+    fn explain_request_serialize_with_k() {
+        let req = ExplainRequest {
+            vector: vec![0.1, 0.2, 0.3],
+            k: Some(5),
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        assert_eq!(v["k"], 5);
+        // f32 → f64 promotion introduces sub-microsecond error; use epsilon.
+        let first = v["vector"][0].as_f64().unwrap();
+        assert!((first - 0.1_f64).abs() < 1e-6, "unexpected value: {first}");
+    }
+
+    #[test]
+    fn explain_request_serialize_without_k() {
+        let req = ExplainRequest {
+            vector: vec![0.1],
+            k: None,
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        // k is skip_serializing_if = "Option::is_none"
+        assert!(v.get("k").is_none());
+    }
+
+    #[test]
+    fn explain_response_wire_shape() {
+        // Mirror of `POST /collections/{name}/explain` response.
+        let raw = json!({
+            "collection": "docs",
+            "k": 10,
+            "results": [
+                { "id": "vec-1", "score": 0.95, "payload": null }
+            ],
+            "trace": {
+                "visited_nodes": 120,
+                "ef_search": 100,
+                "hnsw_search_ms": 1.23,
+                "payload_filter_evals": 0,
+                "quantization_score_ms": 0.45,
+                "total_ms": 2.10,
+            }
+        });
+        let resp: ExplainResponse = serde_json::from_value(raw).unwrap();
+        assert_eq!(resp.collection, "docs");
+        assert_eq!(resp.k, 10);
+        assert_eq!(resp.results.len(), 1);
+        assert_eq!(resp.trace.visited_nodes, 120);
+        assert_eq!(resp.trace.ef_search, 100);
+        assert!((resp.trace.hnsw_search_ms - 1.23).abs() < 1e-6);
+    }
+
+    #[test]
+    fn explain_trace_deserializes_all_fields() {
+        let raw = json!({
+            "visited_nodes": 200,
+            "ef_search": 64,
+            "hnsw_search_ms": 3.5,
+            "payload_filter_evals": 10,
+            "quantization_score_ms": 0.8,
+            "total_ms": 5.0,
+        });
+        let t: ExplainTrace = serde_json::from_value(raw).unwrap();
+        assert_eq!(t.payload_filter_evals, 10);
+        assert!((t.quantization_score_ms - 0.8).abs() < 1e-9);
     }
 }

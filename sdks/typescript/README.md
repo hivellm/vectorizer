@@ -541,6 +541,188 @@ for (const row of moveReport.results) {
 }
 ```
 
+## Control surface (3.4)
+
+### Admin / observability
+
+```typescript
+const client = new VectorizerClient({ baseURL: "http://localhost:15002" });
+
+// Server health, uptime, collection/vector counts
+const stats = await client.getStats();
+console.log("Total vectors:", stats.total_vectors);
+
+const status = await client.getStatus();
+console.log(`Server v${status.version}, uptime: ${status.uptime}s`);
+
+// Recent logs
+const logs = await client.getLogs({ lines: 50, level: "INFO" });
+for (const entry of logs) {
+  console.log(`${entry.timestamp}: ${entry.message}`);
+}
+
+// Per-collection indexing progress
+const progress = await client.getIndexingProgress();
+for (const [collection, pct] of Object.entries(progress.progress)) {
+  console.log(`${collection}: ${pct.toFixed(1)}% complete`);
+}
+
+// Force flush one collection
+await client.forceSaveCollection("my_docs");
+
+// List and clean empty collections
+const empty = await client.listEmptyCollections();
+if (empty.length > 0) {
+  const report = await client.cleanupEmptyCollections();
+  console.log(`Cleaned up ${report.deleted} empty collections`);
+}
+
+// List workspaces
+const workspaces = await client.listWorkspaces();
+console.log("Workspaces:", workspaces);
+```
+
+### Auth
+
+```typescript
+const client = new VectorizerClient({ baseURL: "http://localhost:15002" });
+
+// Current user info
+const user = await client.me();
+console.log(`Logged in as: ${user.username} (roles: ${user.roles.join(", ")})`);
+
+// Refresh token with extended TTL
+const token = await client.refreshToken();
+console.log(`Token refreshed, expires in: ${token.expires_in} seconds`);
+
+// Validate password before creating account
+const report = await client.validatePassword("MySecure123!");
+console.log(`Valid: ${report.valid}, feedback: ${report.feedback.join(", ")}`);
+
+// Create API key for programmatic access
+const apiKey = await client.createApiKey({
+  name: "integration-key",
+  expires_in: 86400 * 365, // 1 year
+});
+console.log("API Key:", apiKey.api_key);
+
+// List and revoke API keys
+const keys = await client.listApiKeys();
+for (const key of keys) {
+  console.log(`Key: ${key.id} (expires: ${key.expires_at})`);
+}
+await client.revokeApiKey(keys[0].id);
+
+// Change password
+await client.changePassword("newPassword123!");
+
+// Logout
+await client.logout();
+```
+
+### Replication
+
+```typescript
+const client = new VectorizerClient({ baseURL: "http://localhost:15002" });
+
+// Check replication role and status
+const status = await client.getReplicationStatus();
+console.log(`Role: ${status.role}, enabled: ${status.enabled}`);
+
+// Get replication statistics (lag, bytes synced)
+const stats = await client.getReplicationStats();
+console.log(`Bytes synced: ${stats.bytes_synced}`);
+
+// List all replicas connected to this master
+const replicas = await client.listReplicas();
+for (const replica of replicas) {
+  console.log(`Replica: ${replica.address} (lag: ${replica.lag_ms}ms)`);
+}
+```
+
+### Discovery pipeline
+
+The discovery pipeline chains six stages from broad search to final LLM-ready prompt:
+
+```typescript
+const client = new VectorizerClient({ baseURL: "http://localhost:15002" });
+
+// Stage 1: Broad discovery — multi-query search across all collections
+const broad = await client.broadDiscovery({
+  query: "machine learning algorithms",
+  max_results: 20,
+});
+console.log(`Found ${broad.results.length} broad results`);
+
+// Stage 2: Semantic focus — narrow search to top collection
+const focused = await client.semanticFocus({
+  query: "neural networks",
+  collection: "research",
+  max_results: 10,
+});
+console.log(`Focused results: ${focused.results.length}`);
+
+// Stage 3: Promote README — elevate high-quality chunks
+const promoted = await client.promoteReadme({
+  results: focused.results,
+  readme_boost: 2.0,
+});
+
+// Stage 4: Compress evidence — distill to bullet points
+const bullets = await client.compressEvidence({
+  chunks: promoted.results,
+  max_bullets: 15,
+});
+console.log("Evidence bullets:", bullets.bullets);
+
+// Stage 5: Build answer plan — organize bullets into sections
+const plan = await client.buildAnswerPlan({
+  evidence: bullets.bullets,
+  max_sections: 5,
+});
+console.log("Sections:", plan.sections);
+
+// Stage 6: Render LLM prompt — final markdown string for LLM
+const llmPrompt = await client.renderLlmPrompt({
+  plan,
+  style: "formal",
+});
+console.log("LLM prompt:\n", llmPrompt.markdown);
+```
+
+### Hub backups
+
+```typescript
+const client = new VectorizerClient({ baseURL: "http://localhost:15002" });
+
+const userId = "user-123";
+
+// List user's backups
+const backups = await client.listUserBackups(userId);
+for (const backup of backups) {
+  console.log(`Backup: ${backup.id} (size: ${backup.size_bytes} bytes)`);
+}
+
+// Create a new backup
+const newBackup = await client.createUserBackup({
+  user_id: userId,
+  name: "full-backup-2024-01",
+  description: "January full backup",
+  collections: undefined, // backup all
+});
+console.log("Created backup:", newBackup.id);
+
+// Restore a backup
+await client.restoreUserBackup({
+  user_id: userId,
+  backup_id: newBackup.id,
+});
+console.log("Restore started");
+
+// Delete old backup
+await client.deleteUserBackup(userId, backups[0].id);
+```
+
 ### Search Operations
 
 ```typescript

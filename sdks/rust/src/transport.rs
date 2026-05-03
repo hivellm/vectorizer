@@ -44,6 +44,9 @@ pub trait Transport: Send + Sync {
     /// Make a DELETE request
     async fn delete(&self, path: &str) -> Result<String>;
 
+    /// Make a PATCH request
+    async fn patch(&self, path: &str, data: Option<&Value>) -> Result<String>;
+
     /// Get the protocol being used
     fn protocol(&self) -> Protocol;
 }

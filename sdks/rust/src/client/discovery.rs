@@ -1,11 +1,22 @@
 //! Discovery surface: orchestrated multi-stage retrieval.
 //!
 //! `discover` is the headline pipeline (filter → score → expand →
-//! search → bullet-summarise); the other three methods expose the
-//! individual stages so callers can swap or compose them.
+//! search → bullet-summarise); the other methods expose individual
+//! stages and the new phase12 pipeline steps:
+//! - `broad_discovery` — multi-query broad search across collections
+//! - `semantic_focus` — focused search within one collection
+//! - `promote_readme` — README-quality chunk promotion
+//! - `compress_evidence` — evidence compression into bullets
+//! - `build_answer_plan` — bullet → section organisation
+//! - `render_llm_prompt` — plan → final LLM prompt string
 
 use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
+use crate::models::{
+    AnswerPlan, AnswerPlanRequest, BroadDiscoveryRequest, BroadDiscoveryResponse,
+    CompressEvidenceRequest, CompressEvidenceResponse, LlmPrompt, PromoteReadmeRequest,
+    PromoteReadmeResponse, RenderPromptRequest, SemanticFocusRequest, SemanticFocusResponse,
+};
 
 impl VectorizerClient {
     /// End-to-end discovery pipeline with intelligent search and
@@ -208,5 +219,228 @@ impl VectorizerClient {
             .await?;
         serde_json::from_str(&response)
             .map_err(|e| VectorizerError::server(format!("Failed to parse expand response: {e}")))
+    }
+
+    /// Broad multi-query search across all collections.
+    ///
+    /// Calls `POST /discovery/broad_discovery` with `{queries, k?}`.
+    pub async fn broad_discovery(
+        &self,
+        request: BroadDiscoveryRequest,
+    ) -> Result<BroadDiscoveryResponse> {
+        let payload = serde_json::json!({
+            "queries": request.queries,
+            "k": request.k.unwrap_or(50),
+        });
+        let response = self
+            .make_request("POST", "/discovery/broad_discovery", Some(payload))
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse broad_discovery response: {e}"))
+        })
+    }
+
+    /// Focused semantic search within a single collection.
+    ///
+    /// Calls `POST /discovery/semantic_focus` with `{collection, queries, k?}`.
+    pub async fn semantic_focus(
+        &self,
+        request: SemanticFocusRequest,
+    ) -> Result<SemanticFocusResponse> {
+        let payload = serde_json::json!({
+            "collection": request.collection,
+            "queries": request.queries,
+            "k": request.k.unwrap_or(15),
+        });
+        let response = self
+            .make_request("POST", "/discovery/semantic_focus", Some(payload))
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse semantic_focus response: {e}"))
+        })
+    }
+
+    /// Promote README-quality chunks to the top of a result set.
+    ///
+    /// Calls `POST /discovery/promote_readme` with `{chunks}`.
+    pub async fn promote_readme(
+        &self,
+        request: PromoteReadmeRequest,
+    ) -> Result<PromoteReadmeResponse> {
+        let payload = serde_json::json!({ "chunks": request.chunks });
+        let response = self
+            .make_request("POST", "/discovery/promote_readme", Some(payload))
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse promote_readme response: {e}"))
+        })
+    }
+
+    /// Compress a chunk set into a concise bullet list.
+    ///
+    /// Calls `POST /discovery/compress_evidence` with
+    /// `{chunks, max_bullets?, max_per_doc?}`.
+    pub async fn compress_evidence(
+        &self,
+        request: CompressEvidenceRequest,
+    ) -> Result<CompressEvidenceResponse> {
+        let mut payload = serde_json::json!({ "chunks": request.chunks });
+        if let Some(mb) = request.max_bullets {
+            payload["max_bullets"] = serde_json::json!(mb);
+        }
+        if let Some(mpd) = request.max_per_doc {
+            payload["max_per_doc"] = serde_json::json!(mpd);
+        }
+        let response = self
+            .make_request("POST", "/discovery/compress_evidence", Some(payload))
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse compress_evidence response: {e}"))
+        })
+    }
+
+    /// Organise bullets into a structured answer plan.
+    ///
+    /// Calls `POST /discovery/build_answer_plan` with `{bullets}`.
+    pub async fn build_answer_plan(&self, request: AnswerPlanRequest) -> Result<AnswerPlan> {
+        let payload = serde_json::json!({ "bullets": request.bullets });
+        let response = self
+            .make_request("POST", "/discovery/build_answer_plan", Some(payload))
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse build_answer_plan response: {e}"))
+        })
+    }
+
+    /// Render an answer plan into a final LLM prompt string.
+    ///
+    /// Calls `POST /discovery/render_llm_prompt` with `{plan}`.
+    pub async fn render_llm_prompt(&self, request: RenderPromptRequest) -> Result<LlmPrompt> {
+        let payload = serde_json::json!({ "plan": request.plan });
+        let response = self
+            .make_request("POST", "/discovery/render_llm_prompt", Some(payload))
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse render_llm_prompt response: {e}"))
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use serde_json::json;
+
+    use crate::models::{
+        AnswerPlan, AnswerPlanRequest, BroadDiscoveryRequest, BroadDiscoveryResponse,
+        CompressEvidenceRequest, CompressEvidenceResponse, LlmPrompt, PromoteReadmeRequest,
+        PromoteReadmeResponse, RenderPromptRequest, SemanticFocusRequest, SemanticFocusResponse,
+    };
+
+    #[test]
+    fn broad_discovery_request_serializes() {
+        let req = BroadDiscoveryRequest {
+            queries: vec!["HNSW index".into(), "embedding model".into()],
+            k: Some(30),
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        assert_eq!(v["queries"][0], "HNSW index");
+        assert_eq!(v["k"], 30);
+    }
+
+    #[test]
+    fn broad_discovery_response_deserializes() {
+        let raw = json!({
+            "chunks": [{"collection": "docs", "score": 0.9, "content_preview": "test"}],
+            "count": 1
+        });
+        let resp: BroadDiscoveryResponse = serde_json::from_value(raw).unwrap();
+        assert_eq!(resp.count, 1);
+        assert_eq!(resp.chunks.len(), 1);
+    }
+
+    #[test]
+    fn semantic_focus_request_serializes() {
+        let req = SemanticFocusRequest {
+            collection: "code".into(),
+            queries: vec!["async runtime".into()],
+            k: None,
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        assert_eq!(v["collection"], "code");
+        assert_eq!(v["queries"][0], "async runtime");
+    }
+
+    #[test]
+    fn semantic_focus_response_deserializes() {
+        let raw = json!({ "chunks": [], "count": 0 });
+        let resp: SemanticFocusResponse = serde_json::from_value(raw).unwrap();
+        assert_eq!(resp.count, 0);
+    }
+
+    #[test]
+    fn promote_readme_request_serializes() {
+        let req = PromoteReadmeRequest {
+            chunks: vec![json!({"collection": "docs", "score": 0.8, "content": "README text"})],
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        assert!(v["chunks"].is_array());
+    }
+
+    #[test]
+    fn promote_readme_response_deserializes() {
+        let raw = json!({ "promoted_chunks": [], "count": 0 });
+        let resp: PromoteReadmeResponse = serde_json::from_value(raw).unwrap();
+        assert_eq!(resp.count, 0);
+    }
+
+    #[test]
+    fn compress_evidence_round_trip() {
+        let req = CompressEvidenceRequest {
+            chunks: vec![json!({"collection": "c", "score": 1.0, "content": "x"})],
+            max_bullets: Some(5),
+            max_per_doc: Some(2),
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        assert_eq!(v["max_bullets"], 5);
+
+        let raw = json!({ "bullets": [{"text": "b", "source_id": "s", "category": "Feature", "score": 0.9}], "count": 1 });
+        let resp: CompressEvidenceResponse = serde_json::from_value(raw).unwrap();
+        assert_eq!(resp.count, 1);
+    }
+
+    #[test]
+    fn answer_plan_round_trip() {
+        let plan = AnswerPlan {
+            sections: vec![json!({"title": "Intro", "bullets_count": 1, "bullets": []})],
+            total_bullets: 1,
+            sources: vec!["docs".into()],
+        };
+        let serialized = serde_json::to_value(&plan).unwrap();
+        let parsed: AnswerPlan = serde_json::from_value(serialized).unwrap();
+        assert_eq!(parsed.total_bullets, 1);
+        assert_eq!(parsed.sources[0], "docs");
+    }
+
+    #[test]
+    fn llm_prompt_deserializes() {
+        let raw = json!({ "prompt": "Answer: ...", "length": 10, "estimated_tokens": 2 });
+        let lp: LlmPrompt = serde_json::from_value(raw).unwrap();
+        assert_eq!(lp.prompt, "Answer: ...");
+        assert_eq!(lp.estimated_tokens, 2);
+    }
+
+    #[test]
+    fn render_prompt_request_serializes() {
+        let req = RenderPromptRequest {
+            plan: AnswerPlan {
+                sections: vec![],
+                total_bullets: 0,
+                sources: vec![],
+            },
+        };
+        let v = serde_json::to_value(&req).unwrap();
+        assert!(v["plan"].is_object());
     }
 }

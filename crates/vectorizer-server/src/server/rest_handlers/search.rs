@@ -3,6 +3,7 @@
 //! - `search_vectors_by_text`  — POST /collections/{name}/search/text (embedding-backed)
 //! - `hybrid_search_vectors`   — POST /collections/{name}/search/hybrid (dense + sparse)
 //! - `search_by_file`          — POST /collections/{name}/search/file
+//! - `explain_search`          — POST /collections/{name}/explain
 //! - `search_vectors`          — POST /search (raw vector, returns empty results until wired)
 //! - `batch_search_vectors`    — POST /batch/search
 //! - `batch_update_vectors`    — POST /batch/update
@@ -948,5 +949,74 @@ pub async fn batch_delete_vectors(
         "deleted": deleted,
         "failed": failed,
         "results": results,
+    })))
+}
+
+// ─── Phase-14: explain_search ────────────────────────────────────────────────
+
+/// POST /collections/{name}/explain
+///
+/// Runs the same HNSW search as a normal query but returns a full
+/// execution trace alongside the results: visited_nodes, ef_search,
+/// per-phase latency (hnsw_search_ms, quantization_score_ms, total_ms),
+/// and payload_filter_evals.
+///
+/// The trace is guaranteed to reflect the real search code path — there
+/// is no separate explain engine.
+///
+/// Body: `{"vector": [f32…], "k": 10}`
+pub async fn explain_search(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, ErrorResponse> {
+    let k = payload.get("k").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+
+    let query_vector: Vec<f32> = payload
+        .get("vector")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| create_validation_error("vector", "missing or invalid vector array"))?
+        .iter()
+        .filter_map(|v| v.as_f64().map(|f| f as f32))
+        .collect();
+
+    if query_vector.is_empty() {
+        return Err(create_validation_error("vector", "vector array is empty"));
+    }
+
+    let store = state.store.clone();
+    let col_name = collection_name.clone();
+
+    let explain =
+        tokio::task::spawn_blocking(move || store.search_explained(&col_name, &query_vector, k))
+            .await
+            .map_err(|e| create_bad_request_error(&format!("explain task error: {}", e)))?
+            .map_err(ErrorResponse::from)?;
+
+    let results: Vec<serde_json::Value> = explain
+        .results
+        .iter()
+        .map(|r| {
+            json!({
+                "id": r.id,
+                "score": r.score,
+                "payload": r.payload.as_ref().map(|p| &p.data),
+            })
+        })
+        .collect();
+
+    let trace = &explain.trace;
+    Ok(Json(json!({
+        "collection": collection_name,
+        "k": k,
+        "results": results,
+        "trace": {
+            "visited_nodes": trace.visited_nodes,
+            "ef_search": trace.ef_search,
+            "hnsw_search_ms": trace.hnsw_search_ms,
+            "payload_filter_evals": trace.payload_filter_evals,
+            "quantization_score_ms": trace.quantization_score_ms,
+            "total_ms": trace.total_ms,
+        },
     })))
 }

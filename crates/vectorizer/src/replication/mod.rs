@@ -17,6 +17,7 @@ pub mod durable_log;
 pub mod master;
 pub mod replica;
 pub mod replication_log;
+pub mod state;
 pub mod sync;
 pub mod types;
 
@@ -31,6 +32,7 @@ pub use durable_log::DurableReplicationLog;
 pub use master::MasterNode;
 pub use replica::ReplicaNode;
 pub use replication_log::ReplicationLog;
+pub use state::{DEFAULT_MAX_FAILOVER_LAG_SEGMENTS, FailoverReport, ResyncReport};
 pub use types::{
     CollectionConfigData, NodeRole, ReplicaInfo, ReplicaStatus, ReplicationCommand,
     ReplicationError, ReplicationOperation, ReplicationResult, ReplicationStats, VectorOperation,

@@ -301,6 +301,37 @@ impl Payload {
         copy.normalize();
         copy
     }
+
+    /// Returns the `__expires_at` field (Unix milliseconds) if present.
+    ///
+    /// The field is stored as a conventional key inside the JSON object so
+    /// serialisation round-trips are transparent and existing payloads that
+    /// pre-date the TTL feature continue to deserialise without error.
+    pub fn expires_at(&self) -> Option<i64> {
+        self.data.get("__expires_at").and_then(|v| v.as_i64())
+    }
+
+    /// Set the `__expires_at` field (Unix milliseconds).
+    pub fn set_expires_at(&mut self, ts_ms: i64) {
+        if let serde_json::Value::Object(ref mut map) = self.data {
+            map.insert(
+                "__expires_at".to_string(),
+                serde_json::Value::Number(ts_ms.into()),
+            );
+        }
+    }
+
+    /// Clear the `__expires_at` field.
+    pub fn clear_expires_at(&mut self) {
+        if let serde_json::Value::Object(ref mut map) = self.data {
+            map.remove("__expires_at");
+        }
+    }
+
+    /// Returns `true` if the payload has expired relative to `now_ms`.
+    pub fn is_expired(&self, now_ms: i64) -> bool {
+        self.expires_at().map_or(false, |exp| exp <= now_ms)
+    }
 }
 
 /// Configuration for a collection
@@ -626,6 +657,32 @@ pub struct SearchResult {
     pub vector: Option<Vec<f32>>,
     /// Associated payload
     pub payload: Option<Payload>,
+}
+
+/// Execution trace produced by an explained search.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchTrace {
+    /// Number of HNSW neighbor candidates returned by the index.
+    pub visited_nodes: usize,
+    /// Effective ef_search setting used for this query.
+    pub ef_search: usize,
+    /// Time spent inside the HNSW traversal in milliseconds.
+    pub hnsw_search_ms: f64,
+    /// Number of payload-filter evaluations (0 for plain vector search).
+    pub payload_filter_evals: usize,
+    /// Cumulative time spent dequantising result vectors in milliseconds.
+    pub quantization_score_ms: f64,
+    /// Total end-to-end search latency in milliseconds.
+    pub total_ms: f64,
+}
+
+/// Response returned by the `/collections/{name}/explain` endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExplainResponse {
+    /// The search results (identical to a normal search for the same query).
+    pub results: Vec<SearchResult>,
+    /// Execution trace.
+    pub trace: SearchTrace,
 }
 
 /// Collection metadata

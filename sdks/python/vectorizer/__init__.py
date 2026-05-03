@@ -41,7 +41,61 @@ from .search import SearchClient
 from .graph import GraphClient
 from .admin import AdminClient
 from .auth import AuthClient
+from .replication import ReplicationClient
+from .hub import HubClient
+from .discovery import DiscoveryClient
 from .client import VectorizerClient
+
+try:
+    from ..models import (
+        AddPeerRequest,
+        AuditEntry,
+        AuditQuery,
+        BulkUpdateReport,
+        CopyReport,
+        CreateScopedApiKeyRequest,
+        DeleteByFilterReport,
+        ExplainResponse,
+        ExplainTrace,
+        FailoverReport,
+        NativeSnapshotInfo,
+        PeerInfo,
+        RebalanceJob,
+        ReencodeJob,
+        ReindexJob,
+        ReindexParams,
+        ResyncJob,
+        RotatedKey,
+        SlowQueryConfig,
+        SlowQueryEntry,
+        TokenIntrospection,
+        TokenScope,
+    )
+except ImportError:  # pragma: no cover
+    from models import (  # type: ignore[import-not-found]
+        AddPeerRequest,
+        AuditEntry,
+        AuditQuery,
+        BulkUpdateReport,
+        CopyReport,
+        CreateScopedApiKeyRequest,
+        DeleteByFilterReport,
+        ExplainResponse,
+        ExplainTrace,
+        FailoverReport,
+        NativeSnapshotInfo,
+        PeerInfo,
+        RebalanceJob,
+        ReencodeJob,
+        ReindexJob,
+        ReindexParams,
+        ResyncJob,
+        RotatedKey,
+        SlowQueryConfig,
+        SlowQueryEntry,
+        TokenIntrospection,
+        TokenScope,
+    )
 
 __all__ = [
     "Transport",
@@ -55,4 +109,32 @@ __all__ = [
     "GraphClient",
     "AdminClient",
     "AuthClient",
+    "ReplicationClient",
+    "HubClient",
+    "DiscoveryClient",
+    # phase13 tier-control dataclasses
+    "BulkUpdateReport",
+    "CopyReport",
+    "DeleteByFilterReport",
+    "ReencodeJob",
+    # phase14 schema-evolution + observability dataclasses
+    "ExplainResponse",
+    "ExplainTrace",
+    "NativeSnapshotInfo",
+    "ReindexJob",
+    "ReindexParams",
+    "SlowQueryConfig",
+    "SlowQueryEntry",
+    # phase15 cluster + auth admin dataclasses
+    "AddPeerRequest",
+    "AuditEntry",
+    "AuditQuery",
+    "CreateScopedApiKeyRequest",
+    "FailoverReport",
+    "PeerInfo",
+    "RebalanceJob",
+    "ResyncJob",
+    "RotatedKey",
+    "TokenIntrospection",
+    "TokenScope",
 ]

@@ -60,7 +60,10 @@ from ._base import (
 from .admin import AdminClient
 from .auth import AuthClient
 from .collections import CollectionsClient
+from .discovery import DiscoveryClient
 from .graph import GraphClient
+from .hub import HubClient
+from .replication import ReplicationClient
 from .search import SearchClient
 from .vectors import VectorsClient
 
@@ -122,6 +125,9 @@ class VectorizerClient:
         self.graph = GraphClient(self._transport, **common_kwargs)
         self.admin = AdminClient(self._transport, **common_kwargs)
         self.auth = AuthClient(self._transport, api_key=api_key, **common_kwargs)
+        self.replication = ReplicationClient(self._transport, **common_kwargs)
+        self.hub = HubClient(self._transport, **common_kwargs)
+        self.discovery = DiscoveryClient(self._transport, **common_kwargs)
 
         # Ordered list used by __getattr__ to delegate unknown calls
         self._subclients: List[Any] = [
@@ -131,6 +137,9 @@ class VectorizerClient:
             self.graph,
             self.admin,
             self.auth,
+            self.replication,
+            self.hub,
+            self.discovery,
         ]
 
     # ------------------------------------------------------------------
@@ -323,6 +332,9 @@ class VectorizerClient:
             "graph",
             "admin",
             "auth",
+            "replication",
+            "hub",
+            "discovery",
         }:
             raise AttributeError(name)
         try:

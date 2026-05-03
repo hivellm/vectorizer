@@ -305,6 +305,61 @@ impl VectorizerServer {
                 "/collections/{name}/vectors/move",
                 post(rest_handlers::move_vectors),
             )
+            // Phase13: tier-control primitives
+            .route(
+                "/collections/{name}/vectors/delete_by_filter",
+                post(rest_handlers::delete_by_filter),
+            )
+            .route(
+                "/collections/{name}/vectors/bulk_update_metadata",
+                post(rest_handlers::bulk_update_metadata),
+            )
+            .route(
+                "/collections/{name}/vectors/copy",
+                post(rest_handlers::copy_vectors),
+            )
+            .route(
+                "/collections/{name}/vectors/{id}/expiry",
+                axum::routing::patch(rest_handlers::set_vector_expiry),
+            )
+            .route(
+                "/collections/{name}/reencode",
+                post(rest_handlers::reencode_collection),
+            )
+            .route(
+                "/collections/{name}/ttl",
+                post(rest_handlers::set_collection_ttl),
+            )
+            // phase14: schema evolution + observability
+            .route(
+                "/collections/{name}/rename",
+                post(rest_handlers::rename_collection),
+            )
+            .route(
+                "/collections/{name}/reindex",
+                post(rest_handlers::reindex_collection),
+            )
+            .route(
+                "/collections/{name}/snapshot",
+                post(rest_handlers::create_native_snapshot),
+            )
+            .route(
+                "/collections/{name}/snapshots",
+                get(rest_handlers::list_native_snapshots),
+            )
+            .route(
+                "/collections/{name}/snapshots/{id}/restore",
+                post(rest_handlers::restore_native_snapshot),
+            )
+            .route(
+                "/collections/{name}/explain",
+                post(rest_handlers::explain_search),
+            )
+            .route("/slow_queries", get(rest_handlers::list_slow_queries))
+            .route(
+                "/slow_queries/config",
+                post(rest_handlers::set_slow_query_config),
+            )
             // Vector operations - batch
             .route("/batch_insert", post(rest_handlers::batch_insert_texts))
             .route("/insert_texts", post(rest_handlers::insert_texts))
@@ -394,6 +449,27 @@ impl VectorizerServer {
             .route(
                 "/replication/replicas",
                 get(replication_handlers::list_replicas),
+            )
+            // Phase-15 cluster admin routes
+            .route(
+                "/cluster/failover",
+                post(replication_handlers::cluster_failover),
+            )
+            .route(
+                "/cluster/replicas/{id}/resync",
+                post(replication_handlers::cluster_resync_replica),
+            )
+            .route(
+                "/cluster/peers",
+                post(replication_handlers::cluster_add_peer),
+            )
+            .route(
+                "/cluster/rebalance",
+                post(replication_handlers::cluster_rebalance),
+            )
+            .route(
+                "/cluster/rebalance/status",
+                get(replication_handlers::cluster_rebalance_status),
             )
             // Qdrant-compatible routes (under /qdrant prefix)
             .route(
@@ -664,9 +740,19 @@ impl VectorizerServer {
                 .route("/auth/me", get(auth_handlers::get_me))
                 .route("/auth/logout", post(auth_handlers::logout))
                 .route("/auth/refresh", post(auth_handlers::refresh_token))
-                .route("/auth/keys", post(auth_handlers::create_api_key))
+                // POST /auth/keys — extended body accepts optional scopes.
+                // Backward-compatible: existing clients omit scopes and get
+                // global keys exactly as before.
+                .route("/auth/keys", post(auth_handlers::create_scoped_api_key))
                 .route("/auth/keys", get(auth_handlers::list_api_keys))
                 .route("/auth/keys/{id}", delete(auth_handlers::revoke_api_key))
+                // Phase-15 auth admin routes
+                .route(
+                    "/auth/keys/{id}/rotate",
+                    post(auth_handlers::rotate_api_key),
+                )
+                .route("/auth/introspect", post(auth_handlers::introspect_token))
+                .route("/auth/audit", get(auth_handlers::list_audit_log))
                 // User management — admin role enforced inside handlers.
                 .route("/auth/users", post(auth_handlers::create_user))
                 .route("/auth/users", get(auth_handlers::list_users))

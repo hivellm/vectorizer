@@ -56,6 +56,7 @@ impl JwtManager {
             roles,
             iat: now,
             exp: now + self.expiration,
+            scopes: vec![],
         };
 
         let header = Header::new(Algorithm::HS256);

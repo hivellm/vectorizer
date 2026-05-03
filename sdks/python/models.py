@@ -1258,3 +1258,1199 @@ class MoveReport:
             failed=int(data.get("failed", 0)),
             results=[VectorOpResult.from_dict(r) for r in data.get("results", [])],
         )
+
+
+# ===== TIER-CONTROL REPORTS (phase13) =====
+
+
+@dataclass
+class DeleteByFilterReport:
+    """Aggregate outcome of a ``delete_by_filter`` call against
+    ``POST /collections/{name}/vectors/delete_by_filter``.
+
+    Server contract: ``{scanned, matched, deleted, results}``.
+    An empty filter is rejected with 400 to prevent accidental full-collection wipes.
+    """
+
+    scanned: int
+    matched: int
+    deleted: int
+    results: List[Any] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DeleteByFilterReport":
+        return cls(
+            scanned=int(data.get("scanned", 0)),
+            matched=int(data.get("matched", 0)),
+            deleted=int(data.get("deleted", 0)),
+            results=list(data.get("results", [])),
+        )
+
+
+@dataclass
+class BulkUpdateReport:
+    """Aggregate outcome of a ``bulk_update_metadata`` call against
+    ``POST /collections/{name}/vectors/bulk_update_metadata``.
+
+    Server contract: ``{scanned, matched, updated, results}``.
+    Patch is applied with RFC 7396 semantics: ``null`` values remove keys.
+    """
+
+    scanned: int
+    matched: int
+    updated: int
+    results: List[Any] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BulkUpdateReport":
+        return cls(
+            scanned=int(data.get("scanned", 0)),
+            matched=int(data.get("matched", 0)),
+            updated=int(data.get("updated", 0)),
+            results=list(data.get("results", [])),
+        )
+
+
+@dataclass
+class CopyReport:
+    """Aggregate outcome of a ``copy_vectors`` call against
+    ``POST /collections/{src}/vectors/copy``.
+
+    Server contract: ``{src, dst, requested, copied, failed, results}``.
+    Per-id status: ``ok | missing_in_src | dst_insert_failed``.
+    Unlike ``move_to_collection``, the source vectors are NOT deleted.
+    """
+
+    src: str
+    dst: str
+    requested: int
+    copied: int
+    failed: int
+    results: List[VectorOpResult] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CopyReport":
+        return cls(
+            src=str(data["src"]),
+            dst=str(data["dst"]),
+            requested=int(data.get("requested", 0)),
+            copied=int(data.get("copied", 0)),
+            failed=int(data.get("failed", 0)),
+            results=[VectorOpResult.from_dict(r) for r in data.get("results", [])],
+        )
+
+
+@dataclass
+class ReencodeJob:
+    """Job descriptor returned by ``reencode_collection`` against
+    ``POST /collections/{name}/reencode``.
+
+    Server contract: ``{job_id, collection, state, target_encoding, progress}``.
+    ``state`` will be ``"completed"`` on success. ``progress`` is in ``[0.0, 1.0]``.
+    Valid ``target_encoding`` values: ``"sq8"``, ``"binary"``, ``"fp32"``.
+    """
+
+    job_id: str
+    collection: str
+    state: str
+    target_encoding: str
+    progress: float
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ReencodeJob":
+        return cls(
+            job_id=str(data.get("job_id", "")),
+            collection=str(data.get("collection", "")),
+            state=str(data.get("state", "")),
+            target_encoding=str(data.get("target_encoding", "")),
+            progress=float(data.get("progress", 0.0)),
+        )
+
+
+# ===== ADMIN / OBSERVABILITY TYPES (phase12) =====
+
+
+@dataclass
+class Stats:
+    """Server statistics returned by ``GET /stats``.
+
+    Fields: ``collections``, ``total_vectors``, ``uptime_seconds``, ``version``.
+    """
+
+    collections: int = 0
+    total_vectors: int = 0
+    uptime_seconds: int = 0
+    version: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Stats":
+        """Deserialize from a server response dict."""
+        return cls(
+            collections=int(data.get("collections", 0)),
+            total_vectors=int(data.get("total_vectors", 0)),
+            uptime_seconds=int(data.get("uptime_seconds", 0)),
+            version=str(data.get("version", "")),
+        )
+
+
+@dataclass
+class ServerStatus:
+    """Server liveness / version / uptime returned by ``GET /status``."""
+
+    online: bool = False
+    version: str = ""
+    uptime_seconds: int = 0
+    collections_count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ServerStatus":
+        return cls(
+            online=bool(data.get("online", False)),
+            version=str(data.get("version", "")),
+            uptime_seconds=int(data.get("uptime_seconds", 0)),
+            collections_count=int(data.get("collections_count", 0)),
+        )
+
+
+@dataclass
+class LogsQuery:
+    """Query parameters for ``GET /logs``."""
+
+    lines: Optional[int] = None
+    level: Optional[str] = None
+
+
+@dataclass
+class LogEntry:
+    """One log entry returned by ``GET /logs``."""
+
+    timestamp: str = ""
+    level: str = ""
+    message: str = ""
+    source: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "LogEntry":
+        return cls(
+            timestamp=str(data.get("timestamp", "")),
+            level=str(data.get("level", "")),
+            message=str(data.get("message", "")),
+            source=str(data.get("source", "")),
+        )
+
+
+@dataclass
+class CleanupReport:
+    """Report returned by ``cleanup_empty_collections`` (``DELETE /collections/cleanup``)."""
+
+    success: bool = False
+    removed: int = 0
+    collections: List[str] = field(default_factory=list)
+    message: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CleanupReport":
+        return cls(
+            success=bool(data.get("success", False)),
+            removed=int(data.get("removed", 0)),
+            collections=list(data.get("collections", [])),
+            message=data.get("message"),
+        )
+
+
+@dataclass
+class BackupInfo:
+    """Metadata for one server-side backup returned by ``GET /backups``."""
+
+    id: str = ""
+    name: str = ""
+    date: str = ""
+    size: int = 0
+    collections: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BackupInfo":
+        return cls(
+            id=str(data.get("id", "")),
+            name=str(data.get("name", "")),
+            date=str(data.get("date", "")),
+            size=int(data.get("size", 0)),
+            collections=list(data.get("collections", [])),
+        )
+
+
+@dataclass
+class CreateBackupRequest:
+    """Request body for ``create_backup`` (``POST /backups/create``)."""
+
+    name: str = ""
+    collections: List[str] = field(default_factory=list)
+
+
+@dataclass
+class RestoreBackupRequest:
+    """Request body for ``restore_backup`` (``POST /backups/restore``)."""
+
+    backup_id: str = ""
+
+
+@dataclass
+class AddWorkspaceRequest:
+    """Request body for ``add_workspace`` (``POST /workspace/add``)."""
+
+    path: str = ""
+    collection_name: str = ""
+
+
+# ===== AUTH TYPES (phase12) =====
+
+
+@dataclass
+class User:
+    """User record returned by auth endpoints.
+
+    Server shape: ``{user_id, username, roles}``.
+    """
+
+    user_id: str = ""
+    username: str = ""
+    roles: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "User":
+        return cls(
+            user_id=str(data.get("user_id", "")),
+            username=str(data.get("username", "")),
+            roles=list(data.get("roles", [])),
+        )
+
+
+@dataclass
+class JwtToken:
+    """JWT token returned by ``POST /auth/refresh``.
+
+    Server shape: ``{access_token, token_type, expires_in}``.
+    """
+
+    access_token: str = ""
+    token_type: str = "Bearer"
+    expires_in: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "JwtToken":
+        return cls(
+            access_token=str(data.get("access_token", "")),
+            token_type=str(data.get("token_type", "Bearer")),
+            expires_in=int(data.get("expires_in", 0)),
+        )
+
+
+@dataclass
+class PasswordPolicyReport:
+    """Password policy report returned by ``POST /auth/validate-password``."""
+
+    valid: bool = False
+    errors: List[str] = field(default_factory=list)
+    strength: int = 0
+    strength_label: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PasswordPolicyReport":
+        return cls(
+            valid=bool(data.get("valid", False)),
+            errors=list(data.get("errors", [])),
+            strength=int(data.get("strength", 0)),
+            strength_label=str(data.get("strength_label", "")),
+        )
+
+
+@dataclass
+class CreateApiKeyRequest:
+    """Request body for ``create_api_key`` (``POST /auth/keys``)."""
+
+    name: str = ""
+    permissions: List[str] = field(default_factory=list)
+    expires_in: Optional[int] = None
+
+
+@dataclass
+class ApiKey:
+    """API key returned by ``POST /auth/keys``.
+
+    The ``api_key`` field is only present at creation time.
+    List responses omit it for security.
+    """
+
+    id: str = ""
+    name: str = ""
+    permissions: List[str] = field(default_factory=list)
+    api_key: Optional[str] = None
+    created_at: int = 0
+    last_used: Optional[int] = None
+    expires_at: Optional[int] = None
+    active: bool = False
+    warning: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ApiKey":
+        return cls(
+            id=str(data.get("id", "")),
+            name=str(data.get("name", "")),
+            permissions=list(data.get("permissions", [])),
+            api_key=data.get("api_key"),
+            created_at=int(data.get("created_at", 0)),
+            last_used=data.get("last_used"),
+            expires_at=data.get("expires_at"),
+            active=bool(data.get("active", False)),
+            warning=data.get("warning"),
+        )
+
+
+@dataclass
+class CreateUserRequest:
+    """Request body for ``create_user`` (``POST /auth/users``)."""
+
+    username: str = ""
+    password: str = ""
+    roles: List[str] = field(default_factory=list)
+
+
+# ===== REPLICATION SDK TYPES (phase12) =====
+
+
+@dataclass
+class ReplicationStatus:
+    """Replication status returned by ``GET /replication/status``.
+
+    Server: ``{role, enabled, stats?, replicas?}``.
+    """
+
+    role: str = "Standalone"
+    enabled: bool = False
+    stats: Optional["ReplicationStats"] = None
+    replicas: Optional[List["ReplicaInfo"]] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ReplicationStatus":
+        from models import ReplicaInfo, ReplicationStats  # type: ignore[import-not-found]
+        stats_data = data.get("stats")
+        replicas_data = data.get("replicas")
+        return cls(
+            role=str(data.get("role", "Standalone")),
+            enabled=bool(data.get("enabled", False)),
+            stats=ReplicationStats(**stats_data) if stats_data else None,
+            replicas=[ReplicaInfo(**r) for r in replicas_data] if replicas_data else None,
+        )
+
+
+@dataclass
+class ReplicationConfig:
+    """Request body for ``configure_replication`` (``POST /replication/configure``)."""
+
+    role: str = "standalone"
+    bind_address: Optional[str] = None
+    master_address: Optional[str] = None
+    heartbeat_interval: Optional[int] = None
+    log_size: Optional[int] = None
+
+
+# ===== VECTOR OPERATIONS — NEW METHODS (phase12) =====
+
+
+@dataclass
+class VectorPage:
+    """Paginated vector listing returned by ``GET /collections/{name}/vectors``."""
+
+    vectors: List[Any] = field(default_factory=list)
+    total: int = 0
+    limit: int = 10
+    offset: int = 0
+    message: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "VectorPage":
+        return cls(
+            vectors=list(data.get("vectors", [])),
+            total=int(data.get("total", 0)),
+            limit=int(data.get("limit", 10)),
+            offset=int(data.get("offset", 0)),
+            message=data.get("message"),
+        )
+
+
+@dataclass
+class UpdateVectorRequest:
+    """Request body for ``update_vector`` (``POST /update``)."""
+
+    id: str = ""
+    metadata: Optional[Any] = None
+
+
+@dataclass
+class BatchInsertItem:
+    """One item in a ``batch_insert_texts`` call (``POST /batch_insert``)."""
+
+    text: str = ""
+    id: Optional[str] = None
+    metadata: Optional[Any] = None
+
+
+@dataclass
+class BatchInsertReport:
+    """Aggregate outcome of a ``batch_insert_texts`` or ``insert_vectors`` call.
+
+    Server response shape: ``{collection, inserted, failed, count, results}``.
+    """
+
+    collection: str = ""
+    successful: int = 0
+    failed: int = 0
+    total: int = 0
+    results: List[Any] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BatchInsertReport":
+        return cls(
+            collection=str(data.get("collection", "")),
+            successful=int(data.get("inserted", data.get("successful", 0))),
+            failed=int(data.get("failed", 0)),
+            total=int(data.get("count", data.get("total", 0))),
+            results=list(data.get("results", [])),
+        )
+
+
+@dataclass
+class VectorUpdate:
+    """One entry in a ``batch_update_vectors`` call (``POST /batch_update``)."""
+
+    id: str = ""
+    vector: Optional[List[float]] = None
+    payload: Optional[Any] = None
+
+
+@dataclass
+class BatchUpdateReport:
+    """Aggregate outcome of a ``batch_update_vectors`` call.
+
+    Server response: ``{collection, count, updated, failed, results}``.
+    """
+
+    collection: str = ""
+    total: int = 0
+    successful: int = 0
+    failed: int = 0
+    results: List[Any] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BatchUpdateReport":
+        return cls(
+            collection=str(data.get("collection", "")),
+            total=int(data.get("count", data.get("total", 0))),
+            successful=int(data.get("updated", data.get("successful", 0))),
+            failed=int(data.get("failed", 0)),
+            results=list(data.get("results", [])),
+        )
+
+
+@dataclass
+class RawVectorInsert:
+    """One vector entry in an ``insert_vectors`` call (``POST /insert_vectors``)."""
+
+    embedding: List[float] = field(default_factory=list)
+    id: Optional[str] = None
+    payload: Optional[Any] = None
+    metadata: Optional[Dict[str, str]] = None
+
+
+@dataclass
+class BatchSearchQuery:
+    """One query in a ``batch_search`` call (``POST /batch_search``)."""
+
+    query: Optional[str] = None
+    vector: Optional[List[float]] = None
+    limit: Optional[int] = None
+    threshold: Optional[float] = None
+
+
+@dataclass
+class SearchByFileRequest:
+    """Request for ``search_by_file`` (``POST /collections/{name}/search/file``)."""
+
+    file_path: str = ""
+    limit: Optional[int] = None
+
+
+# ===== DISCOVERY PIPELINE TYPES (phase12) =====
+
+
+@dataclass
+class BroadDiscoveryRequest:
+    """Request for ``broad_discovery`` (``POST /discovery/broad_discovery``)."""
+
+    queries: List[str] = field(default_factory=list)
+    k: Optional[int] = None
+
+
+@dataclass
+class BroadDiscoveryResponse:
+    """Response from ``broad_discovery``.
+
+    Server: ``{chunks: [{collection, score, content_preview}], count}``.
+    """
+
+    chunks: List[Any] = field(default_factory=list)
+    count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "BroadDiscoveryResponse":
+        return cls(
+            chunks=list(data.get("chunks", [])),
+            count=int(data.get("count", 0)),
+        )
+
+
+@dataclass
+class SemanticFocusRequest:
+    """Request for ``semantic_focus`` (``POST /discovery/semantic_focus``)."""
+
+    collection: str = ""
+    queries: List[str] = field(default_factory=list)
+    k: Optional[int] = None
+
+
+@dataclass
+class SemanticFocusResponse:
+    """Response from ``semantic_focus``.
+
+    Server: ``{chunks: [...], count}``.
+    """
+
+    chunks: List[Any] = field(default_factory=list)
+    count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SemanticFocusResponse":
+        return cls(
+            chunks=list(data.get("chunks", [])),
+            count=int(data.get("count", 0)),
+        )
+
+
+@dataclass
+class PromoteReadmeRequest:
+    """Request for ``promote_readme`` (``POST /discovery/promote_readme``)."""
+
+    chunks: List[Any] = field(default_factory=list)
+
+
+@dataclass
+class PromoteReadmeResponse:
+    """Response from ``promote_readme``.
+
+    Server: ``{promoted_chunks: [...], count}``.
+    """
+
+    promoted_chunks: List[Any] = field(default_factory=list)
+    count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PromoteReadmeResponse":
+        return cls(
+            promoted_chunks=list(data.get("promoted_chunks", [])),
+            count=int(data.get("count", 0)),
+        )
+
+
+@dataclass
+class CompressEvidenceRequest:
+    """Request for ``compress_evidence`` (``POST /discovery/compress_evidence``)."""
+
+    chunks: List[Any] = field(default_factory=list)
+    max_bullets: Optional[int] = None
+    max_per_doc: Optional[int] = None
+
+
+@dataclass
+class CompressEvidenceResponse:
+    """Response from ``compress_evidence``.
+
+    Server: ``{bullets: [{text, source_id, category, score}], count}``.
+    """
+
+    bullets: List[Any] = field(default_factory=list)
+    count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CompressEvidenceResponse":
+        return cls(
+            bullets=list(data.get("bullets", [])),
+            count=int(data.get("count", 0)),
+        )
+
+
+@dataclass
+class AnswerPlan:
+    """Response from ``build_answer_plan``.
+
+    Server: ``{sections: [...], total_bullets, sources}``.
+    """
+
+    sections: List[Any] = field(default_factory=list)
+    total_bullets: int = 0
+    sources: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AnswerPlan":
+        return cls(
+            sections=list(data.get("sections", [])),
+            total_bullets=int(data.get("total_bullets", 0)),
+            sources=list(data.get("sources", [])),
+        )
+
+
+@dataclass
+class AnswerPlanRequest:
+    """Request for ``build_answer_plan`` (``POST /discovery/build_answer_plan``)."""
+
+    bullets: List[Any] = field(default_factory=list)
+
+
+@dataclass
+class RenderPromptRequest:
+    """Request for ``render_llm_prompt`` (``POST /discovery/render_llm_prompt``)."""
+
+    plan: Optional["AnswerPlan"] = None
+
+
+@dataclass
+class LlmPrompt:
+    """Response from ``render_llm_prompt``.
+
+    Server: ``{prompt, length, estimated_tokens}``.
+    """
+
+    prompt: str = ""
+    length: int = 0
+    estimated_tokens: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "LlmPrompt":
+        return cls(
+            prompt=str(data.get("prompt", "")),
+            length=int(data.get("length", 0)),
+            estimated_tokens=int(data.get("estimated_tokens", 0)),
+        )
+
+
+# ===== HUB TYPES (phase12) =====
+
+
+@dataclass
+class UserBackup:
+    """A user-scoped backup entry returned by ``GET /hub/backups``."""
+
+    id: str = ""
+    user_id: str = ""
+    name: str = ""
+    description: Optional[str] = None
+    collections: List[str] = field(default_factory=list)
+    created_at: str = ""
+    size: int = 0
+    status: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "UserBackup":
+        return cls(
+            id=str(data.get("id", "")),
+            user_id=str(data.get("user_id", "")),
+            name=str(data.get("name", "")),
+            description=data.get("description"),
+            collections=list(data.get("collections", [])),
+            created_at=str(data.get("created_at", "")),
+            size=int(data.get("size", 0)),
+            status=str(data.get("status", "")),
+        )
+
+
+@dataclass
+class CreateUserBackupRequest:
+    """Request for ``create_user_backup`` (``POST /hub/backups``)."""
+
+    user_id: str = ""
+    name: str = ""
+    description: Optional[str] = None
+    collections: Optional[List[str]] = None
+
+
+@dataclass
+class RestoreUserBackupRequest:
+    """Request for ``restore_user_backup`` (``POST /hub/backups/restore``)."""
+
+    user_id: str = ""
+    backup_id: str = ""
+    overwrite: bool = False
+
+
+@dataclass
+class UploadUserBackupRequest:
+    """Parameters for ``upload_user_backup`` (``POST /hub/backups/upload``)."""
+
+    user_id: str = ""
+    name: Optional[str] = None
+    data: bytes = field(default_factory=bytes)
+
+
+@dataclass
+class UsageStatistics:
+    """Usage statistics returned by ``GET /hub/usage/statistics``."""
+
+    success: bool = False
+    message: str = ""
+    stats: Optional[Any] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "UsageStatistics":
+        return cls(
+            success=bool(data.get("success", False)),
+            message=str(data.get("message", "")),
+            stats=data.get("stats"),
+        )
+
+
+@dataclass
+class QuotaInfo:
+    """Quota information returned by ``GET /hub/usage/quota``."""
+
+    success: bool = False
+    message: str = ""
+    quota: Optional[Any] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "QuotaInfo":
+        return cls(
+            success=bool(data.get("success", False)),
+            message=str(data.get("message", "")),
+            quota=data.get("quota"),
+        )
+
+
+@dataclass
+class HubApiKeyValidation:
+    """Validation result returned by ``POST /hub/validate-key``."""
+
+    valid: bool = False
+    tenant_id: str = ""
+    tenant_name: str = ""
+    permissions: List[str] = field(default_factory=list)
+    validated_at: str = ""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HubApiKeyValidation":
+        return cls(
+            valid=bool(data.get("valid", False)),
+            tenant_id=str(data.get("tenant_id", "")),
+            tenant_name=str(data.get("tenant_name", "")),
+            permissions=list(data.get("permissions", [])),
+            validated_at=str(data.get("validated_at", "")),
+        )
+
+
+# ===== SCHEMA-EVOLUTION + OBSERVABILITY TYPES (phase14) =====
+
+
+@dataclass
+class ReindexParams:
+    """Parameters for ``reindex_collection``
+    (``POST /collections/{name}/reindex``).
+
+    All fields carry the server's defaults: ``m=16``,
+    ``ef_construction=200``, ``ef_search=100``.
+    """
+
+    m: int = 16
+    """HNSW ``M`` parameter (number of bi-directional links)."""
+
+    ef_construction: int = 200
+    """HNSW ``ef_construction`` (candidate list size during build)."""
+
+    ef_search: int = 100
+    """HNSW ``ef_search`` (candidate list size at query time)."""
+
+
+@dataclass
+class ReindexJob:
+    """Job descriptor returned by ``reindex_collection``
+    (``POST /collections/{name}/reindex``).
+
+    Server contract: ``{job_id, collection, state, params, progress}``.
+    ``state`` will be ``"completed"`` on success.
+    """
+
+    job_id: str
+    collection: str
+    state: str
+    params: Dict[str, Any]
+    progress: float
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ReindexJob":
+        """Deserialize from a server response dict."""
+        return cls(
+            job_id=str(data.get("job_id", "")),
+            collection=str(data.get("collection", "")),
+            state=str(data.get("state", "")),
+            params=dict(data.get("params", {})),
+            progress=float(data.get("progress", 0.0)),
+        )
+
+
+@dataclass
+class NativeSnapshotInfo:
+    """Native snapshot metadata returned by ``snapshot_collection_native``
+    and each entry in ``list_collection_snapshots_native``.
+
+    Server contract: ``{id, collection, created_at, size_bytes}``.
+    """
+
+    id: str
+    collection: str
+    created_at: str
+    size_bytes: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "NativeSnapshotInfo":
+        """Deserialize from a server response dict."""
+        return cls(
+            id=str(data.get("id", "")),
+            collection=str(data.get("collection", "")),
+            created_at=str(data.get("created_at", "")),
+            size_bytes=int(data.get("size_bytes", 0)),
+        )
+
+
+@dataclass
+class ExplainTrace:
+    """Execution trace attached to an :class:`ExplainResponse`.
+
+    Server contract:
+    ``{visited_nodes, ef_search, hnsw_search_ms, payload_filter_evals,
+    quantization_score_ms, total_ms}``.
+    """
+
+    visited_nodes: int = 0
+    """Number of HNSW graph nodes visited during the search."""
+
+    ef_search: int = 0
+    """Effective ``ef_search`` value used."""
+
+    hnsw_search_ms: float = 0.0
+    """Wall-clock time spent inside HNSW traversal (milliseconds)."""
+
+    payload_filter_evals: int = 0
+    """Number of payload-filter predicate evaluations."""
+
+    quantization_score_ms: float = 0.0
+    """Wall-clock time spent on quantized distance scoring (milliseconds)."""
+
+    total_ms: float = 0.0
+    """Total wall-clock time for the explain call (milliseconds)."""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExplainTrace":
+        """Deserialize from a server trace dict."""
+        return cls(
+            visited_nodes=int(data.get("visited_nodes", 0)),
+            ef_search=int(data.get("ef_search", 0)),
+            hnsw_search_ms=float(data.get("hnsw_search_ms", 0.0)),
+            payload_filter_evals=int(data.get("payload_filter_evals", 0)),
+            quantization_score_ms=float(data.get("quantization_score_ms", 0.0)),
+            total_ms=float(data.get("total_ms", 0.0)),
+        )
+
+
+@dataclass
+class ExplainResponse:
+    """Response from ``explain_search``
+    (``POST /collections/{name}/explain``).
+
+    Server contract: ``{collection, k, results, trace}``.
+    """
+
+    collection: str
+    k: int
+    results: List[Dict[str, Any]]
+    trace: ExplainTrace
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExplainResponse":
+        """Deserialize from a server response dict."""
+        return cls(
+            collection=str(data.get("collection", "")),
+            k=int(data.get("k", 0)),
+            results=list(data.get("results", [])),
+            trace=ExplainTrace.from_dict(data.get("trace", {})),
+        )
+
+
+@dataclass
+class SlowQueryEntry:
+    """One entry in the slow-query ring buffer returned by
+    ``GET /slow_queries``.
+
+    Server contract: ``{timestamp, collection, k, duration_ms}``.
+    """
+
+    timestamp: str = ""
+    """ISO-8601 / RFC-3339 timestamp when the slow query was recorded."""
+
+    collection: str = ""
+    """Collection the query ran against."""
+
+    k: int = 0
+    """Number of neighbours requested."""
+
+    duration_ms: float = 0.0
+    """Observed query duration in milliseconds."""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SlowQueryEntry":
+        """Deserialize from a server entry dict."""
+        return cls(
+            timestamp=str(data.get("timestamp", "")),
+            collection=str(data.get("collection", "")),
+            k=int(data.get("k", 0)),
+            duration_ms=float(data.get("duration_ms", 0.0)),
+        )
+
+
+@dataclass
+class SlowQueryConfig:
+    """Slow-query ring-buffer configuration used as both request body and
+    response for ``POST /slow_queries/config``.
+
+    Server contract: ``{threshold_ms, capacity}``.
+    """
+
+    threshold_ms: int = 200
+    """Minimum duration (ms) for a query to be recorded."""
+
+    capacity: int = 1000
+    """Maximum number of entries retained in the ring buffer."""
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SlowQueryConfig":
+        """Deserialize from a server response dict."""
+        return cls(
+            threshold_ms=int(data.get("threshold_ms", 200)),
+            capacity=int(data.get("capacity", 1000)),
+        )
+
+
+# ===== CLUSTER + AUTH ADMIN TYPES (phase15) =====
+
+
+@dataclass
+class FailoverReport:
+    """Report returned by ``POST /cluster/failover``.
+
+    Server contract:
+    ``{promoted_replica_id, master_offset_at_promotion,
+    replica_offset_at_promotion, residual_lag_operations}``.
+    """
+
+    promoted_replica_id: str
+    master_offset_at_promotion: int
+    replica_offset_at_promotion: int
+    residual_lag_operations: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "FailoverReport":
+        """Deserialize from a server response dict."""
+        return cls(
+            promoted_replica_id=str(data.get("promoted_replica_id", "")),
+            master_offset_at_promotion=int(data.get("master_offset_at_promotion", 0)),
+            replica_offset_at_promotion=int(data.get("replica_offset_at_promotion", 0)),
+            residual_lag_operations=int(data.get("residual_lag_operations", 0)),
+        )
+
+
+@dataclass
+class ResyncJob:
+    """Report returned by ``POST /cluster/replicas/{id}/resync``.
+
+    Server contract: ``{replica_id, snapshot_offset, full_snapshot}``.
+    """
+
+    replica_id: str
+    snapshot_offset: int
+    full_snapshot: bool
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ResyncJob":
+        """Deserialize from a server response dict."""
+        return cls(
+            replica_id=str(data.get("replica_id", "")),
+            snapshot_offset=int(data.get("snapshot_offset", 0)),
+            full_snapshot=bool(data.get("full_snapshot", False)),
+        )
+
+
+@dataclass
+class PeerInfo:
+    """Information about a newly added cluster peer.
+
+    Returned by ``POST /cluster/peers``.
+    Server contract: ``{node_id, address, role}``.
+    """
+
+    node_id: str
+    address: str
+    role: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PeerInfo":
+        """Deserialize from a server response dict."""
+        return cls(
+            node_id=str(data.get("node_id", "")),
+            address=str(data.get("address", "")),
+            role=str(data.get("role", "")),
+        )
+
+
+@dataclass
+class AddPeerRequest:
+    """Request body for ``POST /cluster/peers``."""
+
+    address: str
+    role: str = "member"
+
+
+@dataclass
+class RebalanceJob:
+    """Job descriptor returned by ``POST /cluster/rebalance`` and
+    ``GET /cluster/rebalance/status``.
+
+    Server contract:
+    ``{job_id, status, shards_to_move, shards_moved, last_checkpoint_node?, message}``.
+    """
+
+    job_id: str
+    status: str
+    shards_to_move: int
+    shards_moved: int
+    message: str
+    last_checkpoint_node: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RebalanceJob":
+        """Deserialize from a server response dict."""
+        return cls(
+            job_id=str(data.get("job_id", "")),
+            status=str(data.get("status", "")),
+            shards_to_move=int(data.get("shards_to_move", 0)),
+            shards_moved=int(data.get("shards_moved", 0)),
+            message=str(data.get("message", "")),
+            last_checkpoint_node=data.get("last_checkpoint_node"),
+        )
+
+
+@dataclass
+class RotatedKey:
+    """Response from ``POST /auth/keys/{id}/rotate``.
+
+    Server contract: ``{old_key_id, new_key_id, new_token, grace_until}``.
+    """
+
+    old_key_id: str
+    new_key_id: str
+    new_token: str
+    grace_until: int
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RotatedKey":
+        """Deserialize from a server response dict."""
+        return cls(
+            old_key_id=str(data.get("old_key_id", "")),
+            new_key_id=str(data.get("new_key_id", "")),
+            new_token=str(data.get("new_token", "")),
+            grace_until=int(data.get("grace_until", 0)),
+        )
+
+
+@dataclass
+class TokenScope:
+    """Per-collection permission scope in :class:`CreateScopedApiKeyRequest`."""
+
+    collection: str
+    permissions: List[str] = field(default_factory=list)
+
+
+@dataclass
+class CreateScopedApiKeyRequest:
+    """Request body for ``POST /auth/keys`` — extended with optional scopes."""
+
+    name: str
+    permissions: List[str] = field(default_factory=list)
+    expires_in: Optional[int] = None
+    scopes: List[TokenScope] = field(default_factory=list)
+
+
+@dataclass
+class TokenIntrospection:
+    """RFC 7662 token introspection response from ``POST /auth/introspect``.
+
+    Server contract: ``{active, scope?, sub?, exp?, username?}``.
+    """
+
+    active: bool = False
+    scope: Optional[str] = None
+    sub: Optional[str] = None
+    exp: Optional[int] = None
+    username: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "TokenIntrospection":
+        """Deserialize from a server response dict."""
+        return cls(
+            active=bool(data.get("active", False)),
+            scope=data.get("scope"),
+            sub=data.get("sub"),
+            exp=data.get("exp"),
+            username=data.get("username"),
+        )
+
+
+@dataclass
+class AuditEntry:
+    """One entry in the admin audit log returned by ``GET /auth/audit``.
+
+    Server contract: ``{actor, action, target, at, correlation_id?}``.
+    """
+
+    actor: str
+    action: str
+    target: str
+    at: str
+    correlation_id: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AuditEntry":
+        """Deserialize from a server response dict."""
+        return cls(
+            actor=str(data.get("actor", "")),
+            action=str(data.get("action", "")),
+            target=str(data.get("target", "")),
+            at=str(data.get("at", "")),
+            correlation_id=data.get("correlation_id"),
+        )
+
+
+@dataclass
+class AuditQuery:
+    """Query parameters for ``GET /auth/audit``."""
+
+    actor: Optional[str] = None
+    action: Optional[str] = None
+    since: Optional[str] = None
+    until: Optional[str] = None
+    limit: Optional[int] = None

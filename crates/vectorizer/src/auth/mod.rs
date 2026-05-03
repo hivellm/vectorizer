@@ -4,6 +4,7 @@
 //! for production deployment of the vector database.
 
 pub mod api_keys;
+pub mod audit;
 pub mod jwt;
 pub mod jwt_secret;
 pub mod middleware;
@@ -16,6 +17,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub use api_keys::ApiKeyManager;
+pub use audit::{AuditEntry, AuditLogger, AuditQuery};
 pub use jwt::JwtManager;
 pub use middleware::AuthMiddleware;
 pub use password::{
@@ -125,6 +127,20 @@ impl AuthConfig {
     }
 }
 
+/// Per-collection permission scope attached to an API key or JWT.
+///
+/// A key with a non-empty `scopes` list is restricted to the named
+/// collections and the listed permissions. A key with an EMPTY `scopes`
+/// list has **no access** (default-deny) — the caller must explicitly
+/// list the collections it needs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TokenScope {
+    /// Collection name this scope applies to.
+    pub collection: String,
+    /// Permissions granted on that collection (e.g. `["read","write"]`).
+    pub permissions: Vec<String>,
+}
+
 /// User information stored in JWT token
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserClaims {
@@ -138,6 +154,10 @@ pub struct UserClaims {
     pub iat: u64,
     /// Token expiration (Unix timestamp)
     pub exp: u64,
+    /// Per-collection scopes. Empty = global key (for role-bearing JWTs) OR
+    /// default-deny (for API keys with no explicit scopes).
+    #[serde(default)]
+    pub scopes: Vec<TokenScope>,
 }
 
 /// API Key information
@@ -162,6 +182,48 @@ pub struct ApiKey {
     pub expires_at: Option<u64>,
     /// Whether the key is active
     pub active: bool,
+    /// Per-collection scopes (empty = default-deny for scoped keys).
+    #[serde(default)]
+    pub scopes: Vec<TokenScope>,
+    /// If this key was rotated, the ID of its successor.
+    #[serde(default)]
+    pub rotated_to: Option<String>,
+    /// Unix timestamp until which the key remains valid after rotation.
+    /// After this instant only the successor key is accepted.
+    #[serde(default)]
+    pub grace_until: Option<u64>,
+}
+
+/// Result of an API-key rotation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RotatedKey {
+    /// The old key token (still valid until `grace_until`).
+    pub old_token: String,
+    /// The new key token.
+    pub new_token: String,
+    /// New key ID.
+    pub new_key_id: String,
+    /// Unix timestamp until which the OLD token is still accepted.
+    pub grace_until: u64,
+}
+
+/// RFC 7662 token introspection response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenIntrospection {
+    /// Whether the token is currently active.
+    pub active: bool,
+    /// Space-separated scope string (from `TokenScope` list).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    /// Subject (user_id or key_id).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub: Option<String>,
+    /// Expiry (Unix timestamp).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exp: Option<u64>,
+    /// Username (non-standard extension, omitted for inactive tokens).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub username: Option<String>,
 }
 
 /// Rate limiting information
@@ -254,6 +316,7 @@ impl AuthManager {
             roles: vec![Role::ApiUser],
             iat: chrono::Utc::now().timestamp() as u64,
             exp: key_info.expires_at.unwrap_or(u64::MAX),
+            scopes: key_info.scopes.clone(),
         })
     }
 
@@ -342,6 +405,114 @@ impl AuthManager {
     /// Get API key info by ID
     pub async fn get_api_key_info(&self, key_id: &str) -> Result<ApiKey> {
         self.api_key_manager.get_key_info(key_id).await
+    }
+
+    /// Create a new API key with optional per-collection scopes.
+    ///
+    /// An empty `scopes` list means default-deny on scope-enforced routes.
+    /// Existing global keys (empty scopes) continue to work as before.
+    pub async fn create_scoped_api_key(
+        &self,
+        user_id: &str,
+        name: &str,
+        permissions: Vec<Permission>,
+        expires_at: Option<u64>,
+        scopes: Vec<TokenScope>,
+    ) -> Result<(String, ApiKey)> {
+        self.api_key_manager
+            .create_key_with_scopes(user_id, name, permissions, expires_at, scopes)
+            .await
+    }
+
+    /// Atomically rotate an API key.
+    ///
+    /// Generates a successor key with the same attributes, marks the old
+    /// key with `grace_until = now + grace_secs` so both tokens are
+    /// accepted during the rollover window, then returns both tokens.
+    pub async fn rotate_api_key(&self, key_id: &str, grace_secs: u64) -> Result<RotatedKey> {
+        let old_key = self.api_key_manager.get_key_info(key_id).await?;
+
+        let (new_token, new_key) = self
+            .api_key_manager
+            .create_key_with_scopes(
+                &old_key.user_id,
+                &old_key.name,
+                old_key.permissions.clone(),
+                old_key.expires_at,
+                old_key.scopes.clone(),
+            )
+            .await?;
+
+        let grace_until = chrono::Utc::now().timestamp() as u64 + grace_secs;
+
+        self.api_key_manager
+            .set_rotation_metadata(key_id, new_key.id.clone(), grace_until)
+            .await?;
+
+        Ok(RotatedKey {
+            old_token: key_id.to_string(),
+            new_token,
+            new_key_id: new_key.id,
+            grace_until,
+        })
+    }
+
+    /// RFC 7662 token introspection.
+    ///
+    /// Tries JWT first, then API key.  Returns `active: false` for any
+    /// token that fails both checks.
+    pub async fn introspect_token(&self, token: &str) -> TokenIntrospection {
+        if let Ok(claims) = self.jwt_manager.validate_token(token) {
+            let scope = if claims.scopes.is_empty() {
+                None
+            } else {
+                Some(
+                    claims
+                        .scopes
+                        .iter()
+                        .map(|s| format!("{}:{}", s.collection, s.permissions.join(",")))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                )
+            };
+            return TokenIntrospection {
+                active: true,
+                scope,
+                sub: Some(claims.user_id),
+                exp: Some(claims.exp),
+                username: Some(claims.username),
+            };
+        }
+
+        if let Ok(key_info) = self.api_key_manager.validate_key(token).await {
+            let scope = if key_info.scopes.is_empty() {
+                None
+            } else {
+                Some(
+                    key_info
+                        .scopes
+                        .iter()
+                        .map(|s| format!("{}:{}", s.collection, s.permissions.join(",")))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                )
+            };
+            return TokenIntrospection {
+                active: true,
+                scope,
+                sub: Some(key_info.id),
+                exp: key_info.expires_at,
+                username: None,
+            };
+        }
+
+        TokenIntrospection {
+            active: false,
+            scope: None,
+            sub: None,
+            exp: None,
+            username: None,
+        }
     }
 }
 

@@ -1941,6 +1941,101 @@ curl http://localhost:15002/prometheus/metrics
 
 Currently, Vectorizer does not implement rate limiting. For production deployments, consider using a reverse proxy with rate limiting.
 
+## SDK 3.4 control surface
+
+Phase12 added typed wrappers for every server route across all three SDKs.
+Method names below are case-adjusted per language convention
+(Rust + Python `snake_case`, TypeScript `camelCase`).
+
+### Vector ops + batch
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK |
+|---|---|---|---|
+| `POST /update` | `update_vector` | `updateVector` | `update_vector` |
+| `POST /insert` | `insert_text` | `insertText` | `insert_text` |
+| `GET /collections/{n}/vectors` | `list_vectors` | `listVectors` | `list_vectors` |
+| `GET /collections/{n}/vectors/{id}` | `get_vector_by_path` | `getVectorByPath` | `get_vector_by_path` |
+| `POST /batch_insert` | `batch_insert_texts` | `batchInsertTexts` | `batch_insert_texts` |
+| `POST /insert_vectors` | `insert_vectors` | `insertVectors` | `insert_vectors` |
+| `POST /batch_search` | `batch_search` | `batchSearchVectors` | `batch_search_vectors` |
+| `POST /batch_update` | `batch_update_vectors` | `batchUpdateVectors` | `batch_update_vectors` |
+
+### Search + discovery pipeline
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK |
+|---|---|---|---|
+| `POST /collections/{n}/search/text` | `search_vectors_by_text` | `searchVectorsByText` | `search_vectors_by_text` |
+| `POST /collections/{n}/search/file` | `search_by_file` | `searchByFile` | `search_by_file` |
+| `POST /collections/{n}/hybrid_search` | `hybrid_search` | `hybridSearch` | `hybrid_search` |
+| `POST /discovery/broad_discovery` | `broad_discovery` | `broadDiscovery` | `broad_discovery` |
+| `POST /discovery/semantic_focus` | `semantic_focus` | `semanticFocus` | `semantic_focus` |
+| `POST /discovery/promote_readme` | `promote_readme` | `promoteReadme` | `promote_readme` |
+| `POST /discovery/compress_evidence` | `compress_evidence` | `compressEvidence` | `compress_evidence` |
+| `POST /discovery/build_answer_plan` | `build_answer_plan` | `buildAnswerPlan` | `build_answer_plan` |
+| `POST /discovery/render_llm_prompt` | `render_llm_prompt` | `renderLlmPrompt` | `render_llm_prompt` |
+
+### Admin + observability
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK |
+|---|---|---|---|
+| `GET /stats` | `get_stats` | `getStats` | `get_stats` |
+| `GET /status` | `get_status` | `getStatus` | `get_status` |
+| `GET /logs` | `get_logs` | `getLogs` | `get_logs` |
+| `GET /indexing/progress` | `get_indexing_progress` | `getIndexingProgress` | `get_indexing_progress` |
+| `POST /collections/{n}/force-save` | `force_save_collection` | `forceSaveCollection` | `force_save_collection` |
+| `GET /collections/empty` | `list_empty_collections` | `listEmptyCollections` | `list_empty_collections` |
+| `DELETE /collections/cleanup` | `cleanup_empty_collections` | `cleanupEmptyCollections` | `cleanup_empty_collections` |
+| `GET /config` | `get_config` | `getConfig` | `get_config` |
+| `POST /config` (admin) | `update_config` | `updateConfig` | `update_config` |
+| `GET /backups` | `list_backups` | `listBackups` | `list_backups` |
+| `POST /backups/create` (admin) | `create_backup` | `createBackup` | `create_backup` |
+| `POST /backups/restore` (admin) | `restore_backup` | `restoreBackup` | `restore_backup` |
+| `POST /admin/restart` (admin) | `restart_server` | `restartServer` | `restart_server` |
+| `GET /workspace/list` | `list_workspaces` | `listWorkspaces` | `list_workspaces` |
+| `GET /workspace/config` | `get_workspace_config` | `getWorkspaceConfig` | `get_workspace_config` |
+| `POST /workspace/add` (admin) | `add_workspace` | `addWorkspace` | `add_workspace` |
+| `POST /workspace/remove` (admin) | `remove_workspace` | `removeWorkspace` | `remove_workspace` |
+
+### Auth
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK |
+|---|---|---|---|
+| `GET /auth/me` | `me` | `me` | `me` |
+| `POST /auth/logout` | `logout` | `logout` | `logout` |
+| `POST /auth/refresh` | `refresh_token` | `refreshToken` | `refresh_token` |
+| `POST /auth/validate-password` | `validate_password` | `validatePassword` | `validate_password` |
+| `POST /auth/keys` | `create_api_key` | `createApiKey` | `create_api_key` |
+| `GET /auth/keys` | `list_api_keys` | `listApiKeys` | `list_api_keys` |
+| `DELETE /auth/keys/{id}` | `revoke_api_key` | `revokeApiKey` | `revoke_api_key` |
+| `POST /auth/users` (admin) | `create_user` | `createUser` | `create_user` |
+| `GET /auth/users` (admin) | `list_users` | `listUsers` | `list_users` |
+| `DELETE /auth/users/{u}` (admin) | `delete_user` | `deleteUser` | `delete_user` |
+| `PUT /auth/users/{u}/password` | `change_password` | `changePassword` | `change_password` |
+
+### Replication
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK |
+|---|---|---|---|
+| `GET /replication/status` | `get_replication_status` | `getReplicationStatus` | `get_replication_status` |
+| `POST /replication/configure` | `configure_replication` | `configureReplication` | `configure_replication` |
+| `GET /replication/stats` | `get_replication_stats` | `getReplicationStats` | `get_replication_stats` |
+| `GET /replication/replicas` | `list_replicas` | `listReplicas` | `list_replicas` |
+
+### Hub backups + usage
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK |
+|---|---|---|---|
+| `GET /hub/backups` | `list_user_backups` | `listUserBackups` | `list_user_backups` |
+| `POST /hub/backups` | `create_user_backup` | `createUserBackup` | `create_user_backup` |
+| `POST /hub/backups/restore` | `restore_user_backup` | `restoreUserBackup` | `restore_user_backup` |
+| `POST /hub/backups/upload` | `upload_user_backup` | `uploadUserBackup` | `upload_user_backup` |
+| `GET /hub/backups/{id}` | `get_user_backup` | `getUserBackup` | `get_user_backup` |
+| `DELETE /hub/backups/{id}` | `delete_user_backup` | `deleteUserBackup` | `delete_user_backup` |
+| `GET /hub/backups/{id}/download` | `download_user_backup` | `downloadUserBackup` | `download_user_backup` |
+| `GET /hub/usage/statistics` | `get_usage_statistics` | `getUsageStatistics` | `get_usage_statistics` |
+| `GET /hub/usage/quota` | `get_quota_info` | `getQuotaInfo` | `get_quota_info` |
+| `POST /hub/validate-key` | `validate_hub_api_key` | `validateHubApiKey` | `validate_hub_api_key` |
+
 ## Related Topics
 
 - [Collections Guide](../collections/COLLECTIONS.md) - Collection operations

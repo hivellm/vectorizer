@@ -17,12 +17,16 @@
 //! |---|---|
 //! | [`core`] | `health_check` |
 //! | [`collections`] | `list_collections`, `create_collection`, `delete_collection`, `get_collection_info` |
-//! | [`vectors`] | `get_vector`, `insert_texts`, `embed_text` |
-//! | [`search`] | `search_vectors`, `intelligent_search`, `semantic_search`, `contextual_search`, `multi_collection_search`, `hybrid_search` |
-//! | [`discovery`] | `discover`, `filter_collections`, `score_collections`, `expand_queries` |
+//! | [`vectors`] | `get_vector`, `insert_texts`, `embed_text`, `update_vector`, `insert_text`, `list_vectors`, `get_vector_by_path`, `batch_insert_texts`, `insert_vectors`, `batch_search`, `batch_update_vectors`, `delete_vector`, `delete_vectors`, `move_to_collection` |
+//! | [`search`] | `search_vectors`, `intelligent_search`, `semantic_search`, `contextual_search`, `multi_collection_search`, `hybrid_search`, `search_by_file` |
+//! | [`discovery`] | `discover`, `filter_collections`, `score_collections`, `expand_queries`, `broad_discovery`, `semantic_focus`, `promote_readme`, `compress_evidence`, `build_answer_plan`, `render_llm_prompt` |
 //! | [`files`] | `get_file_content`, `list_files_in_collection`, `get_file_summary`, `get_file_chunks_ordered`, `get_project_outline`, `get_related_files`, `search_by_file_type`, `upload_file`, `upload_file_content`, `get_upload_config` |
 //! | [`graph`] | `list_graph_nodes`, `get_graph_neighbors`, `find_related_nodes`, `find_graph_path`, `create_graph_edge`, `delete_graph_edge`, `list_graph_edges`, `discover_graph_edges`, `discover_graph_edges_for_node`, `get_graph_discovery_status` |
 //! | [`qdrant`] | 25 `qdrant_*` methods (Qdrant-compatible REST surface) |
+//! | [`admin`] | `get_stats`, `get_status`, `get_logs`, `get_indexing_progress`, `force_save_collection`, `list_empty_collections`, `cleanup_empty_collections`, `get_config`, `update_config`, `list_backups`, `create_backup`, `restore_backup`, `restart_server`, `list_workspaces`, `get_workspace_config`, `add_workspace`, `remove_workspace` |
+//! | [`auth`] | `me`, `logout`, `refresh_token`, `validate_password`, `create_api_key`, `list_api_keys`, `revoke_api_key`, `create_user`, `list_users`, `delete_user`, `change_password` |
+//! | [`replication`] | `get_replication_status`, `configure_replication`, `get_replication_stats`, `list_replicas` |
+//! | [`hub`] | `list_user_backups`, `create_user_backup`, `restore_user_backup`, `upload_user_backup`, `get_user_backup`, `delete_user_backup`, `download_user_backup`, `get_usage_statistics`, `get_quota_info`, `validate_hub_api_key` |
 //!
 //! ## RPC readiness
 //!
@@ -45,12 +49,16 @@ use crate::transport::{Protocol, Transport};
 #[cfg(feature = "umicp")]
 use crate::umicp_transport::UmicpTransport;
 
+pub mod admin;
+pub mod auth;
 pub mod collections;
 pub mod core;
 pub mod discovery;
 pub mod files;
 pub mod graph;
+pub mod hub;
 pub mod qdrant;
+pub mod replication;
 pub mod search;
 pub mod vectors;
 
@@ -378,6 +386,7 @@ impl VectorizerClient {
             "POST" => self.transport.post(endpoint, payload.as_ref()).await,
             "PUT" => self.transport.put(endpoint, payload.as_ref()).await,
             "DELETE" => self.transport.delete(endpoint).await,
+            "PATCH" => self.transport.patch(endpoint, payload.as_ref()).await,
             _ => Err(VectorizerError::configuration(format!(
                 "Unsupported method: {method}"
             ))),

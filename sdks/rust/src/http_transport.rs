@@ -109,6 +109,7 @@ impl HttpTransport {
                 "POST" => self.client.post(&url),
                 "PUT" => self.client.put(&url),
                 "DELETE" => self.client.delete(&url),
+                "PATCH" => self.client.patch(&url),
                 _ => {
                     return Err(VectorizerError::configuration(format!(
                         "Unsupported HTTP method: {method}"
@@ -207,6 +208,10 @@ impl Transport for HttpTransport {
 
     async fn delete(&self, path: &str) -> Result<String> {
         self.request("DELETE", path, None).await
+    }
+
+    async fn patch(&self, path: &str, data: Option<&Value>) -> Result<String> {
+        self.request("PATCH", path, data).await
     }
 
     fn protocol(&self) -> Protocol {

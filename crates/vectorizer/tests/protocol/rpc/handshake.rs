@@ -33,6 +33,12 @@ async fn boot_listener() -> std::net::SocketAddr {
         // admin. Adequate for the handshake smoke test; a real
         // auth-enforcement test would build an `AuthHandlerState`.
         auth: None,
+        master_node: None,
+        replica_node: None,
+        cluster_manager: None,
+        slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
+            vectorizer::cache::slow_query::SlowQueryConfig::default(),
+        ),
     };
     spawn_rpc_listener(state, addr).await.unwrap();
     // Give the listener a moment to actually start accepting.

@@ -2,6 +2,99 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
+## [3.8.0] - 2026-05-02
+
+### Added
+
+- **Phase16 RPC typed wrappers** — full coverage of all 95 server commands via `rpc/commands.py`. Every command has both a sync module-level function and an `async def` coroutine, monkey-patched onto `RpcClient` / `AsyncRpcClient`.
+  - **collections** (7): `list_collections`, `get_collection_info`, `create_collection`, `delete_collection`, `list_empty_collections`, `cleanup_empty_collections`, `force_save_collection`.
+  - **vectors** (17): `get_vector`, `insert_vector`, `insert_text_vector`, `update_vector`, `delete_vector_rpc`, `list_vectors`, `embed_text`, `batch_insert_vectors`, `batch_insert_texts`, `batch_search`, `batch_update_vectors`, `batch_delete_vectors`, `move_vectors_rpc`, `copy_vectors_rpc`, `delete_by_filter_rpc`, `bulk_update_metadata_rpc`, `set_vector_expiry`.
+  - **search** (9): `search_basic`, `search_intelligent`, `search_by_text`, `search_by_file`, `search_hybrid`, `search_semantic`, `search_contextual`, `search_multi_collection`, `search_explain`.
+  - **discovery** (10): `discover`, `filter_collections`, `score_collections`, `expand_queries`, `broad_discovery`, `semantic_focus`, `promote_readme`, `compress_evidence`, `build_answer_plan`, `render_llm_prompt`.
+  - **file** (7): `file_content`, `file_list`, `file_summary`, `file_chunks`, `file_outline`, `file_related`, `file_search_by_type`.
+  - **graph** (10): `graph_list_nodes`, `graph_neighbors`, `graph_find_related`, `graph_find_path`, `graph_create_edge`, `graph_delete_edge`, `graph_list_edges`, `graph_discover_edges`, `graph_discover_edges_for_node`, `graph_discovery_status`.
+  - **admin** (16): `admin_stats`, `admin_status`, `admin_logs`, `admin_indexing_progress`, `admin_config_get`, `admin_config_update`, `admin_backups_list`, `admin_backups_create`, `admin_backups_restore`, `admin_workspaces_list`, `admin_workspace_get`, `admin_workspace_add`, `admin_workspace_remove`, `admin_restart`, `admin_slow_queries_list`, `admin_slow_queries_config`.
+  - **auth** (11): `auth_me`, `auth_logout`, `auth_refresh_token`, `auth_validate_password`, `auth_api_keys_create`, `auth_api_keys_list`, `auth_api_keys_revoke`, `rotate_api_key_rpc`, `auth_api_keys_create_scoped`, `auth_introspect`, `auth_audit`.
+  - **replication** (4): `replication_status`, `replication_configure`, `replication_stats`, `replication_replicas_list`.
+  - **cluster** (5): `cluster_failover`, `cluster_replica_resync`, `cluster_peer_add`, `cluster_rebalance`, `cluster_rebalance_status`.
+- New dataclasses re-exported from `rpc/__init__.py` and `__init__.py`: `AdminStats`, `AdminStatus`, `AnswerPlanResult`, `AnswerPlanSection`, `ApiKeyCreated`, `AuthMeResult`, `BatchDeleteResult`, `BatchInsertResult`, `BatchItemResult`, `BatchSearchResult`, `BatchUpdateResult`, `BulkUpdateMetadataRpcResult`, `CleanupEmptyResult`, `CompressBullet`, `CopyRpcResult`, `CreateCollectionResult`, `DeleteByFilterRpcResult`, `DiscoverEdgesForNodeResult`, `DiscoverEdgesResult`, `DiscoverResult`, `DiscoveryChunk`, `EmbedResult`, `ExpandQueriesResult`, `GraphDiscoveryStatus`, `MoveRpcResult`, `RebalanceStatus`, `RefreshTokenResult`, `RenderPromptResult`, `ReplicationConfigureResult`, `RotatedApiKey`, `ScoredCollection`, `SearchExplainResult`, `SearchTrace`, `SetExpiryResult`, `SlowQueryConfigResult`, `ValidatePasswordResult`, `VectorListResult`, `VectorWriteResult`.
+- pytest tests in `tests/test_rpc_phase16.py` covering all 10 domain groups via `AsyncMock`.
+
+### Fixed
+
+- **`vectorizer/graph.py` NameError bug** — `delete_graph_edge` referenced undefined `collection`; fixed to `f"/graph/edges/{edge_id}"` with correct `bool` return type.
+
+## [3.7.0] - 2026-05-02
+
+### Added
+
+- **Cluster + auth admin API (phase15).** Nine new server routes exposed across two client modules:
+  - **`vectorizer/replication.py`** — `cluster_failover`, `cluster_resync_replica`, `cluster_add_peer`, `cluster_rebalance`, `cluster_rebalance_status`.
+  - **`vectorizer/auth.py`** — `rotate_api_key`, `create_scoped_api_key`, `introspect_token`, `list_audit_log`.
+- New dataclasses in `models.py`: `FailoverReport`, `ResyncJob`, `PeerInfo`, `AddPeerRequest`, `RebalanceJob`, `RotatedKey`, `TokenScope`, `CreateScopedApiKeyRequest`, `TokenIntrospection`, `AuditEntry`, `AuditQuery`. All re-exported from `vectorizer/__init__.py`.
+- pytest tests in `tests/test_cluster_auth_admin.py`.
+
+## [3.6.0] - 2026-05-02
+
+### Added
+
+- **Schema-evolution + observability API (phase14).** Eight new server routes exposed across three client modules:
+  - **`vectorizer/collections.py`** — `rename_collection`, `reindex_collection`, `snapshot_collection_native`, `list_collection_snapshots_native`, `restore_collection_snapshot_native`.
+  - **`vectorizer/search.py`** — `explain_search` (`POST /collections/{name}/explain`): returns search results plus a full HNSW execution trace (`visited_nodes`, `ef_search`, `hnsw_search_ms`, `payload_filter_evals`, `quantization_score_ms`, `total_ms`).
+  - **`vectorizer/admin.py`** — `list_slow_queries` (`GET /slow_queries`), `set_slow_query_config` (`POST /slow_queries/config`).
+- New dataclasses in `models.py`: `ReindexParams`, `ReindexJob`, `NativeSnapshotInfo`, `ExplainTrace`, `ExplainResponse`, `SlowQueryEntry`, `SlowQueryConfig`. All re-exported from `vectorizer/__init__.py`.
+
+## [3.5.0] - 2026-05-02
+
+### Added
+
+- **Phase13 tier-control methods** — Python SDK now matches the Rust SDK's phase13 surface.
+- **Vector methods** (4 new): `delete_by_filter`, `bulk_update_metadata`, `copy_vectors`,
+  `set_vector_expiry` on `VectorsClient`.
+- **Collection methods** (2 new): `reencode_collection`, `set_collection_ttl`
+  on `CollectionsClient`.
+- **New dataclasses** in `models.py`: `DeleteByFilterReport`, `BulkUpdateReport`,
+  `CopyReport`, `ReencodeJob`.
+- `patch` method added to `Transport` ABC, `RestTransport`, and `HTTPClient`.
+- All phase13 dataclasses re-exported from `vectorizer/__init__.py`.
+
+## [3.4.0] - 2026-05-02
+
+### Added
+
+- **Phase12 control-surface parity** — Python SDK now matches the Rust SDK's full API surface.
+- **Admin methods** (17 total, 15 new): `get_stats`, `get_status`, `get_logs`, `force_save_collection`,
+  `list_empty_collections`, `cleanup_empty_collections`, `get_config`, `update_config`,
+  `list_backups`, `create_backup`, `restore_backup`, `restart_server`, `list_workspaces`,
+  `get_workspace_config`, `add_workspace`, `remove_workspace`.
+- **Auth methods** (11 total, 10 new): `me`, `logout`, `refresh_token`, `validate_password`,
+  `create_api_key`, `list_api_keys`, `revoke_api_key`, `create_user`, `list_users`,
+  `delete_user`, `change_password`.
+- **Replication module** (`vectorizer.replication.ReplicationClient`, 4 methods):
+  `get_replication_status`, `configure_replication`, `get_replication_stats`, `list_replicas`.
+- **HiveHub module** (`vectorizer.hub.HubClient`, 10 methods):
+  `list_user_backups`, `create_user_backup`, `restore_user_backup`, `upload_user_backup`,
+  `get_user_backup`, `delete_user_backup`, `download_user_backup`, `get_usage_statistics`,
+  `get_quota_info`, `validate_hub_api_key`.
+- **Discovery pipeline module** (`vectorizer.discovery.DiscoveryClient`, 6 methods):
+  `broad_discovery`, `semantic_focus`, `promote_readme`, `compress_evidence`,
+  `build_answer_plan`, `render_llm_prompt`.
+- **Vector methods** (8 new): `update_vector`, `insert_text`, `list_vectors`,
+  `get_vector_by_path`, `insert_vectors`, `batch_insert`, `batch_search`, `batch_update`.
+- **Search method**: `search_by_file` — search by indexed file path.
+- **New dataclasses** in `models.py`: `Stats`, `ServerStatus`, `LogsQuery`, `LogEntry`,
+  `CleanupReport`, `BackupInfo`, `CreateBackupRequest`, `RestoreBackupRequest`,
+  `AddWorkspaceRequest`, `User`, `JwtToken`, `PasswordPolicyReport`, `CreateApiKeyRequest`,
+  `ApiKey`, `CreateUserRequest`, `ReplicationStatus`, `ReplicationConfig`, `VectorPage`,
+  `UpdateVectorRequest`, `BatchInsertItem`, `BatchInsertReport`, `VectorUpdate`,
+  `BatchUpdateReport`, `RawVectorInsert`, `BatchSearchQuery`, `SearchByFileRequest`,
+  `BroadDiscoveryRequest`, `BroadDiscoveryResponse`, `SemanticFocusRequest`,
+  `SemanticFocusResponse`, `PromoteReadmeRequest`, `PromoteReadmeResponse`,
+  `CompressEvidenceRequest`, `CompressEvidenceResponse`, `AnswerPlanRequest`, `AnswerPlan`,
+  `RenderPromptRequest`, `LlmPrompt`, `UserBackup`, `CreateUserBackupRequest`,
+  `RestoreUserBackupRequest`, `UploadUserBackupRequest`, `UsageStatistics`, `QuotaInfo`,
+  `HubApiKeyValidation`.
+
 ## [3.3.0] - 2026-05-02
 
 ### Added

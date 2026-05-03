@@ -296,6 +296,87 @@ impl VectorStore {
         Ok(())
     }
 
+    /// Atomically rename a collection and register the old name as a
+    /// grace-window alias pointing to the new name.
+    ///
+    /// The caller is responsible for pruning the alias later (e.g. on
+    /// the next minor-version upgrade). In-memory only: the alias does
+    /// not survive a restart unless the caller persists it separately.
+    pub fn rename_collection(&self, old_name: &str, new_name: &str) -> Result<()> {
+        let old_name = old_name.trim();
+        let new_name = new_name.trim();
+
+        if old_name.is_empty() {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "old collection name cannot be empty".to_string(),
+            });
+        }
+        if new_name.is_empty() {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "new collection name cannot be empty".to_string(),
+            });
+        }
+        if old_name == new_name {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "old and new names must differ".to_string(),
+            });
+        }
+
+        // Resolve in case old_name is itself an alias.
+        let canonical_old = self.resolve_alias_target(old_name)?;
+
+        // Ensure the source exists (will lazy-load from disk if needed).
+        let _ = self.get_collection(canonical_old.as_str())?;
+
+        // Destination must not collide with an existing collection or alias.
+        if self.collections.contains_key(new_name) {
+            return Err(VectorizerError::CollectionAlreadyExists(
+                new_name.to_string(),
+            ));
+        }
+        if self.aliases.contains_key(new_name) {
+            return Err(VectorizerError::CollectionAlreadyExists(
+                new_name.to_string(),
+            ));
+        }
+
+        // Atomic swap: remove under old key, reinsert under new key.
+        let (_old_key, collection) = self
+            .collections
+            .remove(canonical_old.as_str())
+            .ok_or_else(|| VectorizerError::CollectionNotFound(old_name.to_string()))?;
+
+        self.collections.insert(new_name.to_string(), collection);
+
+        // Register old canonical name as a grace-window alias → new name.
+        // Any existing aliases that pointed to canonical_old are re-targeted.
+        self.aliases
+            .iter_mut()
+            .filter(|e| e.value().as_str() == canonical_old.as_str())
+            .for_each(|mut e| {
+                *e.value_mut() = new_name.to_string();
+            });
+
+        // Also keep the old canonical name itself as an alias so callers
+        // using the old name continue to resolve it transparently.
+        self.aliases
+            .insert(canonical_old.to_string(), new_name.to_string());
+
+        info!(
+            "Collection '{}' renamed to '{}'; '{}' kept as grace-window alias",
+            canonical_old, new_name, canonical_old
+        );
+        Ok(())
+    }
+
+    /// Remove the grace-window alias created by `rename_collection`.
+    ///
+    /// Operators call this once client migration to the new name is
+    /// complete (typically one minor version after the rename).
+    pub fn drop_rename_alias(&self, old_name: &str) -> Result<()> {
+        self.delete_alias(old_name)
+    }
+
     /// Delete a collection
     pub fn delete_collection(&self, name: &str) -> Result<()> {
         debug!("Deleting collection '{}'", name);

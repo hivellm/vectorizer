@@ -75,6 +75,9 @@ class MockTransport(Transport):
     async def delete(self, path: str) -> Any:
         return await self._dispatch("DELETE", path)
 
+    async def patch(self, path: str, data: Optional[Any] = None) -> Any:
+        return await self._dispatch("PATCH", path, data)
+
     async def close(self) -> None:
         self.closed = True
 
@@ -127,7 +130,10 @@ class TestSurfaceClientsAcceptAnyTransport(unittest.TestCase):
     def test_auth_client_exposes_header(self) -> None:
         mock = MockTransport()
         auth = AuthClient(mock, api_key="sk-1")
-        self.assertEqual(auth.headers(), {"Authorization": "Bearer sk-1"})
+        self.assertEqual(auth.headers(), {"X-API-Key": "sk-1"})
+        jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1In0.sig"
+        auth.set_api_key(jwt)
+        self.assertEqual(auth.headers(), {"Authorization": f"Bearer {jwt}"})
         auth.set_api_key(None)
         self.assertEqual(auth.headers(), {})
 

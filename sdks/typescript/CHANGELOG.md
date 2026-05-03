@@ -2,6 +2,72 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [3.8.0] - 2026-05-02
+
+### Added
+
+- **Phase 16 RPC typed wrappers.** Full coverage of the server's `rpc_capability_names()` catalog. All ~95 commands now have typed wrapper functions and matching `RpcClient` prototype methods. New domains covered (beyond the existing `collections.list`, `collections.get_info`, `vectors.get`, `search.basic`):
+  - **Collections (5 new):** `createCollection`, `deleteCollection`, `listEmptyCollections`, `cleanupEmptyCollections`, `forceSaveCollection`.
+  - **Vectors (15 new):** `insertVector`, `insertTextVector`, `updateVector`, `deleteVectorRpc`, `listVectors`, `embedText`, `batchInsertVectors`, `batchInsertTexts`, `batchSearch`, `batchUpdateVectors`, `batchDeleteVectors`, `moveVectorsRpc`, `copyVectorsRpc`, `deleteByFilterRpc`, `bulkUpdateMetadataRpc`, `setVectorExpiry`.
+  - **Search (7 new):** `searchIntelligent`, `searchByText`, `searchByFile`, `searchHybrid`, `searchSemantic`, `searchContextual`, `searchMultiCollection`, `searchExplain`.
+  - **Discovery (10 new):** `discover`, `filterCollections`, `scoreCollections`, `expandQueries`, `broadDiscovery`, `semanticFocus`, `promoteReadme`, `compressEvidence`, `buildAnswerPlan`, `renderLlmPrompt`.
+  - **File (7 new):** `fileContent`, `fileList`, `fileSummary`, `fileChunks`, `fileOutline`, `fileRelated`, `fileSearchByType`.
+  - **Graph (10 new):** `graphListNodes`, `graphNeighbors`, `graphFindRelated`, `graphFindPath`, `graphCreateEdge`, `graphDeleteEdge`, `graphListEdges`, `graphDiscoverEdges`, `graphDiscoverEdgesForNode`, `graphDiscoveryStatus`.
+  - **Admin (16 new):** `adminStats`, `adminStatus`, `adminLogs`, `adminIndexingProgress`, `adminConfigGet`, `adminConfigUpdate`, `adminBackupsList`, `adminBackupsCreate`, `adminBackupsRestore`, `adminWorkspacesList`, `adminWorkspaceGet`, `adminWorkspaceAdd`, `adminWorkspaceRemove`, `adminRestart`, `adminSlowQueriesList`, `adminSlowQueriesConfig`.
+  - **Auth (11 new):** `authMe`, `authLogout`, `authRefreshToken`, `authValidatePassword`, `authApiKeysCreate`, `authApiKeysList`, `authApiKeysRevoke`, `rotateApiKeyRpc`, `authApiKeysCreateScoped`, `authIntrospect`, `authAudit`.
+  - **Replication (4 new):** `replicationStatus`, `replicationConfigure`, `replicationStats`, `replicationReplicasList`.
+  - **Cluster (5 new):** `clusterFailover`, `clusterReplicaResync`, `clusterPeerAdd`, `clusterRebalance`, `clusterRebalanceStatus`.
+- New response types exported from `src/rpc/index.ts`: `CreateCollectionResult`, `CleanupEmptyResult`, `VectorWriteResult`, `BatchItemResult`, `BatchInsertResult`, `BatchUpdateResult`, `BatchDeleteResult`, `BatchSearchResult`, `MoveRpcResult`, `CopyRpcResult`, `DeleteByFilterRpcResult`, `BulkUpdateMetadataRpcResult`, `SetExpiryResult`, `EmbedResult`, `VectorListResult`, `SearchTrace`, `SearchExplainResult`, `DiscoverResult`, `ScoredCollection`, `ExpandQueriesResult`, `DiscoveryChunk`, `CompressBullet`, `AnswerPlanSection`, `AnswerPlanResult`, `RenderPromptResult`, `GraphDiscoveryStatus`, `DiscoverEdgesResult`, `DiscoverEdgesForNodeResult`, `AdminStats`, `AdminStatus`, `SlowQueryConfigResult`, `AuthMeResult`, `RefreshTokenResult`, `ValidatePasswordResult`, `ApiKeyCreated`, `RotatedApiKey`, `ReplicationConfigureResult`, `RebalanceStatus`.
+- Vitest wire-shape tests in `tests/rpc-phase16.test.ts` (one decode test per domain group).
+
+## [3.7.0] - 2026-05-02
+
+### Added
+
+- **Cluster + auth admin API (phase15).** Nine new server routes exposed across two client files:
+  - **`ReplicationClient`** — `clusterFailover`, `clusterResyncReplica`, `clusterAddPeer`, `clusterRebalance`, `clusterRebalanceStatus`.
+  - **`AuthClient`** — `rotateApiKey`, `createScopedApiKey`, `introspectToken`, `listAuditLog`.
+- New interfaces in `src/models/cluster-auth-admin.ts`: `FailoverReport`, `ResyncJob`, `PeerInfo`, `AddPeerRequest`, `RebalanceJob`, `RotatedKey`, `TokenScope`, `CreateScopedApiKeyRequest`, `TokenIntrospection`, `AuditEntry`, `AuditQuery`. All re-exported from `src/models/index.ts`.
+- Vitest tests in `tests/cluster-auth-admin.test.ts`.
+
+## [3.6.0] - 2026-05-02
+
+### Added
+
+- **Schema-evolution + observability API (phase14).** Eight new server routes exposed across three client files:
+  - **`CollectionsClient`** — `renameCollection`, `reindexCollection`, `snapshotCollectionNative`, `listCollectionSnapshotsNative`, `restoreCollectionSnapshotNative`.
+  - **`SearchClient`** — `explainSearch` (`POST /collections/{name}/explain`): returns search results plus a full HNSW execution trace (`visited_nodes`, `ef_search`, `hnsw_search_ms`, `payload_filter_evals`, `quantization_score_ms`, `total_ms`).
+  - **`AdminClient`** — `listSlowQueries` (`GET /slow_queries`), `setSlowQueryConfig` (`POST /slow_queries/config`).
+- New interfaces in `src/models/schema-evolution.ts`: `ReindexParams`, `ReindexJob`, `NativeSnapshotInfo`, `ExplainTrace`, `ExplainResponse`, `SlowQueryEntry`, `SlowQueryConfig`. All re-exported from `src/models/index.ts`.
+
+## [3.5.0] - 2026-05-02
+
+### Added
+
+- **Tier-control API (phase13).** Six new methods across two client surfaces:
+  - `VectorsClient.deleteByFilter(collection, filter)` — `POST /collections/{c}/vectors/delete_by_filter`. Deletes all vectors matching a Qdrant-style metadata filter. Returns `DeleteByFilterReport` (`scanned`, `matched`, `deleted`, `results`).
+  - `VectorsClient.bulkUpdateMetadata(collection, filter, patch)` — `POST /collections/{c}/vectors/bulk_update_metadata`. Applies RFC 7396 JSON-merge-patch to all matched vectors. Returns `BulkUpdateReport` (`scanned`, `matched`, `updated`, `results`).
+  - `VectorsClient.copyVectors(src, dst, ids)` — `POST /collections/{src}/vectors/copy`. Copies vectors to a destination collection without deleting the source (contrast with `moveToCollection`). Returns `CopyReport` (`src`, `dst`, `requested`, `copied`, `failed`, `results`).
+  - `VectorsClient.setVectorExpiry(collection, vectorId, expiresAt)` — `PATCH /collections/{c}/vectors/{id}/expiry`. Sets or clears a per-vector expiry timestamp (`null` clears).
+  - `CollectionsClient.reencodeCollection(collection, targetEncoding)` — `POST /collections/{c}/reencode`. Re-quantizes an existing collection in-place. Returns `ReencodeJob` (`job_id`, `collection`, `state`, `target_encoding`, `progress`).
+  - `CollectionsClient.setCollectionTtl(collection, ttlSecs)` — `POST /collections/{c}/ttl`. Sets or clears a per-collection TTL (`null` clears; responds 204).
+- **New types** under `@hivehub/vectorizer-sdk`: `DeleteByFilterReport`, `BulkUpdateReport`, `CopyReport`, `CopyOpResult`, `ReencodeJob` (exported from `src/models/tier-control.ts`).
+- **`ITransport.patch`** — added `patch<T>(url, data?, config?)` to the transport interface, `HttpClient`, and `UMICPClient` to support the `PATCH` HTTP verb.
+
+## [3.4.0] - 2026-05-02
+
+### Added
+
+- **Control-surface parity with Rust SDK (phase12).** Three new client modules wired into `VectorizerClient`:
+  - `AuthClient` — 11 auth methods: `me`, `logout`, `refreshToken`, `validatePassword`, `createApiKey`, `listApiKeys`, `revokeApiKey`, `createUser`, `listUsers`, `deleteUser`, `changePassword`.
+  - `ReplicationClient` — 4 replication methods: `getReplicationStatus`, `configureReplication`, `getReplicationStats`, `listReplicas`.
+  - `HubClient` — 10 hub methods: `listUserBackups`, `createUserBackup`, `restoreUserBackup`, `uploadUserBackup`, `getUserBackup`, `deleteUserBackup`, `downloadUserBackup`, `getUsageStatistics`, `getQuotaInfo`, `validateHubApiKey`.
+- **Extended `AdminClient`** — 5 new methods: `getStats`, `getIndexingProgress`, `listEmptyCollections`, `cleanupEmptyCollections`, `getWorkspaceConfig`. Additional typed helpers: `getLogEntries`, `listBackupInfos`, `createBackupTyped`, `restoreBackupTyped`, `addWorkspaceTyped`.
+- **Extended `VectorsClient`** — 3 new methods: `insertText` (`POST /insert`), `listVectors` (`GET /collections/{c}/vectors`), `getVectorByPath` (`GET /collections/{c}/vectors/{id}`).
+- **Extended `DiscoveryClient`** — 6 new pipeline methods: `broadDiscovery`, `semanticFocus`, `promoteReadme`, `compressEvidence`, `buildAnswerPlan`, `renderLlmPrompt`.
+- **Extended `SearchClient`** — 1 new method: `searchByFile` (`POST /collections/{c}/search/file`).
+- **New model files** under `src/models/`: `admin.ts`, `auth.ts`, `replication-sdk.ts`, `hub.ts`, `discovery-pipeline.ts`, `vectors-extended.ts` — all re-exported from `models/index.ts`.
+
 ## [3.3.0] - 2026-05-02
 
 ### Added

@@ -23,6 +23,7 @@ use tokio::io::BufReader;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, info_span, warn};
+use vectorizer::cache::SlowQueryRing;
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
 use vectorizer_protocol::rpc_wire::codec::{read_request, write_response};
@@ -43,6 +44,14 @@ pub struct RpcState {
     /// (single-user mode); the dispatch table treats every caller as
     /// the implicit local admin in that case.
     pub auth: Option<AuthHandlerState>,
+    /// Master replication node, present only when this instance runs as master.
+    pub master_node: Option<Arc<vectorizer::replication::MasterNode>>,
+    /// Replica replication node, present only when this instance runs as a replica.
+    pub replica_node: Option<Arc<vectorizer::replication::ReplicaNode>>,
+    /// Cluster manager, present only when cluster mode is enabled.
+    pub cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
+    /// Slow-query ring buffer for `admin.slow_queries_*`.
+    pub slow_query_ring: SlowQueryRing,
 }
 
 /// Spawn the RPC TCP listener on `addr`. Returns immediately; the

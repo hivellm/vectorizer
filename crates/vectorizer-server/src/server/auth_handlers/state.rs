@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 use tracing::{debug, error, info, warn};
 use vectorizer::auth::AuthManager;
+use vectorizer::auth::audit::AuditLogger;
 use vectorizer::auth::persistence::{AuthPersistence, PersistedUser};
 use vectorizer::auth::roles::Role;
 
@@ -92,6 +93,8 @@ pub struct AuthHandlerState {
     pub token_blacklist: Arc<tokio::sync::RwLock<HashSet<String>>>,
     /// Login attempt tracking for rate limiting (by IP or username)
     pub login_attempts: Arc<tokio::sync::RwLock<HashMap<String, LoginAttempt>>>,
+    /// Admin audit logger (non-blocking, background flusher).
+    pub audit_logger: AuditLogger,
 }
 
 /// User record for authentication
@@ -115,12 +118,14 @@ impl AuthHandlerState {
         let persistence = Arc::new(AuthPersistence::with_default_dir());
         let token_blacklist = Arc::new(tokio::sync::RwLock::new(HashSet::new()));
         let login_attempts = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+        let audit_logger = AuditLogger::new(None, 4096, 30);
         Self {
             auth_manager,
             users,
             persistence,
             token_blacklist,
             login_attempts,
+            audit_logger,
         }
     }
 
@@ -185,6 +190,9 @@ impl AuthHandlerState {
                 last_used: persisted_key.last_used,
                 expires_at: persisted_key.expires_at,
                 active: persisted_key.active,
+                scopes: Vec::new(),
+                grace_until: None,
+                rotated_to: None,
             };
             if let Err(e) = auth_manager.register_api_key(api_key).await {
                 warn!("Failed to register API key from disk: {}", e);
@@ -277,6 +285,8 @@ impl AuthHandlerState {
 
         let token_blacklist = Arc::new(tokio::sync::RwLock::new(HashSet::new()));
         let login_attempts = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+        let backup_dir = AuthPersistence::get_data_dir();
+        let audit_logger = AuditLogger::new(Some(backup_dir), 4096, 30);
 
         Self {
             auth_manager,
@@ -284,6 +294,7 @@ impl AuthHandlerState {
             persistence,
             token_blacklist,
             login_attempts,
+            audit_logger,
         }
     }
 

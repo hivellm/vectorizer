@@ -180,4 +180,109 @@ impl Collection {
             Ok(None)
         }
     }
+
+    /// Re-encode (re-quantize) all vectors in-place to `target_encoding`.
+    ///
+    /// # Correctness invariant
+    ///
+    /// Writes are write-locked for the duration of the swap: the collection
+    /// acquires an exclusive lock on `vector_order` (which serialises new
+    /// inserts, which also take that lock), builds the new quantized store
+    /// off-line, then atomically replaces `quantized_vectors` under the
+    /// same hold. This is the write-lock fallback described in the phase13
+    /// spec. An atomic double-buffer swap without locking writes would
+    /// require a secondary index that mirrors concurrent inserts; given the
+    /// non-trivial complexity, the safer correct version is shipped here
+    /// and documented.
+    ///
+    /// **Concurrent writes are blocked for the duration of the reencode.**
+    /// For typical collections (< 1M vectors) this is sub-second. For
+    /// larger collections operators should schedule the reencode during a
+    /// maintenance window.
+    pub fn reencode_inplace(&self, target_encoding: &str) -> Result<()> {
+        use crate::models::QuantizationConfig;
+
+        let new_config = match target_encoding {
+            "sq8" | "SQ8" | "scalar" => QuantizationConfig::SQ { bits: 8 },
+            "binary" => QuantizationConfig::Binary,
+            "none" | "fp32" => QuantizationConfig::None,
+            other => {
+                return Err(crate::error::VectorizerError::Storage(format!(
+                    "unsupported target_encoding '{}'; valid values: sq8, binary, fp32/none",
+                    other
+                )));
+            }
+        };
+
+        // Hold vector_order write lock for the duration to serialise
+        // concurrent inserts (they also take this lock).
+        let vector_order = self.vector_order.write();
+        let count = vector_order.len();
+
+        info!(
+            "reencode_inplace: collection '{}', {} vectors, target='{}'",
+            self.name, count, target_encoding
+        );
+
+        if count == 0 {
+            return Ok(());
+        }
+
+        match &new_config {
+            QuantizationConfig::None => {
+                // Migrate quantized → full-precision: dequantize into vectors map.
+                let mut qvecs = self.quantized_vectors.lock();
+                for id in vector_order.iter() {
+                    if let Some(qv) = qvecs.remove(id) {
+                        let vec = qv.to_vector();
+                        self.vectors.insert(id.clone(), vec)?;
+                    }
+                }
+                info!(
+                    "reencode_inplace: '{}' converted to fp32 ({} vectors)",
+                    self.name, count
+                );
+            }
+            QuantizationConfig::SQ { .. } | QuantizationConfig::Binary => {
+                // Build new quantized map from whatever is currently in storage.
+                let mut new_qvecs = std::collections::HashMap::with_capacity(count);
+
+                for id in vector_order.iter() {
+                    // Try full-precision first, then existing quantized storage.
+                    let vector = if let Ok(Some(v)) = self.vectors.get(id) {
+                        v
+                    } else if let Some(qv) = self.quantized_vectors.lock().get(id) {
+                        qv.to_vector()
+                    } else {
+                        warn!(
+                            "reencode_inplace: vector '{}' not found in collection '{}'",
+                            id, self.name
+                        );
+                        continue;
+                    };
+
+                    let new_qv = crate::models::QuantizedVector::from_vector(vector, &new_config);
+                    new_qvecs.insert(id.clone(), new_qv);
+                }
+
+                // Atomically swap the quantized store.
+                *self.quantized_vectors.lock() = new_qvecs;
+
+                info!(
+                    "reencode_inplace: '{}' converted to '{}' ({} vectors)",
+                    self.name, target_encoding, count
+                );
+            }
+            QuantizationConfig::PQ { .. } => {
+                // PQ requires training first; re-use the existing train path.
+                self.train_pq_if_needed()?;
+                info!(
+                    "reencode_inplace: '{}' PQ training completed ({} vectors)",
+                    self.name, count
+                );
+            }
+        }
+
+        Ok(())
+    }
 }

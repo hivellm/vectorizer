@@ -5,9 +5,11 @@
 
 pub mod memory_manager;
 pub mod query_cache;
+pub mod slow_query;
 
 pub use memory_manager::{
     AllocationResult, CacheMemoryManager, CacheMemoryManagerConfig, CacheMemoryStats,
     get_global_cache_memory_manager, init_global_cache_memory_manager,
 };
 pub use query_cache::{QueryCache, QueryCacheConfig, QueryKey};
+pub use slow_query::{SlowQueryConfig, SlowQueryEntry, SlowQueryRing};

@@ -140,14 +140,23 @@ describe('per-surface client transport routing (phase4 regression guard)', () =>
   });
 
   it('VectorsClient.deleteVectors routes through the mock', async () => {
-    mock.setResponse('POST', '/collections/c1/vectors/delete', { deleted: 2 });
+    const report = {
+      requested: 2,
+      deleted: 2,
+      failed: 0,
+      results: [
+        { id: 'v1', status: 'ok' },
+        { id: 'v2', status: 'ok' },
+      ],
+    };
+    mock.setResponse('POST', '/batch_delete', report);
     const client = new VectorsClient({ transport: mock });
     const result = await client.deleteVectors('c1', ['v1', 'v2']);
-    expect(result).toEqual({ deleted: 2 });
+    expect(result).toEqual(report);
     expect(mock.calls[0]).toEqual({
       method: 'POST',
-      url: '/collections/c1/vectors/delete',
-      data: { vector_ids: ['v1', 'v2'] },
+      url: '/batch_delete',
+      data: { collection: 'c1', ids: ['v1', 'v2'] },
     });
   });
 

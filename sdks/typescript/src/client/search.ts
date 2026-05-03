@@ -28,6 +28,7 @@ import {
   validateSearchResponse,
   validateTextSearchRequest,
 } from '../models';
+import type { ExplainResponse, SearchByFileRequest } from '../models';
 
 export class SearchClient extends BaseClient {
   /** Vector search via the canonical `/search` endpoint. */
@@ -219,6 +220,75 @@ export class SearchClient extends BaseClient {
       return response;
     } catch (error) {
       this.logger.error('Failed to perform hybrid search', { request, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Search a collection for vectors associated with a given file path.
+   * Calls `POST /collections/{name}/search/file` with `{file_path, limit?}`.
+   * Returns a `SearchResponse` (may be empty if the file is not indexed).
+   */
+  public async searchByFile(
+    collectionName: string,
+    request: SearchByFileRequest,
+    options?: ReadOptions,
+  ): Promise<SearchResponse> {
+    try {
+      const transport = this.getReadTransport(options);
+      const response = await transport.post<SearchResponse>(
+        `/collections/${collectionName}/search/file`,
+        {
+          file_path: request.file_path,
+          limit: request.limit ?? 10,
+        },
+      );
+      this.logger.debug('File search completed', {
+        collectionName,
+        filePath: request.file_path,
+        resultCount: response.results?.length ?? 0,
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to search by file', { collectionName, request, error });
+      throw error;
+    }
+  }
+
+  // ── Phase-14: observability ────────────────────────────────────────────────
+
+  /**
+   * Run a search and return the full HNSW execution trace (phase14).
+   *
+   * Calls `POST /collections/{name}/explain` with `{ vector, k? }`.
+   *
+   * The trace includes `visited_nodes`, `ef_search`, `hnsw_search_ms`,
+   * `payload_filter_evals`, `quantization_score_ms`, and `total_ms`.
+   * Results are identical to a normal search — the real code path is
+   * instrumented, there is no separate explain engine.
+   */
+  public async explainSearch(
+    collectionName: string,
+    vector: number[],
+    k?: number,
+  ): Promise<ExplainResponse> {
+    try {
+      const transport = this.getReadTransport();
+      const body: Record<string, unknown> = { vector };
+      if (k !== undefined) body['k'] = k;
+      const response = await transport.post<ExplainResponse>(
+        `/collections/${collectionName}/explain`,
+        body,
+      );
+      this.logger.debug('Explain search completed', {
+        collectionName,
+        k,
+        visitedNodes: response.trace?.visited_nodes,
+        totalMs: response.trace?.total_ms,
+      });
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to explain search', { collectionName, error });
       throw error;
     }
   }

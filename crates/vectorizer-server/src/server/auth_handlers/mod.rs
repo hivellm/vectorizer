@@ -24,6 +24,7 @@ mod admin;
 mod authenticated;
 mod extractors;
 mod middleware;
+pub mod phase15;
 mod public;
 mod state;
 mod types;
@@ -44,6 +45,7 @@ pub use middleware::{
     auth_middleware, require_admin_for_rest, require_admin_from_headers, require_admin_middleware,
     require_auth_middleware,
 };
+pub use phase15::{create_scoped_api_key, introspect_token, list_audit_log, rotate_api_key};
 pub use public::{login, validate_password_endpoint};
 // Internal items that tests reach for via `use super::*`. The outer world
 // doesn't see these — the visibility is scoped to the crate.

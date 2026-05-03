@@ -7,10 +7,13 @@
 //! - [`common`]             — shared helpers (tenant extraction, metrics UUID)
 //! - [`meta`]               — /health, /stats, /indexing/progress, /status,
 //!                            /logs, /metrics (Prometheus)
-//! - [`collections`]        — collection CRUD + /collections/empty cleanup
+//! - [`collections`]        — collection CRUD + /collections/empty cleanup +
+//!                            phase-14 schema-evolution (rename, reindex, snapshots)
 //! - [`vectors`]            — vector CRUD + embed + batch insert
 //! - [`insert`]             — /insert_text (the big chunk-and-embed endpoint)
-//! - [`search`]             — text / hybrid / file search + batch ops
+//! - [`search`]             — text / hybrid / file search + batch ops +
+//!                            phase-14 explain
+//! - [`slow_queries`]       — phase-14 slow-query log (list + config)
 //! - [`intelligent_search`] — high-level orchestrator: intelligent / multi /
 //!                            semantic / contextual
 //! - [`discovery`]          — the /discover pipeline stages (filter, score,
@@ -37,6 +40,7 @@ mod insert_vectors;
 mod intelligent_search;
 mod meta;
 mod search;
+mod slow_queries;
 mod vectors;
 
 pub use admin::{
@@ -45,8 +49,10 @@ pub use admin::{
 };
 pub use backups::{create_backup, get_backup_directory, list_backups, restore_backup};
 pub use collections::{
-    cleanup_empty_collections, create_collection, delete_collection, force_save_collection,
-    get_collection, list_collections, list_empty_collections,
+    cleanup_empty_collections, create_collection, create_native_snapshot, delete_collection,
+    force_save_collection, get_collection, list_collections, list_empty_collections,
+    list_native_snapshots, reencode_collection, reindex_collection, rename_collection,
+    restore_native_snapshot, set_collection_ttl,
 };
 pub(crate) use common::collection_metrics_uuid;
 pub use discovery::{
@@ -66,12 +72,15 @@ pub use meta::{
     get_indexing_progress, get_logs, get_prometheus_metrics, get_stats, get_status, health_check,
 };
 pub use search::{
-    batch_delete_vectors, batch_search_vectors, batch_update_vectors, hybrid_search_vectors,
-    search_by_file, search_vectors, search_vectors_by_collection, search_vectors_by_text,
+    batch_delete_vectors, batch_search_vectors, batch_update_vectors, explain_search,
+    hybrid_search_vectors, search_by_file, search_vectors, search_vectors_by_collection,
+    search_vectors_by_text,
 };
+pub use slow_queries::{list_slow_queries, set_slow_query_config};
 pub use vectors::{
-    batch_insert_texts, delete_vector, delete_vector_generic, embed_text, get_vector, insert_texts,
-    list_vectors, move_vectors, update_vector,
+    batch_insert_texts, bulk_update_metadata, copy_vectors, delete_by_filter, delete_vector,
+    delete_vector_generic, embed_text, get_vector, insert_texts, list_vectors, move_vectors,
+    set_vector_expiry, update_vector,
 };
 
 #[cfg(test)]

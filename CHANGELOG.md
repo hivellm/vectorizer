@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.7.0] - 2026-05-02
+
+### Added
+
+- **Cluster admin endpoints (phase15).** Five new server routes for production cluster operations:
+  - `POST /cluster/failover` — promote a replica to primary with a pre-flight WAL-lag check (returns 409 when replica lag exceeds `max_lag_segments`, default 1). Residual loss window documented in `src/replication/state.rs`.
+  - `POST /cluster/replicas/{id}/resync` — force a full snapshot + WAL replay on a lagging replica.
+  - `POST /cluster/peers` — add a peer node (member or observer role) to the cluster; complements the existing Qdrant-compatible remove-peer endpoint.
+  - `POST /cluster/rebalance` — trigger shard rebalance across all active nodes using insert-before-delete invariant; returns a job ID immediately while the moves complete asynchronously.
+  - `GET /cluster/rebalance/status` — poll progress of the active or last completed rebalance job.
+
+- **Auth/RBAC admin endpoints (phase15).** Four new server routes for production multi-tenant deployments:
+  - `POST /auth/keys/{id}/rotate` — atomic key rotation with a configurable grace window (default 300 s). Both the old and new token are accepted during the window; only the new token is accepted after. Returns `{ old_key_id, new_key_id, new_token, grace_until }`.
+  - `POST /auth/keys` (extended body) — existing endpoint now accepts an optional `scopes: [{ collection, permissions }]` array. Keys with a non-empty scopes list are collection-scoped and are denied on collections not listed. Keys with an empty list have no implicit access (default-deny). Existing global-key callers that omit `scopes` are unaffected.
+  - `POST /auth/introspect` — RFC 7662 token introspection. Accepts any JWT or API key in the request body and returns `{ active, scope, sub, exp }`.
+  - `GET /auth/audit` — admin-only audit log. Returns the most recent admin-action entries from the in-memory ring buffer (capped at 4096 entries, flushed to daily-rotated JSONL files under the backup directory every 30 s). Filterable by `from`, `to`, `actor`, `action` query parameters.
+
+- **AuditLogger** (`vectorizer::auth::audit`). Non-blocking audit logger: `record()` sends to an unbounded `mpsc` channel and never blocks the handler hot-path. Background flusher drains the channel, maintains the in-memory `VecDeque` ring, and writes to daily-rotated files. Durability SLO: at-most-once, best-effort — entries in the buffer at crash time are lost. Operators requiring a durable audit ledger should ship the JSONL files to an external sink.
+
+- **Scoped API keys** (`TokenScope`, `create_scoped_api_key` on `AuthManager`). Per-collection permission scopes attached to API keys and propagated through `UserClaims`. Default-deny when the scopes list is empty.
+
+- **Key rotation** (`rotate_api_key` on `AuthManager`, `set_rotation_metadata` on `ApiKeyManager`). Old keys remain valid through their grace window without an `active = false` revocation, enabling zero-downtime credential rollover.
+
+- **Token introspection** (`introspect_token` on `AuthManager`). Tries JWT then API key; returns a typed `TokenIntrospection` value regardless of token type.
+
+- **Failover / resync helpers** (`vectorizer::replication::state`). `failover_to()` and `force_resync()` operate on `MasterNode` references. `LagTooHigh` variant added to `ReplicationError`.
+
+- **Cluster peer-add / rebalance** (`vectorizer::cluster::rebalance`). `add_peer()`, `rebalance()`, `rebalance_status()` with process-wide `OnceLock` job tracking and per-shard checkpoint advancement.
+
+### Breaking change: none
+Existing API keys, JWT tokens, and `POST /auth/keys` callers are fully backward-compatible. The `scopes` field on `UserClaims` and `ApiKey` defaults to an empty `Vec` so old serialized data deserializes correctly.
+
 ## [3.3.0] - 2026-05-02
 
 ### Added

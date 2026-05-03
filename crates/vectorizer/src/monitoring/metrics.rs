@@ -151,6 +151,19 @@ pub struct Metrics {
     /// collection. Bumped even when the warn log is rate-limited so
     /// operators don't lose the volume signal.
     pub bm25_empty_vocab_fallback_total: CounterVec,
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TTL Reaper Metrics (phase13)
+    // ═══════════════════════════════════════════════════════════════════════
+    /// Total TTL reaper sweep passes (labelled by collection).
+    pub ttl_reaper_scans_total: CounterVec,
+
+    /// Total vectors expired and deleted by the TTL reaper.
+    pub ttl_vectors_expired_total: CounterVec,
+
+    /// Lag between the reaper's scheduled interval and actual execution
+    /// (in seconds). A rising value indicates the reaper is falling behind.
+    pub ttl_reaper_lag_secs: GaugeVec,
 }
 
 impl Metrics {
@@ -454,6 +467,34 @@ impl Metrics {
                 &["collection"],
             )
             .unwrap(),
+
+            // TTL reaper metrics (phase13)
+            ttl_reaper_scans_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_ttl_reaper_scans_total",
+                    "Total TTL reaper sweep passes per collection",
+                ),
+                &["collection"],
+            )
+            .unwrap(),
+
+            ttl_vectors_expired_total: CounterVec::new(
+                Opts::new(
+                    "vectorizer_ttl_vectors_expired_total",
+                    "Total vectors expired and deleted by the TTL reaper",
+                ),
+                &["collection"],
+            )
+            .unwrap(),
+
+            ttl_reaper_lag_secs: GaugeVec::new(
+                Opts::new(
+                    "vectorizer_ttl_reaper_lag_secs",
+                    "Lag between scheduled and actual TTL reaper execution in seconds",
+                ),
+                &["collection"],
+            )
+            .unwrap(),
         }
     }
 
@@ -523,6 +564,11 @@ impl Metrics {
         registry.register(Box::new(self.vocab_build_permits_available.clone()))?;
         registry.register(Box::new(self.upsert_rejected_total.clone()))?;
         registry.register(Box::new(self.bm25_empty_vocab_fallback_total.clone()))?;
+
+        // TTL reaper metrics (phase13)
+        registry.register(Box::new(self.ttl_reaper_scans_total.clone()))?;
+        registry.register(Box::new(self.ttl_vectors_expired_total.clone()))?;
+        registry.register(Box::new(self.ttl_reaper_lag_secs.clone()))?;
 
         Ok(())
     }

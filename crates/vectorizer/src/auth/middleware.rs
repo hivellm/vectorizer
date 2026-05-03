@@ -101,6 +101,7 @@ impl AuthMiddleware {
                 roles: vec![],
                 iat: 0,
                 exp: 0,
+                scopes: vec![],
             },
             authenticated: false,
         }

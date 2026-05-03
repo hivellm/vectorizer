@@ -680,6 +680,212 @@ collections = await client.list_collections()
 vector = await client.get_vector("documents", "doc1")
 ```
 
+## Control surface (3.4)
+
+### Admin / observability
+
+```python
+import asyncio
+from vectorizer_sdk import VectorizerClient
+
+async def main():
+    client = VectorizerClient(base_url="http://localhost:15002")
+
+    # Server health, uptime, collection/vector counts
+    stats = await client.get_stats()
+    print(f"Total vectors: {stats['total_vectors']}")
+
+    status = await client.get_status()
+    print(f"Server v{status['version']}, uptime: {status['uptime']}s")
+
+    # Recent logs
+    logs = await client.get_logs(lines=50, level="INFO")
+    for entry in logs:
+        print(f"{entry['timestamp']}: {entry['message']}")
+
+    # Per-collection indexing progress
+    progress = await client.get_indexing_progress()
+    for collection, pct in progress.items():
+        print(f"{collection}: {pct:.1f}% complete")
+
+    # Force flush one collection
+    await client.force_save_collection("my_docs")
+
+    # List and clean empty collections
+    empty = await client.list_empty_collections()
+    if empty:
+        report = await client.cleanup_empty_collections()
+        print(f"Cleaned up {report['deleted']} empty collections")
+
+    # List workspaces
+    workspaces = await client.list_workspaces()
+    print(f"Workspaces: {workspaces}")
+
+asyncio.run(main())
+```
+
+### Auth
+
+```python
+import asyncio
+from vectorizer_sdk import VectorizerClient
+
+async def main():
+    client = VectorizerClient(base_url="http://localhost:15002")
+
+    # Current user info
+    me = await client.me()
+    print(f"Logged in as: {me['username']} (roles: {', '.join(me['roles'])})")
+
+    # Refresh token with extended TTL
+    token = await client.refresh_token()
+    print(f"Token refreshed, expires in: {token['expires_in']} seconds")
+
+    # Validate password before creating account
+    report = await client.validate_password("MySecure123!")
+    print(f"Valid: {report['valid']}, feedback: {', '.join(report['feedback'])}")
+
+    # Create API key for programmatic access
+    api_key = await client.create_api_key(
+        name="integration-key",
+        expires_in=86400 * 365  # 1 year
+    )
+    print(f"API Key: {api_key['api_key']}")
+
+    # List and revoke API keys
+    keys = await client.list_api_keys()
+    for key in keys:
+        print(f"Key: {key['id']} (expires: {key['expires_at']})")
+    await client.revoke_api_key(keys[0]['id'])
+
+    # Change password
+    await client.change_password("newPassword123!")
+
+    # Logout
+    await client.logout()
+
+asyncio.run(main())
+```
+
+### Replication
+
+```python
+import asyncio
+from vectorizer_sdk import VectorizerClient
+
+async def main():
+    client = VectorizerClient(base_url="http://localhost:15002")
+
+    # Check replication role and status
+    status = await client.get_replication_status()
+    print(f"Role: {status['role']}, enabled: {status['enabled']}")
+
+    # Get replication statistics (lag, bytes synced)
+    stats = await client.get_replication_stats()
+    print(f"Bytes synced: {stats['bytes_synced']}")
+
+    # List all replicas connected to this master
+    replicas = await client.list_replicas()
+    for replica in replicas:
+        print(f"Replica: {replica['address']} (lag: {replica['lag_ms']}ms)")
+
+asyncio.run(main())
+```
+
+### Discovery pipeline
+
+The discovery pipeline chains six stages from broad search to final LLM-ready prompt:
+
+```python
+import asyncio
+from vectorizer_sdk import VectorizerClient
+
+async def main():
+    client = VectorizerClient(base_url="http://localhost:15002")
+
+    # Stage 1: Broad discovery — multi-query search across all collections
+    broad = await client.broad_discovery(
+        query="machine learning algorithms",
+        max_results=20
+    )
+    print(f"Found {len(broad['results'])} broad results")
+
+    # Stage 2: Semantic focus — narrow search to top collection
+    focused = await client.semantic_focus(
+        query="neural networks",
+        collection="research",
+        max_results=10
+    )
+    print(f"Focused results: {len(focused['results'])}")
+
+    # Stage 3: Promote README — elevate high-quality chunks
+    promoted = await client.promote_readme(
+        results=focused['results'],
+        readme_boost=2.0
+    )
+
+    # Stage 4: Compress evidence — distill to bullet points
+    bullets = await client.compress_evidence(
+        chunks=promoted['results'],
+        max_bullets=15
+    )
+    print(f"Evidence bullets: {bullets['bullets']}")
+
+    # Stage 5: Build answer plan — organize bullets into sections
+    plan = await client.build_answer_plan(
+        evidence=bullets['bullets'],
+        max_sections=5
+    )
+    print(f"Sections: {plan['sections']}")
+
+    # Stage 6: Render LLM prompt — final markdown string for LLM
+    llm_prompt = await client.render_llm_prompt(
+        plan=plan,
+        style="formal"
+    )
+    print(f"LLM prompt:\n{llm_prompt['markdown']}")
+
+asyncio.run(main())
+```
+
+### Hub backups
+
+```python
+import asyncio
+from vectorizer_sdk import VectorizerClient
+
+async def main():
+    client = VectorizerClient(base_url="http://localhost:15002")
+
+    user_id = "user-123"
+
+    # List user's backups
+    backups = await client.list_user_backups(user_id)
+    for backup in backups:
+        print(f"Backup: {backup['id']} (size: {backup['size_bytes']} bytes)")
+
+    # Create a new backup
+    new_backup = await client.create_user_backup(
+        user_id=user_id,
+        name="full-backup-2024-01",
+        description="January full backup",
+        collections=None  # backup all
+    )
+    print(f"Created backup: {new_backup['id']}")
+
+    # Restore a backup
+    await client.restore_user_backup(
+        user_id=user_id,
+        backup_id=new_backup['id']
+    )
+    print("Restore started")
+
+    # Delete old backup
+    await client.delete_user_backup(user_id, backups[0]['id'])
+
+asyncio.run(main())
+```
+
 #### Read Preferences
 
 | Preference | Description | Use Case |
