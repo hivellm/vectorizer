@@ -4,6 +4,7 @@ interface SparklineProps {
   width?: number;
   height?: number;
   fill?: boolean;
+  ariaLabel?: string;
 }
 
 export function Sparkline({
@@ -12,6 +13,7 @@ export function Sparkline({
   width = 80,
   height = 28,
   fill = true,
+  ariaLabel,
 }: SparklineProps) {
   if (!data.length) return null;
   const min = Math.min(...data);
@@ -23,7 +25,13 @@ export function Sparkline({
     .join(' ');
   const area = `0,${height} ${points} ${width},${height}`;
   return (
-    <svg width={width} height={height} style={{ display: 'block' }}>
+    <svg
+      width={width}
+      height={height}
+      role="img"
+      aria-label={ariaLabel ?? 'trend'}
+      style={{ display: 'block' }}
+    >
       {fill && <polygon points={area} fill={color} opacity="0.12" />}
       <polyline
         points={points}

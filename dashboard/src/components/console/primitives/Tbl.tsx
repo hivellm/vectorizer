@@ -1,7 +1,11 @@
 import type { HTMLAttributes, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes, ReactNode } from 'react';
 
-export function Tbl({ children, ...rest }: TableHTMLAttributes<HTMLTableElement>) {
-  return <table className="tbl" {...rest}>{children}</table>;
+export function Tbl({ children, className, ...rest }: TableHTMLAttributes<HTMLTableElement>) {
+  return (
+    <table className={['tbl', className ?? ''].filter(Boolean).join(' ')} {...rest}>
+      {children}
+    </table>
+  );
 }
 
 export function Th({ children, ...rest }: ThHTMLAttributes<HTMLTableCellElement>) {

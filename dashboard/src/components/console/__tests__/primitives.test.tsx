@@ -102,4 +102,63 @@ describe('console primitives', () => {
     expect(observed).toBe(3);
     vi.useRealTimers();
   });
+
+  it('Sparkline emits role=img with aria-label', () => {
+    const { container } = render(<Sparkline data={[1, 2, 3]} ariaLabel="qps last 60s" />);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('role')).toBe('img');
+    expect(svg.getAttribute('aria-label')).toBe('qps last 60s');
+  });
+
+  it('Sparkline omits polygon when fill=false', () => {
+    const { container } = render(<Sparkline data={[1, 2]} fill={false} />);
+    expect(container.querySelector('polygon')).toBeNull();
+    expect(container.querySelector('polyline')).toBeTruthy();
+  });
+
+  it('Ring exposes progressbar semantics with value/max/label', () => {
+    const { container } = render(<Ring value={42} max={100} label="42%" sub="CPU" />);
+    const wrapper = container.querySelector('[role="progressbar"]')!;
+    expect(wrapper.getAttribute('aria-valuenow')).toBe('42');
+    expect(wrapper.getAttribute('aria-valuemax')).toBe('100');
+    expect(wrapper.getAttribute('aria-label')).toBe('CPU');
+  });
+
+  it('Ring clamps overflowing value to 100% of arc', () => {
+    const { container } = render(<Ring value={200} max={100} label="OVR" />);
+    // strokeDashoffset should be 0 when pct === 1 (clamped)
+    const arc = container.querySelectorAll('circle')[1] as SVGCircleElement;
+    expect(parseFloat(arc.getAttribute('stroke-dashoffset')!)).toBeCloseTo(0, 5);
+  });
+
+  it('Bar exposes progressbar semantics', () => {
+    const { container } = render(<Bar percent={73} ariaLabel="MAP score" />);
+    const bar = container.querySelector('[role="progressbar"]')!;
+    expect(bar.getAttribute('aria-valuenow')).toBe('73');
+    expect(bar.getAttribute('aria-label')).toBe('MAP score');
+  });
+
+  it('Card emits .card / .card-head / .card-body classes', () => {
+    const { container } = render(
+      <Card>
+        <CardHead title="t" sub="s" />
+        <CardBody tight>x</CardBody>
+      </Card>,
+    );
+    expect(container.querySelector('.card')).toBeTruthy();
+    expect(container.querySelector('.card-head .title')?.textContent).toBe('t');
+    expect(container.querySelector('.card-head .sub')?.textContent).toBe('s');
+    expect(container.querySelector('.card-body.tight')).toBeTruthy();
+  });
+
+  it('Tbl merges consumer-supplied className with .tbl', () => {
+    const { container } = render(
+      <Tbl className="my-table">
+        <tbody><tr><Td>x</Td></tr></tbody>
+      </Tbl>,
+    );
+    const table = container.querySelector('table')!;
+    expect(table.className).toContain('tbl');
+    expect(table.className).toContain('my-table');
+  });
 });

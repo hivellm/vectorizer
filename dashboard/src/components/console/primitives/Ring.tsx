@@ -7,14 +7,31 @@ interface RingProps {
   label: ReactNode;
   sub?: ReactNode;
   color?: string;
+  ariaLabel?: string;
 }
 
-export function Ring({ value, max = 100, size = 110, label, sub, color = 'var(--teal)' }: RingProps) {
+export function Ring({
+  value,
+  max = 100,
+  size = 110,
+  label,
+  sub,
+  color = 'var(--teal)',
+  ariaLabel,
+}: RingProps) {
   const r = size / 2 - 8;
   const c = 2 * Math.PI * r;
   const pct = Math.min(value / max, 1);
+  const computedLabel = ariaLabel ?? (typeof sub === 'string' ? sub : undefined);
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
+    <div
+      style={{ position: 'relative', width: size, height: size }}
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-label={computedLabel}
+    >
       <svg width={size} height={size}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-3)" strokeWidth="6" />
         <circle

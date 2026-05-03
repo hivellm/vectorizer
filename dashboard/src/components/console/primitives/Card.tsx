@@ -8,19 +8,19 @@ export function Card({ className, children }: CardProps) {
   return <div className={['card', className].filter(Boolean).join(' ')}>{children}</div>;
 }
 
-interface CardHeadProps {
-  title?: ReactNode;
-  sub?: ReactNode;
-  right?: ReactNode;
-  children?: ReactNode;
-}
-export function CardHead({ title, sub, right, children }: CardHeadProps) {
-  if (children) return <div className="card-head">{children}</div>;
+type CardHeadProps =
+  | { children: ReactNode; title?: never; sub?: never; right?: never }
+  | { children?: never; title: ReactNode; sub?: ReactNode; right?: ReactNode };
+
+export function CardHead(props: CardHeadProps) {
+  if ('children' in props && props.children !== undefined) {
+    return <div className="card-head">{props.children}</div>;
+  }
   return (
     <div className="card-head">
-      <div className="title">{title}</div>
-      {sub && <span className="sub">{sub}</span>}
-      {right}
+      <div className="title">{props.title}</div>
+      {props.sub && <span className="sub">{props.sub}</span>}
+      {props.right}
     </div>
   );
 }

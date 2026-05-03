@@ -10,6 +10,7 @@ interface PillProps {
 }
 
 export function Pill({ tone = 'default', className, live, children }: PillProps) {
+  // .pill has no tone-default styling; only colored variants emit a tone class.
   const cls = [
     'pill',
     tone !== 'default' ? tone : '',
