@@ -14,6 +14,7 @@ import { Select, SelectOption } from '@/components/ui/Select';
 import { useToastContext } from '@/providers/ToastProvider';
 import LoadingState from '@/components/LoadingState';
 import { formatDate } from '@/utils/formatters';
+import Sparkline, { type SparklineDatum } from '@/components/Sparkline';
 
 interface ApiKey {
   id: string;
@@ -23,6 +24,21 @@ interface ApiKey {
   created_at: string;
   last_used_at?: string;
   expires_at?: string;
+  /** Total successful validations recorded against this key. */
+  usage_count?: number;
+  /** Successful validations recorded for the current UTC day. */
+  usage_24h?: number;
+}
+
+interface UsageBucket {
+  date: string;
+  count: number;
+}
+
+interface UsageReport {
+  key: { id: string; name: string; usage_count: number };
+  buckets: UsageBucket[];
+  window_total: number;
 }
 
 interface CreateKeyResponse {
@@ -44,8 +60,11 @@ function ApiKeysPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUsageModal, setShowUsageModal] = useState(false);
   const [selectedKey, setSelectedKey] = useState<ApiKey | null>(null);
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
+  const [usageReport, setUsageReport] = useState<UsageReport | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
 
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -140,6 +159,29 @@ function ApiKeysPage() {
     setShowDeleteModal(true);
   };
 
+  const openUsageModal = async (key: ApiKey) => {
+    setSelectedKey(key);
+    setShowUsageModal(true);
+    setUsageReport(null);
+    setUsageLoading(true);
+    try {
+      const data = await api.get<UsageReport>(`/auth/keys/${key.id}/usage?window=14`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUsageReport(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load usage');
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
+  const last24h = (key: ApiKey): number => {
+    if (!usageReport || usageReport.key.id !== key.id) return 0;
+    const today = usageReport.buckets[usageReport.buckets.length - 1];
+    return today?.count ?? 0;
+  };
+
   const togglePermission = (perm: string) => {
     if (createForm.permissions.includes(perm)) {
       setCreateForm({
@@ -197,13 +239,15 @@ function ApiKeysPage() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Permissions</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Created</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Last Used</th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Last 24h</th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Total</th>
                 <th className="text-right py-3 px-4 text-sm font-medium text-neutral-500 dark:text-neutral-400">Actions</th>
               </tr>
             </thead>
             <tbody>
               {keys.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-neutral-500">
+                  <td colSpan={8} className="py-8 text-center text-neutral-500">
                     No API keys found. Create one to get started.
                   </td>
                 </tr>
@@ -242,8 +286,28 @@ function ApiKeysPage() {
                     <td className="py-3 px-4 text-sm text-neutral-500 dark:text-neutral-400">
                       {key.last_used_at ? formatDate(key.last_used_at) : 'Never'}
                     </td>
+                    <td
+                      className="py-3 px-4 text-right text-sm font-mono text-neutral-700 dark:text-neutral-200 tabular-nums"
+                      data-testid={`api-key-usage-24h-${key.id}`}
+                    >
+                      {(key.usage_24h ?? 0).toLocaleString()}
+                    </td>
+                    <td
+                      className="py-3 px-4 text-right text-sm font-mono text-neutral-700 dark:text-neutral-200 tabular-nums"
+                      data-testid={`api-key-usage-total-${key.id}`}
+                    >
+                      {(key.usage_count ?? 0).toLocaleString()}
+                    </td>
                     <td className="py-3 px-4">
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openUsageModal(key)}
+                          data-testid={`api-key-usage-button-${key.id}`}
+                        >
+                          Usage
+                        </Button>
                         <Button variant="danger" size="sm" onClick={() => openDeleteModal(key)}>
                           Revoke
                         </Button>
@@ -341,6 +405,83 @@ function ApiKeysPage() {
           <div className="flex justify-end pt-4">
             <Button onClick={() => { setShowKeyModal(false); setNewKeyValue(null); }}>
               Done
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Usage Detail Modal — sparkline + per-day buckets */}
+      <Modal
+        isOpen={showUsageModal}
+        onClose={() => {
+          setShowUsageModal(false);
+          setUsageReport(null);
+        }}
+        title={selectedKey ? `Usage — ${selectedKey.name}` : 'Usage'}
+      >
+        <div className="space-y-4" data-testid="api-key-usage-modal">
+          {usageLoading && (
+            <p className="text-sm text-neutral-500">Loading usage…</p>
+          )}
+          {!usageLoading && usageReport && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-neutral-50 dark:bg-neutral-800 rounded p-3">
+                  <p className="text-xs uppercase tracking-wide text-neutral-500">Last 24h</p>
+                  <p className="text-2xl font-semibold tabular-nums" data-testid="usage-modal-24h">
+                    {(last24h(selectedKey!) ?? 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-neutral-50 dark:bg-neutral-800 rounded p-3">
+                  <p className="text-xs uppercase tracking-wide text-neutral-500">Window total</p>
+                  <p className="text-2xl font-semibold tabular-nums" data-testid="usage-modal-total">
+                    {usageReport.window_total.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              <div className="text-indigo-600 dark:text-indigo-400">
+                <Sparkline
+                  data={usageReport.buckets as SparklineDatum[]}
+                  width={420}
+                  height={64}
+                  ariaLabel={`${selectedKey?.name ?? 'API key'} daily usage`}
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto border border-neutral-200 dark:border-neutral-800 rounded">
+                <table className="w-full text-sm">
+                  <thead className="bg-neutral-50 dark:bg-neutral-900 sticky top-0">
+                    <tr>
+                      <th className="text-left py-2 px-3 text-xs text-neutral-500">Date</th>
+                      <th className="text-right py-2 px-3 text-xs text-neutral-500">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usageReport.buckets.map((b) => (
+                      <tr
+                        key={b.date}
+                        className="border-t border-neutral-100 dark:border-neutral-800"
+                      >
+                        <td className="py-1.5 px-3 text-neutral-700 dark:text-neutral-300 font-mono">
+                          {b.date}
+                        </td>
+                        <td className="py-1.5 px-3 text-right tabular-nums">
+                          {b.count.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={() => {
+                setShowUsageModal(false);
+                setUsageReport(null);
+              }}
+            >
+              Close
             </Button>
           </div>
         </div>

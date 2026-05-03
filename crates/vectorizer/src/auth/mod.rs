@@ -43,11 +43,11 @@ pub const MIN_JWT_SECRET_LEN: usize = 32;
 
 /// Cookie hardening configuration for dashboard session + CSRF cookies.
 ///
-/// Phase17: every dashboard cookie is emitted with `HttpOnly; Secure;
-/// SameSite=Strict; Path=/` by default. The `insecure_dev` escape hatch
-/// drops only the `Secure` flag so a developer can run the dashboard
-/// against plain-HTTP `127.0.0.1`. Boot rejects this flag when binding
-/// to `0.0.0.0` — see `VectorizerServer::start`.
+/// Every dashboard cookie is emitted with `HttpOnly; Secure;
+/// SameSite=Strict; Path=/` by default. The `insecure_dev` escape
+/// hatch drops only the `Secure` flag so a developer can run the
+/// dashboard against plain-HTTP `127.0.0.1`. Boot rejects this flag
+/// when binding to `0.0.0.0` — see `VectorizerServer::start`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CookieConfig {
     /// Drop the `Secure` cookie attribute. INTENDED FOR LOCAL DEVELOPMENT
@@ -77,7 +77,7 @@ pub struct AuthConfig {
     pub rate_limit_per_hour: u32,
     /// Enable authentication (default: true)
     pub enabled: bool,
-    /// Cookie hardening configuration (phase17).
+    /// Cookie hardening configuration for dashboard sessions.
     #[serde(default)]
     pub cookies: CookieConfig,
 }
@@ -212,6 +212,14 @@ pub struct ApiKey {
     /// After this instant only the successor key is accepted.
     #[serde(default)]
     pub grace_until: Option<u64>,
+    /// Total successful `validate_key` invocations against this key.
+    /// Bumped atomically on every accepted call (including
+    /// rotated-grace acceptances). Operators read it to spot dormant vs
+    /// hot keys, size rate limits, or bill per key. Persisted on flush.
+    /// Existing on-disk keys deserialize with `usage_count: 0` thanks
+    /// to `#[serde(default)]`.
+    #[serde(default)]
+    pub usage_count: u64,
 }
 
 /// Result of an API-key rotation.
@@ -270,6 +278,13 @@ pub struct AuthManager {
     rate_limits: Arc<RwLock<HashMap<String, RateLimitInfo>>>,
     /// Configuration
     config: AuthConfig,
+    /// Optional per-key per-day usage recorder. Populated via
+    /// `set_usage_recorder` at boot when the operator wants the
+    /// dashboard sparkline / `GET /auth/keys/{id}/usage` endpoint
+    /// backed by real data. Left `None` in tests / programmatic
+    /// embeddings that don't need a time-series.
+    usage_recorder:
+        Arc<arc_swap::ArcSwapOption<crate::monitoring::api_key_usage::ApiKeyUsageRecorder>>,
 }
 
 impl AuthManager {
@@ -289,7 +304,27 @@ impl AuthManager {
             api_key_manager,
             rate_limits: Arc::new(RwLock::new(HashMap::new())),
             config,
+            usage_recorder: Arc::new(arc_swap::ArcSwapOption::from(None)),
         })
+    }
+
+    /// Install (or replace) the per-key per-day usage recorder shared
+    /// with the server's `GET /auth/keys/{id}/usage` handler. Calling
+    /// this with `Some(...)` activates the time-series; calling with
+    /// `None` (or never calling) disables it without breaking
+    /// validation.
+    pub fn set_usage_recorder(
+        &self,
+        recorder: Option<Arc<crate::monitoring::api_key_usage::ApiKeyUsageRecorder>>,
+    ) {
+        self.usage_recorder.store(recorder);
+    }
+
+    /// Borrow the currently installed usage recorder, if any.
+    pub fn usage_recorder(
+        &self,
+    ) -> Option<Arc<crate::monitoring::api_key_usage::ApiKeyUsageRecorder>> {
+        self.usage_recorder.load_full()
     }
 
     /// Create a new authentication manager with default configuration.
@@ -328,6 +363,16 @@ impl AuthManager {
 
         // Update last used timestamp
         self.api_key_manager.update_last_used(&key_info.id).await?;
+
+        // Bump the per-key usage counter atomically. Runs OUTSIDE the
+        // validate_key read lock so concurrent validations on different
+        // keys never contend on the same shard. The optional recorder
+        // captures the per-day bucket consumed by the dashboard
+        // sparkline + GET /auth/keys/{id}/usage.
+        self.api_key_manager.increment_usage(&key_info.id);
+        if let Some(recorder) = self.usage_recorder.load_full() {
+            recorder.record(&key_info.id);
+        }
 
         // Create user claims from API key
         Ok(UserClaims {
@@ -425,6 +470,27 @@ impl AuthManager {
     /// Get API key info by ID
     pub async fn get_api_key_info(&self, key_id: &str) -> Result<ApiKey> {
         self.api_key_manager.get_key_info(key_id).await
+    }
+
+    /// Replace permissions (and optionally scopes) on an existing API
+    /// key. `key_hash`, `id`, `user_id`, and `created_at` are
+    /// immutable — operators rotate the credential to change those.
+    pub async fn update_api_key_permissions(
+        &self,
+        key_id: &str,
+        permissions: Vec<Permission>,
+        scopes: Option<Vec<TokenScope>>,
+    ) -> Result<ApiKey> {
+        self.api_key_manager
+            .update_permissions(key_id, permissions, scopes)
+            .await
+    }
+
+    /// Read the live usage counter for a key without taking the
+    /// keys-map read lock. Returns 0 for unknown / never-validated
+    /// keys.
+    pub fn api_key_usage(&self, key_id: &str) -> u64 {
+        self.api_key_manager.current_usage(key_id)
     }
 
     /// Create a new API key with optional per-collection scopes.

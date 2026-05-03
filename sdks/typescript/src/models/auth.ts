@@ -72,6 +72,67 @@ export interface ApiKey {
   active: boolean;
   /** One-time warning message (present at creation). */
   warning?: string;
+  /**
+   * Total successful credential validations recorded against this key.
+   * Defaults to 0 for keys that have never been used (or for servers
+   * that don't yet emit the field).
+   */
+  usage_count?: number;
+}
+
+/** Per-collection scope attached to an API key. */
+export interface ApiKeyScope {
+  /** Collection this scope applies to. */
+  collection: string;
+  /** Permissions granted on that collection. */
+  permissions: string[];
+}
+
+/** Request body for `PUT /auth/keys/{id}/permissions`. */
+export interface UpdateApiKeyPermissionsRequest {
+  /** New permission list. Server rejects an empty list with 400. */
+  permissions: string[];
+  /**
+   * `undefined` leaves existing scopes untouched. `[]` clears scopes
+   * (default-deny on scope-aware routes).
+   */
+  scopes?: ApiKeyScope[];
+}
+
+/** Flattened key view returned by the permission-update + usage endpoints. */
+export interface ApiKeyView {
+  id: string;
+  name: string;
+  user_id: string;
+  permissions: string[];
+  scopes: ApiKeyScope[];
+  created_at: number;
+  last_used?: number;
+  expires_at?: number;
+  active: boolean;
+  usage_count: number;
+}
+
+/** One day's usage bucket from `GET /auth/keys/{id}/usage`. */
+export interface ApiKeyUsageBucket {
+  /** ISO-8601 date (UTC), e.g. `"2026-05-03"`. */
+  date: string;
+  /** Successful validations recorded for that day. */
+  count: number;
+}
+
+/** Response body for `GET /auth/keys/{id}/usage`. */
+export interface ApiKeyUsageReport {
+  /** Live key view with up-to-date `usage_count`. */
+  key: ApiKeyView;
+  /**
+   * Daily counter buckets, oldest first. Days with zero validations
+   * are still present so the caller can render a continuous sparkline
+   * without gap-fill logic.
+   */
+  buckets: ApiKeyUsageBucket[];
+  /** Sum of `buckets[*].count`. */
+  window_total: number;
 }
 
 /** Request body for `createUser` (`POST /auth/users`). */

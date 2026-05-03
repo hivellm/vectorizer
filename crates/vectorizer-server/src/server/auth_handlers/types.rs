@@ -87,6 +87,14 @@ pub struct ApiKeyInfo {
     pub expires_at: Option<u64>,
     /// Whether the key is active
     pub active: bool,
+    /// Total successful validations recorded against this key. Defaults
+    /// to 0 for keys never used since boot.
+    #[serde(default)]
+    pub usage_count: u64,
+    /// Successful validations recorded for the current UTC day. Lets the
+    /// dashboard render a "Last 24h" column without an N+1 fetch per row.
+    #[serde(default)]
+    pub usage_24h: u64,
 }
 
 /// List API keys response

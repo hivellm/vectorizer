@@ -22,6 +22,8 @@ from typing import Dict, List, Optional
 try:
     from ..models import (
         ApiKey,
+        ApiKeyUsageReport,
+        ApiKeyView,
         AuditEntry,
         AuditQuery,
         CreateApiKeyRequest,
@@ -31,11 +33,14 @@ try:
         PasswordPolicyReport,
         RotatedKey,
         TokenIntrospection,
+        UpdateApiKeyPermissionsRequest,
         User,
     )
 except ImportError:  # pragma: no cover
     from models import (  # type: ignore[import-not-found]
         ApiKey,
+        ApiKeyUsageReport,
+        ApiKeyView,
         AuditEntry,
         AuditQuery,
         CreateApiKeyRequest,
@@ -45,6 +50,7 @@ except ImportError:  # pragma: no cover
         PasswordPolicyReport,
         RotatedKey,
         TokenIntrospection,
+        UpdateApiKeyPermissionsRequest,
         User,
     )
 
@@ -301,6 +307,60 @@ class AuthClient(_ApiBase):
             payload["expires_in"] = request.expires_in
         data = await self._transport.post("/auth/keys", data=payload)
         return ApiKey.from_dict(data if isinstance(data, dict) else {})
+
+    async def update_api_key_permissions(
+        self,
+        key_id: str,
+        request: UpdateApiKeyPermissionsRequest,
+    ) -> ApiKeyView:
+        """Replace ``permissions`` (and optionally ``scopes``) on an
+        existing API key without rotating the credential. Admin-only.
+
+        Calls ``PUT /auth/keys/{id}/permissions``. Returns the updated
+        key view with the live ``usage_count`` stamped in.
+
+        ``key_hash``, ``id``, ``user_id``, and ``created_at`` are
+        immutable — use :meth:`rotate_api_key` if those need to change.
+
+        Args:
+            key_id: UUID of the key to update.
+            request: New permissions and (optional) scopes.
+
+        Returns:
+            :class:`ApiKeyView` with the updated permissions / scopes
+            and the live ``usage_count``.
+        """
+        data = await self._transport.put(
+            f"/auth/keys/{key_id}/permissions",
+            data=request.to_dict(),
+        )
+        return ApiKeyView.from_dict(data if isinstance(data, dict) else {})
+
+    async def get_api_key_usage(
+        self,
+        key_id: str,
+        window_days: Optional[int] = None,
+    ) -> ApiKeyUsageReport:
+        """Fetch the per-day usage time-series for an API key. Admin-only.
+
+        Calls ``GET /auth/keys/{id}/usage?window={days}``. ``window_days``
+        is clamped server-side to ``1..=30``; ``None`` defaults to 7.
+        The response carries the live key view, the bucket array
+        (oldest first, including zero-count days), and the window total.
+
+        Args:
+            key_id: UUID of the key to query.
+            window_days: Number of days back from today (default 7,
+                max 30).
+
+        Returns:
+            :class:`ApiKeyUsageReport`.
+        """
+        params: Dict = {}
+        if window_days is not None:
+            params["window"] = window_days
+        data = await self._transport.get(f"/auth/keys/{key_id}/usage", params=params)
+        return ApiKeyUsageReport.from_dict(data if isinstance(data, dict) else {})
 
     async def introspect_token(self, token: str) -> TokenIntrospection:
         """Introspect a token — RFC 7662.

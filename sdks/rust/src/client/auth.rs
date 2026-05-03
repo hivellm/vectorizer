@@ -12,8 +12,9 @@
 use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::{
-    ApiKey, AuditEntry, AuditQuery, CreateApiKeyRequest, CreateScopedApiKeyRequest,
-    CreateUserRequest, JwtToken, PasswordPolicyReport, RotatedKey, TokenIntrospection, User,
+    ApiKey, ApiKeyUsageReport, ApiKeyView, AuditEntry, AuditQuery, CreateApiKeyRequest,
+    CreateScopedApiKeyRequest, CreateUserRequest, JwtToken, PasswordPolicyReport, RotatedKey,
+    TokenIntrospection, UpdateApiKeyPermissionsRequest, User,
 };
 
 impl VectorizerClient {
@@ -216,6 +217,59 @@ impl VectorizerClient {
             VectorizerError::server(format!(
                 "Failed to parse create_scoped_api_key response: {e}"
             ))
+        })
+    }
+
+    /// Replace `permissions` (and optionally `scopes`) on an existing
+    /// API key without rotating the credential. Admin-only.
+    ///
+    /// Calls `PUT /auth/keys/{id}/permissions`. Returns the updated
+    /// key view with the live `usage_count` stamped in.
+    ///
+    /// `key_hash`, `id`, `user_id`, and `created_at` are immutable —
+    /// rotate the key with `rotate_api_key` if those need to change.
+    pub async fn update_api_key_permissions(
+        &self,
+        id: &str,
+        request: UpdateApiKeyPermissionsRequest,
+    ) -> Result<ApiKeyView> {
+        let payload = serde_json::to_value(&request).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to serialize update_api_key_permissions request: {e}"
+            ))
+        })?;
+        let response = self
+            .make_request(
+                "PUT",
+                &format!("/auth/keys/{id}/permissions"),
+                Some(payload),
+            )
+            .await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!(
+                "Failed to parse update_api_key_permissions response: {e}"
+            ))
+        })
+    }
+
+    /// Fetch the per-day usage time-series for an API key. Admin-only.
+    ///
+    /// Calls `GET /auth/keys/{id}/usage?window={days}`. `days` is
+    /// clamped server-side to 1..=30; `None` defaults to 7. The
+    /// response carries the live key view, the bucket array (oldest
+    /// first, including zero-count days), and the window total.
+    pub async fn get_api_key_usage(
+        &self,
+        id: &str,
+        window_days: Option<usize>,
+    ) -> Result<ApiKeyUsageReport> {
+        let path = match window_days {
+            Some(n) => format!("/auth/keys/{id}/usage?window={n}"),
+            None => format!("/auth/keys/{id}/usage"),
+        };
+        let response = self.make_request("GET", &path, None).await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse get_api_key_usage response: {e}"))
         })
     }
 

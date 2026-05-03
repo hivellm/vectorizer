@@ -34,8 +34,9 @@ use super::types::{
 
 /// Extract the JWT presented by the request, preferring the
 /// `vectorizer_session` cookie and falling back to the `Authorization`
-/// header. Phase17 introduces the cookie path; the header path stays for
-/// SDK / programmatic callers that hit `/auth/refresh` directly.
+/// header. The cookie path is the dashboard's primary credential; the
+/// header path stays for SDK / programmatic callers that hit
+/// `/auth/refresh` directly.
 fn extract_jwt(headers: &HeaderMap) -> Option<String> {
     if let Some(cookie_jwt) = read_cookie(headers, SESSION_COOKIE_NAME) {
         return Some(cookie_jwt.to_string());
@@ -176,8 +177,8 @@ pub async fn refresh_token(
             )
         })?;
 
-    // Phase17: re-bind the existing CSRF token to the new JWT, or mint a
-    // fresh one if none was bound (e.g. legacy header-only callers).
+    // Re-bind the existing CSRF token to the new JWT, or mint a fresh
+    // one if none was bound (e.g. legacy header-only callers).
     let csrf = match current_token.as_deref() {
         Some(old) => state
             .rotate_csrf_token(old, new_token.clone())
@@ -298,6 +299,7 @@ pub async fn create_api_key(
         last_used: key_info.last_used,
         expires_at: key_info.expires_at,
         active: key_info.active,
+        usage_count: key_info.usage_count,
     };
     if let Err(e) = state.persistence.save_api_key(persisted_key) {
         error!("Failed to persist API key to disk: {}", e);
@@ -349,16 +351,26 @@ pub async fn list_api_keys(
             )
         })?;
 
+    let usage_today = |key_id: &str| -> u64 {
+        let snap = state.api_key_usage.snapshot(key_id, 1);
+        snap.last().map(|b| b.count).unwrap_or(0)
+    };
+
     let keys = keys
         .into_iter()
-        .map(|k| ApiKeyInfo {
-            id: k.id,
-            name: k.name,
-            permissions: k.permissions.iter().map(|p| format!("{:?}", p)).collect(),
-            created_at: k.created_at,
-            last_used: k.last_used,
-            expires_at: k.expires_at,
-            active: k.active,
+        .map(|k| {
+            let usage_24h = usage_today(&k.id);
+            ApiKeyInfo {
+                id: k.id,
+                name: k.name,
+                permissions: k.permissions.iter().map(|p| format!("{:?}", p)).collect(),
+                created_at: k.created_at,
+                last_used: k.last_used,
+                expires_at: k.expires_at,
+                active: k.active,
+                usage_count: k.usage_count,
+                usage_24h,
+            }
         })
         .collect();
 

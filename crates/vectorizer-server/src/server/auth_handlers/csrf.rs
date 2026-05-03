@@ -1,4 +1,4 @@
-//! Phase17 — CSRF token validation middleware.
+//! CSRF token validation middleware.
 //!
 //! Every mutating dashboard request (POST / PUT / PATCH / DELETE) under
 //! `/auth/*` and `/admin/*` MUST carry an `X-CSRF-Token` header whose

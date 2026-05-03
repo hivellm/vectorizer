@@ -49,6 +49,10 @@ from .client import VectorizerClient
 try:
     from ..models import (
         AddPeerRequest,
+        ApiKeyScope,
+        ApiKeyUsageBucket,
+        ApiKeyUsageReport,
+        ApiKeyView,
         AuditEntry,
         AuditQuery,
         BulkUpdateReport,
@@ -70,10 +74,15 @@ try:
         SlowQueryEntry,
         TokenIntrospection,
         TokenScope,
+        UpdateApiKeyPermissionsRequest,
     )
 except ImportError:  # pragma: no cover
     from models import (  # type: ignore[import-not-found]
         AddPeerRequest,
+        ApiKeyScope,
+        ApiKeyUsageBucket,
+        ApiKeyUsageReport,
+        ApiKeyView,
         AuditEntry,
         AuditQuery,
         BulkUpdateReport,
@@ -95,6 +104,7 @@ except ImportError:  # pragma: no cover
         SlowQueryEntry,
         TokenIntrospection,
         TokenScope,
+        UpdateApiKeyPermissionsRequest,
     )
 
 __all__ = [
@@ -137,4 +147,10 @@ __all__ = [
     "RotatedKey",
     "TokenIntrospection",
     "TokenScope",
+    # API key usage metrics + permission update
+    "ApiKeyScope",
+    "ApiKeyUsageBucket",
+    "ApiKeyUsageReport",
+    "ApiKeyView",
+    "UpdateApiKeyPermissionsRequest",
 ]

@@ -35,7 +35,7 @@ impl VectorizerServer {
     pub async fn start(&self, host: &str, port: u16) -> anyhow::Result<()> {
         info!("🚀 Starting Vectorizer Server on {}:{}", host, port);
 
-        // Phase17 BOOT GUARD: refuse to start if the operator left the
+        // BOOT GUARD: refuse to start if the operator left the
         // `auth.cookies.insecure_dev` escape hatch on while binding to
         // a non-loopback host. The flag is intended for plain-HTTP
         // loopback dev only; exposing the dashboard on all interfaces
@@ -764,10 +764,18 @@ impl VectorizerServer {
                 .route("/auth/keys", post(auth_handlers::create_scoped_api_key))
                 .route("/auth/keys", get(auth_handlers::list_api_keys))
                 .route("/auth/keys/{id}", delete(auth_handlers::revoke_api_key))
-                // Phase-15 auth admin routes
+                // Extended auth admin routes (rotation, introspection, audit log).
                 .route(
                     "/auth/keys/{id}/rotate",
                     post(auth_handlers::rotate_api_key),
+                )
+                .route(
+                    "/auth/keys/{id}/permissions",
+                    put(auth_handlers::update_api_key_permissions),
+                )
+                .route(
+                    "/auth/keys/{id}/usage",
+                    get(auth_handlers::get_api_key_usage),
                 )
                 .route("/auth/introspect", post(auth_handlers::introspect_token))
                 .route("/auth/audit", get(auth_handlers::list_audit_log))
@@ -804,12 +812,12 @@ impl VectorizerServer {
                  /backups/create, /backups/restore."
             );
 
-            // Phase17: gate POST/PUT/DELETE/PATCH on `/auth/*` behind the
-            // CSRF middleware. The middleware no-ops on read methods,
-            // exempts /auth/login + /auth/validate-password (which mint
-            // the CSRF token in the first place), and bypasses API-key
-            // requests (header-bearer credentials are not subject to the
-            // cross-origin attack the CSRF token defends against).
+            // Gate POST/PUT/DELETE/PATCH on `/auth/*` behind the CSRF
+            // middleware. The middleware no-ops on read methods, exempts
+            // /auth/login + /auth/validate-password (which mint the
+            // CSRF token in the first place), and bypasses API-key
+            // requests (header-bearer credentials are not subject to
+            // the cross-origin attack the CSRF token defends against).
             let protected_auth_router =
                 protected_auth_router.layer(axum::middleware::from_fn_with_state(
                     auth_state.clone(),
@@ -902,7 +910,7 @@ impl VectorizerServer {
             .route("/backups/restore", post(rest_handlers::restore_backup))
             .with_state(self.clone());
         let admin_router = if let Some(auth_state) = self.auth_handler_state.clone() {
-            // Phase17: stack the CSRF gate INSIDE the admin gate so an
+            // Stack the CSRF gate INSIDE the admin gate so an
             // unauthenticated caller still gets a clean 401 (from the
             // admin middleware) instead of the 403 the CSRF gate would
             // emit when no session JWT is present. Layer order in axum

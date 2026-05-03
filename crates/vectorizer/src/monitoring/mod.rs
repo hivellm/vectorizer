@@ -29,6 +29,7 @@
 //! drop(timer);
 //! ```
 
+pub mod api_key_usage;
 pub mod correlation;
 pub mod metrics;
 pub mod registry;

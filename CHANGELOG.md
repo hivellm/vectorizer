@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **API key usage metrics + permission update.** Closes phase8 audit gaps 9A.6 + 9A.11 + 9B.8.
+  - Server now tracks a per-key `usage_count` (atomic, lock-free on the validation hot path) and a per-key per-day ring buffer (default 30 days). Every successful `AuthManager::validate_api_key` bumps both. Counter persists via the existing `AuthPersistence` flush; old payloads deserialize with `usage_count: 0`.
+  - New `PUT /auth/keys/{id}/permissions` (admin-gated) replaces a key's `permissions` (and optionally `scopes`) without rotating the credential. `key_hash`, `id`, `user_id`, `created_at` stay immutable. Empty permission list is rejected with 400; unknown id with 404.
+  - New `GET /auth/keys/{id}/usage?window=<n>` (admin-gated) returns the per-day counter ring (default 7, max 30) plus the live key view and a window total. Days with zero validations are still included so the dashboard sparkline is gap-free.
+  - `GET /auth/keys` list response now carries `usage_count` and `usage_24h` per row so the dashboard renders the new "Last 24h" + "Total" columns without an N+1 fetch.
+  - SDK parity across Rust, TypeScript, and Python: `update_api_key_permissions(id, request)` + `get_api_key_usage(id, window_days?)` plus the supporting model types `ApiKeyView`, `ApiKeyUsageReport`, `ApiKeyUsageBucket`, `ApiKeyScope`, `UpdateApiKeyPermissionsRequest`. The existing `ApiKey` struct gains a `usage_count` field (additive).
+  - Dashboard `ApiKeysPage.tsx` adds the `Last 24h` + `Total` columns and a `Usage` button per row that opens a detail modal with a 14-day SVG sparkline (new `Sparkline.tsx` component), per-day bucket table, last-24h count, and window total.
+
 ### Security
 
 - **Hardened dashboard cookies + CSRF (phase17).** Closes the cookie + CSRF gaps phase8 enumerated (audit sections 1.9 + 6.5–6.6).

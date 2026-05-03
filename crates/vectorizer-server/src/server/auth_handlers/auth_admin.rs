@@ -1,8 +1,22 @@
-//! Phase-15 auth handlers: scoped key creation, key rotation,
-//! token introspection, and audit-log query.
+//! Extended `/auth/*` admin handlers.
 //!
-//! All handlers require an authenticated admin caller except
-//! `introspect_token`, which requires authentication but not admin.
+//! Six routes live here, all admin-gated except `introspect_token`:
+//!
+//! - `POST /auth/keys` (scoped variant) — create an API key with
+//!   per-collection scopes (extends the basic creation handler in
+//!   `authenticated.rs`).
+//! - `POST /auth/keys/{id}/rotate` — issue a successor key, mark the
+//!   old one with a grace window so deployed clients can roll over.
+//! - `PUT /auth/keys/{id}/permissions` — replace `permissions` (and
+//!   optionally `scopes`) on an existing key without rotating the
+//!   credential. `key_hash`, `id`, `user_id`, `created_at` are
+//!   immutable.
+//! - `GET /auth/keys/{id}/usage?window=<n>` — return the per-day
+//!   counter ring for the last `window` days (default 7, max 30) plus
+//!   the live `usage_count`.
+//! - `POST /auth/introspect` — RFC 7662 token introspection. Requires
+//!   authentication but not admin.
+//! - `GET /auth/audit` — query the in-memory admin-action audit log.
 
 #![allow(missing_docs)]
 
@@ -16,6 +30,7 @@ use vectorizer::auth::audit::AuditQuery;
 use vectorizer::auth::middleware::AuthState;
 use vectorizer::auth::roles::Role;
 use vectorizer::auth::{AuditEntry, Permission, TokenIntrospection, TokenScope};
+use vectorizer::monitoring::api_key_usage::UsageBucket;
 
 use super::state::AuthHandlerState;
 use super::types::AuthErrorResponse;
@@ -87,6 +102,58 @@ pub struct AuditLogResponse {
     pub entries: Vec<AuditEntry>,
     pub total: usize,
 }
+
+/// Request body for `PUT /auth/keys/{id}/permissions`.
+#[derive(Debug, Deserialize)]
+pub struct UpdateApiKeyPermissionsRequest {
+    /// New permission list. Rejected with 400 when empty — operators
+    /// revoke a key with `DELETE /auth/keys/{id}` instead of stripping
+    /// it of permissions.
+    pub permissions: Vec<String>,
+    /// `None` leaves the existing scopes untouched. `Some([])` clears
+    /// scopes (default-deny on scope-aware routes).
+    #[serde(default)]
+    pub scopes: Option<Vec<ScopeDto>>,
+}
+
+/// Flattened view of an `ApiKey` returned by both the permission-update
+/// endpoint and the usage endpoint. Drops `key_hash` from the wire — no
+/// caller needs the hash.
+#[derive(Debug, Serialize)]
+pub struct ApiKeyView {
+    pub id: String,
+    pub name: String,
+    pub user_id: String,
+    pub permissions: Vec<String>,
+    pub scopes: Vec<ScopeDto>,
+    pub created_at: u64,
+    pub last_used: Option<u64>,
+    pub expires_at: Option<u64>,
+    pub active: bool,
+    pub usage_count: u64,
+}
+
+/// Query parameters for `GET /auth/keys/{id}/usage`.
+#[derive(Debug, Deserialize, Default)]
+pub struct UsageQueryParams {
+    /// Number of days back from today. Defaults to 7, clamped to 30.
+    pub window: Option<usize>,
+}
+
+/// Response body for `GET /auth/keys/{id}/usage`.
+#[derive(Debug, Serialize)]
+pub struct ApiKeyUsageResponse {
+    pub key: ApiKeyView,
+    /// Daily counter buckets, oldest first, exactly `window` long.
+    /// Days with zero validations are still included so the SPA can
+    /// render a continuous sparkline without gap-fill logic.
+    pub buckets: Vec<UsageBucket>,
+    /// Total validations across all returned buckets.
+    pub window_total: u64,
+}
+
+const MAX_USAGE_WINDOW_DAYS: usize = 30;
+const DEFAULT_USAGE_WINDOW_DAYS: usize = 7;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -164,12 +231,32 @@ fn not_found_err(msg: &str) -> (StatusCode, Json<AuthErrorResponse>) {
     )
 }
 
+fn into_view(key: vectorizer::auth::ApiKey) -> ApiKeyView {
+    ApiKeyView {
+        id: key.id,
+        name: key.name,
+        user_id: key.user_id,
+        permissions: key.permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        scopes: key
+            .scopes
+            .iter()
+            .map(|s| ScopeDto {
+                collection: s.collection.clone(),
+                permissions: s.permissions.clone(),
+            })
+            .collect(),
+        created_at: key.created_at,
+        last_used: key.last_used,
+        expires_at: key.expires_at,
+        active: key.active,
+        usage_count: key.usage_count,
+    }
+}
+
 // ---------------------------------------------------------------------------
-// POST /auth/keys  (extended — scoped variant replaces the base handler)
+// POST /auth/keys (scoped variant)
 // ---------------------------------------------------------------------------
 
-/// Create API key — POST /auth/keys
-///
 /// Accepts an optional `scopes` array.  When present the key is
 /// collection-scoped and will be denied on collections not listed.
 /// When absent (or empty) the key is default-deny for scope-aware routes
@@ -248,8 +335,6 @@ pub async fn create_scoped_api_key(
 // POST /auth/keys/{id}/rotate
 // ---------------------------------------------------------------------------
 
-/// Rotate an API key — POST /auth/keys/{id}/rotate
-///
 /// Generates a successor key, marks the old key with a grace window
 /// (default 300 s), and returns both tokens so the client can migrate
 /// without downtime.
@@ -260,14 +345,13 @@ pub async fn rotate_api_key(
 ) -> Result<Json<RotateApiKeyResponse>, (StatusCode, Json<AuthErrorResponse>)> {
     require_admin(&auth_state)?;
 
-    // Verify the key exists and belongs to a user the admin can manage.
     state
         .auth_manager
         .get_api_key_info(&id)
         .await
         .map_err(|_| not_found_err(&format!("API key {} not found", id)))?;
 
-    let grace_secs: u64 = 300; // configurable in future
+    let grace_secs: u64 = 300;
     let rotated = state
         .auth_manager
         .rotate_api_key(&id, grace_secs)
@@ -295,13 +379,124 @@ pub async fn rotate_api_key(
 }
 
 // ---------------------------------------------------------------------------
+// PUT /auth/keys/{id}/permissions
+// ---------------------------------------------------------------------------
+
+/// Replace permissions (and optionally scopes) on an existing key
+/// without rotating the credential.
+pub async fn update_api_key_permissions(
+    State(state): State<AuthHandlerState>,
+    Extension(auth_state): Extension<AuthState>,
+    Path(id): Path<String>,
+    Json(request): Json<UpdateApiKeyPermissionsRequest>,
+) -> Result<Json<ApiKeyView>, (StatusCode, Json<AuthErrorResponse>)> {
+    require_admin(&auth_state)?;
+
+    if request.permissions.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(AuthErrorResponse {
+                error: "invalid_permissions".to_string(),
+                message: "permissions must contain at least one entry; revoke the key with \
+                          DELETE /auth/keys/{id} if you want to disable it"
+                    .to_string(),
+            }),
+        ));
+    }
+
+    let permissions = parse_permissions(&request.permissions);
+    if permissions.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(AuthErrorResponse {
+                error: "invalid_permissions".to_string(),
+                message: format!(
+                    "no recognized permission in {:?}; valid: read, write, delete, \
+                     create_collection, delete_collection, manage_users, manage_api_keys, \
+                     view_logs, system_config",
+                    request.permissions
+                ),
+            }),
+        ));
+    }
+
+    let scopes = request.scopes.as_ref().map(|raw| {
+        raw.iter()
+            .map(|s| TokenScope {
+                collection: s.collection.clone(),
+                permissions: s.permissions.clone(),
+            })
+            .collect::<Vec<_>>()
+    });
+
+    let updated = state
+        .auth_manager
+        .update_api_key_permissions(&id, permissions, scopes)
+        .await
+        .map_err(|e| not_found_err(&format!("API key {} not found: {}", id, e)))?;
+
+    state.audit_logger.record(
+        &auth_state.user_claims.username,
+        "update_api_key_permissions",
+        &id,
+        vectorizer::monitoring::current_correlation_id(),
+    );
+
+    info!(
+        "API key '{}' permissions updated by admin '{}'",
+        id, auth_state.user_claims.username
+    );
+
+    Ok(Json(into_view(updated)))
+}
+
+// ---------------------------------------------------------------------------
+// GET /auth/keys/{id}/usage
+// ---------------------------------------------------------------------------
+
+/// Returns the per-day counter ring for the last `window` days, the
+/// total over that window, and the live `usage_count` from the
+/// in-memory atomic stamped onto `key.usage_count`.
+pub async fn get_api_key_usage(
+    State(state): State<AuthHandlerState>,
+    Extension(auth_state): Extension<AuthState>,
+    Path(id): Path<String>,
+    Query(params): Query<UsageQueryParams>,
+) -> Result<Json<ApiKeyUsageResponse>, (StatusCode, Json<AuthErrorResponse>)> {
+    require_admin(&auth_state)?;
+
+    let window = params
+        .window
+        .unwrap_or(DEFAULT_USAGE_WINDOW_DAYS)
+        .clamp(1, MAX_USAGE_WINDOW_DAYS);
+
+    let key = state
+        .auth_manager
+        .get_api_key_info(&id)
+        .await
+        .map_err(|e| not_found_err(&format!("API key {} not found: {}", id, e)))?;
+
+    let recorder = state.auth_manager.usage_recorder();
+    let buckets = match recorder.as_ref() {
+        Some(r) => r.snapshot(&id, window),
+        None => Vec::new(),
+    };
+    let window_total: u64 = buckets.iter().map(|b| b.count).sum();
+
+    Ok(Json(ApiKeyUsageResponse {
+        key: into_view(key),
+        buckets,
+        window_total,
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // POST /auth/introspect
 // ---------------------------------------------------------------------------
 
-/// Token introspection — POST /auth/introspect (RFC 7662)
-///
-/// Returns `{ active, scope, sub, exp }` for any token presented in the
-/// request body.  Requires the caller to be authenticated (but not admin).
+/// RFC 7662 token introspection.  Returns `{ active, scope, sub, exp }`
+/// for any token presented in the request body. Requires the caller to
+/// be authenticated (but not admin).
 pub async fn introspect_token(
     State(state): State<AuthHandlerState>,
     Extension(auth_state): Extension<AuthState>,
@@ -317,8 +512,6 @@ pub async fn introspect_token(
 // GET /auth/audit
 // ---------------------------------------------------------------------------
 
-/// List audit log — GET /auth/audit (admin only)
-///
 /// Returns the most recent admin-action entries from the in-memory buffer,
 /// filtered by optional `from`, `to`, `actor`, `action` query params.
 pub async fn list_audit_log(

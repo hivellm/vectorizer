@@ -1619,6 +1619,76 @@ pub struct ApiKey {
     /// One-time warning message (present at creation).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub warning: Option<String>,
+    /// Total successful credential validations recorded against this
+    /// key. Defaults to 0 for keys that have never been used (or for
+    /// servers that don't yet emit the field).
+    #[serde(default)]
+    pub usage_count: u64,
+}
+
+/// Per-collection scope attached to an API key.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ApiKeyScope {
+    /// Collection this scope applies to.
+    pub collection: String,
+    /// Permissions granted on that collection.
+    #[serde(default)]
+    pub permissions: Vec<String>,
+}
+
+/// Request body for `PUT /auth/keys/{id}/permissions`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateApiKeyPermissionsRequest {
+    /// New permission list. Server rejects an empty list with 400.
+    pub permissions: Vec<String>,
+    /// `None` leaves existing scopes untouched. `Some(vec![])` clears
+    /// scopes (default-deny on scope-aware routes).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scopes: Option<Vec<ApiKeyScope>>,
+}
+
+/// Flattened key view returned by `update_api_key_permissions` and
+/// `get_api_key_usage`. Mirrors the server's `ApiKeyView`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiKeyView {
+    pub id: String,
+    pub name: String,
+    pub user_id: String,
+    #[serde(default)]
+    pub permissions: Vec<String>,
+    #[serde(default)]
+    pub scopes: Vec<ApiKeyScope>,
+    pub created_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_used: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
+    #[serde(default)]
+    pub active: bool,
+    #[serde(default)]
+    pub usage_count: u64,
+}
+
+/// One day's usage bucket from `GET /auth/keys/{id}/usage`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ApiKeyUsageBucket {
+    /// ISO-8601 date (UTC), e.g. `"2026-05-03"`.
+    pub date: String,
+    /// Successful validations recorded for that day.
+    pub count: u64,
+}
+
+/// Response body for `GET /auth/keys/{id}/usage`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiKeyUsageReport {
+    /// Live key view with up-to-date `usage_count`.
+    pub key: ApiKeyView,
+    /// Daily counter buckets, oldest first. Days with zero validations
+    /// are still present so the caller can render a continuous
+    /// sparkline without gap-fill logic.
+    pub buckets: Vec<ApiKeyUsageBucket>,
+    /// Sum of `buckets[*].count`.
+    pub window_total: u64,
 }
 
 /// Request body for `create_user` (`POST /auth/users`).

@@ -134,8 +134,8 @@ pub async fn login(
             )
         })?;
 
-    // Phase17: bind a freshly-generated CSRF token to this JWT and emit
-    // the hardened Set-Cookie pair.
+    // Bind a freshly-generated CSRF token to this JWT and emit the
+    // hardened Set-Cookie pair.
     let csrf = generate_csrf_token();
     state.store_csrf_token(token.clone(), csrf.clone()).await;
 

@@ -1590,6 +1590,7 @@ class ApiKey:
     expires_at: Optional[int] = None
     active: bool = False
     warning: Optional[str] = None
+    usage_count: int = 0
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ApiKey":
@@ -1603,6 +1604,104 @@ class ApiKey:
             expires_at=data.get("expires_at"),
             active=bool(data.get("active", False)),
             warning=data.get("warning"),
+            usage_count=int(data.get("usage_count", 0)),
+        )
+
+
+@dataclass
+class ApiKeyScope:
+    """Per-collection scope attached to an API key."""
+
+    collection: str = ""
+    permissions: List[str] = field(default_factory=list)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ApiKeyScope":
+        return cls(
+            collection=str(data.get("collection", "")),
+            permissions=list(data.get("permissions", [])),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {"collection": self.collection, "permissions": self.permissions}
+
+
+@dataclass
+class UpdateApiKeyPermissionsRequest:
+    """Request body for ``PUT /auth/keys/{id}/permissions``."""
+
+    permissions: List[str] = field(default_factory=list)
+    scopes: Optional[List[ApiKeyScope]] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        body: Dict[str, Any] = {"permissions": list(self.permissions)}
+        if self.scopes is not None:
+            body["scopes"] = [s.to_dict() for s in self.scopes]
+        return body
+
+
+@dataclass
+class ApiKeyView:
+    """Flattened key view returned by the permission-update + usage endpoints."""
+
+    id: str = ""
+    name: str = ""
+    user_id: str = ""
+    permissions: List[str] = field(default_factory=list)
+    scopes: List[ApiKeyScope] = field(default_factory=list)
+    created_at: int = 0
+    last_used: Optional[int] = None
+    expires_at: Optional[int] = None
+    active: bool = False
+    usage_count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ApiKeyView":
+        return cls(
+            id=str(data.get("id", "")),
+            name=str(data.get("name", "")),
+            user_id=str(data.get("user_id", "")),
+            permissions=list(data.get("permissions", [])),
+            scopes=[ApiKeyScope.from_dict(s) for s in data.get("scopes", [])],
+            created_at=int(data.get("created_at", 0)),
+            last_used=data.get("last_used"),
+            expires_at=data.get("expires_at"),
+            active=bool(data.get("active", False)),
+            usage_count=int(data.get("usage_count", 0)),
+        )
+
+
+@dataclass
+class ApiKeyUsageBucket:
+    """One day's usage bucket from ``GET /auth/keys/{id}/usage``."""
+
+    date: str = ""
+    count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ApiKeyUsageBucket":
+        return cls(date=str(data.get("date", "")), count=int(data.get("count", 0)))
+
+
+@dataclass
+class ApiKeyUsageReport:
+    """Response body for ``GET /auth/keys/{id}/usage``.
+
+    Buckets are oldest-first; days with zero validations are still
+    present so callers can render a continuous sparkline without
+    gap-fill logic.
+    """
+
+    key: ApiKeyView = field(default_factory=ApiKeyView)
+    buckets: List[ApiKeyUsageBucket] = field(default_factory=list)
+    window_total: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ApiKeyUsageReport":
+        return cls(
+            key=ApiKeyView.from_dict(data.get("key", {})),
+            buckets=[ApiKeyUsageBucket.from_dict(b) for b in data.get("buckets", [])],
+            window_total=int(data.get("window_total", 0)),
         )
 
 

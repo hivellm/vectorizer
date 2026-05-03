@@ -1,4 +1,4 @@
-//! Phase17 — dashboard session + CSRF cookie helpers.
+//! Dashboard session + CSRF cookie helpers.
 //!
 //! Three guarantees this module enforces for every cookie the server emits
 //! to the dashboard:
@@ -118,8 +118,9 @@ pub fn generate_csrf_token() -> String {
     hex::encode(bytes)
 }
 
-/// Phase17 boot guard. Returns `Err` if the operator left
-/// `auth.cookies.insecure_dev=true` while binding to a non-loopback
+/// Boot guard for the dashboard cookie hardening config. Returns
+/// `Err` if the operator left `auth.cookies.insecure_dev=true` while
+/// binding to a non-loopback
 /// host — most importantly `0.0.0.0`, which would expose dashboard
 /// sessions to plain-HTTP harvesting on every interface. The boot path
 /// in `routing.rs::start` calls this before any listener is opened.

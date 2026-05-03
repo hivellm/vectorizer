@@ -58,6 +58,10 @@ pub struct PersistedApiKey {
     pub expires_at: Option<u64>,
     /// Whether the key is active
     pub active: bool,
+    /// Total successful validations against this key. Old payloads
+    /// without this field deserialize with `usage_count: 0`.
+    #[serde(default)]
+    pub usage_count: u64,
 }
 
 /// Auth data store structure
@@ -444,6 +448,7 @@ mod tests {
             last_used: None,
             expires_at: None,
             active: true,
+            usage_count: 0,
         };
 
         persistence.save_api_key(key).unwrap();

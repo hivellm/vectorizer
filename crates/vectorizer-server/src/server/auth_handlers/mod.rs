@@ -21,12 +21,12 @@
 //! `auth_handlers::X` is still available at exactly that path.
 
 mod admin;
+pub mod auth_admin;
 mod authenticated;
 pub mod cookies;
 pub mod csrf;
 mod extractors;
 mod middleware;
-pub mod phase15;
 mod public;
 mod state;
 mod types;
@@ -39,6 +39,10 @@ mod types;
 use std::sync::Arc;
 
 pub use admin::{change_password, create_user, delete_user, list_users};
+pub use auth_admin::{
+    create_scoped_api_key, get_api_key_usage, introspect_token, list_audit_log, rotate_api_key,
+    update_api_key_permissions,
+};
 pub use authenticated::{
     create_api_key, get_me, list_api_keys, logout, refresh_token, revoke_api_key,
 };
@@ -47,7 +51,6 @@ pub use middleware::{
     auth_middleware, require_admin_for_rest, require_admin_from_headers, require_admin_middleware,
     require_auth_middleware,
 };
-pub use phase15::{create_scoped_api_key, introspect_token, list_audit_log, rotate_api_key};
 pub use public::{login, validate_password_endpoint};
 // Internal items that tests reach for via `use super::*`. The outer world
 // doesn't see these — the visibility is scoped to the crate.

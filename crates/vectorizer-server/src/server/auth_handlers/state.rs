@@ -17,6 +17,7 @@ use vectorizer::auth::AuthManager;
 use vectorizer::auth::audit::AuditLogger;
 use vectorizer::auth::persistence::{AuthPersistence, PersistedUser};
 use vectorizer::auth::roles::Role;
+use vectorizer::monitoring::api_key_usage::ApiKeyUsageRecorder;
 
 /// Persist first-run root credentials to a file with the most restrictive
 /// permissions the host supports (0o600 on POSIX). Returns the path written.
@@ -95,12 +96,17 @@ pub struct AuthHandlerState {
     pub login_attempts: Arc<tokio::sync::RwLock<HashMap<String, LoginAttempt>>>,
     /// Admin audit logger (non-blocking, background flusher).
     pub audit_logger: AuditLogger,
-    /// Phase17: CSRF token bindings — map from JWT token string to its
-    /// session-bound CSRF token. Populated at login, rotated on refresh,
-    /// dropped on logout. The CSRF middleware looks up the JWT presented
-    /// by the request and compares the stored token against the
-    /// `X-CSRF-Token` header.
+    /// CSRF token bindings — map from JWT token string to its
+    /// session-bound CSRF token. Populated at login, rotated on
+    /// refresh, dropped on logout. The CSRF middleware looks up the
+    /// JWT presented by the request and compares the stored token
+    /// against the `X-CSRF-Token` header.
     pub csrf_tokens: Arc<tokio::sync::RwLock<HashMap<String, String>>>,
+    /// Per-key per-day usage ring buffer. Shared with `AuthManager`
+    /// (via `set_usage_recorder`) so credential validation writes into
+    /// it; read by the `GET /auth/keys/{id}/usage` handler and the
+    /// dashboard sparkline.
+    pub api_key_usage: Arc<vectorizer::monitoring::api_key_usage::ApiKeyUsageRecorder>,
 }
 
 /// User record for authentication
@@ -126,6 +132,8 @@ impl AuthHandlerState {
         let login_attempts = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         let audit_logger = AuditLogger::new(None, 4096, 30);
         let csrf_tokens = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+        let api_key_usage = Arc::new(ApiKeyUsageRecorder::new());
+        auth_manager.set_usage_recorder(Some(api_key_usage.clone()));
         Self {
             auth_manager,
             users,
@@ -134,6 +142,7 @@ impl AuthHandlerState {
             login_attempts,
             audit_logger,
             csrf_tokens,
+            api_key_usage,
         }
     }
 
@@ -201,6 +210,7 @@ impl AuthHandlerState {
                 scopes: Vec::new(),
                 grace_until: None,
                 rotated_to: None,
+                usage_count: persisted_key.usage_count,
             };
             if let Err(e) = auth_manager.register_api_key(api_key).await {
                 warn!("Failed to register API key from disk: {}", e);
@@ -296,6 +306,8 @@ impl AuthHandlerState {
         let backup_dir = AuthPersistence::get_data_dir();
         let audit_logger = AuditLogger::new(Some(backup_dir), 4096, 30);
         let csrf_tokens = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
+        let api_key_usage = Arc::new(ApiKeyUsageRecorder::new());
+        auth_manager.set_usage_recorder(Some(api_key_usage.clone()));
 
         Self {
             auth_manager,
@@ -305,6 +317,7 @@ impl AuthHandlerState {
             login_attempts,
             audit_logger,
             csrf_tokens,
+            api_key_usage,
         }
     }
 
@@ -434,26 +447,26 @@ impl AuthHandlerState {
         }
     }
 
-    /// Phase17 — bind a freshly-generated CSRF token to a JWT.
+    /// Bind a freshly-generated CSRF token to a JWT.
     pub async fn store_csrf_token(&self, jwt: String, csrf: String) {
         self.csrf_tokens.write().await.insert(jwt, csrf);
     }
 
-    /// Phase17 — fetch the CSRF token bound to a JWT (used by middleware).
+    /// Fetch the CSRF token bound to a JWT (used by middleware).
     pub async fn get_csrf_token(&self, jwt: &str) -> Option<String> {
         self.csrf_tokens.read().await.get(jwt).cloned()
     }
 
-    /// Phase17 — drop a CSRF binding (logout) and return the dropped value
-    /// so refresh can hand it to the new JWT without a fresh round-trip
+    /// Drop a CSRF binding (logout) and return the dropped value so
+    /// refresh can hand it to the new JWT without a fresh round-trip
     /// through the OS RNG.
     pub async fn drop_csrf_token(&self, jwt: &str) -> Option<String> {
         self.csrf_tokens.write().await.remove(jwt)
     }
 
-    /// Phase17 — re-bind an existing CSRF token to a new JWT (refresh).
-    /// Keeping the same CSRF value across refreshes lets the SPA continue
-    /// to echo whatever it last read from `document.cookie` without an
+    /// Re-bind an existing CSRF token to a new JWT (refresh). Keeping
+    /// the same CSRF value across refreshes lets the SPA continue to
+    /// echo whatever it last read from `document.cookie` without an
     /// extra synchronization step.
     pub async fn rotate_csrf_token(&self, old_jwt: &str, new_jwt: String) -> Option<String> {
         let mut map = self.csrf_tokens.write().await;

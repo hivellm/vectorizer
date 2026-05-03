@@ -10,10 +10,13 @@
 import { BaseClient } from './_base';
 import type {
   ApiKey,
+  ApiKeyUsageReport,
+  ApiKeyView,
   CreateApiKeyRequest,
   CreateUserRequest,
   JwtToken,
   PasswordPolicyReport,
+  UpdateApiKeyPermissionsRequest,
   User,
 } from '../models';
 import type {
@@ -147,6 +150,41 @@ export class AuthClient extends BaseClient {
   public async createScopedApiKey(request: CreateScopedApiKeyRequest): Promise<ApiKey> {
     this.logger.debug('Creating scoped API key', { name: request.name });
     return this.transport.post<ApiKey>('/auth/keys', request);
+  }
+
+  /**
+   * Replace `permissions` (and optionally `scopes`) on an existing API
+   * key without rotating the credential. Admin-only.
+   *
+   * Calls `PUT /auth/keys/{id}/permissions`. Returns the updated key
+   * view with the live `usage_count` stamped in.
+   *
+   * `key_hash`, `id`, `user_id`, and `created_at` are immutable —
+   * rotate the key with `rotateApiKey` if those need to change.
+   */
+  public async updateApiKeyPermissions(
+    id: string,
+    request: UpdateApiKeyPermissionsRequest,
+  ): Promise<ApiKeyView> {
+    this.logger.debug('Updating API key permissions', { id });
+    return this.transport.put<ApiKeyView>(`/auth/keys/${id}/permissions`, request);
+  }
+
+  /**
+   * Fetch the per-day usage time-series for an API key. Admin-only.
+   *
+   * Calls `GET /auth/keys/{id}/usage?window={days}`. `days` is clamped
+   * server-side to 1..=30; `undefined` defaults to 7. The response
+   * carries the live key view, the bucket array (oldest first,
+   * including zero-count days), and the window total.
+   */
+  public async getApiKeyUsage(id: string, windowDays?: number): Promise<ApiKeyUsageReport> {
+    this.logger.debug('Getting API key usage', { id, windowDays });
+    const path =
+      windowDays !== undefined
+        ? `/auth/keys/${id}/usage?window=${windowDays}`
+        : `/auth/keys/${id}/usage`;
+    return this.transport.get<ApiKeyUsageReport>(path);
   }
 
   /**
