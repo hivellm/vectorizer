@@ -19,12 +19,12 @@
 
 - [x] 4.1 `rest_handlers/metrics.rs::get_runtime_metrics` shipped — reads sampler+aggregator and returns RuntimeSnapshot JSON. WAL field is zero-init pending §3.
 - [x] 4.2 Route `/metrics/runtime` registered in routing.rs under admin auth middleware
-- [ ] 4.3 API_REFERENCE.md doc — pending follow-up docs-writer pass
+- [x] 4.3 `docs/specs/API_REFERENCE.md` — added `/metrics/runtime` row in the Health & Status table plus a full response-shape section covering CPU/memory/connections/QPS/per-route latency/5xx rate and the WAL block (with the standalone-mode caveat)
 
 ## 5. Extend `GET /stats`
 
-- [ ] 5.1 In `crates/vectorizer-server/src/server/rest_handlers/admin.rs::get_stats`, compute the most-common `QuantizationConfig` across all collections and its compression ratio (uncompressed_bytes / compressed_bytes)
-- [ ] 5.2 Add `default_quantization: String` and `compression_ratio: f32` to the response struct (additive, optional in the SDK shape)
+- [x] 5.1 `get_stats` in `rest_handlers/meta.rs` (the actual home — task description's `admin.rs` was wrong) now iterates collections, groups by canonical quantization label, picks the most-common, and averages each member's static compression ratio. PQ ratio is dimension-aware (`d × 32 / (subq × log2(centroids))`); SQ ratio is `32 / bits`; Binary is 32; None is 1. Empty store falls back to `("none", 1.0)`
+- [x] 5.2 Response now carries `default_quantization: String` + `compression_ratio: f32`. Additive only — old SDK clients ignore them. 4 unit tests pin the label/ratio helpers (`quantization_label_covers_known_variants`, `compression_ratio_static_variants`, `compression_ratio_pq_depends_on_dimension`, `compression_ratio_handles_degenerate_configs`)
 
 ## 6. Extend `GET /collections/{n}` with vector-count history
 
@@ -46,7 +46,7 @@
 
 ## 9. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 9.1 API_REFERENCE.md update — pending follow-up docs-writer pass
+- [x] 9.1 API_REFERENCE.md updated (see §4.3 — same change satisfies both items)
 - [x] 9.2 Inline unit tests pass (4/4 in `runtime_metrics::tests`); HTTP integration test queued under 8.1
 - [x] 9.3 `cargo clippy -p vectorizer-server -- -D warnings` clean
 - [x] 9.4 Update or create documentation covering the implementation

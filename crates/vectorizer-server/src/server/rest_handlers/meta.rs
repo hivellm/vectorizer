@@ -57,26 +57,95 @@ pub async fn health_check(State(state): State<VectorizerServer>) -> Json<Value> 
     Json(response)
 }
 
-/// GET /stats — aggregate collection and vector counts
+/// GET /stats — aggregate collection and vector counts.
+///
+/// Phase25 §5 additions: `default_quantization` (most-common quantization
+/// label across active collections) and `compression_ratio` (mean ratio
+/// across the collections sharing that label). `none` / `1.0` when the
+/// store is empty.
 pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
     let collections = state.store.list_collections();
-    let total_vectors: usize = collections
-        .iter()
-        .map(|name| {
-            state
-                .store
-                .get_collection(name)
-                .map(|c| c.vector_count())
-                .unwrap_or(0)
+    let mut total_vectors: usize = 0;
+
+    // Counts per quantization label and the matching ratios so we can
+    // pick the most-common label and average its ratio in one pass.
+    let mut by_label: HashMap<&'static str, (usize, f64)> = HashMap::new();
+
+    for name in &collections {
+        let Ok(coll) = state.store.get_collection(name) else {
+            continue;
+        };
+        total_vectors += coll.vector_count();
+
+        let cfg = coll.config();
+        let label = quantization_label(&cfg.quantization);
+        let ratio = compression_ratio(&cfg.quantization, cfg.dimension) as f64;
+        let entry = by_label.entry(label).or_insert((0, 0.0));
+        entry.0 += 1;
+        entry.1 += ratio;
+    }
+
+    let (default_quantization, compression_ratio) = by_label
+        .into_iter()
+        .max_by_key(|(_, (count, _))| *count)
+        .map(|(label, (count, ratio_sum))| {
+            let mean = if count > 0 {
+                ratio_sum / count as f64
+            } else {
+                1.0
+            };
+            (label.to_string(), mean as f32)
         })
-        .sum();
+        .unwrap_or_else(|| ("none".to_string(), 1.0));
 
     Json(json!({
         "collections": collections.len(),
         "total_vectors": total_vectors,
         "uptime_seconds": state.start_time.elapsed().as_secs(),
-        "version": env!("CARGO_PKG_VERSION")
+        "version": env!("CARGO_PKG_VERSION"),
+        "default_quantization": default_quantization,
+        "compression_ratio": compression_ratio,
     }))
+}
+
+/// Stable label used by `default_quantization` in `GET /stats`.
+fn quantization_label(q: &vectorizer::models::QuantizationConfig) -> &'static str {
+    use vectorizer::models::QuantizationConfig;
+    match q {
+        QuantizationConfig::None => "none",
+        QuantizationConfig::Binary => "binary",
+        QuantizationConfig::SQ { bits: 4 } => "sq-4bit",
+        QuantizationConfig::SQ { bits: 8 } => "sq-8bit",
+        QuantizationConfig::SQ { bits: 16 } => "sq-16bit",
+        QuantizationConfig::SQ { .. } => "sq",
+        QuantizationConfig::PQ { .. } => "pq",
+    }
+}
+
+/// Static compression ratio (uncompressed_bytes / compressed_bytes) for a
+/// given quantization config. PQ depends on the collection's dimension;
+/// the others are dimension-independent.
+fn compression_ratio(q: &vectorizer::models::QuantizationConfig, dimension: usize) -> f32 {
+    use vectorizer::models::QuantizationConfig;
+    match q {
+        QuantizationConfig::None => 1.0,
+        QuantizationConfig::Binary => 32.0,
+        QuantizationConfig::SQ { bits } if *bits > 0 => 32.0 / (*bits as f32),
+        QuantizationConfig::SQ { .. } => 1.0,
+        QuantizationConfig::PQ {
+            n_centroids,
+            n_subquantizers,
+        } if *n_centroids > 1 && *n_subquantizers > 0 && dimension > 0 => {
+            let bits_per_sub = (*n_centroids as f32).log2();
+            let total_bits = (*n_subquantizers as f32) * bits_per_sub;
+            if total_bits > 0.0 {
+                (dimension as f32 * 32.0) / total_bits
+            } else {
+                1.0
+            }
+        }
+        QuantizationConfig::PQ { .. } => 1.0,
+    }
 }
 
 /// GET /indexing/progress — per-collection indexing progress
@@ -242,3 +311,73 @@ pub async fn get_prometheus_metrics(
 // boundary even when all handlers in this file only return plain Json.
 #[allow(dead_code)]
 fn _use_error_response(_: ErrorResponse) {}
+
+#[cfg(test)]
+mod tests {
+    use vectorizer::models::QuantizationConfig;
+
+    use super::{compression_ratio, quantization_label};
+
+    #[test]
+    fn quantization_label_covers_known_variants() {
+        assert_eq!(quantization_label(&QuantizationConfig::None), "none");
+        assert_eq!(quantization_label(&QuantizationConfig::Binary), "binary");
+        assert_eq!(
+            quantization_label(&QuantizationConfig::SQ { bits: 4 }),
+            "sq-4bit"
+        );
+        assert_eq!(
+            quantization_label(&QuantizationConfig::SQ { bits: 8 }),
+            "sq-8bit"
+        );
+        assert_eq!(
+            quantization_label(&QuantizationConfig::SQ { bits: 16 }),
+            "sq-16bit"
+        );
+        assert_eq!(
+            quantization_label(&QuantizationConfig::SQ { bits: 5 }),
+            "sq"
+        );
+        assert_eq!(
+            quantization_label(&QuantizationConfig::PQ {
+                n_centroids: 256,
+                n_subquantizers: 8
+            }),
+            "pq"
+        );
+    }
+
+    #[test]
+    fn compression_ratio_static_variants() {
+        assert!((compression_ratio(&QuantizationConfig::None, 768) - 1.0).abs() < 1e-6);
+        assert!((compression_ratio(&QuantizationConfig::Binary, 768) - 32.0).abs() < 1e-6);
+        assert!((compression_ratio(&QuantizationConfig::SQ { bits: 8 }, 768) - 4.0).abs() < 1e-6);
+        assert!((compression_ratio(&QuantizationConfig::SQ { bits: 16 }, 768) - 2.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn compression_ratio_pq_depends_on_dimension() {
+        // 256 centroids => 8 bits per sub-quantizer.
+        // 8 subquantizers * 8 bits = 64 compressed bits.
+        // dimension 512 * 32 = 16384 uncompressed bits.
+        // ratio = 16384 / 64 = 256.
+        let pq = QuantizationConfig::PQ {
+            n_centroids: 256,
+            n_subquantizers: 8,
+        };
+        assert!((compression_ratio(&pq, 512) - 256.0).abs() < 1e-3);
+
+        // dimension 0 short-circuits to 1.0 to avoid divide-by-zero.
+        assert!((compression_ratio(&pq, 0) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn compression_ratio_handles_degenerate_configs() {
+        assert!((compression_ratio(&QuantizationConfig::SQ { bits: 0 }, 768) - 1.0).abs() < 1e-6);
+        let bad_pq = QuantizationConfig::PQ {
+            n_centroids: 1,
+            n_subquantizers: 8,
+        };
+        assert!((compression_ratio(&bad_pq, 512) - 1.0).abs() < 1e-6);
+    }
+}

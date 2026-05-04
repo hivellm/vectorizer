@@ -102,6 +102,63 @@ See [HUB_INTEGRATION.md](../HUB_INTEGRATION.md) for complete HiveHub authenticat
 | GET | `/health` | No | Server health check |
 | GET | `/status` | No | Detailed server status |
 | GET | `/metrics` | No | Prometheus metrics |
+| GET | `/metrics/runtime` | Yes (Admin) | JSON runtime snapshot for the dashboard (CPU, memory, connections, rolling QPS, per-route p50/p99, 5xx rate, WAL state) |
+
+#### `GET /metrics/runtime`
+
+Single JSON snapshot consumed by the dashboard's Overview / Monitoring
+pages. Sampled every second by an in-process tick task; each request is
+a cheap clone of the latest snapshot.
+
+Response shape (snake_case):
+
+```jsonc
+{
+  "cpu_percent": 12.4,
+  "memory_rss_bytes": 124857600,
+  "memory_total_bytes": 17179869184,
+  "memory_percent": 0.73,
+  "active_connections": 8,
+  "uptime_seconds": 3712,
+  "qps_window_60s": 142.3,
+  "error_rate_5xx_60s": 0.001,
+  "throughput_by_route": [
+    {"route": "/insert_texts", "qps": 12.0, "p50_ms": 8.2, "p99_ms": 41.0}
+  ],
+  "wal": {
+    "current_seq": 482919,
+    "size_bytes": 12582912,
+    "last_checkpoint_at": 1714828800,
+    "last_checkpoint_seq": 482800
+  }
+}
+```
+
+`wal.*` fields are zero in standalone (non-replicated) mode — the
+server is honest about not having a WAL when one isn't configured.
+`last_checkpoint_at` is unix seconds and only advances when
+`min_confirmed_offset` actually moves forward (retried ACKs do not
+update the timestamp).
+
+#### `GET /stats`
+
+```jsonc
+{
+  "collections": 12,
+  "total_vectors": 482919,
+  "uptime_seconds": 3712,
+  "version": "3.3.0",
+  "default_quantization": "sq-8bit",
+  "compression_ratio": 4.0
+}
+```
+
+`default_quantization` is the most-common quantization label across
+active collections (`none`, `binary`, `sq-4bit`, `sq-8bit`, `sq-16bit`,
+`sq`, or `pq`). `compression_ratio` is the mean static ratio
+(uncompressed bits / compressed bits) across collections sharing that
+label — dimension-aware for PQ, dimension-independent for the others.
+Empty store reports `("none", 1.0)`.
 
 ### Collection Management
 
