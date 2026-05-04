@@ -9,11 +9,11 @@
 
 ## 2. Python SDK
 
-- [ ] 2.1 Mirror the Rust models with dataclasses (or pydantic if used) under `sdks/python/vectorizer/models/`
-- [ ] 2.2 Extend `Stats` + `CollectionInfo` with the new fields (snake_case is native here)
-- [ ] 2.3 Add `get_runtime_metrics()` client method
-- [ ] 2.4 Pytest coverage for full + partial payloads
-- [ ] 2.5 `[Unreleased]` CHANGELOG entry
+- [x] 2.1 New dataclasses `RuntimeMetrics`, `RouteStats`, `WalSnapshot`, `VectorCountSample` added in `sdks/python/models.py`. Each ships a `from_dict` classmethod for tolerant decoding
+- [x] 2.2 `Stats` grows `default_quantization: str` and `compression_ratio: float` (defaulting to `("none", 1.0)`); `CollectionInfo` grows `vector_count_history: List[Any]` and hydrates dict entries from `**data` kwargs in `__post_init__`
+- [x] 2.3 `AdminClient.get_runtime_metrics()` shipped in `sdks/python/vectorizer/admin.py` calling `GET /metrics/runtime`; new types re-exported from `vectorizer/__init__.py`
+- [x] 2.4 8 new unit tests in `sdks/python/tests/test_runtime_metrics.py` cover the full + partial + empty `RuntimeMetrics` payloads, the new `Stats` quantization fields, and the `vector_count_history` hydration; `pytest` 8/8
+- [x] 2.5 `sdks/python/CHANGELOG.md` `[Unreleased]` block documents the additions
 
 ## 3. Go SDK
 

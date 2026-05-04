@@ -2,6 +2,25 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Phase25 dashboard metrics endpoints.**
+  - `AdminClient.get_runtime_metrics()` calling `GET /metrics/runtime`
+    with new typed dataclasses `RuntimeMetrics`, `RouteStats`, and
+    `WalSnapshot` (all in `models.py`). Every field defaults so older
+    servers and standalone-mode (no WAL) payloads decode cleanly.
+  - `Stats` grows `default_quantization: str` and
+    `compression_ratio: float`, defaulting to `("none", 1.0)` for
+    older servers.
+  - `CollectionInfo` grows `vector_count_history: List[VectorCountSample]`
+    for the dashboard's per-collection sparkline. `__post_init__`
+    hydrates dict entries from `**data` unpacking into typed samples.
+  - 8 new unit tests in `tests/test_runtime_metrics.py` cover the
+    full + partial + empty `RuntimeMetrics` payloads, the new `Stats`
+    quantization fields, and the `vector_count_history` hydration.
+
 ## [3.3.0] - 2026-05-02
 
 > Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.

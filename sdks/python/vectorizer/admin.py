@@ -32,6 +32,7 @@ try:
         LogEntry,
         LogsQuery,
         RestoreBackupRequest,
+        RuntimeMetrics,
         ServerStatus,
         SlowQueryConfig,
         SlowQueryEntry,
@@ -55,6 +56,7 @@ except ImportError:  # pragma: no cover
         LogEntry,
         LogsQuery,
         RestoreBackupRequest,
+        RuntimeMetrics,
         ServerStatus,
         SlowQueryConfig,
         SlowQueryEntry,
@@ -280,10 +282,23 @@ class AdminClient(_ApiBase):
         Calls ``GET /stats``.
 
         Returns:
-            :class:`Stats` with collections, total_vectors, uptime_seconds, version.
+            :class:`Stats` with collections, total_vectors, uptime_seconds,
+            version, default_quantization, compression_ratio.
         """
         data = await self._transport.get("/stats")
         return Stats.from_dict(data if isinstance(data, dict) else {})
+
+    async def get_runtime_metrics(self) -> RuntimeMetrics:
+        """Runtime metrics snapshot for the dashboard (phase25).
+
+        Calls ``GET /metrics/runtime``. Returns CPU, memory, active
+        connections, rolling 60-second QPS, per-route p50/p99, 5xx
+        error rate, and the WAL state. Requires admin auth on the
+        server. Older servers without phase25 §4 return zero-valued
+        defaults rather than raising.
+        """
+        data = await self._transport.get("/metrics/runtime")
+        return RuntimeMetrics.from_dict(data if isinstance(data, dict) else {})
 
     async def get_status(self) -> ServerStatus:
         """Server liveness, version, and uptime.

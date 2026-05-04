@@ -113,6 +113,10 @@ class CollectionInfo:
     normalization: Optional[dict] = None
     quantization: Optional[dict] = None
     size: Optional[dict] = None
+    # Phase25 §6 — per-collection vector-count ring buffer surfaced by
+    # GET /collections/{name}. Empty list on older servers or for
+    # collections that have never been read.
+    vector_count_history: List[Any] = field(default_factory=list)
 
     def __post_init__(self):
         """Validate collection info after initialization."""
@@ -125,6 +129,13 @@ class CollectionInfo:
         # Normalize similarity_metric from metric field if not set
         if not self.similarity_metric and self.metric:
             self.similarity_metric = self.metric.lower()
+        # Hydrate vector_count_history into VectorCountSample instances
+        # when the server sent dicts (kwargs unpacking from JSON).
+        if self.vector_count_history:
+            self.vector_count_history = [
+                VectorCountSample.from_dict(s) if isinstance(s, dict) else s
+                for s in self.vector_count_history
+            ]
 
 
 @dataclass
@@ -1375,12 +1386,18 @@ class Stats:
     """Server statistics returned by ``GET /stats``.
 
     Fields: ``collections``, ``total_vectors``, ``uptime_seconds``, ``version``.
+
+    Phase25 §5 additions ``default_quantization`` and
+    ``compression_ratio`` default to ``("none", 1.0)`` on older servers
+    that do not emit them.
     """
 
     collections: int = 0
     total_vectors: int = 0
     uptime_seconds: int = 0
     version: str = ""
+    default_quantization: str = "none"
+    compression_ratio: float = 1.0
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Stats":
@@ -1390,6 +1407,105 @@ class Stats:
             total_vectors=int(data.get("total_vectors", 0)),
             uptime_seconds=int(data.get("uptime_seconds", 0)),
             version=str(data.get("version", "")),
+            default_quantization=str(data.get("default_quantization", "none")),
+            compression_ratio=float(data.get("compression_ratio", 1.0)),
+        )
+
+
+# ===== PHASE25 §7 RUNTIME METRICS =====
+
+
+@dataclass
+class RouteStats:
+    """Per-route latency / throughput inside :class:`RuntimeMetrics`."""
+
+    route: str = ""
+    qps: float = 0.0
+    p50_ms: float = 0.0
+    p99_ms: float = 0.0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RouteStats":
+        return cls(
+            route=str(data.get("route", "")),
+            qps=float(data.get("qps", 0.0)),
+            p50_ms=float(data.get("p50_ms", 0.0)),
+            p99_ms=float(data.get("p99_ms", 0.0)),
+        )
+
+
+@dataclass
+class WalSnapshot:
+    """WAL state surfaced inside :class:`RuntimeMetrics`."""
+
+    current_seq: int = 0
+    size_bytes: int = 0
+    last_checkpoint_at: int = 0
+    last_checkpoint_seq: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "WalSnapshot":
+        return cls(
+            current_seq=int(data.get("current_seq", 0)),
+            size_bytes=int(data.get("size_bytes", 0)),
+            last_checkpoint_at=int(data.get("last_checkpoint_at", 0)),
+            last_checkpoint_seq=int(data.get("last_checkpoint_seq", 0)),
+        )
+
+
+@dataclass
+class RuntimeMetrics:
+    """Runtime metrics snapshot returned by ``GET /metrics/runtime`` (phase25).
+
+    Every field defaults so the SDK tolerates older servers that do not
+    emit the route or partial payloads.
+    """
+
+    cpu_percent: float = 0.0
+    memory_rss_bytes: int = 0
+    memory_total_bytes: int = 0
+    memory_percent: float = 0.0
+    active_connections: int = 0
+    uptime_seconds: int = 0
+    qps_window_60s: float = 0.0
+    error_rate_5xx_60s: float = 0.0
+    throughput_by_route: List[RouteStats] = field(default_factory=list)
+    wal: WalSnapshot = field(default_factory=WalSnapshot)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RuntimeMetrics":
+        routes_raw = data.get("throughput_by_route") or []
+        routes = [
+            RouteStats.from_dict(r) if isinstance(r, dict) else RouteStats()
+            for r in routes_raw
+        ]
+        wal_raw = data.get("wal") or {}
+        return cls(
+            cpu_percent=float(data.get("cpu_percent", 0.0)),
+            memory_rss_bytes=int(data.get("memory_rss_bytes", 0)),
+            memory_total_bytes=int(data.get("memory_total_bytes", 0)),
+            memory_percent=float(data.get("memory_percent", 0.0)),
+            active_connections=int(data.get("active_connections", 0)),
+            uptime_seconds=int(data.get("uptime_seconds", 0)),
+            qps_window_60s=float(data.get("qps_window_60s", 0.0)),
+            error_rate_5xx_60s=float(data.get("error_rate_5xx_60s", 0.0)),
+            throughput_by_route=routes,
+            wal=WalSnapshot.from_dict(wal_raw if isinstance(wal_raw, dict) else {}),
+        )
+
+
+@dataclass
+class VectorCountSample:
+    """One sample in the per-collection vector-count history (phase25 §6)."""
+
+    at: int = 0
+    count: int = 0
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "VectorCountSample":
+        return cls(
+            at=int(data.get("at", 0)),
+            count=int(data.get("count", 0)),
         )
 
 

@@ -70,11 +70,15 @@ try:
         ReindexParams,
         ResyncJob,
         RotatedKey,
+        RouteStats,
+        RuntimeMetrics,
         SlowQueryConfig,
         SlowQueryEntry,
         TokenIntrospection,
         TokenScope,
         UpdateApiKeyPermissionsRequest,
+        VectorCountSample,
+        WalSnapshot,
     )
 except ImportError:  # pragma: no cover
     from models import (  # type: ignore[import-not-found]
@@ -100,11 +104,15 @@ except ImportError:  # pragma: no cover
         ReindexParams,
         ResyncJob,
         RotatedKey,
+        RouteStats,
+        RuntimeMetrics,
         SlowQueryConfig,
         SlowQueryEntry,
         TokenIntrospection,
         TokenScope,
         UpdateApiKeyPermissionsRequest,
+        VectorCountSample,
+        WalSnapshot,
     )
 
 __all__ = [
@@ -153,4 +161,9 @@ __all__ = [
     "ApiKeyUsageReport",
     "ApiKeyView",
     "UpdateApiKeyPermissionsRequest",
+    # phase25 dashboard metrics
+    "RuntimeMetrics",
+    "RouteStats",
+    "WalSnapshot",
+    "VectorCountSample",
 ]
