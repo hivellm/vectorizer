@@ -53,17 +53,21 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ("src/server/rest_handlers/meta.rs", 300, "6 small handlers"),
     (
         "src/server/rest_handlers/collections.rs",
-        560,
-        "7 handlers incl. list/create; +13 LOC in v3.2.1 to surface \
-         the real default embedding_provider name in list/get \
-         responses (was hardcoded \"bm25\")",
+        960,
+        "7 handlers incl. list/create + phase13 reencode_collection / \
+         set_collection_ttl + phase14 rename / reindex / native snapshot \
+         CRUD (snapshot_native, list_collection_snapshots_native, \
+         restore_collection_snapshot_native). Re-tighten when the \
+         schema-evolution endpoints split out (follow-up task).",
     ),
     (
         "src/server/rest_handlers/vectors.rs",
-        450,
-        "8 handlers + batch_insert_texts / insert_texts REST aliases and \
-         their shared do_batch_insert_texts engine that wraps the \
-         per-chunk auto-chunk + metadata merge path (phase6 + phase8)",
+        1020,
+        "8 handlers + batch_insert_texts / insert_texts REST aliases + \
+         do_batch_insert_texts engine (phase6 + phase8) + phase13 \
+         delete_by_filter / bulk_update_metadata / copy_vectors / \
+         set_vector_expiry tier-control primitives. Re-tighten when \
+         the tier-control handlers split out (follow-up task).",
     ),
     (
         "src/server/rest_handlers/insert.rs",
@@ -81,13 +85,14 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/search.rs",
-        1000,
+        1040,
         "7 search-family handlers + hybrid search (dense + sparse + \
          rank-fusion + per-axis weights) + batch_search_vectors + \
          search_by_file + search_by_collection variants + Qdrant-shape \
-         adapters. Split across concern axes is blocked until the \
-         hybrid-search task lands (phase7_hybrid-search-extraction); \
-         re-tighten this budget there.",
+         adapters + phase14 explain_search HNSW execution-trace handler. \
+         Split across concern axes is blocked until the hybrid-search \
+         task lands (phase7_hybrid-search-extraction); re-tighten this \
+         budget there.",
     ),
     (
         "src/server/rest_handlers/intelligent_search.rs",
