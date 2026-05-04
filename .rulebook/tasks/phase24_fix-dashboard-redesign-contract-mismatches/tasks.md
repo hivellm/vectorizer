@@ -31,8 +31,23 @@
 - [ ] 5.4 Add `dashboard/e2e/configuration-save.spec.ts` — open config page, save a known-safe edit, verify 200 + persistence
 - [ ] 5.5 Add `dashboard/e2e/session-expired.spec.ts` — manually expire JWT, navigate to a protected page, assert redirect to login
 
-## 6. Tail (mandatory — enforced by rulebook v5.3.0)
+## 6. Drop SPARK synthetic generators (depends on phase25)
 
-- [ ] 6.1 Update `dashboard/README.md` "Recent changes" with a summary of the contract fixes
-- [ ] 6.2 Run `pnpm vitest --run` (unit) and `pnpm playwright test` (e2e) and confirm all green
-- [ ] 6.3 Run `pnpm lint` and confirm zero new warnings
+- [ ] 6.1 Remove the `SPARK(n, base, amp)` helper from `OverviewPage.tsx`, `MonitoringPage.tsx`, `CollectionsPage.tsx` — every callsite must point at a real endpoint
+- [ ] 6.2 Wire `OverviewPage` Ring gauges (CPU%, MEMORY%, CONNECTIONS) to `GET /metrics/runtime` (phase25); render `--` instead of `0` when the endpoint returns null
+- [ ] 6.3 Wire `MonitoringPage` Sparkline (Total throughput) and Bar (per-route throughput) to `/metrics/runtime.throughput_by_route`
+- [ ] 6.4 Wire `CollectionsPage` per-collection Sparkline to `GET /collections/{n}.vector_count_history` (phase25)
+- [ ] 6.5 Replace the Quantization card hardcoded `4.0×` / `SQ-8bit · default` on `OverviewPage` with `GET /stats.compression_ratio` and `.default_quantization` (phase25)
+- [ ] 6.6 Drop hardcoded `MAP score +8.9%` and `Recall@10 98.4%` from the Quantization card. If no real source exists yet, REMOVE the rows entirely; do not leave fake metrics in production
+
+## 7. Drop hardcoded server identity strings
+
+- [ ] 7.1 Replace `vectorizer 3.0.0` literal in `OverviewPage.tsx:188` with `GET /status.version`
+- [ ] 7.2 Replace bind address literal `127.0.0.1:15002 (REST) · /mcp (StreamableHTTP)` with the live config from `GET /config` (or a new `/config/network` projection if the full config is too sensitive)
+
+## 8. Tail (mandatory — enforced by rulebook v5.3.0)
+
+- [ ] 8.1 Update `dashboard/README.md` "Recent changes" with a summary of the contract fixes + the SPARK→real-data migration
+- [ ] 8.2 Run `pnpm vitest --run` (unit) and `pnpm playwright test` (e2e) and confirm all green
+- [ ] 8.3 Run `pnpm lint` and confirm zero new warnings
+- [ ] 8.4 Manual smoke against a live `vectorizer:3.3.0` container: every Ring/Bar/Sparkline on the dashboard renders a value derived from a real endpoint (no `Math.sin`, no `Math.random`, no hardcoded literal)
