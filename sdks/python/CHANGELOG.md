@@ -2,7 +2,9 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
-## [Unreleased]
+## [3.3.0] - 2026-05-02
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG. The phase25/27 dashboard metrics surface (originally drafted as `[Unreleased]`) is also rolled into this entry.
 
 ### Added
 
@@ -20,12 +22,6 @@ All notable changes to the Hive Vectorizer Python SDK will be documented in this
   - 8 new unit tests in `tests/test_runtime_metrics.py` cover the
     full + partial + empty `RuntimeMetrics` payloads, the new `Stats`
     quantization fields, and the `vector_count_history` hydration.
-
-## [3.3.0] - 2026-05-02
-
-> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
-
-### Added
 
 - **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorizerClient`:
   - `delete_vector(collection, vector_id) -> None` calling `DELETE /collections/{c}/vectors/{id}`.

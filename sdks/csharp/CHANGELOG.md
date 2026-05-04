@@ -7,7 +7,9 @@ Two NuGet packages share this changelog:
 - `Vectorizer.Sdk.Rpc` — RPC-first client (recommended).
 - `Vectorizer.Sdk` — legacy REST-only client.
 
-## [Unreleased]
+## [3.3.0] - 2026-05-03
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG. The phase25/27 dashboard metrics surface (originally drafted as `[Unreleased]`) is also rolled into this entry.
 
 ### Added
 
@@ -28,10 +30,6 @@ Two NuGet packages share this changelog:
     cover the `/metrics/runtime` route + decode, full + partial
     payloads, the new `Stats` quantization fields, and
     `vector_count_history` JSON round-trip.
-
-## [3.3.0] - 2026-05-03
-
-> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
 
 ### Added (legacy `Vectorizer.Sdk` package)
 

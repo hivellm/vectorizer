@@ -2,7 +2,9 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
-## [Unreleased]
+## [3.3.0] - 2026-05-02
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG. The phase25/27 dashboard metrics surface (originally drafted as `[Unreleased]`) is also rolled into this entry.
 
 ### Added
 
@@ -21,12 +23,6 @@ All notable changes to the Hive Vectorizer TypeScript Client SDK will be documen
   - 7 new unit tests cover full + partial `RuntimeMetrics` payloads,
     the new `Stats` quantization fields, and the
     `vector_count_history` round-trip.
-
-## [3.3.0] - 2026-05-02
-
-> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
-
-### Added
 
 - **Typed `QdrantFilter` builder (phase23).** New `src/models/filter.ts` ships `QdrantFilter` / `FilterCondition` / `FilterMatch` / `FilterRange` interfaces + a `filter` namespace with builder helpers (`filter.eq`, `filter.in`, `filter.range`, `filter.must`, `filter.should`, `filter.mustNot`, `filter.nested`). `deleteByFilter` and `bulkUpdateMetadata` now accept `QdrantFilter | Record<string, unknown>` (back-compat). The typed path validates empty filters client-side and rejects them before the HTTP request.
 - **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorsClient`:

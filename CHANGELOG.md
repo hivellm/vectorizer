@@ -22,6 +22,21 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Dashboard metrics endpoints (phase25).** Three additive REST surfaces so the v3.3.0 console renders real numbers instead of synthetic generators:
+  - **`GET /metrics/runtime` (admin-gated)** — single JSON snapshot refreshed once per second. Carries process CPU / memory / RSS / total / `active_connections` / `uptime_seconds`, rolling 60 s `qps_window_60s`, per-route `throughput_by_route[]` (route + qps + p50_ms + p99_ms, sorted desc by QPS), `error_rate_5xx_60s`, and a `wal { current_seq, size_bytes, last_checkpoint_at, last_checkpoint_seq }` block. Standalone (non-replicated) servers report a zero-initialised WAL block — honest about not having one. Implementation: `RuntimeSampler` ticks every second using `sysinfo::ProcessRefreshKind::nothing().with_cpu().with_memory()` (sysinfo 0.38); `LatencyAggregator` keeps a 60 s rolling window per route; an axum middleware increments / decrements an `Arc<AtomicUsize>` connection counter on every request.
+  - **`GET /stats` extension** — additive `default_quantization: String` (most-common quantization label across active collections — one of `none`, `binary`, `sq-4bit`, `sq-8bit`, `sq-16bit`, `sq`, `pq`) and `compression_ratio: f32` (mean static ratio across collections sharing that label; PQ ratio is dimension-aware, the others are dimension-independent). Empty store reports `("none", 1.0)`.
+  - **`GET /collections/{name}` extension** — additive `vector_count_history: [{at, count}]` ring buffer, capped at 60 entries, sampled lazily on each read (`Collection::record_vector_count_sample()` — no-op if the last sample is < 60 s old, so a static collection produces zero ongoing CPU). Sharded / GPU / DistributedSharded variants always report `[]`.
+  - **WAL plumbing.** `DurableReplicationLog::wal_snapshot()` returns `WalSnapshot` (re-exported from `vectorizer::replication`); `mark_replicated()` only stamps `last_checkpoint_at` when `min_confirmed_offset` actually advances, so retried ACKs do not lie. `MasterNode::wal_snapshot()` is the public surface; `RuntimeSampler::set_master_node()` is the wiring point.
+  - **`docs/specs/API_REFERENCE.md`** documents both the route table entry and the full response shape (`/metrics/runtime` + the `/stats` extension), with the standalone-mode caveat called out.
+
+- **SDK parity for the phase25 surface (phase27).** Every supported SDK gains the same typed wrappers — `RuntimeMetrics`, `RouteStats`, `WalSnapshot`, `VectorCountSample`, plus `Stats.{default_quantization, compression_ratio}` and `Collection.vector_count_history`:
+  - **Rust SDK** — `VectorizerClient::get_runtime_metrics()`, models in `sdks/rust/src/models.rs`. Defaults zero-valued so older servers and standalone-mode payloads parse unchanged.
+  - **TypeScript SDK** — `AdminClient.getRuntimeMetrics()`, interfaces in `sdks/typescript/src/models/admin.ts`. Every field is optional so partial payloads decode without runtime errors.
+  - **Python SDK** — `AdminClient.get_runtime_metrics()`, dataclasses in `sdks/python/models.py` with `from_dict` classmethods that tolerate missing keys. `CollectionInfo.__post_init__` hydrates dict entries from `**data` kwargs into typed `VectorCountSample` instances.
+  - **Go SDK** — `Client.GetRuntimeMetrics()`, structs in `sdks/go/models.go` with `omitempty` tags on every field.
+  - **C# SDK** — `VectorizerClient.GetRuntimeMetricsAsync()`, classes in `sdks/csharp/Models/AdminModels.cs` with `JsonPropertyName` and sensible default initialisers.
+  - 4 new unit tests per SDK (Rust 4, TS 7, Python 8, Go 7, C# 7 = 33 total) cover the route + decode, full + partial payloads, the new `Stats` quantization fields, and the `vector_count_history` round-trip.
+
 - **Cluster admin endpoints.** Five new server routes for production cluster operations:
   - `POST /cluster/failover` — promote a replica to primary with a pre-flight WAL-lag check (returns 409 when replica lag exceeds `max_lag_segments`, default 1). Residual loss window documented in `src/replication/state.rs`.
   - `POST /cluster/replicas/{id}/resync` — force a full snapshot + WAL replay on a lagging replica.
@@ -58,6 +73,20 @@ All notable changes to this project will be documented in this file.
 - **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** New server endpoint plus three SDK methods so Cortex's consolidation-tier pruner can demote vectors between hot/warm/cold collections without re-embedding:
   - **Server**: `POST /collections/{src}/vectors/move` with body `{destination, ids}`. Inserts into `dst` BEFORE deleting from `src` — a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id status (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populates `results` without aborting the batch. See `docs/users/api/API_REFERENCE.md` for the full contract.
   - **All three SDKs (Rust 3.3, TypeScript 3.3, Python 3.3)**: `delete_vector` (single), `delete_vectors` (batch with per-id `DeleteReport`), `move_to_collection` (cross-collection move with `MoveReport`). The TypeScript and Python `delete_vectors` methods previously returned ad-hoc shapes (`{deleted: number}` / `bool`); they now return the canonical `DeleteReport` with the server's full per-id status array. Existing callers asserting on the old shapes will need to update to `report.deleted` / `report.results`.
+
+### Fixed
+
+- **Dashboard contract reconciliation against v3.3.0 server (phase24).** PR #266's console redesign shipped against an imagined server schema; phase24 reconciled every page with the real wire shape so the dashboard becomes actually usable on v3.3.0:
+  - `ApiKeysPage.tsx` rewired to the real `ApiKeyInfo` (`usage_count`, `usage_24h`, `last_used: Option<u64>`); dropped the fictional `calls`, `last_used_at`, `masked`, `key_preview`, `key_prefix`, `role` fields. The phase18 14-day usage sparkline modal was re-added (`GET /auth/keys/{id}/usage?window=14`).
+  - CSRF echo audited across `ApiKeysPage` / `UsersPage` / `ConfigurationPage` / `BackupsPage` — all already route through `api-middleware.ts`; no raw `fetch` bypasses found.
+  - 401 handling: `unauthorizedMiddleware` writes a one-shot `vectorizer_session_expired` flag in `sessionStorage`; `LoginPage` shows an amber `<Pill>` notice when a session expires mid-flow.
+  - Synthetic `SPARK()` generators (`Math.sin` / `Math.random`) deleted from OverviewPage / MonitoringPage / CollectionsPage. Ring gauges + Sparkline now consume the new `useRuntimeMetrics()` hook; hardcoded literals (`MAP score +8.9%`, `Recall@10 98.4%`, the Quantization card) were dropped — no real source.
+  - Identity strings: `vectorizer 3.0.0` literal replaced with `GET /status.version`; bind-address literal replaced with `GET /config`.
+  - 5 new Playwright e2e specs (`api-keys-csrf`, `users-csrf`, `backups-create-restore` — gated on `BACKUPS_AVAILABLE`, `configuration-save`, `session-expired`).
+
+- **Dashboard `pnpm lint` runs on eslint@10 again (phase26 + phase28).**
+  - phase26: pinned `settings.react.version = '19.2'` in `dashboard/eslint.config.js`. `eslint-plugin-react@7.37.5`'s `version: 'detect'` path calls the legacy `context.getFilename()` that eslint@10 removed; pinning the version short-circuits `getReactVersionFromContext` before the broken call site is reached, with zero dependency churn.
+  - phase28: cleared the 41 pre-existing errors that the v10 crash had been hiding — 19× `react/no-unescaped-entities` (literal `"` / `'` in JSX text), 13× `preserve-caught-error` (every `throw new Error(...)` reachable from a `catch (e) { ... }` now grows `{ cause: e }`), 4× hooks/refs (`WorkspacePage` `loadData` rewritten as `useCallback`, `PasswordStrengthIndicator.validateClientSide` hoisted to module scope, `GraphPage` gets a `hasNetwork` state mirror so the render path no longer reads `networkInstanceRef.current`, `useSetupRedirect` swaps the inline `JSON.stringify(...)` dep for a precomputed `excludePathsKey` identifier), and 5× misc (`cn.test.ts` `as boolean` widening, dropped a useless `body = null` initial write, named `IconWrapper.displayName = 'Icon'` factory). Final state: `pnpm lint` exits with `0 errors / 24 warnings` under the `--max-warnings 50` cap; `pnpm build` and `pnpm vitest --run` baseline (219/224) unchanged.
 
 ### Build
 

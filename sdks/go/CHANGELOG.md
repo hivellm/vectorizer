@@ -2,7 +2,9 @@
 
 All notable changes to the Hive Vectorizer Go SDK will be documented in this file.
 
-## [Unreleased]
+## [3.3.0] - 2026-05-03
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG. The phase25/27 dashboard metrics surface (originally drafted as `[Unreleased]`) is also rolled into this entry.
 
 ### Added
 
@@ -21,12 +23,6 @@ All notable changes to the Hive Vectorizer Go SDK will be documented in this fil
     `/metrics/runtime` route + decode, full + partial payloads, the
     new `Stats` quantization fields, and the `vector_count_history`
     JSON round-trip.
-
-## [3.3.0] - 2026-05-03
-
-> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
-
-### Added
 
 REST control surface parity with Rust/TypeScript/Python SDKs (phase20). The
 Go SDK now exposes ~79 new REST methods covering every endpoint shipped in

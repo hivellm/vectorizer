@@ -2,7 +2,9 @@
 
 All notable changes to the Hive Vectorizer Rust SDK will be documented in this file.
 
-## [Unreleased]
+## [3.3.0] - 2026-05-02
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG. The phase25/27 dashboard metrics surface (originally drafted as `[Unreleased]`) is also rolled into this entry.
 
 ### Added
 
@@ -23,12 +25,6 @@ All notable changes to the Hive Vectorizer Rust SDK will be documented in this f
     have never been read.
   - 4 new unit tests cover full + partial `RuntimeMetrics` payloads and
     the new `Stats` quantization fields.
-
-## [3.3.0] - 2026-05-02
-
-> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
-
-### Added
 
 - **Typed `Filter` / `QdrantFilter` builder (phase23).** New `models/filter.rs` module ships typed filter types with full wire-shape coverage: `Filter`, `Condition`, `Match`, `Range`. Re-exported from the SDK's `models` module. Doc comments on `delete_by_filter` and `bulk_update_metadata` recommend the typed value over raw JSON. Server-side error messages for malformed filters now return `error_type: "parse_error"` with serde field paths instead of the misleading `"empty filter is not allowed"`. 8 unit tests cover wire-shape stability for every variant + nested compound filters + omitting absent clauses.
 - **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorizerClient`:
