@@ -1,10 +1,10 @@
 /**
- * Edge Details Modal - Display edge information and actions
+ * Edge Details Modal — console design.
  */
 
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { GraphEdge } from '@/hooks/useGraph';
+import type { CSSProperties } from 'react';
 
 interface EdgeDetailsModalProps {
   isOpen: boolean;
@@ -12,6 +12,11 @@ interface EdgeDetailsModalProps {
   edge: GraphEdge | null;
   onDelete: (edgeId: string) => Promise<void>;
 }
+
+const FIELD_VALUE: CSSProperties = {
+  fontSize: 13,
+  color: 'var(--text)',
+};
 
 export default function EdgeDetailsModal({
   isOpen,
@@ -36,77 +41,82 @@ export default function EdgeDetailsModal({
       size="md"
       footer={
         <>
-          <Button variant="danger" onClick={handleDelete}>
+          <button type="button" className="btn magenta" onClick={handleDelete}>
             Delete Edge
-          </Button>
-          <Button variant="secondary" onClick={onClose}>
+          </button>
+          <button type="button" className="btn" onClick={onClose}>
             Close
-          </Button>
+          </button>
         </>
       }
     >
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Edge ID
-          </label>
-          <p className="text-sm text-neutral-900 dark:text-white font-mono break-all">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="field">
+          <label className="field-label">Edge ID</label>
+          <p
+            className="mono"
+            style={{ ...FIELD_VALUE, margin: 0, wordBreak: 'break-all' }}
+          >
             {edge.id}
           </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Source Node
-          </label>
-          <p className="text-sm text-neutral-900 dark:text-white font-mono break-all">
+        <div className="field">
+          <label className="field-label">Source Node</label>
+          <p
+            className="mono"
+            style={{ ...FIELD_VALUE, margin: 0, wordBreak: 'break-all' }}
+          >
             {edge.source}
           </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Target Node
-          </label>
-          <p className="text-sm text-neutral-900 dark:text-white font-mono break-all">
+        <div className="field">
+          <label className="field-label">Target Node</label>
+          <p
+            className="mono"
+            style={{ ...FIELD_VALUE, margin: 0, wordBreak: 'break-all' }}
+          >
             {edge.target}
           </p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Relationship Type
-          </label>
-          <p className="text-sm text-neutral-900 dark:text-white">
-            {edge.relationship_type}
-          </p>
+        <div className="field">
+          <label className="field-label">Relationship Type</label>
+          <p style={{ ...FIELD_VALUE, margin: 0 }}>{edge.relationship_type}</p>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Weight
-          </label>
-          <p className="text-sm text-neutral-900 dark:text-white">
+        <div className="field">
+          <label className="field-label">Weight</label>
+          <p style={{ ...FIELD_VALUE, margin: 0, fontVariantNumeric: 'tabular-nums' }}>
             {edge.weight.toFixed(2)}
           </p>
         </div>
 
         {edge.metadata && Object.keys(edge.metadata).length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-              Metadata
-            </label>
-            <pre className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded text-xs overflow-auto">
+          <div className="field">
+            <label className="field-label">Metadata</label>
+            <pre
+              style={{
+                padding: 12,
+                background: 'var(--bg-2)',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                fontSize: 11,
+                overflow: 'auto',
+                margin: 0,
+                color: 'var(--text-1)',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
               {JSON.stringify(edge.metadata, null, 2)}
             </pre>
           </div>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Created At
-          </label>
-          <p className="text-sm text-neutral-900 dark:text-white">
+        <div className="field">
+          <label className="field-label">Created At</label>
+          <p style={{ ...FIELD_VALUE, margin: 0 }}>
             {new Date(edge.created_at).toLocaleString()}
           </p>
         </div>

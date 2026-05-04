@@ -1,10 +1,9 @@
 /**
- * Delete Collection Confirmation Modal
+ * Delete Collection Confirmation Modal — console design.
  */
 
 import { useState } from 'react';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
 import { useToastContext } from '@/providers/ToastProvider';
@@ -29,14 +28,14 @@ export default function DeleteCollectionModal({
     setLoading(true);
     try {
       await deleteCollection(collectionName);
-      
+
       // Remove from store
       removeCollection(collectionName);
-      
+
       // Refresh collections list
       const updated = await listCollections();
       setCollections(Array.isArray(updated) ? updated : []);
-      
+
       toast.success(`Collection "${collectionName}" deleted successfully`);
       onClose();
     } catch (error) {
@@ -55,26 +54,39 @@ export default function DeleteCollectionModal({
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <button type="button" className="btn" onClick={onClose} disabled={loading}>
             Cancel
-          </Button>
-          <Button variant="danger" onClick={handleDelete} disabled={loading} isLoading={loading}>
+          </button>
+          <button
+            type="button"
+            className="btn magenta"
+            onClick={handleDelete}
+            disabled={loading}
+          >
             {loading ? 'Deleting...' : 'Delete Collection'}
-          </Button>
+          </button>
         </>
       }
     >
-      <div className="space-y-4">
-        <p className="text-neutral-700 dark:text-neutral-300">
-          Are you sure you want to delete the collection <strong className="text-neutral-900 dark:text-white">{collectionName}</strong>?
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <p style={{ color: 'var(--text-1)', margin: 0, fontSize: 13 }}>
+          Are you sure you want to delete the collection{' '}
+          <strong style={{ color: 'var(--text)' }}>{collectionName}</strong>?
         </p>
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-          <p className="text-sm text-yellow-800 dark:text-yellow-300">
-            <strong>Warning:</strong> This action cannot be undone. All vectors and data in this collection will be permanently deleted.
+        <div
+          style={{
+            background: 'var(--amber-dim)',
+            border: '1px solid rgba(240,168,58,0.35)',
+            borderRadius: 6,
+            padding: 12,
+          }}
+        >
+          <p style={{ color: 'var(--amber)', fontSize: 12, margin: 0 }}>
+            <strong>Warning:</strong> This action cannot be undone. All vectors and data
+            in this collection will be permanently deleted.
           </p>
         </div>
       </div>
     </Modal>
   );
 }
-

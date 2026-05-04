@@ -1,10 +1,9 @@
 /**
- * Edit Vector Modal - Edit vector payload
+ * Edit Vector Modal — console design.
  */
 
 import { useState, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import CodeEditor from '@/components/ui/CodeEditor';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useToastContext } from '@/providers/ToastProvider';
@@ -101,44 +100,75 @@ export default function EditVectorModal({
       size="xl"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <button type="button" className="btn" onClick={onClose} disabled={loading}>
             Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSave} disabled={loading} isLoading={loading}>
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={handleSave}
+            disabled={loading}
+          >
             {loading ? 'Saving...' : 'Save Changes'}
-          </Button>
+          </button>
         </>
       }
     >
-      <div className="space-y-4">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Basic Info */}
-        <div className="bg-neutral-50 dark:bg-neutral-900/50 rounded-lg p-4">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <div
+          style={{
+            background: 'var(--bg-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            padding: 12,
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: 14,
+              fontSize: 12,
+            }}
+          >
             <div>
-              <span className="text-neutral-500 dark:text-neutral-400">Vector ID:</span>
-              <p className="text-neutral-900 dark:text-white font-mono mt-1 break-all">
+              <div style={{ color: 'var(--text-2)' }}>Vector ID:</div>
+              <div
+                className="mono"
+                style={{
+                  color: 'var(--text)',
+                  marginTop: 4,
+                  wordBreak: 'break-all',
+                }}
+              >
                 {vector.id}
-              </p>
+              </div>
             </div>
             <div>
-              <span className="text-neutral-500 dark:text-neutral-400">Collection:</span>
-              <p className="text-neutral-900 dark:text-white mt-1">{collectionName}</p>
+              <div style={{ color: 'var(--text-2)' }}>Collection:</div>
+              <div style={{ color: 'var(--text)', marginTop: 4 }}>{collectionName}</div>
             </div>
           </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-            <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+          <div
+            style={{
+              background: 'rgba(229,72,77,0.10)',
+              border: '1px solid rgba(229,72,77,0.35)',
+              borderRadius: 6,
+              padding: 10,
+            }}
+          >
+            <p style={{ color: 'var(--red)', fontSize: 12, margin: 0 }}>{error}</p>
           </div>
         )}
 
         {/* Payload Editor */}
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-            Payload (JSON)
-          </label>
+        <div className="field">
+          <label className="field-label">Payload (JSON)</label>
           <CodeEditor
             value={payloadJson}
             onChange={(value) => {
@@ -149,12 +179,11 @@ export default function EditVectorModal({
             height="400px"
             readOnly={false}
           />
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+          <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 6 }}>
             Edit the JSON payload. Changes will be saved to the vector.
-          </p>
+          </div>
         </div>
       </div>
     </Modal>
   );
 }
-

@@ -1,10 +1,9 @@
 /**
- * Edge Create Modal - Create edge between two nodes
+ * Edge Create Modal — console design.
  */
 
 import { useState, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectOption } from '@/components/ui/Select';
 import { useToastContext } from '@/providers/ToastProvider';
@@ -12,7 +11,12 @@ import { useToastContext } from '@/providers/ToastProvider';
 interface EdgeCreateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateEdge: (source: string, target: string, relationshipType: string, weight: number) => Promise<void>;
+  onCreateEdge: (
+    source: string,
+    target: string,
+    relationshipType: string,
+    weight: number
+  ) => Promise<void>;
   nodes: Array<{ id: string; node_type: string }>;
   preselectedSource?: string;
   preselectedTarget?: string;
@@ -113,16 +117,24 @@ export default function EdgeCreateModal({
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={handleClose} disabled={loading}>
+          <button type="button" className="btn" onClick={handleClose} disabled={loading}>
             Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
             {loading ? 'Creating...' : 'Create Edge'}
-          </Button>
+          </button>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+      >
         <Select
           label="Source Node"
           value={formData.source}
@@ -133,7 +145,8 @@ export default function EdgeCreateModal({
         >
           {nodes.map((node) => (
             <SelectOption key={node.id} id={node.id} value={node.id}>
-              {node.id.length > 50 ? `${node.id.substring(0, 50)}...` : node.id} ({node.node_type})
+              {node.id.length > 50 ? `${node.id.substring(0, 50)}...` : node.id} (
+              {node.node_type})
             </SelectOption>
           ))}
         </Select>
@@ -148,7 +161,8 @@ export default function EdgeCreateModal({
         >
           {nodes.map((node) => (
             <SelectOption key={node.id} id={node.id} value={node.id}>
-              {node.id.length > 50 ? `${node.id.substring(0, 50)}...` : node.id} ({node.node_type})
+              {node.id.length > 50 ? `${node.id.substring(0, 50)}...` : node.id} (
+              {node.node_type})
             </SelectOption>
           ))}
         </Select>
@@ -171,7 +185,9 @@ export default function EdgeCreateModal({
           label="Weight"
           type="number"
           value={formData.weight.toString()}
-          onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 1.0 })}
+          onChange={(e) =>
+            setFormData({ ...formData, weight: parseFloat(e.target.value) || 1.0 })
+          }
           min="0"
           max="10"
           step="0.1"

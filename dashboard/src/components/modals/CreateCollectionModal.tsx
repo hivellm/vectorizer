@@ -1,10 +1,9 @@
 /**
- * Create Collection Modal
+ * Create Collection Modal — console design.
  */
 
 import { useState } from 'react';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select, SelectOption } from '@/components/ui/Select';
 import { useCollections } from '@/hooks/useCollections';
@@ -32,7 +31,7 @@ export default function CreateCollectionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       return;
     }
@@ -44,11 +43,11 @@ export default function CreateCollectionModal({
         dimension: formData.dimension,
         metric: formData.metric, // Already typed correctly
       });
-      
+
       // Refresh collections
       const updated = await listCollections();
       setCollections(Array.isArray(updated) ? updated : []);
-      
+
       // Reset form and close
       setFormData({ name: '', dimension: 512, metric: 'cosine' });
       toast.success('Collection created successfully');
@@ -69,16 +68,24 @@ export default function CreateCollectionModal({
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <button type="button" className="btn" onClick={onClose} disabled={loading}>
             Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
             {loading ? 'Creating...' : 'Create Collection'}
-          </Button>
+          </button>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+      >
         <Input
           label="Collection Name"
           type="text"
@@ -93,7 +100,9 @@ export default function CreateCollectionModal({
           label="Dimension"
           type="number"
           value={formData.dimension.toString()}
-          onChange={(e) => setFormData({ ...formData, dimension: parseInt(e.target.value) || 512 })}
+          onChange={(e) =>
+            setFormData({ ...formData, dimension: parseInt(e.target.value) || 512 })
+          }
           min="1"
           max="4096"
           required
@@ -103,15 +112,25 @@ export default function CreateCollectionModal({
         <Select
           label="Distance Metric"
           value={formData.metric}
-          onChange={(value) => setFormData({ ...formData, metric: value as 'cosine' | 'euclidean' | 'dot' })}
+          onChange={(value) =>
+            setFormData({
+              ...formData,
+              metric: value as 'cosine' | 'euclidean' | 'dot',
+            })
+          }
           isDisabled={loading}
         >
-          <SelectOption id="cosine" value="cosine">Cosine</SelectOption>
-          <SelectOption id="euclidean" value="euclidean">Euclidean</SelectOption>
-          <SelectOption id="dot" value="dot">Dot Product</SelectOption>
+          <SelectOption id="cosine" value="cosine">
+            Cosine
+          </SelectOption>
+          <SelectOption id="euclidean" value="euclidean">
+            Euclidean
+          </SelectOption>
+          <SelectOption id="dot" value="dot">
+            Dot Product
+          </SelectOption>
         </Select>
       </form>
     </Modal>
   );
 }
-

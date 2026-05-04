@@ -1,6 +1,6 @@
 /**
- * File Upload Modal Component
- * Supports transmutation for PDF and other document formats
+ * File Upload Modal — console design.
+ * Supports transmutation for PDF and other document formats.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -8,15 +8,24 @@ import { useFileUpload } from '@/hooks/useFileUpload';
 import { useCollections } from '@/hooks/useCollections';
 import { useAuth } from '@/contexts/AuthContext';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Upload01, File04, X, CheckCircle, AlertCircle } from '@untitledui/icons';
+import { Icons } from '@/components/console';
+import type { CSSProperties } from 'react';
 
 interface FileUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
+
+const ALERT_BASE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 10,
+  padding: 12,
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+};
 
 function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
   const { uploadFile, state, reset } = useFileUpload();
@@ -28,6 +37,7 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
   const [chunkSize, setChunkSize] = useState<number>(2048);
   const [chunkOverlap, setChunkOverlap] = useState<number>(256);
   const [useTransmutation, setUseTransmutation] = useState(true);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load collections when modal opens
@@ -35,6 +45,7 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
     try {
       const data = await listCollections();
       const collectionsArray = Array.isArray(data) ? data : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const collectionNames = collectionsArray.map((col: any) => col.name);
       setCollections(collectionNames);
     } catch (error) {
@@ -52,14 +63,16 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
   // Check if file format supports transmutation
   const isTransmutationSupported = (filename: string): boolean => {
     const ext = filename.toLowerCase().split('.').pop();
-    return ['pdf', 'docx', 'xlsx', 'pptx', 'html', 'htm', 'xml', 'jpg', 'jpeg', 'png', 'tiff', 'tif', 'bmp', 'gif', 'webp'].includes(ext || '');
+    return [
+      'pdf', 'docx', 'xlsx', 'pptx', 'html', 'htm', 'xml',
+      'jpg', 'jpeg', 'png', 'tiff', 'tif', 'bmp', 'gif', 'webp',
+    ].includes(ext || '');
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      // Auto-enable transmutation for supported formats
       if (isTransmutationSupported(file.name)) {
         setUseTransmutation(true);
       }
@@ -68,10 +81,10 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file) {
       setSelectedFile(file);
-      // Auto-enable transmutation for supported formats
       if (isTransmutationSupported(file.name)) {
         setUseTransmutation(true);
       }
@@ -80,6 +93,12 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   const handleUpload = async () => {
@@ -92,7 +111,8 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
         collectionName: collectionName.trim(),
         chunkSize,
         chunkOverlap,
-        useTransmutation: useTransmutation && isTransmutationSupported(selectedFile.name),
+        useTransmutation:
+          useTransmutation && isTransmutationSupported(selectedFile.name),
       });
 
       if (response.success) {
@@ -126,41 +146,67 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const canUpload = selectedFile && collectionName.trim() && !state.uploading && (!authRequired || isAuthenticated);
+  const canUpload =
+    selectedFile &&
+    collectionName.trim() &&
+    !state.uploading &&
+    (!authRequired || isAuthenticated);
+
+  const dropZoneStyle: CSSProperties = {
+    border: `2px dashed ${
+      isDragOver ? 'var(--teal)' : 'var(--border)'
+    }`,
+    borderRadius: 8,
+    padding: '32px 16px',
+    textAlign: 'center',
+    cursor: 'pointer',
+    background: isDragOver ? 'var(--teal-dim)' : 'transparent',
+    transition: 'border-color 120ms ease, background 120ms ease',
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Upload File">
-      <div className="space-y-6">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {/* File Selection */}
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-            Select File
-          </label>
+        <div className="field">
+          <label className="field-label">Select File</label>
           <div
-            className="border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-lg p-8 text-center cursor-pointer hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+            style={dropZoneStyle}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
             onClick={() => fileInputRef.current?.click()}
           >
             <input
               ref={fileInputRef}
               type="file"
-              className="hidden"
+              style={{ display: 'none' }}
               onChange={handleFileSelect}
               accept=".pdf,.docx,.xlsx,.pptx,.html,.htm,.xml,.jpg,.jpeg,.png,.tiff,.tif,.bmp,.gif,.webp,.txt,.md,.rs,.py,.js,.ts,.tsx,.jsx,.go,.java,.c,.cpp,.h,.hpp,.cs,.rb,.php,.swift,.kt,.scala,.r,.jl,.lua,.pl,.sh,.bash,.zsh,.fish,.ps1,.bat,.cmd,.json,.yaml,.yml,.toml,.ini,.cfg,.conf,.csv,.tsv"
             />
             {selectedFile ? (
-              <div className="space-y-2">
-                <File04 className="w-12 h-12 mx-auto text-primary-500" />
-                <div>
-                  <p className="font-medium text-neutral-900 dark:text-white">{selectedFile.name}</p>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <div style={{ color: 'var(--teal)' }}>
+                  <Icons.layers size={36} />
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <div>
+                  <div style={{ fontWeight: 500, color: 'var(--text)', fontSize: 13 }}>
+                    {selectedFile.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>
+                    {formatFileSize(selectedFile.size)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedFile(null);
@@ -168,21 +214,31 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
                       fileInputRef.current.value = '';
                     }
                   }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  <X className="w-4 h-4 mr-1" />
+                  <Icons.x size={12} />
                   Remove
-                </Button>
+                </button>
               </div>
             ) : (
-              <div className="space-y-2">
-                <Upload01 className="w-12 h-12 mx-auto text-neutral-400" />
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <div style={{ color: 'var(--text-2)' }}>
+                  <Icons.arrowUp size={36} />
+                </div>
                 <div>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white">
+                  <div style={{ fontWeight: 500, color: 'var(--text)', fontSize: 13 }}>
                     Click to upload or drag and drop
-                  </p>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 2 }}>
                     PDF, DOCX, XLSX, PPTX, images, code files, and more
-                  </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -190,10 +246,8 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
         </div>
 
         {/* Collection Selection */}
-        <div>
-          <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-            Collection Name
-          </label>
+        <div className="field">
+          <label className="field-label">Collection Name</label>
           <Input
             type="text"
             value={collectionName}
@@ -209,60 +263,88 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
         </div>
 
         {/* Chunking Options */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Chunk Size
-            </label>
-            <Input
-              type="number"
-              value={chunkSize}
-              onChange={(e) => setChunkSize(parseInt(e.target.value) || 2048)}
-              min={100}
-              max={10000}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Chunk Overlap
-            </label>
-            <Input
-              type="number"
-              value={chunkOverlap}
-              onChange={(e) => setChunkOverlap(parseInt(e.target.value) || 256)}
-              min={0}
-              max={1000}
-            />
-          </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: 14,
+          }}
+        >
+          <Input
+            label="Chunk Size"
+            type="number"
+            value={chunkSize}
+            onChange={(e) => setChunkSize(parseInt(e.target.value) || 2048)}
+            min={100}
+            max={10000}
+          />
+          <Input
+            label="Chunk Overlap"
+            type="number"
+            value={chunkOverlap}
+            onChange={(e) => setChunkOverlap(parseInt(e.target.value) || 256)}
+            min={0}
+            max={1000}
+          />
         </div>
 
         {/* Transmutation Option */}
         {selectedFile && isTransmutationSupported(selectedFile.name) && (
-          <div className="flex items-center gap-2">
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              cursor: 'pointer',
+              fontSize: 13,
+              color: 'var(--text-1)',
+            }}
+          >
             <input
               type="checkbox"
               id="use-transmutation"
               checked={useTransmutation}
               onChange={(e) => setUseTransmutation(e.target.checked)}
-              className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
+              style={{ accentColor: 'var(--teal)' }}
             />
-            <label htmlFor="use-transmutation" className="text-sm text-neutral-700 dark:text-neutral-300">
-              Use Transmutation (convert {selectedFile.name.split('.').pop()?.toUpperCase()} to Markdown)
-            </label>
-          </div>
+            Use Transmutation (convert{' '}
+            {selectedFile.name.split('.').pop()?.toUpperCase()} to Markdown)
+          </label>
         )}
 
         {/* Upload Progress */}
         {state.uploading && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-neutral-600 dark:text-neutral-400">Uploading...</span>
-              <span className="text-neutral-600 dark:text-neutral-400">{state.progress}%</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: 12,
+                color: 'var(--text-2)',
+              }}
+            >
+              <span>Uploading...</span>
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {state.progress}%
+              </span>
             </div>
-            <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2">
+            <div
+              style={{
+                width: '100%',
+                background: 'var(--bg-3)',
+                borderRadius: 999,
+                height: 6,
+                overflow: 'hidden',
+              }}
+            >
               <div
-                className="bg-primary-600 h-2 rounded-full transition-all"
-                style={{ width: `${state.progress}%` }}
+                style={{
+                  background: 'var(--teal)',
+                  height: '100%',
+                  borderRadius: 999,
+                  width: `${state.progress}%`,
+                  transition: 'width 200ms ease',
+                }}
               />
             </div>
           </div>
@@ -270,65 +352,137 @@ function FileUploadModal({ isOpen, onClose, onSuccess }: FileUploadModalProps) {
 
         {/* Success Message */}
         {state.response && state.response.success && (
-          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-green-800 dark:text-green-300">
+          <div
+            style={{
+              ...ALERT_BASE,
+              background: 'rgba(76,195,138,0.10)',
+              borderColor: 'rgba(76,195,138,0.35)',
+            }}
+          >
+            <div style={{ color: 'var(--green)', flexShrink: 0, marginTop: 1 }}>
+              <Icons.check size={16} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div
+                style={{ fontSize: 13, fontWeight: 500, color: 'var(--green)' }}
+              >
                 Upload successful!
-              </p>
-              <p className="text-xs text-green-600 dark:text-green-400">
-                {state.response.chunks_created} chunks created, {state.response.vectors_created} vectors indexed
-              </p>
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--green)',
+                  opacity: 0.85,
+                  marginTop: 2,
+                }}
+              >
+                {state.response.chunks_created} chunks created,{' '}
+                {state.response.vectors_created} vectors indexed
+              </div>
             </div>
           </div>
         )}
 
         {/* Authentication Warning */}
         {authRequired && !isAuthenticated && (
-          <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+          <div
+            style={{
+              ...ALERT_BASE,
+              background: 'var(--amber-dim)',
+              borderColor: 'rgba(240,168,58,0.35)',
+            }}
+          >
+            <div style={{ color: 'var(--amber)', flexShrink: 0, marginTop: 1 }}>
+              <Icons.bell size={16} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div
+                style={{ fontSize: 13, fontWeight: 500, color: 'var(--amber)' }}
+              >
                 Authentication Required
-              </p>
-              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--amber)',
+                  opacity: 0.85,
+                  marginTop: 2,
+                }}
+              >
                 Please log in or provide an API key to upload files.
-              </p>
+              </div>
             </div>
           </div>
         )}
 
         {/* Error Message */}
         {state.error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-800 dark:text-red-300">
+          <div
+            style={{
+              ...ALERT_BASE,
+              background: 'rgba(229,72,77,0.10)',
+              borderColor: 'rgba(229,72,77,0.35)',
+            }}
+          >
+            <div style={{ color: 'var(--red)', flexShrink: 0, marginTop: 1 }}>
+              <Icons.x size={16} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--red)' }}>
                 Upload failed
-              </p>
-              <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--red)',
+                  opacity: 0.85,
+                  marginTop: 2,
+                }}
+              >
+                {state.error}
+              </div>
               {state.error.includes('Authentication required') && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--red)',
+                    opacity: 0.85,
+                    marginTop: 4,
+                  }}
+                >
                   Please log in or provide an API key to upload files.
-                </p>
+                </div>
               )}
             </div>
           </div>
         )}
 
         {/* Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-          <Button variant="secondary" onClick={handleClose} disabled={state.uploading}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 8,
+            paddingTop: 16,
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <button
+            type="button"
+            className="btn"
+            onClick={handleClose}
+            disabled={state.uploading}
+          >
             Cancel
-          </Button>
-          <Button
-            variant="primary"
+          </button>
+          <button
+            type="button"
+            className="btn primary"
             onClick={handleUpload}
             disabled={!canUpload}
-            isLoading={state.uploading}
           >
-            Upload
-          </Button>
+            {state.uploading ? 'Uploading...' : 'Upload'}
+          </button>
         </div>
       </div>
     </Modal>

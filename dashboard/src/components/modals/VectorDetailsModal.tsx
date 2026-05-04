@@ -1,11 +1,11 @@
 /**
- * Vector Details Modal
+ * Vector Details Modal — console design.
  */
 
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import CodeEditor from '@/components/ui/CodeEditor';
 import { useToastContext } from '@/providers/ToastProvider';
+import type { CSSProperties } from 'react';
 
 interface Vector {
   id: string;
@@ -29,6 +29,35 @@ interface VectorDetailsModalProps {
   collectionName: string;
   onEdit?: () => void;
 }
+
+const SECTION_HEAD: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--text)',
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  marginBottom: 10,
+};
+
+const GRID: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 14,
+};
+
+const FIELD_LABEL: CSSProperties = {
+  fontSize: 11,
+  color: 'var(--text-2)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+};
+
+const FIELD_VALUE: CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  color: 'var(--text)',
+  marginTop: 4,
+};
 
 export default function VectorDetailsModal({
   isOpen,
@@ -66,61 +95,56 @@ export default function VectorDetailsModal({
       size="xl"
       footer={
         <>
-          <Button variant="secondary" onClick={copyVectorId}>
+          <button type="button" className="btn" onClick={copyVectorId}>
             Copy ID
-          </Button>
+          </button>
           {onEdit && (
-            <Button variant="primary" onClick={onEdit}>
+            <button type="button" className="btn primary" onClick={onEdit}>
               Edit
-            </Button>
+            </button>
           )}
-          <Button variant="secondary" onClick={onClose}>
+          <button type="button" className="btn" onClick={onClose}>
             Close
-          </Button>
+          </button>
         </>
       }
     >
-      <div className="space-y-6">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {/* Basic Information */}
         <div>
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-            Basic Information
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={SECTION_HEAD}>Basic Information</div>
+          <div style={GRID}>
             <div>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">Vector ID:</span>
-              <p className="text-sm font-mono text-neutral-900 dark:text-white mt-1 break-all">
+              <div style={FIELD_LABEL}>Vector ID</div>
+              <div
+                className="mono"
+                style={{ ...FIELD_VALUE, wordBreak: 'break-all' }}
+              >
                 {vector.id}
-              </p>
+              </div>
             </div>
             <div>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">Collection:</span>
-              <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                {collectionName}
-              </p>
+              <div style={FIELD_LABEL}>Collection</div>
+              <div style={FIELD_VALUE}>{collectionName}</div>
             </div>
             {vector.metadata?.dimension && (
               <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Dimension:</span>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                  {vector.metadata.dimension}
-                </p>
+                <div style={FIELD_LABEL}>Dimension</div>
+                <div style={FIELD_VALUE}>{vector.metadata.dimension}</div>
               </div>
             )}
             {vector.metadata?.embedding_model && (
               <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Embedding Model:</span>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                  {vector.metadata.embedding_model}
-                </p>
+                <div style={FIELD_LABEL}>Embedding Model</div>
+                <div style={FIELD_VALUE}>{vector.metadata.embedding_model}</div>
               </div>
             )}
             {vector.metadata?.similarity_score !== undefined && (
               <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Similarity Score:</span>
-                <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
+                <div style={FIELD_LABEL}>Similarity Score</div>
+                <div style={{ ...FIELD_VALUE, fontVariantNumeric: 'tabular-nums' }}>
                   {vector.metadata.similarity_score.toFixed(4)}
-                </p>
+                </div>
               </div>
             )}
           </div>
@@ -129,9 +153,7 @@ export default function VectorDetailsModal({
         {/* Payload */}
         {vector.payload && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-              Payload
-            </h3>
+            <div style={SECTION_HEAD}>Payload</div>
             <CodeEditor
               value={formatJSON(vector.payload)}
               language="json"
@@ -144,40 +166,32 @@ export default function VectorDetailsModal({
         {/* Metadata */}
         {vector.metadata && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-              Metadata
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div style={SECTION_HEAD}>Metadata</div>
+            <div style={GRID}>
               {vector.metadata.source && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Source:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                    {vector.metadata.source}
-                  </p>
+                  <div style={FIELD_LABEL}>Source</div>
+                  <div style={FIELD_VALUE}>{vector.metadata.source}</div>
                 </div>
               )}
               {vector.metadata.file_type && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">File Type:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                    {vector.metadata.file_type}
-                  </p>
+                  <div style={FIELD_LABEL}>File Type</div>
+                  <div style={FIELD_VALUE}>{vector.metadata.file_type}</div>
                 </div>
               )}
               {vector.metadata.chunk_index !== undefined && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Chunk Index:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
-                    {vector.metadata.chunk_index}
-                  </p>
+                  <div style={FIELD_LABEL}>Chunk Index</div>
+                  <div style={FIELD_VALUE}>{vector.metadata.chunk_index}</div>
                 </div>
               )}
               {vector.metadata.created_at && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Created At:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
+                  <div style={FIELD_LABEL}>Created At</div>
+                  <div style={FIELD_VALUE}>
                     {new Date(vector.metadata.created_at).toLocaleString()}
-                  </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -187,9 +201,9 @@ export default function VectorDetailsModal({
         {/* Vector Data */}
         {vector.vector && Array.isArray(vector.vector) && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
+            <div style={SECTION_HEAD}>
               Vector Data ({vector.vector.length} dimensions)
-            </h3>
+            </div>
             <CodeEditor
               value={JSON.stringify(vector.vector, null, 2)}
               language="json"
@@ -202,4 +216,3 @@ export default function VectorDetailsModal({
     </Modal>
   );
 }
-

@@ -1,11 +1,11 @@
 /**
- * Collection Details Modal
+ * Collection Details Modal — console design.
  */
 
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { formatNumber, formatDate } from '@/utils/formatters';
 import { useNavigate } from 'react-router-dom';
+import type { CSSProperties } from 'react';
 
 interface Collection {
   name: string;
@@ -39,6 +39,35 @@ interface CollectionDetailsModalProps {
   collection: Collection | null;
 }
 
+const SECTION_HEAD: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--text)',
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  marginBottom: 10,
+};
+
+const GRID: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 14,
+};
+
+const FIELD_LABEL: CSSProperties = {
+  fontSize: 11,
+  color: 'var(--text-2)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+};
+
+const FIELD_VALUE: CSSProperties = {
+  fontSize: 13,
+  fontWeight: 500,
+  color: 'var(--text)',
+  marginTop: 4,
+};
+
 export default function CollectionDetailsModal({
   isOpen,
   onClose,
@@ -53,18 +82,18 @@ export default function CollectionDetailsModal({
     navigate('/vectors', { state: { collectionName: collection.name } });
   };
 
-  const getStatusClass = (status: string) => {
+  const getStatusColor = (status: string): string => {
     switch (status) {
       case 'completed':
       case 'cached':
-        return 'text-green-600 dark:text-green-400';
+        return 'var(--green)';
       case 'processing':
       case 'indexing':
-        return 'text-blue-600 dark:text-blue-400';
+        return 'var(--teal)';
       case 'error':
-        return 'text-red-600 dark:text-red-400';
+        return 'var(--red)';
       default:
-        return 'text-neutral-600 dark:text-neutral-400';
+        return 'var(--text-2)';
     }
   };
 
@@ -76,41 +105,39 @@ export default function CollectionDetailsModal({
       size="lg"
       footer={
         <>
-          <Button variant="primary" onClick={handleBrowseVectors}>
+          <button type="button" className="btn primary" onClick={handleBrowseVectors}>
             Browse Vectors
-          </Button>
-          <Button variant="secondary" onClick={onClose}>
+          </button>
+          <button type="button" className="btn" onClick={onClose}>
             Close
-          </Button>
+          </button>
         </>
       }
     >
-      <div className="space-y-6">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {/* Basic Information */}
         <div>
-          <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-            Basic Information
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={SECTION_HEAD}>Basic Information</div>
+          <div style={GRID}>
             <div>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">Name:</span>
-              <p className="text-sm font-medium text-neutral-900 dark:text-white">{collection.name}</p>
+              <div style={FIELD_LABEL}>Name</div>
+              <div style={FIELD_VALUE}>{collection.name}</div>
             </div>
             <div>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">Vector Count:</span>
-              <p className="text-sm font-medium text-neutral-900 dark:text-white">
+              <div style={FIELD_LABEL}>Vector Count</div>
+              <div style={{ ...FIELD_VALUE, fontVariantNumeric: 'tabular-nums' }}>
                 {formatNumber(collection.vector_count || 0)}
-              </p>
+              </div>
             </div>
             <div>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">Dimension:</span>
-              <p className="text-sm font-medium text-neutral-900 dark:text-white">{collection.dimension}</p>
+              <div style={FIELD_LABEL}>Dimension</div>
+              <div style={FIELD_VALUE}>{collection.dimension}</div>
             </div>
             <div>
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">Distance Metric:</span>
-              <p className="text-sm font-medium text-neutral-900 dark:text-white capitalize">
+              <div style={FIELD_LABEL}>Distance Metric</div>
+              <div style={{ ...FIELD_VALUE, textTransform: 'capitalize' }}>
                 {collection.metric}
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -118,22 +145,25 @@ export default function CollectionDetailsModal({
         {/* Status Information */}
         {collection.indexing_status && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-              Status Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div style={SECTION_HEAD}>Status Information</div>
+            <div style={GRID}>
               <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Status:</span>
-                <p className={`text-sm font-medium ${getStatusClass(collection.indexing_status.status)}`}>
+                <div style={FIELD_LABEL}>Status</div>
+                <div
+                  style={{
+                    ...FIELD_VALUE,
+                    color: getStatusColor(collection.indexing_status.status),
+                  }}
+                >
                   {collection.indexing_status.status}
-                </p>
+                </div>
               </div>
               {collection.indexing_status.progress !== undefined && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Progress:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white">
+                  <div style={FIELD_LABEL}>Progress</div>
+                  <div style={FIELD_VALUE}>
                     {Math.round(collection.indexing_status.progress * 100)}%
-                  </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -143,24 +173,18 @@ export default function CollectionDetailsModal({
         {/* Timestamps */}
         {(collection.created_at || collection.updated_at) && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-              Timestamps
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div style={SECTION_HEAD}>Timestamps</div>
+            <div style={GRID}>
               {collection.created_at && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Created:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                    {formatDate(collection.created_at)}
-                  </p>
+                  <div style={FIELD_LABEL}>Created</div>
+                  <div style={FIELD_VALUE}>{formatDate(collection.created_at)}</div>
                 </div>
               )}
               {collection.updated_at && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Updated:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                    {formatDate(collection.updated_at)}
-                  </p>
+                  <div style={FIELD_LABEL}>Updated</div>
+                  <div style={FIELD_VALUE}>{formatDate(collection.updated_at)}</div>
                 </div>
               )}
             </div>
@@ -170,22 +194,25 @@ export default function CollectionDetailsModal({
         {/* Normalization */}
         {collection.normalization && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-              Text Normalization
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div style={SECTION_HEAD}>Text Normalization</div>
+            <div style={GRID}>
               <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Enabled:</span>
-                <p className={`text-sm font-medium ${collection.normalization.enabled ? 'text-green-600 dark:text-green-400' : 'text-neutral-600 dark:text-neutral-400'}`}>
+                <div style={FIELD_LABEL}>Enabled</div>
+                <div
+                  style={{
+                    ...FIELD_VALUE,
+                    color: collection.normalization.enabled
+                      ? 'var(--green)'
+                      : 'var(--text-2)',
+                  }}
+                >
                   {collection.normalization.enabled ? 'Yes' : 'No'}
-                </p>
+                </div>
               </div>
               {collection.normalization.level && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Level:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                    {collection.normalization.level}
-                  </p>
+                  <div style={FIELD_LABEL}>Level</div>
+                  <div style={FIELD_VALUE}>{collection.normalization.level}</div>
                 </div>
               )}
             </div>
@@ -195,22 +222,25 @@ export default function CollectionDetailsModal({
         {/* Quantization */}
         {collection.quantization && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-              Quantization
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div style={SECTION_HEAD}>Quantization</div>
+            <div style={GRID}>
               <div>
-                <span className="text-sm text-neutral-500 dark:text-neutral-400">Enabled:</span>
-                <p className={`text-sm font-medium ${collection.quantization.enabled ? 'text-green-600 dark:text-green-400' : 'text-neutral-600 dark:text-neutral-400'}`}>
+                <div style={FIELD_LABEL}>Enabled</div>
+                <div
+                  style={{
+                    ...FIELD_VALUE,
+                    color: collection.quantization.enabled
+                      ? 'var(--green)'
+                      : 'var(--text-2)',
+                  }}
+                >
                   {collection.quantization.enabled ? 'Yes' : 'No'}
-                </p>
+                </div>
               </div>
               {collection.quantization.bits && (
                 <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Bits:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                    {collection.quantization.bits}
-                  </p>
+                  <div style={FIELD_LABEL}>Bits</div>
+                  <div style={FIELD_VALUE}>{collection.quantization.bits}</div>
                 </div>
               )}
             </div>
@@ -218,20 +248,14 @@ export default function CollectionDetailsModal({
         )}
 
         {/* Size */}
-        {collection.size && (
+        {collection.size && collection.size.total && (
           <div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-              Storage
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              {collection.size.total && (
-                <div>
-                  <span className="text-sm text-neutral-500 dark:text-neutral-400">Total Size:</span>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-white">
-                    {collection.size.total}
-                  </p>
-                </div>
-              )}
+            <div style={SECTION_HEAD}>Storage</div>
+            <div style={GRID}>
+              <div>
+                <div style={FIELD_LABEL}>Total Size</div>
+                <div style={FIELD_VALUE}>{collection.size.total}</div>
+              </div>
             </div>
           </div>
         )}
@@ -239,4 +263,3 @@ export default function CollectionDetailsModal({
     </Modal>
   );
 }
-

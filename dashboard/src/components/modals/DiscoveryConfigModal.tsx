@@ -1,10 +1,9 @@
 /**
- * Discovery Config Modal - Configure edge discovery parameters
+ * Discovery Config Modal — console design.
  */
 
 import { useState } from 'react';
 import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToastContext } from '@/providers/ToastProvider';
 
@@ -47,20 +46,33 @@ export default function DiscoveryConfigModal({
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <button type="button" className="btn" onClick={onClose} disabled={loading}>
             Cancel
-          </Button>
-          <Button variant="primary" onClick={handleDiscover} disabled={loading}>
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={handleDiscover}
+            disabled={loading}
+          >
             {loading ? 'Discovering...' : 'Start Discovery'}
-          </Button>
+          </button>
         </>
       }
     >
-      <div className="space-y-4">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {nodeId && (
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-sm text-blue-900 dark:text-blue-200">
-              Discovering edges for node: <span className="font-mono">{nodeId.substring(0, 40)}...</span>
+          <div
+            style={{
+              padding: 10,
+              background: 'var(--teal-dim)',
+              border: '1px solid rgba(31,182,182,0.35)',
+              borderRadius: 6,
+            }}
+          >
+            <p style={{ color: 'var(--teal-hi)', margin: 0, fontSize: 12 }}>
+              Discovering edges for node:{' '}
+              <span className="mono">{nodeId.substring(0, 40)}...</span>
             </p>
           </div>
         )}
