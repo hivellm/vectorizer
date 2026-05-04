@@ -1941,100 +1941,138 @@ curl http://localhost:15002/prometheus/metrics
 
 Currently, Vectorizer does not implement rate limiting. For production deployments, consider using a reverse proxy with rate limiting.
 
-## SDK 3.4 control surface
+## SDK 3.4+ control surface
 
-Phase12 added typed wrappers for every server route across all three SDKs.
+Phase12-15 added typed wrappers for every server route across all SDKs.
 Method names below are case-adjusted per language convention
-(Rust + Python `snake_case`, TypeScript `camelCase`).
+(Rust + Python `snake_case`, TypeScript `camelCase`, Go/C# `PascalCase`).
 
 ### Vector ops + batch
 
-| Server route | Rust SDK | TypeScript SDK | Python SDK |
-|---|---|---|---|
-| `POST /update` | `update_vector` | `updateVector` | `update_vector` |
-| `POST /insert` | `insert_text` | `insertText` | `insert_text` |
-| `GET /collections/{n}/vectors` | `list_vectors` | `listVectors` | `list_vectors` |
-| `GET /collections/{n}/vectors/{id}` | `get_vector_by_path` | `getVectorByPath` | `get_vector_by_path` |
-| `POST /batch_insert` | `batch_insert_texts` | `batchInsertTexts` | `batch_insert_texts` |
-| `POST /insert_vectors` | `insert_vectors` | `insertVectors` | `insert_vectors` |
-| `POST /batch_search` | `batch_search` | `batchSearchVectors` | `batch_search_vectors` |
-| `POST /batch_update` | `batch_update_vectors` | `batchUpdateVectors` | `batch_update_vectors` |
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `POST /update` | `update_vector` | `updateVector` | `update_vector` | `UpdateVector` | `UpdateVectorAsync` |
+| `POST /insert` | `insert_text` | `insertText` | `insert_text` | `InsertText` | `InsertTextAsync` |
+| `GET /collections/{n}/vectors` | `list_vectors` | `listVectors` | `list_vectors` | `ListVectors` | `ListVectorsAsync` |
+| `GET /collections/{n}/vectors/{id}` | `get_vector_by_path` | `getVectorByPath` | `get_vector_by_path` | `GetVector` | `GetVectorAsync` |
+| `POST /batch_insert` | `batch_insert_texts` | `batchInsertTexts` | `batch_insert_texts` | `BatchInsertTexts` | `BatchInsertRawTextsAsync` |
+| `POST /insert_vectors` | `insert_vectors` | `insertVectors` | `insert_vectors` | `InsertVectors` | `InsertVectorsAsync` |
+| `POST /batch_search` | `batch_search` | `batchSearchVectors` | `batch_search_vectors` | `BatchSearchQueries` | `BatchSearchQueriesAsync` |
+| `POST /batch_update` | `batch_update_vectors` | `batchUpdateVectors` | `batch_update_vectors` | `BatchUpdateVectors` | `BatchUpdateRawVectorsAsync` |
 
 ### Search + discovery pipeline
 
-| Server route | Rust SDK | TypeScript SDK | Python SDK |
-|---|---|---|---|
-| `POST /collections/{n}/search/text` | `search_vectors_by_text` | `searchVectorsByText` | `search_vectors_by_text` |
-| `POST /collections/{n}/search/file` | `search_by_file` | `searchByFile` | `search_by_file` |
-| `POST /collections/{n}/hybrid_search` | `hybrid_search` | `hybridSearch` | `hybrid_search` |
-| `POST /discovery/broad_discovery` | `broad_discovery` | `broadDiscovery` | `broad_discovery` |
-| `POST /discovery/semantic_focus` | `semantic_focus` | `semanticFocus` | `semantic_focus` |
-| `POST /discovery/promote_readme` | `promote_readme` | `promoteReadme` | `promote_readme` |
-| `POST /discovery/compress_evidence` | `compress_evidence` | `compressEvidence` | `compress_evidence` |
-| `POST /discovery/build_answer_plan` | `build_answer_plan` | `buildAnswerPlan` | `build_answer_plan` |
-| `POST /discovery/render_llm_prompt` | `render_llm_prompt` | `renderLlmPrompt` | `render_llm_prompt` |
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `POST /collections/{n}/search/text` | `search_vectors_by_text` | `searchVectorsByText` | `search_vectors_by_text` | `SearchByText` | `SearchByTextAsync` |
+| `POST /collections/{n}/search/file` | `search_by_file` | `searchByFile` | `search_by_file` | `SearchByFile` | `SearchByFileAsync` |
+| `POST /collections/{n}/hybrid_search` | `hybrid_search` | `hybridSearch` | `hybrid_search` | `HybridSearch` | `HybridSearchAsync` |
+| `POST /discovery/broad_discovery` | `broad_discovery` | `broadDiscovery` | `broad_discovery` | `BroadDiscovery` | `BroadDiscoveryAsync` |
+| `POST /discovery/semantic_focus` | `semantic_focus` | `semanticFocus` | `semantic_focus` | `SemanticFocus` | `SemanticFocusAsync` |
+| `POST /discovery/promote_readme` | `promote_readme` | `promoteReadme` | `promote_readme` | `PromoteReadme` | `PromoteReadmeAsync` |
+| `POST /discovery/compress_evidence` | `compress_evidence` | `compressEvidence` | `compress_evidence` | `CompressEvidence` | `CompressEvidenceAsync` |
+| `POST /discovery/build_answer_plan` | `build_answer_plan` | `buildAnswerPlan` | `build_answer_plan` | `BuildAnswerPlan` | `BuildAnswerPlanAsync` |
+| `POST /discovery/render_llm_prompt` | `render_llm_prompt` | `renderLlmPrompt` | `render_llm_prompt` | `RenderLlmPrompt` | `RenderLlmPromptAsync` |
 
 ### Admin + observability
 
-| Server route | Rust SDK | TypeScript SDK | Python SDK |
-|---|---|---|---|
-| `GET /stats` | `get_stats` | `getStats` | `get_stats` |
-| `GET /status` | `get_status` | `getStatus` | `get_status` |
-| `GET /logs` | `get_logs` | `getLogs` | `get_logs` |
-| `GET /indexing/progress` | `get_indexing_progress` | `getIndexingProgress` | `get_indexing_progress` |
-| `POST /collections/{n}/force-save` | `force_save_collection` | `forceSaveCollection` | `force_save_collection` |
-| `GET /collections/empty` | `list_empty_collections` | `listEmptyCollections` | `list_empty_collections` |
-| `DELETE /collections/cleanup` | `cleanup_empty_collections` | `cleanupEmptyCollections` | `cleanup_empty_collections` |
-| `GET /config` | `get_config` | `getConfig` | `get_config` |
-| `POST /config` (admin) | `update_config` | `updateConfig` | `update_config` |
-| `GET /backups` | `list_backups` | `listBackups` | `list_backups` |
-| `POST /backups/create` (admin) | `create_backup` | `createBackup` | `create_backup` |
-| `POST /backups/restore` (admin) | `restore_backup` | `restoreBackup` | `restore_backup` |
-| `POST /admin/restart` (admin) | `restart_server` | `restartServer` | `restart_server` |
-| `GET /workspace/list` | `list_workspaces` | `listWorkspaces` | `list_workspaces` |
-| `GET /workspace/config` | `get_workspace_config` | `getWorkspaceConfig` | `get_workspace_config` |
-| `POST /workspace/add` (admin) | `add_workspace` | `addWorkspace` | `add_workspace` |
-| `POST /workspace/remove` (admin) | `remove_workspace` | `removeWorkspace` | `remove_workspace` |
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `GET /stats` | `get_stats` | `getStats` | `get_stats` | `GetServerStats` | `GetServerStatsAsync` |
+| `GET /status` | `get_status` | `getStatus` | `get_status` | `GetStatus` | `GetStatusAsync` |
+| `GET /logs` | `get_logs` | `getLogs` | `get_logs` | `GetLogs` | `GetLogsAsync` |
+| `GET /indexing/progress` | `get_indexing_progress` | `getIndexingProgress` | `get_indexing_progress` | `GetIndexingProgress` | `GetIndexingProgressAsync` |
+| `POST /collections/{n}/force-save` | `force_save_collection` | `forceSaveCollection` | `force_save_collection` | `ForceSaveCollection` | `ForceSaveCollectionAsync` |
+| `GET /collections/empty` | `list_empty_collections` | `listEmptyCollections` | `list_empty_collections` | `ListEmptyCollections` | `ListEmptyCollectionsAsync` |
+| `DELETE /collections/cleanup` | `cleanup_empty_collections` | `cleanupEmptyCollections` | `cleanup_empty_collections` | `CleanupEmptyCollections` | `CleanupEmptyCollectionsAsync` |
+| `GET /config` | `get_config` | `getConfig` | `get_config` | `GetConfig` | `GetConfigAsync` |
+| `POST /config` (admin) | `update_config` | `updateConfig` | `update_config` | `UpdateConfig` | `UpdateConfigAsync` |
+| `GET /backups` | `list_backups` | `listBackups` | `list_backups` | `ListBackups` | `ListBackupsAsync` |
+| `POST /backups/create` (admin) | `create_backup` | `createBackup` | `create_backup` | `CreateBackup` | `CreateBackupAsync` |
+| `POST /backups/restore` (admin) | `restore_backup` | `restoreBackup` | `restore_backup` | `RestoreBackup` | `RestoreBackupAsync` |
+| `POST /admin/restart` (admin) | `restart_server` | `restartServer` | `restart_server` | `RestartServer` | `RestartServerAsync` |
+| `GET /workspace/list` | `list_workspaces` | `listWorkspaces` | `list_workspaces` | `ListWorkspaces` | `ListWorkspacesAsync` |
+| `GET /workspace/config` | `get_workspace_config` | `getWorkspaceConfig` | `get_workspace_config` | `GetWorkspaceConfig` | `GetWorkspaceConfigAsync` |
+| `POST /workspace/add` (admin) | `add_workspace` | `addWorkspace` | `add_workspace` | `AddWorkspace` | `AddWorkspaceAsync` |
+| `POST /workspace/remove` (admin) | `remove_workspace` | `removeWorkspace` | `remove_workspace` | `RemoveWorkspace` | `RemoveWorkspaceAsync` |
 
 ### Auth
 
-| Server route | Rust SDK | TypeScript SDK | Python SDK |
-|---|---|---|---|
-| `GET /auth/me` | `me` | `me` | `me` |
-| `POST /auth/logout` | `logout` | `logout` | `logout` |
-| `POST /auth/refresh` | `refresh_token` | `refreshToken` | `refresh_token` |
-| `POST /auth/validate-password` | `validate_password` | `validatePassword` | `validate_password` |
-| `POST /auth/keys` | `create_api_key` | `createApiKey` | `create_api_key` |
-| `GET /auth/keys` | `list_api_keys` | `listApiKeys` | `list_api_keys` |
-| `DELETE /auth/keys/{id}` | `revoke_api_key` | `revokeApiKey` | `revoke_api_key` |
-| `POST /auth/users` (admin) | `create_user` | `createUser` | `create_user` |
-| `GET /auth/users` (admin) | `list_users` | `listUsers` | `list_users` |
-| `DELETE /auth/users/{u}` (admin) | `delete_user` | `deleteUser` | `delete_user` |
-| `PUT /auth/users/{u}/password` | `change_password` | `changePassword` | `change_password` |
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `GET /auth/me` | `me` | `me` | `me` | `Me` | `MeAsync` |
+| `POST /auth/logout` | `logout` | `logout` | `logout` | `Logout` | `LogoutAsync` |
+| `POST /auth/refresh` | `refresh_token` | `refreshToken` | `refresh_token` | `RefreshToken` | `RefreshTokenAsync` |
+| `POST /auth/validate-password` | `validate_password` | `validatePassword` | `validate_password` | `ValidatePassword` | `ValidatePasswordAsync` |
+| `POST /auth/keys` | `create_api_key` | `createApiKey` | `create_api_key` | `CreateApiKey` | `CreateApiKeyAsync` |
+| `GET /auth/keys` | `list_api_keys` | `listApiKeys` | `list_api_keys` | `ListApiKeys` | `ListApiKeysAsync` |
+| `DELETE /auth/keys/{id}` | `revoke_api_key` | `revokeApiKey` | `revoke_api_key` | `RevokeApiKey` | `RevokeApiKeyAsync` |
+| `POST /auth/users` (admin) | `create_user` | `createUser` | `create_user` | `CreateUser` | `CreateUserAsync` |
+| `GET /auth/users` (admin) | `list_users` | `listUsers` | `list_users` | `ListUsers` | `ListUsersAsync` |
+| `DELETE /auth/users/{u}` (admin) | `delete_user` | `deleteUser` | `delete_user` | `DeleteUser` | `DeleteUserAsync` |
+| `PUT /auth/users/{u}/password` | `change_password` | `changePassword` | `change_password` | `ChangePassword` | `ChangePasswordAsync` |
 
 ### Replication
 
-| Server route | Rust SDK | TypeScript SDK | Python SDK |
-|---|---|---|---|
-| `GET /replication/status` | `get_replication_status` | `getReplicationStatus` | `get_replication_status` |
-| `POST /replication/configure` | `configure_replication` | `configureReplication` | `configure_replication` |
-| `GET /replication/stats` | `get_replication_stats` | `getReplicationStats` | `get_replication_stats` |
-| `GET /replication/replicas` | `list_replicas` | `listReplicas` | `list_replicas` |
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `GET /replication/status` | `get_replication_status` | `getReplicationStatus` | `get_replication_status` | `GetReplicationStatus` | `GetReplicationStatusAsync` |
+| `POST /replication/configure` | `configure_replication` | `configureReplication` | `configure_replication` | `ConfigureReplication` | `ConfigureReplicationAsync` |
+| `GET /replication/stats` | `get_replication_stats` | `getReplicationStats` | `get_replication_stats` | `GetReplicationStats` | `GetReplicationStatsAsync` |
+| `GET /replication/replicas` | `list_replicas` | `listReplicas` | `list_replicas` | `ListReplicas` | `ListReplicasAsync` |
 
 ### Hub backups + usage
 
-| Server route | Rust SDK | TypeScript SDK | Python SDK |
-|---|---|---|---|
-| `GET /hub/backups` | `list_user_backups` | `listUserBackups` | `list_user_backups` |
-| `POST /hub/backups` | `create_user_backup` | `createUserBackup` | `create_user_backup` |
-| `POST /hub/backups/restore` | `restore_user_backup` | `restoreUserBackup` | `restore_user_backup` |
-| `POST /hub/backups/upload` | `upload_user_backup` | `uploadUserBackup` | `upload_user_backup` |
-| `GET /hub/backups/{id}` | `get_user_backup` | `getUserBackup` | `get_user_backup` |
-| `DELETE /hub/backups/{id}` | `delete_user_backup` | `deleteUserBackup` | `delete_user_backup` |
-| `GET /hub/backups/{id}/download` | `download_user_backup` | `downloadUserBackup` | `download_user_backup` |
-| `GET /hub/usage/statistics` | `get_usage_statistics` | `getUsageStatistics` | `get_usage_statistics` |
-| `GET /hub/usage/quota` | `get_quota_info` | `getQuotaInfo` | `get_quota_info` |
-| `POST /hub/validate-key` | `validate_hub_api_key` | `validateHubApiKey` | `validate_hub_api_key` |
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `GET /hub/backups` | `list_user_backups` | `listUserBackups` | `list_user_backups` | `ListUserBackups` | `ListUserBackupsAsync` |
+| `POST /hub/backups` | `create_user_backup` | `createUserBackup` | `create_user_backup` | `CreateUserBackup` | `CreateUserBackupAsync` |
+| `POST /hub/backups/restore` | `restore_user_backup` | `restoreUserBackup` | `restore_user_backup` | `RestoreUserBackup` | `RestoreUserBackupAsync` |
+| `POST /hub/backups/upload` | `upload_user_backup` | `uploadUserBackup` | `upload_user_backup` | `UploadUserBackup` | `UploadUserBackupAsync` |
+| `GET /hub/backups/{id}` | `get_user_backup` | `getUserBackup` | `get_user_backup` | `GetUserBackup` | `GetUserBackupAsync` |
+| `DELETE /hub/backups/{id}` | `delete_user_backup` | `deleteUserBackup` | `delete_user_backup` | `DeleteUserBackup` | `DeleteUserBackupAsync` |
+| `GET /hub/backups/{id}/download` | `download_user_backup` | `downloadUserBackup` | `download_user_backup` | `DownloadUserBackup` | `DownloadUserBackupAsync` |
+| `GET /hub/usage/statistics` | `get_usage_statistics` | `getUsageStatistics` | `get_usage_statistics` | `GetUsageStatistics` | `GetUsageStatisticsAsync` |
+| `GET /hub/usage/quota` | `get_quota_info` | `getQuotaInfo` | `get_quota_info` | `GetQuotaInfo` | `GetQuotaInfoAsync` |
+| `POST /hub/validate-key` | `validate_hub_api_key` | `validateHubApiKey` | `validate_hub_api_key` | `ValidateHubAPIKey` | `ValidateHubApiKeyAsync` |
+
+### Tier control (phase13)
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `POST /collections/{n}/vectors/delete_by_filter` | `delete_by_filter` | `deleteByFilter` | `delete_by_filter` | `DeleteByFilter` | `DeleteByFilterAsync` |
+| `POST /collections/{n}/vectors/bulk_update_metadata` | `bulk_update_metadata` | `bulkUpdateMetadata` | `bulk_update_metadata` | `BulkUpdateMetadata` | `BulkUpdateMetadataAsync` |
+| `POST /collections/{src}/vectors/copy` | `copy_vectors` | `copyVectors` | `copy_vectors` | `CopyVectors` | `CopyVectorsAsync` |
+| `POST /collections/{n}/reencode` | `reencode_collection` | `reencodeCollection` | `reencode_collection` | `ReencodeCollection` | `ReencodeCollectionAsync` |
+| `POST /collections/{n}/ttl` | `set_collection_ttl` | `setCollectionTtl` | `set_collection_ttl` | `SetCollectionTTL` | `SetCollectionTtlAsync` |
+| `PATCH /collections/{n}/vectors/{id}/expiry` | `set_vector_expiry` | `setVectorExpiry` | `set_vector_expiry` | `SetVectorExpiry` | `SetVectorExpiryAsync` |
+
+### Schema evolution + explain + slow queries (phase14)
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `POST /collections/{n}/rename` | `rename_collection` | `renameCollection` | `rename_collection` | `RenameCollection` | `RenameCollectionAsync` |
+| `POST /collections/{n}/reindex` | `reindex_collection` | `reindexCollection` | `reindex_collection` | `ReindexCollection` | `ReindexCollectionAsync` |
+| `POST /collections/{n}/snapshot` | `snapshot_collection_native` | `snapshotCollectionNative` | `snapshot_collection_native` | `SnapshotCollectionNative` | `SnapshotCollectionNativeAsync` |
+| `GET /collections/{n}/snapshots` | `list_collection_snapshots_native` | `listCollectionSnapshotsNative` | `list_collection_snapshots_native` | `ListCollectionSnapshotsNative` | `ListCollectionSnapshotsNativeAsync` |
+| `POST /collections/{n}/snapshots/{id}/restore` | `restore_collection_snapshot_native` | `restoreCollectionSnapshotNative` | `restore_collection_snapshot_native` | `RestoreCollectionSnapshotNative` | `RestoreCollectionSnapshotNativeAsync` |
+| `POST /collections/{n}/explain` | `explain_search` | `explainSearch` | `explain_search` | `ExplainSearch` | `ExplainSearchAsync` |
+| `GET /slow_queries` | `list_slow_queries` | `listSlowQueries` | `list_slow_queries` | `ListSlowQueries` | `ListSlowQueriesAsync` |
+| `POST /slow_queries/config` | `set_slow_query_config` | `setSlowQueryConfig` | `set_slow_query_config` | `SetSlowQueryConfig` | `SetSlowQueryConfigAsync` |
+
+### Cluster + auth admin (phase15)
+
+| Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
+|---|---|---|---|---|---|
+| `POST /cluster/failover` | `cluster_failover` | `clusterFailover` | `cluster_failover` | `ClusterFailover` | `ClusterFailoverAsync` |
+| `POST /cluster/replicas/{id}/resync` | `cluster_resync_replica` | `clusterResyncReplica` | `cluster_resync_replica` | `ClusterResyncReplica` | `ClusterResyncReplicaAsync` |
+| `POST /cluster/peers` | `cluster_add_peer` | `clusterAddPeer` | `cluster_add_peer` | `ClusterAddPeer` | `ClusterAddPeerAsync` |
+| `POST /cluster/rebalance` | `cluster_rebalance` | `clusterRebalance` | `cluster_rebalance` | `ClusterRebalance` | `ClusterRebalanceAsync` |
+| `GET /cluster/rebalance/status` | `cluster_rebalance_status` | `clusterRebalanceStatus` | `cluster_rebalance_status` | `ClusterRebalanceStatus` | `ClusterRebalanceStatusAsync` |
+| `POST /auth/keys/{id}/rotate` | `rotate_api_key` | `rotateApiKey` | `rotate_api_key` | `RotateApiKey` | `RotateApiKeyAsync` |
+| `POST /auth/keys` (scoped) | `create_scoped_api_key` | `createScopedApiKey` | `create_scoped_api_key` | `CreateScopedApiKey` | `CreateScopedApiKeyAsync` |
+| `POST /auth/introspect` | `introspect_token` | `introspectToken` | `introspect_token` | `IntrospectToken` | `IntrospectTokenAsync` |
+| `GET /auth/audit` | `list_audit_log` | `listAuditLog` | `list_audit_log` | `ListAuditLog` | `ListAuditLogAsync` |
 
 ## Related Topics
 

@@ -2,66 +2,16 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
-## [3.8.0] - 2026-05-02
+## [3.3.0] - 2026-05-02
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
 
 ### Added
 
-- **Phase16 RPC typed wrappers** — full coverage of all 95 server commands via `rpc/commands.py`. Every command has both a sync module-level function and an `async def` coroutine, monkey-patched onto `RpcClient` / `AsyncRpcClient`.
-  - **collections** (7): `list_collections`, `get_collection_info`, `create_collection`, `delete_collection`, `list_empty_collections`, `cleanup_empty_collections`, `force_save_collection`.
-  - **vectors** (17): `get_vector`, `insert_vector`, `insert_text_vector`, `update_vector`, `delete_vector_rpc`, `list_vectors`, `embed_text`, `batch_insert_vectors`, `batch_insert_texts`, `batch_search`, `batch_update_vectors`, `batch_delete_vectors`, `move_vectors_rpc`, `copy_vectors_rpc`, `delete_by_filter_rpc`, `bulk_update_metadata_rpc`, `set_vector_expiry`.
-  - **search** (9): `search_basic`, `search_intelligent`, `search_by_text`, `search_by_file`, `search_hybrid`, `search_semantic`, `search_contextual`, `search_multi_collection`, `search_explain`.
-  - **discovery** (10): `discover`, `filter_collections`, `score_collections`, `expand_queries`, `broad_discovery`, `semantic_focus`, `promote_readme`, `compress_evidence`, `build_answer_plan`, `render_llm_prompt`.
-  - **file** (7): `file_content`, `file_list`, `file_summary`, `file_chunks`, `file_outline`, `file_related`, `file_search_by_type`.
-  - **graph** (10): `graph_list_nodes`, `graph_neighbors`, `graph_find_related`, `graph_find_path`, `graph_create_edge`, `graph_delete_edge`, `graph_list_edges`, `graph_discover_edges`, `graph_discover_edges_for_node`, `graph_discovery_status`.
-  - **admin** (16): `admin_stats`, `admin_status`, `admin_logs`, `admin_indexing_progress`, `admin_config_get`, `admin_config_update`, `admin_backups_list`, `admin_backups_create`, `admin_backups_restore`, `admin_workspaces_list`, `admin_workspace_get`, `admin_workspace_add`, `admin_workspace_remove`, `admin_restart`, `admin_slow_queries_list`, `admin_slow_queries_config`.
-  - **auth** (11): `auth_me`, `auth_logout`, `auth_refresh_token`, `auth_validate_password`, `auth_api_keys_create`, `auth_api_keys_list`, `auth_api_keys_revoke`, `rotate_api_key_rpc`, `auth_api_keys_create_scoped`, `auth_introspect`, `auth_audit`.
-  - **replication** (4): `replication_status`, `replication_configure`, `replication_stats`, `replication_replicas_list`.
-  - **cluster** (5): `cluster_failover`, `cluster_replica_resync`, `cluster_peer_add`, `cluster_rebalance`, `cluster_rebalance_status`.
-- New dataclasses re-exported from `rpc/__init__.py` and `__init__.py`: `AdminStats`, `AdminStatus`, `AnswerPlanResult`, `AnswerPlanSection`, `ApiKeyCreated`, `AuthMeResult`, `BatchDeleteResult`, `BatchInsertResult`, `BatchItemResult`, `BatchSearchResult`, `BatchUpdateResult`, `BulkUpdateMetadataRpcResult`, `CleanupEmptyResult`, `CompressBullet`, `CopyRpcResult`, `CreateCollectionResult`, `DeleteByFilterRpcResult`, `DiscoverEdgesForNodeResult`, `DiscoverEdgesResult`, `DiscoverResult`, `DiscoveryChunk`, `EmbedResult`, `ExpandQueriesResult`, `GraphDiscoveryStatus`, `MoveRpcResult`, `RebalanceStatus`, `RefreshTokenResult`, `RenderPromptResult`, `ReplicationConfigureResult`, `RotatedApiKey`, `ScoredCollection`, `SearchExplainResult`, `SearchTrace`, `SetExpiryResult`, `SlowQueryConfigResult`, `ValidatePasswordResult`, `VectorListResult`, `VectorWriteResult`.
-- pytest tests in `tests/test_rpc_phase16.py` covering all 10 domain groups via `AsyncMock`.
-
-### Fixed
-
-- **`vectorizer/graph.py` NameError bug** — `delete_graph_edge` referenced undefined `collection`; fixed to `f"/graph/edges/{edge_id}"` with correct `bool` return type.
-
-## [3.7.0] - 2026-05-02
-
-### Added
-
-- **Cluster + auth admin API (phase15).** Nine new server routes exposed across two client modules:
-  - **`vectorizer/replication.py`** — `cluster_failover`, `cluster_resync_replica`, `cluster_add_peer`, `cluster_rebalance`, `cluster_rebalance_status`.
-  - **`vectorizer/auth.py`** — `rotate_api_key`, `create_scoped_api_key`, `introspect_token`, `list_audit_log`.
-- New dataclasses in `models.py`: `FailoverReport`, `ResyncJob`, `PeerInfo`, `AddPeerRequest`, `RebalanceJob`, `RotatedKey`, `TokenScope`, `CreateScopedApiKeyRequest`, `TokenIntrospection`, `AuditEntry`, `AuditQuery`. All re-exported from `vectorizer/__init__.py`.
-- pytest tests in `tests/test_cluster_auth_admin.py`.
-
-## [3.6.0] - 2026-05-02
-
-### Added
-
-- **Schema-evolution + observability API (phase14).** Eight new server routes exposed across three client modules:
-  - **`vectorizer/collections.py`** — `rename_collection`, `reindex_collection`, `snapshot_collection_native`, `list_collection_snapshots_native`, `restore_collection_snapshot_native`.
-  - **`vectorizer/search.py`** — `explain_search` (`POST /collections/{name}/explain`): returns search results plus a full HNSW execution trace (`visited_nodes`, `ef_search`, `hnsw_search_ms`, `payload_filter_evals`, `quantization_score_ms`, `total_ms`).
-  - **`vectorizer/admin.py`** — `list_slow_queries` (`GET /slow_queries`), `set_slow_query_config` (`POST /slow_queries/config`).
-- New dataclasses in `models.py`: `ReindexParams`, `ReindexJob`, `NativeSnapshotInfo`, `ExplainTrace`, `ExplainResponse`, `SlowQueryEntry`, `SlowQueryConfig`. All re-exported from `vectorizer/__init__.py`.
-
-## [3.5.0] - 2026-05-02
-
-### Added
-
-- **Phase13 tier-control methods** — Python SDK now matches the Rust SDK's phase13 surface.
-- **Vector methods** (4 new): `delete_by_filter`, `bulk_update_metadata`, `copy_vectors`,
-  `set_vector_expiry` on `VectorsClient`.
-- **Collection methods** (2 new): `reencode_collection`, `set_collection_ttl`
-  on `CollectionsClient`.
-- **New dataclasses** in `models.py`: `DeleteByFilterReport`, `BulkUpdateReport`,
-  `CopyReport`, `ReencodeJob`.
-- `patch` method added to `Transport` ABC, `RestTransport`, and `HTTPClient`.
-- All phase13 dataclasses re-exported from `vectorizer/__init__.py`.
-
-## [3.4.0] - 2026-05-02
-
-### Added
-
+- **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorizerClient`:
+  - `delete_vector(collection, vector_id) -> None` calling `DELETE /collections/{c}/vectors/{id}`.
+  - `move_to_collection(src, dst, ids) -> MoveReport` calling `POST /collections/{src}/vectors/move`. Server invariant: dst-insert-before-src-delete; a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id outcomes (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populate `MoveReport.results` without aborting the batch.
+- New dataclasses under `vectorizer_sdk.models`: `DeleteReport`, `MoveReport`, `VectorOpResult`.
 - **Phase12 control-surface parity** — Python SDK now matches the Rust SDK's full API surface.
 - **Admin methods** (17 total, 15 new): `get_stats`, `get_status`, `get_logs`, `force_save_collection`,
   `list_empty_collections`, `cleanup_empty_collections`, `get_config`, `update_config`,
@@ -94,15 +44,45 @@ All notable changes to the Hive Vectorizer Python SDK will be documented in this
   `RenderPromptRequest`, `LlmPrompt`, `UserBackup`, `CreateUserBackupRequest`,
   `RestoreUserBackupRequest`, `UploadUserBackupRequest`, `UsageStatistics`, `QuotaInfo`,
   `HubApiKeyValidation`.
+- **Phase13 tier-control methods** — Python SDK now matches the Rust SDK's phase13 surface.
+- **Vector methods** (4 new): `delete_by_filter`, `bulk_update_metadata`, `copy_vectors`,
+  `set_vector_expiry` on `VectorsClient`.
+- **Collection methods** (2 new): `reencode_collection`, `set_collection_ttl`
+  on `CollectionsClient`.
+- **New dataclasses** in `models.py`: `DeleteByFilterReport`, `BulkUpdateReport`,
+  `CopyReport`, `ReencodeJob`.
+- `patch` method added to `Transport` ABC, `RestTransport`, and `HTTPClient`.
+- All phase13 dataclasses re-exported from `vectorizer/__init__.py`.
+- **Schema-evolution + observability API (phase14).** Eight new server routes exposed across three client modules:
+  - **`vectorizer/collections.py`** — `rename_collection`, `reindex_collection`, `snapshot_collection_native`, `list_collection_snapshots_native`, `restore_collection_snapshot_native`.
+  - **`vectorizer/search.py`** — `explain_search` (`POST /collections/{name}/explain`): returns search results plus a full HNSW execution trace (`visited_nodes`, `ef_search`, `hnsw_search_ms`, `payload_filter_evals`, `quantization_score_ms`, `total_ms`).
+  - **`vectorizer/admin.py`** — `list_slow_queries` (`GET /slow_queries`), `set_slow_query_config` (`POST /slow_queries/config`).
+- New dataclasses in `models.py`: `ReindexParams`, `ReindexJob`, `NativeSnapshotInfo`, `ExplainTrace`, `ExplainResponse`, `SlowQueryEntry`, `SlowQueryConfig`. All re-exported from `vectorizer/__init__.py`.
+- **Cluster + auth admin API (phase15).** Nine new server routes exposed across two client modules:
+  - **`vectorizer/replication.py`** — `cluster_failover`, `cluster_resync_replica`, `cluster_add_peer`, `cluster_rebalance`, `cluster_rebalance_status`.
+  - **`vectorizer/auth.py`** — `rotate_api_key`, `create_scoped_api_key`, `introspect_token`, `list_audit_log`.
+- New dataclasses in `models.py`: `FailoverReport`, `ResyncJob`, `PeerInfo`, `AddPeerRequest`, `RebalanceJob`, `RotatedKey`, `TokenScope`, `CreateScopedApiKeyRequest`, `TokenIntrospection`, `AuditEntry`, `AuditQuery`. All re-exported from `vectorizer/__init__.py`.
+- **Phase16 RPC typed wrappers** — full coverage of all 95 server commands via `rpc/commands.py`. Every command has both a sync module-level function and an `async def` coroutine, monkey-patched onto `RpcClient` / `AsyncRpcClient`.
+  - **collections** (7): `list_collections`, `get_collection_info`, `create_collection`, `delete_collection`, `list_empty_collections`, `cleanup_empty_collections`, `force_save_collection`.
+  - **vectors** (17): `get_vector`, `insert_vector`, `insert_text_vector`, `update_vector`, `delete_vector_rpc`, `list_vectors`, `embed_text`, `batch_insert_vectors`, `batch_insert_texts`, `batch_search`, `batch_update_vectors`, `batch_delete_vectors`, `move_vectors_rpc`, `copy_vectors_rpc`, `delete_by_filter_rpc`, `bulk_update_metadata_rpc`, `set_vector_expiry`.
+  - **search** (9): `search_basic`, `search_intelligent`, `search_by_text`, `search_by_file`, `search_hybrid`, `search_semantic`, `search_contextual`, `search_multi_collection`, `search_explain`.
+  - **discovery** (10): `discover`, `filter_collections`, `score_collections`, `expand_queries`, `broad_discovery`, `semantic_focus`, `promote_readme`, `compress_evidence`, `build_answer_plan`, `render_llm_prompt`.
+  - **file** (7): `file_content`, `file_list`, `file_summary`, `file_chunks`, `file_outline`, `file_related`, `file_search_by_type`.
+  - **graph** (10): `graph_list_nodes`, `graph_neighbors`, `graph_find_related`, `graph_find_path`, `graph_create_edge`, `graph_delete_edge`, `graph_list_edges`, `graph_discover_edges`, `graph_discover_edges_for_node`, `graph_discovery_status`.
+  - **admin** (16): `admin_stats`, `admin_status`, `admin_logs`, `admin_indexing_progress`, `admin_config_get`, `admin_config_update`, `admin_backups_list`, `admin_backups_create`, `admin_backups_restore`, `admin_workspaces_list`, `admin_workspace_get`, `admin_workspace_add`, `admin_workspace_remove`, `admin_restart`, `admin_slow_queries_list`, `admin_slow_queries_config`.
+  - **auth** (11): `auth_me`, `auth_logout`, `auth_refresh_token`, `auth_validate_password`, `auth_api_keys_create`, `auth_api_keys_list`, `auth_api_keys_revoke`, `rotate_api_key_rpc`, `auth_api_keys_create_scoped`, `auth_introspect`, `auth_audit`.
+  - **replication** (4): `replication_status`, `replication_configure`, `replication_stats`, `replication_replicas_list`.
+  - **cluster** (5): `cluster_failover`, `cluster_replica_resync`, `cluster_peer_add`, `cluster_rebalance`, `cluster_rebalance_status`.
+- New dataclasses re-exported from `rpc/__init__.py` and `__init__.py`: `AdminStats`, `AdminStatus`, `AnswerPlanResult`, `AnswerPlanSection`, `ApiKeyCreated`, `AuthMeResult`, `BatchDeleteResult`, `BatchInsertResult`, `BatchItemResult`, `BatchSearchResult`, `BatchUpdateResult`, `BulkUpdateMetadataRpcResult`, `CleanupEmptyResult`, `CompressBullet`, `CopyRpcResult`, `CreateCollectionResult`, `DeleteByFilterRpcResult`, `DiscoverEdgesForNodeResult`, `DiscoverEdgesResult`, `DiscoverResult`, `DiscoveryChunk`, `EmbedResult`, `ExpandQueriesResult`, `GraphDiscoveryStatus`, `MoveRpcResult`, `RebalanceStatus`, `RefreshTokenResult`, `RenderPromptResult`, `ReplicationConfigureResult`, `RotatedApiKey`, `ScoredCollection`, `SearchExplainResult`, `SearchTrace`, `SetExpiryResult`, `SlowQueryConfigResult`, `ValidatePasswordResult`, `VectorListResult`, `VectorWriteResult`.
 
-## [3.3.0] - 2026-05-02
+### Tests
 
-### Added
+- pytest tests in `tests/test_cluster_auth_admin.py`.
+- pytest tests in `tests/test_rpc_phase16.py` covering all 10 domain groups via `AsyncMock`.
 
-- **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorizerClient`:
-  - `delete_vector(collection, vector_id) -> None` calling `DELETE /collections/{c}/vectors/{id}`.
-  - `move_to_collection(src, dst, ids) -> MoveReport` calling `POST /collections/{src}/vectors/move`. Server invariant: dst-insert-before-src-delete; a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id outcomes (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populate `MoveReport.results` without aborting the batch.
-- New dataclasses under `vectorizer_sdk.models`: `DeleteReport`, `MoveReport`, `VectorOpResult`.
+### Fixed
+
+- **`vectorizer/graph.py` NameError bug** — `delete_graph_edge` referenced undefined `collection`; fixed to `f"/graph/edges/{edge_id}"` with correct `bool` return type.
 
 ### Changed
 

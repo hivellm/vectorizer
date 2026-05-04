@@ -121,8 +121,56 @@ rejected — credentials go through the `HELLO` handshake, not the URL.
 ## Legacy REST client (`Vectorizer.Sdk`)
 
 **Package**: `Vectorizer.Sdk`
-**Version**: 3.2.0
+**Version**: 3.3.0
 **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
+
+### v3.3 — REST control surface parity
+
+`Vectorizer.Sdk` now exposes ~79 new async REST methods on `VectorizerClient`
+covering the full phase12-15 control surface (admin, auth, replication, hub
+backups+usage, discovery pipeline, vectors single+batch+search, tier-control,
+schema evolution, cluster admin). No RPC dependency.
+
+```csharp
+var client = new VectorizerClient(new ClientConfig
+{
+    BaseUrl = "http://localhost:15002",
+    ApiKey = apiKey,
+});
+
+// Admin / observability
+var stats = await client.GetServerStatsAsync();
+var progress = await client.GetIndexingProgressAsync();
+
+// Auth + RBAC
+var me = await client.MeAsync();
+var key = await client.CreateApiKeyAsync(new CreateApiKeyRequest { Name = "ci" });
+
+// Hub backups
+var backups = await client.ListUserBackupsAsync("user-42");
+var raw = await client.DownloadUserBackupAsync("user-42", backups[0].Id);
+
+// Discovery pipeline
+var chunks = await client.BroadDiscoveryAsync(new BroadDiscoveryRequest
+{
+    Queries = new List<string> { "hnsw indexing", "vector quantization" },
+});
+
+// Tier control (rejects empty filter client-side)
+var report = await client.DeleteByFilterAsync("logs",
+    new Dictionary<string, object> { ["older_than"] = "2026-01-01" });
+
+// Schema evolution
+var job = await client.ReindexCollectionAsync("docs", new ReindexParams
+{
+    M = 16, EfConstruction = 200, EfSearch = 64,
+});
+var explain = await client.ExplainSearchAsync("docs", queryVec, 10);
+
+// Cluster admin
+await client.ClusterFailoverAsync("replica-2");
+var rotated = await client.RotateApiKeyAsync(key.Id);
+```
 
 ## Features
 
@@ -689,6 +737,113 @@ catch (VectorizerException ex)
     {
         Console.WriteLine($"Error: {ex.ErrorType} - {ex.Message} (status: {ex.StatusCode})");
     }
+}
+```
+
+## v3.3 — REST control surface parity
+
+REST methods for every endpoint shipped in phases 12-15, covering admin,
+auth, replication, hub backups, discovery pipeline, vectors variants,
+tier-control, schema evolution, and cluster administration.
+
+### Admin Operations
+
+```csharp
+// Get server statistics
+var stats = await client.GetServerStatsAsync();
+Console.WriteLine($"Vectors indexed: {stats.TotalVectors}");
+
+// List backups
+var backups = await client.ListBackupsAsync();
+Console.WriteLine($"Total backups: {backups.Count}");
+```
+
+### Authentication & RBAC
+
+```csharp
+// Get current user info
+var user = await client.MeAsync();
+Console.WriteLine($"Logged in as: {user.Email}");
+
+// Create API key
+var apiKey = await client.CreateApiKeyAsync(new CreateApiKeyRequest
+{
+    Name = "my-api-key",
+    Description = "For integrations"
+});
+Console.WriteLine($"API Key created: {apiKey.Id}");
+```
+
+### Replication
+
+```csharp
+// Get replication status
+var status = await client.GetReplicationStatusAsync();
+Console.WriteLine($"Replication enabled: {status.Enabled}");
+```
+
+### Hub Backups & Usage
+
+```csharp
+// List user backups
+var backups = await client.ListUserBackupsAsync();
+Console.WriteLine($"User backups: {backups.Count}");
+
+// Get usage statistics
+var usage = await client.GetUsageStatisticsAsync();
+Console.WriteLine($"Storage used: {usage.StorageUsedBytes} bytes");
+```
+
+### Discovery Pipeline
+
+```csharp
+// Broad discovery across collections
+var result = await client.BroadDiscoveryAsync(new BroadDiscoveryRequest
+{
+    Query = "machine learning",
+    MaxResults = 10
+});
+Console.WriteLine($"Found {result.Results.Count} results");
+```
+
+### Tier Control
+
+```csharp
+// Delete vectors by filter
+var report = await client.DeleteByFilterAsync("my_collection", new DeleteFilterRequest
+{
+    Filter = new Dictionary<string, object>
+    {
+        ["age"] = new Dictionary<string, object> { ["lt"] = 30 }
+    }
+});
+Console.WriteLine($"Deleted: {report.DeletedCount} vectors");
+```
+
+### Schema Evolution
+
+```csharp
+// Rename collection
+await client.RenameCollectionAsync("old_name", "new_name");
+Console.WriteLine("Collection renamed");
+
+// Explain search query
+var explain = await client.ExplainSearchAsync("my_collection", "machine learning");
+Console.WriteLine($"Query plan: {explain.Plan}");
+```
+
+### Cluster Administration
+
+```csharp
+// Initiate cluster failover
+var report = await client.ClusterFailoverAsync("replica-1");
+Console.WriteLine($"Failover status: {report.Status}");
+
+// Get rebalance status (returns null when idle)
+var status = await client.ClusterRebalanceStatusAsync();
+if (status != null)
+{
+    Console.WriteLine($"Rebalancing: {status.Progress}%");
 }
 ```
 

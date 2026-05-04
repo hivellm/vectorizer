@@ -2,54 +2,108 @@
 
 All notable changes to the Hive Vectorizer Go SDK will be documented in this file.
 
-## [3.8.0] - 2026-05-02
+## [3.3.0] - 2026-05-03
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
 
 ### Added
 
+REST control surface parity with Rust/TypeScript/Python SDKs (phase20). The
+Go SDK now exposes ~79 new REST methods covering every endpoint shipped in
+phases 12-15. No RPC dependency required.
+
+- **Admin/observability (17)** — `GetServerStats`, `GetStatus`, `GetLogs`,
+  `GetIndexingProgress`, `ForceSaveCollection`, `ListEmptyCollections`,
+  `CleanupEmptyCollections`, `GetConfig`, `UpdateConfig`, `ListBackups`,
+  `CreateBackup`, `RestoreBackup`, `RestartServer`, `ListWorkspaces`,
+  `GetWorkspaceConfig`, `AddWorkspace`, `RemoveWorkspace`.
+- **Auth/RBAC (11)** — `Me`, `Logout`, `RefreshToken`, `ValidatePassword`,
+  `CreateApiKey`, `ListApiKeys`, `RevokeApiKey`, `CreateUser`, `ListUsers`,
+  `DeleteUser`, `ChangePassword`.
+- **Replication (4)** — `GetReplicationStatus`, `ConfigureReplication`,
+  `GetReplicationStats`, `ListReplicas`.
+- **Hub (10)** — `ListUserBackups`, `CreateUserBackup`, `RestoreUserBackup`,
+  `UploadUserBackup`, `GetUserBackup`, `DeleteUserBackup`,
+  `DownloadUserBackup` (raw bytes), `GetUsageStatistics`, `GetQuotaInfo`,
+  `ValidateHubAPIKey`.
+- **Discovery pipeline (6)** — `BroadDiscovery`, `SemanticFocus`,
+  `PromoteReadme`, `CompressEvidence`, `BuildAnswerPlan`, `RenderLlmPrompt`.
+- **Vectors single+batch+search (9)** — `UpdateVectorPayload`,
+  `InsertTextWithID`, `ListVectors`, `BatchInsertTexts`, `InsertVectors`,
+  `BatchSearchQueries`, `BatchUpdateVectors`, `SearchByText`, `SearchByFile`.
+- **Tier-control (6)** — `DeleteByFilter`, `BulkUpdateMetadata`,
+  `CopyVectors`, `ReencodeCollection`, `SetCollectionTTL`, `SetVectorExpiry`.
+  Empty-filter validation rejected client-side before HTTP for
+  `DeleteByFilter` and `BulkUpdateMetadata`.
+- **Schema evolution + explain + slow queries (8)** — `RenameCollection`,
+  `ReindexCollection`, `SnapshotCollectionNative`,
+  `ListCollectionSnapshotsNative`, `RestoreCollectionSnapshotNative`,
+  `ExplainSearch`, `ListSlowQueries`, `SetSlowQueryConfig`.
+- **Cluster + auth admin (9)** — `ClusterFailover`, `ClusterResyncReplica`,
+  `ClusterAddPeer`, `ClusterRebalance`, `ClusterRebalanceStatus` (returns
+  `nil` when idle), `RotateApiKey`, `CreateScopedApiKey`, `IntrospectToken`,
+  `ListAuditLog`.
+- **Models** — ~50 new types in `models.go` mirroring Rust source-of-truth
+  shapes (Stats, ServerStatus, LogEntry, IndexingProgress, ConfigSnapshot,
+  BackupInfo, WorkspaceConfig, User, JwtToken, ApiKey, PasswordPolicyReport,
+  ReplicationStatus, ReplicaInfo, UserBackup, BroadDiscoveryRequest/Response,
+  SemanticFocusRequest/Response, PromoteReadmeRequest/Response,
+  CompressEvidenceRequest/Response, AnswerPlan, LlmPrompt, VectorPage,
+  BatchInsertReport, BatchUpdateReport, DeleteByFilterReport,
+  BulkUpdateReport, CopyReport, ReencodeJob, ReindexJob, NativeSnapshotInfo,
+  ExplainResponse, SlowQueryEntry, SlowQueryConfig, FailoverReport,
+  ResyncJob, AddPeerRequest, PeerInfo, RebalanceJob, RotatedKey,
+  TokenIntrospection, AuditEntry, etc.).
 - **Phase 16 full RPC command catalog.** Typed Go methods on `*rpc.Client`
   covering every command in `rpc_capability_names()` (95 commands across 8
   domain groups). New response struct types in `rpc/types_phase16.go`.
   Methods follow existing PascalCase + `Rpc` suffix convention to avoid
   collision with REST SDK names (e.g. `MoveVectorsRpc`, `RotateApiKeyRpc`).
-- Collections (5 new): `CreateCollectionRpc`, `DeleteCollectionRpc`,
-  `ListEmptyCollections`, `CleanupEmptyCollections`, `ForceSaveCollection`.
-- Vectors (15 new): `InsertVectorRpc`, `InsertTextVectorRpc`,
-  `UpdateVectorRpc`, `DeleteVectorRpc`, `ListVectors`, `EmbedText`,
-  `BatchInsertVectors`, `BatchInsertTexts`, `BatchSearch`,
-  `BatchUpdateVectors`, `BatchDeleteVectors`, `MoveVectorsRpc`,
-  `CopyVectorsRpc`, `DeleteByFilterRpc`, `BulkUpdateMetadataRpc`,
-  `SetVectorExpiry`.
-- Search (7 new): `SearchIntelligent`, `SearchByText`, `SearchByFile`,
-  `SearchHybrid`, `SearchSemantic`, `SearchContextual`,
-  `SearchMultiCollection`, `SearchExplain`.
-- Discovery (10 new): `Discover`, `FilterCollections`, `ScoreCollections`,
-  `ExpandQueries`, `BroadDiscovery`, `SemanticFocus`, `PromoteReadme`,
-  `CompressEvidence`, `BuildAnswerPlan`, `RenderLlmPrompt`.
-- File ops (7 new): `FileContent`, `FileList`, `FileSummary`, `FileChunks`,
-  `FileOutline`, `FileRelated`, `FileSearchByType`.
-- Graph (10 new): `GraphListNodes`, `GraphNeighbors`, `GraphFindRelated`,
-  `GraphFindPath`, `GraphCreateEdge`, `GraphDeleteEdge`, `GraphListEdges`,
-  `GraphDiscoverEdges`, `GraphDiscoverEdgesForNode`, `GraphDiscoveryStatus`.
-- Admin (16 new): `AdminStats`, `AdminStatus`, `AdminLogs`,
-  `AdminIndexingProgress`, `AdminConfigGet`, `AdminConfigUpdate`,
-  `AdminBackupsList`, `AdminBackupsCreate`, `AdminBackupsRestore`,
-  `AdminWorkspacesList`, `AdminWorkspaceGet`, `AdminWorkspaceAdd`,
-  `AdminWorkspaceRemove`, `AdminRestart`, `AdminSlowQueriesList`,
-  `AdminSlowQueriesConfig`.
-- Auth (11 new): `AuthMe`, `AuthLogout`, `AuthRefreshToken`,
-  `AuthValidatePassword`, `AuthApiKeysCreate`, `AuthApiKeysList`,
-  `AuthApiKeysRevoke`, `RotateApiKeyRpc`, `AuthApiKeysCreateScoped`,
-  `AuthIntrospect`, `AuthAudit`.
-- Replication (4 new): `ReplicationStatus`, `ReplicationConfigure`,
-  `ReplicationStats`, `ReplicationReplicasList`.
-- Cluster (5 new): `ClusterFailover`, `ClusterReplicaResync`,
-  `ClusterPeerAdd`, `ClusterRebalance`, `ClusterRebalanceStatus`.
+  - Collections (5 new): `CreateCollectionRpc`, `DeleteCollectionRpc`,
+    `ListEmptyCollections`, `CleanupEmptyCollections`, `ForceSaveCollection`.
+  - Vectors (15 new): `InsertVectorRpc`, `InsertTextVectorRpc`,
+    `UpdateVectorRpc`, `DeleteVectorRpc`, `ListVectors`, `EmbedText`,
+    `BatchInsertVectors`, `BatchInsertTexts`, `BatchSearch`,
+    `BatchUpdateVectors`, `BatchDeleteVectors`, `MoveVectorsRpc`,
+    `CopyVectorsRpc`, `DeleteByFilterRpc`, `BulkUpdateMetadataRpc`,
+    `SetVectorExpiry`.
+  - Search (7 new): `SearchIntelligent`, `SearchByText`, `SearchByFile`,
+    `SearchHybrid`, `SearchSemantic`, `SearchContextual`,
+    `SearchMultiCollection`, `SearchExplain`.
+  - Discovery (10 new): `Discover`, `FilterCollections`, `ScoreCollections`,
+    `ExpandQueries`, `BroadDiscovery`, `SemanticFocus`, `PromoteReadme`,
+    `CompressEvidence`, `BuildAnswerPlan`, `RenderLlmPrompt`.
+  - File ops (7 new): `FileContent`, `FileList`, `FileSummary`, `FileChunks`,
+    `FileOutline`, `FileRelated`, `FileSearchByType`.
+  - Graph (10 new): `GraphListNodes`, `GraphNeighbors`, `GraphFindRelated`,
+    `GraphFindPath`, `GraphCreateEdge`, `GraphDeleteEdge`, `GraphListEdges`,
+    `GraphDiscoverEdges`, `GraphDiscoverEdgesForNode`, `GraphDiscoveryStatus`.
+  - Admin (16 new): `AdminStats`, `AdminStatus`, `AdminLogs`,
+    `AdminIndexingProgress`, `AdminConfigGet`, `AdminConfigUpdate`,
+    `AdminBackupsList`, `AdminBackupsCreate`, `AdminBackupsRestore`,
+    `AdminWorkspacesList`, `AdminWorkspaceGet`, `AdminWorkspaceAdd`,
+    `AdminWorkspaceRemove`, `AdminRestart`, `AdminSlowQueriesList`,
+    `AdminSlowQueriesConfig`.
+  - Auth (11 new): `AuthMe`, `AuthLogout`, `AuthRefreshToken`,
+    `AuthValidatePassword`, `AuthApiKeysCreate`, `AuthApiKeysList`,
+    `AuthApiKeysRevoke`, `RotateApiKeyRpc`, `AuthApiKeysCreateScoped`,
+    `AuthIntrospect`, `AuthAudit`.
+  - Replication (4 new): `ReplicationStatus`, `ReplicationConfigure`,
+    `ReplicationStats`, `ReplicationReplicasList`.
+  - Cluster (5 new): `ClusterFailover`, `ClusterReplicaResync`,
+    `ClusterPeerAdd`, `ClusterRebalance`, `ClusterRebalanceStatus`.
+
+### Tests
+
+- 9 new wire-shape test files exercise every new REST method via
+  `httptest.NewServer`. All hermetic — `go test ./...` does not dial port
+  15002 or 15503 (per spec scenario "Default Go test run is hermetic").
 - 10 wire-shape unit tests in `rpc/commands_phase16_test.go` (one per
   domain group) using the in-process fake-server pattern.
 
 ### Changed
 
-- Version bumped to 3.8.0 to track Vectorizer server 3.8.
+- `sdks/go/version.go` — `Version` constant bumped to `3.3.0`.
 
 ## [3.2.0] - 2026-05-01
 

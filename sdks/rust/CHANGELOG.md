@@ -2,10 +2,35 @@
 
 All notable changes to the Hive Vectorizer Rust SDK will be documented in this file.
 
-## [3.8.0] - 2026-05-02
+## [3.3.0] - 2026-05-02
+
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
 
 ### Added
 
+- **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorizerClient`:
+  - `delete_vector(collection, vector_id) -> Result<()>` calling `DELETE /collections/{c}/vectors/{id}`.
+  - `delete_vectors(collection, ids) -> Result<DeleteReport>` calling `POST /batch_delete` with per-id status in `results`.
+  - `move_to_collection(src, dst, ids) -> Result<MoveReport>` calling `POST /collections/{src}/vectors/move`. Server invariant: dst-insert-before-src-delete; a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id outcomes (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populate `MoveReport.results` without aborting the batch.
+- New report types under `vectorizer_sdk::models`: `DeleteReport`, `MoveReport`, `VectorOpResult`.
+- **Control-surface parity (phase12).** Full REST coverage across all server surfaces:
+  - **Vectors surface** — `update_vector`, `insert_text`, `list_vectors`, `get_vector_by_path`, `batch_insert_texts`, `insert_vectors` (pre-computed), `batch_search`, `batch_update_vectors`.
+  - **Search surface** — `search_by_file` (`POST /collections/{name}/search/file`).
+  - **Discovery pipeline** — `broad_discovery`, `semantic_focus`, `promote_readme`, `compress_evidence`, `build_answer_plan`, `render_llm_prompt`.
+  - **Admin surface** (`client/admin.rs`, new) — `get_stats`, `get_status`, `get_logs`, `get_indexing_progress`, `force_save_collection`, `list_empty_collections`, `cleanup_empty_collections`, `get_config`, `update_config`, `list_backups`, `create_backup`, `restore_backup`, `restart_server`, `list_workspaces`, `get_workspace_config`, `add_workspace`, `remove_workspace`.
+  - **Auth surface** (`client/auth.rs`, new) — `me`, `logout`, `refresh_token`, `validate_password`, `create_api_key`, `list_api_keys`, `revoke_api_key`, `create_user`, `list_users`, `delete_user`, `change_password`.
+  - **Replication surface** (`client/replication.rs`, new) — `get_replication_status`, `configure_replication`, `get_replication_stats`, `list_replicas`.
+  - **HiveHub surface** (`client/hub.rs`, new) — `list_user_backups`, `create_user_backup`, `restore_user_backup`, `upload_user_backup`, `get_user_backup`, `delete_user_backup`, `download_user_backup`, `get_usage_statistics`, `get_quota_info`, `validate_hub_api_key`.
+- New model types in `vectorizer_sdk::models`: `VectorPage`, `UpdateVectorRequest`, `BatchInsertItem`, `BatchInsertReport`, `VectorUpdate`, `BatchUpdateReport`, `RawVectorInsert`, `BatchSearchQuery` (extended), `SearchByFileRequest`, `BroadDiscoveryRequest`, `BroadDiscoveryResponse`, `SemanticFocusRequest`, `SemanticFocusResponse`, `PromoteReadmeRequest`, `PromoteReadmeResponse`, `CompressEvidenceRequest`, `CompressEvidenceResponse`, `AnswerPlanRequest`, `AnswerPlan`, `RenderPromptRequest`, `LlmPrompt`, `Stats`, `ServerStatus`, `LogsQuery`, `LogEntry`, `CleanupReport`, `ConfigSnapshot`, `ConfigPatch`, `BackupInfo`, `CreateBackupRequest`, `RestoreBackupRequest`, `WorkspaceConfig`, `AddWorkspaceRequest`, `User`, `JwtToken`, `PasswordPolicyReport`, `CreateApiKeyRequest`, `ApiKey`, `CreateUserRequest`, `ReplicationStatus`, `ReplicationConfig`, `ReplicaInfo`, `ReplicationStats`, `UserBackup`, `CreateUserBackupRequest`, `RestoreUserBackupRequest`, `UploadUserBackupRequest`, `UsageStatistics`, `QuotaInfo`, `HubApiKeyValidation`.
+- **Schema-evolution + observability API (phase14).** Eight new server routes exposed across three client files:
+  - **`client/collections.rs`** — `rename_collection`, `reindex_collection`, `snapshot_collection_native`, `list_collection_snapshots_native`, `restore_collection_snapshot_native`.
+  - **`client/search.rs`** — `explain_search` (`POST /collections/{name}/explain`): returns search results plus a full HNSW execution trace (`visited_nodes`, `ef_search`, `hnsw_search_ms`, `payload_filter_evals`, `quantization_score_ms`, `total_ms`).
+  - **`client/admin.rs`** — `list_slow_queries` (`GET /slow_queries`), `set_slow_query_config` (`POST /slow_queries/config`).
+- New model types in `src/models.rs`: `ReindexParams`, `ReindexJob`, `NativeSnapshotInfo`, `ExplainRequest`, `ExplainResponse`, `ExplainTrace`, `SlowQueryEntry`, `SlowQueryConfig`.
+- **Cluster + auth admin API (phase15).** Nine new server routes exposed across two client files:
+  - **`client/replication.rs`** — `cluster_failover` (`POST /cluster/failover`), `cluster_resync_replica` (`POST /cluster/replicas/{id}/resync`), `cluster_add_peer` (`POST /cluster/peers`), `cluster_rebalance` (`POST /cluster/rebalance`), `cluster_rebalance_status` (`GET /cluster/rebalance/status`).
+  - **`client/auth.rs`** — `rotate_api_key` (`POST /auth/keys/{id}/rotate`), `create_scoped_api_key` (`POST /auth/keys`), `introspect_token` (`POST /auth/introspect`), `list_audit_log` (`GET /auth/audit`).
+- New model types in `src/models.rs`: `FailoverReport`, `ResyncJob`, `PeerInfo`, `AddPeerRequest`, `RebalanceJob`, `RotatedKey`, `CreateScopedApiKeyRequest`, `TokenScope`, `TokenIntrospection`, `AuditEntry`, `AuditQuery`.
 - **Phase16 RPC typed wrappers.** 96 new methods on `RpcClient` mirroring every command in `rpc_capability_names()` that was not previously wrapped:
   - **Collections (5):** `create_collection`, `delete_collection`, `list_empty_collections`, `cleanup_empty_collections`, `force_save_collection`.
   - **Vectors (15):** `insert_vector`, `insert_text_vector`, `update_vector`, `delete_vector_rpc`, `list_vectors`, `embed_text`, `batch_insert_vectors`, `batch_insert_texts`, `batch_search`, `batch_update_vectors`, `batch_delete_vectors`, `move_vectors_rpc`, `copy_vectors_rpc`, `delete_by_filter_rpc`, `bulk_update_metadata_rpc`, `set_vector_expiry`.
@@ -18,52 +43,11 @@ All notable changes to the Hive Vectorizer Rust SDK will be documented in this f
   - **Replication (4):** `replication_status`, `replication_configure`, `replication_stats`, `replication_replicas_list`.
   - **Cluster (5):** `cluster_failover`, `cluster_replica_resync`, `cluster_peer_add`, `cluster_rebalance`, `cluster_rebalance_status`.
 - New RPC-specific return types re-exported from `vectorizer_sdk::rpc`: `CollectionInfo`, `CreateCollectionResult`, `CleanupEmptyResult`, `VectorWriteResult`, `BatchInsertResult`, `BatchUpdateResult`, `BatchDeleteResult`, `BatchItemResult`, `BatchSearchResult`, `MoveRpcResult`, `CopyRpcResult`, `DeleteByFilterRpcResult`, `BulkUpdateMetadataRpcResult`, `SetExpiryResult`, `EmbedResult`, `VectorListResult`, `SearchHit`, `SearchExplainResult`, `SearchTrace`, `DiscoverResult`, `ScoredCollection`, `ExpandQueriesResult`, `DiscoveryChunk`, `CompressBullet`, `AnswerPlanResult`, `AnswerPlanSection`, `RenderPromptResult`, `GraphDiscoveryStatus`, `DiscoverEdgesResult`, `DiscoverEdgesForNodeResult`, `AdminStats`, `AdminStatus`, `SlowQueryConfigResult`, `AuthMeResult`, `RefreshTokenResult`, `ValidatePasswordResult`, `ApiKeyCreated`, `RotatedApiKey`, `ReplicationConfigureResult`, `RebalanceStatus`.
-- 22 inline `#[cfg(test)]` unit tests covering request shape construction and response decoding for all domain groups.
 
-## [3.7.0] - 2026-05-02
+### Tests
 
-### Added
-
-- **Cluster + auth admin API (phase15).** Nine new server routes exposed across two client files:
-  - **`client/replication.rs`** — `cluster_failover` (`POST /cluster/failover`), `cluster_resync_replica` (`POST /cluster/replicas/{id}/resync`), `cluster_add_peer` (`POST /cluster/peers`), `cluster_rebalance` (`POST /cluster/rebalance`), `cluster_rebalance_status` (`GET /cluster/rebalance/status`).
-  - **`client/auth.rs`** — `rotate_api_key` (`POST /auth/keys/{id}/rotate`), `create_scoped_api_key` (`POST /auth/keys`), `introspect_token` (`POST /auth/introspect`), `list_audit_log` (`GET /auth/audit`).
-- New model types in `src/models.rs`: `FailoverReport`, `ResyncJob`, `PeerInfo`, `AddPeerRequest`, `RebalanceJob`, `RotatedKey`, `CreateScopedApiKeyRequest`, `TokenScope`, `TokenIntrospection`, `AuditEntry`, `AuditQuery`.
-- Inline `#[cfg(test)]` round-trip tests covering all new wire shapes (13 new tests).
-
-## [3.6.0] - 2026-05-02
-
-### Added
-
-- **Schema-evolution + observability API (phase14).** Eight new server routes exposed across three client files:
-  - **`client/collections.rs`** — `rename_collection`, `reindex_collection`, `snapshot_collection_native`, `list_collection_snapshots_native`, `restore_collection_snapshot_native`.
-  - **`client/search.rs`** — `explain_search` (`POST /collections/{name}/explain`): returns search results plus a full HNSW execution trace (`visited_nodes`, `ef_search`, `hnsw_search_ms`, `payload_filter_evals`, `quantization_score_ms`, `total_ms`).
-  - **`client/admin.rs`** — `list_slow_queries` (`GET /slow_queries`), `set_slow_query_config` (`POST /slow_queries/config`).
-- New model types in `src/models.rs`: `ReindexParams`, `ReindexJob`, `NativeSnapshotInfo`, `ExplainRequest`, `ExplainResponse`, `ExplainTrace`, `SlowQueryEntry`, `SlowQueryConfig`.
-- Inline `#[cfg(test)]` round-trip tests covering all new wire shapes.
-
-## [3.4.0] - 2026-05-02
-
-### Added
-
-- **Control-surface parity (phase12).** Full REST coverage across all server surfaces:
-  - **Vectors surface** — `update_vector`, `insert_text`, `list_vectors`, `get_vector_by_path`, `batch_insert_texts`, `insert_vectors` (pre-computed), `batch_search`, `batch_update_vectors`.
-  - **Search surface** — `search_by_file` (`POST /collections/{name}/search/file`).
-  - **Discovery pipeline** — `broad_discovery`, `semantic_focus`, `promote_readme`, `compress_evidence`, `build_answer_plan`, `render_llm_prompt`.
-  - **Admin surface** (`client/admin.rs`, new) — `get_stats`, `get_status`, `get_logs`, `get_indexing_progress`, `force_save_collection`, `list_empty_collections`, `cleanup_empty_collections`, `get_config`, `update_config`, `list_backups`, `create_backup`, `restore_backup`, `restart_server`, `list_workspaces`, `get_workspace_config`, `add_workspace`, `remove_workspace`.
-  - **Auth surface** (`client/auth.rs`, new) — `me`, `logout`, `refresh_token`, `validate_password`, `create_api_key`, `list_api_keys`, `revoke_api_key`, `create_user`, `list_users`, `delete_user`, `change_password`.
-  - **Replication surface** (`client/replication.rs`, new) — `get_replication_status`, `configure_replication`, `get_replication_stats`, `list_replicas`.
-  - **HiveHub surface** (`client/hub.rs`, new) — `list_user_backups`, `create_user_backup`, `restore_user_backup`, `upload_user_backup`, `get_user_backup`, `delete_user_backup`, `download_user_backup`, `get_usage_statistics`, `get_quota_info`, `validate_hub_api_key`.
-- New model types in `vectorizer_sdk::models`: `VectorPage`, `UpdateVectorRequest`, `BatchInsertItem`, `BatchInsertReport`, `VectorUpdate`, `BatchUpdateReport`, `RawVectorInsert`, `BatchSearchQuery` (extended), `SearchByFileRequest`, `BroadDiscoveryRequest`, `BroadDiscoveryResponse`, `SemanticFocusRequest`, `SemanticFocusResponse`, `PromoteReadmeRequest`, `PromoteReadmeResponse`, `CompressEvidenceRequest`, `CompressEvidenceResponse`, `AnswerPlanRequest`, `AnswerPlan`, `RenderPromptRequest`, `LlmPrompt`, `Stats`, `ServerStatus`, `LogsQuery`, `LogEntry`, `CleanupReport`, `ConfigSnapshot`, `ConfigPatch`, `BackupInfo`, `CreateBackupRequest`, `RestoreBackupRequest`, `WorkspaceConfig`, `AddWorkspaceRequest`, `User`, `JwtToken`, `PasswordPolicyReport`, `CreateApiKeyRequest`, `ApiKey`, `CreateUserRequest`, `ReplicationStatus`, `ReplicationConfig`, `ReplicaInfo`, `ReplicationStats`, `UserBackup`, `CreateUserBackupRequest`, `RestoreUserBackupRequest`, `UploadUserBackupRequest`, `UsageStatistics`, `QuotaInfo`, `HubApiKeyValidation`.
-
-## [3.3.0] - 2026-05-02
-
-### Added
-
-- **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorizerClient`:
-  - `delete_vector(collection, vector_id) -> Result<()>` calling `DELETE /collections/{c}/vectors/{id}`.
-  - `delete_vectors(collection, ids) -> Result<DeleteReport>` calling `POST /batch_delete` with per-id status in `results`.
-  - `move_to_collection(src, dst, ids) -> Result<MoveReport>` calling `POST /collections/{src}/vectors/move`. Server invariant: dst-insert-before-src-delete; a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id outcomes (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populate `MoveReport.results` without aborting the batch.
-- New report types under `vectorizer_sdk::models`: `DeleteReport`, `MoveReport`, `VectorOpResult`.
+- Inline `#[cfg(test)]` round-trip tests covering all new wire shapes (13 new tests for phase15).
+- 22 inline `#[cfg(test)]` unit tests covering request shape construction and response decoding for all domain groups (phase16).
 
 ## [3.2.0] - 2026-05-01
 

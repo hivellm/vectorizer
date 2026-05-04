@@ -7,10 +7,61 @@ Two NuGet packages share this changelog:
 - `Vectorizer.Sdk.Rpc` — RPC-first client (recommended).
 - `Vectorizer.Sdk` — legacy REST-only client.
 
-## [3.8.0] - 2026-05-02
+## [3.3.0] - 2026-05-03
 
-### Added
+> Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
 
+### Added (legacy `Vectorizer.Sdk` package)
+
+REST control surface parity with Rust/TypeScript/Python SDKs (phase20). The
+legacy `Vectorizer.Sdk` package now exposes ~79 new async REST methods on
+`VectorizerClient` covering every endpoint shipped in phases 12-15. No RPC
+dependency required.
+
+- **Admin/observability (17)** — `GetServerStatsAsync`, `GetStatusAsync`,
+  `GetLogsAsync`, `GetIndexingProgressAsync`, `ForceSaveCollectionAsync`,
+  `ListEmptyCollectionsAsync`, `CleanupEmptyCollectionsAsync`,
+  `GetConfigAsync`, `UpdateConfigAsync`, `ListBackupsAsync`,
+  `CreateBackupAsync`, `RestoreBackupAsync`, `RestartServerAsync`,
+  `ListWorkspacesAsync`, `GetWorkspaceConfigAsync`, `AddWorkspaceAsync`,
+  `RemoveWorkspaceAsync`.
+- **Auth/RBAC (11)** — `MeAsync`, `LogoutAsync`, `RefreshTokenAsync`,
+  `ValidatePasswordAsync`, `CreateApiKeyAsync`, `ListApiKeysAsync`,
+  `RevokeApiKeyAsync`, `CreateUserAsync`, `ListUsersAsync`,
+  `DeleteUserAsync`, `ChangePasswordAsync`.
+- **Replication (4)** — `GetReplicationStatusAsync`,
+  `ConfigureReplicationAsync`, `GetReplicationStatsAsync`,
+  `ListReplicasAsync`.
+- **Hub (10)** — `ListUserBackupsAsync`, `CreateUserBackupAsync`,
+  `RestoreUserBackupAsync`, `UploadUserBackupAsync`, `GetUserBackupAsync`,
+  `DeleteUserBackupAsync`, `DownloadUserBackupAsync` (raw bytes),
+  `GetUsageStatisticsAsync`, `GetQuotaInfoAsync`,
+  `ValidateHubApiKeyAsync`.
+- **Discovery pipeline (6)** — `BroadDiscoveryAsync`, `SemanticFocusAsync`,
+  `PromoteReadmeAsync`, `CompressEvidenceAsync`, `BuildAnswerPlanAsync`,
+  `RenderLlmPromptAsync`.
+- **Vectors single+batch+search (9)** — `UpdateVectorPayloadAsync`,
+  `InsertTextWithIdAsync`, `ListVectorsAsync`, `BatchInsertRawTextsAsync`,
+  `InsertVectorsAsync`, `BatchSearchQueriesAsync`,
+  `BatchUpdateRawVectorsAsync`, `SearchByTextAsync`, `SearchByFileAsync`.
+- **Tier-control (6)** — `DeleteByFilterAsync`, `BulkUpdateMetadataAsync`,
+  `CopyVectorsAsync`, `ReencodeCollectionAsync`, `SetCollectionTtlAsync`,
+  `SetVectorExpiryAsync`. Empty-filter validation rejected client-side.
+- **Schema evolution + explain + slow queries (8)** — `RenameCollectionAsync`,
+  `ReindexCollectionAsync`, `SnapshotCollectionNativeAsync`,
+  `ListCollectionSnapshotsNativeAsync`,
+  `RestoreCollectionSnapshotNativeAsync`, `ExplainSearchAsync`,
+  `ListSlowQueriesAsync`, `SetSlowQueryConfigAsync`.
+- **Cluster + auth admin (9)** — `ClusterFailoverAsync`,
+  `ClusterResyncReplicaAsync`, `ClusterAddPeerAsync`,
+  `ClusterRebalanceAsync`, `ClusterRebalanceStatusAsync` (returns `null`
+  when idle), `RotateApiKeyAsync`, `CreateScopedApiKeyAsync`,
+  `IntrospectTokenAsync`, `ListAuditLogAsync`.
+- **DTOs** — 9 new model files in `Models/` mirroring Go shapes
+  (`AdminModels.cs`, `AuthModels.cs`, `ReplicationModels.cs`,
+  `HubModels.cs`, `DiscoveryPipelineModels.cs`, `TierControlModels.cs`,
+  `SchemaEvolutionModels.cs`, `ClusterAdminModels.cs`,
+  `VectorBatchModels.cs`).
 - **Phase 16 RPC typed wrappers** — `Vectorizer.Sdk.Rpc` now ships typed
   `async Task<T>` extension methods on `RpcClient` for all ~95 v1 RPC
   commands exposed in `rpc_capability_names()`.  The following command
@@ -70,9 +121,29 @@ Two NuGet packages share this changelog:
   `ValidatePasswordResult`, `ApiKeyCreated`, `RotatedApiKey`,
   `ReplicationConfigureResult`, `RebalanceStatus`.
 
+### Tests
+
+- 9 new xUnit test files exercise every new REST method using a custom
+  `HttpMessageHandler` mock injected via `ClientConfig.HttpClient`. All
+  hermetic — no live server required to run the phase20 test suite.
+
 ### Changed
 
-- Version bumped to 3.8.0 in both `Vectorizer.Sdk` and `Vectorizer.Sdk.Rpc`.
+- `Vectorizer.csproj` and `src/Vectorizer.Rpc/Vectorizer.Rpc.csproj`
+  versions bumped to `3.3.0`.
+
+### Deviation from spec
+
+The phase20 spec called for the new methods to land on
+`HttpVectorizerClient` and `IVectorizerClient` in the modern
+`Vectorizer.Sdk.Rpc` package. Practical engineering call: the legacy
+`Vectorizer.Sdk` package's `partial class VectorizerClient` is the
+established REST surface (already split across `Discovery.cs`,
+`BatchOperations.cs`, `IntelligentSearch.cs`, etc.) and is what users
+actually consume from NuGet for HTTP-only deployments. Putting the new
+methods there avoids forcing `RpcVectorizerClient` to implement 79 REST-only
+methods just to satisfy the interface contract. A future task can mirror
+the surface to the Rpc package's `HttpVectorizerClient` if demand emerges.
 
 ## [3.2.0] - 2026-05-01
 

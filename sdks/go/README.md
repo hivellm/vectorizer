@@ -6,7 +6,7 @@
 High-performance Go SDK for Vectorizer vector database.
 
 **Package**: `github.com/hivellm/vectorizer-sdk-go`
-**Version**: 3.2.0
+**Version**: 3.3.0
 
 ## v3.2 — backpressure-aware HTTP client (HTTP 429 + `Retry-After`)
 
@@ -91,6 +91,52 @@ A runnable end-to-end demo lives at
 | Bare host:port (RPC) | `rpc.Connect(ctx, "host:15503", ...)` |
 | Legacy REST | `vectorizer.NewClient(&vectorizer.Config{BaseURL: "http://host:15002"})` |
 
+## v3.3 — REST control surface parity
+
+The Go SDK now exposes ~79 new REST methods covering the full phase12-15
+control surface (admin, auth, replication, hub backups+usage, discovery
+pipeline, vectors single+batch+search, tier-control, schema evolution,
+cluster admin). No RPC dependency. One method per server endpoint.
+
+```go
+client := vectorizer.NewClient(&vectorizer.Config{
+    BaseURL: "http://localhost:15002",
+    APIKey:  apiKey,
+})
+
+// Admin / observability
+stats, _ := client.GetServerStats()
+progress, _ := client.GetIndexingProgress()
+
+// Auth + RBAC
+me, _ := client.Me()
+key, _ := client.CreateApiKey(&vectorizer.CreateApiKeyRequest{Name: "ci"})
+
+// Hub backups
+backups, _ := client.ListUserBackups("user-42")
+raw, _ := client.DownloadUserBackup("user-42", backups[0].ID)
+
+// Discovery pipeline
+chunks, _ := client.BroadDiscovery(&vectorizer.BroadDiscoveryRequest{
+    Queries: []string{"hnsw indexing", "vector quantization"},
+})
+
+// Tier control (rejects empty filter client-side)
+report, _ := client.DeleteByFilter("logs", map[string]interface{}{
+    "older_than": "2026-01-01",
+})
+
+// Schema evolution
+job, _ := client.ReindexCollection("docs", &vectorizer.ReindexParams{
+    M: 16, EfConstruction: 200, EfSearch: 64,
+})
+explain, _ := client.ExplainSearch("docs", queryVec, 10)
+
+// Cluster admin
+_, _ = client.ClusterFailover("replica-2")
+rotated, _ := client.RotateApiKey(key.ID)
+```
+
 ## Features
 
 - ✅ **VectorizerRPC** (default in v3.x): binary, low-latency, multiplexed
@@ -128,7 +174,7 @@ A runnable end-to-end demo lives at
 go get github.com/hivellm/vectorizer-sdk-go
 
 # Or specific version
-go get github.com/hivellm/vectorizer-sdk-go@v3.2.0
+go get github.com/hivellm/vectorizer-sdk-go@v3.3.0
 ```
 
 ## Quick Start
@@ -644,6 +690,144 @@ if err != nil {
         fmt.Printf("Unexpected error: %v\n", err)
     }
     return
+}
+```
+
+## v3.3 — REST control surface parity
+
+REST methods for every endpoint shipped in phases 12-15, covering admin,
+auth, replication, hub backups, discovery pipeline, vectors variants,
+tier-control, schema evolution, and cluster administration.
+
+### Admin Operations
+
+```go
+// Get server statistics
+stats, err := client.GetServerStats(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Server stats: %+v\n", stats)
+
+// List backups
+backups, err := client.ListBackups(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Found %d backups\n", len(backups))
+```
+
+### Authentication & RBAC
+
+```go
+// Get current user info
+user, err := client.Me(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Logged in as: %s\n", user.Email)
+
+// Create API key
+apiKey, err := client.CreateApiKey(ctx, &CreateApiKeyRequest{
+    Name:        "my-api-key",
+    Description: "For integrations",
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("API Key: %s\n", apiKey.Key)
+```
+
+### Replication
+
+```go
+// Get replication status
+status, err := client.GetReplicationStatus(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Replication: %+v\n", status)
+```
+
+### Hub Backups & Usage
+
+```go
+// List user backups
+backups, err := client.ListUserBackups(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("User backups: %d\n", len(backups))
+
+// Get usage statistics
+usage, err := client.GetUsageStatistics(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Storage used: %d bytes\n", usage.StorageUsedBytes)
+```
+
+### Discovery Pipeline
+
+```go
+// Broad discovery across collections
+result, err := client.BroadDiscovery(ctx, &BroadDiscoveryRequest{
+    Query:        "machine learning",
+    MaxResults:   10,
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Found %d results\n", len(result.Results))
+```
+
+### Tier Control
+
+```go
+// Delete vectors by filter
+report, err := client.DeleteByFilter(ctx, "my_collection", &DeleteFilterRequest{
+    Filter: map[string]interface{}{
+        "age": map[string]interface{}{"lt": 30},
+    },
+})
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Deleted: %d vectors\n", report.DeletedCount)
+```
+
+### Schema Evolution
+
+```go
+// Rename collection
+err := client.RenameCollection(ctx, "old_name", "new_name")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println("Collection renamed")
+
+// Explain search query
+explain, err := client.ExplainSearch(ctx, "my_collection", "machine learning")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Query plan: %+v\n", explain)
+```
+
+### Cluster Administration
+
+```go
+// Initiate cluster failover
+report, err := client.ClusterFailover(ctx, "replica-1")
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Failover status: %s\n", report.Status)
+
+// Get rebalance status (returns nil when idle)
+status, err := client.ClusterRebalanceStatus(ctx)
+if status != nil {
+    fmt.Printf("Rebalancing: %+v\n", status)
 }
 ```
 

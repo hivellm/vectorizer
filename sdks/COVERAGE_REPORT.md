@@ -2,7 +2,7 @@
 
 This document provides a comprehensive overview of test coverage for the TypeScript, Python, Rust, Go, and C# client SDKs. The standalone JavaScript SDK was retired in v3.0.0 — the TypeScript SDK ships compiled JS and covers that surface.
 
-**Current Version**: v3.2.0
+**Current Version**: v3.3.0
 
 ## v3.2.0 — backpressure / Retry-After lock-in tests
 
