@@ -25,11 +25,11 @@
 
 ## 5. Playwright e2e
 
-- [ ] 5.1 Add `dashboard/e2e/api-keys-csrf.spec.ts` — login, create API key, assert it appears in the table, verify `usage_count` / `usage_24h` cells, rotate, delete
-- [ ] 5.2 Add `dashboard/e2e/users-csrf.spec.ts` — create user, change password, delete; verify CSRF header on every mutation
-- [ ] 5.3 Add `dashboard/e2e/backups-create-restore.spec.ts` — create backup, list, restore. Gate behind a `BACKUPS_AVAILABLE` env var so CI servers without backup config don't run it
-- [ ] 5.4 Add `dashboard/e2e/configuration-save.spec.ts` — open config page, save a known-safe edit, verify 200 + persistence
-- [ ] 5.5 Add `dashboard/e2e/session-expired.spec.ts` — manually expire JWT, navigate to a protected page, assert redirect to login
+- [x] 5.1 Add `dashboard/e2e/api-keys-csrf.spec.ts` — login, create API key, assert it appears in the table, verify `usage_count` / `usage_24h` cells, rotate, delete
+- [x] 5.2 Add `dashboard/e2e/users-csrf.spec.ts` — create user, change password, delete; verify CSRF header on every mutation
+- [x] 5.3 Add `dashboard/e2e/backups-create-restore.spec.ts` — create backup, list, restore. Gate behind a `BACKUPS_AVAILABLE` env var so CI servers without backup config don't run it
+- [x] 5.4 Add `dashboard/e2e/configuration-save.spec.ts` — open config page, save a known-safe edit, verify 200 + persistence
+- [x] 5.5 Add `dashboard/e2e/session-expired.spec.ts` — manually expire JWT, navigate to a protected page, assert redirect to login
 
 ## 6. Drop SPARK synthetic generators (depends on phase25)
 
@@ -42,8 +42,8 @@
 
 ## 7. Drop hardcoded server identity strings
 
-- [ ] 7.1 Replace `vectorizer 3.0.0` literal in `OverviewPage.tsx:188` with `GET /status.version`
-- [ ] 7.2 Replace bind address literal `127.0.0.1:15002 (REST) · /mcp (StreamableHTTP)` with the live config from `GET /config` (or a new `/config/network` projection if the full config is too sensitive)
+- [x] 7.1 Replace `vectorizer 3.0.0` literal in `OverviewPage.tsx:188` with `GET /status.version`
+- [x] 7.2 Replace bind address literal `127.0.0.1:15002 (REST) · /mcp (StreamableHTTP)` with the live config from `GET /config` (or a new `/config/network` projection if the full config is too sensitive)
 
 ## 8. Tail (mandatory — enforced by rulebook v5.3.0)
 

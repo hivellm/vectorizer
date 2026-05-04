@@ -110,6 +110,9 @@ importers:
       '@playwright/test':
         specifier: ^1.59.1
         version: 1.59.1
+      '@rolldown/binding-win32-x64-msvc':
+        specifier: 1.0.0-rc.18
+        version: 1.0.0-rc.18
       '@tailwindcss/vite':
         specifier: ^4.2.4
         version: 4.2.4(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1))
@@ -723,6 +726,12 @@ packages:
 
   '@rolldown/binding-win32-x64-msvc@1.0.0-rc.17':
     resolution: {integrity: sha512-3hkiolcUAvPB9FLb3UZdfjVVNWherN1f/skkGWJP/fgSQhYUZpSIRr0/I8ZK9TkF3F7kxvJAk0+IcKvPHk9qQg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [win32]
+
+  '@rolldown/binding-win32-x64-msvc@1.0.0-rc.18':
+    resolution: {integrity: sha512-7H+3yqGgmnlDTRRhw/xpYY9J1kf4GC681nVc4GqKhExZTDrVVrV2tsOR9kso0fvgBdcTCcQShx4SLLoHgaLwhg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
@@ -3252,6 +3261,8 @@ snapshots:
 
   '@rolldown/binding-win32-x64-msvc@1.0.0-rc.17':
     optional: true
+
+  '@rolldown/binding-win32-x64-msvc@1.0.0-rc.18': {}
 
   '@rolldown/pluginutils@1.0.0-rc.17': {}
 

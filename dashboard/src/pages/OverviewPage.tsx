@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useCollections } from '@/hooks/useCollections';
 import { useMetrics } from '@/hooks/useMetrics';
 import { useStats } from '@/hooks/useStats';
+import { useStatus } from '@/hooks/useStatus';
 import { useEvents } from '@/hooks/useEvents';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
@@ -44,6 +45,7 @@ function OverviewPage() {
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
   const { metrics } = useMetrics();
   const { stats } = useStats();
+  const { status: serverStatus } = useStatus();
   const events = useEvents();
   const ref = useRef<NodeJS.Timeout | null>(null);
 
@@ -185,8 +187,12 @@ function OverviewPage() {
             </div>
             <div className="divider" />
             <KeyValue>
-              <KeyValueRow term="Server binary">vectorizer 3.0.0</KeyValueRow>
-              <KeyValueRow term="Bind">127.0.0.1:15002 (REST) · /mcp (StreamableHTTP)</KeyValueRow>
+              <KeyValueRow term="Server binary">
+                {`vectorizer ${serverStatus.version || '—'}`}
+              </KeyValueRow>
+              <KeyValueRow term="Bind">
+                {`${window.location.origin} (REST)`}
+              </KeyValueRow>
               <KeyValueRow term="Workspace">{`${list.length} collections`}</KeyValueRow>
             </KeyValue>
           </CardBody>
