@@ -32,7 +32,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-export type WsTopic = 'runtime' | 'status';
+export type WsTopic = 'runtime' | 'status' | 'collections' | 'logs';
 
 interface TopicStore<T> {
   /** Latest snapshot received for this topic. `null` until the first frame. */

@@ -55,6 +55,11 @@ pub enum Topic {
     Runtime,
     /// 5 s server status snapshot (online / version / uptime / collections_count).
     Status,
+    /// 30 s collections snapshot + immediate pushes on create /
+    /// delete / rename (phase30).
+    Collections,
+    /// Per-line log tail of the active log file (phase30).
+    Logs,
 }
 
 impl Topic {
@@ -62,6 +67,8 @@ impl Topic {
         match event {
             DashboardEvent::Runtime(_) => Self::Runtime,
             DashboardEvent::Status(_) => Self::Status,
+            DashboardEvent::Collections(_) => Self::Collections,
+            DashboardEvent::Log(_) => Self::Logs,
         }
     }
 }
@@ -299,5 +306,79 @@ mod tests {
         let json = serde_json::to_string(&ServerFrame::Event(&ev)).unwrap();
         assert!(json.contains("\"topic\":\"runtime\""));
         assert!(json.contains("\"cpu_percent\":12.5"));
+    }
+
+    #[test]
+    fn topic_collections_round_trips_via_json() {
+        let json = serde_json::to_string(&Topic::Collections).unwrap();
+        assert_eq!(json, "\"collections\"");
+        let back: Topic = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, Topic::Collections);
+    }
+
+    #[test]
+    fn topic_logs_round_trips_via_json() {
+        let json = serde_json::to_string(&Topic::Logs).unwrap();
+        assert_eq!(json, "\"logs\"");
+        let back: Topic = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, Topic::Logs);
+    }
+
+    #[test]
+    fn topic_of_event_maps_collections() {
+        let snap = crate::server::runtime_metrics::CollectionsSnapshot::default();
+        let ev = DashboardEvent::Collections(snap);
+        assert_eq!(Topic::of(&ev), Topic::Collections);
+    }
+
+    #[test]
+    fn topic_of_event_maps_logs() {
+        let entry = crate::server::runtime_metrics::LogEntry::default();
+        let ev = DashboardEvent::Log(entry);
+        assert_eq!(Topic::of(&ev), Topic::Logs);
+    }
+
+    #[test]
+    fn collections_event_frame_carries_topic_and_data() {
+        let snap = crate::server::runtime_metrics::CollectionsSnapshot {
+            collections: vec![crate::server::runtime_metrics::CollectionSummary {
+                name: "docs".to_string(),
+                vector_count: 42,
+                dimension: 384,
+            }],
+        };
+        let ev = DashboardEvent::Collections(snap);
+        let json = serde_json::to_string(&ServerFrame::Event(&ev)).unwrap();
+        assert!(json.contains("\"topic\":\"collections\""));
+        assert!(json.contains("\"name\":\"docs\""));
+        assert!(json.contains("\"vector_count\":42"));
+        assert!(json.contains("\"dimension\":384"));
+    }
+
+    #[test]
+    fn log_event_frame_carries_topic_and_data() {
+        let entry = crate::server::runtime_metrics::LogEntry {
+            timestamp: "2026-05-04T10:00:00Z".to_string(),
+            level: "INFO".to_string(),
+            message: "hello".to_string(),
+            source: "vectorizer".to_string(),
+        };
+        let ev = DashboardEvent::Log(entry);
+        let json = serde_json::to_string(&ServerFrame::Event(&ev)).unwrap();
+        assert!(json.contains("\"topic\":\"logs\""));
+        assert!(json.contains("\"level\":\"INFO\""));
+        assert!(json.contains("\"message\":\"hello\""));
+    }
+
+    #[test]
+    fn client_subscribe_to_collections_and_logs_parses() {
+        let raw = r#"{"op":"subscribe","topics":["collections","logs"]}"#;
+        let f: ClientFrame = serde_json::from_str(raw).unwrap();
+        match f {
+            ClientFrame::Subscribe { topics } => {
+                assert_eq!(topics, vec![Topic::Collections, Topic::Logs]);
+            }
+            other => panic!("expected Subscribe, got {other:?}"),
+        }
     }
 }

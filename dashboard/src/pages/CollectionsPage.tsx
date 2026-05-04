@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
+import { useWsTopic } from '@/providers/WsDashboardProvider';
 import LoadingState from '@/components/LoadingState';
 import {
   Icons,
@@ -15,10 +16,13 @@ import {
 import { formatNumber } from '@/utils/formatters';
 import type { Collection } from '@/hooks/useCollections';
 
+interface CollectionsSnapshot {
+  collections: Array<{ name: string; vector_count: number; dimension: number }>;
+}
+
 function CollectionsPage() {
   const { listCollections } = useCollections();
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
-  const ref = useRef<NodeJS.Timeout | null>(null);
   const [filter, setFilter] = useState('');
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
@@ -39,14 +43,22 @@ function CollectionsPage() {
     }
   };
 
+  // Phase30 — initial paint via REST (one-shot), live updates via the
+  // WS `collections` topic. The snapshot only carries name /
+  // vector_count / dimension; we refetch the full payload from
+  // `/collections` when the snapshot changes so the rich detail panel
+  // keeps its existing data shape.
   useEffect(() => {
     fetchCollections();
-    ref.current = setInterval(fetchCollections, 30000);
-    return () => {
-      if (ref.current) clearInterval(ref.current);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const wsSnap = useWsTopic<CollectionsSnapshot>('collections');
+  useEffect(() => {
+    if (!wsSnap) return;
+    fetchCollections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsSnap]);
 
   const list = Array.isArray(collections) ? collections : [];
   const filtered = filter

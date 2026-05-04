@@ -24,6 +24,17 @@ pub enum DashboardEvent {
     Runtime(RuntimeSnapshot),
     /// 5 s server status snapshot — same shape as `GET /status`.
     Status(StatusSnapshot),
+    /// 30 s collections snapshot (phase30) — also pushed immediately on
+    /// create / delete / rename so the dashboard table reflects
+    /// mutations without waiting for the next tick.
+    Collections(CollectionsSnapshot),
+    /// One log entry per new line tailed from the active log file
+    /// (phase30). Admin-only — the WS upgrade route already runs
+    /// behind the admin gate so subscribers are filtered before they
+    /// reach this bus. Renamed to `logs` on the wire so the topic
+    /// frame matches `Topic::Logs`.
+    #[serde(rename = "logs")]
+    Log(LogEntry),
 }
 
 /// `GET /status` payload, shared by the REST handler and the WS
@@ -38,6 +49,66 @@ pub struct StatusSnapshot {
     pub uptime_seconds: u64,
     /// Number of collections currently registered in the store.
     pub collections_count: usize,
+}
+
+/// Slim per-collection summary carried on the WS `collections` topic
+/// (phase30). Just enough for the dashboard table without re-shipping
+/// the full `GET /collections/{name}` metadata payload.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct CollectionSummary {
+    /// Collection name (unique within the store).
+    pub name: String,
+    /// Number of vectors currently in the collection.
+    pub vector_count: usize,
+    /// Embedding dimension.
+    pub dimension: usize,
+}
+
+/// Build a `CollectionsSnapshot` from the live store. Shared by the
+/// 30 s tick task in `bootstrap.rs` and the collection-mutation hooks
+/// in `rest_handlers/collections.rs` so both surfaces emit the same
+/// shape. Names are sorted alphabetically to match the REST list
+/// ordering. Collections that fail `get_collection` (e.g. a rename
+/// race) are skipped silently.
+pub fn build_collections_snapshot(store: &vectorizer::VectorStore) -> CollectionsSnapshot {
+    let mut names = store.list_collections();
+    names.sort();
+    let mut collections = Vec::with_capacity(names.len());
+    for name in names {
+        if let Ok(coll) = store.get_collection(&name) {
+            collections.push(CollectionSummary {
+                name: name.clone(),
+                vector_count: coll.vector_count(),
+                dimension: coll.config().dimension,
+            });
+        }
+    }
+    CollectionsSnapshot { collections }
+}
+
+/// Snapshot frame for `Topic::Collections`.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct CollectionsSnapshot {
+    /// All collections visible to the (admin) subscriber, sorted by
+    /// name to match the REST response shape.
+    pub collections: Vec<CollectionSummary>,
+}
+
+/// Single log line tailed from the active log file (phase30). Mirrors
+/// the row shape the `GET /logs` REST handler emits so the dashboard
+/// can use the same renderer for both paths.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct LogEntry {
+    /// RFC-3339 timestamp (UTC) at the moment the line was tailed.
+    pub timestamp: String,
+    /// Best-effort level extracted from the line: `ERROR`, `WARN`,
+    /// `INFO`, `DEBUG`. Falls back to `INFO` when the line has no
+    /// recognisable marker.
+    pub level: String,
+    /// The raw log line.
+    pub message: String,
+    /// Origin tag — always `"vectorizer"` for now (phase30).
+    pub source: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -375,6 +446,162 @@ impl RuntimeSampler {
 }
 
 // ---------------------------------------------------------------------------
+// LogTailer
+// ---------------------------------------------------------------------------
+
+/// Tails the active log file (resolved via [`crate::logging::get_logs_dir`])
+/// and yields one [`LogEntry`] per new line. The tailer polls — typically
+/// every 500 ms — instead of using filesystem watchers so it works
+/// uniformly on every OS the server runs on (Linux, macOS, Windows,
+/// Docker overlayfs).
+///
+/// State across polls:
+///
+/// - `current_path`: the most-recently-tailed file. The tailer
+///   re-resolves the active file on every poll, so when the daily log
+///   rotation creates `vectorizer-<NEW_DATE>.log` it follows the new
+///   file without restart.
+/// - `offset`: byte offset within `current_path` from which the next
+///   poll resumes reading.
+/// - `partial`: a tail-end byte sequence that didn't yet end in `\n`.
+///   Held over so we never emit a truncated line.
+///
+/// On rotation (current path changes), `offset` and `partial` reset to
+/// 0 / empty so the new file is read from the start.
+#[derive(Debug, Default)]
+pub struct LogTailer {
+    current_path: Option<std::path::PathBuf>,
+    offset: u64,
+    partial: String,
+}
+
+impl LogTailer {
+    /// Drain any new lines from the active log file and return them as
+    /// `LogEntry` values. Returns an empty `Vec` when the logs
+    /// directory is empty or unreadable.
+    pub fn poll(&mut self) -> Vec<LogEntry> {
+        let active = match resolve_active_log_file() {
+            Some(p) => p,
+            None => return Vec::new(),
+        };
+        self.poll_path(&active)
+    }
+
+    /// Drain any new lines from the given file path. Test seam — the
+    /// production [`poll`](Self::poll) call resolves the active file
+    /// via [`crate::logging::get_logs_dir`] then forwards here.
+    pub fn poll_path(&mut self, active: &std::path::Path) -> Vec<LogEntry> {
+        // Rotation: drop accumulated state and read the new file from
+        // the top.
+        if self.current_path.as_deref() != Some(active) {
+            self.current_path = Some(active.to_path_buf());
+            self.offset = 0;
+            self.partial.clear();
+        }
+
+        let metadata = match std::fs::metadata(active) {
+            Ok(m) => m,
+            Err(_) => return Vec::new(),
+        };
+        let file_len = metadata.len();
+
+        // Truncation (or unexpected shrink): re-read from the top.
+        if file_len < self.offset {
+            self.offset = 0;
+            self.partial.clear();
+        }
+        if file_len == self.offset {
+            return Vec::new();
+        }
+
+        let new_bytes = match read_range(active, self.offset, file_len) {
+            Ok(b) => b,
+            Err(_) => return Vec::new(),
+        };
+        self.offset = file_len;
+
+        let text = String::from_utf8_lossy(&new_bytes);
+        let mut buf = std::mem::take(&mut self.partial);
+        buf.push_str(&text);
+
+        let mut out = Vec::new();
+        let mut start = 0usize;
+        let bytes = buf.as_bytes();
+        for (i, &b) in bytes.iter().enumerate() {
+            if b == b'\n' {
+                let line = &buf[start..i];
+                let trimmed = line.trim_end_matches('\r');
+                if !trimmed.trim().is_empty() {
+                    out.push(parse_log_line(trimmed));
+                }
+                start = i + 1;
+            }
+        }
+        // Anything past the last `\n` is partial — keep it for the
+        // next poll so split lines never produce truncated frames.
+        self.partial = buf[start..].to_string();
+        out
+    }
+}
+
+/// Resolve the most-recently-modified `.log` file in the canonical logs
+/// directory. Returns `None` when the directory is missing or contains
+/// no `.log` files.
+fn resolve_active_log_file() -> Option<std::path::PathBuf> {
+    let dir = crate::logging::get_logs_dir();
+    let entries = std::fs::read_dir(&dir).ok()?;
+    let mut newest: Option<(std::time::SystemTime, std::path::PathBuf)> = None;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) != Some("log") {
+            continue;
+        }
+        let modified = entry
+            .metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .unwrap_or(std::time::UNIX_EPOCH);
+        if newest.as_ref().is_none_or(|(t, _)| modified > *t) {
+            newest = Some((modified, path));
+        }
+    }
+    newest.map(|(_, p)| p)
+}
+
+fn read_range(path: &std::path::Path, from: u64, to: u64) -> std::io::Result<Vec<u8>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = std::fs::File::open(path)?;
+    if from > 0 {
+        file.seek(SeekFrom::Start(from))?;
+    }
+    let len = to.saturating_sub(from) as usize;
+    let mut buf = vec![0u8; len];
+    file.read_exact(&mut buf)?;
+    Ok(buf)
+}
+
+fn parse_log_line(line: &str) -> LogEntry {
+    let upper = line.to_ascii_uppercase();
+    let level = if upper.contains("ERROR") {
+        "ERROR"
+    } else if upper.contains("WARN") {
+        "WARN"
+    } else if upper.contains("INFO") {
+        "INFO"
+    } else if upper.contains("DEBUG") {
+        "DEBUG"
+    } else {
+        "INFO"
+    };
+    LogEntry {
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        level: level.to_string(),
+        message: line.to_string(),
+        source: "vectorizer".to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -448,6 +675,216 @@ mod tests {
         let agg = LatencyAggregator::new();
         record_n(&agg, "/ok", 1, 20);
         assert_eq!(agg.error_rate(), 0.0);
+    }
+
+    #[test]
+    fn parse_log_line_picks_levels() {
+        use super::parse_log_line;
+        assert_eq!(parse_log_line("2026-05-04 ERROR boom").level, "ERROR");
+        assert_eq!(parse_log_line("2026-05-04 WARN hot").level, "WARN");
+        assert_eq!(parse_log_line("2026-05-04 INFO ready").level, "INFO");
+        assert_eq!(parse_log_line("2026-05-04 DEBUG trace").level, "DEBUG");
+        // Unknown markers fall back to INFO.
+        assert_eq!(parse_log_line("plain line, no level").level, "INFO");
+        // Lower-case markers count too.
+        assert_eq!(parse_log_line("2026-05-04 error nope").level, "ERROR");
+    }
+
+    #[test]
+    fn parse_log_line_preserves_message_and_source() {
+        use super::parse_log_line;
+        let line = "2026-05-04T10:00:00Z INFO server: ready on :15002";
+        let entry = parse_log_line(line);
+        assert_eq!(entry.message, line);
+        assert_eq!(entry.source, "vectorizer");
+        // `timestamp` is generated at parse time, so just check shape.
+        assert!(!entry.timestamp.is_empty());
+    }
+
+    #[test]
+    fn log_tailer_emits_one_entry_per_complete_line() {
+        use std::io::Write;
+
+        use super::LogTailer;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vectorizer-test.log");
+        std::fs::write(&path, b"2026-05-04 INFO first\n2026-05-04 ERROR second\n").unwrap();
+
+        let mut tailer = LogTailer::default();
+        let entries = tailer.poll_path(&path);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].level, "INFO");
+        assert_eq!(entries[0].message, "2026-05-04 INFO first");
+        assert_eq!(entries[1].level, "ERROR");
+        assert_eq!(entries[1].message, "2026-05-04 ERROR second");
+
+        // A second poll with no new bytes returns nothing.
+        let entries = tailer.poll_path(&path);
+        assert!(entries.is_empty());
+
+        // Append more lines — only the appended ones come back.
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
+        writeln!(f, "2026-05-04 WARN third").unwrap();
+        let entries = tailer.poll_path(&path);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].level, "WARN");
+        assert_eq!(entries[0].message, "2026-05-04 WARN third");
+    }
+
+    #[test]
+    fn log_tailer_buffers_partial_line_until_newline_arrives() {
+        use std::io::Write;
+
+        use super::LogTailer;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vectorizer-test.log");
+        std::fs::write(&path, b"2026-05-04 INFO begin").unwrap(); // no \n
+
+        let mut tailer = LogTailer::default();
+        let entries = tailer.poll_path(&path);
+        // Partial line — held back until the trailing newline arrives.
+        assert!(entries.is_empty());
+
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
+        f.write_all(b" finished\n").unwrap();
+        let entries = tailer.poll_path(&path);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].message, "2026-05-04 INFO begin finished");
+    }
+
+    #[test]
+    fn log_tailer_handles_truncation_by_rereading_from_top() {
+        use super::LogTailer;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vectorizer-test.log");
+        // Long original content so the post-truncate file is strictly
+        // shorter than the recorded offset.
+        std::fs::write(
+            &path,
+            b"2026-05-04 INFO original-long-line-that-takes-some-bytes\n",
+        )
+        .unwrap();
+        let mut tailer = LogTailer::default();
+        let _ = tailer.poll_path(&path); // primes offset
+
+        // Rewrite the file with shorter contents — simulates rotation
+        // by truncate.
+        std::fs::write(&path, b"2026-05-04 INFO fresh\n").unwrap();
+        let entries = tailer.poll_path(&path);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].message, "2026-05-04 INFO fresh");
+    }
+
+    #[test]
+    fn log_tailer_resets_on_path_rotation() {
+        use super::LogTailer;
+
+        let dir = tempfile::tempdir().unwrap();
+        let p1 = dir.path().join("vectorizer-2026-05-03.log");
+        let p2 = dir.path().join("vectorizer-2026-05-04.log");
+        std::fs::write(&p1, b"2026-05-03 INFO yesterday\n").unwrap();
+        std::fs::write(&p2, b"2026-05-04 INFO today\n").unwrap();
+
+        let mut tailer = LogTailer::default();
+        let entries = tailer.poll_path(&p1);
+        assert_eq!(entries.len(), 1);
+        // Switching path rebases the offset so the entirety of p2 is read.
+        let entries = tailer.poll_path(&p2);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].message, "2026-05-04 INFO today");
+    }
+
+    #[tokio::test]
+    async fn collections_snapshot_round_trips_through_broadcast_bus() {
+        use tokio::sync::broadcast;
+        use vectorizer::VectorStore;
+        use vectorizer::models::CollectionConfig;
+
+        use super::{DashboardEvent, build_collections_snapshot};
+
+        // Build a tiny store with one collection so the snapshot is
+        // non-empty.
+        let store = VectorStore::new();
+        let cfg = CollectionConfig {
+            dimension: 4,
+            ..CollectionConfig::default()
+        };
+        store.create_collection("docs", cfg).unwrap();
+
+        let (tx, mut rx) = broadcast::channel::<DashboardEvent>(8);
+        let snap = build_collections_snapshot(&store);
+        tx.send(DashboardEvent::Collections(snap)).unwrap();
+
+        // The receiver should see exactly the event we sent, with the
+        // expected collection summary.
+        let frame = rx.recv().await.unwrap();
+        match frame {
+            DashboardEvent::Collections(s) => {
+                assert_eq!(s.collections.len(), 1);
+                assert_eq!(s.collections[0].name, "docs");
+                assert_eq!(s.collections[0].dimension, 4);
+            }
+            other => panic!("expected Collections, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn build_collections_snapshot_sorts_alphabetically() {
+        use vectorizer::VectorStore;
+        use vectorizer::models::CollectionConfig;
+
+        use super::build_collections_snapshot;
+
+        let store = VectorStore::new();
+        let cfg = || CollectionConfig {
+            dimension: 8,
+            ..CollectionConfig::default()
+        };
+        store.create_collection("zeta", cfg()).unwrap();
+        store.create_collection("alpha", cfg()).unwrap();
+        store.create_collection("mango", cfg()).unwrap();
+
+        let snap = build_collections_snapshot(&store);
+        let names: Vec<_> = snap.collections.iter().map(|c| c.name.clone()).collect();
+        assert_eq!(names, vec!["alpha", "mango", "zeta"]);
+        // Each summary carries the configured dimension.
+        for c in &snap.collections {
+            assert_eq!(c.dimension, 8);
+            assert_eq!(c.vector_count, 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn log_event_round_trips_through_broadcast_bus() {
+        use tokio::sync::broadcast;
+
+        use super::{DashboardEvent, LogEntry};
+
+        let (tx, mut rx) = broadcast::channel::<DashboardEvent>(8);
+        let entry = LogEntry {
+            timestamp: "2026-05-04T10:00:00Z".to_string(),
+            level: "ERROR".to_string(),
+            message: "boom".to_string(),
+            source: "vectorizer".to_string(),
+        };
+        tx.send(DashboardEvent::Log(entry)).unwrap();
+
+        match rx.recv().await.unwrap() {
+            DashboardEvent::Log(e) => {
+                assert_eq!(e.level, "ERROR");
+                assert_eq!(e.message, "boom");
+            }
+            other => panic!("expected Log, got {other:?}"),
+        }
     }
 
     #[test]

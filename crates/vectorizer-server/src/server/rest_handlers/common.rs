@@ -3,7 +3,21 @@
 use uuid::Uuid;
 use vectorizer::db::{AdmissionError, AdmissionStatus, UpsertQueue, UpsertTicket};
 
+use crate::server::VectorizerServer;
 use crate::server::error_middleware::{ErrorResponse, create_queue_full_error};
+use crate::server::runtime_metrics::{DashboardEvent, build_collections_snapshot};
+
+/// Phase30 §1.4 — publish an immediate `Collections` snapshot on the
+/// dashboard broadcast bus so the dashboard table reflects a
+/// create / delete / rename without waiting for the 30 s tick. The
+/// `send` call returns an error when no subscribers are alive, which
+/// is the normal idle state — drop it on the floor.
+pub(super) fn publish_collections_snapshot(state: &VectorizerServer) {
+    let snapshot = build_collections_snapshot(&state.store);
+    let _ = state
+        .dashboard_tx
+        .send(DashboardEvent::Collections(snapshot));
+}
 
 /// Admit one in-flight upsert against the per-collection queue
 /// (issue #263). On hard-limit exceedance returns a 429 with

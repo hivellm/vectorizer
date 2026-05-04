@@ -25,7 +25,7 @@ use vectorizer::auth::middleware::AuthState;
 use vectorizer::auth::roles::Role;
 use vectorizer::hub::middleware::RequestTenantContext;
 
-use super::common::{collection_metrics_uuid, extract_tenant_id};
+use super::common::{collection_metrics_uuid, extract_tenant_id, publish_collections_snapshot};
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::ErrorResponse;
 
@@ -332,6 +332,7 @@ pub async fn create_collection(
     }
 
     info!("Collection '{}' created successfully", name);
+    publish_collections_snapshot(&state);
     Ok(Json(json!({
         "message": format!("Collection '{}' created successfully", name),
         "collection": name,
@@ -437,6 +438,7 @@ pub async fn delete_collection(
         name
     );
 
+    publish_collections_snapshot(&state);
     Ok(Json(json!({
         "message": format!("Collection '{}' deleted successfully", name)
     })))
@@ -767,6 +769,7 @@ pub async fn rename_collection(
     }
 
     info!("rename_collection '{}' → '{}'", collection_name, new_name);
+    publish_collections_snapshot(&state);
 
     Ok(Json(json!({
         "old_name": collection_name,

@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useToastContext } from '@/providers/ToastProvider';
+import { useWsTopic } from '@/providers/WsDashboardProvider';
 import {
   Icons,
   Pill,
@@ -112,18 +113,26 @@ function LogsPage() {
     }
   };
 
+  // One-shot REST fetch on mount populates the initial paint
+  // (matching the `useRuntimeMetrics` / `useStatus` pattern from
+  // phase29). Subsequent live updates arrive on the WS `logs` topic.
   useEffect(() => {
     loadLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Phase30 — append each tailed log line into the rolling view when
+  // auto-refresh is on. Cap at 1000 entries to avoid unbounded growth
+  // on long-running sessions.
+  const wsLog = useWsTopic<LogEntry>('logs');
   useEffect(() => {
-    if (autoRefresh) {
-      const interval = setInterval(loadLogs, 2000);
-      return () => clearInterval(interval);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoRefresh]);
+    if (!autoRefresh) return;
+    if (!wsLog) return;
+    setLogs((prev) => {
+      const next = prev.concat(wsLog);
+      return next.length > 1000 ? next.slice(next.length - 1000) : next;
+    });
+  }, [wsLog, autoRefresh]);
 
   useEffect(() => {
     if (autoScroll && logsEndRef.current) {

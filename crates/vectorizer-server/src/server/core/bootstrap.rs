@@ -1513,6 +1513,52 @@ impl VectorizerServer {
         }
         info!("📊 Status snapshot publisher started (phase29 §2.1)");
 
+        // Phase30 §1: 30 s collections snapshot publisher. Same idle
+        // behaviour as the status publisher — `send` is dropped on
+        // receiver-less ticks, so the publisher is a no-op while no
+        // dashboard is open. Mutation handlers publish an immediate
+        // snapshot via `state.dashboard_tx` so the UI doesn't wait
+        // for the next tick on create / delete / rename.
+        {
+            let tx = dashboard_tx.clone();
+            let store = store_arc.clone();
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(std::time::Duration::from_secs(30));
+                loop {
+                    tick.tick().await;
+                    let snapshot =
+                        crate::server::runtime_metrics::build_collections_snapshot(&store);
+                    let _ = tx.send(crate::server::runtime_metrics::DashboardEvent::Collections(
+                        snapshot,
+                    ));
+                }
+            });
+        }
+        info!("📊 Collections snapshot publisher started (phase30 §1)");
+
+        // Phase30 §2: log-file tailer publisher. Polls the active
+        // `.log` file every 500 ms, reads any bytes appended since the
+        // last poll, and emits one `Log` event per complete line.
+        // Re-resolves the active file on each poll because
+        // `init_logging_with_level` rotates per day — at midnight the
+        // tailer follows the new file without restart. A partial line
+        // (no trailing `\n`) is buffered until the next poll completes
+        // it, so a slow flush never produces a truncated frame.
+        {
+            let tx = dashboard_tx.clone();
+            tokio::spawn(async move {
+                let mut tail = crate::server::runtime_metrics::LogTailer::default();
+                let mut tick = tokio::time::interval(std::time::Duration::from_millis(500));
+                loop {
+                    tick.tick().await;
+                    for entry in tail.poll() {
+                        let _ = tx.send(crate::server::runtime_metrics::DashboardEvent::Log(entry));
+                    }
+                }
+            });
+        }
+        info!("📊 Log tailer publisher started (phase30 §2)");
+
         // VectorizerRPC binary listener — opt-in via `rpc.enabled` in
         // config.yml. The listener spawns its own background tasks per
         // accepted connection; nothing else in `Self` needs to retain a
@@ -1628,6 +1674,8 @@ impl VectorizerServer {
             })),
             // phase25: runtime metrics sampler.
             runtime_sampler,
+            // phase29 + phase30: dashboard broadcast bus sender.
+            dashboard_tx,
         })
     }
 }

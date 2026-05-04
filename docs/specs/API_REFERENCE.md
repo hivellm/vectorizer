@@ -114,29 +114,42 @@ client may subscribe / unsubscribe / ping at any time.
 
 ```jsonc
 // Client → server
-{"op": "subscribe",   "topics": ["runtime", "status"]}
+{"op": "subscribe",   "topics": ["runtime", "status", "collections", "logs"]}
 {"op": "unsubscribe", "topics": ["status"]}
 {"op": "ping"}
 
 // Server → client
-{"topic": "runtime", "data": {...RuntimeMetrics shape}}
-{"topic": "status",  "data": {online, version, uptime_seconds, collections_count}}
+{"topic": "runtime",     "data": {...RuntimeMetrics shape}}
+{"topic": "status",      "data": {online, version, uptime_seconds, collections_count}}
+{"topic": "collections", "data": {collections: [{name, vector_count, dimension}, ...]}}
+{"topic": "logs",        "data": {timestamp, level, message, source}}
 {"op": "pong"}
 {"op": "error", "code": "stream_lag" | "bad_frame"}
 ```
 
-Topic catalogue (this task — phase29):
+Topic catalogue:
 
-| Topic     | Cadence | Payload shape                                       |
-|-----------|---------|-----------------------------------------------------|
-| `runtime` | 1 Hz    | identical to `GET /metrics/runtime` response        |
-| `status`  | 5 s     | identical to `GET /status` response                 |
+| Topic         | Cadence                                       | Payload shape                                                          | Phase |
+|---------------|-----------------------------------------------|------------------------------------------------------------------------|-------|
+| `runtime`     | 1 Hz                                          | identical to `GET /metrics/runtime` response                           | 29    |
+| `status`      | 5 s                                           | identical to `GET /status` response                                    | 29    |
+| `collections` | 30 s + immediate push on create/delete/rename | slim summary list `[{name, vector_count, dimension}, …]`               | 30    |
+| `logs`        | per new log line (~500 ms poll)               | one entry `{timestamp, level, message, source}` per server-side line   | 30    |
 
-Phase30 adds `collections` (30 s + on-mutation push) and `logs`
-(per-line tail). Slow consumers — clients that fall more than ~17
-minutes of 1 Hz runtime ticks behind the broadcast channel — receive
-`{"op":"error","code":"stream_lag"}` and the socket is closed; the
-dashboard reconnects with exponential backoff (250 ms → 5 s).
+Notes on the phase30 topics:
+
+- The `collections` topic carries a slim summary, not the full
+  `GET /collections/{name}` metadata. Dashboards that need richer
+  per-collection details refetch the REST endpoint when the snapshot
+  changes (this is the `OverviewPage` / `CollectionsPage` pattern).
+- The `logs` topic streams one frame per line tailed from the active
+  log file (rotated daily). It is admin-gated by virtue of the
+  `/ws/dashboard` upgrade route already running behind the admin
+  middleware — there is no per-topic ACL.
+- Slow consumers — clients that fall more than ~17 minutes of 1 Hz
+  runtime ticks behind the broadcast channel — receive
+  `{"op":"error","code":"stream_lag"}` and the socket is closed; the
+  dashboard reconnects with exponential backoff (250 ms → 5 s).
 
 ### Health & Status
 

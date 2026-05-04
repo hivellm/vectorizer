@@ -141,6 +141,13 @@ pub struct VectorizerServer {
     /// Runtime metrics sampler (phase25): CPU, memory, connections, QPS,
     /// per-route latency. Wraps a 1-second background tick task.
     pub runtime_sampler: Arc<runtime_metrics::RuntimeSampler>,
+    /// Dashboard broadcast bus sender (phase29 + phase30). Held here so
+    /// collection-mutation handlers can publish an immediate
+    /// `Collections` snapshot on create / delete / rename without
+    /// waiting for the 30 s tick. `send` returns an error when there
+    /// are no live receivers, which is the normal idle state — every
+    /// caller drops it on the floor.
+    pub dashboard_tx: tokio::sync::broadcast::Sender<runtime_metrics::DashboardEvent>,
 }
 
 /// Configuration for root user credentials.

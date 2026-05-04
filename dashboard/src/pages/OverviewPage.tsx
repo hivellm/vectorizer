@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useCollections } from '@/hooks/useCollections';
+import { useWsTopic } from '@/providers/WsDashboardProvider';
 import { useMetrics } from '@/hooks/useMetrics';
 import { useStats } from '@/hooks/useStats';
 import { useStatus } from '@/hooks/useStatus';
@@ -43,7 +44,6 @@ function OverviewPage() {
   const { status: serverStatus } = useStatus();
   const events = useEvents();
   const { metrics: runtimeMetrics, loading: runtimeLoading, error: runtimeError } = useRuntimeMetrics();
-  const ref = useRef<NodeJS.Timeout | null>(null);
 
   const fetchCollections = async () => {
     setLoading(true);
@@ -62,14 +62,21 @@ function OverviewPage() {
     }
   };
 
+  // Phase30 — initial paint via REST one-shot, then refetch on every
+  // WS `collections` snapshot. The slim snapshot is just a trigger;
+  // the rich `Collection[]` shape the overview rendering wants comes
+  // from `GET /collections` as before.
   useEffect(() => {
     fetchCollections();
-    ref.current = setInterval(fetchCollections, 30000);
-    return () => {
-      if (ref.current) clearInterval(ref.current);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const wsSnap = useWsTopic<{ collections: unknown[] }>('collections');
+  useEffect(() => {
+    if (!wsSnap) return;
+    fetchCollections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsSnap]);
 
   if (loading && !collections.length) return <LoadingState message="Loading dashboard..." />;
 

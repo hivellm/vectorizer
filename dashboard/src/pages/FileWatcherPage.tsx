@@ -17,6 +17,7 @@
 import { useEffect, useState } from 'react';
 import { useFileWatcher, FileWatcherStatus, FileWatcherMetrics } from '@/hooks/useFileWatcher';
 import { useToastContext } from '@/providers/ToastProvider';
+import { useWsTopic } from '@/providers/WsDashboardProvider';
 import { formatNumber } from '@/utils/formatters';
 import {
   Icons,
@@ -94,12 +95,22 @@ function FileWatcherPage() {
     }
   };
 
+  // Phase30 — initial paint on mount; subsequent refreshes are
+  // driven by the WS `status` topic (5 s server-side cadence — same
+  // as the previous `setInterval(loadData, 5000)`). When the server
+  // is offline the topic stops ticking and the UI naturally shows the
+  // last-known snapshot until reconnect, instead of hammering REST.
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const statusTick = useWsTopic<{ uptime_seconds: number }>('status');
+  useEffect(() => {
+    if (!statusTick) return;
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusTick]);
 
   const handleStart = async () => {
     try {
