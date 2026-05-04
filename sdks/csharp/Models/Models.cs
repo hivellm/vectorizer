@@ -100,7 +100,12 @@ public class DatabaseStats
 }
 
 /// <summary>
-/// Collection information
+/// Collection information.
+///
+/// Phase25 §6 added <see cref="VectorCountHistory"/>: a per-collection
+/// ring buffer of (unix_ts, count) samples surfaced by
+/// GET /collections/{name}. Empty list on older servers or for
+/// collections that have never been read.
 /// </summary>
 public class CollectionInfo
 {
@@ -108,6 +113,9 @@ public class CollectionInfo
     public int VectorCount { get; set; }
     public int Dimension { get; set; }
     public string Metric { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("vector_count_history")]
+    public List<VectorCountSample> VectorCountHistory { get; set; } = new();
 }
 
 /// <summary>

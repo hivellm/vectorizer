@@ -51,6 +51,21 @@ public partial class VectorizerClient
     }
 
     /// <summary>
+    /// Returns the dashboard runtime snapshot (phase25): CPU, memory,
+    /// active connections, rolling 60-second QPS, per-route p50/p99,
+    /// 5xx error rate, and the WAL state. Requires admin auth on the
+    /// server. Older servers without phase25 §4 may return zero-valued
+    /// defaults instead of a populated payload.
+    ///
+    /// Calls GET /metrics/runtime.
+    /// </summary>
+    public async Task<RuntimeMetrics> GetRuntimeMetricsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await RequestAsync<RuntimeMetrics>("GET", "/metrics/runtime", null, cancellationToken);
+    }
+
+    /// <summary>
     /// Returns recent log entries (GET /logs).
     /// </summary>
     /// <param name="lines">Maximum number of lines to return; 0 means server default.</param>

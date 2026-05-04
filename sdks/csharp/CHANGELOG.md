@@ -7,6 +7,28 @@ Two NuGet packages share this changelog:
 - `Vectorizer.Sdk.Rpc` — RPC-first client (recommended).
 - `Vectorizer.Sdk` — legacy REST-only client.
 
+## [Unreleased]
+
+### Added
+
+- **Phase25 dashboard metrics endpoints.**
+  - `VectorizerClient.GetRuntimeMetricsAsync()` calling
+    `GET /metrics/runtime` with new typed models `RuntimeMetrics`,
+    `RouteStats`, `WalSnapshot` (in `Models/AdminModels.cs`). Older
+    servers without phase25 §4 may return zero-valued defaults
+    instead of a populated payload — every property has a sensible
+    initialiser so callers see an empty list / zero numbers rather
+    than null.
+  - `Stats` grows `DefaultQuantization` (default `"none"`) and
+    `CompressionRatio` (default `1.0f`) so older servers without
+    phase25 §5 keep deserialising without runtime errors.
+  - `CollectionInfo` grows `VectorCountHistory: List<VectorCountSample>`
+    surfacing the per-collection ring buffer added by phase25 §6.
+  - 7 new xUnit tests in `Vectorizer.Tests/RuntimeMetricsTests.cs`
+    cover the `/metrics/runtime` route + decode, full + partial
+    payloads, the new `Stats` quantization fields, and
+    `vector_count_history` JSON round-trip.
+
 ## [3.3.0] - 2026-05-03
 
 > Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.

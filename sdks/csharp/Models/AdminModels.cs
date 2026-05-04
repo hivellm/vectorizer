@@ -4,6 +4,10 @@ namespace Vectorizer.Models;
 
 /// <summary>
 /// Aggregate server statistics returned by GET /stats.
+///
+/// Phase25 §5 added <see cref="DefaultQuantization"/> and
+/// <see cref="CompressionRatio"/>. Older servers without phase25 §5
+/// leave these at their default ("none", 1.0f).
 /// </summary>
 public class Stats
 {
@@ -18,6 +22,100 @@ public class Stats
 
     [JsonPropertyName("version")]
     public string Version { get; set; } = string.Empty;
+
+    [JsonPropertyName("default_quantization")]
+    public string DefaultQuantization { get; set; } = "none";
+
+    [JsonPropertyName("compression_ratio")]
+    public float CompressionRatio { get; set; } = 1.0f;
+}
+
+/// <summary>
+/// One sample in <see cref="CollectionInfo.VectorCountHistory"/>
+/// (phase25 §6). Sampled at most once per minute on the read path.
+/// </summary>
+public class VectorCountSample
+{
+    [JsonPropertyName("at")]
+    public long At { get; set; }
+
+    [JsonPropertyName("count")]
+    public int Count { get; set; }
+}
+
+/// <summary>
+/// Per-route latency / throughput inside <see cref="RuntimeMetrics"/>.
+/// </summary>
+public class RouteStats
+{
+    [JsonPropertyName("route")]
+    public string Route { get; set; } = string.Empty;
+
+    [JsonPropertyName("qps")]
+    public double Qps { get; set; }
+
+    [JsonPropertyName("p50_ms")]
+    public double P50Ms { get; set; }
+
+    [JsonPropertyName("p99_ms")]
+    public double P99Ms { get; set; }
+}
+
+/// <summary>
+/// WAL state surfaced inside <see cref="RuntimeMetrics"/> (phase25 §3).
+/// All fields are zero on standalone servers without replication.
+/// </summary>
+public class WalSnapshot
+{
+    [JsonPropertyName("current_seq")]
+    public ulong CurrentSeq { get; set; }
+
+    [JsonPropertyName("size_bytes")]
+    public ulong SizeBytes { get; set; }
+
+    [JsonPropertyName("last_checkpoint_at")]
+    public ulong LastCheckpointAt { get; set; }
+
+    [JsonPropertyName("last_checkpoint_seq")]
+    public ulong LastCheckpointSeq { get; set; }
+}
+
+/// <summary>
+/// Runtime metrics snapshot returned by GET /metrics/runtime
+/// (phase25). Older servers without phase25 §4 may return zero-valued
+/// defaults instead of a populated payload.
+/// </summary>
+public class RuntimeMetrics
+{
+    [JsonPropertyName("cpu_percent")]
+    public double CpuPercent { get; set; }
+
+    [JsonPropertyName("memory_rss_bytes")]
+    public ulong MemoryRssBytes { get; set; }
+
+    [JsonPropertyName("memory_total_bytes")]
+    public ulong MemoryTotalBytes { get; set; }
+
+    [JsonPropertyName("memory_percent")]
+    public double MemoryPercent { get; set; }
+
+    [JsonPropertyName("active_connections")]
+    public int ActiveConnections { get; set; }
+
+    [JsonPropertyName("uptime_seconds")]
+    public ulong UptimeSeconds { get; set; }
+
+    [JsonPropertyName("qps_window_60s")]
+    public double QpsWindow60s { get; set; }
+
+    [JsonPropertyName("error_rate_5xx_60s")]
+    public double ErrorRate5xx60s { get; set; }
+
+    [JsonPropertyName("throughput_by_route")]
+    public List<RouteStats> ThroughputByRoute { get; set; } = new();
+
+    [JsonPropertyName("wal")]
+    public WalSnapshot Wal { get; set; } = new();
 }
 
 /// <summary>

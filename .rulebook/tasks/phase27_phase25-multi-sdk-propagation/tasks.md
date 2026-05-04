@@ -25,14 +25,14 @@
 
 ## 4. C# SDK
 
-- [ ] 4.1 Mirror the Rust models with `JsonPropertyName` / nullable defaults under `sdks/dotnet/`
-- [ ] 4.2 Extend `Stats` + `CollectionInfo`
-- [ ] 4.3 Add `GetRuntimeMetricsAsync()` client method
-- [ ] 4.4 xUnit / NUnit coverage for full + partial payloads
-- [ ] 4.5 `[Unreleased]` CHANGELOG entry
+- [x] 4.1 New types in `sdks/csharp/Models/AdminModels.cs`: `RuntimeMetrics`, `RouteStats`, `WalSnapshot`, `VectorCountSample`. Each has `JsonPropertyName` for the snake_case wire fields and sensible default initialisers (`new()` for collections, `0` for numbers) so older / partial payloads decode cleanly
+- [x] 4.2 `Stats` grows `DefaultQuantization` (default `"none"`) + `CompressionRatio` (default `1.0f`); `CollectionInfo` grows `VectorCountHistory: List<VectorCountSample>` (default `new()`)
+- [x] 4.3 `VectorizerClient.GetRuntimeMetricsAsync()` shipped in `sdks/csharp/Admin.cs` calling `GET /metrics/runtime`
+- [x] 4.4 7 new xUnit tests in `Vectorizer.Tests/RuntimeMetricsTests.cs` cover the route + decode, full + partial payloads, the new `Stats` quantization fields, and `vector_count_history` JSON round-trip; `dotnet test` 194/194 pass (4 pre-existing skips)
+- [x] 4.5 `sdks/csharp/CHANGELOG.md` `[Unreleased]` block documents the additions
 
 ## 5. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 5.1 Update or create documentation covering the implementation
-- [ ] 5.2 Write tests covering the new behavior
-- [ ] 5.3 Run tests and confirm they pass
+- [x] 5.1 Update or create documentation covering the implementation — each SDK gets an `[Unreleased]` CHANGELOG block and inline doc comments on the new types / method (`RuntimeMetrics`, `RouteStats`, `WalSnapshot`, `VectorCountSample`, `getRuntimeMetrics()`)
+- [x] 5.2 Write tests covering the new behavior — TS 7 (`tests/runtime-metrics.test.ts`), Python 8 (`tests/test_runtime_metrics.py`), Go 7 (`runtime_metrics_test.go`), C# 7 (`Vectorizer.Tests/RuntimeMetricsTests.cs`); each batch covers the route + full snapshot decode, partial payloads, the new `Stats` quantization fields, and `vector_count_history` round-trip
+- [x] 5.3 Run tests and confirm they pass — TS 515/527 (12 pre-existing skips), Python 8/8, Go green via `go test ./...`, C# 194/194 (4 pre-existing skips). All four SDK builds (`pnpm build`, no Python build step, `go build ./...`, `dotnet build`) clean
