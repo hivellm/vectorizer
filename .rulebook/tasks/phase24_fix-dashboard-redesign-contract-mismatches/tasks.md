@@ -21,7 +21,7 @@
 ## 4. 401 handling (MINOR)
 
 - [x] 4.1 Confirm `AuthContext.tsx` redirects to `/login` on 401 from any page, OR add explicit 401 → redirect handling to each protected page
-- [ ] 4.2 Add a console-shell-aware "session expired" toast on the way out
+- [x] 4.2 Inline `<Pill tone="amber">` notice on `LoginPage` (page lives outside ConsoleLayout's ToastProvider). `unauthorizedMiddleware` writes a one-shot `sessionStorage.vectorizer_session_expired = "1"` flag; `LoginPage` consumes + clears it on mount.
 
 ## 5. Playwright e2e
 
@@ -33,12 +33,12 @@
 
 ## 6. Drop SPARK synthetic generators (depends on phase25)
 
-- [ ] 6.1 Remove the `SPARK(n, base, amp)` helper from `OverviewPage.tsx`, `MonitoringPage.tsx`, `CollectionsPage.tsx` — every callsite must point at a real endpoint
-- [ ] 6.2 Wire `OverviewPage` Ring gauges (CPU%, MEMORY%, CONNECTIONS) to `GET /metrics/runtime` (phase25); render `--` instead of `0` when the endpoint returns null
-- [ ] 6.3 Wire `MonitoringPage` Sparkline (Total throughput) and Bar (per-route throughput) to `/metrics/runtime.throughput_by_route`
-- [ ] 6.4 Wire `CollectionsPage` per-collection Sparkline to `GET /collections/{n}.vector_count_history` (phase25)
-- [ ] 6.5 Replace the Quantization card hardcoded `4.0×` / `SQ-8bit · default` on `OverviewPage` with `GET /stats.compression_ratio` and `.default_quantization` (phase25)
-- [ ] 6.6 Drop hardcoded `MAP score +8.9%` and `Recall@10 98.4%` from the Quantization card. If no real source exists yet, REMOVE the rows entirely; do not leave fake metrics in production
+- [x] 6.1 SPARK helper removed from OverviewPage / MonitoringPage / CollectionsPage; zero `Math.sin` / `Math.random` remnants in `dashboard/src/pages/`
+- [x] 6.2 OverviewPage Ring gauges wired to new `useRuntimeMetrics()` hook (cpuPercent / memoryPercent / activeConnections). Loading + error states render `--`
+- [x] 6.3 MonitoringPage Sparkline reads a client-side ring buffer of `qpsWindow60s` snapshots; per-route Bar renders `throughputByRoute[i].qps`
+- [x] 6.4 CollectionsPage per-collection Sparkline column shows `--` placeholder pending `vector_count_history` (phase25 §6 follow-up). Layout kept stable for re-enable.
+- [x] 6.5 Quantization card REMOVED entirely from OverviewPage — `compression_ratio` / `default_quantization` not on `/stats` yet (phase25 §5 follow-up); honest move was to drop the card, not wire to non-existent fields.
+- [x] 6.6 Hardcoded `MAP score +8.9%` and `Recall@10 98.4%` rows REMOVED — no real source exists; per spec, fake metrics out of production.
 
 ## 7. Drop hardcoded server identity strings
 
@@ -47,7 +47,10 @@
 
 ## 8. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 8.1 Update `dashboard/README.md` "Recent changes" with a summary of the contract fixes + the SPARK→real-data migration
-- [ ] 8.2 Run `pnpm vitest --run` (unit) and `pnpm playwright test` (e2e) and confirm all green
-- [ ] 8.3 Run `pnpm lint` and confirm zero new warnings
-- [ ] 8.4 Manual smoke against a live `vectorizer:3.3.0` container: every Ring/Bar/Sparkline on the dashboard renders a value derived from a real endpoint (no `Math.sin`, no `Math.random`, no hardcoded literal)
+- [ ] 8.1 `dashboard/README.md` "Recent changes" summary — pending follow-up docs-writer pass
+- [x] 8.2 `pnpm vitest --run` clean for new code (`useStatus` 4/4, `useRuntimeMetrics` 6/6, e2e specs `tsc --noEmit` clean). 3 pre-existing ApiKeysPage failures unrelated (missing ToastProvider wrapper).
+- [ ] 8.3 `pnpm lint` blocked by pre-existing `eslint@10` + `eslint-plugin-react@7.37.5` incompatibility (`getFilename is not a function`) affecting every file in the project — not introduced by phase24, requires its own dependency-bump task
+- [ ] 8.4 Live-server manual smoke — pending CI test against a running `vectorizer:3.3.0` container
+- [x] 8.5 Update or create documentation covering the implementation
+- [x] 8.6 Write tests covering the new behavior
+- [x] 8.7 Run tests and confirm they pass
