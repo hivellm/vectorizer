@@ -1,14 +1,17 @@
 /**
- * Input component - UntitledUI style
+ * Input component — console design language.
+ *
+ * Public API preserved from the previous (Tailwind) implementation:
+ *   { label, error, helperText, ...InputHTMLAttributes }
  */
 
-import { forwardRef, InputHTMLAttributes, useId } from 'react';
-import { cn } from '@/utils/cn';
+import { forwardRef, useId } from 'react';
+import type { InputHTMLAttributes, ReactNode } from 'react';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  helperText?: string;
+  label?: ReactNode;
+  error?: ReactNode;
+  helperText?: ReactNode;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -16,44 +19,34 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const generatedId = useId();
     const inputId = id || generatedId;
 
-    return (
-      <div className="w-full">
-        {label && (
-          <label
-            htmlFor={inputId}
-            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5"
-          >
-            {label}
-            {props.required && <span className="text-red-500 ml-1">*</span>}
-          </label>
-        )}
-        <input
-          ref={ref}
-          id={inputId}
-          className={cn(
-            'w-full px-3 py-2 text-sm',
-            'border rounded-lg',
-            'bg-white dark:bg-neutral-900',
-            'text-neutral-900 dark:text-white',
-            'border-neutral-300 dark:border-neutral-800',
-            'placeholder:text-neutral-400 dark:placeholder:text-neutral-500',
-            'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
-            error && 'border-red-500 dark:border-red-500 focus:ring-red-500',
-            className
+    const cls = ['input', error ? 'input-error' : '', className ?? '']
+      .filter(Boolean)
+      .join(' ');
+
+    if (label || error || helperText) {
+      return (
+        <div className="field" style={{ width: '100%' }}>
+          {label && (
+            <label className="field-label" htmlFor={inputId}>
+              {label}
+              {props.required && (
+                <span style={{ color: 'var(--red)', marginLeft: 4 }}>*</span>
+              )}
+            </label>
           )}
-          {...props}
-        />
-        {error && (
-          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{error}</p>
-        )}
-        {helperText && !error && (
-          <p className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400">{helperText}</p>
-        )}
-      </div>
-    );
+          <input ref={ref} id={inputId} className={cls} {...props} />
+          {error && (
+            <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{error}</div>
+          )}
+          {helperText && !error && (
+            <div style={{ fontSize: 11, color: 'var(--text-2)', marginTop: 4 }}>{helperText}</div>
+          )}
+        </div>
+      );
+    }
+
+    return <input ref={ref} id={inputId} className={cls} {...props} />;
   }
 );
 
 Input.displayName = 'Input';
-

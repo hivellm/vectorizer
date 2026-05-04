@@ -19,8 +19,7 @@ describe('LoadingState', () => {
 
   it('should render spinner', () => {
     const { container } = render(<LoadingState />);
-    const spinner = container.querySelector('svg');
+    const spinner = container.querySelector('.spinner');
     expect(spinner).toBeInTheDocument();
   });
 });
-

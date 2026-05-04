@@ -1,20 +1,28 @@
 /**
- * Loading state component with message - Dark mode support
+ * Loading state component with message — console design language.
  */
-
-import LoadingSpinner from './LoadingSpinner';
 
 interface LoadingStateProps {
   message?: string;
+  /** Retained for back-compat; the console spinner has a fixed size. */
   size?: 'sm' | 'md' | 'lg';
 }
 
-function LoadingState({ message = 'Loading...', size = 'md' }: LoadingStateProps) {
+function LoadingState({ message = 'Loading...' }: LoadingStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-8">
-      <LoadingSpinner size={size} />
+    <div
+      style={{
+        display: 'grid',
+        placeItems: 'center',
+        minHeight: '60vh',
+        gap: 12,
+      }}
+    >
+      <div className="spinner" aria-hidden />
       {message && (
-        <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-400">{message}</p>
+        <div className="muted" style={{ fontSize: 13 }}>
+          {message}
+        </div>
       )}
     </div>
   );

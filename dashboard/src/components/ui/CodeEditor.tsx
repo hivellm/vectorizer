@@ -1,6 +1,9 @@
 /**
- * Monaco Code Editor component with lazy loading
- * Install with: npm install @monaco-editor/react monaco-editor
+ * Monaco Code Editor — console design language.
+ *
+ * Public API preserved. Monaco's mount logic (lazy import, fallback
+ * textarea) is untouched; only the wrapper styling is moved from
+ * Tailwind utilities to console palette tokens.
  */
 
 import { lazy, Suspense, useState, useEffect } from 'react';
@@ -19,6 +22,23 @@ interface CodeEditorProps {
   options?: Record<string, unknown>;
 }
 
+const wrapperStyle: React.CSSProperties = {
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
+  overflow: 'hidden',
+  background: 'var(--bg-2)',
+};
+
+const placeholderStyle = (height: string): React.CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 13,
+  color: 'var(--text-2)',
+  background: 'var(--bg-2)',
+  height,
+});
+
 // Fallback textarea component
 function TextareaEditor({
   value,
@@ -32,22 +52,30 @@ function TextareaEditor({
   readOnly: boolean;
 }) {
   return (
-    <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden bg-white dark:bg-neutral-900">
-      <div className="relative">
-        <textarea
-          value={value}
-          onChange={(e) => onChange?.(e.target.value)}
-          readOnly={readOnly}
-          className="w-full p-4 font-mono text-sm leading-relaxed bg-transparent text-neutral-900 dark:text-neutral-100 border-none outline-none resize-none"
-          style={{ 
-            height, 
-            minHeight: height,
-            tabSize: 2,
-          }}
-          spellCheck={false}
-          wrap="off"
-        />
-      </div>
+    <div style={wrapperStyle}>
+      <textarea
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        readOnly={readOnly}
+        style={{
+          width: '100%',
+          padding: 16,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 13,
+          lineHeight: 1.5,
+          background: 'transparent',
+          color: 'var(--text)',
+          border: 'none',
+          outline: 'none',
+          resize: 'none',
+          height,
+          minHeight: height,
+          tabSize: 2,
+          boxSizing: 'border-box',
+        }}
+        spellCheck={false}
+        wrap="off"
+      />
     </div>
   );
 }
@@ -64,7 +92,7 @@ export default function CodeEditor({
   const { theme: appTheme } = useTheme();
   const [useMonaco, setUseMonaco] = useState(false);
   const [monacoError, setMonacoError] = useState(false);
-  
+
   useEffect(() => {
     // Try to load Monaco Editor
     import('@monaco-editor/react')
@@ -72,7 +100,9 @@ export default function CodeEditor({
       .catch(() => setMonacoError(true));
   }, []);
 
-  const editorTheme = theme || (appTheme === 'dark' ? 'vs-dark' : 'light');
+  // Console design is dark-first; fall back to vs-dark unless an
+  // explicit override or the app theme indicates light.
+  const editorTheme = theme || (appTheme === 'light' ? 'light' : 'vs-dark');
 
   const defaultOptions = {
     readOnly,
@@ -92,16 +122,16 @@ export default function CodeEditor({
 
   // Use Monaco if available, otherwise fallback to textarea
   if (monacoError || !useMonaco) {
-    return <TextareaEditor value={value} onChange={onChange} height={height} readOnly={readOnly} />;
+    return (
+      <TextareaEditor value={value} onChange={onChange} height={height} readOnly={readOnly} />
+    );
   }
 
   return (
-    <div className="border border-neutral-200 dark:border-neutral-800 rounded-lg overflow-hidden">
-      <Suspense fallback={
-        <div className="flex items-center justify-center h-full text-sm text-neutral-500 dark:text-neutral-400" style={{ height }}>
-          Loading editor...
-        </div>
-      }>
+    <div style={wrapperStyle}>
+      <Suspense
+        fallback={<div style={placeholderStyle(height)}>Loading editor...</div>}
+      >
         <MonacoEditor
           height={height}
           language={language}
@@ -109,7 +139,7 @@ export default function CodeEditor({
           onChange={onChange}
           theme={editorTheme}
           options={defaultOptions}
-          loading={<div className="flex items-center justify-center h-full text-sm text-neutral-500 dark:text-neutral-400">Loading editor...</div>}
+          loading={<div style={placeholderStyle(height)}>Loading editor...</div>}
         />
       </Suspense>
     </div>

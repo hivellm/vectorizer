@@ -1,6 +1,10 @@
 /**
- * Dropdown component based on Untitled UI
- * Uses React Aria Components
+ * Dropdown component — console design language.
+ *
+ * Public API preserved (`<Dropdown>`, `<DropdownItem>`, `<DropdownSection>`,
+ * `<DropdownSeparator>`); we still use `react-aria-components` for
+ * accessibility, but every Tailwind class is replaced with inline
+ * styles or console.css classes (`.btn`).
  */
 
 import * as React from 'react';
@@ -14,9 +18,16 @@ import {
   Section,
   Header as AriaHeader,
 } from 'react-aria-components';
-// ChevronDown icon - using SVG inline since it might not be available
-const ChevronDownIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+const ChevronDownIcon = ({ size = 14 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    aria-hidden
+  >
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
@@ -26,7 +37,15 @@ interface DropdownProps {
   label?: string;
   icon?: React.ReactNode;
   variant?: 'button' | 'icon' | 'avatar';
-  placement?: 'top' | 'bottom' | 'left' | 'right' | 'top start' | 'top end' | 'bottom start' | 'bottom end';
+  placement?:
+    | 'top'
+    | 'bottom'
+    | 'left'
+    | 'right'
+    | 'top start'
+    | 'top end'
+    | 'bottom start'
+    | 'bottom end';
 }
 
 interface DropdownItemProps {
@@ -43,59 +62,90 @@ interface DropdownSectionProps {
   title?: string;
 }
 
-const DropdownContext = React.createContext<{
-  variant?: 'button' | 'icon' | 'avatar';
-}>({});
+const popoverStyle: React.CSSProperties = {
+  outline: 'none',
+  zIndex: 50,
+};
 
-export function Dropdown({ children, label, icon, variant = 'button', placement = 'bottom start' }: DropdownProps) {
+const menuStyle: React.CSSProperties = {
+  minWidth: 200,
+  background: 'var(--panel-hi)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
+  boxShadow: 'var(--shadow-lg)',
+  padding: 4,
+};
+
+const itemBaseStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '6px 10px',
+  borderRadius: 4,
+  fontSize: 13,
+  color: 'var(--text-1)',
+  cursor: 'pointer',
+  outline: 'none',
+};
+
+const iconBtnStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 6,
+  background: 'transparent',
+  border: '1px solid transparent',
+  borderRadius: 6,
+  color: 'var(--text-2)',
+  cursor: 'pointer',
+};
+
+export function Dropdown({
+  children,
+  label,
+  icon,
+  variant = 'button',
+  placement = 'bottom start',
+}: DropdownProps) {
   const triggerContent = () => {
-    if (variant === 'icon' && icon) {
-      return icon;
-    }
-    if (variant === 'avatar' && icon) {
+    if ((variant === 'icon' || variant === 'avatar') && icon) {
       return icon;
     }
     return (
       <>
         {label}
-        <ChevronDownIcon className="w-4 h-4 ml-2" />
+        <ChevronDownIcon />
       </>
     );
   };
 
   return (
-    <DropdownContext.Provider value={{ variant }}>
-      <MenuTrigger>
-        <AriaButton
-          className={`
-            inline-flex items-center justify-center font-medium rounded-lg transition-colors
-            focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-neutral-900
-            ${variant === 'button'
-              ? 'px-4 py-2 text-sm bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-50 dark:hover:bg-neutral-800 focus:ring-neutral-500'
-              : variant === 'icon'
-              ? 'p-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 focus:ring-neutral-500 rounded-md'
-              : 'p-2 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 focus:ring-neutral-500 rounded-md'
-            }
-          `}
-        >
-          {triggerContent()}
-        </AriaButton>
-        <Popover
-          placement={placement}
-          className="outline-none z-50"
-        >
-          <Menu
-            className="min-w-[200px] bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg p-1"
-          >
-            {children}
-          </Menu>
-        </Popover>
-      </MenuTrigger>
-    </DropdownContext.Provider>
+    <MenuTrigger>
+      <AriaButton
+        className={variant === 'button' ? 'btn' : undefined}
+        style={
+          variant === 'button'
+            ? { display: 'inline-flex', alignItems: 'center', gap: 8 }
+            : iconBtnStyle
+        }
+      >
+        {triggerContent()}
+      </AriaButton>
+      <Popover placement={placement} style={popoverStyle}>
+        <Menu style={menuStyle}>{children}</Menu>
+      </Popover>
+    </MenuTrigger>
   );
 }
 
-export function DropdownItem({ id, children, icon, addon, isDisabled, onAction }: DropdownItemProps) {
+export function DropdownItem({
+  id,
+  children,
+  icon,
+  addon,
+  isDisabled,
+  onAction,
+}: DropdownItemProps) {
   return (
     <MenuItem
       id={id}
@@ -105,19 +155,22 @@ export function DropdownItem({ id, children, icon, addon, isDisabled, onAction }
           onAction();
         }
       }}
-      className={`
-        flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium
-        text-neutral-700 dark:text-neutral-300
-        cursor-pointer
-        hover:bg-neutral-100 dark:hover:bg-neutral-800
-        focus:bg-neutral-100 dark:focus:bg-neutral-800
-        disabled:opacity-50 disabled:cursor-not-allowed
-        outline-none
-      `}
+      style={({ isFocused, isDisabled: di }) => ({
+        ...itemBaseStyle,
+        background: isFocused ? 'var(--bg-3)' : 'transparent',
+        opacity: di ? 0.5 : 1,
+        cursor: di ? 'not-allowed' : 'pointer',
+      })}
     >
-      {icon && <span className="w-4 h-4 flex items-center justify-center">{icon}</span>}
-      <span className="flex-1">{children}</span>
-      {addon && <span className="text-xs text-neutral-500 dark:text-neutral-400">{addon}</span>}
+      {icon && (
+        <span
+          style={{ width: 16, height: 16, display: 'inline-flex', alignItems: 'center' }}
+        >
+          {icon}
+        </span>
+      )}
+      <span style={{ flex: 1 }}>{children}</span>
+      {addon && <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{addon}</span>}
     </MenuItem>
   );
 }
@@ -126,7 +179,16 @@ export function DropdownSection({ children, title }: DropdownSectionProps) {
   return (
     <Section>
       {title && (
-        <AriaHeader className="px-3 py-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+        <AriaHeader
+          style={{
+            padding: '6px 10px',
+            fontSize: 10,
+            fontWeight: 600,
+            color: 'var(--text-2)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+          }}
+        >
           {title}
         </AriaHeader>
       )}
@@ -137,7 +199,14 @@ export function DropdownSection({ children, title }: DropdownSectionProps) {
 
 export function DropdownSeparator() {
   return (
-    <Separator className="h-px bg-neutral-200 dark:bg-neutral-700 my-1" />
+    <Separator
+      style={{
+        height: 1,
+        background: 'var(--border)',
+        margin: '4px 0',
+        border: 0,
+      }}
+    />
   );
 }
 
@@ -145,4 +214,3 @@ export function DropdownSeparator() {
 Dropdown.Item = DropdownItem;
 Dropdown.Section = DropdownSection;
 Dropdown.Separator = DropdownSeparator;
-

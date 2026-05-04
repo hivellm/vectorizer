@@ -26,23 +26,20 @@ describe('Modal', () => {
     expect(screen.queryByText('Modal content')).not.toBeInTheDocument();
   });
 
-  it('should call onClose when backdrop is clicked', async () => {
+  it('should call onClose when overlay is clicked', async () => {
     const handleClose = vi.fn();
     const user = userEvent.setup();
-    
-    const { container } = render(
+
+    render(
       <Modal isOpen={true} onClose={handleClose}>
         <p>Modal content</p>
       </Modal>
     );
-    
-    // Click on backdrop (first div with fixed inset-0)
-    const backdrop = container.querySelector('.fixed.inset-0.bg-black\\/50');
-    if (backdrop) {
-      await user.click(backdrop as HTMLElement);
-      // Both backdrop and outer container call onClose, so it's called at least once
-      expect(handleClose).toHaveBeenCalled();
-    }
+
+    // The overlay carries role="dialog" in the console design.
+    const overlay = screen.getByRole('dialog');
+    await user.click(overlay);
+    expect(handleClose).toHaveBeenCalled();
   });
 
   it('should render modal with title', () => {
@@ -63,4 +60,3 @@ describe('Modal', () => {
     expect(screen.getByText('Save')).toBeInTheDocument();
   });
 });
-

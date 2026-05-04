@@ -9,6 +9,8 @@ export { Kpi } from './primitives/Kpi';
 export { Bar } from './primitives/Bar';
 export { Tbl, Tr, Th, Td } from './primitives/Tbl';
 export { KeyValue, KeyValueRow } from './primitives/KeyValue';
+export { Modal } from './primitives/Modal';
+export { Field } from './primitives/Field';
 export { useTick } from './hooks/useTick';
 export { ConsoleLayout } from './ConsoleLayout';
 export { ConsoleSidebar } from './ConsoleSidebar';

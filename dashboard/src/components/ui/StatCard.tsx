@@ -1,8 +1,12 @@
 /**
- * Stat Card component for displaying statistics - Dark mode support
+ * Stat Card component — console design language.
+ *
+ * Public API preserved: `{ title, value, subtitle, trend, icon }`. The
+ * markup uses the same styling tokens as the console `Kpi` primitive
+ * (`var(--panel)`, `var(--border)`, `var(--text)`, `var(--text-2)`).
  */
 
-import Card from './Card';
+import type { ReactNode } from 'react';
 
 interface StatCardProps {
   title: string;
@@ -12,35 +16,68 @@ interface StatCardProps {
     value: number;
     isPositive: boolean;
   };
-  icon?: React.ReactNode;
+  icon?: ReactNode;
 }
 
 function StatCard({ title, value, subtitle, trend, icon }: StatCardProps) {
   return (
-    <Card className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/50">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{title}</p>
-          <p className="text-2xl font-semibold text-neutral-900 dark:text-white mt-2">
-            {typeof value === 'number' ? value.toLocaleString() : value}
-          </p>
-          {subtitle && (
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">{subtitle}</p>
-          )}
-          {trend && (
-            <div className={`flex items-center mt-2 text-sm ${trend.isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-              <span>{trend.isPositive ? '↑' : '↓'}</span>
-              <span className="ml-1">{Math.abs(trend.value)}%</span>
-            </div>
-          )}
+    <div
+      style={{
+        background: 'var(--panel)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)',
+        padding: 16,
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: 'var(--text-2)',
+            letterSpacing: '0.02em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {title}
         </div>
-        {icon && (
-          <div className="flex-shrink-0 text-neutral-400 dark:text-neutral-500">
-            {icon}
+        <div
+          style={{
+            fontSize: 24,
+            fontWeight: 600,
+            color: 'var(--text)',
+            marginTop: 8,
+            fontFeatureSettings: '"tnum" 1',
+          }}
+        >
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>{subtitle}</div>
+        )}
+        {trend && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              marginTop: 8,
+              fontSize: 13,
+              color: trend.isPositive ? 'var(--teal)' : 'var(--red)',
+            }}
+          >
+            <span>{trend.isPositive ? '↑' : '↓'}</span>
+            <span>{Math.abs(trend.value)}%</span>
           </div>
         )}
       </div>
-    </Card>
+      {icon && (
+        <div style={{ flexShrink: 0, color: 'var(--text-3)' }}>{icon}</div>
+      )}
+    </div>
   );
 }
 

@@ -1,6 +1,9 @@
 /**
- * Select component based on Untitled UI
- * Uses React Aria Components
+ * Select component — console design language.
+ *
+ * Public API preserved (`<Select>` + `<SelectOption>`); we still use
+ * `react-aria-components` for accessibility, but every Tailwind class
+ * is replaced with inline styles or console.css classes.
  */
 
 import * as React from 'react';
@@ -13,9 +16,15 @@ import {
   Popover,
 } from 'react-aria-components';
 
-// ChevronDown icon
-const ChevronDownIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const ChevronDownIcon = ({ size = 14 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    aria-hidden
+  >
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
   </svg>
 );
@@ -38,6 +47,48 @@ interface SelectOptionProps {
   children: React.ReactNode;
 }
 
+const triggerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  width: '100%',
+  background: 'var(--bg-2)',
+  border: '1px solid var(--border)',
+  color: 'var(--text)',
+  fontSize: 13,
+  padding: '8px 12px',
+  borderRadius: 6,
+  outline: 'none',
+  textAlign: 'left',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+};
+
+const popoverStyle: React.CSSProperties = {
+  outline: 'none',
+  zIndex: 50,
+};
+
+const listBoxStyle: React.CSSProperties = {
+  minWidth: 200,
+  background: 'var(--panel-hi)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
+  boxShadow: 'var(--shadow-lg)',
+  padding: 4,
+  maxHeight: 240,
+  overflow: 'auto',
+};
+
+const itemStyle: React.CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 4,
+  fontSize: 13,
+  color: 'var(--text-1)',
+  cursor: 'pointer',
+  outline: 'none',
+};
+
 export function Select({
   label,
   value,
@@ -51,11 +102,11 @@ export function Select({
 }: SelectProps) {
   const effectiveDisabled = isDisabled || disabled;
   return (
-    <div className={`flex flex-col gap-1 ${className}`}>
+    <div className={`field ${className}`.trim()}>
       {label && (
-        <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+        <label className="field-label">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span style={{ color: 'var(--red)', marginLeft: 4 }}>*</span>}
         </label>
       )}
       <AriaSelect
@@ -67,32 +118,18 @@ export function Select({
         }}
         isDisabled={effectiveDisabled}
       >
-        <Button
-          className={`
-            w-full px-3 py-2 text-left text-sm
-            bg-white dark:bg-neutral-900
-            border border-neutral-300 dark:border-neutral-800
-            rounded-lg
-            text-neutral-900 dark:text-white
-            focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900
-            disabled:opacity-50 disabled:cursor-not-allowed
-            flex items-center justify-between
-          `}
-        >
-          <SelectValue className="text-neutral-900 dark:text-white">
-            {({ selectedText }) => selectedText || <span className="text-neutral-500 dark:text-neutral-400">{placeholder}</span>}
+        <Button style={triggerStyle}>
+          <SelectValue>
+            {({ selectedText }) =>
+              selectedText || (
+                <span style={{ color: 'var(--text-2)' }}>{placeholder}</span>
+              )
+            }
           </SelectValue>
-          <ChevronDownIcon className="w-4 h-4 text-neutral-500 dark:text-neutral-400" />
+          <ChevronDownIcon />
         </Button>
-        <Popover
-          className="outline-none z-50"
-          placement="bottom start"
-        >
-          <ListBox
-            className="min-w-[200px] bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg p-1 max-h-60 overflow-auto"
-          >
-            {children}
-          </ListBox>
+        <Popover placement="bottom start" style={popoverStyle}>
+          <ListBox style={listBoxStyle}>{children}</ListBox>
         </Popover>
       </AriaSelect>
     </div>
@@ -104,15 +141,11 @@ export function SelectOption({ id, value, children }: SelectOptionProps) {
     <ListBoxItem
       id={id}
       textValue={value}
-      className={`
-        px-3 py-2 rounded-md text-sm
-        text-neutral-700 dark:text-neutral-300
-        cursor-pointer
-        hover:bg-neutral-100 dark:hover:bg-neutral-800
-        focus:bg-neutral-100 dark:focus:bg-neutral-800
-        selected:bg-neutral-100 dark:selected:bg-neutral-800
-        outline-none
-      `}
+      style={({ isFocused, isSelected }) => ({
+        ...itemStyle,
+        background:
+          isFocused || isSelected ? 'var(--bg-3)' : 'transparent',
+      })}
     >
       {children}
     </ListBoxItem>
@@ -121,4 +154,3 @@ export function SelectOption({ id, value, children }: SelectOptionProps) {
 
 // Export as namespace for easier usage
 Select.Option = SelectOption;
-

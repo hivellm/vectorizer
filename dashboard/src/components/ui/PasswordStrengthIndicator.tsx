@@ -1,13 +1,13 @@
 /**
- * Password Strength Indicator Component
+ * Password Strength Indicator — console design language.
  *
- * Shows visual feedback on password strength with:
- * - Strength bar with color gradient
- * - Strength label
- * - Requirements checklist
+ * Public API preserved: `{ password, showRequirements?, onValidationChange? }`.
+ * The strength bar uses the console `Bar` primitive; the requirement
+ * checklist is rendered with console palette tokens (no Tailwind).
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { Bar } from '@/components/console';
 
 interface PasswordStrengthResult {
   valid: boolean;
@@ -38,6 +38,18 @@ const requirements = [
   { label: 'One number', test: (p: string) => /[0-9]/.test(p) },
 ];
 
+function strengthTone(strength: number): 'teal' | 'magenta' | 'amber' {
+  if (strength >= 60) return 'teal';
+  if (strength >= 40) return 'magenta';
+  return 'amber';
+}
+
+function strengthColor(strength: number): string {
+  if (strength >= 60) return 'var(--teal)';
+  if (strength >= 40) return 'var(--magenta)';
+  return 'var(--amber)';
+}
+
 export function PasswordStrengthIndicator({
   password,
   showRequirements = true,
@@ -45,37 +57,6 @@ export function PasswordStrengthIndicator({
 }: PasswordStrengthIndicatorProps) {
   const [result, setResult] = useState<PasswordStrengthResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Debounced validation against the API
-  const validatePassword = useCallback(async (pwd: string) => {
-    if (!pwd || pwd.length < 4) {
-      setResult(null);
-      onValidationChange?.(false);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${getApiBaseUrl()}/auth/validate-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pwd }),
-      });
-
-      if (response.ok) {
-        const data: PasswordStrengthResult = await response.json();
-        setResult(data);
-        onValidationChange?.(data.valid);
-      }
-    } catch {
-      // Fallback to client-side validation if API fails
-      const clientResult = validateClientSide(pwd);
-      setResult(clientResult);
-      onValidationChange?.(clientResult.valid);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onValidationChange]);
 
   // Client-side fallback validation
   const validateClientSide = (pwd: string): PasswordStrengthResult => {
@@ -126,6 +107,40 @@ export function PasswordStrengthIndicator({
     };
   };
 
+  // Debounced validation against the API
+  const validatePassword = useCallback(
+    async (pwd: string) => {
+      if (!pwd || pwd.length < 4) {
+        setResult(null);
+        onValidationChange?.(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/auth/validate-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd }),
+        });
+
+        if (response.ok) {
+          const data: PasswordStrengthResult = await response.json();
+          setResult(data);
+          onValidationChange?.(data.valid);
+        }
+      } catch {
+        // Fallback to client-side validation if API fails
+        const clientResult = validateClientSide(pwd);
+        setResult(clientResult);
+        onValidationChange?.(clientResult.valid);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [onValidationChange],
+  );
+
   // Debounce the API call
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -135,39 +150,33 @@ export function PasswordStrengthIndicator({
     return () => clearTimeout(timer);
   }, [password, validatePassword]);
 
-  // Get color based on strength
-  const getStrengthColor = (strength: number) => {
-    if (strength >= 80) return 'bg-green-500';
-    if (strength >= 60) return 'bg-blue-500';
-    if (strength >= 40) return 'bg-yellow-500';
-    if (strength >= 20) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
-
-  const getStrengthTextColor = (strength: number) => {
-    if (strength >= 80) return 'text-green-600 dark:text-green-400';
-    if (strength >= 60) return 'text-blue-600 dark:text-blue-400';
-    if (strength >= 40) return 'text-yellow-600 dark:text-yellow-400';
-    if (strength >= 20) return 'text-orange-600 dark:text-orange-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
   if (!password || password.length < 4) {
     return null;
   }
 
+  const strength = result?.strength ?? 0;
+
   return (
-    <div className="mt-2 space-y-2">
-      {/* Strength Bar */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className={`h-full transition-all duration-300 ${result ? getStrengthColor(result.strength) : 'bg-gray-400'}`}
-            style={{ width: `${result?.strength || 0}%` }}
+    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Strength Bar + label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <Bar
+            percent={strength}
+            tone={strengthTone(strength)}
+            ariaLabel={`Password strength: ${result?.strength_label ?? ''}`}
           />
         </div>
         {result && (
-          <span className={`text-xs font-medium ${getStrengthTextColor(result.strength)}`}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: strengthColor(result.strength),
+              minWidth: 80,
+              textAlign: 'right',
+            }}
+          >
             {isLoading ? '...' : result.strength_label}
           </span>
         )}
@@ -175,20 +184,34 @@ export function PasswordStrengthIndicator({
 
       {/* Requirements Checklist */}
       {showRequirements && (
-        <div className="grid grid-cols-2 gap-1">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 4,
+          }}
+        >
           {requirements.map((req, index) => {
             const passed = req.test(password);
             return (
               <div
                 key={index}
-                className={`flex items-center gap-1.5 text-xs ${
-                  passed
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-gray-400 dark:text-gray-500'
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 11,
+                  color: passed ? 'var(--teal)' : 'var(--text-3)',
+                }}
               >
                 {passed ? (
-                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    width={14}
+                    height={14}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden
+                  >
                     <path
                       fillRule="evenodd"
                       d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -196,7 +219,13 @@ export function PasswordStrengthIndicator({
                     />
                   </svg>
                 ) : (
-                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    width={14}
+                    height={14}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden
+                  >
                     <path
                       fillRule="evenodd"
                       d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"

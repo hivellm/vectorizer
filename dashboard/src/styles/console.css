@@ -506,6 +506,8 @@ code, kbd, pre, .mono { font-family: var(--font-mono); }
 }
 .input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-dim); }
 .input.mono { font-family: var(--font-mono); font-size: 12px; }
+.input.input-error { border-color: var(--red); }
+.input.input-error:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(229,72,77,0.18); }
 
 textarea.input { resize: vertical; min-height: 80px; }
 
@@ -766,3 +768,16 @@ body[data-console="1"] ::-webkit-scrollbar-thumb:hover { background: var(--borde
 }
 .meter .lbl { color: var(--text-2); }
 .meter .val { text-align: right; color: var(--text); font-weight: 500; }
+
+/* SPINNER */
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--bg-3);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

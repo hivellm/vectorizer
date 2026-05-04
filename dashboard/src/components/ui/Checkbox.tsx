@@ -1,51 +1,54 @@
 /**
- * Checkbox component - Custom styled checkbox
+ * Checkbox component — console design language.
+ *
+ * Public API preserved from the previous (Tailwind) implementation:
+ *   { id, checked, onChange: (b: boolean) => void, label, disabled }
  */
+
+import { useId } from 'react';
+import type { ReactNode } from 'react';
 
 interface CheckboxProps {
   id?: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label?: string;
+  checked?: boolean;
+  onChange?: (checked: boolean) => void;
+  label?: ReactNode;
   disabled?: boolean;
 }
 
-export default function Checkbox({ id, checked, onChange, label, disabled = false }: CheckboxProps) {
+function Checkbox({ id, checked, onChange, label, disabled = false }: CheckboxProps) {
+  const generatedId = useId();
+  const checkboxId = id || generatedId;
   return (
-    <label className="inline-flex items-center gap-2 cursor-pointer select-none" htmlFor={id}>
+    <label
+      htmlFor={checkboxId}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        userSelect: 'none',
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
       <input
-        id={id}
+        id={checkboxId}
         type="checkbox"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(e) => onChange?.(e.target.checked)}
         disabled={disabled}
-        className="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-800 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{
+          width: 14,
+          height: 14,
+          accentColor: 'var(--teal)',
+          margin: 0,
+        }}
       />
       {label && (
-        <span className="text-sm text-neutral-700 dark:text-neutral-300 leading-none">{label}</span>
+        <span style={{ fontSize: 13, color: 'var(--text-1)', lineHeight: 1 }}>{label}</span>
       )}
     </label>
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default Checkbox;
