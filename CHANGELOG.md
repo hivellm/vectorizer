@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Go + C# SDK parity for v3.3.0 (phase31).** Closes the four-method gap between the Go / C# SDKs and the Rust / TypeScript / Python SDKs that v3.3.0 already shipped:
+  - `UpdateApiKeyPermissions(id, request)` (Go) / `UpdateApiKeyPermissionsAsync` (C#) — `PUT /auth/keys/{id}/permissions`.
+  - `GetApiKeyUsage(id, windowDays)` (Go) / `GetApiKeyUsageAsync(id, windowDays?)` (C#) — `GET /auth/keys/{id}/usage[?window=N]`.
+  - `DeleteVectors(collection, ids)` (Go) / `DeleteVectorsAsync` (C#) — `POST /batch_delete`, returns the canonical `DeleteReport` with per-id outcomes. Legacy `BatchDeleteVectors` / `BatchDeleteVectorsAsync` stay live.
+  - `MoveToCollection(src, dst, ids)` (Go) / `MoveToCollectionAsync` (C#) — `POST /collections/{src}/vectors/move`, returns `MoveReport`. Both SDKs already had the model types; only the client wrappers were missing.
+  - 5 new unit tests per SDK (Go: `phase31_sdk_parity_test.go`; C#: `Phase31SdkParityTests.cs`). All tests pass; no behaviour changes elsewhere.
+
 ## [3.3.0] - 2026-05-03
 
 ### Security

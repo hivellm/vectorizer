@@ -309,6 +309,53 @@ public partial class VectorizerClient : IDisposable
     }
 
     /// <summary>
+    /// Deletes a batch of vectors from a single collection
+    /// (POST /batch_delete). Per-id failures populate
+    /// <see cref="DeleteReport.Results"/> without aborting the batch.
+    /// Companion to <see cref="MoveToCollectionAsync"/> for tier-demotion
+    /// (issue #265).
+    /// </summary>
+    /// <param name="collectionName">Collection to delete from.</param>
+    /// <param name="ids">Vector IDs to delete.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="DeleteReport"/> with per-id outcomes.</returns>
+    public async Task<DeleteReport> DeleteVectorsAsync(
+        string collectionName,
+        IReadOnlyList<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new { collection = collectionName, ids };
+        return await RequestAsync<DeleteReport>("POST", "/batch_delete", body, cancellationToken);
+    }
+
+    /// <summary>
+    /// Moves vectors from <paramref name="src"/> to <paramref name="dst"/>
+    /// without re-embedding (issue #265, POST /collections/{src}/vectors/move).
+    /// Server invariant: the destination insert lands BEFORE the source
+    /// delete, so a mid-batch crash leaves a recoverable duplicate (never
+    /// data loss). Per-id outcomes (<c>ok</c>, <c>missing_in_src</c>,
+    /// <c>dst_insert_failed</c>, <c>src_delete_failed</c>) populate
+    /// <see cref="MoveReport.Results"/> without aborting the batch.
+    /// Typical use: a tier-demotion pruner that walks a hot collection
+    /// and relocates aged vectors to a warm/cold collection.
+    /// </summary>
+    /// <param name="src">Source collection name.</param>
+    /// <param name="dst">Destination collection name.</param>
+    /// <param name="ids">Vector IDs to move.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="MoveReport"/> with per-id outcomes.</returns>
+    public async Task<MoveReport> MoveToCollectionAsync(
+        string src,
+        string dst,
+        IReadOnlyList<string> ids,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new { destination = dst, ids };
+        var path = $"/collections/{Uri.EscapeDataString(src)}/vectors/move";
+        return await RequestAsync<MoveReport>("POST", path, body, cancellationToken);
+    }
+
+    /// <summary>
     /// Performs a vector search
     /// </summary>
     public async Task<List<SearchResult>> SearchAsync(

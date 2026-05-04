@@ -168,6 +168,50 @@ public partial class VectorizerClient
         return envelope.Entries ?? new List<AuditEntry>();
     }
 
+    /// <summary>
+    /// Replaces the permission set (and optionally the scopes) of an API key
+    /// without rotating its credential (PUT /auth/keys/{id}/permissions).
+    /// Requires admin role. The <c>key_hash</c>, <c>id</c>, <c>user_id</c>
+    /// and <c>created_at</c> fields stay immutable. The server rejects an
+    /// empty permissions list with HTTP 400 and an unknown id with HTTP 404.
+    /// </summary>
+    /// <param name="id">The API key ID to update.</param>
+    /// <param name="request">New permissions (and optional scopes).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated <see cref="ApiKeyView"/>.</returns>
+    public async Task<ApiKeyView> UpdateApiKeyPermissionsAsync(
+        string id,
+        UpdateApiKeyPermissionsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var path = $"/auth/keys/{Uri.EscapeDataString(id)}/permissions";
+        return await RequestAsync<ApiKeyView>("PUT", path, request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Returns the per-day usage time-series for an API key
+    /// (GET /auth/keys/{id}/usage[?window=N]). Requires admin role.
+    /// </summary>
+    /// <param name="id">The API key ID to sample.</param>
+    /// <param name="windowDays">
+    /// Optional window in days (server clamps to 1..=30, default 7 when null).
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// An <see cref="ApiKeyUsageReport"/> with the live key view, the bucket
+    /// array (oldest first, including zero-count days), and the window total.
+    /// </returns>
+    public async Task<ApiKeyUsageReport> GetApiKeyUsageAsync(
+        string id,
+        int? windowDays = null,
+        CancellationToken cancellationToken = default)
+    {
+        var path = windowDays.HasValue
+            ? $"/auth/keys/{Uri.EscapeDataString(id)}/usage?window={windowDays.Value}"
+            : $"/auth/keys/{Uri.EscapeDataString(id)}/usage";
+        return await RequestAsync<ApiKeyUsageReport>("GET", path, null, cancellationToken);
+    }
+
     private static string BuildAuditQueryString(AuditQuery query)
     {
         var parts = new List<string>(5);

@@ -181,3 +181,37 @@ func (c *Client) ListAuditLog(query AuditQuery) ([]AuditEntry, error) {
 	}
 	return envelope.Entries, nil
 }
+
+// UpdateApiKeyPermissions replaces the permission set (and optionally the
+// scopes) of an API key without rotating its credential. Admin-only.
+//
+// Calls PUT /auth/keys/{id}/permissions. The key_hash, id, user_id and
+// created_at fields stay immutable. The server rejects an empty
+// permissions list with HTTP 400 and an unknown id with HTTP 404.
+func (c *Client) UpdateApiKeyPermissions(id string, req *UpdateApiKeyPermissionsRequest) (*ApiKeyView, error) {
+	path := "/auth/keys/" + url.PathEscape(id) + "/permissions"
+	var result ApiKeyView
+	if err := c.request("PUT", path, req, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// GetApiKeyUsage returns the per-day usage time-series for an API key.
+// Admin-only.
+//
+// Calls GET /auth/keys/{id}/usage?window=N. Pass windowDays=0 to use
+// the server default (7). The server clamps the window to 1..=30 and
+// returns the live key view, the bucket array (oldest first, including
+// zero-count days), and the window total.
+func (c *Client) GetApiKeyUsage(id string, windowDays int) (*ApiKeyUsageReport, error) {
+	path := "/auth/keys/" + url.PathEscape(id) + "/usage"
+	if windowDays > 0 {
+		path = path + "?window=" + fmt.Sprintf("%d", windowDays)
+	}
+	var result ApiKeyUsageReport
+	if err := c.request("GET", path, nil, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}

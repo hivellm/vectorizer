@@ -41,6 +41,46 @@ func (c *Client) DeleteVector(collection, id string) error {
 	return c.request("DELETE", "/collections/"+collection+"/vectors/"+id, nil, nil)
 }
 
+// DeleteVectors deletes a batch of vectors from a single collection.
+//
+// Calls POST /batch_delete with {"collection", "ids"}. Per-id failures
+// (e.g. not-found) populate DeleteReport.Results without aborting the
+// batch. Companion to MoveToCollection for tier-demotion (issue #265).
+func (c *Client) DeleteVectors(collection string, ids []string) (*DeleteReport, error) {
+	body := map[string]interface{}{
+		"collection": collection,
+		"ids":        ids,
+	}
+	var report DeleteReport
+	if err := c.request("POST", "/batch_delete", body, &report); err != nil {
+		return nil, err
+	}
+	return &report, nil
+}
+
+// MoveToCollection moves vectors from src to dst without re-embedding
+// (issue #265).
+//
+// Calls POST /collections/{src}/vectors/move with {"destination", "ids"}.
+// Server invariant: the destination insert lands BEFORE the source
+// delete, so a mid-batch crash leaves a recoverable duplicate (never
+// data loss). Per-id outcomes (ok, missing_in_src, dst_insert_failed,
+// src_delete_failed) populate MoveReport.Results without aborting the
+// batch. Typical use: tier-demotion pruner that walks a hot collection
+// and relocates aged vectors to a warm/cold collection.
+func (c *Client) MoveToCollection(src, dst string, ids []string) (*MoveReport, error) {
+	body := map[string]interface{}{
+		"destination": dst,
+		"ids":         ids,
+	}
+	path := "/collections/" + url.PathEscape(src) + "/vectors/move"
+	var report MoveReport
+	if err := c.request("POST", path, body, &report); err != nil {
+		return nil, err
+	}
+	return &report, nil
+}
+
 // Search performs a vector search
 func (c *Client) Search(collection string, query []float32, options *SearchOptions) ([]SearchResult, error) {
 	req := map[string]interface{}{
