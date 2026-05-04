@@ -50,7 +50,7 @@
 - [x] 8.1 `dashboard/README.md` "Recent changes" summary added covering ApiKeysPage rewire, CSRF audit, 401 handling, SPARK removal, identity strings, and e2e specs
 - [x] 8.2 `pnpm vitest --run` clean for new code (`useStatus` 4/4, `useRuntimeMetrics` 6/6, e2e specs `tsc --noEmit` clean). 3 pre-existing ApiKeysPage failures unrelated (missing ToastProvider wrapper).
 - [ ] 8.3 `pnpm lint` blocked by pre-existing `eslint@10` + `eslint-plugin-react@7.37.5` incompatibility (`getFilename is not a function`) affecting every file in the project — not introduced by phase24. Tracked in follow-up `phase26_dashboard-eslint-react-compat`
-- [ ] 8.4 Live-server manual smoke — pending CI test against a running `vectorizer:3.3.0` container
+- [x] 8.4 Live-server smoke completed against fresh `cargo build --release` binary on `127.0.0.1:15003` (clean `VECTORIZER_DATA_DIR`): `/dashboard/` serves the phase24 bundle (`index-gvnNAdjg.js`, contains `usage_count` / `useRuntimeMetrics` / `vectorizer_session_expired` / `status.version`), login → JWT cookie + CSRF echo OK, `GET /status` returns `version: 3.3.0` (§7.1 source), `GET /config` exposes server.host/port (§7.2 source), `GET /metrics/runtime` returns the phase25 shape (`cpu_percent`/`memory_percent`/`active_connections`/`qps_window_60s`/`error_rate_5xx_60s`/`throughput_by_route`); `useRuntimeMetrics` defensive snake↔camel mapping verified
 - [x] 8.5 Update or create documentation covering the implementation
 - [x] 8.6 Write tests covering the new behavior
 - [x] 8.7 Run tests and confirm they pass
