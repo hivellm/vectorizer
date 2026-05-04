@@ -14,10 +14,28 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use parking_lot::{Mutex, RwLock};
+use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 
 use super::replication_log::ReplicationLog;
 use super::types::{ReplicationOperation, ReplicationResult, ReplicationWalEntry, VectorOperation};
+
+/// Snapshot of WAL state for observability surfaces (e.g. dashboard
+/// `/metrics/runtime`). All fields are zero in memory-only mode or when
+/// no replica has yet confirmed any offset.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WalSnapshot {
+    /// Latest offset appended to the WAL.
+    pub current_seq: u64,
+    /// Size of the on-disk WAL file in bytes (0 when memory-only).
+    pub size_bytes: u64,
+    /// Unix timestamp (seconds) at which `last_checkpoint_seq` last
+    /// advanced. 0 when no replica has confirmed an offset.
+    pub last_checkpoint_at: u64,
+    /// Lowest offset that has been confirmed by all replicas — entries
+    /// at or below this offset are eligible for truncation.
+    pub last_checkpoint_seq: u64,
+}
 
 /// Durable replication log that persists operations to a WAL before exposing
 /// them to the in-memory ring buffer.
@@ -34,6 +52,10 @@ pub struct DurableReplicationLog {
     /// Lowest offset that has **not** yet been confirmed by all replicas.
     /// Used to decide when WAL entries can be safely discarded.
     min_confirmed_offset: RwLock<u64>,
+
+    /// Unix timestamp (seconds) at which `min_confirmed_offset` last
+    /// advanced. Surfaced via [`wal_snapshot`].
+    last_checkpoint_at: RwLock<u64>,
 }
 
 impl DurableReplicationLog {
@@ -64,6 +86,7 @@ impl DurableReplicationLog {
             wal_path,
             wal_writer,
             min_confirmed_offset: RwLock::new(0),
+            last_checkpoint_at: RwLock::new(0),
         })
     }
 
@@ -130,11 +153,17 @@ impl DurableReplicationLog {
     /// WAL up to (but not including) that offset so the file does not grow
     /// without bound.
     pub fn mark_replicated(&self, offset: u64) {
-        {
+        let advanced = {
             let mut min_off = self.min_confirmed_offset.write();
             if offset > *min_off {
                 *min_off = offset;
+                true
+            } else {
+                false
             }
+        };
+        if advanced {
+            *self.last_checkpoint_at.write() = current_timestamp_secs();
         }
 
         // Best-effort WAL truncation.  We rewrite the file keeping only entries
@@ -143,6 +172,29 @@ impl DurableReplicationLog {
         // replayed in full on the next recovery.
         if let Err(e) = self.try_truncate_wal() {
             warn!("WAL truncation failed (non-fatal): {}", e);
+        }
+    }
+
+    /// Snapshot of WAL state for observability (phase25 §3).
+    ///
+    /// `size_bytes` reads file metadata at call time. The other fields are
+    /// in-memory atomics, so the call is cheap enough to invoke from the
+    /// 1 Hz runtime sampler.
+    pub fn wal_snapshot(&self) -> WalSnapshot {
+        let current_seq = self.current_offset();
+        let last_checkpoint_seq = *self.min_confirmed_offset.read();
+        let last_checkpoint_at = *self.last_checkpoint_at.read();
+        let size_bytes = self
+            .wal_path
+            .as_ref()
+            .and_then(|p| std::fs::metadata(p).ok())
+            .map(|m| m.len())
+            .unwrap_or(0);
+        WalSnapshot {
+            current_seq,
+            size_bytes,
+            last_checkpoint_at,
+            last_checkpoint_seq,
         }
     }
 
@@ -317,6 +369,13 @@ fn current_timestamp() -> u64 {
         .as_millis() as u64
 }
 
+fn current_timestamp_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
@@ -418,5 +477,66 @@ mod tests {
         let mut log = DurableReplicationLog::new(100, None).unwrap();
         let last = log.recover().unwrap();
         assert_eq!(last, 0);
+    }
+
+    #[test]
+    fn wal_snapshot_memory_only_is_zeroed() {
+        let log = DurableReplicationLog::new(100, None).unwrap();
+        log.append(make_op("c1")).unwrap();
+        log.append(make_op("c2")).unwrap();
+
+        let snap = log.wal_snapshot();
+        assert_eq!(snap.current_seq, 2);
+        assert_eq!(
+            snap.size_bytes, 0,
+            "memory-only mode reports zero file size"
+        );
+        assert_eq!(snap.last_checkpoint_seq, 0);
+        assert_eq!(snap.last_checkpoint_at, 0);
+    }
+
+    #[test]
+    fn wal_snapshot_with_file_reports_nonzero_size() {
+        let dir = tempdir().unwrap();
+        let wal_path = dir.path().join("replication.wal");
+
+        let log = DurableReplicationLog::new(100, Some(wal_path)).unwrap();
+        log.append(make_op("c1")).unwrap();
+        log.append(make_op("c2")).unwrap();
+
+        let snap = log.wal_snapshot();
+        assert_eq!(snap.current_seq, 2);
+        assert!(snap.size_bytes > 0, "WAL file should have on-disk bytes");
+    }
+
+    #[test]
+    fn wal_snapshot_advances_checkpoint_on_mark_replicated() {
+        let dir = tempdir().unwrap();
+        let wal_path = dir.path().join("replication.wal");
+
+        let log = DurableReplicationLog::new(100, Some(wal_path)).unwrap();
+        for i in 0..5 {
+            log.append(make_op(&format!("c{}", i))).unwrap();
+        }
+
+        let before = log.wal_snapshot();
+        assert_eq!(before.last_checkpoint_seq, 0);
+        assert_eq!(before.last_checkpoint_at, 0);
+
+        log.mark_replicated(3);
+
+        let after = log.wal_snapshot();
+        assert_eq!(after.last_checkpoint_seq, 3);
+        assert!(
+            after.last_checkpoint_at > 0,
+            "last_checkpoint_at should be set after mark_replicated"
+        );
+
+        // Calling mark_replicated with a smaller offset must not regress
+        // the checkpoint pointer.
+        log.mark_replicated(1);
+        let unchanged = log.wal_snapshot();
+        assert_eq!(unchanged.last_checkpoint_seq, 3);
+        assert_eq!(unchanged.last_checkpoint_at, after.last_checkpoint_at);
     }
 }

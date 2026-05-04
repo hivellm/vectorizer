@@ -1468,6 +1468,9 @@ impl VectorizerServer {
         // in `Arc`, then clone the `Arc` into the server struct.
         let runtime_sampler = {
             let mut sampler = crate::server::runtime_metrics::RuntimeSampler::new();
+            if let Some(master) = master_node.as_ref() {
+                sampler.set_master_node(master.clone());
+            }
             sampler.start();
             Arc::new(sampler)
         };

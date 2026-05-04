@@ -12,8 +12,8 @@
 
 ## 3. WAL stats projection
 
-- [ ] 3.1 In `crates/vectorizer/src/replication/state.rs` (or wherever the WAL exposes its head), add a `wal_snapshot()` method returning `{current_seq, size_bytes, last_checkpoint_at, last_checkpoint_seq}`
-- [ ] 3.2 Plumb that snapshot into the runtime metrics response; the sampler reads it on every tick (cheap, in-memory)
+- [x] 3.1 `WalSnapshot` struct + `DurableReplicationLog::wal_snapshot()` shipped in `crates/vectorizer/src/replication/durable_log.rs`; `mark_replicated()` advances `last_checkpoint_at` only when `min_confirmed_offset` actually moves forward; `MasterNode::wal_snapshot()` passthrough in `master.rs`. Re-exported from `vectorizer::replication`. 3 unit tests cover memory-only zeros, on-disk size, and checkpoint advancement
+- [x] 3.2 `RuntimeSnapshot.wal: WalSnapshot` field added; sampler tick reads `master_node.wal_snapshot()` (or zero default when replication disabled). `bootstrap.rs` calls `sampler.set_master_node(...)` before `sampler.start()`
 
 ## 4. New `GET /metrics/runtime` handler
 

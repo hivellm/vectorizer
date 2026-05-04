@@ -11,6 +11,7 @@ use parking_lot::RwLock;
 use serde::Serialize;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 use tokio::task::JoinHandle;
+use vectorizer::replication::{MasterNode, WalSnapshot};
 
 // ---------------------------------------------------------------------------
 // Public snapshot types
@@ -37,6 +38,8 @@ pub struct RuntimeSnapshot {
     pub error_rate_5xx_60s: f64,
     /// Per-route latency breakdown.
     pub throughput_by_route: Vec<RouteStats>,
+    /// WAL state (zero-init when replication is disabled).
+    pub wal: WalSnapshot,
 }
 
 /// Per-route latency and throughput statistics.
@@ -186,6 +189,7 @@ pub struct RuntimeSampler {
     connections: Arc<AtomicUsize>,
     started_at: Instant,
     handle: Option<JoinHandle<()>>,
+    master_node: Option<Arc<MasterNode>>,
 }
 
 impl RuntimeSampler {
@@ -197,7 +201,16 @@ impl RuntimeSampler {
             connections: Arc::new(AtomicUsize::new(0)),
             started_at: Instant::now(),
             handle: None,
+            master_node: None,
         }
+    }
+
+    /// Plumb a `MasterNode` into the sampler so each tick can attach a
+    /// fresh WAL snapshot. Must be called before [`start`]. When
+    /// replication is disabled this stays `None` and the WAL section of
+    /// the snapshot is zero-initialised.
+    pub fn set_master_node(&mut self, master: Arc<MasterNode>) {
+        self.master_node = Some(master);
     }
 
     /// Return a clone of the latest snapshot.
@@ -223,6 +236,7 @@ impl RuntimeSampler {
         let aggregator_arc = self.aggregator.clone();
         let connections_arc = self.connections.clone();
         let started_at = self.started_at;
+        let master_node = self.master_node.clone();
 
         let handle = tokio::spawn(async move {
             let pid = Pid::from(std::process::id() as usize);
@@ -260,6 +274,10 @@ impl RuntimeSampler {
                 let total_recent = aggregator_arc.total_recent_count();
                 let qps_window_60s = total_recent as f64 / 60.0;
                 let error_rate_5xx_60s = aggregator_arc.error_rate();
+                let wal = master_node
+                    .as_ref()
+                    .map(|m| m.wal_snapshot())
+                    .unwrap_or_default();
 
                 let mut snap = snapshot_arc.write();
                 *snap = RuntimeSnapshot {
@@ -272,6 +290,7 @@ impl RuntimeSampler {
                     qps_window_60s,
                     error_rate_5xx_60s,
                     throughput_by_route: route_stats,
+                    wal,
                 };
             }
         });

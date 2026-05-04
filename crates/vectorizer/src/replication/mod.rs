@@ -28,7 +28,7 @@ mod tests;
 mod stats_tests;
 
 pub use config::ReplicationConfig;
-pub use durable_log::DurableReplicationLog;
+pub use durable_log::{DurableReplicationLog, WalSnapshot};
 pub use master::MasterNode;
 pub use replica::ReplicaNode;
 pub use replication_log::ReplicationLog;

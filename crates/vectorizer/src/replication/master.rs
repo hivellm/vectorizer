@@ -672,6 +672,11 @@ impl MasterNode {
         }
     }
 
+    /// Snapshot of the WAL state for observability surfaces (phase25 §3).
+    pub fn wal_snapshot(&self) -> super::durable_log::WalSnapshot {
+        self.replication_log.wal_snapshot()
+    }
+
     /// Get information about all replicas
     pub fn get_replicas(&self) -> Vec<ReplicaInfo> {
         let replicas = self.replicas.read();
