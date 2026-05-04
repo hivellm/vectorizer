@@ -191,6 +191,34 @@ When adding new features:
 4. Add API methods in `src/lib/api-client.ts` if needed
 5. Update this README if adding major features
 
+## Recent changes
+
+### phase24 — fix dashboard redesign contract mismatches (2026-05-04)
+
+PR #266's console redesign shipped against an imagined server schema; phase24
+reconciled every page with the real v3.3.0 contracts.
+
+- **ApiKeysPage** rewired to `ApiKeyInfo` (`usage_count`, `usage_24h`,
+  `last_used: Option<u64>`); dropped fictional `calls`, `last_used_at`,
+  `masked`, `key_preview`, `key_prefix`, `role`. Re-added the phase18 14-day
+  usage sparkline modal (`GET /auth/keys/{id}/usage?window=14`).
+- **CSRF** echo audited across `ApiKeysPage` / `UsersPage` / `ConfigurationPage`
+  / `BackupsPage` — all already route through `api-middleware.ts`; no raw
+  `fetch` bypasses found.
+- **401 handling**: `unauthorizedMiddleware` writes a one-shot
+  `vectorizer_session_expired` flag in `sessionStorage`; `LoginPage` shows an
+  amber `<Pill>` notice when a session expires mid-flow.
+- **Synthetic metrics removed**: `SPARK` helpers (`Math.sin` /
+  `Math.random`) deleted from OverviewPage / MonitoringPage / CollectionsPage.
+  Ring gauges + Sparkline now consume the new `useRuntimeMetrics()` hook
+  (`GET /metrics/runtime`, shipped in phase25). Hardcoded `MAP score +8.9%`,
+  `Recall@10 98.4%`, and the Quantization card removed — no real source.
+- **Identity strings**: `vectorizer 3.0.0` literal replaced with
+  `GET /status.version`; bind-address literal replaced with `GET /config`.
+- **e2e**: 5 new Playwright specs (`api-keys-csrf`, `users-csrf`,
+  `backups-create-restore` — gated on `BACKUPS_AVAILABLE`,
+  `configuration-save`, `session-expired`).
+
 ## Hybrid styling (console + Tailwind)
 
 The dashboard currently runs **two style systems side-by-side**. New code
