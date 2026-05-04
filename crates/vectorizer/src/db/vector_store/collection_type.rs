@@ -58,6 +58,20 @@ impl CollectionType {
         }
     }
 
+    /// Update the collection's own name field.
+    ///
+    /// Called by `VectorStore::rename_collection` after the HashMap key swap so
+    /// that `collection.name()` and the map key remain in sync.
+    pub fn set_name(&mut self, name: String) {
+        match self {
+            CollectionType::Cpu(c) => c.set_name(name),
+            #[cfg(feature = "hive-gpu")]
+            CollectionType::HiveGpu(c) => c.set_name(name),
+            CollectionType::Sharded(c) => c.set_name(name),
+            CollectionType::DistributedSharded(c) => c.set_name(name),
+        }
+    }
+
     /// Get collection config
     pub fn config(&self) -> &CollectionConfig {
         match self {

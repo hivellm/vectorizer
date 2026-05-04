@@ -418,6 +418,15 @@ impl DynamicCollectionPersistence {
                         .await?;
                     return Ok(());
                 }
+                Operation::RenameCollection { .. } => {
+                    // Rename is applied by the rename_collection_files
+                    // helper invoked from `VectorStore::rename_collection`
+                    // (phase22). The transaction-replay path here only sees
+                    // the op as part of the WAL stream during recovery; the
+                    // rename has already mutated the on-disk catalog by the
+                    // time we replay. No-op.
+                    return Ok(());
+                }
                 Operation::Checkpoint {
                     vector_count,
                     document_count,

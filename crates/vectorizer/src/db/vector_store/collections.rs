@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use super::{CollectionType, VectorStore};
 use crate::db::collection::Collection;
@@ -296,12 +296,38 @@ impl VectorStore {
         Ok(())
     }
 
-    /// Atomically rename a collection and register the old name as a
-    /// grace-window alias pointing to the new name.
+    /// Atomically rename a collection.
     ///
-    /// The caller is responsible for pruning the alias later (e.g. on
-    /// the next minor-version upgrade). In-memory only: the alias does
-    /// not survive a restart unless the caller persists it separately.
+    /// ## What this does
+    ///
+    /// 1. Validates `old_name` / `new_name` (non-empty, different, no `/`).
+    /// 2. Resolves `old_name` through the alias table to find the canonical key.
+    /// 3. Removes the entry under the canonical key and reinserts it under
+    ///    `new_name`, then calls `CollectionType::set_name` so the value's
+    ///    own name field stays in sync with the map key.
+    /// 4. Registers the old canonical name as a grace-window alias pointing to
+    ///    `new_name` so existing callers keep working without reconfiguration.
+    /// 5. Appends a `RenameCollection` op to the replication WAL so that
+    ///    replicas observe the rename on their next partial-sync.
+    ///
+    /// ## Persistence
+    ///
+    /// The on-disk `.vecdb` archive is written by `AutoSaveManager::force_save`
+    /// (5-minute timer or explicit REST call). The caller (`rename_collection`
+    /// REST handler) always invokes `auto_save_manager.mark_changed()` after
+    /// this method returns, guaranteeing that the next compaction writes the
+    /// new name as the `PersistedCollection.name` field.  The collection is
+    /// therefore durable after the next compaction cycle or explicit flush.
+    ///
+    /// ## No-op cause (fixed here)
+    ///
+    /// Previously the method only swapped the HashMap key but did NOT update
+    /// the `Collection.name` (or equivalent) field stored inside the value.
+    /// As a result:
+    /// - `collection.name()` returned the stale old name, so `GET /collections`
+    ///   reported the old name even after a successful 200 rename response.
+    /// - The replication WAL had no `RenameCollection` variant, so replicas
+    ///   never applied the rename.
     pub fn rename_collection(&self, old_name: &str, new_name: &str) -> Result<()> {
         let old_name = old_name.trim();
         let new_name = new_name.trim();
@@ -316,9 +342,15 @@ impl VectorStore {
                 message: "new collection name cannot be empty".to_string(),
             });
         }
+        // Mirror create_collection validation: reject names containing '/'.
+        if new_name.contains('/') {
+            return Err(VectorizerError::InvalidConfiguration {
+                message: "collection name must not contain '/'".to_string(),
+            });
+        }
         if old_name == new_name {
             return Err(VectorizerError::InvalidConfiguration {
-                message: "old and new names must differ".to_string(),
+                message: "rename source equals destination".to_string(),
             });
         }
 
@@ -341,10 +373,16 @@ impl VectorStore {
         }
 
         // Atomic swap: remove under old key, reinsert under new key.
-        let (_old_key, collection) = self
+        let (_old_key, mut collection) = self
             .collections
             .remove(canonical_old.as_str())
             .ok_or_else(|| VectorizerError::CollectionNotFound(old_name.to_string()))?;
+
+        // Synchronise the value's own name field with the new map key so that
+        // any call to `collection.name()` (e.g. in `list_collections` metadata
+        // building or `compact_from_memory` serialisation) returns the correct
+        // name and does not carry the stale old name into the .vecdb archive.
+        collection.set_name(new_name.to_string());
 
         self.collections.insert(new_name.to_string(), collection);
 
@@ -361,6 +399,32 @@ impl VectorStore {
         // using the old name continue to resolve it transparently.
         self.aliases
             .insert(canonical_old.to_string(), new_name.to_string());
+
+        // Append a RenameCollection op to the replication WAL so replicas can
+        // apply the rename during their next partial-sync round. Fire-and-
+        // forget — the existing log_wal_insert / update / delete helpers use
+        // the same pattern (best-effort; never block the request).
+        {
+            let wal_guard = self.wal.lock();
+            if let Some(wal) = wal_guard.as_ref() {
+                let wal_clone = wal.clone();
+                let old = canonical_old.to_string();
+                let new = new_name.to_string();
+                if tokio::runtime::Handle::try_current().is_ok() {
+                    tokio::spawn(async move {
+                        if let Err(e) = wal_clone.log_rename_collection(&old, &new).await {
+                            error!("Failed to log rename to WAL: {}", e);
+                        }
+                    });
+                } else if let Ok(rt) = tokio::runtime::Runtime::new() {
+                    if let Err(e) =
+                        rt.block_on(async { wal_clone.log_rename_collection(&old, &new).await })
+                    {
+                        error!("Failed to log rename to WAL: {}", e);
+                    }
+                }
+            }
+        }
 
         info!(
             "Collection '{}' renamed to '{}'; '{}' kept as grace-window alias",

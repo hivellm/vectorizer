@@ -265,6 +265,13 @@ pub enum Operation {
     },
     /// Delete collection
     DeleteCollection { collection_name: String },
+    /// Rename collection (phase22). `collection_name` carries the OLD
+    /// name so existing routing helpers keep working; the new name lives
+    /// in `new_name`.
+    RenameCollection {
+        collection_name: String,
+        new_name: String,
+    },
     /// Checkpoint marker
     Checkpoint {
         vector_count: usize,
@@ -292,7 +299,10 @@ impl Operation {
             | Operation::CreateCollection {
                 collection_name, ..
             }
-            | Operation::DeleteCollection { collection_name } => Some(collection_name),
+            | Operation::DeleteCollection { collection_name }
+            | Operation::RenameCollection {
+                collection_name, ..
+            } => Some(collection_name),
             Operation::Checkpoint { .. } => None,
         }
     }
@@ -307,6 +317,7 @@ impl Operation {
             Operation::DeleteVector { .. } => "delete_vector",
             Operation::CreateCollection { .. } => "create_collection",
             Operation::DeleteCollection { .. } => "delete_collection",
+            Operation::RenameCollection { .. } => "rename_collection",
             Operation::Checkpoint { .. } => "checkpoint",
         }
     }
@@ -320,6 +331,7 @@ impl Operation {
                 | Operation::DeleteVector { .. }
                 | Operation::CreateCollection { .. }
                 | Operation::DeleteCollection { .. }
+                | Operation::RenameCollection { .. }
         )
     }
 }

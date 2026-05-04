@@ -220,6 +220,12 @@ impl RaftStateMachine {
                     Operation::DeleteCollection { collection_name } => {
                         store.delete_collection(collection_name)?;
                     }
+                    Operation::RenameCollection {
+                        collection_name,
+                        new_name,
+                    } => {
+                        store.rename_collection(collection_name, new_name)?;
+                    }
                     Operation::Checkpoint { .. } => {
                         // This branch should never be reached due to outer match
                         unreachable!("Checkpoint handled in outer match");

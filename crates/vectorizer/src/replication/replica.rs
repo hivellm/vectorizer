@@ -456,6 +456,12 @@ impl ReplicaNode {
 
                 info!("Deleted vector {} from collection {}", id, collection);
             }
+            VectorOperation::RenameCollection { old_name, new_name } => {
+                self.vector_store
+                    .rename_collection(old_name, new_name)
+                    .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                debug!("Renamed collection '{}' → '{}'", old_name, new_name);
+            }
         }
 
         Ok(())

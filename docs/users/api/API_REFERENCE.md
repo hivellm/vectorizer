@@ -2049,6 +2049,16 @@ Method names below are case-adjusted per language convention
 
 ### Schema evolution + explain + slow queries (phase14)
 
+#### `POST /collections/{name}/rename` — error responses (phase22)
+
+| Status | `error_type` | When |
+|---|---|---|
+| 200 | — | Success. Body: `{old_name, new_name, alias_retained, status:"ok"}`. The old name keeps resolving via an in-memory grace-window alias. |
+| 400 | `validation_error` | `new_name` missing/empty, contains `/`, or equals the source name |
+| 404 | `collection_not_found` | Source collection does not exist |
+| 409 | `collection_already_exists` | Destination name is already taken (collection or alias) |
+| 500 | `persistence_error` | Underlying storage write failed |
+
 | Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
 |---|---|---|---|---|---|
 | `POST /collections/{n}/rename` | `rename_collection` | `renameCollection` | `rename_collection` | `RenameCollection` | `RenameCollectionAsync` |

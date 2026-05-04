@@ -297,9 +297,12 @@ impl VectorStore {
                     // Checkpoint entries are informational, skip
                     debug!("Skipping checkpoint entry in recovery");
                 }
-                Operation::CreateCollection { .. } | Operation::DeleteCollection { .. } => {
-                    // Collection operations are handled separately
-                    debug!("Skipping collection operation in recovery");
+                Operation::CreateCollection { .. }
+                | Operation::DeleteCollection { .. }
+                | Operation::RenameCollection { .. } => {
+                    // Collection lifecycle ops are handled separately
+                    // by the persistence layer's catalog reload (phase22).
+                    debug!("Skipping collection lifecycle op in recovery");
                 }
             }
         }

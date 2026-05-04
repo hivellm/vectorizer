@@ -149,6 +149,28 @@ impl WalIntegration {
         Ok(())
     }
 
+    /// Log a collection rename to WAL (phase22). The op carries the old
+    /// name as `collection_name` and the new name in `new_name`.
+    pub async fn log_rename_collection(
+        &self,
+        old_name: &str,
+        new_name: &str,
+    ) -> std::result::Result<(), WALError> {
+        if let Some(wal) = &self.wal {
+            let operation = Operation::RenameCollection {
+                collection_name: old_name.to_string(),
+                new_name: new_name.to_string(),
+            };
+
+            wal.append(old_name, operation).await?;
+            debug!(
+                "Logged rename operation for collection '{}' -> '{}'",
+                old_name, new_name
+            );
+        }
+        Ok(())
+    }
+
     /// Recover operations from WAL for a collection
     pub async fn recover_collection(
         &self,

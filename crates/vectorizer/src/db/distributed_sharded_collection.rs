@@ -123,6 +123,13 @@ impl DistributedShardedCollection {
         &self.name
     }
 
+    /// Update the collection's own name field.
+    ///
+    /// Called by `VectorStore::rename_collection` after the HashMap key swap.
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
     /// Get collection config
     pub fn config(&self) -> &CollectionConfig {
         &self.config

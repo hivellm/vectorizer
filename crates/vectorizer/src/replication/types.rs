@@ -79,6 +79,17 @@ pub enum VectorOperation {
         #[serde(default)]
         owner_id: Option<String>,
     },
+    /// Rename a collection atomically (old_name → new_name).
+    ///
+    /// Replicas apply this by removing the old key from their local map and
+    /// reinserting under the new key.  The old canonical name is kept as a
+    /// grace-window alias on the master and replayed here as well.
+    RenameCollection {
+        /// Previous canonical name.
+        old_name: String,
+        /// New canonical name.
+        new_name: String,
+    },
     /// Insert vector into collection
     InsertVector {
         collection: String,
