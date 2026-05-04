@@ -53,12 +53,15 @@ use crate::server::runtime_metrics::DashboardEvent;
 pub enum Topic {
     /// 1 Hz runtime snapshot (CPU / memory / connections / WAL …).
     Runtime,
+    /// 5 s server status snapshot (online / version / uptime / collections_count).
+    Status,
 }
 
 impl Topic {
     fn of(event: &DashboardEvent) -> Self {
         match event {
             DashboardEvent::Runtime(_) => Self::Runtime,
+            DashboardEvent::Status(_) => Self::Status,
         }
     }
 }
@@ -262,6 +265,28 @@ mod tests {
         let snap = crate::server::runtime_metrics::RuntimeSnapshot::default();
         let ev = DashboardEvent::Runtime(snap);
         assert_eq!(Topic::of(&ev), Topic::Runtime);
+    }
+
+    #[test]
+    fn topic_of_event_maps_status() {
+        let snap = crate::server::runtime_metrics::StatusSnapshot::default();
+        let ev = DashboardEvent::Status(snap);
+        assert_eq!(Topic::of(&ev), Topic::Status);
+    }
+
+    #[test]
+    fn status_event_frame_carries_topic_and_data() {
+        let snap = crate::server::runtime_metrics::StatusSnapshot {
+            online: true,
+            version: "3.3.0".to_string(),
+            uptime_seconds: 42,
+            collections_count: 7,
+        };
+        let ev = DashboardEvent::Status(snap);
+        let json = serde_json::to_string(&ServerFrame::Event(&ev)).unwrap();
+        assert!(json.contains("\"topic\":\"status\""));
+        assert!(json.contains("\"online\":true"));
+        assert!(json.contains("\"collections_count\":7"));
     }
 
     #[test]

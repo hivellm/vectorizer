@@ -22,6 +22,22 @@ use vectorizer::replication::{MasterNode, WalSnapshot};
 pub enum DashboardEvent {
     /// 1 Hz runtime snapshot — same shape as `GET /metrics/runtime`.
     Runtime(RuntimeSnapshot),
+    /// 5 s server status snapshot — same shape as `GET /status`.
+    Status(StatusSnapshot),
+}
+
+/// `GET /status` payload, shared by the REST handler and the WS
+/// publisher so both surfaces emit the same JSON.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct StatusSnapshot {
+    /// Whether the server process is currently serving requests.
+    pub online: bool,
+    /// Server version string (`CARGO_PKG_VERSION`).
+    pub version: String,
+    /// Seconds since the server process started.
+    pub uptime_seconds: u64,
+    /// Number of collections currently registered in the store.
+    pub collections_count: usize,
 }
 
 // ---------------------------------------------------------------------------

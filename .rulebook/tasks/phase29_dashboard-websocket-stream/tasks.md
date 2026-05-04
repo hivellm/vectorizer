@@ -7,7 +7,7 @@
 
 ## 2. Server: status / collections / logs publishers
 
-- [ ] 2.1 Status snapshot publisher — every 5 s, build the `/status` JSON and broadcast `DashboardEvent::Status`. Cheap (server uptime + collection count) so 5 s is fine
+- [x] 2.1 `StatusSnapshot` struct + `DashboardEvent::Status(StatusSnapshot)` variant added in `runtime_metrics.rs`. `bootstrap.rs` spawns a 5 s `tokio::time::interval` task that builds `{online, version, uptime_seconds, collections_count}` (mirrors `GET /status`) and broadcasts via the shared `Sender`. `Topic::Status` and `Topic::of` mapping added in `ws/dashboard.rs`. 2 new unit tests pin the topic mapping + frame shape (8 total in the WS suite). cargo clippy clean
 - [ ] 2.2 Collections snapshot publisher — every 30 s, broadcast `DashboardEvent::Collections` carrying the same shape `GET /collections` returns. Tied to the existing collection-mutation events so a create/delete also triggers an immediate publish
 - [ ] 2.3 Logs publisher — tail the same log file `GET /logs` reads from; for each new line emit `DashboardEvent::Log(LogEntry)`. Cap inflight buffer at 256 entries per connection (drop oldest with a `stream_lag` error if the client falls behind)
 
@@ -24,7 +24,7 @@
 ## 5. Client: rewrite the polling hooks
 
 - [x] 5.1 `useRuntimeMetrics` rewritten on `useWsTopic('runtime')`. The 1–2 s `setInterval` block is gone. Defensive snake↔camel mapping stays for partial-payload tolerance. A one-shot REST fetch on mount seeds the snapshot + qpsHistory before the first WS frame arrives so the UI doesn't flash "loading…" while the socket negotiates. Pages drop the obsolete `intervalMs` argument (`OverviewPage`, `MonitoringPage`); 6/6 hook unit tests green
-- [ ] 5.2 `useStats` and `useStatus` rewrite on `useWsTopic('status')` (status payload includes the stats subset)
+- [x] 5.2 `useStatus` rewritten on `useWsTopic('status')` — REST one-shot seeds the snapshot, all subsequent updates flow via WS pushes (5 s cadence). `useStats` reads the cache + WAL snapshot from `/health` which is not on a WS topic yet, so it stays on REST polling. `WsTopic` widened to `'runtime' | 'status'`
 - [ ] 5.3 Drop `setInterval` blocks from `OverviewPage`, `CollectionsPage`, `MonitoringPage`, `FileWatcherPage`, `LogsPage`. Each consumes `useWsTopic` for its primary data; one-shot lookups (e.g. opening a vector detail) keep using REST
 
 ## 6. Tests

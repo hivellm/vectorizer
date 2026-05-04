@@ -1463,6 +1463,15 @@ impl VectorizerServer {
             None
         };
 
+        // Phase29: dashboard WebSocket multiplexer reads from this bus.
+        // Capacity 1024 ≈ 17 minutes of 1 Hz runtime ticks — slow
+        // consumers past that get `RecvError::Lagged` and the WS
+        // handler closes them with `error: stream_lag`. The Sender is
+        // shared between the runtime sampler and the status publisher
+        // task spawned below.
+        let (dashboard_tx, _) =
+            tokio::sync::broadcast::channel::<crate::server::runtime_metrics::DashboardEvent>(1024);
+
         // Start the runtime metrics sampler (phase25).
         // `start()` takes `&mut self`, so we build + start before wrapping
         // in `Arc`, then clone the `Arc` into the server struct.
@@ -1471,18 +1480,38 @@ impl VectorizerServer {
             if let Some(master) = master_node.as_ref() {
                 sampler.set_master_node(master.clone());
             }
-            // Phase29: dashboard WebSocket multiplexer reads from this bus.
-            // Capacity 1024 ≈ 17 minutes of runtime ticks (1 Hz) — slow
-            // consumers past that get `RecvError::Lagged` and the WS
-            // handler closes them with `error: stream_lag`.
-            let (dashboard_tx, _) = tokio::sync::broadcast::channel::<
-                crate::server::runtime_metrics::DashboardEvent,
-            >(1024);
-            sampler.set_broadcast(dashboard_tx);
+            sampler.set_broadcast(dashboard_tx.clone());
             sampler.start();
             Arc::new(sampler)
         };
         info!("📊 Runtime metrics sampler started (phase25)");
+
+        // Phase29 §2.1: 5 s status snapshot publisher. Cheap (collection
+        // count + uptime), so 5 s cadence is fine. Skips the broadcast
+        // entirely when there are no subscribers — `broadcast::Sender`
+        // returns an error from `send` when no receivers are alive,
+        // which we drop on the floor.
+        {
+            let tx = dashboard_tx.clone();
+            let store = store_arc.clone();
+            let started_at = std::time::Instant::now();
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+                loop {
+                    tick.tick().await;
+                    let snapshot = crate::server::runtime_metrics::StatusSnapshot {
+                        online: true,
+                        version: env!("CARGO_PKG_VERSION").to_string(),
+                        uptime_seconds: started_at.elapsed().as_secs(),
+                        collections_count: store.list_collections().len(),
+                    };
+                    let _ = tx.send(crate::server::runtime_metrics::DashboardEvent::Status(
+                        snapshot,
+                    ));
+                }
+            });
+        }
+        info!("📊 Status snapshot publisher started (phase29 §2.1)");
 
         // VectorizerRPC binary listener — opt-in via `rpc.enabled` in
         // config.yml. The listener spawns its own background tasks per

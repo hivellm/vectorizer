@@ -1,16 +1,15 @@
 /**
- * Hook for server identity polling.
+ * Hook for server identity / liveness data — sourced from the dashboard
+ * WebSocket's `status` topic (phase29 §2.1).
  *
- * Reads `GET /status` which is served by the Rust handler
- * `crates/vectorizer-server/src/server/rest_handlers/meta.rs::get_status`.
- * The endpoint returns:
- *   { online: bool, version: string, uptime_seconds: number, collections_count: number }
- *
- * The hook is used by OverviewPage to display the live server version and
- * bind address in the System Health card, replacing the hardcoded literals
- * introduced in the initial dashboard implementation.
+ * Server publisher: `crates/vectorizer-server/src/server/core/bootstrap.rs`
+ * spawns a 5 s tick that broadcasts the same JSON shape `GET /status`
+ * returns. The REST endpoint stays live for SDK callers and is used as
+ * a one-shot fallback before the first WS frame arrives so the System
+ * Health card has something to render while the socket negotiates.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useWsTopic } from '../providers/WsDashboardProvider';
 import { useApiClient } from './useApiClient';
 
 export interface ServerStatus {
@@ -27,58 +26,48 @@ const ZERO: ServerStatus = {
   collectionsCount: 0,
 };
 
-interface Options {
-  /** Polling interval in milliseconds. 0 disables polling. */
-  intervalMs?: number;
-}
-
 export interface UseStatusResult {
   status: ServerStatus;
   loading: boolean;
   error: string | null;
 }
 
-export function useStatus({ intervalMs = 30000 }: Options = {}): UseStatusResult {
+export function useStatus(): UseStatusResult {
   const api = useApiClient();
-  const [status, setStatus] = useState<ServerStatus>(ZERO);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const ref = useRef<NodeJS.Timeout | null>(null);
+  const wsPayload = useWsTopic<unknown>('status');
+  const [restStatus, setRestStatus] = useState<ServerStatus | null>(null);
+  const [restError, setRestError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const fetchStatus = async () => {
-      setLoading(true);
+    (async () => {
       try {
         const resp = await api.get<unknown>('/status');
-        // ApiClient already unwraps `{ data, error }` envelopes, but accept
-        // both shapes to stay forwards-compatible.
         const payload = (resp as { data?: unknown }).data ?? resp;
-        if (cancelled) return;
-        setStatus(normalize(payload));
-        setError(null);
+        if (!cancelled) {
+          setRestStatus(normalize(payload));
+          setRestError(null);
+        }
       } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to fetch status');
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setRestError(err instanceof Error ? err.message : 'Failed to fetch status');
+        }
       }
-    };
-    fetchStatus();
-    if (intervalMs > 0) {
-      ref.current = setInterval(fetchStatus, intervalMs);
-    }
+    })();
     return () => {
       cancelled = true;
-      if (ref.current) {
-        clearInterval(ref.current);
-        ref.current = null;
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intervalMs]);
+  }, []);
 
-  return { status, loading, error };
+  const wsStatus = wsPayload ? normalize(wsPayload) : null;
+  const status = wsStatus ?? restStatus ?? ZERO;
+
+  return {
+    status,
+    loading: wsStatus === null && restStatus === null && restError === null,
+    error: restError,
+  };
 }
 
 function normalize(payload: unknown): ServerStatus {
