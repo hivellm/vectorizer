@@ -38,6 +38,59 @@ const requirements = [
   { label: 'One number', test: (p: string) => /[0-9]/.test(p) },
 ];
 
+// Pure client-side fallback validator. Hoisted to module scope so the
+// inner `validatePassword` useCallback can reference it without
+// triggering react-hooks/immutability "Cannot access variable before
+// it is declared" (the prior in-component declaration was textually
+// below its use site).
+function validateClientSide(pwd: string): PasswordStrengthResult {
+  const errors: string[] = [];
+  let strength = 0;
+
+  if (pwd.length < 8) {
+    errors.push('Password must be at least 8 characters long');
+  } else {
+    strength += Math.min((pwd.length - 8) * 5, 25);
+  }
+
+  if (!/[A-Z]/.test(pwd)) {
+    errors.push('Password must contain at least one uppercase letter');
+  } else {
+    strength += 15;
+  }
+
+  if (!/[a-z]/.test(pwd)) {
+    errors.push('Password must contain at least one lowercase letter');
+  } else {
+    strength += 15;
+  }
+
+  if (!/[0-9]/.test(pwd)) {
+    errors.push('Password must contain at least one number');
+  } else {
+    strength += 15;
+  }
+
+  if (/[^a-zA-Z0-9]/.test(pwd)) {
+    strength += 20;
+  }
+
+  strength = Math.min(strength, 100);
+
+  let strengthLabel = 'Very Weak';
+  if (strength > 80) strengthLabel = 'Very Strong';
+  else if (strength > 60) strengthLabel = 'Strong';
+  else if (strength > 40) strengthLabel = 'Fair';
+  else if (strength > 20) strengthLabel = 'Weak';
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    strength,
+    strength_label: strengthLabel,
+  };
+}
+
 export function PasswordStrengthIndicator({
   password,
   showRequirements = true,
@@ -76,55 +129,6 @@ export function PasswordStrengthIndicator({
       setIsLoading(false);
     }
   }, [onValidationChange]);
-
-  // Client-side fallback validation
-  const validateClientSide = (pwd: string): PasswordStrengthResult => {
-    const errors: string[] = [];
-    let strength = 0;
-
-    if (pwd.length < 8) {
-      errors.push('Password must be at least 8 characters long');
-    } else {
-      strength += Math.min((pwd.length - 8) * 5, 25);
-    }
-
-    if (!/[A-Z]/.test(pwd)) {
-      errors.push('Password must contain at least one uppercase letter');
-    } else {
-      strength += 15;
-    }
-
-    if (!/[a-z]/.test(pwd)) {
-      errors.push('Password must contain at least one lowercase letter');
-    } else {
-      strength += 15;
-    }
-
-    if (!/[0-9]/.test(pwd)) {
-      errors.push('Password must contain at least one number');
-    } else {
-      strength += 15;
-    }
-
-    if (/[^a-zA-Z0-9]/.test(pwd)) {
-      strength += 20;
-    }
-
-    strength = Math.min(strength, 100);
-
-    let strengthLabel = 'Very Weak';
-    if (strength > 80) strengthLabel = 'Very Strong';
-    else if (strength > 60) strengthLabel = 'Strong';
-    else if (strength > 40) strengthLabel = 'Fair';
-    else if (strength > 20) strengthLabel = 'Weak';
-
-    return {
-      valid: errors.length === 0,
-      errors,
-      strength,
-      strength_label: strengthLabel,
-    };
-  };
 
   // Debounce the API call
   useEffect(() => {

@@ -42,7 +42,7 @@ export function useApiKeys() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create API key';
       setError(errorMessage);
-      throw new Error(errorMessage);
+      throw new Error(errorMessage, { cause: err });
     } finally {
       setLoading(false);
     }

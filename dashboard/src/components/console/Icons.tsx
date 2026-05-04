@@ -28,9 +28,15 @@ const Icon = ({ d, size = 16, fill = 'none', strokeWidth = 1.6, ...rest }: Inter
   </svg>
 );
 
-type IconComponent = (p: IconProps) => ReactElement;
+type IconComponent = ((p: IconProps) => ReactElement) & { displayName?: string };
 
-const make = (d: ReactNode): IconComponent => (p: IconProps) => <Icon {...p} d={d} />;
+const make = (d: ReactNode): IconComponent => {
+  // Named so React DevTools and the react/display-name rule see a
+  // displayName instead of the anonymous arrow factory.
+  const IconWrapper: IconComponent = (p: IconProps) => <Icon {...p} d={d} />;
+  IconWrapper.displayName = 'Icon';
+  return IconWrapper;
+};
 
 export const Icons = {
   dashboard: make(<><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></>),

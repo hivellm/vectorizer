@@ -96,6 +96,10 @@ function GraphPage() {
 
   const networkRef = useRef<HTMLDivElement>(null);
   const networkInstanceRef = useRef<Network | null>(null);
+  // Mirror of `networkInstanceRef.current != null` in state so the
+  // render path can gate UI on network readiness without reading the
+  // ref during render (which trips react-hooks/immutability).
+  const [hasNetwork, setHasNetwork] = useState(false);
 
   // Load collections on mount
   useEffect(() => {
@@ -231,6 +235,7 @@ function GraphPage() {
       if (networkInstanceRef.current) {
         networkInstanceRef.current.destroy();
         networkInstanceRef.current = null;
+        setHasNetwork(false);
       }
       return;
     }
@@ -469,6 +474,7 @@ function GraphPage() {
 
       const network = new Network(networkRef.current, data, options);
       networkInstanceRef.current = network;
+      setHasNetwork(true);
 
       // Handle stabilization progress (optional - can show progress bar)
       network.on('stabilizationProgress', () => {
@@ -524,6 +530,7 @@ function GraphPage() {
       if (networkInstanceRef.current) {
         networkInstanceRef.current.destroy();
         networkInstanceRef.current = null;
+        setHasNetwork(false);
       }
     };
   }, [nodes, edges, searchQuery, relationshipFilter, selectedNode]);
@@ -789,7 +796,7 @@ function GraphPage() {
               />
             </div>
             <div className="row" style={{ gap: 8 }}>
-              {networkInstanceRef.current && (
+              {hasNetwork && (
                 <>
                   <button
                     className="btn"

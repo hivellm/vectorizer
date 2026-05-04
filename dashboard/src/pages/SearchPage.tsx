@@ -334,13 +334,13 @@ function SearchPage() {
                 <span className="c"># curl</span>{'\n'}
                 curl -X <span className="k">POST</span>{' '}
                 http://localhost:15002<span className="s">{cur.endpoint}</span> \{'\n'}
-                {'  '}-H <span className="s">"Authorization: Bearer $VK"</span> \{'\n'}
-                {'  '}-d <span className="s">'{`{`}{'\n'}
-                {'    '}"query": "{query.length > 38 ? query.slice(0, 38) + '…' : query}",{'\n'}
-                {'    '}"collection": "{collection}",{'\n'}
-                {'    '}"limit": {limit},{'\n'}
-                {'    '}"threshold": {threshold}{'\n'}
-                {'  '}{`}`}'</span>
+                {'  '}-H <span className="s">&quot;Authorization: Bearer $VK&quot;</span> \{'\n'}
+                {'  '}-d <span className="s">&apos;{`{`}{'\n'}
+                {'    '}&quot;query&quot;: &quot;{query.length > 38 ? query.slice(0, 38) + '…' : query}&quot;,{'\n'}
+                {'    '}&quot;collection&quot;: &quot;{collection}&quot;,{'\n'}
+                {'    '}&quot;limit&quot;: {limit},{'\n'}
+                {'    '}&quot;threshold&quot;: {threshold}{'\n'}
+                {'  '}{`}`}&apos;</span>
               </pre>
             </CardBody>
           </Card>

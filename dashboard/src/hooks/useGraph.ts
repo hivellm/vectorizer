@@ -123,7 +123,7 @@ export function useGraph() {
         };
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to list nodes: ${error.message}`);
+          throw new Error(`Failed to list nodes: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -159,7 +159,7 @@ export function useGraph() {
         };
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to list edges: ${error.message}`);
+          throw new Error(`Failed to list edges: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -179,7 +179,7 @@ export function useGraph() {
         return response.neighbors;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to get neighbors: ${error.message}`);
+          throw new Error(`Failed to get neighbors: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -204,7 +204,7 @@ export function useGraph() {
         return response.related;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to find related nodes: ${error.message}`);
+          throw new Error(`Failed to find related nodes: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -233,7 +233,7 @@ export function useGraph() {
         return response;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to find path: ${error.message}`);
+          throw new Error(`Failed to find path: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -269,7 +269,7 @@ export function useGraph() {
         return response.edge_id;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to create edge: ${error.message}`);
+          throw new Error(`Failed to create edge: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -286,7 +286,7 @@ export function useGraph() {
         await apiClient.delete(`/graph/edges/${encodeURIComponent(edgeId)}`);
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to delete edge: ${error.message}`);
+          throw new Error(`Failed to delete edge: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -310,7 +310,7 @@ export function useGraph() {
         return response;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to discover edges: ${error.message}`);
+          throw new Error(`Failed to discover edges: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -335,7 +335,7 @@ export function useGraph() {
         return response;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to discover edges for node: ${error.message}`);
+          throw new Error(`Failed to discover edges for node: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -355,7 +355,7 @@ export function useGraph() {
         return response;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to get discovery status: ${error.message}`);
+          throw new Error(`Failed to get discovery status: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -376,7 +376,7 @@ export function useGraph() {
         return response;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to enable graph: ${error.message}`);
+          throw new Error(`Failed to enable graph: ${error.message}`, { cause: error });
         }
         throw error;
       }
@@ -396,7 +396,7 @@ export function useGraph() {
         return response;
       } catch (error) {
         if (error instanceof ApiClientError) {
-          throw new Error(`Failed to get graph status: ${error.message}`);
+          throw new Error(`Failed to get graph status: ${error.message}`, { cause: error });
         }
         throw error;
       }

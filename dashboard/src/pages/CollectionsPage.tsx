@@ -131,7 +131,7 @@ function CollectionsPage() {
               })}
               {!filtered.length && (
                 <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
-                  No collections match "{filter}".
+                  No collections match &quot;{filter}&quot;.
                 </div>
               )}
             </div>

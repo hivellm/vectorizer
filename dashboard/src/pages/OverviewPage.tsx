@@ -220,7 +220,7 @@ function OverviewPage() {
               className="muted"
               style={{ fontSize: 12, lineHeight: 1.6 }}
             >
-              Per-collection quantization is reported on each collection's
+              Per-collection quantization is reported on each collection&apos;s
               detail page. Aggregate compression ratio and recall metrics
               will appear here once the backend exposes them via{' '}
               <span className="mono">GET /stats</span>.

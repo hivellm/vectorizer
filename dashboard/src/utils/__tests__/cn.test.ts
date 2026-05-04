@@ -11,7 +11,12 @@ describe('cn', () => {
   });
 
   it('should handle conditional classes', () => {
-    expect(cn('class1', true && 'class2', false && 'class3')).toBe('class1 class2');
+    // `as boolean` widens the literal types so the `&&` short-circuits
+    // at runtime instead of being collapsed at compile time — keeps
+    // no-constant-binary-expression quiet while preserving intent.
+    const isActive = true as boolean;
+    const isInactive = false as boolean;
+    expect(cn('class1', isActive && 'class2', isInactive && 'class3')).toBe('class1 class2');
   });
 
   it('should handle undefined and null', () => {

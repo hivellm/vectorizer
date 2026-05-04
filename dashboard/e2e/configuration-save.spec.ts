@@ -49,8 +49,10 @@ test.describe('phase24 — configuration save', () => {
       if (method === 'GET') {
         return route.fulfill(json(INITIAL_CONFIG));
       }
-      // POST — save
-      let body: unknown = null;
+      // POST — save. `let` without an initial value avoids the
+      // no-useless-assignment lint; both branches of the try/catch
+      // below assign body before it is read.
+      let body: unknown;
       try {
         body = route.request().postDataJSON();
       } catch {

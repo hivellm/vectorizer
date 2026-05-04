@@ -39,11 +39,15 @@ export function useSetupRedirect(options?: {
   const hasChecked = useRef(false);
 
   const enabled = options?.enabled ?? true;
-  // Memoize excludePaths to prevent dependency changes
+  // Memoize excludePaths to prevent dependency changes. The dep list
+  // takes a simple identifier (`excludePathsKey`) instead of the
+  // inline `JSON.stringify(...)` call so react-hooks/exhaustive-deps
+  // accepts it under eslint@10.
+  const excludePathsKey = (options?.excludePaths ?? DEFAULT_EXCLUDE_PATHS).join('|');
   const excludePaths = useMemo(
     () => options?.excludePaths ?? DEFAULT_EXCLUDE_PATHS,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(options?.excludePaths)]
+    [excludePathsKey]
   );
 
   useEffect(() => {

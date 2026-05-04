@@ -18,7 +18,7 @@
  * console design ships a modal primitive.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useWorkspace, WorkspaceConfig, WorkspaceProject } from '@/hooks/useWorkspace';
 import { useToastContext } from '@/providers/ToastProvider';
 import FileBrowser from '@/components/FileBrowser';
@@ -53,12 +53,7 @@ function WorkspacePage() {
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(new Set());
   const [browsingProject, setBrowsingProject] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -84,7 +79,11 @@ function WorkspacePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getConfig]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const allProjects = config?.projects ?? [];
   const filteredProjects = allProjects.filter((project) => {
