@@ -1,18 +1,41 @@
 /**
- * Backups page - Manage backups
+ * Backups page — console-themed restyle.
+ *
+ * Visual restyle only: behaviour (loading list of backups, creating a
+ * new backup with a chosen subset of collections, and restoring an
+ * existing backup into a target collection) is preserved from the
+ * pre-redesign version. The redesign brief has no dedicated mockup for
+ * Backups, so this page applies the established Phase 3 recipe:
+ *   - `.page` + `.page-head` shell with title/sub + toolbar buttons
+ *   - console `Card` / `CardHead` / `CardBody`, `Tbl` / `Th` / `Td`
+ *   - `Kpi` cards for the headline metrics
+ *   - `StatusPill` / `Pill` for backup status / collection chips
+ *   - `.btn` actions with `Icons.*`
+ *   - no Tailwind utility classes, no `dark:` variants
+ *
+ * The legacy "Create Backup" and "Restore Backup" modals are rendered
+ * as inline panels below the table — flagged with `// TODO(actions)`
+ * until the console design ships a modal primitive (matches the pattern
+ * established by FileWatcherPage).
  */
 
 import { useEffect, useState } from 'react';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useCollections } from '@/hooks/useCollections';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
-import { Select } from '@/components/ui/Select';
 import { useToastContext } from '@/providers/ToastProvider';
-import LoadingState from '@/components/LoadingState';
 import { formatNumber, formatDate } from '@/utils/formatters';
-import { Plus, RefreshCw01, AlertCircle, CheckCircle } from '@untitledui/icons';
+import {
+  Icons,
+  Pill,
+  StatusPill,
+  Card,
+  CardHead,
+  CardBody,
+  Kpi,
+  Tbl,
+  Th,
+  Td,
+} from '@/components/console';
 
 interface Backup {
   id: string;
@@ -22,49 +45,55 @@ interface Backup {
   collections: string[];
 }
 
+interface CollectionOption {
+  name: string;
+  vector_count?: number;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 function BackupsPage() {
   const api = useApiClient();
   const { listCollections } = useCollections();
   const toast = useToastContext();
 
   const [backups, setBackups] = useState<Backup[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [collections, setCollections] = useState<CollectionOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<Backup | null>(null);
   const [createForm, setCreateForm] = useState({
     name: '',
     collections: [] as string[],
   });
-  const [restoreForm, setRestoreForm] = useState({
-    collection: '',
-  });
+  const [restoreForm, setRestoreForm] = useState({ collection: '' });
   const [creating, setCreating] = useState(false);
   const [restoring, setRestoring] = useState(false);
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
       const [backupsData, collectionsData] = await Promise.all([
-        api.get<any>('/backups'),
+        api.get<unknown>('/backups'),
         listCollections(),
       ]);
-      
-      // Handle different response formats
-      const backupsList = Array.isArray(backupsData) 
-        ? backupsData 
-        : Array.isArray(backupsData.backups) 
-        ? backupsData.backups 
+
+      // Handle both bare-array and `{ backups: [...] }` payloads.
+      const list: Backup[] = Array.isArray(backupsData)
+        ? (backupsData as Backup[])
+        : Array.isArray((backupsData as { backups?: Backup[] })?.backups)
+        ? (backupsData as { backups: Backup[] }).backups
         : [];
-      
-      setBackups(backupsList);
+
+      setBackups(list);
       setCollections(Array.isArray(collectionsData) ? collectionsData : []);
     } catch (err) {
       console.error('Error loading backups:', err);
@@ -74,20 +103,24 @@ function BackupsPage() {
     }
   };
 
-  const handleCreate = () => {
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openCreate = () => {
     setCreateForm({
       name: `backup-${new Date().toISOString().split('T')[0]}`,
       collections: [],
     });
-    setShowCreateModal(true);
+    setCreateOpen(true);
   };
 
-  const handleCreateBackup = async () => {
+  const handleCreate = async () => {
     if (!createForm.name.trim()) {
       toast.error('Please enter a backup name');
       return;
     }
-
     if (createForm.collections.length === 0) {
       toast.error('Please select at least one collection');
       return;
@@ -100,7 +133,7 @@ function BackupsPage() {
         collections: createForm.collections,
       });
       toast.success('Backup created successfully');
-      setShowCreateModal(false);
+      setCreateOpen(false);
       await loadData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create backup');
@@ -109,18 +142,19 @@ function BackupsPage() {
     }
   };
 
-  const handleRestore = (backup: Backup) => {
+  const openRestore = (backup: Backup) => {
     setSelectedBackup(backup);
-    setRestoreForm({ collection: '' });
-    setShowRestoreModal(true);
+    setRestoreForm({ collection: backup.collections[0] ?? '' });
+    setRestoreOpen(true);
   };
 
-  const handleRestoreBackup = async () => {
+  const handleRestore = async () => {
     if (!selectedBackup) return;
-
-    if (!window.confirm(
-      `Are you sure you want to restore backup "${selectedBackup.name}"? This will overwrite existing data in the selected collection.`
-    )) {
+    if (
+      !window.confirm(
+        `Are you sure you want to restore backup "${selectedBackup.name}"? This will overwrite existing data in the selected collection.`,
+      )
+    ) {
       return;
     }
 
@@ -131,7 +165,7 @@ function BackupsPage() {
         collection: restoreForm.collection || selectedBackup.collections[0],
       });
       toast.success('Backup restored successfully');
-      setShowRestoreModal(false);
+      setRestoreOpen(false);
       setSelectedBackup(null);
       await loadData();
     } catch (err) {
@@ -141,286 +175,327 @@ function BackupsPage() {
     }
   };
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  };
-
-  if (loading && backups.length === 0) {
-    return <LoadingState message="Loading backups..." />;
-  }
+  const totalBytes = backups.reduce((s, b) => s + (b.size ?? 0), 0);
+  const lastBackup = backups
+    .map((b) => b.date)
+    .filter(Boolean)
+    .sort()
+    .pop();
+  const lastBackupLabel = lastBackup ? formatDate(lastBackup) : '—';
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">Backups</h1>
-          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 mt-1">
-            Manage database backups and restorations
-          </p>
+          <h1 className="page-title">Backups</h1>
+          <p className="page-sub">Manage database backups and restorations</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={loadData}>
-            <RefreshCw01 className="w-4 h-4 mr-2" />
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn" onClick={loadData} disabled={loading}>
+            <Icons.refresh size={13} />
             Refresh
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleCreate}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Backup
-          </Button>
+          </button>
+          <button className="btn primary" onClick={openCreate}>
+            <Icons.plus size={13} />
+            Create backup
+          </button>
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-            <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
-          </div>
+        <div style={{ marginBottom: 14 }}>
+          <Card>
+            <CardBody>
+              <div className="row" style={{ gap: 8 }}>
+                <Pill tone="red">error</Pill>
+                <span style={{ color: 'var(--text-2)' }}>{error}</span>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       )}
 
-      {/* Backups List */}
-      {backups.length === 0 ? (
-        <Card>
-          <div className="text-center py-12">
-            <div className="w-16 h-16 mx-auto mb-4 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
-              No Backups
-            </h3>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">
-              Create your first backup to protect your data
-            </p>
-            <Button variant="primary" onClick={handleCreate}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Backup
-            </Button>
+      <Card>
+        <CardHead title="Overview" sub={loading && backups.length === 0 ? 'loading…' : undefined} />
+        <CardBody>
+          <div className="row" style={{ gap: 24, flexWrap: 'wrap' }}>
+            <Kpi label="Total backups" value={formatNumber(backups.length)} />
+            <Kpi
+              label="Total size"
+              value={formatBytes(totalBytes)}
+              accent={totalBytes > 0 ? 'teal' : 'none'}
+            />
+            <Kpi label="Last backup" value={lastBackupLabel} />
+            <Kpi label="Collections tracked" value={formatNumber(collections.length)} />
           </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {backups.map((backup) => (
-            <Card key={backup.id}>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
-                      {backup.name}
-                    </h3>
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                      {formatDate(backup.date)}
-                    </p>
-                  </div>
-                  <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                  </div>
-                </div>
+        </CardBody>
+      </Card>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-neutral-500 dark:text-neutral-400">Size:</span>
-                    <p className="text-neutral-900 dark:text-white font-medium mt-1">
-                      {formatBytes(backup.size)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-neutral-500 dark:text-neutral-400">Collections:</span>
-                    <p className="text-neutral-900 dark:text-white font-medium mt-1">
-                      {backup.collections.length}
-                    </p>
-                  </div>
-                </div>
+      <div style={{ height: 14 }} />
 
-                {backup.collections.length > 0 && (
-                  <div>
-                    <span className="text-sm text-neutral-500 dark:text-neutral-400">Collections:</span>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {backup.collections.map((col, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 text-xs font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 rounded"
+      <Card>
+        <CardHead
+          title="Backups"
+          sub={backups.length > 0 ? `${backups.length} stored` : undefined}
+        />
+        <CardBody tight>
+          {backups.length === 0 && !loading ? (
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              No backups yet · Create one above to protect your data.
+            </div>
+          ) : (
+            <Tbl>
+              <thead>
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Created</Th>
+                  <Th>Size</Th>
+                  <Th>Collections</Th>
+                  <Th>Status</Th>
+                  <Th />
+                </tr>
+              </thead>
+              <tbody>
+                {backups.map((backup) => (
+                  <tr key={backup.id}>
+                    <Td>
+                      <div className="row" style={{ gap: 8 }}>
+                        <Icons.database size={13} className="muted" />
+                        <span style={{ fontWeight: 500 }}>{backup.name}</span>
+                      </div>
+                      <div
+                        className="mono"
+                        style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}
+                      >
+                        {backup.id.substring(0, 8)}…
+                      </div>
+                    </Td>
+                    <Td className="num muted">{backup.date ? formatDate(backup.date) : '—'}</Td>
+                    <Td className="num">{formatBytes(backup.size ?? 0)}</Td>
+                    <Td>
+                      <div className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
+                        {backup.collections.length === 0 ? (
+                          <span style={{ color: 'var(--text-3)' }}>—</span>
+                        ) : (
+                          backup.collections.map((col) => (
+                            <Pill key={col} tone="muted" className="mono">
+                              {col}
+                            </Pill>
+                          ))
+                        )}
+                      </div>
+                    </Td>
+                    <Td>
+                      <StatusPill status="healthy" />
+                    </Td>
+                    <Td>
+                      <div className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+                        <button
+                          className="btn sm primary"
+                          onClick={() => openRestore(backup)}
+                          aria-label={`Restore ${backup.name}`}
                         >
-                          {col}
-                        </span>
+                          <Icons.refresh size={11} />
+                          Restore
+                        </button>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Tbl>
+          )}
+        </CardBody>
+      </Card>
+
+      {createOpen && (
+        <>
+          <div style={{ height: 14 }} />
+          {/* TODO(actions): replace inline panel with a real modal once
+              the console design ships a modal primitive. */}
+          <Card>
+            <CardHead
+              title="Create backup"
+              right={
+                <button className="btn sm" onClick={() => setCreateOpen(false)}>
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
+            />
+            <CardBody>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <label
+                  className="col"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                >
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Backup name</span>
+                  <input
+                    className="input"
+                    type="text"
+                    value={createForm.name}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, name: e.target.value })
+                    }
+                    placeholder="backup-2026-05-01"
+                  />
+                </label>
+                <div className="col" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                    Collections to back up
+                  </span>
+                  {collections.length === 0 ? (
+                    <div style={{ color: 'var(--text-3)', fontSize: 12 }}>
+                      No collections available
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        maxHeight: 220,
+                        overflowY: 'auto',
+                        padding: 10,
+                        border: '1px solid var(--border)',
+                        borderRadius: 4,
+                        background: 'var(--surface-2)',
+                      }}
+                    >
+                      {collections.map((col) => (
+                        <label
+                          key={col.name}
+                          className="row"
+                          style={{ gap: 8, alignItems: 'center', cursor: 'pointer' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={createForm.collections.includes(col.name)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCreateForm({
+                                  ...createForm,
+                                  collections: [...createForm.collections, col.name],
+                                });
+                              } else {
+                                setCreateForm({
+                                  ...createForm,
+                                  collections: createForm.collections.filter(
+                                    (c) => c !== col.name,
+                                  ),
+                                });
+                              }
+                            }}
+                          />
+                          <span>{col.name}</span>
+                          <span className="num muted" style={{ fontSize: 11 }}>
+                            {formatNumber(col.vector_count ?? 0)} vectors
+                          </span>
+                        </label>
                       ))}
                     </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-800">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleRestore(backup)}
+                  )}
+                </div>
+                <div className="row" style={{ gap: 8, marginTop: 4 }}>
+                  <button
+                    className="btn primary"
+                    onClick={handleCreate}
+                    disabled={
+                      creating ||
+                      !createForm.name.trim() ||
+                      createForm.collections.length === 0
+                    }
                   >
-                    Restore
-                  </Button>
-                  <div className="flex-1 text-xs text-neutral-500 dark:text-neutral-400">
-                    ID: {backup.id.substring(0, 8)}...
-                  </div>
+                    <Icons.check size={13} />
+                    {creating ? 'Creating…' : 'Create backup'}
+                  </button>
+                  <button className="btn" onClick={() => setCreateOpen(false)}>
+                    Cancel
+                  </button>
                 </div>
               </div>
-            </Card>
-          ))}
-        </div>
+            </CardBody>
+          </Card>
+        </>
       )}
 
-      {/* Create Backup Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Create Backup"
-        size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleCreateBackup}
-              disabled={creating || !createForm.name.trim() || createForm.collections.length === 0}
-              isLoading={creating}
-            >
-              Create Backup
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Backup Name
-            </label>
-            <input
-              type="text"
-              value={createForm.name}
-              onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-              placeholder="backup-2024-01-01"
-              className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+      {restoreOpen && selectedBackup && (
+        <>
+          <div style={{ height: 14 }} />
+          {/* TODO(actions): replace inline panel with a real modal once
+              the console design ships a modal primitive. */}
+          <Card>
+            <CardHead
+              title={`Restore backup · ${selectedBackup.name}`}
+              right={
+                <button
+                  className="btn sm"
+                  onClick={() => {
+                    setRestoreOpen(false);
+                    setSelectedBackup(null);
+                  }}
+                >
+                  <Icons.x size={11} />
+                  Close
+                </button>
+              }
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
-              Collections to Backup
-            </label>
-            <div className="space-y-2 max-h-60 overflow-y-auto border border-neutral-200 dark:border-neutral-800 rounded-lg p-3">
-              {collections.length === 0 ? (
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                  No collections available
-                </p>
-              ) : (
-                collections.map((col) => (
-                  <label key={col.name} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={createForm.collections.includes(col.name)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setCreateForm({
-                            ...createForm,
-                            collections: [...createForm.collections, col.name],
-                          });
-                        } else {
-                          setCreateForm({
-                            ...createForm,
-                            collections: createForm.collections.filter((c) => c !== col.name),
-                          });
-                        }
-                      }}
-                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-neutral-700 dark:text-neutral-300">
-                      {col.name} ({formatNumber(col.vector_count || 0)} vectors)
-                    </span>
-                  </label>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Restore Backup Modal */}
-      <Modal
-        isOpen={showRestoreModal}
-        onClose={() => {
-          setShowRestoreModal(false);
-          setSelectedBackup(null);
-        }}
-        title="Restore Backup"
-        size="md"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowRestoreModal(false);
-                setSelectedBackup(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleRestoreBackup}
-              disabled={restoring || !restoreForm.collection}
-              isLoading={restoring}
-            >
-              Restore Backup
-            </Button>
-          </>
-        }
-      >
-        {selectedBackup && (
-          <div className="space-y-4">
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 mb-1">
-                    Warning
-                  </h3>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-400">
-                    Restoring this backup will overwrite all data in the selected collection. This action cannot be undone.
-                  </p>
+            <CardBody>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
+                  <Pill tone="amber">warning</Pill>
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                    Restoring this backup will overwrite all data in the selected
+                    collection. This action cannot be undone.
+                  </span>
+                </div>
+                <div style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                  Collections in backup: {selectedBackup.collections.join(', ') || '—'}
+                </div>
+                <label
+                  className="col"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+                >
+                  <span style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                    Target collection
+                  </span>
+                  <select
+                    className="input"
+                    value={restoreForm.collection}
+                    onChange={(e) => setRestoreForm({ collection: e.target.value })}
+                  >
+                    <option value="">Select collection…</option>
+                    {selectedBackup.collections.map((col) => (
+                      <option key={col} value={col}>
+                        {col}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="row" style={{ gap: 8, marginTop: 4 }}>
+                  <button
+                    className="btn primary"
+                    onClick={handleRestore}
+                    disabled={restoring || !restoreForm.collection}
+                  >
+                    <Icons.refresh size={13} />
+                    {restoring ? 'Restoring…' : 'Restore backup'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => {
+                      setRestoreOpen(false);
+                      setSelectedBackup(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
-            </div>
-            <div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
-                Backup: <strong className="text-neutral-900 dark:text-white">{selectedBackup.name}</strong>
-              </p>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">
-                Collections in backup: {selectedBackup.collections.join(', ')}
-              </p>
-              <Select
-                label="Target Collection"
-                value={restoreForm.collection}
-                onChange={(value) => setRestoreForm({ collection: value })}
-                placeholder="Select collection to restore to..."
-              >
-                <Select.Option id="" value="">
-                  Select collection...
-                </Select.Option>
-                {selectedBackup.collections.map((col) => (
-                  <Select.Option key={col} id={col} value={col}>
-                    {col}
-                  </Select.Option>
-                ))}
-              </Select>
-            </div>
-          </div>
-        )}
-      </Modal>
+            </CardBody>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

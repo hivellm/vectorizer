@@ -1,70 +1,48 @@
-/**
- * Unit tests for SearchPage component
- */
-
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@/providers/ThemeProvider';
-import { ToastProvider } from '@/providers/ToastProvider';
+import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../SearchPage';
 
-// Mock hooks
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
-    listCollections: vi.fn().mockResolvedValue([
-      { name: 'collection1', dimension: 512, metric: 'cosine' },
-    ]),
+    listCollections: async () => [
+      { name: 'docs', dimension: 384, vector_count: 1200, status: 'healthy' },
+    ],
   }),
 }));
 
 vi.mock('@/stores/collections', () => ({
   useCollectionsStore: () => ({
-    collections: [{ name: 'collection1', dimension: 512, metric: 'cosine' }],
+    collections: [{ name: 'docs', dimension: 384, vector_count: 1200, status: 'healthy' }],
+    loading: false,
+    error: null,
     setCollections: vi.fn(),
+    setLoading: vi.fn(),
+    setError: vi.fn(),
   }),
 }));
 
-vi.mock('@/hooks/useSearchHistory', () => ({
-  useSearchHistory: () => ({
-    history: [],
-    addToHistory: vi.fn(),
-    clearHistory: vi.fn(),
+vi.mock('@/hooks/useApiClient', () => ({
+  useApiClient: () => ({
+    post: vi.fn(async () => ({ data: { results: [] } })),
+    get:  vi.fn(async () => ({ data: [] })),
   }),
 }));
-
-const Wrapper = ({ children }: { children: React.ReactNode }) => (
-  <BrowserRouter>
-    <ThemeProvider>
-      <ToastProvider>
-        {children}
-      </ToastProvider>
-    </ThemeProvider>
-  </BrowserRouter>
-);
 
 describe('SearchPage', () => {
-  it('should render search page', () => {
-    render(
-      <Wrapper>
-        <SearchPage />
-      </Wrapper>
-    );
-    
-    // Check for search input instead of text
-    const searchInput = screen.getByPlaceholderText(/search|query/i);
-    expect(searchInput).toBeInTheDocument();
+  it('renders the four search-type tabs', () => {
+    render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    expect(screen.getByRole('heading', { name: /Search Playground/i })).toBeTruthy();
+    for (const label of ['Intelligent', 'Semantic', 'Contextual', 'Multi-collection']) {
+      expect(screen.getByText(label)).toBeTruthy();
+    }
   });
 
-  it('should render search input', () => {
-    render(
-      <Wrapper>
-        <SearchPage />
-      </Wrapper>
-    );
-    
-    const searchInput = screen.getByPlaceholderText(/search|query/i);
-    expect(searchInput).toBeInTheDocument();
+  it('switches the request preview when clicking a different tab', () => {
+    render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    // Default = intelligent
+    expect(screen.getAllByText(/intelligent_search/i).length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(screen.getByText('Semantic'));
+    expect(screen.getAllByText(/semantic_search/i).length).toBeGreaterThanOrEqual(1);
   });
 });
-

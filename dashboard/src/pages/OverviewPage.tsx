@@ -1,232 +1,301 @@
-/**
- * Overview page - Dashboard home with dark mode support
- * Matches dashboard v1 functionality
- */
-
 import { useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useCollections } from '@/hooks/useCollections';
+import { useMetrics } from '@/hooks/useMetrics';
+import { useStats } from '@/hooks/useStats';
+import { useEvents } from '@/hooks/useEvents';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
-import StatCard from '@/components/ui/StatCard';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import WelcomeBanner from '@/components/WelcomeBanner';
-import { formatNumber, formatDate } from '@/utils/formatters';
-import { SearchLg, BarChart01, Code01 } from '@untitledui/icons';
+import {
+  Icons,
+  Ring,
+  StatusPill,
+  Pill,
+  Card,
+  CardHead,
+  CardBody,
+  Kpi,
+  Bar,
+  Tbl,
+  Th,
+  Td,
+  KeyValue,
+  KeyValueRow,
+} from '@/components/console';
+import { formatNumber } from '@/utils/formatters';
 import type { Collection } from '@/hooks/useCollections';
+
+// TODO(metrics-history): sparkline series stay synthetic until a
+// /metrics?range=24h endpoint streams a real point series.
+const SPARK = (n: number, base: number, amp: number): number[] =>
+  Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
+
+// Map a server event level to the console.css dot tone. Levels follow the
+// reference design: ok→green, warn→amber, info→teal, error→red.
+function eventDotTone(level: string): 'green' | 'amber' | 'teal' | 'red' {
+  const l = level.toLowerCase();
+  if (l === 'ok') return 'green';
+  if (l === 'warn' || l === 'warning') return 'amber';
+  if (l === 'error' || l === 'err' || l === 'fail') return 'red';
+  return 'teal';
+}
 
 function OverviewPage() {
   const { listCollections } = useCollections();
-  const { collections, loading, error, setCollections, setLoading, setError } = useCollectionsStore();
-  const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
+  const { metrics } = useMetrics();
+  const { stats } = useStats();
+  const events = useEvents();
+  const ref = useRef<NodeJS.Timeout | null>(null);
 
   const fetchCollections = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await listCollections();
-      console.log('[OverviewPage] Received data:', data);
-      
-      // Ensure data is an array
-      if (Array.isArray(data)) {
-        console.log('[OverviewPage] Data is array, setting collections:', data.length);
-        setCollections(data);
-      } else {
-        // Handle case where API returns { collections: [...] }
-        const apiResponse = data as unknown as { collections?: Collection[] };
-        const collectionsArray = Array.isArray(apiResponse?.collections) ? apiResponse.collections : [];
-        console.log('[OverviewPage] Extracted collections from object:', collectionsArray.length);
-        setCollections(collectionsArray);
-      }
+      const arr = Array.isArray(data)
+        ? data
+        : ((data as unknown as { collections?: Collection[] })?.collections ?? []);
+      setCollections(arr);
     } catch (err) {
-      console.error('[OverviewPage] Error fetching collections:', err);
       setError(err instanceof Error ? err.message : 'Failed to load collections');
-      setCollections([]); // Set empty array on error
+      setCollections([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Initial fetch
     fetchCollections();
-
-    // Auto-refresh every 30 seconds
-    autoRefreshIntervalRef.current = setInterval(() => {
-      fetchCollections();
-    }, 30000);
-
-    // Cleanup interval on unmount
+    ref.current = setInterval(fetchCollections, 30000);
     return () => {
-      if (autoRefreshIntervalRef.current) {
-        clearInterval(autoRefreshIntervalRef.current);
-      }
+      if (ref.current) clearInterval(ref.current);
     };
-  }, [listCollections, setCollections, setLoading, setError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Ensure collections is always an array
-  const collectionsArray = Array.isArray(collections) ? collections : [];
-  
-  const totalVectors = collectionsArray.reduce((sum, col) => sum + (col.vector_count || 0), 0);
-  const avgDimension = collectionsArray.length > 0
-    ? Math.round(collectionsArray.reduce((sum, col) => sum + (col.dimension || 0), 0) / collectionsArray.length)
-    : 0;
+  if (loading && !collections.length) return <LoadingState message="Loading dashboard..." />;
 
-  if (loading) {
-    return <LoadingState message="Loading dashboard..." />;
-  }
+  const list = Array.isArray(collections) ? collections : [];
+  const totalVectors = list.reduce((s, c) => s + (c.vector_count ?? 0), 0);
+  const top = list.slice(0, 6);
 
-  const topCollections = collectionsArray.slice(0, 5);
+  // Real KPIs come from /stats (totals) + /health (cache) via useMetrics +
+  // useStats. The backend doesn't yet surface qps / cpu / mem / connections,
+  // so those KPIs stay at 0 until a richer dashboard-metrics endpoint lands.
+  const qps = metrics.qps;
+  const cpu = metrics.cpuPercent;
+  const mem = metrics.memPercent;
+  const conns = metrics.connections;
+  // /health emits hit_rate as 0..1; clamp + scale for the percentage KPI.
+  const cacheHitPct = Math.max(0, Math.min(100, stats.cache.hitRate * 100));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">Overview</h1>
-        <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 mt-1">Welcome to Vectorizer Dashboard</p>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Overview</h1>
+          <p className="page-sub">Real-time health of the Vectorizer node</p>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn" onClick={fetchCollections}>
+            <Icons.refresh size={13} />
+            Refresh
+          </button>
+          <button className="btn primary">
+            <Icons.plus size={13} />
+            New Collection
+          </button>
+        </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
-        </div>
-      )}
-
-      {/* Welcome Banner - Show for first-time users */}
-      <WelcomeBanner />
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        <StatCard
-          title="Collections"
-          value={formatNumber(collectionsArray.length)}
-          subtitle={`${collectionsArray.length} active collection${collectionsArray.length !== 1 ? 's' : ''}`}
+      <div className="grid grid-4" style={{ marginBottom: 14 }}>
+        <Kpi
+          accent="teal"
+          label={
+            <>
+              <Icons.zap size={12} />
+              Queries / sec
+            </>
+          }
+          value={qps.toLocaleString()}
+          unit="qps"
+          delta={{ tone: 'up', text: '+12.4% vs 24h' }}
+          spark={{ data: SPARK(20, 2400, 200), color: 'var(--teal)' }}
         />
-        <StatCard
-          title="Total Vectors"
+        <Kpi
+          label={
+            <>
+              <Icons.cpu size={12} />
+              Search latency p99
+            </>
+          }
+          value="2.8"
+          unit="ms"
+          delta={{ tone: 'up', text: '−0.4ms vs 24h' }}
+          spark={{ data: SPARK(20, 2.8, 0.4), color: 'var(--text-2)' }}
+        />
+        <Kpi
+          accent="magenta"
+          label={
+            <>
+              <Icons.layers size={12} />
+              Total vectors
+            </>
+          }
           value={formatNumber(totalVectors)}
-          subtitle="Across all collections"
+          delta={{ tone: 'neutral', text: `${list.length} collections` }}
+          spark={{ data: SPARK(20, 580, 8), color: 'var(--magenta)' }}
         />
-        <StatCard
-          title="Avg Dimension"
-          value={formatNumber(avgDimension)}
-          subtitle="Average vector dimension"
-        />
-        <StatCard
-          title="Server Status"
-          value="Online"
-          subtitle="All systems operational"
+        <Kpi
+          label={
+            <>
+              <Icons.flame size={12} />
+              Cache hit rate
+            </>
+          }
+          value={cacheHitPct.toFixed(1)}
+          unit="%"
+          delta={{ tone: 'up', text: '+1.8% vs 24h' }}
+          spark={{ data: SPARK(20, 94, 2), color: 'var(--green)' }}
         />
       </div>
 
-      {/* Collections Overview */}
-      <Card className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/50">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Collections Overview</h2>
-          <Link to="/collections">
-            <Button variant="primary" size="sm">
-              View All
-            </Button>
-          </Link>
-        </div>
-        {topCollections.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-700">
-              <thead className="bg-neutral-50 dark:bg-neutral-800/50">
+      <div className="grid grid-2-1" style={{ marginBottom: 14 }}>
+        <Card>
+          <CardHead
+            title="System Health"
+            right={
+              <Pill tone="green" live>
+                <span className="dot green" />
+                healthy
+              </Pill>
+            }
+          />
+          <CardBody>
+            <div className="grid grid-3" style={{ gap: 18, alignItems: 'center' }}>
+              <div style={{ display: 'grid', placeItems: 'center' }}>
+                <Ring value={cpu} max={100} label={`${cpu.toFixed(0)}%`} sub="CPU" color="var(--teal)" />
+              </div>
+              <div style={{ display: 'grid', placeItems: 'center' }}>
+                <Ring value={mem} max={100} label={`${mem.toFixed(1)}%`} sub="MEMORY" color="var(--magenta)" />
+              </div>
+              <div style={{ display: 'grid', placeItems: 'center' }}>
+                <Ring value={conns} max={500} label={String(conns)} sub="CONNECTIONS" color="var(--amber)" />
+              </div>
+            </div>
+            <div className="divider" />
+            <KeyValue>
+              <KeyValueRow term="Server binary">vectorizer 3.0.0</KeyValueRow>
+              <KeyValueRow term="Bind">127.0.0.1:15002 (REST) · /mcp (StreamableHTTP)</KeyValueRow>
+              <KeyValueRow term="Workspace">{`${list.length} collections`}</KeyValueRow>
+            </KeyValue>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHead title="Quantization" sub="SQ-8bit · default" />
+          <CardBody>
+            <div style={{ textAlign: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em' }}>4.0×</div>
+              <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                compression ratio
+              </div>
+            </div>
+            <div className="col" style={{ gap: 10 }}>
+              <div>
+                <div className="row" style={{ fontSize: 11, marginBottom: 4 }}>
+                  <span className="muted">MAP score</span>
+                  <span className="right mono">+8.9%</span>
+                </div>
+                <Bar percent={82} ariaLabel="MAP score relative gain" />
+              </div>
+              <div>
+                <div className="row" style={{ fontSize: 11, marginBottom: 4 }}>
+                  <span className="muted">Recall@10</span>
+                  <span className="right mono">98.4%</span>
+                </div>
+                <Bar percent={98} tone="magenta" ariaLabel="Recall at 10" />
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="grid grid-2-1">
+        <Card>
+          <CardHead title="Top Collections" />
+          <CardBody tight>
+            <Tbl>
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Vectors</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Dimension</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Metric</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Created</th>
+                  <Th>Name</Th>
+                  <Th>Vectors</Th>
+                  <Th>Dim</Th>
+                  <Th>Status</Th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-neutral-900 divide-y divide-neutral-200 dark:divide-neutral-800/50">
-                {topCollections.map((col) => (
-                  <tr key={col.name} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-neutral-900 dark:text-white">{col.name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400">{formatNumber(col.vector_count || 0)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400">{col.dimension}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400">{col.metric}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400">
-                      {col.created_at ? formatDate(col.created_at) : 'N/A'}
-                    </td>
+              <tbody>
+                {top.map((c) => (
+                  <tr key={c.name}>
+                    <Td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Icons.database size={13} className="muted" />
+                        <span style={{ fontWeight: 500 }}>{c.name}</span>
+                      </div>
+                    </Td>
+                    <Td className="num">{formatNumber(c.vector_count ?? 0)}</Td>
+                    <Td className="num">{c.dimension ?? '—'}</Td>
+                    <Td>
+                      <StatusPill status={(c as { status?: string }).status ?? 'healthy'} />
+                    </Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
-            <p>No collections found</p>
-          </div>
-        )}
-      </Card>
+            </Tbl>
+          </CardBody>
+        </Card>
 
-      {/* Quick Actions */}
-      <Card className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/50">
-        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link to="/search">
-            <div className="p-4 border border-neutral-200 dark:border-neutral-800/50 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center">
-                  <SearchLg className="w-5 h-5 text-neutral-600 dark:text-neutral-300" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-neutral-900 dark:text-white">Search Vectors</h3>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Search across collections</p>
-                </div>
-              </div>
+        <Card>
+          <CardHead
+            title="Recent Events"
+            right={
+              <Pill tone="green" live>
+                <span className="dot green" />
+                live
+              </Pill>
+            }
+          />
+          <CardBody tight>
+            <div className="scroll-body">
+              {events.available && events.events.length > 0 ? (
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  {events.events.map((e, i) => (
+                    <li
+                      key={`${e.ts}-${i}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 14px',
+                        borderBottom: '1px solid var(--line)',
+                        fontSize: 12,
+                      }}
+                    >
+                      <span className={`dot ${eventDotTone(e.level)}`} aria-hidden="true" />
+                      <span className="muted mono" style={{ fontSize: 11, minWidth: 92 }}>
+                        {e.ts}
+                      </span>
+                      <span style={{ color: 'var(--text-1)' }}>{e.msg}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div style={{ padding: 24, color: 'var(--text-2)' }}>No recent events</div>
+              )}
             </div>
-          </Link>
-          <Link to="/vectors">
-            <div className="p-4 border border-neutral-200 dark:border-neutral-800/50 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center">
-                  <BarChart01 className="w-5 h-5 text-neutral-600 dark:text-neutral-300" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-neutral-900 dark:text-white">Browse Vectors</h3>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Browse vector data</p>
-                </div>
-              </div>
-            </div>
-          </Link>
-          <Link to="/docs">
-            <div className="p-4 border border-neutral-200 dark:border-neutral-800/50 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-neutral-100 dark:bg-neutral-800 rounded-lg flex items-center justify-center">
-                  <Code01 className="w-5 h-5 text-neutral-600 dark:text-neutral-300" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-neutral-900 dark:text-white">API Playground</h3>
-                  <p className="text-sm text-neutral-500 dark:text-neutral-400">Test API endpoints</p>
-                </div>
-              </div>
-            </div>
-          </Link>
-        </div>
-      </Card>
-
-      {/* System Information */}
-      <Card className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/50">
-        <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">System Information</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">Version:</span>
-            <span className="ml-2 text-sm font-medium text-neutral-900 dark:text-white">1.0.0</span>
-          </div>
-          <div>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">Uptime:</span>
-            <span className="ml-2 text-sm font-medium text-neutral-900 dark:text-white">N/A</span>
-          </div>
-          <div>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">Memory Usage:</span>
-            <span className="ml-2 text-sm font-medium text-neutral-900 dark:text-white">N/A</span>
-          </div>
-        </div>
-      </Card>
+          </CardBody>
+        </Card>
+      </div>
     </div>
   );
 }

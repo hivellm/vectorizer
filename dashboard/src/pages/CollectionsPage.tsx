@@ -1,370 +1,304 @@
-/**
- * Collections page - Dark mode support
- * Matches dashboard v1 layout with cards grid
- */
-
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import { Dropdown } from '@/components/ui/Dropdown';
-import CreateCollectionModal from '@/components/modals/CreateCollectionModal';
-import CollectionDetailsModal from '@/components/modals/CollectionDetailsModal';
-import DeleteCollectionModal from '@/components/modals/DeleteCollectionModal';
-import FileUploadModal from '@/components/modals/FileUploadModal';
-import { formatNumber, formatDate } from '@/utils/formatters';
+import {
+  Icons,
+  Sparkline,
+  StatusPill,
+  Pill,
+  Card,
+  CardHead,
+  CardBody,
+  KeyValue,
+  KeyValueRow,
+} from '@/components/console';
+import { formatNumber } from '@/utils/formatters';
+import type { Collection } from '@/hooks/useCollections';
+
+const SPARK = (n: number, base: number, amp: number): number[] =>
+  Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
 function CollectionsPage() {
-  const navigate = useNavigate();
   const { listCollections } = useCollections();
-  const { collections, loading, error, setCollections, setLoading, setError } = useCollectionsStore();
+  const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
+  const ref = useRef<NodeJS.Timeout | null>(null);
   const [filter, setFilter] = useState('');
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [selectedCollection, setSelectedCollection] = useState<any>(null);
-  const [collectionToDelete, setCollectionToDelete] = useState<string>('');
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+
+  const fetchCollections = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await listCollections();
+      const arr = Array.isArray(data)
+        ? data
+        : ((data as unknown as { collections?: Collection[] })?.collections ?? []);
+      setCollections(arr);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load collections');
+      setCollections([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchCollections = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await listCollections();
-        console.log('[CollectionsPage] Received data:', data);
-        // Ensure data is always an array
-        const collectionsArray = Array.isArray(data) ? data : [];
-        console.log('[CollectionsPage] Setting collections:', collectionsArray.length);
-        setCollections(collectionsArray);
-      } catch (err) {
-        console.error('[CollectionsPage] Error fetching collections:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load collections');
-        setCollections([]); // Ensure empty array on error
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCollections();
-  }, [listCollections, setCollections, setLoading, setError]);
+    ref.current = setInterval(fetchCollections, 30000);
+    return () => {
+      if (ref.current) clearInterval(ref.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Ensure collections is always an array
-  const collectionsArray = Array.isArray(collections) ? collections : [];
-  
-  // Filter collections
-  const filteredCollections = filter
-    ? collectionsArray.filter(col => 
-        col.name.toLowerCase().includes(filter.toLowerCase()) ||
-        col.metric?.toLowerCase().includes(filter.toLowerCase()) ||
-        col.indexing_status?.status?.toLowerCase().includes(filter.toLowerCase())
-      )
-    : collectionsArray;
+  const list = Array.isArray(collections) ? collections : [];
+  const filtered = filter
+    ? list.filter((c) => c.name.toLowerCase().includes(filter.toLowerCase()))
+    : list;
 
-  // Calculate stats
-  const totalVectors = collectionsArray.reduce((sum, col) => sum + (col.vector_count || 0), 0);
-  const avgDimension = collectionsArray.length > 0
-    ? Math.round(collectionsArray.reduce((sum, col) => sum + (col.dimension || 0), 0) / collectionsArray.length)
-    : 0;
+  // Default selection = first filtered item; user click overrides
+  const selected =
+    (selectedName && list.find((c) => c.name === selectedName)) || filtered[0] || null;
 
-  const getNormalizationStatus = (collection: any) => {
-    if (collection.normalization?.enabled) {
-      return collection.normalization.level || 'Enabled';
-    }
-    return 'Disabled';
-  };
+  const totalVectors = list.reduce((s, c) => s + (c.vector_count ?? 0), 0);
 
-  const getNormalizationClass = (collection: any) => {
-    return collection.normalization?.enabled ? 'text-green-600 dark:text-green-400' : 'text-neutral-500 dark:text-neutral-400';
-  };
-
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case 'completed':
-      case 'cached':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'processing':
-      case 'indexing':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'error':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      default:
-        return 'bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-400';
-    }
-  };
-
-  if (loading) {
-    return <LoadingState message="Loading collections..." />;
-  }
+  if (loading && !list.length) return <LoadingState message="Loading collections..." />;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">Collections</h1>
-          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 mt-1">Manage your vector collections</p>
+          <h1 className="page-title">Collections</h1>
+          <p className="page-sub">
+            {list.length} collections · {formatNumber(totalVectors)} total vectors
+          </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="secondary" onClick={() => setUploadModalOpen(true)} className="flex-1 sm:flex-none">
-            Upload File
-          </Button>
-          <Button variant="primary" onClick={() => setCreateModalOpen(true)} className="flex-1 sm:flex-none">
-            Create Collection
-          </Button>
+        <div className="row" style={{ gap: 8 }}>
+          <button className="btn" onClick={fetchCollections}>
+            <Icons.refresh size={13} />
+            Refresh
+          </button>
+          <button className="btn primary">
+            <Icons.plus size={13} />
+            Create collection
+          </button>
         </div>
       </div>
 
-      {/* Stats */}
-      {collectionsArray.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white">{collectionsArray.length}</div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Collections</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white">{formatNumber(totalVectors)}</div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Total Vectors</div>
-            </div>
-          </Card>
-          <Card>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white">{avgDimension}</div>
-              <div className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Avg Dimension</div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Filter */}
-      {collectionsArray.length > 0 && (
+      <div className="grid grid-1-2" style={{ gap: 14 }}>
+        {/* List card */}
         <Card>
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter collections by name, metric, or status..."
-                className="w-full px-4 py-2 pl-10 border border-neutral-300 dark:border-neutral-800 rounded-lg bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              {filter && (
-                <button
-                  onClick={() => setFilter('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <div className="text-sm text-neutral-500 dark:text-neutral-400">
-              {filter ? `Showing ${filteredCollections.length} of ${collectionsArray.length} collections` : `${collectionsArray.length} collections total`}
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
-        </div>
-      )}
-
-      {/* Collections Grid */}
-      {filteredCollections.length === 0 ? (
-        <Card>
-          <div className="text-center py-12">
-            <p className="text-neutral-500 dark:text-neutral-400">
-              {filter ? 'No collections match your filter' : 'No collections found'}
-            </p>
-            <p className="text-sm text-neutral-400 dark:text-neutral-500 mt-2">
-              {filter ? 'Try adjusting your search' : 'Create your first collection to get started'}
-            </p>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {filteredCollections.map((collection) => (
-            <Card key={collection.name} className="hover:shadow-lg transition-shadow">
-              <div className="space-y-4">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                      <svg className="w-6 h-6 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-neutral-900 dark:text-white">{collection.name}</h3>
-                      <span className={`text-xs px-2 py-1 rounded ${getStatusClass(collection.indexing_status?.status || 'completed')}`}>
-                        {collection.indexing_status?.status === 'cached' ? 'Cache' : 'Indexed'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 dark:text-neutral-400">Vectors:</span>
-                    <span className="font-medium text-neutral-900 dark:text-white">{formatNumber(collection.vector_count || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 dark:text-neutral-400">Dimension:</span>
-                    <span className="font-medium text-neutral-900 dark:text-white">{collection.dimension}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 dark:text-neutral-400">Metric:</span>
-                    <span className="font-medium text-neutral-900 dark:text-white capitalize">{collection.metric}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 dark:text-neutral-400">Normalization:</span>
-                    <span className={`font-medium ${getNormalizationClass(collection)}`}>
-                      {getNormalizationStatus(collection)}
-                    </span>
-                  </div>
-                  {collection.created_at && (
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500 dark:text-neutral-400">Created:</span>
-                      <span className="font-medium text-neutral-900 dark:text-white text-xs">
-                        {formatDate(collection.created_at)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Progress */}
-                {collection.indexing_status && (collection.indexing_status.status === 'processing' || collection.indexing_status.status === 'indexing') && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-neutral-500 dark:text-neutral-400">
-                      <span>Indexing</span>
-                      <span>{Math.round((collection.indexing_status.progress || 0) * 100)}%</span>
-                    </div>
-                    <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2">
-                      <div
-                        className="bg-primary-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(collection.indexing_status.progress || 0) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-700">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => {
-                      setSelectedCollection(collection);
-                      setDetailsModalOpen(true);
+          <CardHead>
+            <input
+              className="input"
+              placeholder="Filter collections…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              style={{ height: 30, padding: '4px 10px', fontSize: 12 }}
+              aria-label="Filter collections"
+            />
+          </CardHead>
+          <CardBody tight>
+            <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+              {filtered.map((c) => {
+                const isSel = selected?.name === c.name;
+                return (
+                  <div
+                    key={c.name}
+                    onClick={() => setSelectedName(c.name)}
+                    style={{
+                      padding: '12px 14px',
+                      borderBottom: '1px solid var(--border)',
+                      cursor: 'pointer',
+                      background: isSel ? 'var(--panel-hi)' : 'transparent',
+                      borderLeft: isSel ? '2px solid var(--teal)' : '2px solid transparent',
                     }}
                   >
-                    View
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => navigate('/vectors', { state: { collectionName: collection.name } })}
-                  >
-                    Browse
-                  </Button>
-                  <Dropdown
-                    variant="icon"
-                    placement="bottom end"
-                    icon={
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                      </svg>
-                    }
-                  >
-                    <Dropdown.Item
-                      id="view-details"
-                      onAction={() => {
-                        setSelectedCollection(collection);
-                        setDetailsModalOpen(true);
-                      }}
+                    <div className="row" style={{ marginBottom: 4 }}>
+                      <Icons.database size={13} className="muted" />
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>{c.name}</span>
+                      <span className="right">
+                        <StatusPill status={(c as { status?: string }).status ?? 'healthy'} />
+                      </span>
+                    </div>
+                    <div
+                      className="row mono"
+                      style={{ fontSize: 11, color: 'var(--text-2)', gap: 14, marginLeft: 21 }}
                     >
-                      View Details
-                    </Dropdown.Item>
-                    <Dropdown.Item
-                      id="browse-vectors"
-                      onAction={() => navigate('/vectors', { state: { collectionName: collection.name } })}
-                    >
-                      Browse Vectors
-                    </Dropdown.Item>
-                    <Dropdown.Separator />
-                    <Dropdown.Item
-                      id="delete"
-                      onAction={() => {
-                        setCollectionToDelete(collection.name);
-                        setDeleteModalOpen(true);
-                      }}
-                    >
-                      Delete Collection
-                    </Dropdown.Item>
-                  </Dropdown>
+                      <span>{formatNumber(c.vector_count ?? 0)} vec</span>
+                      <span>{c.dimension ?? '—'}d</span>
+                      <span>{(c as { metric?: string }).metric ?? 'cosine'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {!filtered.length && (
+                <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+                  No collections match "{filter}".
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+              )}
+            </div>
+          </CardBody>
+        </Card>
 
-      {/* Modals */}
-      <CreateCollectionModal
-        isOpen={createModalOpen}
-        onClose={() => {
-          setCreateModalOpen(false);
-          // Refresh collections after creation
-          listCollections().then(data => {
-            const collectionsArray = Array.isArray(data) ? data : [];
-            setCollections(collectionsArray);
-          });
-        }}
-      />
-      <CollectionDetailsModal
-        isOpen={detailsModalOpen}
-        onClose={() => {
-          setDetailsModalOpen(false);
-          setSelectedCollection(null);
-        }}
-        collection={selectedCollection}
-      />
-      <DeleteCollectionModal
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setCollectionToDelete('');
-        }}
-        collectionName={collectionToDelete}
-      />
-      <FileUploadModal
-        isOpen={uploadModalOpen}
-        onClose={() => setUploadModalOpen(false)}
-        onSuccess={() => {
-          // Refresh collections after successful upload
-          listCollections().then(data => {
-            const collectionsArray = Array.isArray(data) ? data : [];
-            setCollections(collectionsArray);
-          });
-        }}
-      />
+        {/* Detail column */}
+        <div className="col" style={{ gap: 14 }}>
+          {selected ? (
+            <>
+              <Card>
+                <CardHead>
+                  <div className="row" style={{ gap: 10 }}>
+                    <Icons.database size={16} className="muted" />
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600 }}>{selected.name}</div>
+                      <div className="mono muted-2" style={{ fontSize: 11 }}>
+                        collection · {formatNumber(selected.vector_count ?? 0)} vectors
+                      </div>
+                    </div>
+                  </div>
+                  <div className="row" style={{ gap: 6 }}>
+                    {/* TODO(actions): wire reindex/copy/delete to API */}
+                    <button className="btn sm">
+                      <Icons.refresh size={11} />
+                      Reindex
+                    </button>
+                    <button className="btn sm">
+                      <Icons.copy size={11} />
+                      Copy ID
+                    </button>
+                    <button className="btn sm magenta">
+                      <Icons.trash size={11} />
+                      Delete
+                    </button>
+                  </div>
+                </CardHead>
+                <CardBody>
+                  <div className="grid grid-4" style={{ gap: 14, marginBottom: 14 }}>
+                    <div>
+                      <div
+                        className="muted"
+                        style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                      >
+                        Vectors
+                      </div>
+                      <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
+                        {formatNumber(selected.vector_count ?? 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        className="muted"
+                        style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                      >
+                        Dimension
+                      </div>
+                      <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
+                        {selected.dimension ?? '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        className="muted"
+                        style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                      >
+                        Metric
+                      </div>
+                      <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
+                        {(selected as { metric?: string }).metric ?? 'cosine'}
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        className="muted"
+                        style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                      >
+                        Status
+                      </div>
+                      <div style={{ marginTop: 4 }}>
+                        <StatusPill status={(selected as { status?: string }).status ?? 'healthy'} />
+                      </div>
+                    </div>
+                  </div>
+                  <KeyValue>
+                    <KeyValueRow term="Index type">HNSW · M=16, ef=200</KeyValueRow>
+                    <KeyValueRow term="Distance">
+                      {(selected as { metric?: string }).metric ?? 'cosine'} (pre-normalised)
+                    </KeyValueRow>
+                    <KeyValueRow term="Quantization">
+                      <Pill tone="teal">SQ-8bit</Pill>
+                    </KeyValueRow>
+                    <KeyValueRow term="Embedding">
+                      BM25 <span className="muted">· dim {selected.dimension ?? '—'}</span>
+                    </KeyValueRow>
+                  </KeyValue>
+                </CardBody>
+              </Card>
+
+              <div className="grid grid-2" style={{ gap: 14 }}>
+                <Card>
+                  <CardHead title="Vector growth · 7d" />
+                  <CardBody>
+                    <Sparkline
+                      data={SPARK(40, (selected.vector_count ?? 100) / 1000, 8)}
+                      width={420}
+                      height={100}
+                      color="var(--magenta)"
+                      ariaLabel={`Vector growth for ${selected.name} over 7 days`}
+                    />
+                    <div
+                      className="row mono"
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-2)',
+                        justifyContent: 'space-between',
+                        marginTop: 6,
+                      }}
+                    >
+                      <span>−7d</span>
+                      <span>−3d</span>
+                      <span>now</span>
+                    </div>
+                  </CardBody>
+                </Card>
+                <Card>
+                  <CardHead title="Query throughput · 24h" sub="qpm" />
+                  <CardBody>
+                    <Sparkline
+                      data={SPARK(40, 60, 20)}
+                      width={420}
+                      height={100}
+                      color="var(--teal)"
+                      ariaLabel={`Query throughput for ${selected.name} over 24 hours`}
+                    />
+                    <div
+                      className="row mono"
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-2)',
+                        justifyContent: 'space-between',
+                        marginTop: 6,
+                      }}
+                    >
+                      <span>−24h</span>
+                      <span>−12h</span>
+                      <span>now</span>
+                    </div>
+                  </CardBody>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <Card>
+              <CardBody>
+                <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+                  Select a collection to view its details.
+                </div>
+              </CardBody>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

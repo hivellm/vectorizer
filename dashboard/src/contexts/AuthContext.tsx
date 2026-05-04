@@ -323,4 +323,13 @@ export function useAuth() {
   return context;
 }
 
+/**
+ * Like useAuth(), but returns null when no provider is mounted instead of throwing.
+ * Use this from chrome components (sidebar, topbar, …) that should render in tests
+ * and stories without requiring an AuthProvider in the surrounding tree.
+ */
+export function useOptionalAuth(): AuthContextType | null {
+  return useContext(AuthContext) ?? null;
+}
+
 export default AuthContext;

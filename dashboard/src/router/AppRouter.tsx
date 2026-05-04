@@ -4,7 +4,7 @@
 
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import MainLayout from '@/components/layout/MainLayout';
+import { ConsoleLayout } from '@/components/console';
 import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -29,6 +29,8 @@ const ApiKeysPage = lazy(() => import('@/pages/ApiKeysPage'));
 const SetupWizardPage = lazy(() => import('@/pages/SetupWizardPage'));
 const ApiDocsPage = lazy(() => import('@/pages/ApiDocsPage'));
 const ClusterPage = lazy(() => import('@/pages/ClusterPage'));
+const MonitoringPage = lazy(() => import('@/pages/MonitoringPage'));
+const McpToolsPage = lazy(() => import('@/pages/McpToolsPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -107,7 +109,7 @@ function AppRouter() {
           path="/"
           element={
             <ProtectedRoute>
-              <MainLayout />
+              <ConsoleLayout />
             </ProtectedRoute>
           }
         >
@@ -116,6 +118,8 @@ function AppRouter() {
           <Route path="collections" element={<CollectionsPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="vectors" element={<VectorsPage />} />
+          <Route path="monitoring" element={<MonitoringPage />} />
+          <Route path="mcp-tools" element={<McpToolsPage />} />
           <Route path="file-watcher" element={<FileWatcherPage />} />
           <Route path="graph" element={<GraphPage />} />
           <Route path="connections" element={<ConnectionsPage />} />

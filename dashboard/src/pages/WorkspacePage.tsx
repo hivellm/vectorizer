@@ -1,17 +1,35 @@
 /**
- * Workspace page - Manage workspace configuration
- * Similar to GUI WorkspaceManager.vue
+ * Workspace page — console-themed restyle.
+ *
+ * Visual restyle only: behaviour (loading workspace config, editing
+ * projects + collections inline, browsing folders via FileBrowser, and
+ * persisting changes through `updateConfig`) is preserved from the
+ * pre-redesign version. The redesign brief has no dedicated mockup for
+ * Workspace, so this page applies the established Phase 3 recipe:
+ *   - `.page` + `.page-head` shell with title/sub + toolbar buttons
+ *   - console `Card` / `CardHead` / `CardBody`
+ *   - `Kpi` cards for the headline metrics
+ *   - `StatusPill` / `Pill` for unsaved/error chips
+ *   - `.btn` + `.input` for actions and form controls
+ *   - no Tailwind utility classes, no `dark:` variants
+ *
+ * The FileBrowser modal is kept as-is — its internals still use the
+ * legacy styling. Marked with `// TODO(workspace-modal)` until the
+ * console design ships a modal primitive.
  */
 
 import { useEffect, useState } from 'react';
 import { useWorkspace, WorkspaceConfig, WorkspaceProject } from '@/hooks/useWorkspace';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { useToastContext } from '@/providers/ToastProvider';
-import LoadingState from '@/components/LoadingState';
 import FileBrowser from '@/components/FileBrowser';
-import { Plus, Trash01, RefreshCw01, FolderSearch } from '@untitledui/icons';
+import {
+  Icons,
+  Pill,
+  Card,
+  CardHead,
+  CardBody,
+  Kpi,
+} from '@/components/console';
 
 interface Collection {
   name: string;
@@ -37,6 +55,7 @@ function WorkspacePage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
@@ -50,8 +69,10 @@ function WorkspacePage() {
       if (configData?.projects) {
         configData.projects.forEach((project) => {
           project.collections?.forEach((collection) => {
-            (collection as any).include_patterns_str = collection.include_patterns?.join('\n') || '';
-            (collection as any).exclude_patterns_str = collection.exclude_patterns?.join('\n') || '';
+            (collection as Collection).include_patterns_str =
+              collection.include_patterns?.join('\n') || '';
+            (collection as Collection).exclude_patterns_str =
+              collection.exclude_patterns?.join('\n') || '';
           });
         });
       }
@@ -65,7 +86,8 @@ function WorkspacePage() {
     }
   };
 
-  const filteredProjects = config?.projects?.filter((project) => {
+  const allProjects = config?.projects ?? [];
+  const filteredProjects = allProjects.filter((project) => {
     if (!searchFilter.trim()) return true;
     const search = searchFilter.toLowerCase();
     return (
@@ -73,7 +95,12 @@ function WorkspacePage() {
       project.description?.toLowerCase().includes(search) ||
       project.path?.toLowerCase().includes(search)
     );
-  }) || [];
+  });
+
+  const totalCollections = allProjects.reduce(
+    (sum, p) => sum + (p.collections?.length ?? 0),
+    0,
+  );
 
   const toggleCollection = (projectName: string, collectionIndex: number) => {
     const key = `${projectName}-${collectionIndex}`;
@@ -110,7 +137,7 @@ function WorkspacePage() {
     setSearchFilter(`new-project-${timestamp}`);
   };
 
-  const removeProject = async (projectName: string) => {
+  const removeProject = (projectName: string) => {
     if (!config) return;
 
     if (!window.confirm(`Are you sure you want to remove project "${projectName}"?`)) {
@@ -151,7 +178,7 @@ function WorkspacePage() {
     setHasUnsavedChanges(true);
   };
 
-  const removeCollection = async (projectName: string, collectionIndex: number) => {
+  const removeCollection = (projectName: string, collectionIndex: number) => {
     if (!config) return;
 
     const project = config.projects?.find((p) => p.name === projectName);
@@ -167,13 +194,17 @@ function WorkspacePage() {
     setHasUnsavedChanges(true);
   };
 
-  const updateIncludePatterns = (projectName: string, collectionIndex: number, value: string) => {
+  const updateIncludePatterns = (
+    projectName: string,
+    collectionIndex: number,
+    value: string,
+  ) => {
     if (!config) return;
 
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
 
-    const collection = project.collections?.[collectionIndex] as any;
+    const collection = project.collections?.[collectionIndex] as Collection | undefined;
     if (!collection) return;
 
     collection.include_patterns_str = value;
@@ -182,13 +213,17 @@ function WorkspacePage() {
     setHasUnsavedChanges(true);
   };
 
-  const updateExcludePatterns = (projectName: string, collectionIndex: number, value: string) => {
+  const updateExcludePatterns = (
+    projectName: string,
+    collectionIndex: number,
+    value: string,
+  ) => {
     if (!config) return;
 
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
 
-    const collection = project.collections?.[collectionIndex] as any;
+    const collection = project.collections?.[collectionIndex] as Collection | undefined;
     if (!collection) return;
 
     collection.exclude_patterns_str = value;
@@ -203,7 +238,7 @@ function WorkspacePage() {
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
 
-    (project as any)[field] = value;
+    (project as unknown as Record<string, unknown>)[field] = value;
     setConfig({ ...config });
     setHasUnsavedChanges(true);
   };
@@ -212,14 +247,16 @@ function WorkspacePage() {
     projectName: string,
     collectionIndex: number,
     field: string,
-    value: string
+    value: string,
   ) => {
     if (!config) return;
 
     const project = config.projects?.find((p) => p.name === projectName);
     if (!project) return;
 
-    const collection = project.collections?.[collectionIndex] as any;
+    const collection = project.collections?.[collectionIndex] as
+      | Record<string, unknown>
+      | undefined;
     if (!collection) return;
 
     collection[field] = value;
@@ -234,10 +271,10 @@ function WorkspacePage() {
     try {
       // Clean up temporary string fields before saving
       const configToSave = JSON.parse(JSON.stringify(config));
-      configToSave.projects?.forEach((project: any) => {
-        project.collections?.forEach((collection: any) => {
-          delete collection.include_patterns_str;
-          delete collection.exclude_patterns_str;
+      configToSave.projects?.forEach((project: WorkspaceProject) => {
+        project.collections?.forEach((collection) => {
+          delete (collection as Collection).include_patterns_str;
+          delete (collection as Collection).exclude_patterns_str;
         });
       });
 
@@ -247,315 +284,501 @@ function WorkspacePage() {
       await loadData();
     } catch (err) {
       console.error('Failed to save workspace configuration:', err);
-      toast.error(`Failed to save configuration: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      toast.error(
+        `Failed to save configuration: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return <LoadingState message="Loading workspace..." />;
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="page">
+      <div className="page-head">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">Workspace</h1>
-          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 mt-1">
-            Manage workspace projects and configuration
-          </p>
+          <h1 className="page-title">Workspace</h1>
+          <p className="page-sub">Manage workspace projects and configuration</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={loadData}>
-            <RefreshCw01 className="w-4 h-4 mr-2" />
+        <div className="row" style={{ gap: 8 }}>
+          {hasUnsavedChanges && (
+            <Pill tone="amber">
+              <span className="dot amber" />
+              unsaved changes
+            </Pill>
+          )}
+          <button className="btn" onClick={loadData} disabled={loading}>
+            <Icons.refresh size={13} />
             Refresh
-          </Button>
-          <Button
-            variant={hasUnsavedChanges ? 'danger' : 'secondary'}
-            size="sm"
+          </button>
+          <button
+            className="btn"
             onClick={saveWorkspaceConfig}
             disabled={saving || !hasUnsavedChanges}
           >
-            {saving ? (
-              <>
-                <RefreshCw01 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                {hasUnsavedChanges ? 'Save Changes *' : 'Save Configuration'}
-              </>
-            )}
-          </Button>
-          <Button variant="primary" size="sm" onClick={addProject}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Project
-          </Button>
+            <Icons.check size={13} />
+            {saving ? 'Saving…' : hasUnsavedChanges ? 'Save changes' : 'Saved'}
+          </button>
+          <button className="btn primary" onClick={addProject} disabled={!config}>
+            <Icons.plus size={13} />
+            Add project
+          </button>
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+        <div style={{ marginBottom: 14 }}>
+          <Card>
+            <CardBody>
+              <div className="row" style={{ gap: 8 }}>
+                <Pill tone="red">error</Pill>
+                <span style={{ color: 'var(--text-2)' }}>{error}</span>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       )}
 
-      {/* Projects Configuration */}
       <Card>
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4 flex-1">
-            <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">Projects</h2>
-            <div className="flex-1 max-w-md">
-              <Input
-                type="text"
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Search projects..."
-                className="w-full"
-              />
-            </div>
+        <CardHead
+          title="Overview"
+          sub={loading && !config ? 'loading…' : undefined}
+        />
+        <CardBody>
+          <div className="row" style={{ gap: 24, flexWrap: 'wrap' }}>
+            <Kpi label="Projects" value={allProjects.length} />
+            <Kpi
+              label="Collections"
+              value={totalCollections}
+              accent={totalCollections > 0 ? 'teal' : 'none'}
+            />
+            <Kpi
+              label="Filter"
+              value={searchFilter ? `${filteredProjects.length}/${allProjects.length}` : 'all'}
+            />
           </div>
-        </div>
-
-        {filteredProjects.length === 0 && (!config?.projects || config.projects.length === 0) ? (
-          <div className="flex flex-col items-center justify-center py-16 text-neutral-500 dark:text-neutral-400">
-            <svg className="w-16 h-16 mb-4 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-            </svg>
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-white mb-2">No Projects</h3>
-            <p className="text-sm">Add your first project to get started</p>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-neutral-500 dark:text-neutral-400">
-            <svg className="w-16 h-16 mb-4 text-neutral-400 dark:text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-white mb-2">No Results</h3>
-            <p className="text-sm">No projects match your search</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredProjects.map((project) => (
-              <div
-                key={project.name}
-                className="bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                        Project Name
-                      </label>
-                      <Input
-                        type="text"
-                        value={project.name || ''}
-                        onChange={(e) => handleProjectFieldChange(project.name, 'name', e.target.value)}
-                        placeholder="project-name"
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                        Path
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          type="text"
-                          value={project.path || ''}
-                          onChange={(e) => handleProjectFieldChange(project.name, 'path', e.target.value)}
-                          placeholder="../project-path"
-                          className="text-sm font-mono flex-1"
-                        />
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setBrowsingProject(project.name)}
-                          title="Browse folders"
-                        >
-                          <FolderSearch className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                        Description
-                      </label>
-                      <Input
-                        type="text"
-                        value={project.description || ''}
-                        onChange={(e) => handleProjectFieldChange(project.name, 'description', e.target.value)}
-                        placeholder="Project description"
-                        className="text-sm"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => removeProject(project.name)}
-                    className="ml-4"
-                  >
-                    <Trash01 className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {/* Collections */}
-                <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Collections</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addCollection(project.name)}
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add Collection
-                    </Button>
-                  </div>
-
-                  {!project.collections || project.collections.length === 0 ? (
-                    <div className="text-sm text-neutral-500 dark:text-neutral-400 py-2">
-                      No collections configured
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {project.collections.map((collection, collectionIndex) => (
-                        <div
-                          key={collectionIndex}
-                          className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded"
-                        >
-                          {/* Collection Header */}
-                          <div
-                            className="flex items-center justify-between p-3 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                            onClick={() => toggleCollection(project.name, collectionIndex)}
-                          >
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <svg
-                                className={`w-4 h-4 text-neutral-400 transition-transform ${isCollectionExpanded(project.name, collectionIndex) ? 'rotate-90' : ''
-                                  }`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                              <span className="text-sm font-medium text-neutral-900 dark:text-white truncate">
-                                {collection.name || 'Unnamed Collection'}
-                              </span>
-                              {collection.description && (
-                                <span className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                                  {collection.description}
-                                </span>
-                              )}
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeCollection(project.name, collectionIndex);
-                              }}
-                              className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
-                            >
-                              <Trash01 className="w-3 h-3" />
-                            </Button>
-                          </div>
-
-                          {/* Collection Details (Collapsed by default) */}
-                          {isCollectionExpanded(project.name, collectionIndex) && (
-                            <div className="p-3 pt-0 space-y-3 border-t border-neutral-200 dark:border-neutral-700">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                                    Collection Name
-                                  </label>
-                                  <Input
-                                    type="text"
-                                    value={collection.name || ''}
-                                    onChange={(e) =>
-                                      handleCollectionFieldChange(project.name, collectionIndex, 'name', e.target.value)
-                                    }
-                                    onClick={(e) => e.stopPropagation()}
-                                    placeholder="collection-name"
-                                    className="text-xs"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                                    Description
-                                  </label>
-                                  <Input
-                                    type="text"
-                                    value={collection.description || ''}
-                                    onChange={(e) =>
-                                      handleCollectionFieldChange(
-                                        project.name,
-                                        collectionIndex,
-                                        'description',
-                                        e.target.value
-                                      )
-                                    }
-                                    onClick={(e) => e.stopPropagation()}
-                                    placeholder="Collection description"
-                                    className="text-xs"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <div>
-                                  <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                                    Include Patterns
-                                  </label>
-                                  <textarea
-                                    value={(collection as any).include_patterns_str || ''}
-                                    onChange={(e) => {
-                                      e.stopPropagation();
-                                      updateIncludePatterns(project.name, collectionIndex, e.target.value);
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    rows={3}
-                                    className="w-full px-2 py-1.5 text-xs font-mono bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                    placeholder="**/*.md&#10;**/*.ts&#10;src/**/*"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-                                    Exclude Patterns
-                                  </label>
-                                  <textarea
-                                    value={(collection as any).exclude_patterns_str || ''}
-                                    onChange={(e) => {
-                                      e.stopPropagation();
-                                      updateExcludePatterns(project.name, collectionIndex, e.target.value);
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    rows={3}
-                                    className="w-full px-2 py-1.5 text-xs font-mono bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                                    placeholder="node_modules/**&#10;dist/**&#10;**/*.log"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        </CardBody>
       </Card>
 
-      {/* File Browser Modal */}
+      <div style={{ height: 14 }} />
+
+      <Card>
+        <CardHead
+          title="Projects"
+          sub={allProjects.length > 0 ? `${allProjects.length} configured` : undefined}
+          right={
+            <input
+              className="input"
+              type="text"
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              placeholder="Search projects…"
+              style={{ width: 220 }}
+            />
+          }
+        />
+        <CardBody>
+          {allProjects.length === 0 ? (
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              No projects · Add your first project to get started.
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div style={{ padding: 24, color: 'var(--text-2)', textAlign: 'center' }}>
+              No projects match your search.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {filteredProjects.map((project) => (
+                <div
+                  key={project.name}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 4,
+                    background: 'var(--surface-2)',
+                    padding: 14,
+                  }}
+                >
+                  <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+                    <div
+                      style={{
+                        flex: 1,
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: 12,
+                      }}
+                    >
+                      <label
+                        className="col"
+                        style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                      >
+                        <span style={{ color: 'var(--text-2)', fontSize: 11 }}>
+                          Project name
+                        </span>
+                        <input
+                          className="input"
+                          type="text"
+                          value={project.name || ''}
+                          onChange={(e) =>
+                            handleProjectFieldChange(project.name, 'name', e.target.value)
+                          }
+                          placeholder="project-name"
+                        />
+                      </label>
+                      <label
+                        className="col"
+                        style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                      >
+                        <span style={{ color: 'var(--text-2)', fontSize: 11 }}>Path</span>
+                        <div className="row" style={{ gap: 6 }}>
+                          <input
+                            className="input mono"
+                            type="text"
+                            value={project.path || ''}
+                            onChange={(e) =>
+                              handleProjectFieldChange(project.name, 'path', e.target.value)
+                            }
+                            placeholder="../project-path"
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            className="btn sm"
+                            onClick={() => setBrowsingProject(project.name)}
+                            title="Browse folders"
+                            aria-label={`Browse folders for ${project.name}`}
+                          >
+                            <Icons.search size={11} />
+                          </button>
+                        </div>
+                      </label>
+                      <label
+                        className="col"
+                        style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                      >
+                        <span style={{ color: 'var(--text-2)', fontSize: 11 }}>
+                          Description
+                        </span>
+                        <input
+                          className="input"
+                          type="text"
+                          value={project.description || ''}
+                          onChange={(e) =>
+                            handleProjectFieldChange(
+                              project.name,
+                              'description',
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Project description"
+                        />
+                      </label>
+                    </div>
+                    <button
+                      className="btn sm"
+                      onClick={() => removeProject(project.name)}
+                      aria-label={`Remove project ${project.name}`}
+                    >
+                      <Icons.trash size={11} />
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 14,
+                      paddingTop: 12,
+                      borderTop: '1px solid var(--border)',
+                    }}
+                  >
+                    <div
+                      className="row"
+                      style={{ justifyContent: 'space-between', marginBottom: 10 }}
+                    >
+                      <div className="row" style={{ gap: 8 }}>
+                        <Icons.collections size={12} className="muted" />
+                        <span style={{ fontSize: 12, fontWeight: 500 }}>Collections</span>
+                        <Pill tone="muted">{project.collections?.length ?? 0}</Pill>
+                      </div>
+                      <button
+                        className="btn sm"
+                        onClick={() => addCollection(project.name)}
+                      >
+                        <Icons.plus size={11} />
+                        Add collection
+                      </button>
+                    </div>
+
+                    {!project.collections || project.collections.length === 0 ? (
+                      <div style={{ color: 'var(--text-3)', fontSize: 12, padding: 6 }}>
+                        No collections configured
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {project.collections.map((collection, collectionIndex) => {
+                          const expanded = isCollectionExpanded(
+                            project.name,
+                            collectionIndex,
+                          );
+                          return (
+                            <div
+                              key={collectionIndex}
+                              style={{
+                                border: '1px solid var(--border)',
+                                borderRadius: 4,
+                                background: 'var(--surface-1)',
+                              }}
+                            >
+                              <div
+                                className="row"
+                                style={{
+                                  justifyContent: 'space-between',
+                                  padding: '8px 10px',
+                                  cursor: 'pointer',
+                                }}
+                                onClick={() =>
+                                  toggleCollection(project.name, collectionIndex)
+                                }
+                              >
+                                <div
+                                  className="row"
+                                  style={{
+                                    gap: 8,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      transition: 'transform 120ms ease',
+                                      transform: expanded
+                                        ? 'rotate(90deg)'
+                                        : 'rotate(0deg)',
+                                      color: 'var(--text-3)',
+                                    }}
+                                  >
+                                    <Icons.chevron size={11} />
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: 500,
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}
+                                  >
+                                    {collection.name || 'Unnamed Collection'}
+                                  </span>
+                                  {collection.description && (
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        color: 'var(--text-3)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {collection.description}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  className="btn sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeCollection(project.name, collectionIndex);
+                                  }}
+                                  aria-label={`Remove collection ${collection.name}`}
+                                >
+                                  <Icons.trash size={11} />
+                                </button>
+                              </div>
+
+                              {expanded && (
+                                <div
+                                  style={{
+                                    padding: 10,
+                                    borderTop: '1px solid var(--border)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 10,
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div
+                                    style={{
+                                      display: 'grid',
+                                      gridTemplateColumns:
+                                        'repeat(auto-fit, minmax(180px, 1fr))',
+                                      gap: 10,
+                                    }}
+                                  >
+                                    <label
+                                      className="col"
+                                      style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          color: 'var(--text-2)',
+                                          fontSize: 11,
+                                        }}
+                                      >
+                                        Collection name
+                                      </span>
+                                      <input
+                                        className="input"
+                                        type="text"
+                                        value={collection.name || ''}
+                                        onChange={(e) =>
+                                          handleCollectionFieldChange(
+                                            project.name,
+                                            collectionIndex,
+                                            'name',
+                                            e.target.value,
+                                          )
+                                        }
+                                        placeholder="collection-name"
+                                      />
+                                    </label>
+                                    <label
+                                      className="col"
+                                      style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          color: 'var(--text-2)',
+                                          fontSize: 11,
+                                        }}
+                                      >
+                                        Description
+                                      </span>
+                                      <input
+                                        className="input"
+                                        type="text"
+                                        value={collection.description || ''}
+                                        onChange={(e) =>
+                                          handleCollectionFieldChange(
+                                            project.name,
+                                            collectionIndex,
+                                            'description',
+                                            e.target.value,
+                                          )
+                                        }
+                                        placeholder="Collection description"
+                                      />
+                                    </label>
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      display: 'grid',
+                                      gridTemplateColumns:
+                                        'repeat(auto-fit, minmax(220px, 1fr))',
+                                      gap: 10,
+                                    }}
+                                  >
+                                    <label
+                                      className="col"
+                                      style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          color: 'var(--text-2)',
+                                          fontSize: 11,
+                                        }}
+                                      >
+                                        Include patterns
+                                      </span>
+                                      <textarea
+                                        className="input mono"
+                                        value={
+                                          (collection as Collection)
+                                            .include_patterns_str || ''
+                                        }
+                                        onChange={(e) =>
+                                          updateIncludePatterns(
+                                            project.name,
+                                            collectionIndex,
+                                            e.target.value,
+                                          )
+                                        }
+                                        rows={3}
+                                        placeholder={'**/*.md\n**/*.ts\nsrc/**/*'}
+                                        style={{ resize: 'vertical' }}
+                                      />
+                                    </label>
+                                    <label
+                                      className="col"
+                                      style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: 4,
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          color: 'var(--text-2)',
+                                          fontSize: 11,
+                                        }}
+                                      >
+                                        Exclude patterns
+                                      </span>
+                                      <textarea
+                                        className="input mono"
+                                        value={
+                                          (collection as Collection)
+                                            .exclude_patterns_str || ''
+                                        }
+                                        onChange={(e) =>
+                                          updateExcludePatterns(
+                                            project.name,
+                                            collectionIndex,
+                                            e.target.value,
+                                          )
+                                        }
+                                        rows={3}
+                                        placeholder={
+                                          'node_modules/**\ndist/**\n**/*.log'
+                                        }
+                                        style={{ resize: 'vertical' }}
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* TODO(workspace-modal): FileBrowser still uses legacy
+          Tailwind/UntitledUI styling. Replace once the console design
+          ships a folder-picker primitive. */}
       {browsingProject && (
         <FileBrowser
-          initialPath={config?.projects?.find(p => p.name === browsingProject)?.path || ''}
+          initialPath={
+            config?.projects?.find((p) => p.name === browsingProject)?.path || ''
+          }
           onSelect={(path) => {
             handleProjectFieldChange(browsingProject, 'path', path);
             setBrowsingProject(null);

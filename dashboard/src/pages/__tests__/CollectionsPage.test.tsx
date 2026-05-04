@@ -1,23 +1,23 @@
-/**
- * Unit tests for CollectionsPage component
- */
-
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { renderWithProviders, screen } from '@/test-utils/render';
+import { MemoryRouter } from 'react-router-dom';
 import CollectionsPage from '../CollectionsPage';
 
-// Mock hooks
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
-    listCollections: vi.fn().mockResolvedValue([]),
-    createCollection: vi.fn(),
-    deleteCollection: vi.fn(),
+    listCollections: async () => [
+      { name: 'docs', dimension: 384, vector_count: 1200, status: 'healthy', metric: 'cosine' },
+      { name: 'code', dimension: 768, vector_count: 8000, status: 'indexing', metric: 'cosine' },
+    ],
   }),
 }));
 
 vi.mock('@/stores/collections', () => ({
   useCollectionsStore: () => ({
-    collections: [],
+    collections: [
+      { name: 'docs', dimension: 384, vector_count: 1200, status: 'healthy', metric: 'cosine' },
+      { name: 'code', dimension: 768, vector_count: 8000, status: 'indexing', metric: 'cosine' },
+    ],
     loading: false,
     error: null,
     setCollections: vi.fn(),
@@ -27,19 +27,19 @@ vi.mock('@/stores/collections', () => ({
 }));
 
 describe('CollectionsPage', () => {
-  it('should render collections page', () => {
-    renderWithProviders(<CollectionsPage />, { route: '/collections' });
-
-    // Use getAllByText since "collections" appears multiple times
-    const collectionsElements = screen.getAllByText(/collections/i);
-    expect(collectionsElements.length).toBeGreaterThan(0);
+  it('renders the list and selects the first item by default', () => {
+    render(<MemoryRouter><CollectionsPage /></MemoryRouter>);
+    expect(screen.getByRole('heading', { name: /Collections/i })).toBeTruthy();
+    // List entry
+    expect(screen.getAllByText('docs').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('code')).toBeTruthy();
+    // Detail pane shows the first collection (the heading slot in the detail card)
+    expect(screen.getAllByText('docs').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('should render create collection button', () => {
-    renderWithProviders(<CollectionsPage />, { route: '/collections' });
-
-    // Use getAllByText since "create" might appear multiple times
-    const createElements = screen.getAllByText(/create|new/i);
-    expect(createElements.length).toBeGreaterThan(0);
+  it('switches detail when clicking a different row', () => {
+    render(<MemoryRouter><CollectionsPage /></MemoryRouter>);
+    fireEvent.click(screen.getByText('code'));
+    expect(screen.getAllByText('code').length).toBeGreaterThanOrEqual(2);
   });
 });

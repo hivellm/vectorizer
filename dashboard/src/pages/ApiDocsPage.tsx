@@ -1,14 +1,45 @@
 /**
- * API Documentation Page
- * Internal documentation with interactive sandbox
+ * API Docs page — console-themed restyle.
+ *
+ * Visual restyle only: behaviour (the static endpoint catalog, the live
+ * "Try it" sandbox with API-key auth, the request history / favorites
+ * persistence, and the multi-language code-sample tabs) is preserved
+ * from the pre-redesign version. The redesign brief has no dedicated
+ * mockup for API Docs, so this page applies the established Phase 3
+ * recipe:
+ *   - `.page` + `.page-head` shell with title/sub
+ *   - 2-column layout: sidebar `Card` listing categories + main `Card`
+ *     stack of endpoints, each with a method `Pill` (GET=teal,
+ *     POST=teal, PUT=amber, DELETE=magenta, PATCH=muted)
+ *   - console `Card` / `CardHead` / `CardBody`
+ *   - `.btn` actions with `Icons.*`, `.input` / `.mono` for fields
+ *   - no Tailwind utility classes, no `dark:` variants
+ *   - drop `@untitledui/icons` and `@/components/ui/Card`/`Button`
+ *
+ * The sandbox itself is rendered as an inline panel below the catalog
+ * (not as a modal) — flagged with `// TODO(api-docs-sandbox)` until the
+ * console design ships a modal primitive (matches the modal-deferral
+ * pattern from BackupsPage / FileWatcher / Users).
+ *
+ * The Monaco editor is retained on the request-body / response panels.
  */
 
 import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import { SearchMd, ChevronRight, ChevronDown, Copy01, Check, Play, XClose, Key01, AlertCircle, Send01, Clock, Terminal, Code01, Star01, Trash01 } from '@untitledui/icons';
-import { useSandboxHistory, type SandboxHistoryApi, type SandboxRequestRecord } from '@/hooks/useSandboxHistory';
+import {
+  Icons,
+  Pill,
+  type PillTone,
+  Card,
+  CardHead,
+  CardBody,
+} from '@/components/console';
+import CodeEditor from '@/components/ui/CodeEditor';
+import {
+  useSandboxHistory,
+  type SandboxHistoryApi,
+  type SandboxRequestRecord,
+} from '@/hooks/useSandboxHistory';
 
 // API Endpoint definition
 interface ApiEndpoint {
@@ -34,7 +65,7 @@ interface ApiEndpoint {
   }>;
 }
 
-// API Endpoints catalog
+// API Endpoints catalog — preserved verbatim from the legacy page.
 const API_ENDPOINTS: ApiEndpoint[] = [
   // Health & Status
   {
@@ -66,8 +97,8 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     category: 'Collections',
     responseExample: {
       collections: [
-        { name: 'my-collection', vector_count: 1500, dimension: 384 }
-      ]
+        { name: 'my-collection', vector_count: 1500, dimension: 384 },
+      ],
     },
   },
   {
@@ -117,8 +148,8 @@ const API_ENDPOINTS: ApiEndpoint[] = [
       description: 'Vectors to insert',
       example: {
         vectors: [
-          { id: 'vec-1', vector: [0.1, 0.2, 0.3], payload: { text: 'Hello' } }
-        ]
+          { id: 'vec-1', vector: [0.1, 0.2, 0.3], payload: { text: 'Hello' } },
+        ],
       },
     },
     responseExample: { inserted: 1 },
@@ -165,8 +196,8 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     },
     responseExample: {
       results: [
-        { id: 'vec-1', score: 0.95, payload: { text: 'Relevant result' } }
-      ]
+        { id: 'vec-1', score: 0.95, payload: { text: 'Relevant result' } },
+      ],
     },
   },
   {
@@ -186,8 +217,8 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     },
     responseExample: {
       results: [
-        { collection: 'docs', id: 'auth-1', score: 0.92, content: '...' }
-      ]
+        { collection: 'docs', id: 'auth-1', score: 0.92, content: '...' },
+      ],
     },
   },
   {
@@ -205,7 +236,7 @@ const API_ENDPOINTS: ApiEndpoint[] = [
       },
     },
     responseExample: {
-      results: [{ id: 'doc-1', score: 0.88, content: '...' }]
+      results: [{ id: 'doc-1', score: 0.88, content: '...' }],
     },
   },
   {
@@ -224,8 +255,8 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     },
     responseExample: {
       sections: [
-        { title: 'Overview', bullets: ['...'] }
-      ]
+        { title: 'Overview', bullets: ['...'] },
+      ],
     },
   },
   // Setup
@@ -253,11 +284,13 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     requestBody: {
       description: 'Configuration to apply',
       example: {
-        projects: [{
-          name: 'my-project',
-          path: '/path/to/project',
-          collections: []
-        }]
+        projects: [
+          {
+            name: 'my-project',
+            path: '/path/to/project',
+            collections: [],
+          },
+        ],
       },
     },
     responseExample: { success: true, workspace_file: 'workspace.yml' },
@@ -267,9 +300,7 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     path: '/setup/templates',
     description: 'Get available configuration templates',
     category: 'Setup',
-    responseExample: [
-      { id: 'rag', name: 'RAG', description: '...' }
-    ],
+    responseExample: [{ id: 'rag', name: 'RAG', description: '...' }],
   },
   // Workspace
   {
@@ -300,12 +331,13 @@ const API_ENDPOINTS: ApiEndpoint[] = [
     description: 'Upload a file for indexing (multipart/form-data)',
     category: 'File Upload',
     requestBody: {
-      description: 'Multipart form with file and metadata. Use form-data with: file (binary), collection_name (string), chunk_size (optional), chunk_overlap (optional), metadata (optional JSON)',
+      description:
+        'Multipart form with file and metadata. Use form-data with: file (binary), collection_name (string), chunk_size (optional), chunk_overlap (optional), metadata (optional JSON)',
       example: {
         collection_name: 'my-docs',
         chunk_size: 500,
         chunk_overlap: 100,
-        metadata: { source: 'upload', author: 'user' }
+        metadata: { source: 'upload', author: 'user' },
       },
     },
     responseExample: {
@@ -316,20 +348,24 @@ const API_ENDPOINTS: ApiEndpoint[] = [
       vectors_created: 15,
       file_size: 102400,
       language: 'text',
-      processing_time_ms: 1234
+      processing_time_ms: 1234,
     },
   },
   {
     method: 'GET',
     path: '/files/config',
-    description: 'Get file upload configuration (allowed extensions, size limits)',
+    description:
+      'Get file upload configuration (allowed extensions, size limits)',
     category: 'File Upload',
     responseExample: {
       max_file_size: 52428800,
-      allowed_extensions: ['txt', 'md', 'pdf', 'docx', 'html', 'json', 'yaml', 'rs', 'py', 'js', 'ts'],
+      allowed_extensions: [
+        'txt', 'md', 'pdf', 'docx', 'html', 'json', 'yaml',
+        'rs', 'py', 'js', 'ts',
+      ],
       default_chunk_size: 500,
       default_chunk_overlap: 100,
-      reject_binary: true
+      reject_binary: true,
     },
   },
   // File Operations
@@ -343,7 +379,7 @@ const API_ENDPOINTS: ApiEndpoint[] = [
       example: {
         collection: 'codebase',
         file_path: 'src/main.rs',
-        max_size_kb: 500
+        max_size_kb: 500,
       },
     },
     responseExample: {
@@ -352,8 +388,8 @@ const API_ENDPOINTS: ApiEndpoint[] = [
       metadata: {
         size_kb: 2,
         chunk_count: 1,
-        language: 'rust'
-      }
+        language: 'rust',
+      },
     },
   },
   {
@@ -367,21 +403,19 @@ const API_ENDPOINTS: ApiEndpoint[] = [
         collection: 'codebase',
         filter_by_type: ['rs', 'md'],
         max_results: 100,
-        sort_by: 'name'
+        sort_by: 'name',
       },
     },
     responseExample: {
       collection: 'codebase',
-      files: [
-        { path: 'src/main.rs', chunk_count: 5, file_type: 'rs' }
-      ],
-      total: 1
+      files: [{ path: 'src/main.rs', chunk_count: 5, file_type: 'rs' }],
+      total: 1,
     },
   },
   {
     method: 'POST',
     path: '/file/summary',
-    description: 'Get a summary of a file\'s content',
+    description: "Get a summary of a file's content",
     category: 'File Operations',
     requestBody: {
       description: 'File summary request',
@@ -389,13 +423,13 @@ const API_ENDPOINTS: ApiEndpoint[] = [
         collection: 'codebase',
         file_path: 'src/main.rs',
         summary_type: 'extractive',
-        max_length: 500
+        max_length: 500,
       },
     },
     responseExample: {
       file_path: 'src/main.rs',
       summary: 'Main entry point that initializes the server...',
-      key_points: ['Server initialization', 'Route setup']
+      key_points: ['Server initialization', 'Route setup'],
     },
   },
   {
@@ -408,13 +442,13 @@ const API_ENDPOINTS: ApiEndpoint[] = [
       example: {
         collection: 'codebase',
         max_depth: 3,
-        include_files: true
+        include_files: true,
       },
     },
     responseExample: {
       collection: 'codebase',
       outline: { src: { type: 'directory', files: ['main.rs'] } },
-      total_files: 1
+      total_files: 1,
     },
   },
   {
@@ -428,14 +462,14 @@ const API_ENDPOINTS: ApiEndpoint[] = [
         collection: 'codebase',
         file_path: 'src/main.rs',
         max_results: 10,
-        similarity_threshold: 0.7
+        similarity_threshold: 0.7,
       },
     },
     responseExample: {
       file_path: 'src/main.rs',
       related_files: [
-        { path: 'src/lib.rs', similarity: 0.85, reason: 'Shared imports' }
-      ]
+        { path: 'src/lib.rs', similarity: 0.85, reason: 'Shared imports' },
+      ],
     },
   },
   {
@@ -449,14 +483,12 @@ const API_ENDPOINTS: ApiEndpoint[] = [
         collection: 'codebase',
         file_types: ['rs', 'toml'],
         query: 'configuration',
-        limit: 20
+        limit: 20,
       },
     },
     responseExample: {
-      results: [
-        { file_path: 'Cargo.toml', score: 0.92, matches: [] }
-      ],
-      total: 1
+      results: [{ file_path: 'Cargo.toml', score: 0.92, matches: [] }],
+      total: 1,
     },
   },
   // Directory Browse (for Setup Wizard)
@@ -473,48 +505,67 @@ const API_ENDPOINTS: ApiEndpoint[] = [
       current_path: '/home/user/projects',
       parent_path: '/home/user',
       entries: [
-        { name: 'my-project', path: '/home/user/projects/my-project', is_directory: true, is_project: true }
+        {
+          name: 'my-project',
+          path: '/home/user/projects/my-project',
+          is_directory: true,
+          is_project: true,
+        },
       ],
-      valid: true
+      valid: true,
     },
   },
 ];
 
-const METHOD_COLORS: Record<string, string> = {
-  GET: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  POST: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  PUT: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  DELETE: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  PATCH: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-};
+// Method → Pill tone. GET/POST stay on the brand teal accent; DELETE
+// gets magenta (destructive); PUT amber (mutating); PATCH muted.
+function methodTone(method: ApiEndpoint['method']): PillTone {
+  switch (method) {
+    case 'GET':
+    case 'POST':
+      return 'teal';
+    case 'DELETE':
+      return 'magenta';
+    case 'PUT':
+      return 'amber';
+    case 'PATCH':
+      return 'muted';
+    default:
+      return 'default';
+  }
+}
 
 function ApiDocsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | null>(null);
-  const [sandboxEndpoint, setSandboxEndpoint] = useState<ApiEndpoint | null>(null);
+  const [sandboxEndpoint, setSandboxEndpoint] = useState<ApiEndpoint | null>(
+    null,
+  );
   const sandboxHistory = useSandboxHistory();
 
-  // Get unique categories
-  const categories = useMemo(() => {
-    return [...new Set(API_ENDPOINTS.map(e => e.category))];
-  }, []);
+  const categories = useMemo(
+    () => [...new Set(API_ENDPOINTS.map((e) => e.category))],
+    [],
+  );
 
-  // Filter endpoints
   const filteredEndpoints = useMemo(() => {
-    return API_ENDPOINTS.filter(endpoint => {
-      const matchesSearch = !searchQuery || 
+    return API_ENDPOINTS.filter((endpoint) => {
+      const matchesSearch =
+        !searchQuery ||
         endpoint.path.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        endpoint.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = !selectedCategory || endpoint.category === selectedCategory;
+        endpoint.description
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+      const matchesCategory =
+        !selectedCategory || endpoint.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
   }, [searchQuery, selectedCategory]);
 
-  // Group by category
   const groupedEndpoints = useMemo(() => {
     const groups: Record<string, ApiEndpoint[]> = {};
-    filteredEndpoints.forEach(endpoint => {
+    filteredEndpoints.forEach((endpoint) => {
       if (!groups[endpoint.category]) {
         groups[endpoint.category] = [];
       }
@@ -528,220 +579,397 @@ function ApiDocsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900 dark:text-white">
-          API Documentation
-        </h1>
-        <p className="text-neutral-600 dark:text-neutral-400 mt-1">
-          Explore and test the Vectorizer REST API
-        </p>
+    <div className="page">
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">API Documentation</h1>
+          <p className="page-sub">
+            REST + MCP reference · {API_ENDPOINTS.length} endpoints across{' '}
+            {categories.length} categories
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar */}
-        <div className="lg:col-span-1">
-          <Card className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/50 p-4 sticky top-4">
-            {/* Search */}
-            <div className="relative mb-4">
-              <SearchMd className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <input
-                type="text"
-                placeholder="Search endpoints..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg 
-                         bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white
-                         focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-
-            {/* Categories */}
-            <div className="space-y-1">
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  selectedCategory === null
-                    ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                    : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                }`}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(200px, 240px) 1fr',
+          gap: 14,
+          alignItems: 'start',
+        }}
+      >
+        {/* Sidebar — search + category filter */}
+        <Card>
+          <CardBody>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <label
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
               >
-                All Endpoints ({API_ENDPOINTS.length})
-              </button>
-              {categories.map(category => (
+                <span style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                  Search endpoints
+                </span>
+                <input
+                  className="input"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="path or description"
+                />
+              </label>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
                 <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                    selectedCategory === category
-                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                  }`}
+                  className={`btn sm${selectedCategory === null ? ' primary' : ''}`}
+                  onClick={() => setSelectedCategory(null)}
+                  style={{ justifyContent: 'space-between', width: '100%' }}
                 >
-                  {category} ({API_ENDPOINTS.filter(e => e.category === category).length})
+                  <span>All endpoints</span>
+                  <Pill tone="muted" className="mono">
+                    {API_ENDPOINTS.length}
+                  </Pill>
                 </button>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* Main Content */}
-        <div className="lg:col-span-3 space-y-4">
-          {Object.entries(groupedEndpoints).map(([category, endpoints]) => (
-            <div key={category}>
-              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
-                {category}
-              </h2>
-              <div className="space-y-2">
-                {endpoints.map((endpoint, idx) => {
-                  const key = `${endpoint.method}-${endpoint.path}-${idx}`;
-                  const isExpanded = expandedEndpoint === key;
-                  
+                {categories.map((category) => {
+                  const count = API_ENDPOINTS.filter(
+                    (e) => e.category === category,
+                  ).length;
+                  const active = selectedCategory === category;
                   return (
-                    <Card
-                      key={key}
-                      className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800/50 overflow-hidden"
+                    <button
+                      key={category}
+                      className={`btn sm${active ? ' primary' : ''}`}
+                      onClick={() => setSelectedCategory(category)}
+                      style={{
+                        justifyContent: 'space-between',
+                        width: '100%',
+                      }}
                     >
-                      {/* Header */}
-                      <button
-                        onClick={() => toggleEndpoint(key)}
-                        className="w-full flex items-center gap-3 p-4 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
-                      >
-                        <span className={`px-2 py-1 text-xs font-mono font-bold rounded ${METHOD_COLORS[endpoint.method]}`}>
-                          {endpoint.method}
-                        </span>
-                        <code className="text-sm font-mono text-neutral-700 dark:text-neutral-300 flex-1">
-                          {endpoint.path}
-                        </code>
-                        <span className="text-sm text-neutral-500 dark:text-neutral-400 hidden sm:block">
-                          {endpoint.description}
-                        </span>
-                        {isExpanded ? (
-                          <ChevronDown className="w-4 h-4 text-neutral-400" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4 text-neutral-400" />
-                        )}
-                      </button>
-
-                      {/* Expanded Details */}
-                      {isExpanded && (
-                        <div className="border-t border-neutral-200 dark:border-neutral-700 p-4 space-y-4">
-                          <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                            {endpoint.description}
-                          </p>
-
-                          {/* Path Parameters */}
-                          {endpoint.pathParams && endpoint.pathParams.length > 0 && (
-                            <div>
-                              <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">
-                                Path Parameters
-                              </h4>
-                              <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-lg p-3 space-y-2">
-                                {endpoint.pathParams.map(param => (
-                                  <div key={param.name} className="flex items-start gap-2 text-sm">
-                                    <code className="text-primary-600 dark:text-primary-400">{param.name}</code>
-                                    <span className="text-neutral-400">({param.type})</span>
-                                    <span className="text-neutral-600 dark:text-neutral-400">- {param.description}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Request Body */}
-                          {endpoint.requestBody && (
-                            <div>
-                              <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">
-                                Request Body
-                              </h4>
-                              <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-2">
-                                {endpoint.requestBody.description}
-                              </p>
-                              <CodeBlock code={endpoint.requestBody.example} />
-                            </div>
-                          )}
-
-                          {/* Response Example */}
-                          {endpoint.responseExample && (
-                            <div>
-                              <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2">
-                                Response Example
-                              </h4>
-                              <CodeBlock code={endpoint.responseExample} />
-                            </div>
-                          )}
-
-                          {/* Try it button */}
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => setSandboxEndpoint(endpoint)}
-                          >
-                            <Play className="w-4 h-4 mr-2" />
-                            Try it in Sandbox
-                          </Button>
-                        </div>
-                      )}
-                    </Card>
+                      <span>{category}</span>
+                      <Pill tone="muted" className="mono">
+                        {count}
+                      </Pill>
+                    </button>
                   );
                 })}
               </div>
             </div>
+          </CardBody>
+        </Card>
+
+        {/* Main column — endpoints grouped by category */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {Object.entries(groupedEndpoints).map(([category, endpoints]) => (
+            <Card key={category}>
+              <CardHead
+                title={category}
+                sub={`${endpoints.length} endpoint${endpoints.length === 1 ? '' : 's'}`}
+              />
+              <CardBody tight>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  {endpoints.map((endpoint, idx) => {
+                    const key = `${endpoint.method}-${endpoint.path}-${idx}`;
+                    const isExpanded = expandedEndpoint === key;
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          borderTop: idx === 0 ? 'none' : '1px solid var(--line)',
+                        }}
+                      >
+                        <button
+                          onClick={() => toggleEndpoint(key)}
+                          aria-expanded={isExpanded}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            width: '100%',
+                            padding: '10px 12px',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            color: 'var(--text-1)',
+                          }}
+                        >
+                          <Pill tone={methodTone(endpoint.method)} className="mono">
+                            {endpoint.method}
+                          </Pill>
+                          <code
+                            className="mono"
+                            style={{
+                              color: 'var(--text-1)',
+                              fontSize: 13,
+                            }}
+                          >
+                            {endpoint.path}
+                          </code>
+                          <span
+                            style={{
+                              color: 'var(--text-2)',
+                              fontSize: 12,
+                              flex: 1,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {endpoint.description}
+                          </span>
+                          <Icons.chevron
+                            size={12}
+                            className="muted"
+                            style={{
+                              transform: isExpanded
+                                ? 'rotate(90deg)'
+                                : 'rotate(0deg)',
+                              transition: 'transform 120ms ease',
+                            }}
+                          />
+                        </button>
+                        {isExpanded && (
+                          <div
+                            style={{
+                              padding: '0 12px 14px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 12,
+                            }}
+                          >
+                            <p
+                              style={{
+                                color: 'var(--text-2)',
+                                fontSize: 13,
+                                margin: 0,
+                              }}
+                            >
+                              {endpoint.description}
+                            </p>
+
+                            {endpoint.pathParams &&
+                              endpoint.pathParams.length > 0 && (
+                                <div>
+                                  <h4
+                                    style={{
+                                      color: 'var(--text-1)',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      margin: '0 0 6px 0',
+                                    }}
+                                  >
+                                    Path parameters
+                                  </h4>
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 4,
+                                    }}
+                                  >
+                                    {endpoint.pathParams.map((param) => (
+                                      <div
+                                        key={param.name}
+                                        className="row"
+                                        style={{
+                                          gap: 8,
+                                          fontSize: 12,
+                                          alignItems: 'baseline',
+                                        }}
+                                      >
+                                        <Pill tone="teal" className="mono">
+                                          {param.name}
+                                        </Pill>
+                                        <span
+                                          className="mono"
+                                          style={{ color: 'var(--text-3)' }}
+                                        >
+                                          {param.type}
+                                        </span>
+                                        <span style={{ color: 'var(--text-2)' }}>
+                                          — {param.description}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                            {endpoint.requestBody && (
+                              <div>
+                                <h4
+                                  style={{
+                                    color: 'var(--text-1)',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    margin: '0 0 6px 0',
+                                  }}
+                                >
+                                  Request body
+                                </h4>
+                                <p
+                                  style={{
+                                    color: 'var(--text-2)',
+                                    fontSize: 12,
+                                    margin: '0 0 6px 0',
+                                  }}
+                                >
+                                  {endpoint.requestBody.description}
+                                </p>
+                                <CodeSample
+                                  code={JSON.stringify(
+                                    endpoint.requestBody.example,
+                                    null,
+                                    2,
+                                  )}
+                                />
+                              </div>
+                            )}
+
+                            {endpoint.responseExample && (
+                              <div>
+                                <h4
+                                  style={{
+                                    color: 'var(--text-1)',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    margin: '0 0 6px 0',
+                                  }}
+                                >
+                                  Response example
+                                </h4>
+                                <CodeSample
+                                  code={JSON.stringify(
+                                    endpoint.responseExample,
+                                    null,
+                                    2,
+                                  )}
+                                />
+                              </div>
+                            )}
+
+                            <div>
+                              <button
+                                className="btn primary sm"
+                                onClick={() => setSandboxEndpoint(endpoint)}
+                              >
+                                <Icons.zap size={11} />
+                                Try it in sandbox
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardBody>
+            </Card>
           ))}
 
           {filteredEndpoints.length === 0 && (
-            <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
-              No endpoints found matching your search.
-            </div>
+            <Card>
+              <CardBody>
+                <div
+                  style={{
+                    padding: 24,
+                    color: 'var(--text-2)',
+                    textAlign: 'center',
+                  }}
+                >
+                  No endpoints found matching your search.
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
+          {sandboxEndpoint && (
+            <SandboxPanel
+              endpoint={sandboxEndpoint}
+              onClose={() => setSandboxEndpoint(null)}
+              sandboxHistory={sandboxHistory}
+            />
           )}
         </div>
       </div>
-
-      {/* Sandbox Modal */}
-      {sandboxEndpoint && (
-        <SandboxModal
-          endpoint={sandboxEndpoint}
-          onClose={() => setSandboxEndpoint(null)}
-          sandboxHistory={sandboxHistory}
-        />
-      )}
     </div>
   );
 }
 
-// Code Block Component
-function CodeBlock({ code }: { code: object }) {
+// Static JSON code sample with copy button — used in the read-only
+// "Request body" and "Response example" sections of each endpoint card.
+function CodeSample({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
-  const json = JSON.stringify(code, null, 2);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(json);
+    navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="relative">
-      <pre className="bg-neutral-900 dark:bg-neutral-950 text-neutral-100 rounded-lg p-4 text-sm font-mono overflow-x-auto">
-        {json}
+    <div style={{ position: 'relative' }}>
+      <pre
+        className="mono"
+        style={{
+          margin: 0,
+          padding: '10px 12px',
+          background: 'var(--bg-3)',
+          border: '1px solid var(--line)',
+          borderRadius: 6,
+          color: 'var(--text-1)',
+          fontSize: 12,
+          lineHeight: 1.5,
+          overflowX: 'auto',
+        }}
+      >
+        {code}
       </pre>
       <button
+        className="btn sm"
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors"
+        style={{
+          position: 'absolute',
+          top: 6,
+          right: 6,
+        }}
+        aria-label="Copy code"
       >
-        {copied ? (
-          <Check className="w-4 h-4 text-green-400" />
-        ) : (
-          <Copy01 className="w-4 h-4 text-neutral-400" />
-        )}
+        {copied ? <Icons.check size={11} /> : <Icons.copy size={11} />}
+        {copied ? 'Copied' : 'Copy'}
       </button>
     </div>
   );
 }
 
-// Sandbox Modal Component
-function SandboxModal({
+// Sandbox panel — preserves the full "Try it" workflow from the legacy
+// modal: API-key auth, path params, request body editor (Monaco), live
+// fetch with timing, multi-language code samples, history + favorites.
+//
+// TODO(api-docs-sandbox): rendered as an inline panel below the catalog
+// instead of a true modal — the console design has not yet shipped a
+// modal primitive. Matches the deferral pattern used by Users / Backups
+// / FileWatcher.
+function SandboxPanel({
   endpoint,
   onClose,
   sandboxHistory,
@@ -751,32 +979,53 @@ function SandboxModal({
   sandboxHistory: SandboxHistoryApi;
 }) {
   const [requestBody, setRequestBody] = useState(
-    endpoint.requestBody ? JSON.stringify(endpoint.requestBody.example, null, 2) : ''
+    endpoint.requestBody
+      ? JSON.stringify(endpoint.requestBody.example, null, 2)
+      : '',
   );
   const [pathParams, setPathParams] = useState<Record<string, string>>({});
-  const [response, setResponse] = useState<{ status: number; body: string; time: number } | null>(null);
+  const [response, setResponse] = useState<{
+    status: number;
+    body: string;
+    time: number;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'response' | 'curl' | 'typescript' | 'python' | 'rust' | 'go'>('response');
+  const [activeTab, setActiveTab] = useState<
+    'response' | 'curl' | 'typescript' | 'python' | 'rust' | 'go'
+  >('response');
   const [apiKey, setApiKey] = useState<string>('');
   const [hasApiKeys, setHasApiKeys] = useState<boolean | null>(null);
   const [useApiKey, setUseApiKey] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
-  // Entries scoped to the current endpoint (same method + same path template).
+  // Reset all sandbox state when the user opens a different endpoint.
+  useEffect(() => {
+    setRequestBody(
+      endpoint.requestBody
+        ? JSON.stringify(endpoint.requestBody.example, null, 2)
+        : '',
+    );
+    setPathParams({});
+    setResponse(null);
+    setError(null);
+    setActiveTab('response');
+    setShowHistoryPanel(false);
+  }, [endpoint]);
+
   const scopedFavorites = useMemo(
     () =>
       sandboxHistory.favorites.filter(
-        (f) => f.method === endpoint.method && f.path === endpoint.path
+        (f) => f.method === endpoint.method && f.path === endpoint.path,
       ),
-    [sandboxHistory.favorites, endpoint.method, endpoint.path]
+    [sandboxHistory.favorites, endpoint.method, endpoint.path],
   );
   const scopedHistory = useMemo(
     () =>
       sandboxHistory.history.filter(
-        (h) => h.method === endpoint.method && h.path === endpoint.path
+        (h) => h.method === endpoint.method && h.path === endpoint.path,
       ),
-    [sandboxHistory.history, endpoint.method, endpoint.path]
+    [sandboxHistory.history, endpoint.method, endpoint.path],
   );
 
   const applyRecord = (record: SandboxRequestRecord) => {
@@ -785,7 +1034,8 @@ function SandboxModal({
     setShowHistoryPanel(false);
   };
 
-  // Check if API keys exist
+  // Probe `/api-keys` so the auth section can warn the user when no
+  // keys exist. Behaviour preserved from the legacy modal.
   useEffect(() => {
     const checkApiKeys = async () => {
       try {
@@ -803,12 +1053,14 @@ function SandboxModal({
     checkApiKeys();
   }, []);
 
-  // Build URL with path params
   const buildUrl = () => {
     let url = endpoint.path;
     if (endpoint.pathParams) {
-      endpoint.pathParams.forEach(param => {
-        url = url.replace(`{${param.name}}`, pathParams[param.name] || `:${param.name}`);
+      endpoint.pathParams.forEach((param) => {
+        url = url.replace(
+          `{${param.name}}`,
+          pathParams[param.name] || `:${param.name}`,
+        );
       });
     }
     return url;
@@ -820,14 +1072,12 @@ function SandboxModal({
     setResponse(null);
 
     const startTime = Date.now();
-    
+
     try {
       const url = buildUrl();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-
-      // Add API key if enabled
       if (useApiKey && apiKey) {
         headers['X-API-Key'] = apiKey;
       }
@@ -847,7 +1097,7 @@ function SandboxModal({
 
       setResponse({
         status: res.status,
-        body: body,
+        body,
         time,
       });
 
@@ -878,10 +1128,10 @@ function SandboxModal({
   const isCurrentFavorited = sandboxHistory.isFavorited(
     endpoint.method,
     endpoint.path,
-    requestBody
+    requestBody,
   );
 
-  // Generate code examples
+  // Code sample generators — preserved from the legacy modal verbatim.
   const generateCurl = () => {
     const url = `http://localhost:15002${buildUrl()}`;
     let cmd = `curl -X ${endpoint.method} '${url}'`;
@@ -935,7 +1185,7 @@ async fn main() -> Result<(), reqwest::Error> {
         .await?
         .json::<serde_json::Value>()
         .await?;
-    
+
     println!("{:?}", response);
     Ok(())
 }`;
@@ -953,7 +1203,7 @@ async fn main() -> Result<(), reqwest::Error> {
         .await?
         .json::<serde_json::Value>()
         .await?;
-    
+
     println!("{:?}", response);
     Ok(())
 }`;
@@ -1015,485 +1265,647 @@ func main() {
 }`;
   };
 
+  const codeForTab: Record<typeof activeTab, () => string> = {
+    response: () => '',
+    curl: generateCurl,
+    typescript: generateTypeScript,
+    python: generatePython,
+    rust: generateRust,
+    go: generateGo,
+  };
+
+  const tabLanguage: Record<typeof activeTab, string> = {
+    response: 'json',
+    curl: 'shell',
+    typescript: 'typescript',
+    python: 'python',
+    rust: 'rust',
+    go: 'go',
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-700">
-          <div className="flex items-center gap-3">
-            <Terminal className="w-5 h-5 text-neutral-500 dark:text-neutral-400" />
-            <span className={`px-2 py-1 text-xs font-mono font-bold rounded ${METHOD_COLORS[endpoint.method]}`}>
+    <Card>
+      <CardHead
+        title={
+          <span className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <Icons.zap size={13} />
+            <span>Sandbox</span>
+            <Pill tone={methodTone(endpoint.method)} className="mono">
               {endpoint.method}
-            </span>
-            <code className="text-sm font-mono text-neutral-700 dark:text-neutral-300">
+            </Pill>
+            <code className="mono" style={{ color: 'var(--text-1)' }}>
               {endpoint.path}
             </code>
-          </div>
-          <div className="flex items-center gap-1">
+          </span>
+        }
+        right={
+          <div className="row" style={{ gap: 4 }}>
             <button
+              className={`btn sm${showHistoryPanel ? ' primary' : ''}`}
               onClick={() => setShowHistoryPanel((v) => !v)}
-              className={`p-2 rounded-lg text-xs flex items-center gap-1.5 transition-colors ${
-                showHistoryPanel
-                  ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
-                  : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              title="Show request history and favorites for this endpoint"
+              aria-label="Toggle request history"
             >
-              <Clock className="w-4 h-4" />
-              <span>{scopedHistory.length + scopedFavorites.length}</span>
+              <Icons.activity size={11} />
+              History · {scopedHistory.length + scopedFavorites.length}
             </button>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-lg text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-              title="Close"
-            >
-              <XClose className="w-5 h-5" />
+            <button className="btn sm" onClick={onClose} aria-label="Close sandbox">
+              <Icons.x size={11} />
+              Close
             </button>
           </div>
-        </div>
-
-        {/* History / Favorites panel (collapsed by default) */}
-        {showHistoryPanel && (scopedFavorites.length > 0 || scopedHistory.length > 0) && (
-          <div className="border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/30 p-3 space-y-3 max-h-64 overflow-auto">
-            {scopedFavorites.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5">
-                    <Star01 className="w-3.5 h-3.5 text-amber-500" />
-                    Favorites ({scopedFavorites.length})
-                  </span>
-                </div>
-                <ul className="space-y-1">
-                  {scopedFavorites.map((fav) => (
-                    <li
-                      key={fav.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-xs group"
-                    >
-                      <button
-                        onClick={() => applyRecord(fav)}
-                        className="flex-1 text-left font-mono text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400"
-                        title="Load into sandbox"
-                      >
-                        {fav.body.trim().slice(0, 80) || '(empty body)'}
-                      </button>
-                      <button
-                        onClick={() => sandboxHistory.removeFavorite(fav.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-500 transition"
-                        title="Remove favorite"
-                      >
-                        <Trash01 className="w-3.5 h-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {scopedHistory.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
-                    Recent ({scopedHistory.length})
-                  </span>
-                  <button
-                    onClick={sandboxHistory.clearHistory}
-                    className="text-xs text-neutral-500 hover:text-red-500 transition"
+        }
+      />
+      <CardBody>
+        {showHistoryPanel &&
+          (scopedFavorites.length > 0 || scopedHistory.length > 0) && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: 10,
+                background: 'var(--bg-3)',
+                border: '1px solid var(--line)',
+                borderRadius: 6,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                maxHeight: 220,
+                overflow: 'auto',
+              }}
+            >
+              {scopedFavorites.length > 0 && (
+                <div>
+                  <div
+                    className="row"
+                    style={{
+                      justifyContent: 'space-between',
+                      marginBottom: 6,
+                    }}
                   >
-                    Clear all
-                  </button>
-                </div>
-                <ul className="space-y-1">
-                  {scopedHistory.map((h) => (
-                    <li
-                      key={h.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-xs group"
+                    <span
+                      style={{
+                        color: 'var(--text-2)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
                     >
-                      {typeof h.status === 'number' && (
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            h.status >= 200 && h.status < 300
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          }`}
+                      Favorites · {scopedFavorites.length}
+                    </span>
+                  </div>
+                  <ul
+                    style={{
+                      listStyle: 'none',
+                      padding: 0,
+                      margin: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    {scopedFavorites.map((fav) => (
+                      <li
+                        key={fav.id}
+                        className="row"
+                        style={{
+                          gap: 6,
+                          padding: '4px 6px',
+                          background: 'var(--bg-2)',
+                          border: '1px solid var(--line)',
+                          borderRadius: 4,
+                          fontSize: 11,
+                        }}
+                      >
+                        <Pill tone="amber" className="mono">
+                          fav
+                        </Pill>
+                        <button
+                          onClick={() => applyRecord(fav)}
+                          className="mono"
+                          style={{
+                            flex: 1,
+                            textAlign: 'left',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--text-1)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title="Load into sandbox"
                         >
-                          {h.status}
-                        </span>
-                      )}
-                      {typeof h.timingMs === 'number' && (
-                        <span className="text-neutral-500 dark:text-neutral-400 text-[10px]">
-                          {h.timingMs}ms
-                        </span>
-                      )}
-                      <button
-                        onClick={() => applyRecord(h)}
-                        className="flex-1 text-left font-mono text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400"
+                          {fav.body.trim().slice(0, 80) || '(empty body)'}
+                        </button>
+                        <button
+                          className="btn sm"
+                          onClick={() => sandboxHistory.removeFavorite(fav.id)}
+                          aria-label="Remove favorite"
+                        >
+                          <Icons.trash size={10} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {scopedHistory.length > 0 && (
+                <div>
+                  <div
+                    className="row"
+                    style={{
+                      justifyContent: 'space-between',
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: 'var(--text-2)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Recent · {scopedHistory.length}
+                    </span>
+                    <button
+                      className="btn sm"
+                      onClick={sandboxHistory.clearHistory}
+                      aria-label="Clear all history"
+                    >
+                      <Icons.trash size={10} />
+                      Clear all
+                    </button>
+                  </div>
+                  <ul
+                    style={{
+                      listStyle: 'none',
+                      padding: 0,
+                      margin: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    {scopedHistory.map((h) => (
+                      <li
+                        key={h.id}
+                        className="row"
+                        style={{
+                          gap: 6,
+                          padding: '4px 6px',
+                          background: 'var(--bg-2)',
+                          border: '1px solid var(--line)',
+                          borderRadius: 4,
+                          fontSize: 11,
+                        }}
                       >
-                        {h.body.trim().slice(0, 80) || '(empty body)'}
-                      </button>
-                      <button
-                        onClick={() => sandboxHistory.removeHistory(h.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-500 transition"
-                        title="Remove from history"
-                      >
-                        <Trash01 className="w-3.5 h-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
+                        {typeof h.status === 'number' && (
+                          <Pill
+                            tone={
+                              h.status >= 200 && h.status < 300
+                                ? 'green'
+                                : 'red'
+                            }
+                            className="mono"
+                          >
+                            {h.status}
+                          </Pill>
+                        )}
+                        {typeof h.timingMs === 'number' && (
+                          <span
+                            className="mono"
+                            style={{ color: 'var(--text-3)' }}
+                          >
+                            {h.timingMs}ms
+                          </span>
+                        )}
+                        <button
+                          onClick={() => applyRecord(h)}
+                          className="mono"
+                          style={{
+                            flex: 1,
+                            textAlign: 'left',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--text-1)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {h.body.trim().slice(0, 80) || '(empty body)'}
+                        </button>
+                        <button
+                          className="btn sm"
+                          onClick={() => sandboxHistory.removeHistory(h.id)}
+                          aria-label="Remove from history"
+                        >
+                          <Icons.trash size={10} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-4 space-y-4">
-          {/* API Key Section */}
-          <div className="bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Key01 className="w-4 h-4 text-neutral-500 dark:text-neutral-400" />
-                <h4 className="text-sm font-medium text-neutral-900 dark:text-white">
-                  Authentication
-                </h4>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Authentication */}
+          <div
+            style={{
+              padding: 10,
+              background: 'var(--bg-3)',
+              border: '1px solid var(--line)',
+              borderRadius: 6,
+            }}
+          >
+            <div
+              className="row"
+              style={{ justifyContent: 'space-between', marginBottom: 6 }}
+            >
+              <span
+                className="row"
+                style={{
+                  gap: 6,
+                  color: 'var(--text-1)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                <Icons.keys size={11} className="muted" />
+                Authentication
+              </span>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                  color: 'var(--text-2)',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={useApiKey}
                   onChange={(e) => setUseApiKey(e.target.checked)}
-                  className="w-4 h-4 text-primary-600 rounded border-neutral-300 dark:border-neutral-600"
                 />
-                <span className="text-xs text-neutral-600 dark:text-neutral-400">Use API Key</span>
+                Use API key
               </label>
             </div>
-            
-            {useApiKey && (
-              <div className="space-y-2">
+            {useApiKey ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
                 <input
+                  className="input mono"
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="Enter your API key"
-                  className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg 
-                           bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white font-mono"
                 />
                 {hasApiKeys === false && (
-                  <div className="flex items-center gap-2 text-xs">
-                    <AlertCircle className="w-3 h-3 text-amber-500" />
-                    <span className="text-amber-600 dark:text-amber-400">
+                  <div
+                    className="row"
+                    style={{ gap: 6, fontSize: 11 }}
+                  >
+                    <Pill tone="amber">no keys</Pill>
+                    <span style={{ color: 'var(--text-2)' }}>
                       No API keys found.
                     </span>
-                    <Link to="/api-keys" className="text-primary-600 dark:text-primary-400 hover:underline">
+                    <Link
+                      to="/api-keys"
+                      style={{ color: 'var(--accent)' }}
+                    >
                       Create one
                     </Link>
                   </div>
                 )}
               </div>
-            )}
-            
-            {!useApiKey && (
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                Enable to send requests with API key authentication (required for protected endpoints)
+            ) : (
+              <p
+                style={{
+                  color: 'var(--text-2)',
+                  fontSize: 11,
+                  margin: 0,
+                }}
+              >
+                Enable to send requests with API key authentication
+                (required for protected endpoints).
               </p>
             )}
           </div>
 
-          {/* Path Parameters */}
+          {/* Path parameters */}
           {endpoint.pathParams && endpoint.pathParams.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2 flex items-center gap-2">
-                <Code01 className="w-4 h-4 text-neutral-400" />
-                Path Parameters
+              <h4
+                style={{
+                  color: 'var(--text-1)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  margin: '0 0 6px 0',
+                }}
+              >
+                Path parameters
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {endpoint.pathParams.map(param => (
-                  <div key={param.name}>
-                    <label className="block text-xs text-neutral-500 dark:text-neutral-400 mb-1">
-                      {param.name} <span className="text-neutral-400">({param.type})</span>
-                    </label>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: 8,
+                }}
+              >
+                {endpoint.pathParams.map((param) => (
+                  <label
+                    key={param.name}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: 'var(--text-2)',
+                        fontSize: 11,
+                      }}
+                    >
+                      {param.name}{' '}
+                      <span style={{ color: 'var(--text-3)' }}>
+                        ({param.type})
+                      </span>
+                    </span>
                     <input
+                      className="input mono"
                       type="text"
                       value={pathParams[param.name] || ''}
-                      onChange={(e) => setPathParams({ ...pathParams, [param.name]: e.target.value })}
+                      onChange={(e) =>
+                        setPathParams({
+                          ...pathParams,
+                          [param.name]: e.target.value,
+                        })
+                      }
                       placeholder={param.description}
-                      className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg 
-                               bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white font-mono"
                     />
-                  </div>
+                  </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Request Body */}
+          {/* Request body — Monaco editor preserved */}
           {endpoint.method !== 'GET' && (
             <div>
-              <h4 className="text-sm font-medium text-neutral-900 dark:text-white mb-2 flex items-center gap-2">
-                <Code01 className="w-4 h-4 text-neutral-400" />
-                Request Body
+              <h4
+                style={{
+                  color: 'var(--text-1)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  margin: '0 0 6px 0',
+                }}
+              >
+                Request body
               </h4>
-              <textarea
+              <CodeEditor
                 value={requestBody}
-                onChange={(e) => setRequestBody(e.target.value)}
-                rows={8}
-                className="w-full px-3 py-2 text-sm font-mono border border-neutral-300 dark:border-neutral-700 rounded-lg 
-                         bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-white"
+                onChange={(next) => setRequestBody(next ?? '')}
+                language="json"
+                height="240px"
               />
             </div>
           )}
 
-          {/* Execute + Favorite Row */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="primary"
+          {/* Execute + favorite */}
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              className="btn primary"
               onClick={executeRequest}
               disabled={loading}
-              className="flex items-center gap-2"
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Sending...
+                  <Icons.refresh size={11} />
+                  Sending…
                 </>
               ) : (
                 <>
-                  <Send01 className="w-4 h-4" />
-                  Send Request
+                  <Icons.zap size={11} />
+                  Send request
                 </>
               )}
-            </Button>
+            </button>
             <button
               type="button"
+              className={`btn sm${isCurrentFavorited ? ' primary' : ''}`}
               onClick={handleToggleFavorite}
-              className={`px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border ${
+              aria-label={
                 isCurrentFavorited
-                  ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
-                  : 'bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-amber-600 dark:hover:text-amber-400'
-              }`}
-              title={isCurrentFavorited ? 'Remove from favorites' : 'Save as favorite'}
+                  ? 'Remove from favorites'
+                  : 'Save as favorite'
+              }
             >
-              <Star01
-                className={`w-3.5 h-3.5 ${isCurrentFavorited ? 'fill-current' : ''}`}
-              />
+              <Icons.bolt size={11} />
               {isCurrentFavorited ? 'Favorited' : 'Save'}
             </button>
           </div>
 
-          {/* Error */}
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">
-              {error}
+            <div
+              className="row"
+              style={{
+                gap: 8,
+                padding: 10,
+                background: 'var(--bg-3)',
+                border: '1px solid var(--line)',
+                borderRadius: 6,
+              }}
+            >
+              <Pill tone="red">error</Pill>
+              <span style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                {error}
+              </span>
             </div>
           )}
 
-          {/* Response / Code Examples Tabs */}
-          <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden">
-            <div className="flex gap-0 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-700 overflow-x-auto">
-              {(['response', 'curl', 'typescript', 'python', 'rust', 'go'] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2.5 text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-2 border-b-2 -mb-[1px] ${
-                    activeTab === tab
-                      ? 'border-primary-500 text-primary-600 dark:text-primary-400 bg-white dark:bg-neutral-900'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                  }`}
-                >
-                  {tab === 'response' && <Terminal className="w-3.5 h-3.5" />}
-                  {tab === 'curl' && <Code01 className="w-3.5 h-3.5" />}
-                  {tab === 'typescript' && <Code01 className="w-3.5 h-3.5" />}
-                  {tab === 'python' && <Code01 className="w-3.5 h-3.5" />}
-                  {tab === 'rust' && <Code01 className="w-3.5 h-3.5" />}
-                  {tab === 'go' && <Code01 className="w-3.5 h-3.5" />}
-                  {tab === 'response' ? 'Response' : tab === 'curl' ? 'cURL' : tab === 'typescript' ? 'TypeScript' : tab === 'python' ? 'Python' : tab === 'rust' ? 'Rust' : 'Go'}
-                </button>
-              ))}
+          {/* Response / code samples — Monaco editor preserved */}
+          <div
+            style={{
+              border: '1px solid var(--line)',
+              borderRadius: 6,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                gap: 0,
+                background: 'var(--bg-3)',
+                borderBottom: '1px solid var(--line)',
+                overflowX: 'auto',
+              }}
+            >
+              {(
+                [
+                  'response',
+                  'curl',
+                  'typescript',
+                  'python',
+                  'rust',
+                  'go',
+                ] as const
+              ).map((tab) => {
+                const active = activeTab === tab;
+                const label =
+                  tab === 'response'
+                    ? 'Response'
+                    : tab === 'curl'
+                      ? 'cURL'
+                      : tab === 'typescript'
+                        ? 'TypeScript'
+                        : tab === 'python'
+                          ? 'Python'
+                          : tab === 'rust'
+                            ? 'Rust'
+                            : 'Go';
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: 11,
+                      background: active ? 'var(--bg-1)' : 'transparent',
+                      border: 'none',
+                      borderBottom: active
+                        ? '2px solid var(--accent)'
+                        : '2px solid transparent',
+                      color: active ? 'var(--text-1)' : 'var(--text-2)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      fontWeight: active ? 600 : 400,
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="p-4 bg-white dark:bg-neutral-900">
+            <div style={{ padding: 12, background: 'var(--bg-1)' }}>
               {activeTab === 'response' && response && (
                 <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className={`px-2 py-1 text-xs font-bold rounded flex items-center gap-1.5 ${
-                      response.status >= 200 && response.status < 300
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      {response.status >= 200 && response.status < 300 ? (
-                        <Check className="w-3 h-3" />
-                      ) : (
-                        <AlertCircle className="w-3 h-3" />
-                      )}
-                      {response.status}
-                    </span>
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
+                  <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                    <Pill
+                      tone={
+                        response.status >= 200 && response.status < 300
+                          ? 'green'
+                          : 'red'
+                      }
+                      className="mono"
+                    >
+                      {response.status >= 200 && response.status < 300
+                        ? 'OK'
+                        : 'ERR'}{' '}
+                      · {response.status}
+                    </Pill>
+                    <span
+                      className="mono"
+                      style={{ color: 'var(--text-3)', fontSize: 11 }}
+                    >
                       {response.time}ms
                     </span>
                   </div>
-                  <div className="max-h-64 overflow-auto rounded-lg">
-                    <SyntaxHighlight 
-                      code={(() => {
-                        try {
-                          return JSON.stringify(JSON.parse(response.body), null, 2);
-                        } catch {
-                          return response.body;
-                        }
-                      })()}
-                      language="json" 
-                    />
-                  </div>
+                  <CodeEditor
+                    value={(() => {
+                      try {
+                        return JSON.stringify(
+                          JSON.parse(response.body),
+                          null,
+                          2,
+                        );
+                      } catch {
+                        return response.body;
+                      }
+                    })()}
+                    language="json"
+                    height="240px"
+                    readOnly
+                  />
                 </div>
               )}
 
               {activeTab === 'response' && !response && (
-                <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
-                  <Terminal className="w-8 h-8 mx-auto mb-2 text-neutral-400 dark:text-neutral-500" />
-                  <p className="text-sm">Send a request to see the response</p>
+                <div
+                  style={{
+                    padding: 24,
+                    color: 'var(--text-2)',
+                    textAlign: 'center',
+                    fontSize: 12,
+                  }}
+                >
+                  Send a request to see the response.
                 </div>
               )}
 
-              {activeTab === 'curl' && (
-                <div className="relative">
-                  <SyntaxHighlight code={generateCurl()} language="bash" />
-                  <CopyButton text={generateCurl()} />
-                </div>
-              )}
-
-              {activeTab === 'typescript' && (
-                <div className="relative">
-                  <SyntaxHighlight code={generateTypeScript()} language="typescript" />
-                  <CopyButton text={generateTypeScript()} />
-                </div>
-              )}
-
-              {activeTab === 'python' && (
-                <div className="relative">
-                  <SyntaxHighlight code={generatePython()} language="python" />
-                  <CopyButton text={generatePython()} />
-                </div>
-              )}
-
-              {activeTab === 'rust' && (
-                <div className="relative">
-                  <SyntaxHighlight code={generateRust()} language="rust" />
-                  <CopyButton text={generateRust()} />
-                </div>
-              )}
-
-              {activeTab === 'go' && (
-                <div className="relative">
-                  <SyntaxHighlight code={generateGo()} language="go" />
-                  <CopyButton text={generateGo()} />
-                </div>
+              {activeTab !== 'response' && (
+                <CodeSampleWithCopy
+                  code={codeForTab[activeTab]()}
+                  language={tabLanguage[activeTab]}
+                />
               )}
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 }
 
-// Copy Button Component
-function CopyButton({ text }: { text: string }) {
+// Read-only Monaco-backed code sample with copy affordance — used for
+// the cURL / TypeScript / Python / Rust / Go sandbox tabs.
+function CodeSampleWithCopy({
+  code,
+  language,
+}: {
+  code: string;
+  language: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <button
-      onClick={handleCopy}
-      className="absolute top-2 right-2 p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors"
-      title="Copy to clipboard"
-    >
-      {copied ? (
-        <Check className="w-4 h-4 text-green-400" />
-      ) : (
-        <Copy01 className="w-4 h-4 text-neutral-400" />
-      )}
-    </button>
-  );
-}
-
-// Syntax Highlighting Component
-function SyntaxHighlight({ code, language }: { code: string; language: 'json' | 'typescript' | 'python' | 'rust' | 'go' | 'bash' }) {
-  const highlightCode = (text: string, lang: string): string => {
-    let html = text
-      // Escape HTML first
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // Keywords by language
-    const keywords: Record<string, string[]> = {
-      typescript: ['const', 'let', 'var', 'function', 'async', 'await', 'return', 'import', 'from', 'export', 'default', 'if', 'else', 'try', 'catch', 'new', 'typeof', 'interface', 'type'],
-      python: ['import', 'from', 'def', 'async', 'await', 'return', 'if', 'else', 'elif', 'try', 'except', 'class', 'print', 'True', 'False', 'None', 'with', 'as', 'for', 'in'],
-      rust: ['use', 'fn', 'async', 'await', 'let', 'mut', 'pub', 'struct', 'impl', 'return', 'Ok', 'Err', 'Some', 'None', 'match', 'if', 'else', 'loop', 'for', 'in', 'mod', 'crate', 'self'],
-      go: ['package', 'import', 'func', 'var', 'const', 'return', 'if', 'else', 'for', 'range', 'defer', 'go', 'chan', 'map', 'struct', 'type', 'interface', 'nil', 'true', 'false'],
-      bash: ['curl', 'echo', 'export', 'cd', 'ls', 'cat', 'grep', 'awk', 'sed'],
-      json: [],
-    };
-
-    // Highlight strings (double and single quotes)
-    html = html.replace(
-      /(["'`])(?:(?!\1|\\).|\\.)*\1/g,
-      '<span class="text-green-400">$&</span>'
-    );
-
-    // Highlight numbers
-    html = html.replace(
-      /\b(\d+\.?\d*)\b/g,
-      '<span class="text-amber-400">$1</span>'
-    );
-
-    // Highlight keywords
-    const langKeywords = keywords[lang] || [];
-    langKeywords.forEach(keyword => {
-      const regex = new RegExp(`\\b(${keyword})\\b`, 'g');
-      html = html.replace(regex, '<span class="text-purple-400 font-medium">$1</span>');
-    });
-
-    // Highlight comments
-    if (lang === 'python') {
-      html = html.replace(/(#.*)$/gm, '<span class="text-neutral-500 italic">$1</span>');
-    } else if (lang === 'rust' || lang === 'typescript' || lang === 'go') {
-      html = html.replace(/(\/\/.*)$/gm, '<span class="text-neutral-500 italic">$1</span>');
-    } else if (lang === 'bash') {
-      html = html.replace(/(#.*)$/gm, '<span class="text-neutral-500 italic">$1</span>');
-    }
-
-    // Highlight HTTP methods
-    html = html.replace(/\b(GET|POST|PUT|DELETE|PATCH)\b/g, '<span class="text-blue-400 font-bold">$1</span>');
-
-    // Highlight URLs
-    html = html.replace(
-      /(https?:\/\/[^\s'"]+)/g,
-      '<span class="text-cyan-400 underline">$1</span>'
-    );
-
-    // Highlight JSON keys (for JSON output)
-    if (lang === 'json') {
-      html = html.replace(
-        /("[\w_]+")(\s*:)/g,
-        '<span class="text-blue-300">$1</span>$2'
-      );
-      // Highlight boolean values
-      html = html.replace(/\b(true|false|null)\b/g, '<span class="text-amber-400">$1</span>');
-    }
-
-    return html;
-  };
-
-  return (
-    <pre
-      className="bg-neutral-900 dark:bg-neutral-950 rounded-lg p-4 text-sm font-mono overflow-x-auto text-neutral-100"
-      dangerouslySetInnerHTML={{ __html: highlightCode(code, language) }}
-    />
+    <div style={{ position: 'relative' }}>
+      <CodeEditor
+        value={code}
+        language={language}
+        height="240px"
+        readOnly
+      />
+      <button
+        className="btn sm"
+        onClick={handleCopy}
+        style={{
+          position: 'absolute',
+          top: 6,
+          right: 6,
+          zIndex: 1,
+        }}
+        aria-label="Copy code"
+      >
+        {copied ? <Icons.check size={11} /> : <Icons.copy size={11} />}
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
   );
 }
 

@@ -1,18 +1,24 @@
 /**
- * Setup Wizard Page
- * Multi-step wizard for initial project setup with template selection
+ * Setup Wizard Page — console-themed restyle.
+ *
+ * Multi-step wizard for initial workspace configuration. Visual
+ * restyle only: behaviour (state shape, validation, API calls,
+ * navigation between steps, persisted progress) is unchanged from the
+ * pre-redesign version.
+ *
+ * The outer `WizardLayout` provides the dark console chrome (header
+ * + dark background) and activates `body[data-console="1"]`. This
+ * page renders inside that layout.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSetup, SetupStatus, ProjectAnalysis, SetupProject, SuggestedCollection } from '@/hooks/useSetup';
-import { useTemplates, ConfigTemplate, getTemplateIcon, getTemplateColor } from '@/hooks/useTemplates.tsx';
+import { useTemplates, ConfigTemplate, getTemplateIcon } from '@/hooks/useTemplates.tsx';
 import { useApiKeys } from '@/hooks/useApiKeys';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import { Card, CardBody, Pill, Kpi, Icons } from '@/components/console';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { CheckCircle, Folder, Settings02, AlertCircle, ArrowRight, ArrowLeft, File06, Copy01, Zap, FolderSearch, XCircle, AlertTriangle, Plus, XClose, Share07, Key01 } from '@untitledui/icons';
 import FileBrowser from '@/components/FileBrowser';
 
 // Validation types
@@ -67,6 +73,15 @@ interface AnalyzedProject {
   }>;
 }
 
+const STEP_LABELS: Record<Exclude<WizardStep, 'complete'>, string> = {
+  welcome: 'Welcome',
+  template: 'Template',
+  folder: 'Folder',
+  analysis: 'Analysis',
+  review: 'Review',
+  'api-key': 'API Key',
+};
+
 function SetupWizardPage() {
   const navigate = useNavigate();
   const { getStatus, analyzeDirectory, applyConfig } = useSetup();
@@ -99,7 +114,7 @@ function SetupWizardPage() {
     isProject: false,
   });
   const [collectionValidations, setCollectionValidations] = useState<Record<string, CollectionValidation>>({});
-  
+
   // Skip wizard confirmation
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
@@ -558,7 +573,7 @@ function SetupWizardPage() {
 
   const generateMcpConfig = (): string => {
     if (!apiKey) return '';
-    
+
     if (mcpConfigType === 'npx') {
       // Cursor MCP configuration with npx (recommended - uses official MCP package)
       const config = {
@@ -640,222 +655,298 @@ function SetupWizardPage() {
   };
 
   // Steps for the progress indicator (complete is not shown as a step, it's the final state)
-  const progressSteps = ['welcome', 'template', 'folder', 'analysis', 'review', 'api-key'];
-  const stepIndex = progressSteps.indexOf(currentStep);
+  const progressSteps: Array<Exclude<WizardStep, 'complete'>> = [
+    'welcome', 'template', 'folder', 'analysis', 'review', 'api-key',
+  ];
+  const stepIndex = progressSteps.indexOf(currentStep as Exclude<WizardStep, 'complete'>);
   const isComplete = currentStep === 'complete';
+  const totalSteps = progressSteps.length;
+  const currentStepNumber = isComplete ? totalSteps : Math.max(0, stepIndex) + 1;
+  const completed = isComplete ? totalSteps : Math.max(0, stepIndex);
+  const remaining = Math.max(0, totalSteps - completed);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="page" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}>
         <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="page" style={{ maxWidth: 1100, margin: '0 auto' }}>
       {/* Skip Confirmation Modal */}
       {showSkipConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-neutral-900 rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-neutral-700/50 rounded-full flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-6 h-6 text-neutral-400" />
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 50,
+            display: 'grid', placeItems: 'center', padding: 16,
+            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <Card className="" >
+            <CardBody>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, maxWidth: 460 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 999,
+                  background: 'var(--bg-2)', border: '1px solid var(--border)',
+                  display: 'grid', placeItems: 'center', flexShrink: 0,
+                  color: 'var(--amber)',
+                }}>
+                  <Icons.bell size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Skip Setup Wizard?</div>
+                  <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.55 }}>
+                    You can always access the setup wizard later from the settings.
+                    Some features may not work correctly until the initial
+                    configuration is complete.
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-white">
-                  Skip Setup Wizard?
-                </h3>
-                <p className="text-sm text-white/60 mt-2">
-                  You can always access the setup wizard later from the settings. However, some features
-                  may not work correctly until you complete the initial configuration.
-                </p>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={() => setShowSkipConfirm(false)}>
+                  Continue Setup
+                </button>
+                <button className="btn primary" onClick={handleSkipWizard}>
+                  Skip for Now
+                </button>
               </div>
-            </div>
-            <div className="flex gap-3 mt-6 justify-end">
-              <Button
-                variant="secondary"
-                onClick={() => setShowSkipConfirm(false)}
-              >
-                Continue Setup
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSkipWizard}
-                className="!bg-neutral-600 hover:!bg-neutral-500"
-              >
-                Skip for Now
-              </Button>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
       )}
 
-      {/* Header with Skip Button */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">
-          Setup Wizard
-        </h1>
-          <p className="text-white/60 mt-2">
-          Configure your Vectorizer workspace
-        </p>
+      {/* Header */}
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">Setup Wizard</h1>
+          <p className="page-sub">Configure your Vectorizer workspace</p>
         </div>
-        {!isComplete && (
-          <button
-            onClick={() => setShowSkipConfirm(true)}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <XClose className="w-4 h-4" />
-            <span className="hidden sm:inline">Skip Setup</span>
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!isComplete && (
+            <Pill tone="teal" className="mono">
+              Step {currentStepNumber} of {totalSteps}
+            </Pill>
+          )}
+          {!isComplete && (
+            <button
+              className="btn"
+              onClick={() => setShowSkipConfirm(true)}
+              title="Skip setup"
+            >
+              <Icons.x size={14} /> Skip
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center justify-center gap-2 sm:gap-4">
-        {progressSteps.map((step, i) => (
-          <div key={step} className="flex items-center">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${isComplete || stepIndex > i
-              ? 'bg-neutral-600 text-white shadow-lg shadow-neutral-600/30'
-              : currentStep === step
-                ? 'bg-neutral-700 text-white shadow-lg shadow-neutral-700/30 scale-110 border border-neutral-500'
-                : 'bg-white/10 text-white/40 border border-white/10'
-              }`}>
-              {isComplete || stepIndex > i ? (
-                <CheckCircle className="w-5 h-5" />
-              ) : i + 1}
+      {/* KPI strip */}
+      {!isComplete && (
+        <div className="grid grid-4" style={{ marginBottom: 14 }}>
+          <Kpi accent="teal" label="Step" value={`${currentStepNumber} / ${totalSteps}`} />
+          <Kpi label="Completed" value={String(completed)} />
+          <Kpi label="Remaining" value={String(remaining)} />
+          <Kpi label="Phase" value={STEP_LABELS[currentStep as Exclude<WizardStep, 'complete'>] ?? '—'} />
+        </div>
+      )}
+
+      {/* Progress dots */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 8, marginBottom: 18, flexWrap: 'wrap',
+        }}
+      >
+        {progressSteps.map((step, i) => {
+          const isDone = isComplete || stepIndex > i;
+          const isActive = currentStep === step;
+          return (
+            <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                title={STEP_LABELS[step]}
+                style={{
+                  width: 28, height: 28, borderRadius: 999,
+                  display: 'grid', placeItems: 'center',
+                  fontSize: 11, fontFamily: 'var(--font-mono)',
+                  background: isDone ? 'var(--teal-dim)' : isActive ? 'var(--bg-3)' : 'var(--bg-2)',
+                  border: `1px solid ${isDone ? 'var(--teal)' : isActive ? 'var(--border-hi)' : 'var(--border)'}`,
+                  color: isDone ? 'var(--teal-hi)' : isActive ? 'var(--text)' : 'var(--text-2)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {isDone ? <Icons.check size={14} /> : i + 1}
+              </div>
+              {i < progressSteps.length - 1 && (
+                <div
+                  style={{
+                    width: 24, height: 1,
+                    background: isDone ? 'var(--teal)' : 'var(--border)',
+                  }}
+                />
+              )}
             </div>
-            {i < progressSteps.length - 1 && (
-              <div className={`w-8 sm:w-12 h-0.5 transition-all duration-300 ${isComplete || stepIndex > i
-                ? 'bg-neutral-600'
-                : 'bg-white/10'
-                }`} />
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="bg-neutral-800/50 border border-neutral-600 rounded-lg p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-neutral-400 flex-shrink-0" />
-          <p className="text-sm text-neutral-300">{error}</p>
-          <button onClick={() => setError(null)} className="ml-auto text-neutral-400 hover:text-neutral-300">×</button>
-        </div>
+        <Card className="" >
+          <CardBody>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: 'var(--red)' }}><Icons.bell size={16} /></span>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-1)', flex: 1 }}>{error}</p>
+              <button className="btn sm" onClick={() => setError(null)} aria-label="Dismiss error">
+                <Icons.x size={12} />
+              </button>
+            </div>
+          </CardBody>
+        </Card>
       )}
+      {error && <div style={{ height: 12 }} />}
 
-      {/* Step Content */}
+      {/* Welcome step */}
       {currentStep === 'welcome' && (
-        <Card className="bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 p-6">
-          <div className="text-center space-y-6">
+        <Card>
+          <CardBody>
             {showResumeBanner && progress.snapshot && (
               <div
-                className="text-left bg-emerald-900/20 border border-emerald-500/40 rounded-xl p-4"
                 role="region"
                 aria-label="Resume previous setup"
+                style={{
+                  background: 'var(--teal-dim)',
+                  border: '1px solid rgba(31,182,182,0.35)',
+                  borderRadius: 8,
+                  padding: 14,
+                  marginBottom: 18,
+                }}
               >
-                <p className="text-sm font-medium text-emerald-200">
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--teal-hi)' }}>
                   Resume your previous setup?
-                </p>
-                <p className="text-xs text-emerald-100/70 mt-1">
+                </div>
+                <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                   Saved {new Date(progress.snapshot.savedAt).toLocaleString()}
                   {' · '}
-                  step: <span className="font-mono">{progress.snapshot.step}</span>
+                  step: <span style={{ fontFamily: 'var(--font-mono)' }}>{progress.snapshot.step}</span>
                   {progress.snapshot.folderPath && (
                     <>
                       {' · '}
-                      folder: <span className="font-mono">{progress.snapshot.folderPath}</span>
+                      folder: <span style={{ fontFamily: 'var(--font-mono)' }}>{progress.snapshot.folderPath}</span>
                     </>
                   )}
                 </p>
-                <div className="flex gap-2 mt-3">
-                  <Button variant="primary" size="sm" onClick={resumeFromSnapshot}>
-                    <ArrowRight className="w-3.5 h-3.5 mr-1" /> Resume
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={discardSnapshot}>
-                    <XClose className="w-3.5 h-3.5 mr-1" /> Start fresh
-                  </Button>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button className="btn primary sm" onClick={resumeFromSnapshot}>
+                    <Icons.chevron size={12} /> Resume
+                  </button>
+                  <button className="btn sm" onClick={discardSnapshot}>
+                    <Icons.x size={12} /> Start fresh
+                  </button>
                 </div>
               </div>
             )}
-            <div className="w-20 h-20 bg-neutral-800/50 rounded-full flex items-center justify-center mx-auto">
-              <Settings02 className="w-10 h-10 text-neutral-400" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white">
-                Welcome to Vectorizer
-              </h2>
-              <p className="text-white/60 mt-2 max-w-md mx-auto">
+
+            <div style={{ textAlign: 'center', padding: '24px 12px' }}>
+              <div
+                style={{
+                  width: 64, height: 64, borderRadius: 999,
+                  background: 'var(--bg-2)', border: '1px solid var(--border)',
+                  display: 'grid', placeItems: 'center', margin: '0 auto 16px',
+                  color: 'var(--teal)',
+                }}
+              >
+                <Icons.settings size={28} />
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Welcome to Vectorizer</h2>
+              <p className="muted" style={{ fontSize: 13, marginTop: 8, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
                 Let&apos;s set up your workspace. This wizard will help you configure your projects
                 and create collection mappings for vector search.
               </p>
-            </div>
 
-            {status && (
-              <div className="bg-white/5 rounded-lg p-4 text-left max-w-md mx-auto">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-white/50">Version:</span>
-                  <span className="text-white font-medium">{status.version}</span>
-                  <span className="text-white/50">Deployment:</span>
-                  <span className="text-white font-medium capitalize">{status.deployment_type}</span>
-                  <span className="text-white/50">Collections:</span>
-                  <span className="text-white font-medium">{status.collection_count}</span>
+              {status && (
+                <div
+                  style={{
+                    background: 'var(--bg-2)', border: '1px solid var(--border)',
+                    borderRadius: 8, padding: 14, margin: '20px auto 0', maxWidth: 380,
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 12 }}>
+                    <span className="muted">Version:</span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>{status.version}</span>
+                    <span className="muted">Deployment:</span>
+                    <span style={{ textTransform: 'capitalize' }}>{status.deployment_type}</span>
+                    <span className="muted">Collections:</span>
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>{status.collection_count}</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <Button variant="primary" size="lg" onClick={() => setCurrentStep('template')}>
-              Get Started <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </div>
+              <div style={{ marginTop: 20 }}>
+                <button className="btn primary" onClick={() => setCurrentStep('template')}>
+                  Get Started <Icons.chevron size={14} />
+                </button>
+              </div>
+            </div>
+          </CardBody>
         </Card>
       )}
 
+      {/* Template step */}
       {currentStep === 'template' && (
-        <Card className="bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 p-6">
-          <div className="space-y-6">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-white">
-                Choose a Template
-              </h2>
-              <p className="text-white/60 text-sm mt-1">
+        <Card>
+          <CardBody>
+            <div style={{ marginBottom: 16 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Choose a Template</h2>
+              <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                 Select a template that best matches your use case
               </p>
             </div>
 
             {templatesLoading ? (
-              <div className="flex justify-center py-8">
+              <div style={{ display: 'grid', placeItems: 'center', padding: 32 }}>
                 <LoadingSpinner size="lg" />
               </div>
             ) : (
               <>
                 {/* Quick Setup Section */}
-                <div className="bg-neutral-800/30 rounded-xl p-4 border border-neutral-700">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-neutral-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Zap className="w-6 h-6 text-white" />
+                <div
+                  style={{
+                    background: 'var(--bg-2)', border: '1px solid var(--border)',
+                    borderRadius: 8, padding: 14, marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 8,
+                      background: 'var(--bg-3)', border: '1px solid var(--border)',
+                      display: 'grid', placeItems: 'center', flexShrink: 0,
+                      color: 'var(--amber)',
+                    }}>
+                      <Icons.zap size={18} />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-white flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-neutral-400" />
-                        Quick Setup
-                      </h3>
-                      <p className="text-sm text-white/60 mt-1">
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13 }}>
+                        <span>Quick Setup</span>
+                      </div>
+                      <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                         One-click setup with sensible defaults. Perfect for getting started quickly.
                       </p>
-                      <div className="flex flex-wrap gap-2 mt-3">
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
                         {templates.filter(t => t.id !== 'custom').slice(0, 3).map((template) => (
                           <button
                             key={template.id}
                             onClick={() => handleQuickSetup(template)}
                             disabled={quickSetupLoading}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium bg-neutral-800 border border-white/10 rounded-lg hover:border-neutral-500 hover:bg-neutral-800/50 transition-colors disabled:opacity-50"
+                            className="btn sm"
                           >
                             {quickSetupLoading ? (
                               <LoadingSpinner size="sm" />
                             ) : (
-                              <span className="flex items-center">{getTemplateIcon(template.id)}</span>
+                              <span style={{ display: 'inline-flex' }}>{getTemplateIcon(template.id)}</span>
                             )}
                             {template.name.split(' ')[0]}
                           </button>
@@ -865,77 +956,89 @@ function SetupWizardPage() {
                   </div>
                 </div>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/10"></div>
-                  </div>
-                  <div className="relative flex justify-center">
-                    <span className="px-3 bg-neutral-900 text-sm text-white/50">
-                      Or customize your setup
-                    </span>
-                  </div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  margin: '14px 0', color: 'var(--text-3)', fontSize: 11,
+                }}>
+                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                  <span>Or customize your setup</span>
+                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {templates.map((template) => (
-                    <button
-                      key={template.id}
-                      onClick={() => handleTemplateSelect(template)}
-                      className={`text-left p-4 rounded-lg border-2 transition-all hover:shadow-md ${selectedTemplate?.id === template.id
-                        ? 'border-neutral-500 bg-neutral-800/50'
-                        : 'border-white/10 hover:border-neutral-500'
-                        }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${getTemplateColor(template.id)}`}>
-                          {getTemplateIcon(template.id)}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-white">
-                            {template.name}
-                          </h3>
-                          <p className="text-sm text-white/60 mt-1">
-                            {template.description}
-                          </p>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {template.use_cases.slice(0, 2).map((useCase, i) => (
-                              <span
-                                key={i}
-                                className="text-xs px-2 py-0.5 bg-neutral-800 rounded-full text-white/60"
-                              >
-                                {useCase}
-                              </span>
-                            ))}
+                <div className="grid grid-2">
+                  {templates.map((template) => {
+                    const isSelected = selectedTemplate?.id === template.id;
+                    return (
+                      <button
+                        key={template.id}
+                        onClick={() => handleTemplateSelect(template)}
+                        style={{
+                          textAlign: 'left',
+                          padding: 14,
+                          borderRadius: 8,
+                          border: `1px solid ${isSelected ? 'var(--teal)' : 'var(--border)'}`,
+                          background: isSelected ? 'var(--teal-dim)' : 'var(--bg-2)',
+                          color: 'var(--text)',
+                          cursor: 'pointer',
+                          transition: 'all 0.1s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 8,
+                            background: 'var(--bg-3)', border: '1px solid var(--border)',
+                            display: 'grid', placeItems: 'center', flexShrink: 0,
+                            color: 'var(--teal)',
+                          }}>
+                            {getTemplateIcon(template.id)}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{template.name}</div>
+                            <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                              {template.description}
+                            </p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+                              {template.use_cases.slice(0, 2).map((useCase, i) => (
+                                <Pill key={i} tone="muted">{useCase}</Pill>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             )}
 
-            <div className="flex justify-between pt-4 border-t border-white/10">
-              <Button variant="secondary" onClick={() => setCurrentStep('welcome')}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
-              </Button>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              paddingTop: 14, marginTop: 16,
+              borderTop: '1px solid var(--border)',
+            }}>
+              <button className="btn" onClick={() => setCurrentStep('welcome')}>
+                <Icons.arrowDown size={12} style={{ transform: 'rotate(90deg)' }} /> Back
+              </button>
             </div>
-          </div>
+          </CardBody>
         </Card>
       )}
 
+      {/* Folder step */}
       {currentStep === 'folder' && (
-        <Card className="bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 p-6">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-neutral-800/50 rounded-lg flex items-center justify-center">
-                <Folder className="w-6 h-6 text-neutral-400" />
+        <Card>
+          <CardBody>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 8,
+                background: 'var(--bg-2)', border: '1px solid var(--border)',
+                display: 'grid', placeItems: 'center', color: 'var(--teal)',
+              }}>
+                <Icons.layers size={18} />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white">
-                  Add Project Folder
-                </h2>
-                <p className="text-white/60 text-sm">
+                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Add Project Folder</h2>
+                <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                   {selectedTemplate
                     ? `Using "${selectedTemplate.name}" template`
                     : 'Select or enter the path to your project folder'}
@@ -943,304 +1046,295 @@ function SetupWizardPage() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">
-                  Folder Path
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={folderPath}
-                      onChange={(e) => setFolderPath(e.target.value)}
-                      placeholder="/path/to/your/project"
-                      aria-invalid={pathValidation.isValid === false}
-                      className={`w-full px-4 py-2 pr-10 border rounded-lg
-                               bg-neutral-800 text-white
-                               focus:ring-2 focus:border-transparent
-                               ${pathValidation.isValid === true && pathValidation.isProject
-                          ? 'border-emerald-500/60 focus:ring-emerald-500/60'
-                          : pathValidation.isValid === true
-                            ? 'border-amber-500/60 focus:ring-amber-500/60'
-                            : pathValidation.isValid === false
-                              ? 'border-red-500/70 focus:ring-red-500/60'
-                              : 'border-neutral-700 focus:ring-neutral-500'}`}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
-                    />
-                    {/* Validation indicator */}
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      {pathValidation.isValidating ? (
-                        <LoadingSpinner size="sm" />
-                      ) : pathValidation.isValid === true ? (
-                        pathValidation.isProject ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-400" />
-                        ) : (
-                          <AlertTriangle className="w-5 h-5 text-amber-400" />
-                        )
-                      ) : pathValidation.isValid === false ? (
-                        <XCircle className="w-5 h-5 text-red-400" />
-                      ) : null}
-                    </div>
+            <div className="field">
+              <label className="field-label" htmlFor="setup-folder-path">Folder Path</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    id="setup-folder-path"
+                    type="text"
+                    value={folderPath}
+                    onChange={(e) => setFolderPath(e.target.value)}
+                    placeholder="/path/to/your/project"
+                    aria-invalid={pathValidation.isValid === false}
+                    className="input"
+                    style={{
+                      paddingRight: 36,
+                      borderColor:
+                        pathValidation.isValid === true && pathValidation.isProject ? 'var(--green)'
+                        : pathValidation.isValid === true ? 'var(--amber)'
+                        : pathValidation.isValid === false ? 'var(--red)'
+                        : undefined,
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+                  />
+                  <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>
+                    {pathValidation.isValidating ? (
+                      <LoadingSpinner size="sm" />
+                    ) : pathValidation.isValid === true ? (
+                      pathValidation.isProject ? (
+                        <span style={{ color: 'var(--green)' }}><Icons.check size={16} /></span>
+                      ) : (
+                        <span style={{ color: 'var(--amber)' }}><Icons.bell size={16} /></span>
+                      )
+                    ) : pathValidation.isValid === false ? (
+                      <span style={{ color: 'var(--red)' }}><Icons.x size={16} /></span>
+                    ) : null}
                   </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowFileBrowser(true)}
-                    title="Browse folders"
-                  >
-                    <FolderSearch className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleAnalyze}
-                    disabled={analyzing || !folderPath.trim() || pathValidation.isValid === false}
-                  >
-                    {analyzing ? <LoadingSpinner size="sm" /> : 'Analyze'}
-                  </Button>
                 </div>
-
-                {/* Validation feedback */}
-                {pathValidation.isValid === true && pathValidation.isProject && pathValidation.projectInfo && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {pathValidation.projectInfo.hasGit && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-700/50 text-neutral-300 text-xs rounded-full">
-                        <CheckCircle className="w-3 h-3" /> Git repository
-                      </span>
-                    )}
-                    {pathValidation.projectInfo.hasPackageJson && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-700/50 text-neutral-300 text-xs rounded-full">
-                        <CheckCircle className="w-3 h-3" /> Node.js project
-                      </span>
-                    )}
-                    {pathValidation.projectInfo.hasCargoToml && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-700/50 text-neutral-300 text-xs rounded-full">
-                        <CheckCircle className="w-3 h-3" /> Rust project
-                      </span>
-                    )}
-                    {pathValidation.projectInfo.hasPyProject && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-neutral-700/50 text-neutral-300 text-xs rounded-full">
-                        <CheckCircle className="w-3 h-3" /> Python project
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {pathValidation.isValid === true && !pathValidation.isProject && (
-                  <p className="mt-2 text-xs text-amber-300 flex items-center gap-1" role="status">
-                    <AlertTriangle className="w-3 h-3" />
-                    Path is valid but no project files detected. You can still analyze it.
-                  </p>
-                )}
-
-                {pathValidation.isValid === false && pathValidation.error && (
-                  <p className="mt-2 text-xs text-red-300 flex items-center gap-1" role="alert">
-                    <XCircle className="w-3 h-3" />
-                    {pathValidation.error}
-                  </p>
-                )}
-
-                {!folderPath && (
-                  <p className="text-xs text-white/50 mt-1">
-                    Click the folder icon to browse, or type a path directly
-                  </p>
-                )}
+                <button className="btn" onClick={() => setShowFileBrowser(true)} title="Browse folders">
+                  <Icons.search size={14} />
+                </button>
+                <button
+                  className="btn primary"
+                  onClick={handleAnalyze}
+                  disabled={analyzing || !folderPath.trim() || pathValidation.isValid === false}
+                >
+                  {analyzing ? <LoadingSpinner size="sm" /> : 'Analyze'}
+                </button>
               </div>
 
-              {analyzedProjects.length > 0 && (
-                <div className="border-t border-white/10 pt-4">
-                  <h3 className="text-sm font-medium text-white/70 mb-2">
-                    Analyzed Projects ({analyzedProjects.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {analyzedProjects.map((p, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <CheckCircle className="w-5 h-5 text-neutral-400" />
-                          <div>
-                            <p className="text-sm font-medium text-white">
-                              {p.analysis.project_name}
-                            </p>
-                            <p className="text-xs text-white/50">
-                              {p.analysis.project_types.join(', ')} • {p.collections.length} collections
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => removeProject(i)}
-                          className="text-neutral-400 hover:text-neutral-300 text-sm"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+              {pathValidation.isValid === true && pathValidation.isProject && pathValidation.projectInfo && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {pathValidation.projectInfo.hasGit && (
+                    <Pill tone="green"><Icons.check size={10} /> Git repository</Pill>
+                  )}
+                  {pathValidation.projectInfo.hasPackageJson && (
+                    <Pill tone="green"><Icons.check size={10} /> Node.js project</Pill>
+                  )}
+                  {pathValidation.projectInfo.hasCargoToml && (
+                    <Pill tone="green"><Icons.check size={10} /> Rust project</Pill>
+                  )}
+                  {pathValidation.projectInfo.hasPyProject && (
+                    <Pill tone="green"><Icons.check size={10} /> Python project</Pill>
+                  )}
                 </div>
+              )}
+
+              {pathValidation.isValid === true && !pathValidation.isProject && (
+                <p style={{ marginTop: 6, fontSize: 11, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 4 }} role="status">
+                  <Icons.bell size={12} />
+                  Path is valid but no project files detected. You can still analyze it.
+                </p>
+              )}
+
+              {pathValidation.isValid === false && pathValidation.error && (
+                <p style={{ marginTop: 6, fontSize: 11, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 4 }} role="alert">
+                  <Icons.x size={12} />
+                  {pathValidation.error}
+                </p>
+              )}
+
+              {!folderPath && (
+                <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                  Click the folder icon to browse, or type a path directly
+                </p>
               )}
             </div>
 
-            <div className="flex justify-between pt-4 border-t border-white/10">
-              <Button variant="secondary" onClick={() => setCurrentStep('template')}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
-              </Button>
+            {analyzedProjects.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 18 }}>
+                <div className="field-label" style={{ marginBottom: 8 }}>
+                  Analyzed Projects ({analyzedProjects.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {analyzedProjects.map((p, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: 10, background: 'var(--bg-2)',
+                        border: '1px solid var(--border)', borderRadius: 6,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ color: 'var(--green)' }}><Icons.check size={16} /></span>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500 }}>{p.analysis.project_name}</div>
+                          <div className="muted" style={{ fontSize: 11 }}>
+                            {p.analysis.project_types.join(', ')} · {p.collections.length} collections
+                          </div>
+                        </div>
+                      </div>
+                      <button className="btn sm" onClick={() => removeProject(i)}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              paddingTop: 14, marginTop: 18,
+              borderTop: '1px solid var(--border)',
+            }}>
+              <button className="btn" onClick={() => setCurrentStep('template')}>
+                <Icons.arrowDown size={12} style={{ transform: 'rotate(90deg)' }} /> Back
+              </button>
               {analyzedProjects.length > 0 && (
-                <Button variant="primary" onClick={() => setCurrentStep('analysis')}>
-                  Continue <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
+                <button className="btn primary" onClick={() => setCurrentStep('analysis')}>
+                  Continue <Icons.chevron size={14} />
+                </button>
               )}
             </div>
-          </div>
+          </CardBody>
         </Card>
       )}
 
+      {/* Analysis step */}
       {currentStep === 'analysis' && (
-        <Card className="bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 p-6">
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-white">
-              Review Detected Projects
-            </h2>
+        <Card>
+          <CardBody>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 14px' }}>Review Detected Projects</h2>
 
-            {analyzedProjects.map((project, pi) => (
-              <div key={pi} className="border border-white/10 rounded-lg overflow-hidden">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {analyzedProjects.map((project, pi) => (
                 <div
-                  className="flex items-center justify-between p-4 bg-white/5 cursor-pointer"
-                  onClick={() => toggleProjectSelection(pi)}
+                  key={pi}
+                  style={{
+                    border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden',
+                  }}
                 >
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={project.selected}
-                      onChange={() => toggleProjectSelection(pi)}
-                      className="w-4 h-4 text-neutral-400 rounded"
-                    />
-                    <div>
-                      <p className="font-medium text-white">
-                        {project.analysis.project_name}
-                      </p>
-                      <p className="text-sm text-white/50">
-                        {project.analysis.project_path}
-                      </p>
+                  <div
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: 12, background: 'var(--bg-2)', cursor: 'pointer',
+                    }}
+                    onClick={() => toggleProjectSelection(pi)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={project.selected}
+                        onChange={() => toggleProjectSelection(pi)}
+                        style={{ accentColor: 'var(--teal)' }}
+                      />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{project.analysis.project_name}</div>
+                        <div className="muted" style={{ fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                          {project.analysis.project_path}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 12 }}>{project.analysis.project_types.join(', ')}</div>
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        {project.analysis.statistics.total_files} files
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right text-sm">
-                    <p className="text-white/60">
-                      {project.analysis.project_types.join(', ')}
-                    </p>
-                    <p className="text-neutral-500">
-                      {project.analysis.statistics.total_files} files
-                    </p>
-                  </div>
-                </div>
 
-                {project.selected && (
-                  <div className="p-4 space-y-3">
-                    <p className="text-sm font-medium text-white/70">
-                      Collections:
-                    </p>
-                    {project.collections.map((col, ci) => {
-                      const validationKey = `${pi}-${ci}`;
-                      const validation = collectionValidations[validationKey];
-                      const hasError = validation && !validation.isValid;
+                  {project.selected && (
+                    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div className="field-label">Collections:</div>
+                      {project.collections.map((col, ci) => {
+                        const validationKey = `${pi}-${ci}`;
+                        const validation = collectionValidations[validationKey];
+                        const hasError = validation && !validation.isValid;
 
-                      return (
-                        <div
-                          key={ci}
-                          className={`p-3 rounded-lg transition-colors ${hasError
-                            ? 'bg-red-900/20 border border-red-500/50'
-                            : 'bg-neutral-800/30'
-                            }`}
-                        >
-                          <div 
-                            className="flex items-center gap-3 cursor-pointer"
-                          onClick={() => toggleCollectionSelection(pi, ci)}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={col.selected}
-                            onChange={() => toggleCollectionSelection(pi, ci)}
-                              className="w-4 h-4 text-neutral-400 rounded"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium text-white">
-                                {col.name}
-                              </p>
-                              {col.selected && validation && (
-                                validation.isValid ? (
-                                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                                ) : (
-                                    <XCircle className="w-4 h-4 text-red-400" />
-                                )
-                              )}
+                        return (
+                          <div
+                            key={ci}
+                            style={{
+                              padding: 10, borderRadius: 6,
+                              background: hasError ? 'rgba(229,72,77,0.08)' : 'var(--bg-2)',
+                              border: `1px solid ${hasError ? 'var(--red)' : 'var(--border)'}`,
+                            }}
+                          >
+                            <div
+                              style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+                              onClick={() => toggleCollectionSelection(pi, ci)}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={col.selected}
+                                onChange={() => toggleCollectionSelection(pi, ci)}
+                                style={{ accentColor: 'var(--teal)' }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-mono)' }}>
+                                    {col.name}
+                                  </span>
+                                  {col.selected && validation && (
+                                    validation.isValid ? (
+                                      <span style={{ color: 'var(--green)' }}><Icons.check size={14} /></span>
+                                    ) : (
+                                      <span style={{ color: 'var(--red)' }}><Icons.x size={14} /></span>
+                                    )
+                                  )}
+                                </div>
+                                <div className="muted" style={{ fontSize: 11 }}>{col.description}</div>
+                                {col.selected && hasError && validation.error && (
+                                  <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }} role="alert">
+                                    <Icons.bell size={10} />
+                                    {validation.error}
+                                  </p>
+                                )}
+                              </div>
+                              <Pill tone="muted">{col.content_type}</Pill>
                             </div>
-                              <p className="text-xs text-white/50">
-                              {col.description}
-                            </p>
-                            {col.selected && hasError && validation.error && (
-                                <p className="text-xs text-red-300 mt-1 flex items-center gap-1" role="alert">
-                                <AlertCircle className="w-3 h-3" />
-                                {validation.error}
-                              </p>
+
+                            {/* Graph Relationship Toggle */}
+                            {col.selected && (
+                              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                                <label
+                                  style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={col.enable_graph}
+                                    onChange={() => toggleCollectionGraph(pi, ci)}
+                                    style={{ accentColor: 'var(--teal)' }}
+                                  />
+                                  <span style={{ color: col.enable_graph ? 'var(--teal)' : 'var(--text-2)' }}>
+                                    <Icons.layers size={14} />
+                                  </span>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 500, color: col.enable_graph ? 'var(--text)' : 'var(--text-2)' }}>
+                                      Enable Graph Relationships
+                                    </div>
+                                    <div className="muted" style={{ fontSize: 11 }}>
+                                      Automatically discover semantic relationships between documents (GraphRAG)
+                                    </div>
+                                  </div>
+                                </label>
+                              </div>
                             )}
                           </div>
-                            <span className="text-xs text-neutral-500">
-                            {col.content_type}
-                          </span>
-                          </div>
-                          
-                          {/* Graph Relationship Toggle */}
-                          {col.selected && (
-                            <div className="mt-3 pt-3 border-t border-white/10">
-                              <label 
-                                className="flex items-center gap-3 cursor-pointer group"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={col.enable_graph}
-                                  onChange={() => toggleCollectionGraph(pi, ci)}
-                                  className="w-4 h-4 text-neutral-400 rounded focus:ring-neutral-500"
-                                />
-                                <Share07 className={`w-4 h-4 transition-colors ${col.enable_graph ? 'text-neutral-300' : 'text-neutral-500'}`} />
-                                <div className="flex-1">
-                                  <p className={`text-sm font-medium transition-colors ${col.enable_graph ? 'text-neutral-200' : 'text-white/60'}`}>
-                                    Enable Graph Relationships
-                                  </p>
-                                  <p className="text-xs text-white/50">
-                                    Automatically discover semantic relationships between documents (GraphRAG)
-                                  </p>
-                                </div>
-                              </label>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
             {/* Add Another Project Button */}
-            <div className="border border-dashed border-neutral-700 rounded-lg p-4 text-center">
-              <Button
-                variant="secondary"
-                onClick={() => setCurrentStep('folder')}
-                className="w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Another Project
-              </Button>
-              <p className="text-xs text-white/50 mt-2">
+            <div
+              style={{
+                border: '1px dashed var(--border-hi)', borderRadius: 8,
+                padding: 14, textAlign: 'center', marginTop: 14,
+              }}
+            >
+              <button className="btn" onClick={() => setCurrentStep('folder')}>
+                <Icons.plus size={14} /> Add Another Project
+              </button>
+              <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
                 You can add multiple projects to your workspace
               </p>
             </div>
 
-            <div className="flex justify-between pt-4 border-t border-white/10">
-              <Button variant="secondary" onClick={() => setCurrentStep('folder')}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
-              </Button>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              paddingTop: 14, marginTop: 14,
+              borderTop: '1px solid var(--border)',
+            }}>
+              <button className="btn" onClick={() => setCurrentStep('folder')}>
+                <Icons.arrowDown size={12} style={{ transform: 'rotate(90deg)' }} /> Back
+              </button>
               {(() => {
-                // Check if all selected collections have valid names
                 const hasValidationErrors = analyzedProjects.some((project, pi) =>
                   project.selected && project.collections.some((col, ci) => {
                     if (!col.selected) return false;
@@ -1255,57 +1349,57 @@ function SetupWizardPage() {
                 );
 
                 return (
-                  <div className="flex items-center gap-3">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     {hasValidationErrors && (
-                      <span className="text-xs text-red-300 flex items-center gap-1" role="alert">
-                        <AlertCircle className="w-4 h-4" />
+                      <span style={{ fontSize: 11, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 4 }} role="alert">
+                        <Icons.bell size={12} />
                         Fix validation errors to continue
                       </span>
                     )}
-                    <Button
-                      variant="primary"
+                    <button
+                      className="btn primary"
                       onClick={() => setCurrentStep('review')}
                       disabled={hasValidationErrors || selectedCount === 0}
                     >
-                      Continue <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
+                      Continue <Icons.chevron size={14} />
+                    </button>
                   </div>
                 );
               })()}
             </div>
-          </div>
+          </CardBody>
         </Card>
       )}
 
+      {/* Review step */}
       {currentStep === 'review' && (
-        <Card className="bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 p-6">
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-white">
-              Review & Apply Configuration
-            </h2>
+        <Card>
+          <CardBody>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 14px' }}>Review &amp; Apply Configuration</h2>
 
-            <div className="bg-white/5 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-white/70 mb-3">
-                Configuration Summary
-              </h3>
-              <div className="space-y-2 text-sm">
+            <div
+              style={{
+                background: 'var(--bg-2)', border: '1px solid var(--border)',
+                borderRadius: 8, padding: 14, marginBottom: 14,
+              }}
+            >
+              <div className="field-label" style={{ marginBottom: 10 }}>Configuration Summary</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
                 {selectedTemplate && (
-                  <div className="flex justify-between">
-                    <span className="text-white/50">Template:</span>
-                    <span className="font-medium text-white">
-                      {selectedTemplate.name}
-                    </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="muted">Template:</span>
+                    <span style={{ fontWeight: 500 }}>{selectedTemplate.name}</span>
                   </div>
                 )}
-                <div className="flex justify-between">
-                  <span className="text-white/50">Projects:</span>
-                  <span className="font-medium text-white">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="muted">Projects:</span>
+                  <span style={{ fontWeight: 500, fontFamily: 'var(--font-mono)' }}>
                     {analyzedProjects.filter(p => p.selected).length}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">Collections:</span>
-                  <span className="font-medium text-white">
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="muted">Collections:</span>
+                  <span style={{ fontWeight: 500, fontFamily: 'var(--font-mono)' }}>
                     {analyzedProjects.reduce((sum, p) =>
                       sum + (p.selected ? p.collections.filter(c => c.selected).length : 0), 0
                     )}
@@ -1315,166 +1409,183 @@ function SetupWizardPage() {
             </div>
 
             {/* YAML Preview Toggle */}
-            <div className="border border-white/10 rounded-lg overflow-hidden">
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 14 }}>
               <button
                 onClick={() => setShowYamlPreview(!showYamlPreview)}
-                className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-neutral-800 transition-colors"
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: 12, background: 'var(--bg-2)', border: 'none', color: 'var(--text)',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
               >
-                <div className="flex items-center gap-3">
-                  <File06 className="w-5 h-5 text-white/50" />
-                  <span className="font-medium text-white">
-                    Preview workspace.yml
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="muted"><Icons.copy size={14} /></span>
+                  <span style={{ fontWeight: 500, fontSize: 13 }}>Preview workspace.yml</span>
                 </div>
-                <span className="text-sm text-white/50">
-                  {showYamlPreview ? '▲ Hide' : '▼ Show'}
+                <span className="muted" style={{ fontSize: 11 }}>
+                  {showYamlPreview ? 'Hide' : 'Show'}
                 </span>
               </button>
 
               {showYamlPreview && (
-                <div className="relative">
+                <div style={{ position: 'relative' }}>
                   <button
                     onClick={handleCopyYaml}
-                    className="absolute top-2 right-2 p-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg transition-colors z-10"
+                    className="btn sm"
+                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}
                     title="Copy to clipboard"
                   >
-                    <Copy01 className="w-4 h-4 text-white" />
-                    {yamlCopied && (
-                      <span className="absolute -top-8 right-0 text-xs text-neutral-400 whitespace-nowrap">
-                        Copied!
-                      </span>
-                    )}
+                    <Icons.copy size={12} /> {yamlCopied ? 'Copied!' : 'Copy'}
                   </button>
-                  <pre className="p-4 bg-neutral-900 text-neutral-100 text-sm overflow-x-auto max-h-80 font-mono">
+                  <pre
+                    style={{
+                      padding: 14, background: 'var(--bg)', color: 'var(--text-1)',
+                      fontSize: 12, fontFamily: 'var(--font-mono)',
+                      overflowX: 'auto', maxHeight: 320, margin: 0,
+                    }}
+                  >
                     {yamlPreview}
                   </pre>
                 </div>
               )}
             </div>
 
-            <div className="bg-neutral-800/50 border border-neutral-600 rounded-lg p-4">
-              <p className="text-sm text-neutral-300">
+            <div
+              style={{
+                background: 'var(--amber-dim)', border: '1px solid rgba(240,168,58,0.35)',
+                borderRadius: 8, padding: 12, marginBottom: 14,
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--amber)' }}>
                 <strong>Note:</strong> This will create a workspace.yml file in your Vectorizer directory.
                 The server may need to be restarted to apply changes.
               </p>
             </div>
 
-            <div className="flex justify-between pt-4 border-t border-white/10">
-              <Button variant="secondary" onClick={() => setCurrentStep('analysis')}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleApplyConfig}
-                disabled={applying}
-              >
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              paddingTop: 14, borderTop: '1px solid var(--border)',
+            }}>
+              <button className="btn" onClick={() => setCurrentStep('analysis')}>
+                <Icons.arrowDown size={12} style={{ transform: 'rotate(90deg)' }} /> Back
+              </button>
+              <button className="btn primary" onClick={handleApplyConfig} disabled={applying}>
                 {applying ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    <span className="ml-2">Applying...</span>
+                    <span>Applying...</span>
                   </>
                 ) : (
                   <>Apply Configuration</>
                 )}
-              </Button>
+              </button>
             </div>
-          </div>
+          </CardBody>
         </Card>
       )}
 
+      {/* API Key step */}
       {currentStep === 'api-key' && (
-        <Card className="bg-white/10 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/20 p-6">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-neutral-700/50 flex items-center justify-center">
-                <Key01 className="w-5 h-5 text-neutral-400" />
+        <Card>
+          <CardBody>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 999,
+                background: 'var(--bg-2)', border: '1px solid var(--border)',
+                display: 'grid', placeItems: 'center', color: 'var(--teal)',
+              }}>
+                <Icons.keys size={18} />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white">
-                  Create API Key for Cursor MCP
-                </h2>
-                <p className="text-sm text-white/60 mt-1">
+                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Create API Key for Cursor MCP</h2>
+                <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                   Generate an API key to integrate Vectorizer with Cursor IDE
                 </p>
               </div>
             </div>
 
             {!apiKeyCreated ? (
-              <div className="space-y-4">
-                <div className="bg-white/5 rounded-lg p-4">
-                  <label className="block text-sm font-medium text-white/70 mb-2">
-                    API Key Name
-                  </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div className="field">
+                  <label className="field-label" htmlFor="setup-api-key-name">API Key Name</label>
                   <input
+                    id="setup-api-key-name"
                     type="text"
                     value={apiKeyName}
                     onChange={(e) => setApiKeyName(e.target.value)}
                     placeholder="e.g., Cursor MCP Integration"
-                    className="w-full px-4 py-2 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-neutral-500"
+                    className="input"
                     disabled={creatingKey}
                   />
                 </div>
 
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                  <p className="text-sm text-blue-300/80">
-                    <strong className="text-blue-200">Permissions:</strong> This API key will have read, write, and collection management permissions to enable full MCP functionality.
+                <div
+                  style={{
+                    background: 'var(--teal-dim)', border: '1px solid rgba(31,182,182,0.35)',
+                    borderRadius: 8, padding: 12,
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--teal-hi)' }}>
+                    <strong>Permissions:</strong> This API key will have read, write, and collection management permissions to enable full MCP functionality.
                   </p>
                 </div>
 
-                <div className="flex gap-3">
-                  <Button
-                    variant="primary"
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn primary"
                     onClick={handleCreateApiKey}
                     disabled={creatingKey || !apiKeyName.trim()}
-                    className="flex-1"
+                    style={{ flex: 1 }}
                   >
                     {creatingKey ? (
                       <>
                         <LoadingSpinner size="sm" />
-                        <span className="ml-2">Creating...</span>
+                        <span>Creating...</span>
                       </>
                     ) : (
                       <>Create API Key</>
                     )}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setCurrentStep('complete');
-                    }}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={() => setCurrentStep('complete')}
                     disabled={creatingKey}
                   >
                     Skip
-                  </Button>
+                  </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-5 h-5 text-green-400" />
-                    <p className="text-sm font-medium text-green-300">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div
+                  style={{
+                    background: 'rgba(76,195,138,0.10)', border: '1px solid rgba(76,195,138,0.35)',
+                    borderRadius: 8, padding: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <span style={{ color: 'var(--green)' }}><Icons.check size={16} /></span>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--green)' }}>
                       API Key Created Successfully!
                     </p>
                   </div>
-                  <p className="text-xs text-green-300/70">
-                    ⚠️ Save this API key now - it will not be shown again!
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-2)' }}>
+                    Save this API key now — it will not be shown again.
                   </p>
                 </div>
 
-                <div className="bg-neutral-800/50 rounded-lg p-4">
-                  <label className="block text-sm font-medium text-white/70 mb-2">
-                    Your API Key
-                  </label>
-                  <div className="flex gap-2">
+                <div className="field">
+                  <label className="field-label" htmlFor="setup-api-key-output">Your API Key</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
                     <input
+                      id="setup-api-key-output"
                       type="text"
                       value={apiKey || ''}
                       readOnly
-                      className="flex-1 px-4 py-2 bg-neutral-900/50 border border-neutral-700/50 rounded-lg text-white font-mono text-sm"
+                      className="input mono"
                     />
-                    <Button
-                      variant="secondary"
+                    <button
+                      className="btn"
                       onClick={async () => {
                         if (apiKey) {
                           await navigator.clipboard.writeText(apiKey);
@@ -1483,222 +1594,189 @@ function SetupWizardPage() {
                         }
                       }}
                     >
-                      <Copy01 className="w-4 h-4" />
-                    </Button>
+                      <Icons.copy size={14} />
+                    </button>
                   </div>
                 </div>
 
-                <div className="bg-neutral-800/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-medium text-white/70">
+                <div className="field">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="field-label" htmlFor="setup-mcp-config-type">
                       Cursor MCP Configuration
                     </label>
-                    <div className="flex items-center gap-2">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <select
+                        id="setup-mcp-config-type"
                         value={mcpConfigType}
                         onChange={(e) => setMcpConfigType(e.target.value as 'npx' | 'streamablehttp')}
-                        className="px-3 py-1.5 bg-neutral-900/50 border border-neutral-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-neutral-500"
+                        className="input"
+                        style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
                       >
                         <option value="npx">NPX (Recommended)</option>
                         <option value="streamablehttp">StreamableHTTP (Direct)</option>
                       </select>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={copyMcpConfig}
-                      >
+                      <button className="btn sm" onClick={copyMcpConfig}>
                         {mcpConfigCopied ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Copied!
-                          </>
+                          <><Icons.check size={12} /> Copied!</>
                         ) : (
-                          <>
-                            <Copy01 className="w-4 h-4 mr-2" />
-                            Copy Config
-                          </>
+                          <><Icons.copy size={12} /> Copy Config</>
                         )}
-                      </Button>
+                      </button>
                     </div>
                   </div>
-                  <div className="bg-neutral-900/50 rounded-lg p-4 border border-neutral-700/50">
-                    <pre className="text-xs text-white/80 font-mono overflow-x-auto">
-                      {generateMcpConfig()}
-                    </pre>
-                  </div>
+                  <pre
+                    style={{
+                      background: 'var(--bg)', color: 'var(--text-1)',
+                      border: '1px solid var(--border)', borderRadius: 6,
+                      padding: 12, fontSize: 11, fontFamily: 'var(--font-mono)',
+                      overflowX: 'auto', margin: 0,
+                    }}
+                  >
+                    {generateMcpConfig()}
+                  </pre>
                   {mcpConfigType === 'streamablehttp' && (
-                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mt-3">
-                      <p className="text-xs text-yellow-300/80">
-                        <strong className="text-yellow-200">⚠️ Note:</strong> StreamableHTTP configuration may require manual header setup. 
+                    <div
+                      style={{
+                        background: 'var(--amber-dim)', border: '1px solid rgba(240,168,58,0.35)',
+                        borderRadius: 6, padding: 10, marginTop: 8,
+                      }}
+                    >
+                      <p style={{ margin: 0, fontSize: 11, color: 'var(--amber)' }}>
+                        <strong>Note:</strong> StreamableHTTP configuration may require manual header setup.
                         Use the NPX option for automatic authentication.
                       </p>
                     </div>
                   )}
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mt-3">
-                    <p className="text-xs text-blue-300/80 mb-2">
-                      <strong className="text-blue-200">📋 Instructions:</strong>
+                  <div
+                    style={{
+                      background: 'var(--teal-dim)', border: '1px solid rgba(31,182,182,0.35)',
+                      borderRadius: 6, padding: 10, marginTop: 8,
+                    }}
+                  >
+                    <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--teal-hi)' }}>
+                      <strong>Instructions:</strong>
                     </p>
-                    <ol className="text-xs text-blue-300/70 space-y-1.5 list-decimal list-inside">
+                    <ol style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: 'var(--text-1)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                       <li>Copy the configuration above</li>
-                      <li>Open or create the MCP configuration file:
-                        <br />
-                        <code className="bg-neutral-900/50 px-2 py-1 rounded text-white/70 text-xs">
+                      <li>
+                        Open or create the MCP configuration file:{' '}
+                        <code style={{ background: 'var(--bg)', padding: '1px 5px', borderRadius: 3, fontFamily: 'var(--font-mono)' }}>
                           ~/.cursor/mcp.json
                         </code>
                         {' '}or{' '}
-                        <code className="bg-neutral-900/50 px-2 py-1 rounded text-white/70 text-xs">
+                        <code style={{ background: 'var(--bg)', padding: '1px 5px', borderRadius: 3, fontFamily: 'var(--font-mono)' }}>
                           .cursor/mcp.json
                         </code>
                         {' '}(project root)
                       </li>
-                      <li>Merge the configuration into your existing <code className="bg-neutral-900/50 px-1 rounded text-xs">mcpServers</code> object</li>
+                      <li>
+                        Merge the configuration into your existing{' '}
+                        <code style={{ background: 'var(--bg)', padding: '1px 5px', borderRadius: 3, fontFamily: 'var(--font-mono)' }}>mcpServers</code>{' '}
+                        object
+                      </li>
                       <li>Restart Cursor IDE to apply the changes</li>
                     </ol>
                   </div>
-                  <div className="bg-neutral-800/30 rounded-lg p-3 mt-3 border border-neutral-700/50">
-                    <p className="text-xs text-white/60">
-                      <strong className="text-white/80">💡 Alternative:</strong> You can also configure MCP manually using the API key in environment variables or headers.
-                    </p>
-                  </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <Button
-                    variant="primary"
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn primary"
                     onClick={() => setCurrentStep('complete')}
-                    className="flex-1"
+                    style={{ flex: 1 }}
                   >
-                    Continue to Dashboard
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                    Continue to Dashboard <Icons.chevron size={14} />
+                  </button>
                 </div>
               </div>
             )}
-          </div>
+          </CardBody>
         </Card>
       )}
 
+      {/* Complete step */}
       {currentStep === 'complete' && (
-        <Card className="bg-neutral-900 border border-neutral-800/50 p-6 overflow-hidden">
-          {/* Success confetti animation */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {[...Array(20)].map((_, i) => (
+        <Card>
+          <CardBody>
+            <div style={{ textAlign: 'center', padding: '24px 12px' }}>
               <div
-                key={i}
-                className="absolute w-2 h-2 rounded-full animate-confetti"
                 style={{
-                  backgroundColor: ['#10B981', '#6366F1', '#F59E0B', '#EF4444', '#8B5CF6'][i % 5],
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 0.5}s`,
-                  animationDuration: `${1 + Math.random() * 2}s`,
+                  width: 72, height: 72, borderRadius: 999,
+                  background: 'var(--teal-dim)', border: '1px solid var(--teal)',
+                  display: 'grid', placeItems: 'center', margin: '0 auto 16px',
+                  color: 'var(--teal-hi)',
                 }}
-              />
-            ))}
-          </div>
-
-          <div className="relative text-center space-y-6">
-            {/* Animated checkmark */}
-            <div className="relative w-24 h-24 mx-auto">
-              <div className="absolute inset-0 bg-neutral-700/50 rounded-full animate-pulse-slow" />
-              <div className="absolute inset-2 bg-neutral-600/60 rounded-full animate-bounce-gentle" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <CheckCircle className="w-12 h-12 text-neutral-400 animate-scale-in" />
+              >
+                <Icons.check size={32} />
               </div>
-            </div>
 
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <h2 className="text-2xl font-bold text-white">
-                Setup Complete!
-              </h2>
-              <p className="text-white/60 mt-2">
+              <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>Setup Complete!</h2>
+              <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
                 Your workspace has been configured successfully.
               </p>
-            </div>
 
-            {/* Success stats */}
-            <div className="grid grid-cols-3 gap-4 max-w-md mx-auto animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-              <div className="bg-neutral-800/40 rounded-lg p-3">
-                <div className="text-2xl font-bold text-neutral-400">
-                  {analyzedProjects.filter(p => p.selected).length}
-                </div>
-                <div className="text-xs text-white/50">Projects</div>
-              </div>
-              <div className="bg-neutral-800/40 rounded-lg p-3">
-                <div className="text-2xl font-bold text-neutral-400">
-                  {analyzedProjects.reduce((sum, p) =>
-                    sum + (p.selected ? p.collections.filter(c => c.selected).length : 0), 0
+              <div className="grid grid-3" style={{ maxWidth: 420, margin: '20px auto 0' }}>
+                <Kpi
+                  accent="teal"
+                  label="Projects"
+                  value={String(analyzedProjects.filter(p => p.selected).length)}
+                />
+                <Kpi
+                  label="Collections"
+                  value={String(
+                    analyzedProjects.reduce((sum, p) =>
+                      sum + (p.selected ? p.collections.filter(c => c.selected).length : 0), 0
+                    )
                   )}
-                </div>
-                <div className="text-xs text-white/50">Collections</div>
+                />
+                <Kpi
+                  label="Template"
+                  value={selectedTemplate?.name.split(' ')[0] || 'Custom'}
+                />
               </div>
-              <div className="bg-neutral-800/40 rounded-lg p-3">
-                <div className="text-2xl font-bold text-neutral-400">
-                  {selectedTemplate?.name.split(' ')[0] || 'Custom'}
+
+              <div
+                style={{
+                  background: 'var(--bg-2)', border: '1px solid var(--border)',
+                  borderRadius: 8, padding: 14, margin: '20px auto 0', maxWidth: 460,
+                  textAlign: 'left',
+                }}
+              >
+                <div className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <span style={{ color: 'var(--teal)' }}><Icons.chevron size={12} /></span>
+                  What&apos;s Next:
                 </div>
-                <div className="text-xs text-white/50">Template</div>
+                <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    'Restart the server to apply workspace configuration',
+                    'Visit the Workspace page to manage projects',
+                    'Use the Search page to query your data',
+                  ].map((item, i) => (
+                    <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--text-1)' }}>
+                      <span
+                        style={{
+                          width: 20, height: 20, borderRadius: 999,
+                          background: 'var(--bg-3)', border: '1px solid var(--border)',
+                          display: 'inline-grid', placeItems: 'center',
+                          fontSize: 10, color: 'var(--teal)', fontFamily: 'var(--font-mono)',
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20 }}>
+                <button className="btn" onClick={() => navigate('/workspace')}>Go to Workspace</button>
+                <button className="btn primary" onClick={() => navigate('/overview')}>
+                  Go to Dashboard
+                </button>
               </div>
             </div>
-
-            <div className="bg-white/5 rounded-lg p-4 text-left max-w-md mx-auto animate-fade-in-up" style={{ animationDelay: '0.7s' }}>
-              <h3 className="text-sm font-medium text-white/70 mb-2 flex items-center gap-2">
-                <ArrowRight className="w-4 h-4 text-neutral-400" />
-                What&apos;s Next:
-              </h3>
-              <ul className="text-sm text-white/60 space-y-2">
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 bg-neutral-700/50 rounded-full flex items-center justify-center text-neutral-400 text-xs">1</span>
-                  Restart the server to apply workspace configuration
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 bg-neutral-700/50 rounded-full flex items-center justify-center text-neutral-400 text-xs">2</span>
-                  Visit the Workspace page to manage projects
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 bg-neutral-700/50 rounded-full flex items-center justify-center text-neutral-400 text-xs">3</span>
-                  Use the Search page to query your data
-                </li>
-              </ul>
-            </div>
-
-            <div className="flex gap-3 justify-center animate-fade-in-up" style={{ animationDelay: '0.9s' }}>
-              <Button variant="secondary" onClick={() => navigate('/workspace')}>
-                Go to Workspace
-              </Button>
-              <Button variant="primary" onClick={() => navigate('/overview')}>
-                Go to Dashboard
-              </Button>
-            </div>
-          </div>
-
-          {/* CSS for animations */}
-          <style>{`
-            @keyframes confetti {
-              0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
-              100% { transform: translateY(1000%) rotate(720deg); opacity: 0; }
-            }
-            @keyframes pulse-slow {
-              0%, 100% { transform: scale(1); opacity: 0.5; }
-              50% { transform: scale(1.1); opacity: 0.3; }
-            }
-            @keyframes bounce-gentle {
-              0%, 100% { transform: scale(1); }
-              50% { transform: scale(1.05); }
-            }
-            @keyframes scale-in {
-              0% { transform: scale(0); opacity: 0; }
-              50% { transform: scale(1.2); }
-              100% { transform: scale(1); opacity: 1; }
-            }
-            @keyframes fade-in-up {
-              0% { transform: translateY(20px); opacity: 0; }
-              100% { transform: translateY(0); opacity: 1; }
-            }
-            .animate-confetti { animation: confetti 3s ease-in-out forwards; }
-            .animate-pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
-            .animate-bounce-gentle { animation: bounce-gentle 1s ease-in-out infinite; }
-            .animate-scale-in { animation: scale-in 0.5s ease-out forwards; }
-            .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; opacity: 0; }
-          `}</style>
+          </CardBody>
         </Card>
       )}
 
