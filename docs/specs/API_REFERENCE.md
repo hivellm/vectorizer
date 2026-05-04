@@ -160,6 +160,30 @@ active collections (`none`, `binary`, `sq-4bit`, `sq-8bit`, `sq-16bit`,
 label — dimension-aware for PQ, dimension-independent for the others.
 Empty store reports `("none", 1.0)`.
 
+#### `GET /collections/{name}` — `vector_count_history`
+
+Phase25 §6 added a `vector_count_history` field to the response so the
+dashboard's per-collection sparkline can render real growth instead of
+a sine wave:
+
+```jsonc
+{
+  "name": "docs",
+  "vector_count": 482919,
+  // ...other fields...
+  "vector_count_history": [
+    {"at": 1714828740, "count": 482900},
+    {"at": 1714828800, "count": 482919}
+  ]
+}
+```
+
+The ring buffer is capped at 60 samples per collection, sampled at most
+once per minute on each `GET /collections/{name}` request — so a
+static collection produces no ongoing CPU. Empty array until the first
+read after the route is hit. Sharded / GPU / DistributedSharded
+variants always report `[]`.
+
 ### Collection Management
 
 | Method | Endpoint | Auth | Permission | Description |

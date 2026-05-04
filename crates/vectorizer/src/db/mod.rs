@@ -31,7 +31,7 @@ mod wal_integration;
 pub use async_indexing::{AsyncIndexManager, IndexBuildProgress, IndexBuildStatus};
 pub use auto_save::AutoSaveManager;
 pub use backpressure::{BackpressureGuard, BackpressurePermit};
-pub use collection::Collection;
+pub use collection::{Collection, VectorCountSample};
 pub use collection_normalization::CollectionNormalizationHelper;
 pub use distributed_sharded_collection::DistributedShardedCollection;
 #[cfg(feature = "hive-gpu")]

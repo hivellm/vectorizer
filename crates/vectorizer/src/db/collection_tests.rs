@@ -822,3 +822,76 @@ fn test_collection_metadata_updates() {
     // vector_count should change
     assert_eq!(metadata2.vector_count, 1);
 }
+
+#[test]
+fn vector_count_history_starts_empty() {
+    let collection = create_test_collection();
+    assert!(collection.vector_count_history().is_empty());
+}
+
+#[test]
+fn vector_count_history_records_first_sample() {
+    let collection = create_test_collection();
+    collection
+        .insert(Vector::new("v1".to_string(), vec![1.0, 2.0, 3.0]))
+        .unwrap();
+
+    collection.record_vector_count_sample();
+
+    let history = collection.vector_count_history();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].count, 1);
+    assert!(
+        history[0].at > 0,
+        "sample timestamp should be unix-positive"
+    );
+}
+
+#[test]
+fn vector_count_history_dedups_within_60s_window() {
+    let collection = create_test_collection();
+    collection
+        .insert(Vector::new("v1".to_string(), vec![1.0, 2.0, 3.0]))
+        .unwrap();
+
+    collection.record_vector_count_sample();
+    collection.record_vector_count_sample();
+    collection.record_vector_count_sample();
+
+    let history = collection.vector_count_history();
+    assert_eq!(
+        history.len(),
+        1,
+        "back-to-back samples within 60s must coalesce"
+    );
+}
+
+#[test]
+fn vector_count_history_respects_capacity() {
+    use crate::db::collection::VectorCountSample;
+
+    let collection = create_test_collection();
+
+    // Pre-seed exactly at capacity using stale timestamps so the next
+    // `record_vector_count_sample()` call falls outside the dedup window
+    // and is forced to make room by popping the oldest sample.
+    {
+        let mut buf = collection.vector_count_history.write();
+        for i in 0..60u64 {
+            buf.push_back(VectorCountSample {
+                at: 1_000 + i,
+                count: i as usize,
+            });
+        }
+    }
+
+    collection.record_vector_count_sample();
+
+    let history = collection.vector_count_history();
+    assert_eq!(history.len(), 60, "ring must stay capped at 60 samples");
+    // The oldest pre-seeded sample (at = 1_000) must have rotated out.
+    assert!(
+        history.first().unwrap().at > 1_000,
+        "oldest sample should have been evicted to make room"
+    );
+}

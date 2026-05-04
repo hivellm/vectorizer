@@ -303,6 +303,23 @@ impl CollectionType {
         }
     }
 
+    /// Record a `(now, vector_count)` sample on the underlying Cpu
+    /// collection's ring buffer. No-op for other variants.
+    pub fn record_vector_count_sample(&self) {
+        if let CollectionType::Cpu(c) = self {
+            c.record_vector_count_sample();
+        }
+    }
+
+    /// Snapshot of the per-collection vector-count history. Empty for
+    /// non-Cpu variants (Sharded / GPU / DistributedSharded).
+    pub fn vector_count_history(&self) -> Vec<crate::db::collection::VectorCountSample> {
+        match self {
+            CollectionType::Cpu(c) => c.vector_count_history(),
+            _ => Vec::new(),
+        }
+    }
+
     /// Get the number of documents in the collection
     /// This may differ from vector_count if documents have multiple vectors
     pub fn document_count(&self) -> usize {

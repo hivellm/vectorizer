@@ -350,10 +350,15 @@ pub async fn get_collection(
         .get_collection(&name)
         .map_err(|e| ErrorResponse::from(e))?;
 
+    // Phase25 §6: opportunistic sample so the dashboard's per-minute
+    // sparkline grows without a dedicated background task.
+    collection.record_vector_count_sample();
+
     let metadata = collection.metadata();
     let config = collection.config();
     let (index_size, payload_size, total_size) = collection.get_size_info();
     let (index_bytes, payload_bytes, total_bytes) = collection.calculate_memory_usage();
+    let vector_count_history = collection.vector_count_history();
 
     // Build normalization info
     let normalization_info = if let Some(norm_config) = &config.normalization {
@@ -403,6 +408,7 @@ pub async fn get_collection(
             "bits": if matches!(config.quantization, vectorizer::models::QuantizationConfig::SQ { bits: 8 }) { 8 } else { 0 }
         },
         "normalization": normalization_info,
+        "vector_count_history": vector_count_history,
         "status": "ready"
     })))
 }

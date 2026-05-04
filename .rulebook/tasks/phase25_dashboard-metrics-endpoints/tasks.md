@@ -28,9 +28,9 @@
 
 ## 6. Extend `GET /collections/{n}` with vector-count history
 
-- [ ] 6.1 Add a per-collection `Vec<(unix_ts, vector_count)>` ring buffer of size 60 (60 minutes of samples) to the collection's stats struct
-- [ ] 6.2 Tick from the existing periodic stats refresh (no new background task — just write to the ring on each refresh)
-- [ ] 6.3 Surface as `vector_count_history: [{at, count}]` in `GET /collections/{n}` response
+- [x] 6.1 `Collection.vector_count_history: Arc<RwLock<VecDeque<VectorCountSample>>>` capped at 60 entries (`VECTOR_COUNT_HISTORY_CAP`); `VectorCountSample { at, count }` re-exported from `vectorizer::db`
+- [x] 6.2 No periodic refresh exists in the codebase — sampling moved to the read path. `Collection::record_vector_count_sample()` is a no-op when the last sample is < 60s old, so a static collection produces zero ongoing CPU. Static / GPU / DistributedSharded variants no-op via `CollectionType::record_vector_count_sample()`
+- [x] 6.3 `GET /collections/{name}` calls `record_vector_count_sample()` then returns `vector_count_history: [{at, count}]`. 4 unit tests pin the ring (empty start, first sample, 60s dedup, capacity rotation)
 
 ## 7. SDK propagation (additive, no breaking changes)
 

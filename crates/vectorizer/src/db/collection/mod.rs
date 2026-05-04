@@ -18,11 +18,13 @@
 // phase4_enforce-public-api-docs.
 #![allow(missing_docs)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use dashmap::DashMap;
 use parking_lot::{Mutex, RwLock};
+use serde::{Deserialize, Serialize};
 
 use super::graph_relationship_discovery::GraphRelationshipHelper;
 use super::optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
@@ -36,6 +38,22 @@ mod graph;
 mod index;
 mod persistence;
 mod quantization;
+
+/// Maximum number of vector-count samples retained per collection.
+/// 60 minutes worth at one sample per minute (phase25 §6).
+const VECTOR_COUNT_HISTORY_CAP: usize = 60;
+
+/// Minimum spacing between two recorded vector-count samples in seconds.
+const VECTOR_COUNT_HISTORY_MIN_SPACING_SECS: u64 = 60;
+
+/// One sample in the per-collection vector-count history ring buffer.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VectorCountSample {
+    /// Sample timestamp in unix seconds.
+    pub at: u64,
+    /// Vector count at the time of the sample.
+    pub count: usize,
+}
 
 /// A collection of vectors with an associated HNSW index
 #[derive(Clone, Debug)]
@@ -74,6 +92,11 @@ pub struct Collection {
     pub(super) updated_at: Arc<RwLock<chrono::DateTime<chrono::Utc>>>,
     /// Graph for relationship tracking (optional, enabled via config)
     pub(super) graph: Option<Arc<super::graph::Graph>>,
+    /// 60-sample ring buffer of `(unix_secs, vector_count)` snapshots,
+    /// at most one sample per minute. Updated lazily on read paths
+    /// (e.g. `GET /collections/{n}`) so static collections produce no
+    /// background CPU.
+    pub(super) vector_count_history: Arc<RwLock<VecDeque<VectorCountSample>>>,
 }
 
 impl GraphRelationshipHelper for Collection {
@@ -230,6 +253,9 @@ impl Collection {
             created_at: now,
             updated_at: Arc::new(RwLock::new(now)),
             graph,
+            vector_count_history: Arc::new(RwLock::new(VecDeque::with_capacity(
+                VECTOR_COUNT_HISTORY_CAP,
+            ))),
         }
     }
 
@@ -280,6 +306,40 @@ impl Collection {
     pub fn vector_count(&self) -> usize {
         // Use persistent vector count (maintains count even when vectors are unloaded)
         *self.vector_count.read()
+    }
+
+    /// Record a `(now, vector_count)` sample if the most recent sample is
+    /// older than [`VECTOR_COUNT_HISTORY_MIN_SPACING_SECS`]. Drops the
+    /// oldest entry once the ring buffer reaches
+    /// [`VECTOR_COUNT_HISTORY_CAP`].
+    ///
+    /// Sampling is opportunistic — call this from read paths
+    /// (e.g. `GET /collections/{n}`) so a static collection produces no
+    /// background load.
+    pub fn record_vector_count_sample(&self) {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        let mut buf = self.vector_count_history.write();
+        if let Some(last) = buf.back()
+            && now.saturating_sub(last.at) < VECTOR_COUNT_HISTORY_MIN_SPACING_SECS
+        {
+            return;
+        }
+        let count = *self.vector_count.read();
+        if buf.len() >= VECTOR_COUNT_HISTORY_CAP {
+            buf.pop_front();
+        }
+        buf.push_back(VectorCountSample { at: now, count });
+    }
+
+    /// Snapshot of the per-collection vector-count ring buffer. Older
+    /// samples are at the front. May be empty when the collection has
+    /// never been observed.
+    pub fn vector_count_history(&self) -> Vec<VectorCountSample> {
+        self.vector_count_history.read().iter().copied().collect()
     }
 }
 
