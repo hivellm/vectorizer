@@ -193,6 +193,34 @@ When adding new features:
 
 ## Recent changes
 
+### phase29 — multiplexed WebSocket replaces polling loops (2026-05-04)
+
+The console used to fire eight `setInterval` loops per tab against
+`/metrics/runtime` (1–2 s), `/status` (5–30 s), `/stats`, `/collections`,
+`/logs`, etc. With N tabs open, the server fielded N×8 redundant
+requests/min and the browser stacked pending requests during spikes.
+
+Phase29 introduces `GET /ws/dashboard`, a single multiplexed
+WebSocket. Cookie auth carries over unchanged (browsers attach
+`vectorizer_session` on the upgrade GET); REST endpoints stay live
+for SDK callers and as the initial-paint fallback before the first
+WS frame arrives.
+
+- **`runtime` topic** (1 Hz) replaces `useRuntimeMetrics`'s polling
+  loop. Same `RuntimeMetrics` shape as `GET /metrics/runtime`.
+- **`status` topic** (5 s) replaces `useStatus`'s polling loop. Same
+  shape as `GET /status`.
+- New `WsDashboardProvider` wraps the protected route tree, opens
+  one WebSocket per app instance, and reconnects with exponential
+  backoff (250 ms → 5 s).
+- `useWsTopic<T>(topic)` and `useWsStatus()` hooks expose the live
+  store via `useSyncExternalStore` so React renders only on actual
+  change.
+
+`useStats` (cache + WAL via `/health`) and the page-level loops on
+`/collections` and `/logs` stay on REST polling for now and will move
+in a follow-up (phase30 — collections + logs topics).
+
 ### phase24 — fix dashboard redesign contract mismatches (2026-05-04)
 
 PR #266's console redesign shipped against an imagined server schema; phase24

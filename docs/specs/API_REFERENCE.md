@@ -95,6 +95,49 @@ See [HUB_INTEGRATION.md](../HUB_INTEGRATION.md) for complete HiveHub authenticat
 | Write Operations | Yes | Yes | `ReadWrite` or higher |
 | Admin Operations | Yes | Yes | `Admin` |
 
+### Streaming
+
+`GET /ws/dashboard` (admin-gated) is a multiplexed WebSocket the
+dashboard connects to once per session. It replaces the polling loops
+the React UI previously fired off against `/metrics/runtime`,
+`/status`, etc. REST endpoints stay live as a fallback for SDK callers
+and as the initial-paint source before the first WS frame arrives.
+
+Auth uses the same `vectorizer_session` cookie as every other
+`/auth/*` route — browsers attach it automatically on the upgrade
+GET, so no `Authorization` header plumbing is needed. CSRF only
+applies to mutating methods (`POST/PUT/PATCH/DELETE`), so the upgrade
+GET passes through cleanly.
+
+Frames are JSON text. The server pushes any subscribed topic; the
+client may subscribe / unsubscribe / ping at any time.
+
+```jsonc
+// Client → server
+{"op": "subscribe",   "topics": ["runtime", "status"]}
+{"op": "unsubscribe", "topics": ["status"]}
+{"op": "ping"}
+
+// Server → client
+{"topic": "runtime", "data": {...RuntimeMetrics shape}}
+{"topic": "status",  "data": {online, version, uptime_seconds, collections_count}}
+{"op": "pong"}
+{"op": "error", "code": "stream_lag" | "bad_frame"}
+```
+
+Topic catalogue (this task — phase29):
+
+| Topic     | Cadence | Payload shape                                       |
+|-----------|---------|-----------------------------------------------------|
+| `runtime` | 1 Hz    | identical to `GET /metrics/runtime` response        |
+| `status`  | 5 s     | identical to `GET /status` response                 |
+
+Phase30 adds `collections` (30 s + on-mutation push) and `logs`
+(per-line tail). Slow consumers — clients that fall more than ~17
+minutes of 1 Hz runtime ticks behind the broadcast channel — receive
+`{"op":"error","code":"stream_lag"}` and the socket is closed; the
+dashboard reconnects with exponential backoff (250 ms → 5 s).
+
 ### Health & Status
 
 | Method | Endpoint | Auth | Description |
