@@ -50,7 +50,13 @@ const BUDGETS: &[(&str, usize, &str)] = &[
          translation reused by insert_text, insert_vectors, and \
          do_batch_insert_texts)",
     ),
-    ("src/server/rest_handlers/meta.rs", 300, "6 small handlers"),
+    (
+        "src/server/rest_handlers/meta.rs",
+        400,
+        "6 small handlers + phase25 §5 quantization aggregation \
+         helpers (quantization_label / compression_ratio + 4 unit \
+         tests pinning their behaviour)",
+    ),
     (
         "src/server/rest_handlers/collections.rs",
         960,

@@ -18,7 +18,7 @@
 //! # Quick start
 //!
 //! ```rust
-//! use vectorizer_sdk::models::filter::{QdrantFilter, QdrantCondition};
+//! use vectorizer_sdk::models::filter::{QdrantFilter, QdrantCondition, QdrantRange};
 //!
 //! // Match all vectors where `topic == "index"`:
 //! let filter = QdrantFilter::must(vec![

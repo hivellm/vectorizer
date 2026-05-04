@@ -111,11 +111,11 @@ type DatabaseStats struct {
 // GET /collections/{name} read. omitempty so older servers parse
 // unchanged.
 type CollectionInfo struct {
-	Name                string              `json:"name"`
-	VectorCount         int                 `json:"vector_count"`
-	Dimension           int                 `json:"dimension"`
-	Metric              string              `json:"metric"`
-	VectorCountHistory  []VectorCountSample `json:"vector_count_history,omitempty"`
+	Name               string              `json:"name"`
+	VectorCount        int                 `json:"vector_count"`
+	Dimension          int                 `json:"dimension"`
+	Metric             string              `json:"metric"`
+	VectorCountHistory []VectorCountSample `json:"vector_count_history,omitempty"`
 }
 
 // CollectionsListResponse represents the response from listing collections
@@ -269,10 +269,10 @@ type VectorCountSample struct {
 
 // RouteStats is one row inside RuntimeMetrics.ThroughputByRoute.
 type RouteStats struct {
-	Route  string  `json:"route"`
-	QPS    float64 `json:"qps"`
-	P50Ms  float64 `json:"p50_ms"`
-	P99Ms  float64 `json:"p99_ms"`
+	Route string  `json:"route"`
+	QPS   float64 `json:"qps"`
+	P50Ms float64 `json:"p50_ms"`
+	P99Ms float64 `json:"p99_ms"`
 }
 
 // WalSnapshot is the WAL section inside RuntimeMetrics (phase25 §3).
@@ -289,16 +289,16 @@ type WalSnapshot struct {
 // JSON tags use omitempty + the consumer pattern is "treat zero as
 // unknown".
 type RuntimeMetrics struct {
-	CPUPercent         float64      `json:"cpu_percent,omitempty"`
-	MemoryRSSBytes     uint64       `json:"memory_rss_bytes,omitempty"`
-	MemoryTotalBytes   uint64       `json:"memory_total_bytes,omitempty"`
-	MemoryPercent      float64      `json:"memory_percent,omitempty"`
-	ActiveConnections  int          `json:"active_connections,omitempty"`
-	UptimeSeconds      uint64       `json:"uptime_seconds,omitempty"`
-	QPSWindow60s       float64      `json:"qps_window_60s,omitempty"`
-	ErrorRate5xx60s    float64      `json:"error_rate_5xx_60s,omitempty"`
-	ThroughputByRoute  []RouteStats `json:"throughput_by_route,omitempty"`
-	WAL                WalSnapshot  `json:"wal,omitempty"`
+	CPUPercent        float64      `json:"cpu_percent,omitempty"`
+	MemoryRSSBytes    uint64       `json:"memory_rss_bytes,omitempty"`
+	MemoryTotalBytes  uint64       `json:"memory_total_bytes,omitempty"`
+	MemoryPercent     float64      `json:"memory_percent,omitempty"`
+	ActiveConnections int          `json:"active_connections,omitempty"`
+	UptimeSeconds     uint64       `json:"uptime_seconds,omitempty"`
+	QPSWindow60s      float64      `json:"qps_window_60s,omitempty"`
+	ErrorRate5xx60s   float64      `json:"error_rate_5xx_60s,omitempty"`
+	ThroughputByRoute []RouteStats `json:"throughput_by_route,omitempty"`
+	WAL               WalSnapshot  `json:"wal,omitempty"`
 }
 
 // ServerStatus represents server liveness state returned by GET /status.
