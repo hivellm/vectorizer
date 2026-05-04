@@ -82,6 +82,7 @@ fn test_collection_model_validation() {
         normalization: None,
         quantization: None,
         size: None,
+        vector_count_history: Vec::new(),
     };
 
     // Validate collection properties
@@ -469,6 +470,7 @@ fn test_comprehensive_model_integration() {
         normalization: None,
         quantization: None,
         size: None,
+        vector_count_history: Vec::new(),
     };
 
     let search_result = SearchResult {

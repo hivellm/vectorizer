@@ -2,6 +2,28 @@
 
 All notable changes to the Hive Vectorizer Rust SDK will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Phase25 dashboard metrics endpoints.**
+  - `VectorizerClient::get_runtime_metrics()` calling `GET /metrics/runtime`
+    with new typed `RuntimeMetrics` (cpu/memory/connections/uptime/QPS/5xx-rate),
+    `RouteStats` (per-route p50/p99), and `WalSnapshot`
+    (current_seq / size_bytes / last_checkpoint_at / last_checkpoint_seq).
+    Defaults zero-valued so older servers and standalone-mode (no WAL)
+    payloads parse unchanged.
+  - `Stats` grows `default_quantization: String` (`none` / `binary` /
+    `sq-4bit` / `sq-8bit` / `sq-16bit` / `sq` / `pq`) and
+    `compression_ratio: f32`. Both default to `("none", 1.0)` so older
+    servers keep deserialising.
+  - `Collection` grows `vector_count_history: Vec<VectorCountSample>`
+    (60-sample ring, one per minute) for the dashboard's per-collection
+    sparkline. Empty array on older servers or for collections that
+    have never been read.
+  - 4 new unit tests cover full + partial `RuntimeMetrics` payloads and
+    the new `Stats` quantization fields.
+
 ## [3.3.0] - 2026-05-02
 
 > Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.

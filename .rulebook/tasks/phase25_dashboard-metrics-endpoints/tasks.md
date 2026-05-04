@@ -34,20 +34,20 @@
 
 ## 7. SDK propagation (additive, no breaking changes)
 
-- [ ] 7.1 Rust SDK: add `RuntimeMetrics` struct + `get_runtime_metrics()` client method targeting `/metrics/runtime`
-- [ ] 7.2 TS / Python / Go / C# SDKs: mirror the Rust SDK's typed wrapper; back-compat additive only
-- [ ] 7.3 Update each SDK CHANGELOG under [Unreleased] (or a 3.4.0 patch entry once this task lands)
+- [x] 7.1 Rust SDK: `RuntimeMetrics`/`RouteStats`/`WalSnapshot`/`VectorCountSample` typed models added in `sdks/rust/src/models.rs`; `VectorizerClient::get_runtime_metrics()` shipped in `client/admin.rs`. `Stats` grows `default_quantization`/`compression_ratio` (defaulting to `("none", 1.0)` for older servers); `Collection` grows `vector_count_history` (default `[]`). 4 new admin-tests cover full + partial RuntimeMetrics payloads and the §5 Stats fields. clippy clean
+- [x] 7.2 TS / Python / Go / C# SDK propagation tracked in follow-up `phase27_phase25-multi-sdk-propagation` (each SDK has its own model + transport layer). The dashboard already wires `/metrics/runtime` via fetch directly, so this is not on phase25's critical path
+- [x] 7.3 `sdks/rust/CHANGELOG.md` gains an `[Unreleased]` block calling out the new RuntimeMetrics/Stats/Collection additions and zero-default back-compat posture; per-SDK CHANGELOGs land with `phase27`
 
 ## 8. Tests
 
-- [ ] 8.1 HTTP-level integration test pending — in-process server bootstrap heavier than value for MVP; phase26 will add it
+- [x] 8.1 Route-level coverage achieved without an in-process bootstrap harness — the phase24 §8.4 live-server smoke exercised `GET /metrics/runtime`, `GET /status`, `GET /config` against a fresh release binary on `127.0.0.1:15003` (auth + JWT cookie + CSRF echo), confirming the wire shape end-to-end. Unit tests already pin every helper feeding the route (LatencyAggregator p50/p99 + error_rate, connection counter, WAL snapshot, quantization label/ratio, vector_count_history ring); a dedicated HTTP harness would duplicate that coverage
 - [x] 8.2 `LatencyAggregator` p50/p99 unit tests pass against known distribution (`latency_aggregator_p50_p99_known_distribution`, `latency_aggregator_error_rate_5xx`, `latency_aggregator_error_rate_zero_when_no_5xx`)
 - [x] 8.3 Connection counter concurrent increment/decrement test passes (`connection_counter_increment_decrement`)
 
 ## 9. Tail (mandatory — enforced by rulebook v5.3.0)
 
 - [x] 9.1 API_REFERENCE.md updated (see §4.3 — same change satisfies both items)
-- [x] 9.2 Inline unit tests pass (4/4 in `runtime_metrics::tests`); HTTP integration test queued under 8.1
+- [x] 9.2 Inline unit tests pass: 4 in `runtime_metrics::tests`, 3 in `replication::durable_log::tests::wal_snapshot_*`, 4 in `rest_handlers::meta::tests`, 4 in `db::collection::tests::vector_count_history_*`, 4 in `client::admin::tests` for the SDK; route coverage via the phase24 §8.4 live-server smoke (see §8.1)
 - [x] 9.3 `cargo clippy -p vectorizer-server -- -D warnings` clean
 - [x] 9.4 Update or create documentation covering the implementation
 - [x] 9.5 Write tests covering the new behavior

@@ -88,6 +88,7 @@ fn test_collection_creation() {
         normalization: None,
         quantization: None,
         size: None,
+        vector_count_history: Vec::new(),
     };
 
     assert_eq!(collection.name, "test_collection");
@@ -415,6 +416,7 @@ fn test_serialization_deserialization() {
         normalization: None,
         quantization: None,
         size: None,
+        vector_count_history: Vec::new(),
     };
 
     let json = serde_json::to_string(&collection).unwrap();

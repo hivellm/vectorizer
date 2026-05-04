@@ -275,6 +275,21 @@ pub struct Collection {
     /// Size info
     #[serde(default)]
     pub size: Option<serde_json::Value>,
+    /// Per-collection vector-count ring buffer (phase25 §6). At most
+    /// 60 samples, one per minute, sampled lazily on
+    /// `GET /collections/{name}` requests. Empty array on older
+    /// servers or for collections that have never been read.
+    #[serde(default)]
+    pub vector_count_history: Vec<VectorCountSample>,
+}
+
+/// One sample in the per-collection vector-count history (phase25 §6).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VectorCountSample {
+    /// Sample timestamp in unix seconds.
+    pub at: u64,
+    /// Vector count at the time of the sample.
+    pub count: usize,
 }
 
 /// Collection information.
@@ -1391,7 +1406,11 @@ pub struct LlmPrompt {
 // ===== ADMIN / OBSERVABILITY TYPES (phase12) =====
 
 /// Server statistics returned by `GET /stats`.
-/// Server: `{collections, total_vectors, uptime_seconds, version}`.
+///
+/// Server: `{collections, total_vectors, uptime_seconds, version,
+/// default_quantization, compression_ratio}`. The last two are
+/// phase25 §5 additions and default to `("none", 1.0)` on older
+/// servers that do not emit them.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Stats {
     /// Number of collections.
@@ -1406,6 +1425,100 @@ pub struct Stats {
     /// Server version string.
     #[serde(default)]
     pub version: String,
+    /// Most-common quantization label across active collections
+    /// (`none`, `binary`, `sq-4bit`, `sq-8bit`, `sq-16bit`, `sq`, or
+    /// `pq`). `none` when the store is empty or the server is older
+    /// than phase25 §5.
+    #[serde(default = "default_quantization_label")]
+    pub default_quantization: String,
+    /// Mean compression ratio (uncompressed_bytes / compressed_bytes)
+    /// across the collections sharing `default_quantization`. `1.0`
+    /// when no collections are present or on older servers.
+    #[serde(default = "default_compression_ratio")]
+    pub compression_ratio: f32,
+}
+
+fn default_quantization_label() -> String {
+    "none".to_string()
+}
+
+fn default_compression_ratio() -> f32 {
+    1.0
+}
+
+/// Runtime metrics snapshot returned by `GET /metrics/runtime`
+/// (phase25). Single JSON object refreshed once per second on the
+/// server. Every field defaults so the SDK tolerates older servers
+/// that do not emit the route.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RuntimeMetrics {
+    /// CPU usage of the server process, 0–100 %.
+    #[serde(default)]
+    pub cpu_percent: f64,
+    /// Resident-set size of the server process in bytes.
+    #[serde(default)]
+    pub memory_rss_bytes: u64,
+    /// Total physical memory of the host in bytes.
+    #[serde(default)]
+    pub memory_total_bytes: u64,
+    /// RSS as a fraction of total memory, 0–100 %.
+    #[serde(default)]
+    pub memory_percent: f64,
+    /// Active HTTP connections at the moment of sampling.
+    #[serde(default)]
+    pub active_connections: usize,
+    /// Seconds since the server process started.
+    #[serde(default)]
+    pub uptime_seconds: u64,
+    /// Rolling 60-second queries-per-second across all routes.
+    #[serde(default)]
+    pub qps_window_60s: f64,
+    /// Fraction of requests in the last 60 s with HTTP 5xx status,
+    /// 0–1.
+    #[serde(default)]
+    pub error_rate_5xx_60s: f64,
+    /// Per-route latency / throughput. Sorted descending by QPS.
+    #[serde(default)]
+    pub throughput_by_route: Vec<RouteStats>,
+    /// WAL state. Zero-initialised on standalone servers without
+    /// replication.
+    #[serde(default)]
+    pub wal: WalSnapshot,
+}
+
+/// Per-route latency + QPS line in `RuntimeMetrics.throughput_by_route`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RouteStats {
+    /// Route path (raw URI; templated routes are normalised by the server).
+    #[serde(default)]
+    pub route: String,
+    /// Queries per second for this route over the last 60 s.
+    #[serde(default)]
+    pub qps: f64,
+    /// 50th-percentile latency in milliseconds.
+    #[serde(default)]
+    pub p50_ms: f64,
+    /// 99th-percentile latency in milliseconds.
+    #[serde(default)]
+    pub p99_ms: f64,
+}
+
+/// WAL state surfaced inside `RuntimeMetrics.wal` (phase25 §3).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct WalSnapshot {
+    /// Latest offset appended to the WAL.
+    #[serde(default)]
+    pub current_seq: u64,
+    /// On-disk WAL file size in bytes (0 in memory-only mode).
+    #[serde(default)]
+    pub size_bytes: u64,
+    /// Unix timestamp (seconds) at which `last_checkpoint_seq` last
+    /// advanced. 0 when no replica has confirmed an offset.
+    #[serde(default)]
+    pub last_checkpoint_at: u64,
+    /// Lowest offset that has been confirmed by all replicas.
+    #[serde(default)]
+    pub last_checkpoint_seq: u64,
 }
 
 /// Server status returned by `GET /status`.

@@ -11,8 +11,8 @@ use super::VectorizerClient;
 use crate::error::{Result, VectorizerError};
 use crate::models::{
     AddWorkspaceRequest, BackupInfo, CleanupReport, ConfigPatch, ConfigSnapshot,
-    CreateBackupRequest, IndexingProgress, LogEntry, LogsQuery, RestoreBackupRequest, ServerStatus,
-    SlowQueryConfig, SlowQueryEntry, Stats, WorkspaceConfig,
+    CreateBackupRequest, IndexingProgress, LogEntry, LogsQuery, RestoreBackupRequest,
+    RuntimeMetrics, ServerStatus, SlowQueryConfig, SlowQueryEntry, Stats, WorkspaceConfig,
 };
 
 impl VectorizerClient {
@@ -23,6 +23,18 @@ impl VectorizerClient {
         let response = self.make_request("GET", "/stats", None).await?;
         serde_json::from_str(&response).map_err(|e| {
             VectorizerError::server(format!("Failed to parse get_stats response: {e}"))
+        })
+    }
+
+    /// Runtime metrics snapshot for the dashboard (phase25).
+    ///
+    /// Calls `GET /metrics/runtime`. Returns CPU, memory, active
+    /// connections, rolling 60-second QPS, per-route p50/p99,
+    /// 5xx error rate, and the WAL state. Requires admin auth.
+    pub async fn get_runtime_metrics(&self) -> Result<RuntimeMetrics> {
+        let response = self.make_request("GET", "/metrics/runtime", None).await?;
+        serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse get_runtime_metrics response: {e}"))
         })
     }
 
@@ -331,7 +343,7 @@ mod tests {
     use crate::models::{
         AddWorkspaceRequest, BackupInfo, CleanupReport, ConfigPatch, ConfigSnapshot,
         CreateBackupRequest, IndexingProgress, LogEntry, LogsQuery, RestoreBackupRequest,
-        ServerStatus, SlowQueryConfig, SlowQueryEntry, Stats, WorkspaceConfig,
+        RuntimeMetrics, ServerStatus, SlowQueryConfig, SlowQueryEntry, Stats, WorkspaceConfig,
     };
 
     #[test]
@@ -346,6 +358,70 @@ mod tests {
         assert_eq!(s.collections, 5);
         assert_eq!(s.total_vectors, 1000);
         assert_eq!(s.version, "3.4.0");
+        // Older servers without phase25 §5 fields fall back to ("none", 1.0).
+        assert_eq!(s.default_quantization, "none");
+        assert!((s.compression_ratio - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn stats_deserializes_phase25_quantization_fields() {
+        let raw = json!({
+            "collections": 3,
+            "total_vectors": 12_000,
+            "uptime_seconds": 60,
+            "version": "3.4.0",
+            "default_quantization": "sq-8bit",
+            "compression_ratio": 4.0,
+        });
+        let s: Stats = serde_json::from_value(raw).unwrap();
+        assert_eq!(s.default_quantization, "sq-8bit");
+        assert!((s.compression_ratio - 4.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn runtime_metrics_deserializes_full_snapshot() {
+        let raw = json!({
+            "cpu_percent": 12.4,
+            "memory_rss_bytes": 124_857_600u64,
+            "memory_total_bytes": 17_179_869_184u64,
+            "memory_percent": 0.73,
+            "active_connections": 8,
+            "uptime_seconds": 3712,
+            "qps_window_60s": 142.3,
+            "error_rate_5xx_60s": 0.001,
+            "throughput_by_route": [
+                {"route": "/insert_texts", "qps": 12.0, "p50_ms": 8.2, "p99_ms": 41.0}
+            ],
+            "wal": {
+                "current_seq": 482919u64,
+                "size_bytes": 12_582_912u64,
+                "last_checkpoint_at": 1_714_828_800u64,
+                "last_checkpoint_seq": 482_800u64,
+            }
+        });
+        let m: RuntimeMetrics = serde_json::from_value(raw).unwrap();
+        assert!((m.cpu_percent - 12.4).abs() < f64::EPSILON);
+        assert_eq!(m.active_connections, 8);
+        assert_eq!(m.throughput_by_route.len(), 1);
+        assert_eq!(m.throughput_by_route[0].route, "/insert_texts");
+        assert!((m.throughput_by_route[0].p99_ms - 41.0).abs() < f64::EPSILON);
+        assert_eq!(m.wal.current_seq, 482919);
+        assert_eq!(m.wal.last_checkpoint_seq, 482_800);
+    }
+
+    #[test]
+    fn runtime_metrics_tolerates_missing_fields() {
+        // Standalone server without WAL or routes: every field is
+        // marked default so partial payloads still deserialize.
+        let raw = json!({
+            "cpu_percent": 1.0,
+            "memory_total_bytes": 8_000_000_000u64,
+        });
+        let m: RuntimeMetrics = serde_json::from_value(raw).unwrap();
+        assert!((m.cpu_percent - 1.0).abs() < f64::EPSILON);
+        assert_eq!(m.active_connections, 0);
+        assert!(m.throughput_by_route.is_empty());
+        assert_eq!(m.wal.current_seq, 0);
     }
 
     #[test]
