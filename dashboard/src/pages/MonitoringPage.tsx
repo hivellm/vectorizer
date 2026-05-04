@@ -22,7 +22,7 @@ import { formatBytes, formatNumber, formatRelativeTime } from '@/utils/formatter
 function MonitoringPage() {
   const { metrics } = useMetrics();
   const { stats } = useStats();
-  const { metrics: runtimeMetrics, qpsHistory, loading: runtimeLoading, error: runtimeError } = useRuntimeMetrics({ intervalMs: 2000 });
+  const { metrics: runtimeMetrics, qpsHistory, loading: runtimeLoading, error: runtimeError } = useRuntimeMetrics();
 
   const cache = stats.cache;
   const hitPct = Math.max(0, Math.min(100, cache.hitRate * 100));

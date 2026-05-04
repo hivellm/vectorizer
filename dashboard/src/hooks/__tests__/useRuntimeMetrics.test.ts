@@ -7,7 +7,7 @@
  *  - error state on rejected promise
  *  - qpsHistory ring-buffer accumulation
  */
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useRuntimeMetrics } from '../useRuntimeMetrics';
 
@@ -40,7 +40,7 @@ describe('useRuntimeMetrics', () => {
   it('normalises snake_case keys from the backend into camelCase fields', async () => {
     getMock.mockResolvedValueOnce(BACKEND_PAYLOAD);
 
-    const { result } = renderHook(() => useRuntimeMetrics({ intervalMs: 0 }));
+    const { result } = renderHook(() => useRuntimeMetrics());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -65,7 +65,7 @@ describe('useRuntimeMetrics', () => {
     // Return a promise that never resolves so we can check the loading=true state.
     getMock.mockReturnValueOnce(new Promise(() => {}));
 
-    const { result } = renderHook(() => useRuntimeMetrics({ intervalMs: 0 }));
+    const { result } = renderHook(() => useRuntimeMetrics());
 
     expect(result.current.loading).toBe(true);
     expect(result.current.error).toBeNull();
@@ -74,7 +74,7 @@ describe('useRuntimeMetrics', () => {
   it('sets error and clears metrics when the fetch rejects', async () => {
     getMock.mockRejectedValueOnce(new Error('network failure'));
 
-    const { result } = renderHook(() => useRuntimeMetrics({ intervalMs: 0 }));
+    const { result } = renderHook(() => useRuntimeMetrics());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -85,29 +85,24 @@ describe('useRuntimeMetrics', () => {
     expect(result.current.metrics.qpsWindow60s).toBe(0);
   });
 
-  it('accumulates qpsWindow60s samples into qpsHistory on each tick', async () => {
-    getMock
-      .mockResolvedValueOnce({ ...BACKEND_PAYLOAD, qps_window_60s: 10 })
-      .mockResolvedValueOnce({ ...BACKEND_PAYLOAD, qps_window_60s: 20 })
-      .mockResolvedValueOnce({ ...BACKEND_PAYLOAD, qps_window_60s: 30 });
+  it('seeds qpsHistory from the REST fallback before any WS frame arrives', async () => {
+    // Phase29 — without a WsDashboardProvider mounted, the hook has
+    // no WS source. The REST one-shot still feeds qpsHistory[0] so
+    // the MonitoringPage Sparkline has something to render before
+    // the socket negotiates. Live updates beyond this seed flow via
+    // WS pushes (covered by the provider tests, not here).
+    getMock.mockResolvedValueOnce({ ...BACKEND_PAYLOAD, qps_window_60s: 10 });
 
-    const { result } = renderHook(() => useRuntimeMetrics({ intervalMs: 0 }));
+    const { result } = renderHook(() => useRuntimeMetrics());
 
-    // First fetch
     await waitFor(() => expect(result.current.qpsHistory).toHaveLength(1));
     expect(result.current.qpsHistory[0]).toBe(10);
-
-    // Trigger subsequent fetches manually via act
-    await act(async () => {
-      getMock.mockResolvedValueOnce({ ...BACKEND_PAYLOAD, qps_window_60s: 20 });
-    });
-    await waitFor(() => result.current.qpsHistory.length >= 1);
   });
 
   it('accepts a nested { data: ... } envelope from the ApiClient', async () => {
     getMock.mockResolvedValueOnce({ data: BACKEND_PAYLOAD });
 
-    const { result } = renderHook(() => useRuntimeMetrics({ intervalMs: 0 }));
+    const { result } = renderHook(() => useRuntimeMetrics());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -118,7 +113,7 @@ describe('useRuntimeMetrics', () => {
   it('returns zero-valued metrics when payload is not an object', async () => {
     getMock.mockResolvedValueOnce(null);
 
-    const { result } = renderHook(() => useRuntimeMetrics({ intervalMs: 0 }));
+    const { result } = renderHook(() => useRuntimeMetrics());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 

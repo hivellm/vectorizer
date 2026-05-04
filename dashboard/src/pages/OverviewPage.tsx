@@ -42,7 +42,7 @@ function OverviewPage() {
   const { stats } = useStats();
   const { status: serverStatus } = useStatus();
   const events = useEvents();
-  const { metrics: runtimeMetrics, loading: runtimeLoading, error: runtimeError } = useRuntimeMetrics({ intervalMs: 2000 });
+  const { metrics: runtimeMetrics, loading: runtimeLoading, error: runtimeError } = useRuntimeMetrics();
   const ref = useRef<NodeJS.Timeout | null>(null);
 
   const fetchCollections = async () => {

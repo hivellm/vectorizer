@@ -1,19 +1,22 @@
 /**
- * Hook for polling `GET /metrics/runtime` (admin-gated).
+ * Hook for the live `runtime` topic on the dashboard WebSocket
+ * (phase29). Replaces the prior 1-2 s polling loop on
+ * `GET /metrics/runtime`.
  *
- * The endpoint (phase25 §§1+2+4) returns one current sample per tick:
- *   {
- *     cpu_percent, memory_rss_bytes, memory_total_bytes, memory_percent,
- *     active_connections, uptime_seconds, qps_window_60s,
- *     error_rate_5xx_60s, throughput_by_route: [{route, qps, p50_ms, p99_ms}]
- *   }
+ * The server tick still produces the same JSON shape (phase25 §§1+2+4),
+ * so the snake_case → camelCase mapping below stays unchanged. The
+ * REST endpoint remains live for SDK callers and is still used as a
+ * one-shot fallback before the first WS frame arrives — that initial
+ * REST round-trip avoids the visible "loading…" flash on first paint
+ * while the socket is still negotiating.
  *
- * In addition to the live snapshot, this hook maintains a client-side ring
- * buffer of up to 60 `qpsWindow60s` samples (one per tick) to feed the
- * MonitoringPage throughput Sparkline.
+ * In addition to the live snapshot, this hook keeps a client-side ring
+ * buffer of up to 60 `qpsWindow60s` samples (one per WS push) to feed
+ * the MonitoringPage throughput Sparkline.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useWsTopic } from '../providers/WsDashboardProvider';
 import { useApiClient } from './useApiClient';
 
 export interface ThroughputRoute {
@@ -51,63 +54,75 @@ const QPS_BUFFER_SIZE = 60;
 
 export interface UseRuntimeMetricsResult {
   metrics: RuntimeMetrics;
-  /** Client-side ring buffer of qpsWindow60s — one entry per tick, capped at 60. */
+  /** Client-side ring buffer of qpsWindow60s — one entry per WS push,
+   *  capped at 60. */
   qpsHistory: number[];
   loading: boolean;
   error: Error | null;
 }
 
-interface Options {
-  /** Polling interval in milliseconds. 0 disables polling. Defaults to 2000. */
-  intervalMs?: number;
-}
-
-export function useRuntimeMetrics({ intervalMs = 2000 }: Options = {}): UseRuntimeMetricsResult {
+export function useRuntimeMetrics(): UseRuntimeMetricsResult {
   const api = useApiClient();
-  const [metrics, setMetrics] = useState<RuntimeMetrics>(ZERO);
+  const wsPayload = useWsTopic<unknown>('runtime');
+  const [restMetrics, setRestMetrics] = useState<RuntimeMetrics | null>(null);
+  const [restError, setRestError] = useState<Error | null>(null);
   const [qpsHistory, setQpsHistory] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Track which qpsWindow60s value was last appended so we don't push
+  // duplicate ring-buffer entries on React re-renders that don't carry
+  // a fresh WS frame.
+  const lastAppendedRef = useRef<number | null>(null);
 
-  const fetchMetrics = useCallback(async (cancelled: { current: boolean }) => {
-    setLoading(true);
-    try {
-      const resp = await api.get<unknown>('/metrics/runtime');
-      const payload = (resp as { data?: unknown }).data ?? resp;
-      if (cancelled.current) return;
-      const normalized = normalize(payload);
-      setMetrics(normalized);
-      setQpsHistory((prev) => {
-        const next = [...prev, normalized.qpsWindow60s];
-        return next.length > QPS_BUFFER_SIZE ? next.slice(next.length - QPS_BUFFER_SIZE) : next;
-      });
-      setError(null);
-    } catch (err) {
-      if (cancelled.current) return;
-      setError(err instanceof Error ? err : new Error('Failed to fetch runtime metrics'));
-    } finally {
-      if (!cancelled.current) setLoading(false);
-    }
-  }, [api]);
-
+  // One-shot REST fetch on mount so the UI has a value before the
+  // first WS frame lands. After that, all updates flow via the WS
+  // store and this REST call is never repeated.
   useEffect(() => {
-    const cancelled = { current: false };
-    fetchMetrics(cancelled);
-    if (intervalMs > 0) {
-      timerRef.current = setInterval(() => fetchMetrics(cancelled), intervalMs);
-    }
-    return () => {
-      cancelled.current = true;
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await api.get<unknown>('/metrics/runtime');
+        const payload = (resp as { data?: unknown }).data ?? resp;
+        if (!cancelled) {
+          const norm = normalize(payload);
+          setRestMetrics(norm);
+          setRestError(null);
+          appendQps(norm.qpsWindow60s);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRestError(err instanceof Error ? err : new Error('Failed to fetch runtime metrics'));
+        }
       }
+    })();
+    return () => {
+      cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intervalMs]);
+  }, []);
 
-  return { metrics, qpsHistory, loading, error };
+  const wsMetrics = wsPayload ? normalize(wsPayload) : null;
+  const metrics = wsMetrics ?? restMetrics ?? ZERO;
+
+  function appendQps(q: number) {
+    if (lastAppendedRef.current === q) return;
+    lastAppendedRef.current = q;
+    setQpsHistory((prev) => {
+      const next = [...prev, q];
+      return next.length > QPS_BUFFER_SIZE ? next.slice(next.length - QPS_BUFFER_SIZE) : next;
+    });
+  }
+
+  // Append qps to the ring buffer when the WS payload changes.
+  useEffect(() => {
+    if (!wsMetrics) return;
+    appendQps(wsMetrics.qpsWindow60s);
+  }, [wsMetrics]);
+
+  return {
+    metrics,
+    qpsHistory,
+    loading: wsMetrics === null && restMetrics === null && restError === null,
+    error: restError,
+  };
 }
 
 function normalize(payload: unknown): RuntimeMetrics {

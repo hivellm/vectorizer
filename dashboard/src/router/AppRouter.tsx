@@ -9,6 +9,7 @@ import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { WsDashboardProvider } from '@/providers/WsDashboardProvider';
 
 // Lazy load pages for code splitting (smaller initial bundle)
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
@@ -109,7 +110,9 @@ function AppRouter() {
           path="/"
           element={
             <ProtectedRoute>
-              <ConsoleLayout />
+              <WsDashboardProvider>
+                <ConsoleLayout />
+              </WsDashboardProvider>
             </ProtectedRoute>
           }
         >

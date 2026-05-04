@@ -18,12 +18,12 @@
 
 ## 4. Client: provider + hook
 
-- [ ] 4.1 New `dashboard/src/providers/WsDashboardProvider.tsx` opens one `WebSocket` to `/ws/dashboard` per app instance. Reconnect with exponential backoff (250 ms → 5 s cap) on `close` / `error`. Cookie auth is automatic — no `Authorization` header needed for `WebSocket`
-- [ ] 4.2 New `useWsTopic<T>(topic: 'runtime' | 'status' | 'collections' | 'logs')` hook — subscribes on mount, unsubscribes on unmount, returns the latest typed snapshot via `useSyncExternalStore` so React renders only on actual change
+- [x] 4.1 `dashboard/src/providers/WsDashboardProvider.tsx` opens one `WebSocket` per app instance to `${proto}//${host}/ws/dashboard` (cookie auth is automatic — browsers send `vectorizer_session` on the upgrade GET). Exponential-backoff reconnect (250 ms → 5 s cap) on `close` / `error`. Per-topic refcount drives subscribe / unsubscribe ops on the wire so the server stops publishing topics no tab is consuming. Mounted under `ProtectedRoute` in `AppRouter.tsx` so the bus only spins up for authenticated dashboard sessions
+- [x] 4.2 `useWsTopic<T>(topic)` hook returns the latest typed snapshot via `useSyncExternalStore` (React renders only on actual change). `useWsStatus()` companion exposes `'connecting' | 'open' | 'closed'` for diagnostic UI without forcing every consumer to re-render on state flips. The `WsTopic` type currently carries `'runtime'`; `'status'`, `'collections'`, `'logs'` will widen as §2 publishers ship
 
 ## 5. Client: rewrite the polling hooks
 
-- [ ] 5.1 `useRuntimeMetrics` becomes a thin wrapper around `useWsTopic('runtime')` — defensive snake↔camel mapping stays for older servers without WS support, but the live path is push-only
+- [x] 5.1 `useRuntimeMetrics` rewritten on `useWsTopic('runtime')`. The 1–2 s `setInterval` block is gone. Defensive snake↔camel mapping stays for partial-payload tolerance. A one-shot REST fetch on mount seeds the snapshot + qpsHistory before the first WS frame arrives so the UI doesn't flash "loading…" while the socket negotiates. Pages drop the obsolete `intervalMs` argument (`OverviewPage`, `MonitoringPage`); 6/6 hook unit tests green
 - [ ] 5.2 `useStats` and `useStatus` rewrite on `useWsTopic('status')` (status payload includes the stats subset)
 - [ ] 5.3 Drop `setInterval` blocks from `OverviewPage`, `CollectionsPage`, `MonitoringPage`, `FileWatcherPage`, `LogsPage`. Each consumes `useWsTopic` for its primary data; one-shot lookups (e.g. opening a vector detail) keep using REST
 
