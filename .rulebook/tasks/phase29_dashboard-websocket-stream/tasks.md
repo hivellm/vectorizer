@@ -1,9 +1,9 @@
 ## 1. Server: broadcast bus + WebSocket handler
 
-- [ ] 1.1 Add a `broadcast::Sender<DashboardEvent>` to `runtime_metrics.rs`. `RuntimeSampler::start()` publishes a `DashboardEvent::Runtime(snapshot.clone())` on every tick after writing to the `RwLock` snapshot
-- [ ] 1.2 New `crates/vectorizer-server/src/server/ws/mod.rs` + `ws/dashboard.rs` housing the `WebSocketUpgrade` handler, the topic enum (`runtime`, `status`, `collections`, `logs`), and the per-connection subscription set
-- [ ] 1.3 Define the wire protocol enums (`ClientFrame::{Subscribe, Unsubscribe, Ping}`, `ServerFrame::{Topic, Pong, Error}`) with `serde(tag = "op")` and `serde(rename_all = "snake_case")`
-- [ ] 1.4 Per-connection task: `select!` between the `broadcast::Receiver` (push frames matching subscribed topics) and the WS read half (`Subscribe` / `Unsubscribe` / `Ping`). Slow consumers get `RecvError::Lagged` → drop with `error: "stream_lag"` and let the client reconnect
+- [x] 1.1 `DashboardEvent` enum + `broadcast::Sender<DashboardEvent>` field added to `RuntimeSampler` in `runtime_metrics.rs`. `start()` clones the snapshot once and forwards `DashboardEvent::Runtime(snap)` on every tick when a bus is wired. `dashboard_rx()` returns a fresh receiver (or a closed one when no bus is set)
+- [x] 1.2 New `crates/vectorizer-server/src/server/ws/{mod,dashboard}.rs` housing the `WebSocketUpgrade` handler. Topic enum currently carries `Runtime` only (this task ships that topic; status / collections / logs land in §2)
+- [x] 1.3 Wire protocol enums shipped: `ClientFrame::{Subscribe, Unsubscribe, Ping}` (`serde(tag = "op")`), `ServerFrame::{Event, Op}` with `Op::{Pong, Error}` and `ErrorCode::{StreamLag, BadFrame}`. JSON shapes pinned by 5 unit tests (`topic_round_trips_via_json`, `client_subscribe_frame_parses`, `client_unsubscribe_and_ping_parse`, `server_pong_and_error_serialize_to_op`, `server_event_frame_carries_topic_and_data`)
+- [x] 1.4 Per-connection `serve_connection` does `tokio::select!` between `socket.recv()` and `rx.recv()`. Subscribe / unsubscribe mutate a per-connection `HashSet<Topic>`; outbound events are filtered against it. `RecvError::Lagged` emits `{op:"error",code:"stream_lag"}` and closes the socket. Bad client frames emit `bad_frame`. Binary frames are rejected. `cargo clippy -- -D warnings` clean
 
 ## 2. Server: status / collections / logs publishers
 
@@ -13,8 +13,8 @@
 
 ## 3. Server: auth + routing
 
-- [ ] 3.1 Register `GET /ws/dashboard` in `routing.rs` behind the same cookie / JWT auth middleware as the rest of `/auth/*`. CSRF middleware exempts WS upgrades (the upgrade is a GET; mutating ops are not on this path)
-- [ ] 3.2 Boot wiring in `bootstrap.rs` — create the `broadcast::channel(1024)` once, pass the `Sender` into `RuntimeSampler::set_broadcast(...)`, the status publisher task, the collections publisher task, and the logs tail task; pass a clone into the WS handler state
+- [x] 3.1 `GET /ws/dashboard` registered inside `admin_router` in `routing.rs` so the existing admin auth gate validates the cookie session. CSRF only fires on `POST/PUT/PATCH/DELETE` so the upgrade `GET` already bypasses it without a special case
+- [x] 3.2 `bootstrap.rs` creates the `broadcast::channel::<DashboardEvent>(1024)` and feeds the `Sender` to `RuntimeSampler::set_broadcast(...)` before `start()`. Status / collections / logs publishers (§2) reuse the same `Sender` once those topics ship
 
 ## 4. Client: provider + hook
 

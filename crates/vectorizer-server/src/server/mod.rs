@@ -50,6 +50,7 @@ pub mod replication_handlers;
 pub mod rest_handlers;
 pub mod runtime_metrics;
 mod setup_handlers;
+pub mod ws;
 
 pub use core::get_file_watcher_metrics;
 

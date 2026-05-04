@@ -10,8 +10,19 @@ use std::time::{Duration, Instant};
 use parking_lot::RwLock;
 use serde::Serialize;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use vectorizer::replication::{MasterNode, WalSnapshot};
+
+/// Frame published on the dashboard broadcast bus (phase29). The
+/// WebSocket multiplexer reads from this bus and forwards frames whose
+/// topic is in the connection's subscription set.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "topic", content = "data", rename_all = "snake_case")]
+pub enum DashboardEvent {
+    /// 1 Hz runtime snapshot — same shape as `GET /metrics/runtime`.
+    Runtime(RuntimeSnapshot),
+}
 
 // ---------------------------------------------------------------------------
 // Public snapshot types
@@ -190,6 +201,10 @@ pub struct RuntimeSampler {
     started_at: Instant,
     handle: Option<JoinHandle<()>>,
     master_node: Option<Arc<MasterNode>>,
+    /// Optional broadcast sink (phase29). When set, every tick also
+    /// emits a `DashboardEvent::Runtime` so WebSocket subscribers can
+    /// receive the snapshot without polling REST.
+    broadcast: Option<broadcast::Sender<DashboardEvent>>,
 }
 
 impl RuntimeSampler {
@@ -202,6 +217,7 @@ impl RuntimeSampler {
             started_at: Instant::now(),
             handle: None,
             master_node: None,
+            broadcast: None,
         }
     }
 
@@ -211,6 +227,31 @@ impl RuntimeSampler {
     /// the snapshot is zero-initialised.
     pub fn set_master_node(&mut self, master: Arc<MasterNode>) {
         self.master_node = Some(master);
+    }
+
+    /// Plumb a dashboard broadcast bus into the sampler so each tick
+    /// publishes a `DashboardEvent::Runtime` for the WebSocket
+    /// multiplexer (phase29). Must be called before [`start`].
+    pub fn set_broadcast(&mut self, tx: broadcast::Sender<DashboardEvent>) {
+        self.broadcast = Some(tx);
+    }
+
+    /// Subscribe to the dashboard broadcast bus. Returns `None` when no
+    /// bus is wired (the WS handler returns this to the upgrade with a
+    /// closed receiver, so subscribers immediately get `Closed`).
+    pub fn dashboard_rx(&self) -> broadcast::Receiver<DashboardEvent> {
+        match &self.broadcast {
+            Some(tx) => tx.subscribe(),
+            // No bus wired — return a receiver from a freshly-created,
+            // immediately-dropped sender. `recv` returns `Closed` on
+            // first poll which the WS loop translates to a clean
+            // disconnect.
+            None => {
+                let (tx, rx) = broadcast::channel(1);
+                drop(tx);
+                rx
+            }
+        }
     }
 
     /// Return a clone of the latest snapshot.
@@ -237,6 +278,7 @@ impl RuntimeSampler {
         let connections_arc = self.connections.clone();
         let started_at = self.started_at;
         let master_node = self.master_node.clone();
+        let broadcast_tx = self.broadcast.clone();
 
         let handle = tokio::spawn(async move {
             let pid = Pid::from(std::process::id() as usize);
@@ -279,8 +321,7 @@ impl RuntimeSampler {
                     .map(|m| m.wal_snapshot())
                     .unwrap_or_default();
 
-                let mut snap = snapshot_arc.write();
-                *snap = RuntimeSnapshot {
+                let new_snap = RuntimeSnapshot {
                     cpu_percent,
                     memory_rss_bytes,
                     memory_total_bytes,
@@ -292,6 +333,17 @@ impl RuntimeSampler {
                     throughput_by_route: route_stats,
                     wal,
                 };
+                {
+                    let mut snap = snapshot_arc.write();
+                    *snap = new_snap.clone();
+                }
+                // Phase29: forward to the WS multiplexer if a broadcast
+                // bus is wired. `send` only fails when there are no
+                // subscribers, which is the normal idle state — drop
+                // the error.
+                if let Some(tx) = &broadcast_tx {
+                    let _ = tx.send(DashboardEvent::Runtime(new_snap));
+                }
             }
         });
 

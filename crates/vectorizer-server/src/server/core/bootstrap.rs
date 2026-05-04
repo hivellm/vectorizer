@@ -1471,6 +1471,14 @@ impl VectorizerServer {
             if let Some(master) = master_node.as_ref() {
                 sampler.set_master_node(master.clone());
             }
+            // Phase29: dashboard WebSocket multiplexer reads from this bus.
+            // Capacity 1024 ≈ 17 minutes of runtime ticks (1 Hz) — slow
+            // consumers past that get `RecvError::Lagged` and the WS
+            // handler closes them with `error: stream_lag`.
+            let (dashboard_tx, _) = tokio::sync::broadcast::channel::<
+                crate::server::runtime_metrics::DashboardEvent,
+            >(1024);
+            sampler.set_broadcast(dashboard_tx);
             sampler.start();
             Arc::new(sampler)
         };

@@ -929,6 +929,14 @@ impl VectorizerServer {
                 "/metrics/runtime",
                 get(rest_handlers::metrics::get_runtime_metrics),
             )
+            // phase29: multiplexed dashboard WebSocket. Replaces the 8
+            // polling loops the React dashboard previously fired off.
+            // CSRF middleware exempts the upgrade GET; the existing
+            // admin gate still validates the cookie session.
+            .route(
+                "/ws/dashboard",
+                get(crate::server::ws::dashboard_ws_handler),
+            )
             .route("/workspace/add", post(rest_handlers::add_workspace))
             .route("/workspace/remove", post(rest_handlers::remove_workspace))
             .route(
