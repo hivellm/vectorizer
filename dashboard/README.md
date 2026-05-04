@@ -242,3 +242,29 @@ Tailwind-only shared component once nothing imports it. When the last
 shared component is migrated, drop Tailwind v4 entirely (delete `theme.css`,
 remove the Vite plugin, prune the five `tailwindcss*` packages).
 
+## Screenshots
+
+The dashboard's full set of console-design pages is auto-captured by
+`e2e/screenshots.spec.ts` (run with `pnpm exec playwright test
+e2e/screenshots.spec.ts`). The PNGs live under `dashboard/docs/screenshots/`:
+
+| Page | Preview |
+|------|---------|
+| Overview     | ![Overview](docs/screenshots/overview.png) |
+| Collections  | ![Collections](docs/screenshots/collections.png) |
+| Search       | ![Search](docs/screenshots/search.png) |
+| Vectors      | ![Vectors](docs/screenshots/vectors.png) |
+| Monitoring   | ![Monitoring](docs/screenshots/monitoring.png) |
+| Replication  | ![Replication](docs/screenshots/replication.png) |
+| API Keys     | ![API Keys](docs/screenshots/api-keys.png) |
+| MCP Tools    | ![MCP Tools](docs/screenshots/mcp-tools.png) |
+| Settings     | ![Settings](docs/screenshots/settings.png) |
+| File Watcher | ![File Watcher](docs/screenshots/file-watcher.png) |
+| Graph        | ![Graph](docs/screenshots/graph.png) |
+| Connections  | ![Connections](docs/screenshots/connections.png) |
+| Workspace    | ![Workspace](docs/screenshots/workspace.png) |
+| Logs         | ![Logs](docs/screenshots/logs.png) |
+| Backups      | ![Backups](docs/screenshots/backups.png) |
+| Users        | ![Users](docs/screenshots/users.png) |
+| API Docs     | ![API Docs](docs/screenshots/api-docs.png) |
+
