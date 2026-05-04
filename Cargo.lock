@@ -865,6 +865,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "backoff-series"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b143524c9d0b6c3e8e80542a0a17e1e472ccfd5a3d3696bd6ad2b18248d3350"
+
+[[package]]
 name = "base16ct"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5244,11 +5250,12 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
 name = "openraft"
-version = "0.10.0-alpha.18"
+version = "0.10.0-alpha.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f600d7c69fcd2fead0596885234df36bd8b93f15c852b2b7c3b2fae4d6c1d3c3"
+checksum = "be61988143b295becb312ba3aa87180fab9cede5034e71cdfc56b67307e527ce"
 dependencies = [
  "anyerror",
+ "backoff-series",
  "base2histogram",
  "byte-unit",
  "chrono",
