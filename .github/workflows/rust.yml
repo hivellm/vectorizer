@@ -43,7 +43,15 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            choco install protoc
+            # Chocolatey mirror returns flaky 503s — retry up to 3 times.
+            for i in 1 2 3; do
+              if choco install protoc -y --no-progress; then
+                break
+              fi
+              echo "choco install protoc attempt $i failed; sleeping 15s"
+              sleep 15
+            done
+            command -v protoc >/dev/null 2>&1 || { echo "protoc install failed after 3 attempts"; exit 1; }
           fi
         shell: bash
 

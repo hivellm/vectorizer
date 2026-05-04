@@ -269,7 +269,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Install protoc
         shell: pwsh
-        run: choco install protoc -y
+        run: |
+          # Chocolatey mirror returns flaky 503s — retry up to 3 times.
+          $ok = $false
+          for ($i = 1; $i -le 3; $i++) {
+            choco install protoc -y --no-progress
+            if ($LASTEXITCODE -eq 0) { $ok = $true; break }
+            Write-Host "choco install protoc attempt $i failed; sleeping 15s"
+            Start-Sleep -Seconds 15
+          }
+          if (-not $ok) { Write-Error "protoc install failed after 3 attempts"; exit 1 }
       - name: Build
         run: cargo build --release
 
