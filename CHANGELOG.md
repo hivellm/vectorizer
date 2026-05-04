@@ -69,6 +69,14 @@ All notable changes to this project will be documented in this file.
 
   Operator runbook lives at [`docs/development/docker-builds.md`](docs/development/docker-builds.md). The dual Cargo profile contract is documented there and on Docker Hub via [`docker/dockerhub-readme.md`](docker/dockerhub-readme.md).
 
+
+## [3.2.1] - 2026-05-01
+
+### Fixed
+
+- **`GET /collections` reports the real default embedding provider.** The list endpoint hardcoded `"embedding_provider": "bm25"` for every collection regardless of the provider actually registered at bootstrap, so dashboards and clients showed `bm25` even on deployments running fastembed (`all-mpnet-base-v2`, dim 768) or any other provider. The field now reflects `EmbeddingManager::get_default_provider_name()` (e.g. `fastembed:all-mpnet-base-v2`), with an `"unknown"` fallback that should never trigger in practice since bootstrap always registers a default. Embedding output and indexing were never affected — only the JSON label was wrong.
+- **`GET /collections/{name}` exposes `embedding_provider` for parity.** The single-collection endpoint omitted the field entirely while the list endpoint returned it; consumers had to special-case the difference. Both endpoints now populate the field from the same source.
+
 ## [3.2.0] - 2026-05-01
 
 ### Added
