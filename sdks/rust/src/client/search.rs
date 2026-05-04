@@ -213,8 +213,9 @@ impl VectorizerClient {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{ExplainRequest, ExplainResponse, ExplainTrace};
     use serde_json::json;
+
+    use crate::models::{ExplainRequest, ExplainResponse, ExplainTrace};
 
     #[test]
     fn explain_request_serialize_with_k() {

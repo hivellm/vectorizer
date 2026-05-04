@@ -295,8 +295,9 @@ impl VectorizerClient {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{NativeSnapshotInfo, ReencodeJob, ReindexJob, ReindexParams};
     use serde_json::json;
+
+    use crate::models::{NativeSnapshotInfo, ReencodeJob, ReindexJob, ReindexParams};
 
     #[test]
     fn reencode_job_wire_shape() {

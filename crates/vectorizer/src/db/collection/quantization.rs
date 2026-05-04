@@ -274,7 +274,7 @@ impl Collection {
                 );
             }
             QuantizationConfig::PQ { .. } => {
-                // PQ requires training first; re-use the existing train path.
+                // PQ requires training first; reuse the existing train path.
                 self.train_pq_if_needed()?;
                 info!(
                     "reencode_inplace: '{}' PQ training completed ({} vectors)",

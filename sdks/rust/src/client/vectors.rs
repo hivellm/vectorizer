@@ -538,10 +538,11 @@ impl VectorizerClient {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use crate::models::{
         BulkUpdateReport, CopyReport, DeleteByFilterReport, ReencodeJob, VectorOpResult,
     };
-    use serde_json::json;
 
     #[test]
     fn delete_by_filter_report_deserializes_server_contract() {
