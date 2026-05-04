@@ -6,6 +6,14 @@ import { ValidationError } from '../exceptions';
 
 export type SimilarityMetric = 'cosine' | 'euclidean' | 'dot_product';
 
+/** One sample in the per-collection vector-count history (phase25 §6). */
+export interface VectorCountSample {
+  /** Sample timestamp in unix seconds. */
+  at: number;
+  /** Vector count at the time of the sample. */
+  count: number;
+}
+
 export interface Collection {
   /** Collection name */
   name: string;
@@ -35,6 +43,13 @@ export interface Collection {
   quantization?: Record<string, unknown>;
   /** Size info */
   size?: Record<string, unknown>;
+  /**
+   * Per-collection vector-count ring buffer (phase25 §6). At most 60
+   * samples, one per minute, sampled lazily on `GET /collections/{name}`
+   * requests. Empty / missing on older servers or for collections that
+   * have never been read.
+   */
+  vector_count_history?: VectorCountSample[];
 }
 
 export interface CreateCollectionRequest {

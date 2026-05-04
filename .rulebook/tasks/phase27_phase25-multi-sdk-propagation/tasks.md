@@ -1,11 +1,11 @@
 ## 1. TypeScript SDK
 
-- [ ] 1.1 Add `RuntimeMetrics` / `RouteStats` / `WalSnapshot` / `VectorCountSample` types in `sdks/typescript/src/models/`
-- [ ] 1.2 Extend `Stats` with `defaultQuantization` + `compressionRatio` (camelCase) — wire-format passthrough preserves snake_case via decoders
-- [ ] 1.3 Extend `Collection` / `CollectionInfo` with `vectorCountHistory`
-- [ ] 1.4 Add `getRuntimeMetrics()` client method on the admin / observability surface
-- [ ] 1.5 Unit tests for full + partial payloads
-- [ ] 1.6 `[Unreleased]` CHANGELOG entry
+- [x] 1.1 `RuntimeMetrics` / `RouteStats` / `WalSnapshot` interfaces added in `sdks/typescript/src/models/admin.ts`; `VectorCountSample` in `models/collection.ts`. Wildcard re-exports already pick them up
+- [x] 1.2 `Stats` grows optional `default_quantization: string` + `compression_ratio: number`. snake_case kept everywhere — TS SDK already mirrors the server's wire shape verbatim
+- [x] 1.3 `Collection` grows optional `vector_count_history: VectorCountSample[]`. The legacy `CollectionInfo` interface stays unchanged (it predates the read-path sampling and is used for write/list paths that don't carry the history)
+- [x] 1.4 `AdminClient.getRuntimeMetrics()` shipped in `sdks/typescript/src/client/admin.ts` calling `GET /metrics/runtime`
+- [x] 1.5 7 new tests in `tests/runtime-metrics.test.ts` cover full + partial `RuntimeMetrics` payloads, the new `Stats` quantization fields, and the `vector_count_history` round-trip; `pnpm build` clean, `vitest` 7/7 (suite total 515/527, 12 pre-existing skips)
+- [x] 1.6 `sdks/typescript/CHANGELOG.md` `[Unreleased]` block documents the additions
 
 ## 2. Python SDK
 

@@ -2,6 +2,26 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Phase25 dashboard metrics endpoints.**
+  - `AdminClient.getRuntimeMetrics()` calling `GET /metrics/runtime`
+    with new typed `RuntimeMetrics`, `RouteStats`, and `WalSnapshot`
+    interfaces. Every field is optional so older servers and
+    standalone-mode (no WAL) payloads decode unchanged.
+  - `Stats` grows optional `default_quantization` (`none` / `binary` /
+    `sq-4bit` / `sq-8bit` / `sq-16bit` / `sq` / `pq`) and
+    `compression_ratio`, sourced from the extended `GET /stats`.
+  - `Collection` grows optional `vector_count_history:
+    VectorCountSample[]` for the dashboard's per-collection sparkline,
+    surfaced by `GET /collections/{name}` (60-sample ring, one per
+    minute, sampled on the read path).
+  - 7 new unit tests cover full + partial `RuntimeMetrics` payloads,
+    the new `Stats` quantization fields, and the
+    `vector_count_history` round-trip.
+
 ## [3.3.0] - 2026-05-02
 
 > Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.

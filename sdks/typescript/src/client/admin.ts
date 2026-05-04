@@ -16,6 +16,7 @@ import type {
   IndexingProgress,
   LogEntry,
   RestoreBackupRequest,
+  RuntimeMetrics,
   SlowQueryConfig,
   SlowQueryEntry,
   Stats,
@@ -142,6 +143,17 @@ export class AdminClient extends BaseClient {
   public async getStats(): Promise<Stats> {
     this.logger.debug('Getting server stats');
     return this.transport.get<Stats>('/stats');
+  }
+
+  /**
+   * Runtime metrics snapshot for the dashboard (phase25). Calls
+   * `GET /metrics/runtime`. Returns CPU, memory, active connections,
+   * rolling 60-second QPS, per-route p50/p99, 5xx error rate, and the
+   * WAL state. Requires admin auth on the server.
+   */
+  public async getRuntimeMetrics(): Promise<RuntimeMetrics> {
+    this.logger.debug('Getting runtime metrics');
+    return this.transport.get<RuntimeMetrics>('/metrics/runtime');
   }
 
   /** Per-collection indexing progress. Calls `GET /indexing/progress`. */

@@ -16,6 +16,73 @@ export interface Stats {
   uptime_seconds: number;
   /** Server version string. */
   version: string;
+  /**
+   * Most-common quantization label across active collections (one of
+   * `none`, `binary`, `sq-4bit`, `sq-8bit`, `sq-16bit`, `sq`, `pq`).
+   * Older servers without phase25 §5 fall back to `none`.
+   */
+  default_quantization?: string;
+  /**
+   * Mean compression ratio (uncompressed_bytes / compressed_bytes)
+   * across the collections sharing `default_quantization`. `1.0` on
+   * older servers or when the store is empty.
+   */
+  compression_ratio?: number;
+}
+
+/** Per-route latency / throughput line in {@link RuntimeMetrics}. */
+export interface RouteStats {
+  /** Route path (raw URI; templated routes are normalised by the server). */
+  route: string;
+  /** Queries per second for this route over the last 60 s. */
+  qps: number;
+  /** 50th-percentile latency in milliseconds. */
+  p50_ms: number;
+  /** 99th-percentile latency in milliseconds. */
+  p99_ms: number;
+}
+
+/** WAL state surfaced inside {@link RuntimeMetrics} (phase25 §3). */
+export interface WalSnapshot {
+  /** Latest offset appended to the WAL. */
+  current_seq: number;
+  /** On-disk WAL file size in bytes (0 in memory-only mode). */
+  size_bytes: number;
+  /**
+   * Unix timestamp (seconds) at which `last_checkpoint_seq` last
+   * advanced. 0 when no replica has confirmed an offset.
+   */
+  last_checkpoint_at: number;
+  /** Lowest offset that has been confirmed by all replicas. */
+  last_checkpoint_seq: number;
+}
+
+/**
+ * Runtime metrics snapshot returned by `GET /metrics/runtime`
+ * (phase25). Every field is optional so the SDK tolerates older
+ * servers that do not emit the route or partial payloads.
+ */
+export interface RuntimeMetrics {
+  /** CPU usage of the server process, 0–100 %. */
+  cpu_percent?: number;
+  /** Resident-set size of the server process in bytes. */
+  memory_rss_bytes?: number;
+  /** Total physical memory of the host in bytes. */
+  memory_total_bytes?: number;
+  /** RSS as a fraction of total memory, 0–100 %. */
+  memory_percent?: number;
+  /** Active HTTP connections at the moment of sampling. */
+  active_connections?: number;
+  /** Seconds since the server process started. */
+  uptime_seconds?: number;
+  /** Rolling 60-second queries-per-second across all routes. */
+  qps_window_60s?: number;
+  /** Fraction of requests in the last 60 s with HTTP 5xx status, 0–1. */
+  error_rate_5xx_60s?: number;
+  /** Per-route latency / throughput. Sorted descending by QPS. */
+  throughput_by_route?: RouteStats[];
+  /** WAL state. Zero-initialised on standalone servers without replication. */
+  wal?: WalSnapshot;
 }
 
 /** Server status returned by `GET /status`. */
