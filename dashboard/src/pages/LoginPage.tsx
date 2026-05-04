@@ -28,6 +28,19 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRateLimited, setIsRateLimited] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState<boolean>(() => {
+    // Phase24 §4.2 — surface a "session expired" notice when the
+    // api-middleware's unauthorizedMiddleware redirected us here. The
+    // page sits outside ConsoleLayout's ToastProvider so we render an
+    // inline Pill instead of a toast.
+    if (typeof window === 'undefined') return false;
+    const flag = window.sessionStorage.getItem('vectorizer_session_expired');
+    if (flag === '1') {
+      window.sessionStorage.removeItem('vectorizer_session_expired');
+      return true;
+    }
+    return false;
+  });
 
   // Activate console body styling — login is rendered OUTSIDE ConsoleLayout.
   useEffect(() => {
@@ -46,6 +59,7 @@ function LoginPage() {
     e.preventDefault();
     setError(null);
     setIsRateLimited(false);
+    setSessionExpired(false);
     setSubmitting(true);
     try {
       await login(username, password);
@@ -149,6 +163,14 @@ function LoginPage() {
                   label="Remember me"
                 />
               </div>
+
+              {sessionExpired && !error && (
+                <div role="status" style={{ marginTop: 4 }}>
+                  <Pill tone="amber">
+                    Your session expired — please sign in again.
+                  </Pill>
+                </div>
+              )}
 
               {error && (
                 <div role="alert" style={{ marginTop: 4 }}>

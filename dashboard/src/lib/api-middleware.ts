@@ -434,6 +434,14 @@ export const unauthorizedMiddleware: Middleware = async (_context, next) => {
   const result = await next();
   if (result.response?.status === 401) {
     if (typeof window !== 'undefined') {
+      // Stash a one-shot flag so the LoginPage can render a "session
+      // expired" notice (the page lives outside ConsoleLayout's
+      // ToastProvider and can't useToastContext directly).
+      try {
+        window.sessionStorage.setItem('vectorizer_session_expired', '1');
+      } catch {
+        // sessionStorage may be blocked in some embeds — non-fatal.
+      }
       window.dispatchEvent(new CustomEvent('vectorizer:session-expired'));
     }
   }
