@@ -18,6 +18,6 @@
 
 ## 4. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [x] 4.1 `dashboard/eslint.config.js` carries an inline comment explaining the pin, the eslint@10 incompat, and the bump-with-React-dep guidance — same place a maintainer will look first
-- [x] 4.2 No new behaviour to test — the change is a single config setting and the existing 219 vitest tests continue to validate the React surface that the rule chain analyses
-- [x] 4.3 `pnpm lint` (runs to completion), `pnpm vitest --run` (219/224 baseline), `pnpm build` (clean) — all confirmed in §3
+- [x] 4.1 Update or create documentation covering the implementation — `dashboard/eslint.config.js` carries an inline comment explaining the pin, the eslint@10 incompat, and the bump-with-React-dep guidance (same place a maintainer will look first)
+- [x] 4.2 Write tests covering the new behavior — the change is a single config setting; the existing 219 vitest tests continue to validate the React surface that the rule chain analyses
+- [x] 4.3 Run tests and confirm they pass — `pnpm lint` (runs to completion), `pnpm vitest --run` (219/224 baseline), `pnpm build` (clean) — all confirmed in §3
