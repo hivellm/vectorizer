@@ -107,6 +107,28 @@ When authentication is enabled and no users exist, Vectorizer automatically crea
 
 Auth data is stored in `data/auth.json` and persists across server restarts.
 
+## CSRF — when required vs exempt
+
+The server ships a CSRF middleware that gates mutating requests
+(`POST` / `PUT` / `PATCH` / `DELETE`) under `/auth/*` and `/admin/*`.
+The exemption rules apply in this exact order:
+
+| # | Condition | CSRF token required? | Use case |
+|---|-----------|----------------------|----------|
+| 1 | `auth.dev_mode_skip_loopback` is on AND bind is loopback | NO | Local dev, no auth at all |
+| 2 | Method is `GET` / `HEAD` / `OPTIONS` | NO | Read-only |
+| 3 | Path is `POST /auth/login` or `POST /auth/validate-password` | NO | Bootstrap routes that mint the very session a CSRF token would be bound to |
+| 4 | `X-API-Key` header is set | NO | API-key callers (header-bearer credential, not subject to cross-origin attack) |
+| 5 | `Authorization: Bearer <jwt>` is set AND `vectorizer_session` cookie is absent | NO | SDK / cURL / service-to-service callers (Bearer is explicit, not auto-attached by browser) — phase21 |
+| 6 | `vectorizer_session` cookie is set | YES — `X-CSRF-Token` must match the token bound to the JWT | Browser/dashboard flow |
+| 7 | None of the above | 403 `missing_session` | No credential at all |
+
+The dashboard's `api-middleware.ts` reads the `XSRF-TOKEN` cookie and
+echoes it as `X-CSRF-Token` on every mutating request, so case 6 is
+satisfied automatically. SDK callers (Rust, TypeScript, Python, Go, C#)
+hit case 4 (`X-API-Key`) or case 5 (`Authorization: Bearer`) and bypass
+CSRF entirely.
+
 ## JWT Authentication
 
 ### Login

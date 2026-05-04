@@ -51,9 +51,10 @@ mod setup_handlers;
 
 pub use core::get_file_watcher_metrics;
 
+pub use auth_handlers::csrf::require_csrf_middleware;
 pub use auth_handlers::{
-    AuthHandlerState, UserRecord, auth_middleware, require_admin_middleware,
-    require_auth_middleware,
+    AuthHandlerState, CreateApiKeyResponse, LoginRequest, LoginResponse, UserRecord,
+    auth_middleware, create_api_key, login, require_admin_middleware, require_auth_middleware,
 };
 // `file_operations_handlers` is referenced as
 // `crate::server::file_operations_handlers` by at least one external caller;

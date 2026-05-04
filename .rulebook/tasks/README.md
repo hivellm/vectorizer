@@ -4,12 +4,6 @@
 
 **Total**: 4 tasks | **Completed**: 0 | **In Progress**: 0 | **Pending**: 4
 
-## phase21
-
-| Status | Task | Progress | Description |
-|--------|------|----------|-------------|
-| ⬚ | phase21_fix-csrf-bearer-jwt-exemption | 0/9 | fix csrf bearer jwt exemption |
-
 ## phase22
 
 | Status | Task | Progress | Description |
@@ -26,5 +20,11 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
-| ⬚ | phase24_fix-dashboard-redesign-contract-mismatches | 0/5 | fix dashboard redesign contract mismatches |
+| ⬚ | phase24_fix-dashboard-redesign-contract-mismatches | 0/30 | fix dashboard redesign contract mismatches |
+
+## phase25
+
+| Status | Task | Progress | Description |
+|--------|------|----------|-------------|
+| ⬚ | phase25_dashboard-metrics-endpoints | 0/25 | dashboard metrics endpoints |
 
