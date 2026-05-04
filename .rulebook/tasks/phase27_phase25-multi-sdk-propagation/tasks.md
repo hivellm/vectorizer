@@ -17,11 +17,11 @@
 
 ## 3. Go SDK
 
-- [ ] 3.1 Mirror the Rust models with `omitempty` JSON tags under `sdks/go/`
-- [ ] 3.2 Extend `Stats` + `CollectionInfo` structs
-- [ ] 3.3 Add `GetRuntimeMetrics(ctx)` client method
-- [ ] 3.4 Go tests covering full + partial payloads
-- [ ] 3.5 `[Unreleased]` CHANGELOG entry
+- [x] 3.1 New types in `sdks/go/models.go`: `RuntimeMetrics`, `RouteStats`, `WalSnapshot`, `VectorCountSample`. Every JSON field uses `omitempty` so older servers / partial payloads decode cleanly
+- [x] 3.2 `Stats` grows `DefaultQuantization`/`CompressionRatio`; `CollectionInfo` grows `VectorCountHistory`. omitempty preserves the existing wire shape
+- [x] 3.3 `Client.GetRuntimeMetrics()` shipped in `sdks/go/admin.go` calling `GET /metrics/runtime`
+- [x] 3.4 7 new Go tests in `sdks/go/runtime_metrics_test.go` cover the `/metrics/runtime` route + decode, full + partial payloads, the new `Stats` quantization fields, and the `vector_count_history` JSON round-trip; `go test ./...` green
+- [x] 3.5 `sdks/go/CHANGELOG.md` `[Unreleased]` block documents the additions
 
 ## 4. C# SDK
 

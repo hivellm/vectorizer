@@ -104,12 +104,18 @@ type DatabaseStats struct {
 	Vectors     int `json:"vectors"`
 }
 
-// CollectionInfo represents collection information
+// CollectionInfo represents collection information.
+//
+// Phase25 §6 added VectorCountHistory: a per-collection ring buffer
+// of (unix_ts, count) samples, sampled lazily on each
+// GET /collections/{name} read. omitempty so older servers parse
+// unchanged.
 type CollectionInfo struct {
-	Name        string `json:"name"`
-	VectorCount int    `json:"vector_count"`
-	Dimension   int    `json:"dimension"`
-	Metric      string `json:"metric"`
+	Name                string              `json:"name"`
+	VectorCount         int                 `json:"vector_count"`
+	Dimension           int                 `json:"dimension"`
+	Metric              string              `json:"metric"`
+	VectorCountHistory  []VectorCountSample `json:"vector_count_history,omitempty"`
 }
 
 // CollectionsListResponse represents the response from listing collections
@@ -241,11 +247,58 @@ type DiscoveryStatusResponse struct {
 // ===== Admin / Observability =====
 
 // Stats represents aggregate server statistics returned by GET /stats.
+//
+// Phase25 §5 added DefaultQuantization and CompressionRatio. Both are
+// emitted as omitempty so older servers parse unchanged; consumers that
+// want a default value should fall back to ("none", 1.0).
 type Stats struct {
-	Collections   int    `json:"collections"`
-	TotalVectors  int    `json:"total_vectors"`
-	UptimeSeconds int64  `json:"uptime_seconds"`
-	Version       string `json:"version"`
+	Collections         int     `json:"collections"`
+	TotalVectors        int     `json:"total_vectors"`
+	UptimeSeconds       int64   `json:"uptime_seconds"`
+	Version             string  `json:"version"`
+	DefaultQuantization string  `json:"default_quantization,omitempty"`
+	CompressionRatio    float32 `json:"compression_ratio,omitempty"`
+}
+
+// VectorCountSample is one entry in CollectionInfo.VectorCountHistory
+// (phase25 §6). Sampled at most once per minute on the read path.
+type VectorCountSample struct {
+	At    int64 `json:"at"`
+	Count int   `json:"count"`
+}
+
+// RouteStats is one row inside RuntimeMetrics.ThroughputByRoute.
+type RouteStats struct {
+	Route  string  `json:"route"`
+	QPS    float64 `json:"qps"`
+	P50Ms  float64 `json:"p50_ms"`
+	P99Ms  float64 `json:"p99_ms"`
+}
+
+// WalSnapshot is the WAL section inside RuntimeMetrics (phase25 §3).
+// All fields are zero on standalone servers without replication.
+type WalSnapshot struct {
+	CurrentSeq        uint64 `json:"current_seq"`
+	SizeBytes         uint64 `json:"size_bytes"`
+	LastCheckpointAt  uint64 `json:"last_checkpoint_at"`
+	LastCheckpointSeq uint64 `json:"last_checkpoint_seq"`
+}
+
+// RuntimeMetrics is the snapshot returned by GET /metrics/runtime
+// (phase25). Older servers without phase25 §4 may omit any field; the
+// JSON tags use omitempty + the consumer pattern is "treat zero as
+// unknown".
+type RuntimeMetrics struct {
+	CPUPercent         float64      `json:"cpu_percent,omitempty"`
+	MemoryRSSBytes     uint64       `json:"memory_rss_bytes,omitempty"`
+	MemoryTotalBytes   uint64       `json:"memory_total_bytes,omitempty"`
+	MemoryPercent      float64      `json:"memory_percent,omitempty"`
+	ActiveConnections  int          `json:"active_connections,omitempty"`
+	UptimeSeconds      uint64       `json:"uptime_seconds,omitempty"`
+	QPSWindow60s       float64      `json:"qps_window_60s,omitempty"`
+	ErrorRate5xx60s    float64      `json:"error_rate_5xx_60s,omitempty"`
+	ThroughputByRoute  []RouteStats `json:"throughput_by_route,omitempty"`
+	WAL                WalSnapshot  `json:"wal,omitempty"`
 }
 
 // ServerStatus represents server liveness state returned by GET /status.

@@ -29,6 +29,21 @@ func (c *Client) GetStatus() (*ServerStatus, error) {
 	return &result, nil
 }
 
+// GetRuntimeMetrics returns the dashboard runtime snapshot (phase25):
+// CPU, memory, active connections, rolling 60-second QPS, per-route
+// p50/p99, 5xx error rate, and the WAL state. Requires admin auth on
+// the server. Older servers without phase25 §4 may return zero-valued
+// defaults instead of a populated struct.
+//
+// Calls GET /metrics/runtime.
+func (c *Client) GetRuntimeMetrics() (*RuntimeMetrics, error) {
+	var result RuntimeMetrics
+	if err := c.request("GET", "/metrics/runtime", nil, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // GetLogs tails recent server log lines. lines controls how many lines to
 // return (0 = server default); level filters by log level (empty = all).
 // Calls GET /logs?lines=N&level=LEVEL.

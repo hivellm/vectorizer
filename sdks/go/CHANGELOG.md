@@ -2,6 +2,26 @@
 
 All notable changes to the Hive Vectorizer Go SDK will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Phase25 dashboard metrics endpoints.**
+  - `Client.GetRuntimeMetrics()` calling `GET /metrics/runtime` with
+    new typed structs `RuntimeMetrics`, `RouteStats`, `WalSnapshot`,
+    `VectorCountSample`. All fields use `json:",omitempty"` so older
+    servers and standalone-mode (no WAL) payloads decode cleanly.
+  - `Stats` grows `DefaultQuantization` (string) and
+    `CompressionRatio` (float32) — older servers without phase25 §5
+    leave them at their zero value.
+  - `CollectionInfo` grows `VectorCountHistory []VectorCountSample`
+    so the dashboard's per-collection sparkline can read the ring
+    buffer surfaced by `GET /collections/{name}`.
+  - 7 new Go unit tests in `runtime_metrics_test.go` cover the
+    `/metrics/runtime` route + decode, full + partial payloads, the
+    new `Stats` quantization fields, and the `vector_count_history`
+    JSON round-trip.
+
 ## [3.3.0] - 2026-05-03
 
 > Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG.
