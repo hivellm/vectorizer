@@ -184,6 +184,28 @@ pub fn create_validation_error(field: &str, message: &str) -> ErrorResponse {
     }))
 }
 
+/// Helper function to create a parse error response.
+///
+/// Use this when JSON deserialization of a request field fails.
+/// It carries `error_type: "parse_error"` so callers can
+/// distinguish a structurally-invalid payload (wrong shape, missing
+/// discriminant field, wrong value type) from a semantically-invalid
+/// but well-shaped payload (`validation_error`).
+///
+/// The `serde_reason` is the raw serde error string, which includes
+/// the field path (e.g. `"missing field 'type' at line 1 column 12"`).
+pub fn create_parse_error(field: &str, serde_reason: &str) -> ErrorResponse {
+    ErrorResponse::new(
+        "parse_error".to_string(),
+        format!("Failed to parse {}: {}", field, serde_reason),
+        StatusCode::BAD_REQUEST,
+    )
+    .with_details(json!({
+        "field": field,
+        "reason": serde_reason
+    }))
+}
+
 /// Build a 429 Too Many Requests for the per-collection upsert queue
 /// (issue #263). The response carries `Retry-After: <seconds>` and a
 /// JSON body with the structured queue-full reason.
@@ -208,4 +230,46 @@ pub fn create_queue_full_error(
         "retry_after_seconds": retry_after_seconds,
     }))
     .with_retry_after(retry_after_seconds)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Phase23: `parse_error` shape is the SDK contract. The Rust /
+    /// TypeScript / Python / Go / C# SDKs decode `error_type` to
+    /// classify a 400 response; if these field names ever drift, every
+    /// SDK error-handling path needs a matching update.
+    #[test]
+    fn parse_error_carries_structured_details() {
+        let err = create_parse_error("filter", "missing field `must` at line 1 column 12");
+
+        assert_eq!(err.error_type, "parse_error");
+        assert_eq!(err.status_code, StatusCode::BAD_REQUEST);
+        assert!(err.message.contains("Failed to parse filter"));
+        assert!(err.message.contains("missing field"));
+
+        let details = err
+            .details
+            .as_ref()
+            .expect("parse_error must carry details");
+        assert_eq!(
+            details.get("field").and_then(|v| v.as_str()),
+            Some("filter")
+        );
+        assert_eq!(
+            details.get("reason").and_then(|v| v.as_str()),
+            Some("missing field `must` at line 1 column 12")
+        );
+    }
+
+    #[test]
+    fn validation_error_is_distinct_from_parse_error() {
+        let parse = create_parse_error("filter", "wrong shape");
+        let validation = create_validation_error("filter", "filter has no conditions");
+
+        assert_ne!(parse.error_type, validation.error_type);
+        assert_eq!(parse.error_type, "parse_error");
+        assert_eq!(validation.error_type, "validation_error");
+    }
 }

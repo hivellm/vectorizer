@@ -17,6 +17,15 @@ pub use graph::*;
 pub mod file_upload;
 pub use file_upload::*;
 
+// Typed Qdrant-compatible filter builder (phase23).
+// Exposed as `vectorizer_sdk::models::filter` so callers do not need
+// to depend on the server crate directly.
+pub mod filter;
+pub use filter::{
+    QdrantCondition, QdrantFilter, QdrantGeoBoundingBox, QdrantGeoPoint, QdrantGeoRadius,
+    QdrantMatchValue, QdrantRange, QdrantValuesCount,
+};
+
 // ===== TIER-CONTROL REPORTS (phase13) =====
 
 /// Aggregate outcome of a `delete_by_filter` call against

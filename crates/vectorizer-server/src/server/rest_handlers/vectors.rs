@@ -608,10 +608,7 @@ pub async fn delete_by_filter(
         })
         .and_then(|f| {
             serde_json::from_value(f.clone()).map_err(|e| {
-                crate::server::error_middleware::create_validation_error(
-                    "filter",
-                    &format!("invalid filter: {}", e),
-                )
+                crate::server::error_middleware::create_parse_error("filter", &e.to_string())
             })
         })?;
 
@@ -622,7 +619,7 @@ pub async fn delete_by_filter(
     if is_empty {
         return Err(crate::server::error_middleware::create_validation_error(
             "filter",
-            "empty filter is not allowed; provide at least one condition to prevent accidental wipes",
+            "filter has no conditions; provide at least one must/should/must_not condition to prevent accidental wipes",
         ));
     }
 
@@ -711,10 +708,7 @@ pub async fn bulk_update_metadata(
         })
         .and_then(|f| {
             serde_json::from_value(f.clone()).map_err(|e| {
-                crate::server::error_middleware::create_validation_error(
-                    "filter",
-                    &format!("invalid filter: {}", e),
-                )
+                crate::server::error_middleware::create_parse_error("filter", &e.to_string())
             })
         })?;
 

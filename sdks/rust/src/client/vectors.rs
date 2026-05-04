@@ -419,6 +419,28 @@ impl VectorizerClient {
     /// with 400 to prevent accidental full-collection wipes.
     ///
     /// Response: `{scanned, matched, deleted, results}`.
+    ///
+    /// # Using the typed filter builder (recommended)
+    ///
+    /// Use [`crate::models::QdrantFilter`] to build the filter with compile-time
+    /// guidance. The server requires a Qdrant-style shape and returns
+    /// `400 parse_error` for wrong shapes (e.g. flat `{key:value}` or
+    /// Qdrant-client-style `{must:[{key,match:{value}}]}`).
+    ///
+    /// ```rust,no_run
+    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    /// use vectorizer_sdk::models::{QdrantCondition, QdrantFilter};
+    /// # let client: vectorizer_sdk::client::VectorizerClient = unimplemented!();
+    ///
+    /// let filter = QdrantFilter::must(vec![
+    ///     QdrantCondition::match_string("topic", "index"),
+    /// ]);
+    /// client.delete_by_filter("my_col", serde_json::to_value(filter)?).await?;
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// See `docs/users/api/API_REFERENCE.md § Filter shape` for the full
+    /// wire contract and a list of common mistakes.
     pub async fn delete_by_filter(
         &self,
         collection: &str,
@@ -446,6 +468,28 @@ impl VectorizerClient {
     /// `null` values remove keys.
     ///
     /// Response: `{scanned, matched, updated, results}`.
+    ///
+    /// # Using the typed filter builder (recommended)
+    ///
+    /// Use [`crate::models::QdrantFilter`] to build the filter with compile-time
+    /// guidance. The server requires a Qdrant-style shape and returns
+    /// `400 parse_error` for wrong shapes.
+    ///
+    /// ```rust,no_run
+    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    /// use vectorizer_sdk::models::{QdrantCondition, QdrantFilter};
+    /// # let client: vectorizer_sdk::client::VectorizerClient = unimplemented!();
+    ///
+    /// let filter = QdrantFilter::must(vec![
+    ///     QdrantCondition::match_string("status", "draft"),
+    /// ]);
+    /// let patch = serde_json::json!({ "status": "published" });
+    /// client.bulk_update_metadata("my_col", serde_json::to_value(filter)?, patch).await?;
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// See `docs/users/api/API_REFERENCE.md § Filter shape` for the full
+    /// wire contract and a list of common mistakes.
     pub async fn bulk_update_metadata(
         &self,
         collection: &str,

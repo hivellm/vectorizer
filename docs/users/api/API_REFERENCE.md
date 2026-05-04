@@ -2038,6 +2038,10 @@ Method names below are case-adjusted per language convention
 
 ### Tier control (phase13)
 
+The `delete_by_filter` and `bulk_update_metadata` endpoints accept a `filter`
+body field. See [Filter shape](#filter-shape) below for the complete wire
+contract and JSON examples.
+
 | Server route | Rust SDK | TypeScript SDK | Python SDK | Go SDK | C# SDK |
 |---|---|---|---|---|---|
 | `POST /collections/{n}/vectors/delete_by_filter` | `delete_by_filter` | `deleteByFilter` | `delete_by_filter` | `DeleteByFilter` | `DeleteByFilterAsync` |
@@ -2046,6 +2050,171 @@ Method names below are case-adjusted per language convention
 | `POST /collections/{n}/reencode` | `reencode_collection` | `reencodeCollection` | `reencode_collection` | `ReencodeCollection` | `ReencodeCollectionAsync` |
 | `POST /collections/{n}/ttl` | `set_collection_ttl` | `setCollectionTtl` | `set_collection_ttl` | `SetCollectionTTL` | `SetCollectionTtlAsync` |
 | `PATCH /collections/{n}/vectors/{id}/expiry` | `set_vector_expiry` | `setVectorExpiry` | `set_vector_expiry` | `SetVectorExpiry` | `SetVectorExpiryAsync` |
+
+### Filter shape
+
+Both `delete_by_filter` and `bulk_update_metadata` send their filter in a top-level
+`"filter"` JSON field. The server deserializes it as a **Qdrant-compatible filter**
+with three optional boolean clauses: `must` (AND), `should` (OR), `must_not` (NOT).
+At least one clause must be present and non-empty; an all-absent filter returns
+`400 validation_error` with message "filter has no conditions".
+
+**Top-level shape:**
+
+```json
+{
+  "filter": {
+    "must":     [ <condition>, ... ],
+    "should":   [ <condition>, ... ],
+    "must_not": [ <condition>, ... ]
+  }
+}
+```
+
+All three arrays are optional; omit any you don't need. A request with
+`"filter": {}` (all arrays absent) is rejected as "filter has no conditions".
+
+#### Condition types
+
+Each element of a `must`/`should`/`must_not` array is a **typed condition object**.
+The `"type"` discriminant field is **required**; omitting it produces
+`400 parse_error` with reason "missing field `type`".
+
+**`match` — exact value match**
+
+```json
+{ "type": "match", "key": "topic", "match_value": "index" }
+{ "type": "match", "key": "active", "match_value": true }
+{ "type": "match", "key": "count",  "match_value": 42 }
+```
+
+The `match_value` field accepts a JSON string, integer, or boolean.
+
+**`range` — numeric range on a payload field**
+
+```json
+{
+  "type": "range",
+  "key": "score",
+  "range": { "gte": 0.5, "lt": 0.9 }
+}
+```
+
+Available range operators (all optional, combined with AND):
+
+| Field | Meaning |
+|-------|---------|
+| `gt`  | strictly greater than |
+| `gte` | greater than or equal |
+| `lt`  | strictly less than |
+| `lte` | less than or equal |
+
+**`values_count` — count of array elements in a payload field**
+
+```json
+{
+  "type": "values_count",
+  "key": "tags",
+  "values_count": { "gte": 1, "lte": 5 }
+}
+```
+
+Same operator sub-fields as `range` (`gt`, `gte`, `lt`, `lte`), but with
+unsigned-integer values.
+
+**`geo_bounding_box` — geospatial bounding box**
+
+```json
+{
+  "type": "geo_bounding_box",
+  "key": "location",
+  "geo_bounding_box": {
+    "top_right":   { "lat": 48.9, "lon": 2.4 },
+    "bottom_left": { "lat": 48.8, "lon": 2.3 }
+  }
+}
+```
+
+**`geo_radius` — geospatial radius**
+
+```json
+{
+  "type": "geo_radius",
+  "key": "location",
+  "geo_radius": {
+    "center": { "lat": 48.85, "lon": 2.35 },
+    "radius": 500.0
+  }
+}
+```
+
+`radius` is in metres.
+
+**`nested` — sub-filter applied to a nested object payload field**
+
+```json
+{
+  "type": "nested",
+  "filter": {
+    "must": [ { "type": "match", "key": "inner_key", "match_value": "value" } ]
+  }
+}
+```
+
+#### Full examples
+
+Delete all vectors where `topic == "index"`:
+
+```json
+{
+  "filter": {
+    "must": [
+      { "type": "match", "key": "topic", "match_value": "index" }
+    ]
+  }
+}
+```
+
+Delete all vectors where `tier == "hot"` AND `score >= 0.8`:
+
+```json
+{
+  "filter": {
+    "must": [
+      { "type": "match", "key": "tier",  "match_value": "hot" },
+      { "type": "range", "key": "score", "range": { "gte": 0.8 } }
+    ]
+  }
+}
+```
+
+Update metadata for vectors where `status == "draft"` OR `status == "review"`:
+
+```json
+{
+  "filter": {
+    "should": [
+      { "type": "match", "key": "status", "match_value": "draft" },
+      { "type": "match", "key": "status", "match_value": "review" }
+    ]
+  }
+}
+```
+
+#### Common mistakes
+
+| Wrong shape | Problem | Correct shape |
+|-------------|---------|---------------|
+| `{"key": "topic", "topic": "index"}` | Flat key=value map — the server does not accept this format. Produces `parse_error`. | `{"must": [{"type": "match", "key": "topic", "match_value": "index"}]}` |
+| `{"must": [{"key": "topic", "match": {"value": "index"}}]}` | Qdrant-client style (`match` sub-object) — the Vectorizer server uses a flat `match_value` field, not a nested `match` object. Produces `parse_error: missing field 'type'`. | `{"must": [{"type": "match", "key": "topic", "match_value": "index"}]}` |
+| `{}` | All-absent filter — rejected to prevent accidental full-collection wipes. Produces `validation_error: filter has no conditions`. | Always include at least one `must`, `should`, or `must_not` array with at least one condition. |
+
+#### Error responses for filter parsing
+
+| Status | `error_type` | When |
+|--------|-------------|------|
+| 400 | `parse_error` | Filter JSON does not match the `QdrantFilter` schema (wrong shape, missing `"type"` discriminant, wrong value type). The `details.reason` field carries the verbatim serde error with field path. |
+| 400 | `validation_error` | Filter parsed successfully but has no conditions (all arrays absent or empty). |
 
 ### Schema evolution + explain + slow queries (phase14)
 
