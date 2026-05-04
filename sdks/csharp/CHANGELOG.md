@@ -47,6 +47,15 @@ dependency required.
 - **Tier-control (6)** — `DeleteByFilterAsync`, `BulkUpdateMetadataAsync`,
   `CopyVectorsAsync`, `ReencodeCollectionAsync`, `SetCollectionTtlAsync`,
   `SetVectorExpiryAsync`. Empty-filter validation rejected client-side.
+- **Typed `QdrantFilter` builder (phase23).** New `Models/FilterModels.cs`
+  ships `QdrantFilter` + `FilterCondition` + `FilterMatch` +
+  `FilterRange` records and a static `Filter` helper class
+  (`Filter.Eq`, `Filter.In`, `Filter.Range`, `Filter.Must`, etc.).
+  `DeleteByFilterAsync` and `BulkUpdateMetadataAsync` gain typed
+  overloads alongside the existing `IDictionary<string, object>`
+  signatures (back-compat). The typed overload validates empty
+  filters client-side and throws `ArgumentException` before any
+  HTTP call.
 - **Schema evolution + explain + slow queries (8)** — `RenameCollectionAsync`,
   `ReindexCollectionAsync`, `SnapshotCollectionNativeAsync`,
   `ListCollectionSnapshotsNativeAsync`,

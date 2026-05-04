@@ -28,3 +28,4 @@ export * from './vectors-extended';
 export * from './tier-control';
 export * from './schema-evolution';
 export * from './cluster-auth-admin';
+export * from './filter';

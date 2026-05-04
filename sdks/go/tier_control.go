@@ -2,15 +2,18 @@ package vectorizer
 
 import "net/url"
 
-// DeleteByFilter deletes every vector in a collection that matches the given
-// metadata filter.
+// DeleteByFilterRaw deletes every vector in a collection that matches the
+// given metadata filter expressed as a raw map.
+//
+// This is the legacy back-compat overload. For new code prefer DeleteByFilter
+// which accepts a typed *QdrantFilter.
 //
 // Calls POST /collections/{name}/vectors/delete_by_filter with body
 // {"filter": filter}. An empty filter is rejected client-side to prevent
 // accidental full-collection wipes.
 //
 // Response fields: Scanned, Matched, Deleted, Results.
-func (c *Client) DeleteByFilter(collection string, filter map[string]interface{}) (*DeleteByFilterReport, error) {
+func (c *Client) DeleteByFilterRaw(collection string, filter map[string]interface{}) (*DeleteByFilterReport, error) {
 	if len(filter) == 0 {
 		return nil, &VectorizerError{
 			Type:    "validation_error",
@@ -27,8 +30,37 @@ func (c *Client) DeleteByFilter(collection string, filter map[string]interface{}
 	return &report, nil
 }
 
-// BulkUpdateMetadata applies a JSON-merge-patch to every vector matching the
-// given filter.
+// DeleteByFilter deletes every vector in a collection that matches the typed
+// QdrantFilter.
+//
+// An empty filter (nil or IsEmpty() == true) is rejected client-side before
+// any HTTP request is issued, to prevent accidental full-collection wipes.
+// For raw map[string]interface{} filters use DeleteByFilterRaw.
+//
+// Calls POST /collections/{name}/vectors/delete_by_filter with body
+// {"filter": filter}. Response fields: Scanned, Matched, Deleted, Results.
+func (c *Client) DeleteByFilter(collection string, filter *QdrantFilter) (*DeleteByFilterReport, error) {
+	if filter == nil || filter.IsEmpty() {
+		return nil, &VectorizerError{
+			Type:    "validation_error",
+			Message: "filter must not be empty",
+			Status:  0,
+		}
+	}
+	body := map[string]interface{}{"filter": filter}
+	path := "/collections/" + url.PathEscape(collection) + "/vectors/delete_by_filter"
+	var report DeleteByFilterReport
+	if err := c.request("POST", path, body, &report); err != nil {
+		return nil, err
+	}
+	return &report, nil
+}
+
+// BulkUpdateMetadataRaw applies a JSON-merge-patch to every vector matching
+// the given filter expressed as a raw map.
+//
+// This is the legacy back-compat overload. For new code prefer BulkUpdateMetadata
+// which accepts a typed *QdrantFilter.
 //
 // Calls POST /collections/{name}/vectors/bulk_update_metadata with body
 // {"filter": filter, "patch": patch}. An empty filter is rejected client-side
@@ -36,8 +68,35 @@ func (c *Client) DeleteByFilter(collection string, filter map[string]interface{}
 //
 // Patch semantics follow RFC 7396: keys in patch overwrite existing payload
 // values; null values remove keys.
-func (c *Client) BulkUpdateMetadata(collection string, filter, patch map[string]interface{}) (*BulkUpdateReport, error) {
+func (c *Client) BulkUpdateMetadataRaw(collection string, filter, patch map[string]interface{}) (*BulkUpdateReport, error) {
 	if len(filter) == 0 {
+		return nil, &VectorizerError{
+			Type:    "validation_error",
+			Message: "filter must not be empty",
+			Status:  0,
+		}
+	}
+	body := map[string]interface{}{"filter": filter, "patch": patch}
+	path := "/collections/" + url.PathEscape(collection) + "/vectors/bulk_update_metadata"
+	var report BulkUpdateReport
+	if err := c.request("POST", path, body, &report); err != nil {
+		return nil, err
+	}
+	return &report, nil
+}
+
+// BulkUpdateMetadata applies a JSON-merge-patch to every vector matching the
+// typed QdrantFilter.
+//
+// An empty filter (nil or IsEmpty() == true) is rejected client-side before
+// any HTTP request is issued, to prevent accidental full-collection updates.
+// For raw map[string]interface{} filters use BulkUpdateMetadataRaw.
+//
+// Calls POST /collections/{name}/vectors/bulk_update_metadata with body
+// {"filter": filter, "patch": patch}. Patch semantics follow RFC 7396: keys
+// in patch overwrite existing payload values; null values remove keys.
+func (c *Client) BulkUpdateMetadata(collection string, filter *QdrantFilter, patch map[string]interface{}) (*BulkUpdateReport, error) {
+	if filter == nil || filter.IsEmpty() {
 		return nil, &VectorizerError{
 			Type:    "validation_error",
 			Message: "filter must not be empty",

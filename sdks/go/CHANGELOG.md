@@ -35,6 +35,13 @@ phases 12-15. No RPC dependency required.
   `CopyVectors`, `ReencodeCollection`, `SetCollectionTTL`, `SetVectorExpiry`.
   Empty-filter validation rejected client-side before HTTP for
   `DeleteByFilter` and `BulkUpdateMetadata`.
+- **Typed `QdrantFilter` builder (phase23).** New `filter.go` exposes
+  `QdrantFilter` / `FilterCondition` / `FilterMatch` / `FilterRange`
+  structs + builders (`FilterEq`, `FilterIn`, `FilterRangeGteLte`,
+  `MustFilter`, `ShouldFilter`, `MustNotFilter`). `DeleteByFilter` and
+  `BulkUpdateMetadata` now accept `*QdrantFilter` directly; the
+  legacy `map[string]interface{}` overloads remain as
+  `DeleteByFilterRaw` and `BulkUpdateMetadataRaw`.
 - **Schema evolution + explain + slow queries (8)** — `RenameCollection`,
   `ReindexCollection`, `SnapshotCollectionNative`,
   `ListCollectionSnapshotsNative`, `RestoreCollectionSnapshotNative`,

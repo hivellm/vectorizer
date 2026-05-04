@@ -71,6 +71,7 @@ except ImportError:  # pragma: no cover
     )
 
 from ._base import _ApiBase
+from .filter import QdrantFilter
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +314,7 @@ class VectorsClient(_ApiBase):
     async def delete_by_filter(
         self,
         collection: str,
-        filter: Dict[str, Any],
+        filter: Union[QdrantFilter, Dict[str, Any]],
     ) -> DeleteByFilterReport:
         """Delete every vector in a collection matching a metadata filter (phase13).
 
@@ -321,22 +322,37 @@ class VectorsClient(_ApiBase):
         ``{"filter": <filter>}``. An empty filter is rejected by the server
         with 400 to prevent accidental full-collection wipes.
 
+        Accepts either a typed :class:`~vectorizer.filter.QdrantFilter` (phase23)
+        or the legacy plain-dict shape. When a ``QdrantFilter`` is supplied the
+        method validates client-side that at least one clause is present and raises
+        :class:`~exceptions.ValidationError` before issuing the HTTP request.
+
         Args:
             collection: Collection name.
-            filter: Qdrant-style metadata filter dict (must be non-empty).
+            filter: Qdrant-style metadata filter. Pass a
+                :class:`~vectorizer.filter.QdrantFilter` for typed validation, or a
+                plain ``dict`` for the legacy untyped path.
 
         Returns:
             :class:`DeleteByFilterReport` with scanned / matched / deleted counts.
 
         Raises:
-            ValidationError: If ``filter`` is empty.
+            ValidationError: If ``filter`` is empty (typed or dict).
             CollectionNotFoundError: If the collection does not exist.
             NetworkError: If the transport fails.
             ServerError: If the server returns a non-2xx status.
         """
-        if not filter:
-            raise ValidationError("filter must be a non-empty dict")
-        payload = {"filter": filter}
+        if isinstance(filter, QdrantFilter):
+            if filter.is_empty():
+                raise ValidationError(
+                    "filter must contain at least one must/should/must_not condition"
+                )
+            filter_dict = filter.to_dict()
+        else:
+            if not filter:
+                raise ValidationError("filter must be a non-empty dict")
+            filter_dict = filter
+        payload = {"filter": filter_dict}
         data = await self._transport.post(
             f"/collections/{collection}/vectors/delete_by_filter", data=payload
         )
@@ -345,7 +361,7 @@ class VectorsClient(_ApiBase):
     async def bulk_update_metadata(
         self,
         collection: str,
-        filter: Dict[str, Any],
+        filter: Union[QdrantFilter, Dict[str, Any]],
         patch: Dict[str, Any],
     ) -> BulkUpdateReport:
         """Apply a JSON-merge-patch to every vector matching a filter (phase13).
@@ -355,23 +371,38 @@ class VectorsClient(_ApiBase):
         7396 semantics: keys in ``patch`` overwrite existing payload values;
         ``null`` values remove keys.
 
+        Accepts either a typed :class:`~vectorizer.filter.QdrantFilter` (phase23)
+        or the legacy plain-dict shape. When a ``QdrantFilter`` is supplied the
+        method validates client-side that at least one clause is present and raises
+        :class:`~exceptions.ValidationError` before issuing the HTTP request.
+
         Args:
             collection: Collection name.
-            filter: Qdrant-style metadata filter dict.
+            filter: Qdrant-style metadata filter. Pass a
+                :class:`~vectorizer.filter.QdrantFilter` for typed validation, or a
+                plain ``dict`` for the legacy untyped path.
             patch: Metadata merge-patch to apply to matched vectors.
 
         Returns:
             :class:`BulkUpdateReport` with scanned / matched / updated counts.
 
         Raises:
-            ValidationError: If ``filter`` is empty.
+            ValidationError: If ``filter`` is empty (typed or dict).
             CollectionNotFoundError: If the collection does not exist.
             NetworkError: If the transport fails.
             ServerError: If the server returns a non-2xx status.
         """
-        if not filter:
-            raise ValidationError("filter must be a non-empty dict")
-        payload = {"filter": filter, "patch": patch}
+        if isinstance(filter, QdrantFilter):
+            if filter.is_empty():
+                raise ValidationError(
+                    "filter must contain at least one must/should/must_not condition"
+                )
+            filter_dict = filter.to_dict()
+        else:
+            if not filter:
+                raise ValidationError("filter must be a non-empty dict")
+            filter_dict = filter
+        payload = {"filter": filter_dict, "patch": patch}
         data = await self._transport.post(
             f"/collections/{collection}/vectors/bulk_update_metadata", data=payload
         )

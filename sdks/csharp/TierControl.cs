@@ -37,6 +37,33 @@ public partial class VectorizerClient
     }
 
     /// <summary>
+    /// Deletes every vector in a collection that matches the typed Qdrant filter.
+    /// Calls POST /collections/{name}/vectors/delete_by_filter with body {"filter": filter}.
+    /// An empty filter is rejected client-side to prevent accidental full-collection wipes.
+    /// </summary>
+    /// <param name="collection">Collection name.</param>
+    /// <param name="filter">Non-empty typed Qdrant filter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="DeleteByFilterReport"/> with Scanned, Matched, Deleted, and Results.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="filter"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="filter"/> is empty (no conditions).</exception>
+    public async Task<DeleteByFilterReport> DeleteByFilterAsync(
+        string collection,
+        QdrantFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        if (filter.IsEmpty())
+            throw new ArgumentException(
+                "filter must contain at least one must/should/must_not condition",
+                nameof(filter));
+
+        var body = new { filter };
+        var path = $"/collections/{Uri.EscapeDataString(collection)}/vectors/delete_by_filter";
+        return await RequestAsync<DeleteByFilterReport>("POST", path, body, cancellationToken);
+    }
+
+    /// <summary>
     /// Applies a JSON-merge-patch to every vector matching the given filter.
     /// Calls POST /collections/{name}/vectors/bulk_update_metadata with body
     /// {"filter": filter, "patch": patch}.
@@ -69,6 +96,38 @@ public partial class VectorizerClient
             ["filter"] = filter,
             ["patch"] = patch
         };
+        var path = $"/collections/{Uri.EscapeDataString(collection)}/vectors/bulk_update_metadata";
+        return await RequestAsync<BulkUpdateReport>("POST", path, body, cancellationToken);
+    }
+
+    /// <summary>
+    /// Applies a JSON-merge-patch to every vector matching the typed Qdrant filter.
+    /// Calls POST /collections/{name}/vectors/bulk_update_metadata with body
+    /// {"filter": filter, "patch": patch}.
+    /// An empty filter is rejected client-side to prevent accidental full-collection updates.
+    /// Patch semantics follow RFC 7396: keys in patch overwrite existing payload values;
+    /// null values remove keys.
+    /// </summary>
+    /// <param name="collection">Collection name.</param>
+    /// <param name="filter">Non-empty typed Qdrant filter.</param>
+    /// <param name="patch">Key/value pairs to merge into matched vector payloads.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="BulkUpdateReport"/> with Scanned, Matched, Updated, and Results.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="filter"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="filter"/> is empty (no conditions).</exception>
+    public async Task<BulkUpdateReport> BulkUpdateMetadataAsync(
+        string collection,
+        QdrantFilter filter,
+        IDictionary<string, object> patch,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        if (filter.IsEmpty())
+            throw new ArgumentException(
+                "filter must contain at least one must/should/must_not condition",
+                nameof(filter));
+
+        var body = new { filter, patch };
         var path = $"/collections/{Uri.EscapeDataString(collection)}/vectors/bulk_update_metadata";
         return await RequestAsync<BulkUpdateReport>("POST", path, body, cancellationToken);
     }

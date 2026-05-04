@@ -40,7 +40,7 @@ func TestTierDeleteByFilter(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{BaseURL: server.URL})
-	report, err := client.DeleteByFilter("c1", map[string]interface{}{"status": "stale"})
+	report, err := client.DeleteByFilterRaw("c1", map[string]interface{}{"status": "stale"})
 	if err != nil {
 		t.Fatalf("DeleteByFilter failed: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestTierDeleteByFilter(t *testing.T) {
 }
 
 // TestTierDeleteByFilterEmptyFails verifies that an empty filter is rejected
-// client-side before any HTTP request is issued.
+// client-side before any HTTP request is issued (raw variant).
 func TestTierDeleteByFilterEmptyFails(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("server should not be called")
@@ -72,7 +72,7 @@ func TestTierDeleteByFilterEmptyFails(t *testing.T) {
 	client := NewClient(&Config{BaseURL: server.URL})
 
 	// nil filter (len == 0) must be rejected client-side.
-	_, err := client.DeleteByFilter("c1", nil)
+	_, err := client.DeleteByFilterRaw("c1", nil)
 	if err == nil {
 		t.Fatal("should return an error for nil filter")
 	}
@@ -85,7 +85,7 @@ func TestTierDeleteByFilterEmptyFails(t *testing.T) {
 	}
 
 	// Empty non-nil map must also be rejected client-side.
-	_, err = client.DeleteByFilter("c1", map[string]interface{}{})
+	_, err = client.DeleteByFilterRaw("c1", map[string]interface{}{})
 	if err == nil {
 		t.Fatal("should return an error for empty filter map")
 	}
@@ -136,7 +136,7 @@ func TestTierBulkUpdateMetadata(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient(&Config{BaseURL: server.URL})
-	report, err := client.BulkUpdateMetadata(
+	report, err := client.BulkUpdateMetadataRaw(
 		"col2",
 		map[string]interface{}{"category": "A"},
 		map[string]interface{}{"tag": "updated"},
@@ -159,7 +159,7 @@ func TestTierBulkUpdateMetadata(t *testing.T) {
 }
 
 // TestTierBulkUpdateMetadataEmptyFails verifies that an empty filter is
-// rejected client-side before any HTTP request is issued.
+// rejected client-side before any HTTP request is issued (raw variant).
 func TestTierBulkUpdateMetadataEmptyFails(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("server should not be called")
@@ -169,7 +169,7 @@ func TestTierBulkUpdateMetadataEmptyFails(t *testing.T) {
 	client := NewClient(&Config{BaseURL: server.URL})
 
 	// nil filter must be rejected client-side.
-	_, err := client.BulkUpdateMetadata("col2", nil, map[string]interface{}{"tag": "x"})
+	_, err := client.BulkUpdateMetadataRaw("col2", nil, map[string]interface{}{"tag": "x"})
 	if err == nil {
 		t.Fatal("should return an error for nil filter")
 	}
@@ -182,7 +182,7 @@ func TestTierBulkUpdateMetadataEmptyFails(t *testing.T) {
 	}
 
 	// Empty non-nil map must also be rejected client-side.
-	_, err = client.BulkUpdateMetadata("col2", map[string]interface{}{}, map[string]interface{}{"tag": "x"})
+	_, err = client.BulkUpdateMetadataRaw("col2", map[string]interface{}{}, map[string]interface{}{"tag": "x"})
 	if err == nil {
 		t.Fatal("should return an error for empty filter map")
 	}
@@ -416,5 +416,117 @@ func TestTierSetVectorExpiry(t *testing.T) {
 	}
 	if capturedBody["expires_at"] != float64(9999999999) {
 		t.Errorf("expires_at should be 9999999999 but got %v", capturedBody["expires_at"])
+	}
+}
+
+// TestTierDeleteByFilterTypedHappy verifies that DeleteByFilter (typed) POSTs
+// the correct JSON body shape and decodes the response correctly.
+func TestTierDeleteByFilterTypedHappy(t *testing.T) {
+	var capturedFilter map[string]interface{}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("should use POST method but got %s", r.Method)
+		}
+		if r.URL.Path != "/collections/typed_col/vectors/delete_by_filter" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("should receive valid JSON body: %v", err)
+		}
+
+		filterVal, ok := body["filter"]
+		if !ok {
+			t.Fatal("POST body should contain a filter key")
+		}
+		capturedFilter, ok = filterVal.(map[string]interface{})
+		if !ok {
+			t.Fatalf("filter should be an object but got %T", filterVal)
+		}
+
+		resp := DeleteByFilterReport{
+			Scanned: 8,
+			Matched: 2,
+			Deleted: 2,
+			Results: []VectorOpResult{{Status: "ok"}, {Status: "ok"}},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := NewClient(&Config{BaseURL: server.URL})
+	f := MustFilter(FilterEq("status", "stale"))
+	report, err := client.DeleteByFilter("typed_col", &f)
+	if err != nil {
+		t.Fatalf("DeleteByFilter typed failed: %v", err)
+	}
+	if report == nil {
+		t.Fatal("should return a non-nil DeleteByFilterReport")
+	}
+	if report.Deleted != 2 {
+		t.Errorf("Deleted should be 2 but got %d", report.Deleted)
+	}
+
+	// Assert the wire shape: filter.must[0].key == "status",
+	// filter.must[0].match.value == "stale".
+	mustArr, ok := capturedFilter["must"].([]interface{})
+	if !ok || len(mustArr) == 0 {
+		t.Fatalf("filter.must should be a non-empty array but got %v", capturedFilter["must"])
+	}
+	cond, ok := mustArr[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("must[0] should be an object but got %T", mustArr[0])
+	}
+	if cond["key"] != "status" {
+		t.Errorf("must[0].key should be 'status' but got %v", cond["key"])
+	}
+	matchObj, ok := cond["match"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("must[0].match should be an object but got %T", cond["match"])
+	}
+	if matchObj["value"] != "stale" {
+		t.Errorf("must[0].match.value should be 'stale' but got %v", matchObj["value"])
+	}
+}
+
+// TestTierDeleteByFilterTypedEmptyRejectedClientSide verifies that a nil
+// filter and an empty *QdrantFilter are both rejected client-side without
+// touching the server.
+func TestTierDeleteByFilterTypedEmptyRejectedClientSide(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("server should not be called for empty typed filter")
+	}))
+	defer server.Close()
+
+	client := NewClient(&Config{BaseURL: server.URL})
+
+	// nil pointer must be rejected client-side.
+	_, err := client.DeleteByFilter("col", nil)
+	if err == nil {
+		t.Fatal("should return an error for nil *QdrantFilter")
+	}
+	ve, ok := err.(*VectorizerError)
+	if !ok {
+		t.Fatalf("error should be *VectorizerError but got %T", err)
+	}
+	if ve.Type != "validation_error" {
+		t.Errorf("error Type should be validation_error but got %q", ve.Type)
+	}
+
+	// Empty (no conditions) filter must also be rejected client-side.
+	empty := &QdrantFilter{}
+	_, err = client.DeleteByFilter("col", empty)
+	if err == nil {
+		t.Fatal("should return an error for empty *QdrantFilter")
+	}
+	ve, ok = err.(*VectorizerError)
+	if !ok {
+		t.Fatalf("error should be *VectorizerError but got %T", err)
+	}
+	if ve.Type != "validation_error" {
+		t.Errorf("error Type should be validation_error but got %q", ve.Type)
 	}
 }

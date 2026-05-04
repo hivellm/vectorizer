@@ -74,6 +74,14 @@ All notable changes to the Hive Vectorizer Python SDK will be documented in this
   - **replication** (4): `replication_status`, `replication_configure`, `replication_stats`, `replication_replicas_list`.
   - **cluster** (5): `cluster_failover`, `cluster_replica_resync`, `cluster_peer_add`, `cluster_rebalance`, `cluster_rebalance_status`.
 - New dataclasses re-exported from `rpc/__init__.py` and `__init__.py`: `AdminStats`, `AdminStatus`, `AnswerPlanResult`, `AnswerPlanSection`, `ApiKeyCreated`, `AuthMeResult`, `BatchDeleteResult`, `BatchInsertResult`, `BatchItemResult`, `BatchSearchResult`, `BatchUpdateResult`, `BulkUpdateMetadataRpcResult`, `CleanupEmptyResult`, `CompressBullet`, `CopyRpcResult`, `CreateCollectionResult`, `DeleteByFilterRpcResult`, `DiscoverEdgesForNodeResult`, `DiscoverEdgesResult`, `DiscoverResult`, `DiscoveryChunk`, `EmbedResult`, `ExpandQueriesResult`, `GraphDiscoveryStatus`, `MoveRpcResult`, `RebalanceStatus`, `RefreshTokenResult`, `RenderPromptResult`, `ReplicationConfigureResult`, `RotatedApiKey`, `ScoredCollection`, `SearchExplainResult`, `SearchTrace`, `SetExpiryResult`, `SlowQueryConfigResult`, `ValidatePasswordResult`, `VectorListResult`, `VectorWriteResult`.
+- **Typed `QdrantFilter` builder (phase23).** New `vectorizer/filter.py`
+  ships `QdrantFilter` / `FilterCondition` / `FilterMatch` /
+  `FilterRange` dataclasses + builder helpers (`filter_eq`,
+  `filter_in`, `filter_range`, `filter_nested`, `must_filter`,
+  `should_filter`, `must_not_filter`). `delete_by_filter` and
+  `bulk_update_metadata` now accept either `QdrantFilter` or the legacy
+  `dict` shape; the typed path validates empty filters client-side and
+  raises `ValidationError` before issuing the HTTP request.
 
 ### Tests
 

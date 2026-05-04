@@ -8,6 +8,7 @@ All notable changes to the Hive Vectorizer Rust SDK will be documented in this f
 
 ### Added
 
+- **Typed `Filter` / `QdrantFilter` builder (phase23).** New `models/filter.rs` module ships typed filter types with full wire-shape coverage: `Filter`, `Condition`, `Match`, `Range`. Re-exported from the SDK's `models` module. Doc comments on `delete_by_filter` and `bulk_update_metadata` recommend the typed value over raw JSON. Server-side error messages for malformed filters now return `error_type: "parse_error"` with serde field paths instead of the misleading `"empty filter is not allowed"`. 8 unit tests cover wire-shape stability for every variant + nested compound filters + omitting absent clauses.
 - **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorizerClient`:
   - `delete_vector(collection, vector_id) -> Result<()>` calling `DELETE /collections/{c}/vectors/{id}`.
   - `delete_vectors(collection, ids) -> Result<DeleteReport>` calling `POST /batch_delete` with per-id status in `results`.

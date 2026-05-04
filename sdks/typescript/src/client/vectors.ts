@@ -25,6 +25,7 @@ import {
   validateVector,
 } from '../models';
 import type { VectorPage, BulkUpdateReport, CopyReport, DeleteByFilterReport } from '../models';
+import type { QdrantFilter } from '../models/filter';
 
 export class VectorsClient extends BaseClient {
   /** Insert vectors via the Qdrant-compatible point upsert. (Master-only.) */
@@ -456,11 +457,14 @@ export class VectorsClient extends BaseClient {
    * `{"filter": <filter>}`. An empty filter is rejected by the server with 400
    * to prevent accidental full-collection wipes.
    *
+   * Accepts a typed {@link QdrantFilter} (built with the {@link filter} helpers
+   * from `models/filter`) or a plain `Record<string, unknown>` for back-compat.
+   *
    * Response: `{scanned, matched, deleted, results}`.
    */
   public async deleteByFilter(
     collectionName: string,
-    filter: Record<string, unknown>,
+    filter: QdrantFilter | Record<string, unknown>,
   ): Promise<DeleteByFilterReport> {
     try {
       const transport = this.getWriteTransport();
@@ -488,11 +492,14 @@ export class VectorsClient extends BaseClient {
    * `{"filter": <filter>, "patch": <patch>}`. Patch is applied with RFC 7396
    * semantics: keys in `patch` overwrite existing values; `null` values remove keys.
    *
+   * Accepts a typed {@link QdrantFilter} (built with the {@link filter} helpers
+   * from `models/filter`) or a plain `Record<string, unknown>` for back-compat.
+   *
    * Response: `{scanned, matched, updated, results}`.
    */
   public async bulkUpdateMetadata(
     collectionName: string,
-    filter: Record<string, unknown>,
+    filter: QdrantFilter | Record<string, unknown>,
     patch: Record<string, unknown>,
   ): Promise<BulkUpdateReport> {
     try {

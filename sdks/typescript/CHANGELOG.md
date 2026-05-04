@@ -8,6 +8,7 @@ All notable changes to the Hive Vectorizer TypeScript Client SDK will be documen
 
 ### Added
 
+- **Typed `QdrantFilter` builder (phase23).** New `src/models/filter.ts` ships `QdrantFilter` / `FilterCondition` / `FilterMatch` / `FilterRange` interfaces + a `filter` namespace with builder helpers (`filter.eq`, `filter.in`, `filter.range`, `filter.must`, `filter.should`, `filter.mustNot`, `filter.nested`). `deleteByFilter` and `bulkUpdateMetadata` now accept `QdrantFilter | Record<string, unknown>` (back-compat). The typed path validates empty filters client-side and rejects them before the HTTP request.
 - **Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265)).** Three new methods on `VectorsClient`:
   - `deleteVector(collection, vectorId): Promise<void>` calling `DELETE /collections/{c}/vectors/{id}`.
   - `moveToCollection(src, dst, ids): Promise<MoveReport>` calling `POST /collections/{src}/vectors/move`. Server invariant: dst-insert-before-src-delete; a mid-batch crash leaves a recoverable duplicate, never data loss. Per-id outcomes (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) populate `MoveReport.results` without aborting the batch.
