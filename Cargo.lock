@@ -4465,9 +4465,9 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.17.0"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e0b564323a0fb6d54b864f625ae139de9612e27edb944dda37c109f05aac531"
+checksum = "8a860605968fce16869fd239cf4237a82f3ac470723415db603b0e8b6c8d4fb9"
 dependencies = [
  "hashbrown 0.17.0",
 ]
@@ -9373,7 +9373,7 @@ dependencies = [
  "jsonwebtoken",
  "lazy_static",
  "libc",
- "lru 0.17.0",
+ "lru 0.18.0",
  "lz4_flex",
  "memmap2",
  "memory-stats",
@@ -9576,7 +9576,7 @@ dependencies = [
  "jsonwebtoken",
  "lazy_static",
  "libc",
- "lru 0.17.0",
+ "lru 0.18.0",
  "memory-stats",
  "mime_guess",
  "nix 0.31.2",
