@@ -52,7 +52,12 @@ export default tseslint.config(
         },
         settings: {
             react: {
-                version: 'detect',
+                // Pinned (instead of "detect") so eslint-plugin-react@7.37.5
+                // does not run detectReactVersion under eslint@10. The detect
+                // path calls the removed context.getFilename() and crashes
+                // every rule that touches React component analysis. Bump
+                // alongside the React dep.
+                version: '19.2',
             },
         },
     }
