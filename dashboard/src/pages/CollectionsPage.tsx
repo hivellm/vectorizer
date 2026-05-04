@@ -4,7 +4,6 @@ import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
 import {
   Icons,
-  Sparkline,
   StatusPill,
   Pill,
   Card,
@@ -15,9 +14,6 @@ import {
 } from '@/components/console';
 import { formatNumber } from '@/utils/formatters';
 import type { Collection } from '@/hooks/useCollections';
-
-const SPARK = (n: number, base: number, amp: number): number[] =>
-  Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
 function CollectionsPage() {
   const { listCollections } = useCollections();
@@ -239,13 +235,20 @@ function CollectionsPage() {
                 <Card>
                   <CardHead title="Vector growth · 7d" />
                   <CardBody>
-                    <Sparkline
-                      data={SPARK(40, (selected.vector_count ?? 100) / 1000, 8)}
-                      width={420}
-                      height={100}
-                      color="var(--magenta)"
-                      ariaLabel={`Vector growth for ${selected.name} over 7 days`}
-                    />
+                    {/* vector_count_history is not yet exposed by
+                        GET /collections/{n} (phase25 §6 is still open).
+                        This chart will be re-enabled once the backend ships
+                        the vector_count_history field. */}
+                    <div
+                      className="muted"
+                      style={{ fontSize: 12, padding: '8px 0' }}
+                    >
+                      History not available yet. The{' '}
+                      <span className="mono">vector_count_history</span> field
+                      will be added to{' '}
+                      <span className="mono">GET /collections/{'{n}'}</span> in
+                      a future release.
+                    </div>
                     <div
                       className="row mono"
                       style={{
@@ -255,34 +258,24 @@ function CollectionsPage() {
                         marginTop: 6,
                       }}
                     >
-                      <span>−7d</span>
-                      <span>−3d</span>
-                      <span>now</span>
+                      <span>Current count:</span>
+                      <span>{formatNumber(selected.vector_count ?? 0)}</span>
                     </div>
                   </CardBody>
                 </Card>
                 <Card>
                   <CardHead title="Query throughput · 24h" sub="qpm" />
                   <CardBody>
-                    <Sparkline
-                      data={SPARK(40, 60, 20)}
-                      width={420}
-                      height={100}
-                      color="var(--teal)"
-                      ariaLabel={`Query throughput for ${selected.name} over 24 hours`}
-                    />
+                    {/* Per-collection query throughput history is not yet
+                        exposed. The global /metrics/runtime endpoint provides
+                        aggregate QPS; per-collection breakdown is tracked in
+                        phase25. */}
                     <div
-                      className="row mono"
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--text-2)',
-                        justifyContent: 'space-between',
-                        marginTop: 6,
-                      }}
+                      className="muted"
+                      style={{ fontSize: 12, padding: '8px 0' }}
                     >
-                      <span>−24h</span>
-                      <span>−12h</span>
-                      <span>now</span>
+                      Per-collection throughput history is not yet available.
+                      Aggregate QPS is shown on the Monitoring page.
                     </div>
                   </CardBody>
                 </Card>

@@ -4,6 +4,7 @@ import { useMetrics } from '@/hooks/useMetrics';
 import { useStats } from '@/hooks/useStats';
 import { useStatus } from '@/hooks/useStatus';
 import { useEvents } from '@/hooks/useEvents';
+import { useRuntimeMetrics } from '@/hooks/useRuntimeMetrics';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
 import {
@@ -15,7 +16,6 @@ import {
   CardHead,
   CardBody,
   Kpi,
-  Bar,
   Tbl,
   Th,
   Td,
@@ -24,11 +24,6 @@ import {
 } from '@/components/console';
 import { formatNumber } from '@/utils/formatters';
 import type { Collection } from '@/hooks/useCollections';
-
-// TODO(metrics-history): sparkline series stay synthetic until a
-// /metrics?range=24h endpoint streams a real point series.
-const SPARK = (n: number, base: number, amp: number): number[] =>
-  Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
 // Map a server event level to the console.css dot tone. Levels follow the
 // reference design: ok→green, warn→amber, info→teal, error→red.
@@ -47,6 +42,7 @@ function OverviewPage() {
   const { stats } = useStats();
   const { status: serverStatus } = useStatus();
   const events = useEvents();
+  const { metrics: runtimeMetrics, loading: runtimeLoading, error: runtimeError } = useRuntimeMetrics({ intervalMs: 2000 });
   const ref = useRef<NodeJS.Timeout | null>(null);
 
   const fetchCollections = async () => {
@@ -82,14 +78,18 @@ function OverviewPage() {
   const top = list.slice(0, 6);
 
   // Real KPIs come from /stats (totals) + /health (cache) via useMetrics +
-  // useStats. The backend doesn't yet surface qps / cpu / mem / connections,
-  // so those KPIs stay at 0 until a richer dashboard-metrics endpoint lands.
+  // useStats. CPU / memory / connections now come from GET /metrics/runtime.
   const qps = metrics.qps;
-  const cpu = metrics.cpuPercent;
-  const mem = metrics.memPercent;
-  const conns = metrics.connections;
   // /health emits hit_rate as 0..1; clamp + scale for the percentage KPI.
   const cacheHitPct = Math.max(0, Math.min(100, stats.cache.hitRate * 100));
+
+  // Ring gauge values from /metrics/runtime. While the hook is still on its
+  // first fetch or has errored, runtimeUnavailable is true and the JSX renders
+  // '--' instead of a zero value.
+  const runtimeUnavailable = runtimeLoading || runtimeError !== null;
+  const cpu = runtimeMetrics.cpuPercent;
+  const mem = runtimeMetrics.memoryPercent;
+  const conns = runtimeMetrics.activeConnections;
 
   return (
     <div className="page">
@@ -121,8 +121,6 @@ function OverviewPage() {
           }
           value={qps.toLocaleString()}
           unit="qps"
-          delta={{ tone: 'up', text: '+12.4% vs 24h' }}
-          spark={{ data: SPARK(20, 2400, 200), color: 'var(--teal)' }}
         />
         <Kpi
           label={
@@ -131,10 +129,8 @@ function OverviewPage() {
               Search latency p99
             </>
           }
-          value="2.8"
+          value={runtimeUnavailable ? '--' : runtimeMetrics.throughputByRoute.reduce((max, r) => Math.max(max, r.p99Ms), 0).toFixed(1)}
           unit="ms"
-          delta={{ tone: 'up', text: '−0.4ms vs 24h' }}
-          spark={{ data: SPARK(20, 2.8, 0.4), color: 'var(--text-2)' }}
         />
         <Kpi
           accent="magenta"
@@ -146,7 +142,6 @@ function OverviewPage() {
           }
           value={formatNumber(totalVectors)}
           delta={{ tone: 'neutral', text: `${list.length} collections` }}
-          spark={{ data: SPARK(20, 580, 8), color: 'var(--magenta)' }}
         />
         <Kpi
           label={
@@ -157,8 +152,6 @@ function OverviewPage() {
           }
           value={cacheHitPct.toFixed(1)}
           unit="%"
-          delta={{ tone: 'up', text: '+1.8% vs 24h' }}
-          spark={{ data: SPARK(20, 94, 2), color: 'var(--green)' }}
         />
       </div>
 
@@ -176,13 +169,31 @@ function OverviewPage() {
           <CardBody>
             <div className="grid grid-3" style={{ gap: 18, alignItems: 'center' }}>
               <div style={{ display: 'grid', placeItems: 'center' }}>
-                <Ring value={cpu} max={100} label={`${cpu.toFixed(0)}%`} sub="CPU" color="var(--teal)" />
+                <Ring
+                  value={runtimeUnavailable ? 0 : cpu}
+                  max={100}
+                  label={runtimeUnavailable ? '--' : `${cpu.toFixed(0)}%`}
+                  sub="CPU"
+                  color="var(--teal)"
+                />
               </div>
               <div style={{ display: 'grid', placeItems: 'center' }}>
-                <Ring value={mem} max={100} label={`${mem.toFixed(1)}%`} sub="MEMORY" color="var(--magenta)" />
+                <Ring
+                  value={runtimeUnavailable ? 0 : mem}
+                  max={100}
+                  label={runtimeUnavailable ? '--' : `${mem.toFixed(1)}%`}
+                  sub="MEMORY"
+                  color="var(--magenta)"
+                />
               </div>
               <div style={{ display: 'grid', placeItems: 'center' }}>
-                <Ring value={conns} max={500} label={String(conns)} sub="CONNECTIONS" color="var(--amber)" />
+                <Ring
+                  value={runtimeUnavailable ? 0 : conns}
+                  max={500}
+                  label={runtimeUnavailable ? '--' : String(conns)}
+                  sub="CONNECTIONS"
+                  color="var(--amber)"
+                />
               </div>
             </div>
             <div className="divider" />
@@ -199,29 +210,20 @@ function OverviewPage() {
         </Card>
 
         <Card>
-          <CardHead title="Quantization" sub="SQ-8bit · default" />
+          <CardHead title="Quantization" />
           <CardBody>
-            <div style={{ textAlign: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em' }}>4.0×</div>
-              <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                compression ratio
-              </div>
-            </div>
-            <div className="col" style={{ gap: 10 }}>
-              <div>
-                <div className="row" style={{ fontSize: 11, marginBottom: 4 }}>
-                  <span className="muted">MAP score</span>
-                  <span className="right mono">+8.9%</span>
-                </div>
-                <Bar percent={82} ariaLabel="MAP score relative gain" />
-              </div>
-              <div>
-                <div className="row" style={{ fontSize: 11, marginBottom: 4 }}>
-                  <span className="muted">Recall@10</span>
-                  <span className="right mono">98.4%</span>
-                </div>
-                <Bar percent={98} tone="magenta" ariaLabel="Recall at 10" />
-              </div>
+            {/* compression_ratio and default_quantization are not yet exposed
+                by GET /stats (phase25 §5 is still open). Per-collection
+                quantization detail is reported on each collection's detail
+                page once that endpoint ships. */}
+            <div
+              className="muted"
+              style={{ fontSize: 12, lineHeight: 1.6 }}
+            >
+              Per-collection quantization is reported on each collection's
+              detail page. Aggregate compression ratio and recall metrics
+              will appear here once the backend exposes them via{' '}
+              <span className="mono">GET /stats</span>.
             </div>
           </CardBody>
         </Card>
