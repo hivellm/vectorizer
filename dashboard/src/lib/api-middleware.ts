@@ -424,6 +424,23 @@ export const authMiddleware: Middleware = async (context, next) => {
 };
 
 /**
+ * Phase24 — intercept 401 responses and fire a synthetic
+ * `vectorizer:session-expired` event on `window`. AuthContext subscribes
+ * to this event and calls `logout()`, which clears state; ProtectedRoute
+ * then redirects to `/login`. This provides a single redirect point for
+ * expired sessions regardless of which page issued the request.
+ */
+export const unauthorizedMiddleware: Middleware = async (_context, next) => {
+  const result = await next();
+  if (result.response?.status === 401) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vectorizer:session-expired'));
+    }
+  }
+  return result;
+};
+
+/**
  * Phase17 — read the `XSRF-TOKEN` cookie minted by the backend at login
  * and echo it on the `X-CSRF-Token` header for every mutating request.
  * The backend's CSRF middleware (see `auth_handlers::csrf`) rejects POST
@@ -481,6 +498,10 @@ export function createDefaultMiddlewareStack(options?: {
   // the backend's CSRF middleware (under /auth/* and /admin/*) accepts
   // the request. No-op on GET/HEAD/OPTIONS.
   manager.use(csrfMiddleware);
+
+  // Phase24: 401 interception — fire `vectorizer:session-expired` event so
+  // AuthContext can call logout() and ProtectedRoute redirects to /login.
+  manager.use(unauthorizedMiddleware);
 
   // Timeout (before request)
   if (options?.timeout) {
