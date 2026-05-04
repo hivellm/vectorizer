@@ -924,6 +924,11 @@ impl VectorizerServer {
         // `require_admin_middleware` layer to preserve the existing
         // single-user-mode behaviour.
         let admin_router: Router<()> = Router::new()
+            // phase25: runtime metrics endpoint (admin-gated)
+            .route(
+                "/metrics/runtime",
+                get(rest_handlers::metrics::get_runtime_metrics),
+            )
             .route("/workspace/add", post(rest_handlers::add_workspace))
             .route("/workspace/remove", post(rest_handlers::remove_workspace))
             .route(

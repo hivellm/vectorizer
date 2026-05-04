@@ -39,6 +39,7 @@ mod insert;
 mod insert_vectors;
 mod intelligent_search;
 mod meta;
+pub mod metrics;
 mod search;
 mod slow_queries;
 mod vectors;

@@ -44,9 +44,11 @@ mod graph_handlers;
 mod graphql_handlers;
 mod hub_handlers;
 pub mod mcp;
+pub mod metrics_middleware;
 mod qdrant;
 pub mod replication_handlers;
 pub mod rest_handlers;
+pub mod runtime_metrics;
 mod setup_handlers;
 
 pub use core::get_file_watcher_metrics;
@@ -135,6 +137,9 @@ pub struct VectorizerServer {
     /// (issue #263). Held here so the metrics handler can sample
     /// `vectorizer_vocab_build_permits_available` at scrape time.
     pub backpressure_guard: Arc<vectorizer::db::BackpressureGuard>,
+    /// Runtime metrics sampler (phase25): CPU, memory, connections, QPS,
+    /// per-route latency. Wraps a 1-second background tick task.
+    pub runtime_sampler: Arc<runtime_metrics::RuntimeSampler>,
 }
 
 /// Configuration for root user credentials.

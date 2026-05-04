@@ -1463,6 +1463,16 @@ impl VectorizerServer {
             None
         };
 
+        // Start the runtime metrics sampler (phase25).
+        // `start()` takes `&mut self`, so we build + start before wrapping
+        // in `Arc`, then clone the `Arc` into the server struct.
+        let runtime_sampler = {
+            let mut sampler = crate::server::runtime_metrics::RuntimeSampler::new();
+            sampler.start();
+            Arc::new(sampler)
+        };
+        info!("📊 Runtime metrics sampler started (phase25)");
+
         // VectorizerRPC binary listener — opt-in via `rpc.enabled` in
         // config.yml. The listener spawns its own background tasks per
         // accepted connection; nothing else in `Self` needs to retain a
@@ -1576,6 +1586,8 @@ impl VectorizerServer {
                     &vectorizer::config::BackpressureConfig::default(),
                 )
             })),
+            // phase25: runtime metrics sampler.
+            runtime_sampler,
         })
     }
 }

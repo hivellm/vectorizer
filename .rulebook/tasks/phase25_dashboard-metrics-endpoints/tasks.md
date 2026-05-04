@@ -1,14 +1,14 @@
 ## 1. Process-level sampler (CPU, memory, connections, uptime)
 
-- [ ] 1.1 Add a `RuntimeSampler` background task in `crates/vectorizer-server/src/server/runtime_metrics.rs` (new) that ticks every 1s using `sysinfo::System::refresh_process` and stores the latest snapshot in an `Arc<RwLock<RuntimeSnapshot>>`
-- [ ] 1.2 Wire the sampler into the server bootstrap (`crates/vectorizer-server/src/server/core/bootstrap.rs`) so it starts with the Tokio runtime and stops on graceful shutdown
-- [ ] 1.3 Add an axum middleware that increments/decrements an `AtomicUsize` connection counter on each HTTP request
+- [x] 1.1 `RuntimeSampler` shipped in `crates/vectorizer-server/src/server/runtime_metrics.rs` — 1s tick via `sysinfo::System::refresh_processes_specifics(... ProcessRefreshKind::nothing().with_cpu().with_memory())` (sysinfo 0.38 API)
+- [x] 1.2 Sampler wired in `bootstrap.rs::new` and `new_with_root_config` (every `Self { ... }` initialiser carries `runtime_sampler`)
+- [x] 1.3 `metrics_middleware` (new file) increments/decrements an `Arc<AtomicUsize>` connection counter on every request
 
 ## 2. Per-route latency + QPS
 
-- [ ] 2.1 Add a `LatencyAggregator` that maintains, per route template (e.g. `/collections/:name/search/text`), a 60s rolling histogram (HDR or quantile-est crate) — bounded memory, lock-free hot path
-- [ ] 2.2 Wire it into the existing axum tracing middleware so every completed request records `(route_template, duration_ms, status_code)`
-- [ ] 2.3 Track 5xx counts per route in the same aggregator; expose `error_rate_5xx_60s` as `5xx_count / total_count` over the window
+- [x] 2.1 `LatencyAggregator` shipped: per-route `VecDeque<Sample>` with 60s rolling-window pruning; QPS = window count / 60s; p50/p99 from sorted durations
+- [x] 2.2 `metrics_middleware` records `(route, duration_ms, status_code)` on every completed request
+- [x] 2.3 `error_rate_5xx_60s` exposed via `LatencyAggregator::error_rate()` (5xx count / total count over the window)
 
 ## 3. WAL stats projection
 
