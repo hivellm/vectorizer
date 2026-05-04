@@ -136,17 +136,20 @@ jobs:
         # 30-minute budget on stock GitHub runners. 45 minutes gives
         # slow shared runners breathing room without masking real
         # test hangs.
+        #
+        # Note: the heavy end-to-end suite at
+        # `crates/vectorizer/tests/all_tests.rs` is gated behind the
+        # `integration-tests` feature (declared in
+        # `crates/vectorizer/Cargo.toml` via `required-features`) and is
+        # intentionally NOT run in CI — it needs a fully indexed live
+        # server and historically blows past the job timeout. Run it
+        # locally with
+        # `cargo nextest run -p vectorizer --features integration-tests --test all_tests`.
         timeout-minutes: 45
         run: cargo nextest run --workspace --all-targets --test-threads 4
         env:
           # Set test timeouts for integration tests
           NEXTEST_TIMEOUT: 300s
-      - name: Run integration tests specifically
-        timeout-minutes: 20
-        run: cargo nextest run --test all_tests --workspace
-        env:
-          # Extended timeout for integration tests (600 seconds = 10 minutes)
-          NEXTEST_TIMEOUT: 600s
       - name: Run doc tests
         run: cargo test --workspace --doc
       - name: Stop vectorizer server

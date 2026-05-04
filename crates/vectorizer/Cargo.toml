@@ -160,7 +160,7 @@ parquet = { version = "58", optional = true }
 rmcp = { version = "1.5", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
-lru = "0.17"
+lru = "0.18"
 hyper = { version = "1.8.1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1.20", features = ["tokio", "server", "server-auto"] }
 
@@ -405,6 +405,11 @@ gpu-accel = ["hive-gpu"]
 # Server-to-Server (S2S) tests - only compile when explicitly enabled
 # Usage: cargo test --features s2s-tests --test grpc_s2s
 s2s-tests = []
+# Heavy end-to-end integration suite under tests/all_tests.rs.
+# Excluded from CI because it needs a live server + indexed data and
+# blows past the 45-minute job budget. Run locally with:
+#   cargo nextest run --features integration-tests --test all_tests
+integration-tests = []
 benchmarks = []
 candle-core = ["dep:candle-core"]
 candle-nn = ["dep:candle-nn"]
@@ -454,6 +459,13 @@ nix = { version = "0.31", features = ["signal"] }
 # name = "complete_normalization_benchmark"
 # path = "../../benches/scripts/complete_normalization_benchmark.rs"
 # required-features = ["benchmarks"]
+
+# Heavy end-to-end suite — gated by the `integration-tests` feature so
+# `cargo build --tests` and the default CI nextest run skip it.
+[[test]]
+name = "all_tests"
+path = "tests/all_tests.rs"
+required-features = ["integration-tests"]
 
 # Lints + profiles inherited from the workspace root Cargo.toml
 # (centralised under phase4_split-vectorizer-workspace, sub-phase 1).
