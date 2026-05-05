@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSetup, SetupStatus, ProjectAnalysis, SetupProject, SuggestedCollection } from '@/hooks/useSetup';
 import { useTemplates, ConfigTemplate, getTemplateIcon } from '@/hooks/useTemplates.tsx';
 import { useApiKeys } from '@/hooks/useApiKeys';
+import { useApiClient } from '@/hooks/useApiClient';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
 import { Card, CardBody, Pill, Kpi, Icons } from '@/components/console';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -84,6 +85,7 @@ const STEP_LABELS: Record<Exclude<WizardStep, 'complete'>, string> = {
 
 function SetupWizardPage() {
   const navigate = useNavigate();
+  const api = useApiClient();
   const { getStatus, analyzeDirectory, applyConfig } = useSetup();
   const { templates, loading: templatesLoading } = useTemplates();
   const { createApiKey, loading: creatingKey } = useApiKeys();
@@ -143,13 +145,15 @@ function SetupWizardPage() {
     setPathValidation(prev => ({ ...prev, isValidating: true }));
 
     try {
-      const response = await fetch('/setup/browse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path }),
-      });
-
-      const data = await response.json();
+      // Route through the API client so the request hits the configured
+      // backend (localhost:15002 in dev) with the JWT bearer token. A
+      // bare `fetch('/setup/browse')` was previously sent to the Vite
+      // dev server, which 404'd silently and broke path validation.
+      const data = await api.post<{
+        valid: boolean;
+        error?: string;
+        entries?: Array<{ name: string }>;
+      }>('/setup/browse', { path });
 
       if (!data.valid) {
         setPathValidation({
@@ -186,7 +190,7 @@ function SetupWizardPage() {
         isProject: false,
       });
     }
-  }, []);
+  }, [api]);
 
   // Effect to validate path when debounced value changes
   useEffect(() => {
@@ -369,9 +373,11 @@ function SetupWizardPage() {
     setError(null);
 
     try {
-      // Use current working directory (from server) or a default
-      const cwdResponse = await fetch('/health');
-      const cwdData = await cwdResponse.json();
+      // Use current working directory (from server) or a default. Route
+      // through the API client so the request reaches the configured
+      // backend in dev (Vite would otherwise serve the SPA HTML for
+      // `/health`, breaking JSON parsing).
+      const cwdData = await api.get<{ data_dir?: string }>('/health');
       const projectPath = cwdData.data_dir || '.';
 
       // Create a basic workspace config with the template

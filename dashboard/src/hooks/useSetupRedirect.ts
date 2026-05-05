@@ -4,6 +4,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useApiClient } from './useApiClient';
 
 interface SetupStatus {
   needs_setup: boolean;
@@ -31,6 +32,7 @@ export function useSetupRedirect(options?: {
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const api = useApiClient();
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,11 +58,11 @@ export function useSetupRedirect(options?: {
 
     const checkSetup = async () => {
       try {
-        const response = await fetch('/setup/status');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data: SetupStatus = await response.json();
+        // Route through the API client so the request hits the configured
+        // backend (localhost:15002 in dev) with the JWT bearer token. A
+        // bare `fetch('/setup/status')` was previously sent to the Vite
+        // dev server in dev mode and silently failed JSON parsing.
+        const data = await api.get<SetupStatus>('/setup/status');
 
         if (!isMounted) return;
 
@@ -93,7 +95,7 @@ export function useSetupRedirect(options?: {
     return () => {
       isMounted = false;
     };
-  }, [navigate, location.pathname, enabled, excludePaths]);
+  }, [navigate, location.pathname, enabled, excludePaths, api]);
 
   return {
     status,
@@ -109,6 +111,7 @@ export function useSetupRedirect(options?: {
  * @returns Setup status and loading state
  */
 export function useSetupStatus() {
+  const api = useApiClient();
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,11 +129,7 @@ export function useSetupStatus() {
 
     const checkSetup = async () => {
       try {
-        const response = await fetch('/setup/status');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data: SetupStatus = await response.json();
+        const data = await api.get<SetupStatus>('/setup/status');
         if (isMounted) {
           setStatus(data);
         }
@@ -151,7 +150,7 @@ export function useSetupStatus() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [api]);
 
   return {
     status,

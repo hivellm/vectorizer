@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Box, Code01, BookOpen01, Settings02 } from '@untitledui/icons';
+import { useApiClient } from './useApiClient';
 
 export interface CollectionSettings {
   chunk_size: number;
@@ -33,6 +34,7 @@ export interface ConfigTemplate {
  * Hook for fetching all available templates
  */
 export function useTemplates() {
+  const api = useApiClient();
   const [templates, setTemplates] = useState<ConfigTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,11 +44,12 @@ export function useTemplates() {
     setError(null);
 
     try {
-      const response = await fetch('/setup/templates');
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data: ConfigTemplate[] = await response.json();
+      // Route through the API client so the request hits the configured
+      // backend base URL (localhost:15002 in dev, same origin in prod) and
+      // includes the JWT bearer token via the auth middleware. A bare
+      // `fetch('/setup/templates')` was hitting the Vite dev server in
+      // dev and 401-ing in prod.
+      const data = await api.get<ConfigTemplate[]>('/setup/templates');
       setTemplates(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch templates');
@@ -54,7 +57,7 @@ export function useTemplates() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     fetchTemplates();
@@ -72,6 +75,7 @@ export function useTemplates() {
  * Hook for fetching a specific template by ID
  */
 export function useTemplate(templateId: string | null) {
+  const api = useApiClient();
   const [template, setTemplate] = useState<ConfigTemplate | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,14 +85,7 @@ export function useTemplate(templateId: string | null) {
     setError(null);
 
     try {
-      const response = await fetch(`/setup/templates/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error(`Template '${id}' not found`);
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data: ConfigTemplate = await response.json();
+      const data = await api.get<ConfigTemplate>(`/setup/templates/${id}`);
       setTemplate(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch template');
@@ -96,7 +93,7 @@ export function useTemplate(templateId: string | null) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     if (templateId) {

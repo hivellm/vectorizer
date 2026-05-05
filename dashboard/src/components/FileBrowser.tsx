@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback, type CSSProperties } from 'react';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { Pill } from '@/components/console';
+import { useApiClient } from '@/hooks/useApiClient';
 import {
   Folder,
   FolderCode,
@@ -44,6 +45,7 @@ interface FileBrowserProps {
 }
 
 function FileBrowser({ onSelect, onCancel, initialPath }: FileBrowserProps) {
+  const api = useApiClient();
   const [currentPath, setCurrentPath] = useState<string>(initialPath || '');
   const [entries, setEntries] = useState<DirectoryEntry[]>([]);
   const [parentPath, setParentPath] = useState<string | null>(null);
@@ -57,17 +59,11 @@ function FileBrowser({ onSelect, onCancel, initialPath }: FileBrowserProps) {
     setError(null);
 
     try {
-      const response = await fetch('/setup/browse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: path || null }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
-      }
-
-      const data: BrowseResponse = await response.json();
+      // Route through the API client so the request reaches the configured
+      // backend (localhost:15002 in dev, same origin in prod) with the JWT
+      // bearer token attached. A bare `fetch('/setup/browse')` was hitting
+      // the Vite dev server instead of the Rust backend.
+      const data = await api.post<BrowseResponse>('/setup/browse', { path: path || null });
 
       if (!data.valid) {
         setError(data.error || 'Invalid path');
@@ -83,7 +79,7 @@ function FileBrowser({ onSelect, onCancel, initialPath }: FileBrowserProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     fetchDirectory(initialPath || '');

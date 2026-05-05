@@ -9,6 +9,7 @@ import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
+import { useApiClient } from '@/hooks/useApiClient';
 
 // Lazy load pages for code splitting (smaller initial bundle)
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
@@ -50,12 +51,13 @@ const PageLoader = () => (
 function useSetupAutoRedirect() {
   const navigate = useNavigate();
   const location = useLocation();
+  const api = useApiClient();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     // Skip if already checked or on excluded paths
     if (checked) return;
-    
+
     const excludedPaths = ['/setup', '/login'];
     if (excludedPaths.some(path => location.pathname.startsWith(path))) {
       setChecked(true);
@@ -64,12 +66,13 @@ function useSetupAutoRedirect() {
 
     const checkSetup = async () => {
       try {
-        const response = await fetch('/setup/status');
-        if (response.ok) {
-          const status = await response.json();
-          if (status.needs_setup) {
-            navigate('/setup', { replace: true });
-          }
+        // Route through the API client so the request hits the configured
+        // backend (localhost:15002 in dev) with the JWT bearer token. A
+        // bare `fetch('/setup/status')` was previously sent to the Vite
+        // dev server and silently failed to parse the SPA HTML as JSON.
+        const status = await api.get<{ needs_setup: boolean }>('/setup/status');
+        if (status.needs_setup) {
+          navigate('/setup', { replace: true });
         }
       } catch (error) {
         console.error('Failed to check setup status:', error);
@@ -79,7 +82,7 @@ function useSetupAutoRedirect() {
     };
 
     checkSetup();
-  }, [navigate, location.pathname, checked]);
+  }, [navigate, location.pathname, checked, api]);
 }
 
 function AppRouter() {
