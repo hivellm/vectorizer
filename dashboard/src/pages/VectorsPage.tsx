@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
+import { useToastContext } from '@/providers/ToastProvider';
 import {
   Icons,
   Pill,
@@ -32,6 +33,7 @@ function VectorsPage() {
   const api = useApiClient();
   const { listCollections } = useCollections();
   const { collections, setCollections } = useCollectionsStore();
+  const toast = useToastContext();
 
   const [collection, setCollection] = useState<string>('');
   const [vectors, setVectors] = useState<VectorRow[]>([]);
@@ -39,6 +41,13 @@ function VectorsPage() {
   const [selected, setSelected] = useState<VectorRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Insert-vector inline form
+  const [insertOpen, setInsertOpen] = useState(false);
+  const [insertId, setInsertId] = useState('');
+  const [insertText, setInsertText] = useState('');
+  const [insertPayload, setInsertPayload] = useState('');
+  const [inserting, setInserting] = useState(false);
 
   // Hydrate collection list once
   useEffect(() => {
@@ -56,6 +65,36 @@ function VectorsPage() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch vectors for the active collection. Returned promise resolves
+  // after state has been updated so callers (insert/delete) can chain.
+  const fetchVectors = async (preserveSelectionId?: string | null) => {
+    if (!collection) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await api.get<{ vectors?: VectorRow[] } | VectorRow[]>(
+        `/collections/${encodeURIComponent(collection)}/vectors?limit=200`,
+      );
+      const payload = (resp as { data?: unknown })?.data ?? resp;
+      const arr = Array.isArray(payload)
+        ? (payload as VectorRow[])
+        : ((payload as { vectors?: VectorRow[] })?.vectors ?? []);
+      setVectors(arr);
+      if (preserveSelectionId) {
+        const match = arr.find((v) => v.id === preserveSelectionId);
+        setSelected(match ?? arr[0] ?? null);
+      } else {
+        setSelected(arr[0] ?? null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch vectors');
+      setVectors([]);
+      setSelected(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fetch vectors whenever collection changes
   useEffect(() => {
@@ -89,6 +128,89 @@ function VectorsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collection]);
+
+  const handleCopyId = async () => {
+    if (!selected) return;
+    try {
+      await navigator.clipboard.writeText(selected.id);
+      toast.success('Vector ID copied');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to copy');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selected || !collection) return;
+    if (!window.confirm(`Delete vector "${selected.id}"? This cannot be undone.`)) return;
+    const id = selected.id;
+    try {
+      await api.delete(
+        `/collections/${encodeURIComponent(collection)}/vectors/${encodeURIComponent(id)}`,
+      );
+      toast.success(`Vector "${id}" deleted`);
+      await fetchVectors();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete vector');
+    }
+  };
+
+  const resetInsertForm = () => {
+    setInsertId('');
+    setInsertText('');
+    setInsertPayload('');
+  };
+
+  const handleInsert = async () => {
+    if (!collection) {
+      toast.error('Select a collection first');
+      return;
+    }
+    const id = insertId.trim();
+    const text = insertText.trim();
+    if (!id) {
+      toast.error('Vector ID is required');
+      return;
+    }
+    if (!text) {
+      toast.error('Vector text is required');
+      return;
+    }
+    let parsedPayload: Record<string, unknown> | undefined;
+    if (insertPayload.trim().length > 0) {
+      try {
+        const parsed = JSON.parse(insertPayload);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          parsedPayload = parsed as Record<string, unknown>;
+        } else {
+          toast.error('Payload must be a JSON object');
+          return;
+        }
+      } catch {
+        toast.error('Invalid JSON payload');
+        return;
+      }
+    }
+
+    setInserting(true);
+    try {
+      await api.post('/insert_texts', {
+        collection,
+        texts: [
+          parsedPayload
+            ? { id, text, metadata: parsedPayload }
+            : { id, text },
+        ],
+      });
+      toast.success(`Vector "${id}" inserted`);
+      resetInsertForm();
+      setInsertOpen(false);
+      await fetchVectors(id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to insert vector');
+    } finally {
+      setInserting(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!filter.trim()) return vectors;
@@ -132,12 +254,99 @@ function VectorsPage() {
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
-          <button className="btn">
+          <button
+            className="btn"
+            onClick={() => setInsertOpen((v) => !v)}
+            disabled={!collection}
+            aria-expanded={insertOpen}
+          >
             <Icons.plus size={13} />
             Insert vector
           </button>
         </div>
       </div>
+
+      {insertOpen && (
+        <Card>
+          <CardHead title="Insert vector" />
+          <CardBody>
+            <div className="col" style={{ gap: 10 }}>
+              <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="field">
+                  <label className="field-label" htmlFor="insert-vec-id">ID</label>
+                  <input
+                    id="insert-vec-id"
+                    className="input"
+                    placeholder="vector-id"
+                    value={insertId}
+                    onChange={(e) => setInsertId(e.target.value)}
+                    disabled={inserting}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor="insert-vec-collection">Collection</label>
+                  <input
+                    id="insert-vec-collection"
+                    className="input"
+                    value={collection}
+                    readOnly
+                    aria-readonly
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="insert-vec-text">Text</label>
+                <textarea
+                  id="insert-vec-text"
+                  className="input"
+                  rows={3}
+                  placeholder="Source text to embed"
+                  value={insertText}
+                  onChange={(e) => setInsertText(e.target.value)}
+                  disabled={inserting}
+                  style={{ minHeight: 70, resize: 'vertical' }}
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="insert-vec-payload">
+                  Payload (JSON, optional)
+                </label>
+                <textarea
+                  id="insert-vec-payload"
+                  className="input mono"
+                  rows={3}
+                  placeholder='{"source": "manual"}'
+                  value={insertPayload}
+                  onChange={(e) => setInsertPayload(e.target.value)}
+                  disabled={inserting}
+                  style={{ minHeight: 70, resize: 'vertical', fontSize: 12 }}
+                />
+              </div>
+              <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setInsertOpen(false);
+                    resetInsertForm();
+                  }}
+                  disabled={inserting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={handleInsert}
+                  disabled={inserting}
+                >
+                  {inserting ? 'Inserting…' : 'Insert vector'}
+                </button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr', gap: 14 }}>
         <Card>
@@ -220,12 +429,19 @@ function VectorsPage() {
                 </span>
               </div>
               <div className="row" style={{ gap: 6 }}>
-                {/* TODO(actions): wire copy/delete to API */}
-                <button className="btn sm" disabled={!selected}>
+                <button
+                  className="btn sm"
+                  disabled={!selected}
+                  onClick={handleCopyId}
+                >
                   <Icons.copy size={11} />
                   Copy
                 </button>
-                <button className="btn sm magenta" disabled={!selected}>
+                <button
+                  className="btn sm magenta"
+                  disabled={!selected}
+                  onClick={handleDelete}
+                >
                   <Icons.trash size={11} />
                   Delete
                 </button>

@@ -502,6 +502,23 @@ function GraphPage() {
         }
       });
 
+      // Handle edge selection — open the details modal so users can
+      // inspect / delete the edge. Only fire when a single edge is
+      // clicked without a node also being selected.
+      network.on('selectEdge', (params) => {
+        if (
+          params.edges.length > 0 &&
+          (!params.nodes || params.nodes.length === 0)
+        ) {
+          const edgeId = params.edges[0] as string;
+          const edge = edges.find((e) => e.id === edgeId);
+          if (edge) {
+            setSelectedEdge(edge);
+            setShowEdgeDetailsModal(true);
+          }
+        }
+      });
+
       // Handle click on background
       network.on('click', (params) => {
         if (params.nodes.length === 0) {

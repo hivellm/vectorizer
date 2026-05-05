@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
+import { useToastContext } from '@/providers/ToastProvider';
 import LoadingState from '@/components/LoadingState';
 import CreateCollectionModal from '@/components/modals/CreateCollectionModal';
 import FileUploadModal from '@/components/modals/FileUploadModal';
+import DeleteCollectionModal from '@/components/modals/DeleteCollectionModal';
 import {
   Icons,
   StatusPill,
@@ -19,11 +21,22 @@ import type { Collection } from '@/hooks/useCollections';
 function CollectionsPage() {
   const { listCollections } = useCollections();
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
+  const toast = useToastContext();
   const ref = useRef<NodeJS.Timeout | null>(null);
   const [filter, setFilter] = useState('');
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const handleCopyName = async (name: string) => {
+    try {
+      await navigator.clipboard.writeText(name);
+      toast.success('Collection name copied');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to copy');
+    }
+  };
 
   const fetchCollections = async () => {
     setLoading(true);
@@ -98,6 +111,19 @@ function CollectionsPage() {
         onClose={() => setUploadOpen(false)}
         onSuccess={fetchCollections}
       />
+      {selected && (
+        <DeleteCollectionModal
+          isOpen={deleteOpen}
+          onClose={() => {
+            setDeleteOpen(false);
+            // The modal removes the deleted collection from the store and
+            // refetches the list itself; reset local selection so the
+            // detail pane falls back to the next available collection.
+            setSelectedName(null);
+          }}
+          collectionName={selected.name}
+        />
+      )}
 
       <div className="grid grid-1-2" style={{ gap: 14 }}>
         {/* List card */}
@@ -171,16 +197,25 @@ function CollectionsPage() {
                     </div>
                   </div>
                   <div className="row" style={{ gap: 6 }}>
-                    {/* TODO(actions): wire reindex/copy/delete to API */}
-                    <button className="btn sm">
+                    <button
+                      className="btn sm"
+                      disabled
+                      title="Reindex endpoint not yet exposed by the server"
+                    >
                       <Icons.refresh size={11} />
                       Reindex
                     </button>
-                    <button className="btn sm">
+                    <button
+                      className="btn sm"
+                      onClick={() => handleCopyName(selected.name)}
+                    >
                       <Icons.copy size={11} />
                       Copy ID
                     </button>
-                    <button className="btn sm magenta">
+                    <button
+                      className="btn sm magenta"
+                      onClick={() => setDeleteOpen(true)}
+                    >
                       <Icons.trash size={11} />
                       Delete
                     </button>
