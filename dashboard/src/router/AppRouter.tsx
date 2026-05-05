@@ -2,14 +2,13 @@
  * Application router with persistent navigation and code splitting
  */
 
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ConsoleLayout } from '@/components/console';
 import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { useApiClient } from '@/hooks/useApiClient';
 
 // Lazy load pages for code splitting (smaller initial bundle)
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
@@ -47,49 +46,17 @@ const PageLoader = () => (
   </div>
 );
 
-// Hook to check setup status and auto-redirect
-function useSetupAutoRedirect() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const api = useApiClient();
-  const [checked, setChecked] = useState(false);
-
-  useEffect(() => {
-    // Skip if already checked or on excluded paths
-    if (checked) return;
-
-    const excludedPaths = ['/setup', '/login'];
-    if (excludedPaths.some(path => location.pathname.startsWith(path))) {
-      setChecked(true);
-      return;
-    }
-
-    const checkSetup = async () => {
-      try {
-        // Route through the API client so the request hits the configured
-        // backend (localhost:15002 in dev) with the JWT bearer token. A
-        // bare `fetch('/setup/status')` was previously sent to the Vite
-        // dev server and silently failed to parse the SPA HTML as JSON.
-        const status = await api.get<{ needs_setup: boolean }>('/setup/status');
-        if (status.needs_setup) {
-          navigate('/setup', { replace: true });
-        }
-      } catch (error) {
-        console.error('Failed to check setup status:', error);
-      } finally {
-        setChecked(true);
-      }
-    };
-
-    checkSetup();
-  }, [navigate, location.pathname, checked, api]);
-}
-
 function AppRouter() {
   const { isAuthenticated } = useAuth();
-  
-  // Check for setup redirect
-  useSetupAutoRedirect();
+
+  // Setup wizard is now a soft suggestion surfaced via WelcomeBanner
+  // on the Overview page (and accessible from the sidebar). The previous
+  // auto-redirect to /setup was hijacking every navigation when
+  // `needs_setup: true`, preventing users from reaching collections,
+  // search, configuration, etc. — even when collections already existed
+  // and were fully usable. Discovery: users couldn't create collections,
+  // upload files, save config, or run searches because the redirect
+  // kicked in on every fresh page load. See WelcomeBanner.
 
   return (
     <Suspense fallback={<PageLoader />}>

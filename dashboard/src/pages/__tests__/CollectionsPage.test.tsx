@@ -2,6 +2,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import CollectionsPage from '../CollectionsPage';
+import { ToastProvider } from '@/providers/ToastProvider';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
@@ -28,7 +30,15 @@ vi.mock('@/stores/collections', () => ({
 
 describe('CollectionsPage', () => {
   it('renders the list and selects the first item by default', () => {
-    render(<MemoryRouter><CollectionsPage /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <CollectionsPage />
+          </ToastProvider>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
     expect(screen.getByRole('heading', { name: /Collections/i })).toBeTruthy();
     // List entry
     expect(screen.getAllByText('docs').length).toBeGreaterThanOrEqual(1);
@@ -38,7 +48,15 @@ describe('CollectionsPage', () => {
   });
 
   it('switches detail when clicking a different row', () => {
-    render(<MemoryRouter><CollectionsPage /></MemoryRouter>);
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <CollectionsPage />
+          </ToastProvider>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
     fireEvent.click(screen.getByText('code'));
     expect(screen.getAllByText('code').length).toBeGreaterThanOrEqual(2);
   });

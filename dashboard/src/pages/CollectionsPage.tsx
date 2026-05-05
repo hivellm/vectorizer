@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
+import CreateCollectionModal from '@/components/modals/CreateCollectionModal';
+import FileUploadModal from '@/components/modals/FileUploadModal';
 import {
   Icons,
   StatusPill,
@@ -20,6 +22,8 @@ function CollectionsPage() {
   const ref = useRef<NodeJS.Timeout | null>(null);
   const [filter, setFilter] = useState('');
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const fetchCollections = async () => {
     setLoading(true);
@@ -74,12 +78,26 @@ function CollectionsPage() {
             <Icons.refresh size={13} />
             Refresh
           </button>
-          <button className="btn primary">
+          <button className="btn" onClick={() => setUploadOpen(true)}>
+            <Icons.arrowUp size={13} />
+            Upload file
+          </button>
+          <button className="btn primary" onClick={() => setCreateOpen(true)}>
             <Icons.plus size={13} />
             Create collection
           </button>
         </div>
       </div>
+
+      <CreateCollectionModal
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
+      <FileUploadModal
+        isOpen={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onSuccess={fetchCollections}
+      />
 
       <div className="grid grid-1-2" style={{ gap: 14 }}>
         {/* List card */}

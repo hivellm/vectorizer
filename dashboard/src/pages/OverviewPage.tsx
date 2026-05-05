@@ -5,6 +5,7 @@ import { useStats } from '@/hooks/useStats';
 import { useEvents } from '@/hooks/useEvents';
 import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
+import WelcomeBanner from '@/components/WelcomeBanner';
 import {
   Icons,
   Ring,
@@ -95,6 +96,7 @@ function OverviewPage() {
 
   return (
     <div className="page">
+      <WelcomeBanner />
       <div className="page-head">
         <div>
           <h1 className="page-title">Overview</h1>
@@ -104,10 +106,6 @@ function OverviewPage() {
           <button className="btn" onClick={fetchCollections}>
             <Icons.refresh size={13} />
             Refresh
-          </button>
-          <button className="btn primary">
-            <Icons.plus size={13} />
-            New Collection
           </button>
         </div>
       </div>

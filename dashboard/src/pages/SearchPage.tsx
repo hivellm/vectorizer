@@ -110,18 +110,61 @@ function SearchPage() {
   const cur = useMemo(() => SEARCH_TYPES.find((s) => s.id === type)!, [type]);
   const CurIc = Icons[cur.icon];
 
+  const collList = Array.isArray(collections) ? collections : [];
+
   const runSearch = async () => {
     if (!query.trim()) return;
     setRunning(true);
     setError(null);
     const t0 = performance.now();
     try {
+      // Build a payload that matches each backend handler's exact schema.
+      // See crates/vectorizer-server/src/server/rest_handlers/intelligent_search.rs:
+      //   - intelligent_search        : query, collections (array, optional), max_results
+      //   - multi_collection_search   : query, collections (array, REQUIRED), max_total_results
+      //   - semantic_search           : query, collection (string, REQUIRED), max_results, similarity_threshold
+      //   - contextual_search         : query, collection (string, REQUIRED), max_results
+      //
+      // The previous payload `{ query, limit, threshold, collection }` did
+      // NOT match any handler — backend silently ignored `limit`/`threshold`,
+      // and multi_collection_search returned 400 because `collections` was
+      // missing. semantic/contextual additionally rejected `collection: "all"`
+      // because they require a real collection name.
       const body: Record<string, unknown> = {
         query,
-        limit,
-        threshold,
+        max_results: limit,
       };
-      if (collection !== 'all') body.collection = collection;
+      const allCollections = collList.map((c) => c.name);
+      switch (cur.id) {
+        case 'intelligent': {
+          // collections is OPTIONAL — when omitted, server fans out across
+          // all collections. Pass selected collection when one is chosen.
+          if (collection !== 'all') body.collections = [collection];
+          break;
+        }
+        case 'multi': {
+          // collections is REQUIRED. If user picked "all", expand to every
+          // known collection so the request doesn't 400.
+          body.collections =
+            collection === 'all' ? allCollections : [collection];
+          body.max_total_results = limit;
+          break;
+        }
+        case 'semantic': {
+          // collection is REQUIRED. Fall back to the first known collection
+          // when user picked "all" (semantic search is single-collection by
+          // design on the backend).
+          body.collection =
+            collection === 'all' ? (allCollections[0] ?? '') : collection;
+          body.similarity_threshold = threshold;
+          break;
+        }
+        case 'contextual': {
+          body.collection =
+            collection === 'all' ? (allCollections[0] ?? '') : collection;
+          break;
+        }
+      }
       // useApiClient.post() returns the unwrapped data via middleware. The
       // defensive checks below also handle the raw `{ data: ... }` shape so
       // the page works against both client variants.
@@ -140,8 +183,6 @@ function SearchPage() {
       setRunning(false);
     }
   };
-
-  const collList = Array.isArray(collections) ? collections : [];
 
   return (
     <div className="page">
