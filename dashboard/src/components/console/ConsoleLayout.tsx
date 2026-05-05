@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ToastProvider } from '@/providers/ToastProvider';
+import { useStats } from '@/hooks/useStats';
 import { ConsoleSidebar } from './ConsoleSidebar';
 import { ConsoleTopbar } from './ConsoleTopbar';
 import { CommandPalette } from './CommandPalette';
@@ -11,6 +12,9 @@ export function ConsoleLayout() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  // /health is also polled by individual pages; the hook is cheap and keeps
+  // the sidebar version pill in sync with the live server.
+  const { stats } = useStats();
 
   useEffect(() => {
     document.body.dataset.console = '1';
@@ -42,7 +46,11 @@ export function ConsoleLayout() {
   return (
     <ToastProvider>
       <div className="app" style={{ gridTemplateColumns: collapsed ? '60px 1fr' : '232px 1fr' }}>
-        <ConsoleSidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
+        <ConsoleSidebar
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed((c) => !c)}
+          version={stats.version}
+        />
         <div className="main">
           <ConsoleTopbar crumbs={crumbs} onOpenCmd={() => setCmdOpen(true)} />
           <Outlet />

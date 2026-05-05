@@ -2,34 +2,41 @@ import { useMetrics } from '@/hooks/useMetrics';
 import { useStats } from '@/hooks/useStats';
 import {
   Icons,
-  Sparkline,
   Pill,
   Card,
   CardHead,
   CardBody,
-  Bar,
   KeyValue,
   KeyValueRow,
 } from '@/components/console';
 import { formatBytes, formatNumber, formatRelativeTime } from '@/utils/formatters';
 
-// TODO(metrics-history): sparkline series stay synthetic until a
-// /metrics?range=24h endpoint streams a real point series.
-const SPARK = (n: number, base: number, amp: number): number[] =>
-  Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
-
-// TODO(stats-endpoint): the REST/MCP throughput breakdown, p99, 5xx rate
-// and SIMD primitive throughput stay synthetic — the backend does not yet
-// expose these in /stats or /health. WAL sequence/size/checkpoint also
-// stay synthetic until /health (or a /wal endpoint) starts emitting them.
-// Cache hits/misses/evictions/hit-rate are now live (from /health).
+// Reusable "endpoint not yet exposed" placeholder. Used everywhere on this
+// page where the backend doesn't currently emit data — keeps the layout
+// stable while making it crystal clear that nothing is mocked.
+function NotExposed({ subject }: { subject: string }) {
+  return (
+    <div
+      className="muted"
+      style={{
+        padding: 24,
+        textAlign: 'center',
+        fontSize: 12,
+        lineHeight: 1.6,
+      }}
+    >
+      {subject} not yet exposed by the server. Coming soon.
+    </div>
+  );
+}
 
 function MonitoringPage() {
-  const { metrics } = useMetrics();
+  const { metrics, loading: metricsLoading } = useMetrics();
   const { stats } = useStats();
   const total = metrics.qps;
   const cache = stats.cache;
   const hitPct = Math.max(0, Math.min(100, cache.hitRate * 100));
+  const cacheHasData = cache.hits + cache.misses + cache.evictions > 0;
 
   return (
     <div className="page">
@@ -37,7 +44,8 @@ function MonitoringPage() {
         <div>
           <h1 className="page-title">Monitoring</h1>
           <p className="page-sub">
-            Real-time metrics across SIMD dispatch, WAL, query cache and HTTP throughput
+            Live metrics from <span className="mono">/health</span>. Other surfaces light up
+            once the server begins emitting them.
           </p>
         </div>
         <div className="row" style={{ gap: 8 }}>
@@ -52,11 +60,11 @@ function MonitoringPage() {
         </div>
       </div>
 
-      {/* Throughput strip */}
+      {/* Throughput strip — only Total is real (from /stats). */}
       <Card>
-        <CardHead title="HTTP / MCP throughput · last 60s" sub="requests/sec" />
+        <CardHead title="HTTP / MCP throughput" sub="requests/sec" />
         <CardBody>
-          <div className="row" style={{ gap: 24, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div className="row" style={{ gap: 24, marginBottom: 4, flexWrap: 'wrap' }}>
             <div>
               <div
                 className="muted"
@@ -65,70 +73,13 @@ function MonitoringPage() {
                 Total
               </div>
               <div className="tnum" style={{ fontSize: 24, fontWeight: 600 }}>
-                {total.toLocaleString()}
-              </div>
-            </div>
-            <div>
-              <div
-                className="muted"
-                style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
-              >
-                REST
-              </div>
-              <div
-                className="tnum"
-                style={{ fontSize: 24, fontWeight: 600, color: 'var(--teal-hi)' }}
-              >
-                1,841
-              </div>
-            </div>
-            <div>
-              <div
-                className="muted"
-                style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
-              >
-                MCP
-              </div>
-              <div
-                className="tnum"
-                style={{ fontSize: 24, fontWeight: 600, color: 'var(--magenta-hi)' }}
-              >
-                639
-              </div>
-            </div>
-            <div>
-              <div
-                className="muted"
-                style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
-              >
-                p99
-              </div>
-              <div className="tnum" style={{ fontSize: 24, fontWeight: 600 }}>
-                2.8ms
-              </div>
-            </div>
-            <div>
-              <div
-                className="muted"
-                style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}
-              >
-                5xx rate
-              </div>
-              <div
-                className="tnum"
-                style={{ fontSize: 24, fontWeight: 600, color: 'var(--green)' }}
-              >
-                0.00%
+                {metricsLoading ? '…' : total ? total.toLocaleString() : '—'}
               </div>
             </div>
           </div>
-          <Sparkline
-            data={SPARK(60, 2400, 220)}
-            width={1100}
-            height={70}
-            color="var(--teal)"
-            ariaLabel="HTTP plus MCP requests per second over the last 60 seconds"
-          />
+          <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+            REST/MCP split, p99 latency and 5xx-rate are not yet exposed by the server.
+          </div>
         </CardBody>
       </Card>
 
@@ -137,136 +88,75 @@ function MonitoringPage() {
       <div className="grid grid-2" style={{ gap: 14, marginBottom: 14 }}>
         {/* SIMD Backend */}
         <Card>
-          <CardHead
-            title="SIMD Backend"
-            right={<Pill tone="teal" className="mono">avx2</Pill>}
-          />
+          <CardHead title="SIMD Backend" />
           <CardBody>
-            <KeyValue>
-              <KeyValueRow term="Active backend">Avx2Backend · 8 f32 lanes</KeyValueRow>
-              <KeyValueRow term="Selection">
-                <span className="muted">
-                  VNNI → AVX-512F →{' '}
-                  <span style={{ color: 'var(--teal-hi)' }}>AVX2+FMA</span> → AVX2 → SSE2 → scalar
-                </span>
-              </KeyValueRow>
-              <KeyValueRow term="Override">VECTORIZER_SIMD_BACKEND=auto</KeyValueRow>
-              <KeyValueRow term="FMA fusion">
-                <Pill tone="green">enabled</Pill>
-              </KeyValueRow>
-              <KeyValueRow term="Architecture">x86_64 · Intel Xeon 6248 · 24 cores</KeyValueRow>
-            </KeyValue>
-            <div className="divider" />
-            <div
-              className="muted"
-              style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}
-            >
-              Primitive throughput
-            </div>
-            <div className="col" style={{ gap: 8 }}>
-              {(
-                [
-                  ['dot_product', 92, '12.4 Gflop/s'],
-                  ['cosine_similarity', 88, '11.8 Gflop/s'],
-                  ['euclidean_dist²', 86, '11.2 Gflop/s'],
-                  ['l2_norm', 79, '9.8 Gflop/s'],
-                ] as const
-              ).map(([name, percent, label]) => (
-                <div key={name}>
-                  <div className="row" style={{ fontSize: 11, marginBottom: 3 }}>
-                    <span className="mono">{name}</span>
-                    <span className="right mono muted">{label}</span>
-                  </div>
-                  <Bar percent={percent} ariaLabel={`${name} throughput at ${label}`} />
-                </div>
-              ))}
-            </div>
+            <NotExposed subject="SIMD backend introspection" />
           </CardBody>
         </Card>
 
         {/* Write-Ahead Log */}
         <Card>
-          <CardHead
-            title="Write-Ahead Log"
-            right={<Pill tone="green">healthy</Pill>}
-          />
+          <CardHead title="Write-Ahead Log" />
           <CardBody>
-            <div className="grid grid-3" style={{ gap: 14, marginBottom: 14 }}>
-              <div>
-                <div
-                  className="muted"
-                  style={{ fontSize: 10, textTransform: 'uppercase' }}
-                >
-                  Sequence
+            {stats.walSequence !== undefined ||
+            stats.walSizeBytes !== undefined ||
+            stats.walLastCheckpointAt ? (
+              <div className="grid grid-3" style={{ gap: 14, marginBottom: 14 }}>
+                <div>
+                  <div
+                    className="muted"
+                    style={{ fontSize: 10, textTransform: 'uppercase' }}
+                  >
+                    Sequence
+                  </div>
+                  <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
+                    {stats.walSequence !== undefined ? formatNumber(stats.walSequence) : '—'}
+                  </div>
                 </div>
-                <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  {/* TODO(stats-endpoint): backend /health does not yet emit
-                      wal.sequence — useStats picks it up automatically once
-                      it does. */}
-                  {stats.walSequence !== undefined ? formatNumber(stats.walSequence) : '8,811,998'}
+                <div>
+                  <div
+                    className="muted"
+                    style={{ fontSize: 10, textTransform: 'uppercase' }}
+                  >
+                    Size on disk
+                  </div>
+                  <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
+                    {stats.walSizeBytes !== undefined ? formatBytes(stats.walSizeBytes, 0) : '—'}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div
-                  className="muted"
-                  style={{ fontSize: 10, textTransform: 'uppercase' }}
-                >
-                  Size on disk
-                </div>
-                <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  {/* TODO(stats-endpoint): backend /health does not yet emit
-                      wal.size_bytes. */}
-                  {stats.walSizeBytes !== undefined ? formatBytes(stats.walSizeBytes, 0) : '284 MB'}
-                </div>
-              </div>
-              <div>
-                <div
-                  className="muted"
-                  style={{ fontSize: 10, textTransform: 'uppercase' }}
-                >
-                  Last checkpoint
-                </div>
-                <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  {/* TODO(stats-endpoint): backend /health does not yet emit
-                      wal.last_checkpoint. */}
-                  {stats.walLastCheckpointAt
-                    ? formatRelativeTime(stats.walLastCheckpointAt)
-                    : '2m ago'}
+                <div>
+                  <div
+                    className="muted"
+                    style={{ fontSize: 10, textTransform: 'uppercase' }}
+                  >
+                    Last checkpoint
+                  </div>
+                  <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
+                    {stats.walLastCheckpointAt
+                      ? formatRelativeTime(stats.walLastCheckpointAt)
+                      : '—'}
+                  </div>
                 </div>
               </div>
-            </div>
-            <Sparkline
-              data={SPARK(40, 280, 40)}
-              width={460}
-              height={70}
-              color="var(--magenta)"
-              ariaLabel="WAL size over time"
-            />
-            <div className="divider" />
-            <KeyValue>
-              <KeyValueRow term="Path">/var/lib/vectorizer/vectorizer.wal</KeyValueRow>
-              <KeyValueRow term="Format">JSON-Lines · global atomic seq</KeyValueRow>
-              <KeyValueRow term="Recovery">strict-monotonic · per-collection filter</KeyValueRow>
-              <KeyValueRow term="Replay rate">~42k ops/sec</KeyValueRow>
-            </KeyValue>
-            <div className="row" style={{ gap: 6, marginTop: 12 }}>
-              {/* TODO(stats-endpoint): wire real WAL actions */}
-              <button className="btn sm">
-                <Icons.zap size={11} />
-                Force checkpoint
-              </button>
-              <button className="btn sm">Tail entries</button>
-            </div>
+            ) : (
+              <NotExposed subject="WAL stats" />
+            )}
           </CardBody>
         </Card>
       </div>
 
       <div className="grid grid-2" style={{ gap: 14 }}>
-        {/* Query Cache */}
+        {/* Query Cache (real /health data) */}
         <Card>
           <CardHead
             title="Query Cache"
-            right={<Pill tone="green" className="mono">{`${hitPct.toFixed(1)}% hit rate`}</Pill>}
+            right={
+              cacheHasData ? (
+                <Pill tone="green" className="mono">{`${hitPct.toFixed(1)}% hit rate`}</Pill>
+              ) : (
+                <Pill tone="muted" className="mono">—</Pill>
+              )
+            }
           />
           <CardBody>
             <div className="grid grid-4" style={{ gap: 14, marginBottom: 14 }}>
@@ -279,9 +169,13 @@ function MonitoringPage() {
                 </div>
                 <div
                   className="tnum"
-                  style={{ fontSize: 18, fontWeight: 600, color: 'var(--green)' }}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: cache.hits ? 'var(--green)' : 'var(--text-2)',
+                  }}
                 >
-                  {formatNumber(cache.hits)}
+                  {cache.hits ? formatNumber(cache.hits) : '—'}
                 </div>
               </div>
               <div>
@@ -295,7 +189,7 @@ function MonitoringPage() {
                   className="tnum"
                   style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-2)' }}
                 >
-                  {formatNumber(cache.misses)}
+                  {cache.misses ? formatNumber(cache.misses) : '—'}
                 </div>
               </div>
               <div>
@@ -307,9 +201,13 @@ function MonitoringPage() {
                 </div>
                 <div
                   className="tnum"
-                  style={{ fontSize: 18, fontWeight: 600, color: 'var(--amber)' }}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: cache.evictions ? 'var(--amber)' : 'var(--text-2)',
+                  }}
                 >
-                  {formatNumber(cache.evictions)}
+                  {cache.evictions ? formatNumber(cache.evictions) : '—'}
                 </div>
               </div>
               <div>
@@ -317,25 +215,20 @@ function MonitoringPage() {
                   className="muted"
                   style={{ fontSize: 10, textTransform: 'uppercase' }}
                 >
-                  TTL
+                  Capacity
                 </div>
                 <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  5min
+                  {cache.capacity ? formatNumber(cache.capacity) : '—'}
                 </div>
               </div>
             </div>
-            <Sparkline
-              data={SPARK(40, 94, 3)}
-              width={460}
-              height={70}
-              color="var(--green)"
-              ariaLabel="Query cache hit rate over time"
-            />
             <div className="divider" />
             <KeyValue>
               <KeyValueRow term="Layer">QueryCache (LRU + TTL) · response-level</KeyValueRow>
               <KeyValueRow term="Key">(collection, query, limit, threshold)</KeyValueRow>
-              <KeyValueRow term="Capacity">10,000 entries · 184 MB</KeyValueRow>
+              <KeyValueRow term="Size">
+                {cache.size ? formatNumber(cache.size) : '—'} entries
+              </KeyValueRow>
               <KeyValueRow term="Invalidation">collection-scoped on writes</KeyValueRow>
             </KeyValue>
           </CardBody>
@@ -343,40 +236,9 @@ function MonitoringPage() {
 
         {/* File-ops Cache */}
         <Card>
-          <CardHead
-            title="File-ops Cache"
-            right={<Pill tone="teal" className="mono">3-tier LRU</Pill>}
-          />
+          <CardHead title="File-ops Cache" />
           <CardBody>
-            <div className="col" style={{ gap: 14 }}>
-              {(
-                [
-                  ['File content cache', 78, 100, 'files'],
-                  ['Summary cache', 432, 500, 'summaries'],
-                  ['File list cache (TTL 60s)', 18, 50, 'collections'],
-                ] as const
-              ).map(([name, used, cap, unit]) => (
-                <div key={name}>
-                  <div className="row" style={{ fontSize: 12, marginBottom: 5 }}>
-                    <span>{name}</span>
-                    <span className="right mono muted">
-                      {used}/{cap} {unit}
-                    </span>
-                  </div>
-                  <Bar
-                    percent={(used / cap) * 100}
-                    tone="amber"
-                    ariaLabel={`${name} utilization`}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="divider" />
-            <KeyValue>
-              <KeyValueRow term="Owner">FileOperationsManager</KeyValueRow>
-              <KeyValueRow term="Eviction">LRU · per-entry TTL</KeyValueRow>
-              <KeyValueRow term="Triggers">file watcher events · explicit clear_*</KeyValueRow>
-            </KeyValue>
+            <NotExposed subject="File-ops cache stats" />
           </CardBody>
         </Card>
       </div>

@@ -4,9 +4,7 @@ import { useCollectionsStore } from '@/stores/collections';
 import LoadingState from '@/components/LoadingState';
 import {
   Icons,
-  Sparkline,
   StatusPill,
-  Pill,
   Card,
   CardHead,
   CardBody,
@@ -15,9 +13,6 @@ import {
 } from '@/components/console';
 import { formatNumber } from '@/utils/formatters';
 import type { Collection } from '@/hooks/useCollections';
-
-const SPARK = (n: number, base: number, amp: number): number[] =>
-  Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
 function CollectionsPage() {
   const { listCollections } = useCollections();
@@ -128,7 +123,7 @@ function CollectionsPage() {
                     >
                       <span>{formatNumber(c.vector_count ?? 0)} vec</span>
                       <span>{c.dimension ?? '—'}d</span>
-                      <span>{(c as { metric?: string }).metric ?? 'cosine'}</span>
+                      <span>{c.metric ?? '—'}</span>
                     </div>
                   </div>
                 );
@@ -205,7 +200,7 @@ function CollectionsPage() {
                         Metric
                       </div>
                       <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
-                        {(selected as { metric?: string }).metric ?? 'cosine'}
+                        {selected.metric ?? '—'}
                       </div>
                     </div>
                     <div>
@@ -221,16 +216,31 @@ function CollectionsPage() {
                     </div>
                   </div>
                   <KeyValue>
-                    <KeyValueRow term="Index type">HNSW · M=16, ef=200</KeyValueRow>
                     <KeyValueRow term="Distance">
-                      {(selected as { metric?: string }).metric ?? 'cosine'} (pre-normalised)
+                      {selected.metric ?? <span className="muted">—</span>}
+                      {selected.normalization?.enabled ? ' (pre-normalised)' : ''}
                     </KeyValueRow>
                     <KeyValueRow term="Quantization">
-                      <Pill tone="teal">SQ-8bit</Pill>
+                      {selected.quantization?.enabled
+                        ? `${selected.quantization.type ?? 'enabled'}${
+                            selected.quantization.bits ? ` · ${selected.quantization.bits}-bit` : ''
+                          }`
+                        : selected.quantization?.enabled === false
+                          ? 'disabled'
+                          : <span className="muted">—</span>}
                     </KeyValueRow>
                     <KeyValueRow term="Embedding">
-                      BM25 <span className="muted">· dim {selected.dimension ?? '—'}</span>
+                      {selected.embedding_provider ?? <span className="muted">—</span>}
+                      {selected.dimension ? (
+                        <span className="muted"> · dim {selected.dimension}</span>
+                      ) : null}
                     </KeyValueRow>
+                    {selected.size?.total && (
+                      <KeyValueRow term="Size on disk">{selected.size.total}</KeyValueRow>
+                    )}
+                    {selected.created_at && (
+                      <KeyValueRow term="Created">{selected.created_at}</KeyValueRow>
+                    )}
                   </KeyValue>
                 </CardBody>
               </Card>
@@ -239,50 +249,22 @@ function CollectionsPage() {
                 <Card>
                   <CardHead title="Vector growth · 7d" />
                   <CardBody>
-                    <Sparkline
-                      data={SPARK(40, (selected.vector_count ?? 100) / 1000, 8)}
-                      width={420}
-                      height={100}
-                      color="var(--magenta)"
-                      ariaLabel={`Vector growth for ${selected.name} over 7 days`}
-                    />
                     <div
-                      className="row mono"
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--text-2)',
-                        justifyContent: 'space-between',
-                        marginTop: 6,
-                      }}
+                      className="muted"
+                      style={{ padding: 24, textAlign: 'center', fontSize: 12 }}
                     >
-                      <span>−7d</span>
-                      <span>−3d</span>
-                      <span>now</span>
+                      Time-series endpoint not yet exposed by the server.
                     </div>
                   </CardBody>
                 </Card>
                 <Card>
-                  <CardHead title="Query throughput · 24h" sub="qpm" />
+                  <CardHead title="Query throughput · 24h" />
                   <CardBody>
-                    <Sparkline
-                      data={SPARK(40, 60, 20)}
-                      width={420}
-                      height={100}
-                      color="var(--teal)"
-                      ariaLabel={`Query throughput for ${selected.name} over 24 hours`}
-                    />
                     <div
-                      className="row mono"
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--text-2)',
-                        justifyContent: 'space-between',
-                        marginTop: 6,
-                      }}
+                      className="muted"
+                      style={{ padding: 24, textAlign: 'center', fontSize: 12 }}
                     >
-                      <span>−24h</span>
-                      <span>−12h</span>
-                      <span>now</span>
+                      Time-series endpoint not yet exposed by the server.
                     </div>
                   </CardBody>
                 </Card>

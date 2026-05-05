@@ -41,20 +41,35 @@ describe('MonitoringPage', () => {
   it('renders the page heading and the four metric cards', () => {
     render(<MemoryRouter><MonitoringPage /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: /Monitoring/i })).toBeTruthy();
-    expect(screen.getByText(/SIMD Backend/i)).toBeTruthy();
+    // "SIMD Backend" appears in both the card title and the not-exposed
+    // placeholder, so match on at least one occurrence.
+    expect(screen.getAllByText(/SIMD Backend/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Write-Ahead Log/i)).toBeTruthy();
-    // "Query Cache" appears in the page subtitle and as the card title;
-    // assert at least one match (the card title is one of them).
     expect(screen.getAllByText(/Query Cache/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/File-ops Cache/i)).toBeTruthy();
+    expect(screen.getAllByText(/File-ops Cache/i).length).toBeGreaterThan(0);
   });
 
-  it('renders the throughput strip with REST and MCP breakdown', () => {
+  it('renders the throughput strip with the live total only', () => {
     render(<MemoryRouter><MonitoringPage /></MemoryRouter>);
     expect(screen.getByText(/HTTP \/ MCP throughput/i)).toBeTruthy();
-    expect(screen.getByText(/REST/i)).toBeTruthy();
-    // "MCP" appears in the throughput card title and as the per-protocol label;
-    // assert at least one match (the per-protocol label is one of them).
-    expect(screen.getAllByText(/MCP/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Total$/i)).toBeTruthy();
+    // The page explains why the protocol split is missing — copy is stable.
+    expect(
+      screen.getByText(/REST\/MCP split, p99 latency and 5xx-rate are not yet exposed/i),
+    ).toBeTruthy();
+  });
+
+  it('shows real /health-derived cache numbers without sparklines', () => {
+    render(<MemoryRouter><MonitoringPage /></MemoryRouter>);
+    // 4_210_000 hits formatted as "4,210,000".
+    expect(screen.getByText('4,210,000')).toBeTruthy();
+    expect(screen.getByText(/94\.2% hit rate/i)).toBeTruthy();
+  });
+
+  it('renders the SIMD-not-exposed placeholder', () => {
+    render(<MemoryRouter><MonitoringPage /></MemoryRouter>);
+    expect(
+      screen.getByText(/SIMD backend introspection not yet exposed/i),
+    ).toBeTruthy();
   });
 });

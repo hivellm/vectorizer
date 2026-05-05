@@ -4,15 +4,15 @@ import { Icons } from './Icons';
 import { HexLogo } from './primitives/HexLogo';
 import { NAV, type NavEntry } from './nav';
 
-const PRIMARY = NAV.filter((n) => !n.secondary);
-const SECONDARY = NAV.filter((n) => n.secondary);
-
 interface Props {
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  /** Server version reported by /health. Falls back to '—' until the
+   *  first response lands so the sidebar never shows a stale hardcode. */
+  version?: string;
 }
 
-export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
+export function ConsoleSidebar({ collapsed, onToggleCollapsed, version }: Props) {
   const location = useLocation();
   const auth = useOptionalAuth();
   const user = auth?.user ?? null;
@@ -37,49 +37,40 @@ export function ConsoleSidebar({ collapsed, onToggleCollapsed }: Props) {
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-brand">
+      <div
+        className="sidebar-brand"
+        style={collapsed ? { flexDirection: 'column', gap: 4 } : undefined}
+      >
         <HexLogo size={28} />
         {!collapsed && (
           <>
             <div>
               <div className="name">Vectorizer</div>
             </div>
-            <span className="ver">v3.0.0</span>
+            <span className="ver" style={{ marginLeft: 'auto' }}>
+              {version ?? '—'}
+            </span>
           </>
         )}
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="icon-btn"
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          style={collapsed ? { marginTop: 8 } : { marginLeft: 6 }}
+        >
+          <Icons.panel2 />
+        </button>
       </div>
 
       <div className="sidebar-section">
         {!collapsed && <div className="sidebar-label">Workspace</div>}
-        <nav className="sidebar-nav">{PRIMARY.map(renderItem)}</nav>
-      </div>
-
-      <div className="sidebar-section" style={{ marginTop: 'auto' }}>
-        <nav className="sidebar-nav">
-          {SECONDARY.map(renderItem)}
-          <button
-            type="button"
-            className="nav-item"
-            onClick={onToggleCollapsed}
-            title="Collapse"
-            style={{
-              background: 'none',
-              border: '1px solid transparent',
-              width: '100%',
-              textAlign: 'inherit',
-              cursor: 'pointer',
-              font: 'inherit',
-              color: 'inherit',
-            }}
-          >
-            <Icons.panel2 className="icon" />
-            {!collapsed && <span>Collapse sidebar</span>}
-          </button>
-        </nav>
+        <nav className="sidebar-nav">{NAV.map(renderItem)}</nav>
       </div>
 
       {!collapsed && user && (
-        <div className="sidebar-footer">
+        <div className="sidebar-footer" style={{ marginTop: 'auto' }}>
           <div className="avatar">
             {user.username.slice(0, 2).toUpperCase() || 'VZ'}
           </div>

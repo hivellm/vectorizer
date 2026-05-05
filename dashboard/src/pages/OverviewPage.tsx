@@ -14,7 +14,6 @@ import {
   CardHead,
   CardBody,
   Kpi,
-  Bar,
   Tbl,
   Th,
   Td,
@@ -23,11 +22,6 @@ import {
 } from '@/components/console';
 import { formatNumber } from '@/utils/formatters';
 import type { Collection } from '@/hooks/useCollections';
-
-// TODO(metrics-history): sparkline series stay synthetic until a
-// /metrics?range=24h endpoint streams a real point series.
-const SPARK = (n: number, base: number, amp: number): number[] =>
-  Array.from({ length: n }, (_, i) => base + Math.sin(i / 2) * amp + Math.random() * amp * 0.3);
 
 // Map a server event level to the console.css dot tone. Levels follow the
 // reference design: ok→green, warn→amber, info→teal, error→red.
@@ -39,10 +33,19 @@ function eventDotTone(level: string): 'green' | 'amber' | 'teal' | 'red' {
   return 'teal';
 }
 
+// Helper: render a real number, or em-dash when the value is zero/missing
+// AND the data source has finished loading. Avoids displaying "0 qps" as
+// if it were real telemetry.
+function realOrDash(value: number, loading: boolean, format: (n: number) => string = (n) => n.toLocaleString()): string {
+  if (loading) return '…';
+  if (!value) return '—';
+  return format(value);
+}
+
 function OverviewPage() {
   const { listCollections } = useCollections();
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
-  const { metrics } = useMetrics();
+  const { metrics, loading: metricsLoading } = useMetrics();
   const { stats } = useStats();
   const events = useEvents();
   const ref = useRef<NodeJS.Timeout | null>(null);
@@ -79,9 +82,10 @@ function OverviewPage() {
   const totalVectors = list.reduce((s, c) => s + (c.vector_count ?? 0), 0);
   const top = list.slice(0, 6);
 
-  // Real KPIs come from /stats (totals) + /health (cache) via useMetrics +
-  // useStats. The backend doesn't yet surface qps / cpu / mem / connections,
-  // so those KPIs stay at 0 until a richer dashboard-metrics endpoint lands.
+  // Real telemetry from /stats (totals) + /health (cache) via useMetrics +
+  // useStats. The backend doesn't yet surface qps / cpu / mem / connections
+  // (those zeros are honest "no signal"), and there is no time-series
+  // endpoint, so sparklines and 24h deltas stay omitted.
   const qps = metrics.qps;
   const cpu = metrics.cpuPercent;
   const mem = metrics.memPercent;
@@ -117,10 +121,8 @@ function OverviewPage() {
               Queries / sec
             </>
           }
-          value={qps.toLocaleString()}
-          unit="qps"
-          delta={{ tone: 'up', text: '+12.4% vs 24h' }}
-          spark={{ data: SPARK(20, 2400, 200), color: 'var(--teal)' }}
+          value={realOrDash(qps, metricsLoading)}
+          unit={qps ? 'qps' : undefined}
         />
         <Kpi
           label={
@@ -129,10 +131,7 @@ function OverviewPage() {
               Search latency p99
             </>
           }
-          value="2.8"
-          unit="ms"
-          delta={{ tone: 'up', text: '−0.4ms vs 24h' }}
-          spark={{ data: SPARK(20, 2.8, 0.4), color: 'var(--text-2)' }}
+          value="—"
         />
         <Kpi
           accent="magenta"
@@ -142,9 +141,8 @@ function OverviewPage() {
               Total vectors
             </>
           }
-          value={formatNumber(totalVectors)}
-          delta={{ tone: 'neutral', text: `${list.length} collections` }}
-          spark={{ data: SPARK(20, 580, 8), color: 'var(--magenta)' }}
+          value={totalVectors ? formatNumber(totalVectors) : '—'}
+          delta={list.length ? { tone: 'neutral', text: `${list.length} collections` } : undefined}
         />
         <Kpi
           label={
@@ -153,10 +151,8 @@ function OverviewPage() {
               Cache hit rate
             </>
           }
-          value={cacheHitPct.toFixed(1)}
-          unit="%"
-          delta={{ tone: 'up', text: '+1.8% vs 24h' }}
-          spark={{ data: SPARK(20, 94, 2), color: 'var(--green)' }}
+          value={cacheHitPct > 0 ? cacheHitPct.toFixed(1) : '—'}
+          unit={cacheHitPct > 0 ? '%' : undefined}
         />
       </div>
 
@@ -165,27 +161,47 @@ function OverviewPage() {
           <CardHead
             title="System Health"
             right={
-              <Pill tone="green" live>
-                <span className="dot green" />
-                healthy
+              <Pill tone={stats.status === 'healthy' ? 'green' : 'muted'} live>
+                <span className={`dot ${stats.status === 'healthy' ? 'green' : ''}`} />
+                {stats.status === 'unknown' ? 'unknown' : stats.status}
               </Pill>
             }
           />
           <CardBody>
             <div className="grid grid-3" style={{ gap: 18, alignItems: 'center' }}>
               <div style={{ display: 'grid', placeItems: 'center' }}>
-                <Ring value={cpu} max={100} label={`${cpu.toFixed(0)}%`} sub="CPU" color="var(--teal)" />
+                <Ring
+                  value={cpu}
+                  max={100}
+                  label={cpu ? `${cpu.toFixed(0)}%` : '—'}
+                  sub="CPU"
+                  color="var(--teal)"
+                />
               </div>
               <div style={{ display: 'grid', placeItems: 'center' }}>
-                <Ring value={mem} max={100} label={`${mem.toFixed(1)}%`} sub="MEMORY" color="var(--magenta)" />
+                <Ring
+                  value={mem}
+                  max={100}
+                  label={mem ? `${mem.toFixed(1)}%` : '—'}
+                  sub="MEMORY"
+                  color="var(--magenta)"
+                />
               </div>
               <div style={{ display: 'grid', placeItems: 'center' }}>
-                <Ring value={conns} max={500} label={String(conns)} sub="CONNECTIONS" color="var(--amber)" />
+                <Ring
+                  value={conns}
+                  max={500}
+                  label={conns ? String(conns) : '—'}
+                  sub="CONNECTIONS"
+                  color="var(--amber)"
+                />
               </div>
             </div>
             <div className="divider" />
             <KeyValue>
-              <KeyValueRow term="Server binary">vectorizer 3.0.0</KeyValueRow>
+              <KeyValueRow term="Server binary">
+                vectorizer {stats.version ?? '—'}
+              </KeyValueRow>
               <KeyValueRow term="Bind">127.0.0.1:15002 (REST) · /mcp (StreamableHTTP)</KeyValueRow>
               <KeyValueRow term="Workspace">{`${list.length} collections`}</KeyValueRow>
             </KeyValue>
@@ -193,29 +209,18 @@ function OverviewPage() {
         </Card>
 
         <Card>
-          <CardHead title="Quantization" sub="SQ-8bit · default" />
+          <CardHead title="Quantization" />
           <CardBody>
-            <div style={{ textAlign: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em' }}>4.0×</div>
-              <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                compression ratio
-              </div>
-            </div>
-            <div className="col" style={{ gap: 10 }}>
-              <div>
-                <div className="row" style={{ fontSize: 11, marginBottom: 4 }}>
-                  <span className="muted">MAP score</span>
-                  <span className="right mono">+8.9%</span>
-                </div>
-                <Bar percent={82} ariaLabel="MAP score relative gain" />
-              </div>
-              <div>
-                <div className="row" style={{ fontSize: 11, marginBottom: 4 }}>
-                  <span className="muted">Recall@10</span>
-                  <span className="right mono">98.4%</span>
-                </div>
-                <Bar percent={98} tone="magenta" ariaLabel="Recall at 10" />
-              </div>
+            <div
+              className="muted"
+              style={{
+                padding: 24,
+                textAlign: 'center',
+                fontSize: 12,
+                lineHeight: 1.6,
+              }}
+            >
+              Quantization stats not yet exposed by the server. Coming soon.
             </div>
           </CardBody>
         </Card>

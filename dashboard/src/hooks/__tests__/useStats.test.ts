@@ -57,4 +57,24 @@ describe('useStats', () => {
     const { result } = renderHook(() => useStats({ intervalMs: 0 }));
     await waitFor(() => expect(result.current.error).toBe('boom'));
   });
+
+  it('extracts version from /health when present', async () => {
+    getMock.mockResolvedValueOnce({
+      status: 'healthy',
+      version: '3.2.1',
+      cache: { size: 0, capacity: 0, hits: 0, misses: 0, evictions: 0, hit_rate: 0 },
+    });
+    const { result } = renderHook(() => useStats({ intervalMs: 0 }));
+    await waitFor(() => expect(result.current.stats.version).toBe('3.2.1'));
+  });
+
+  it('leaves version undefined when /health does not emit it', async () => {
+    getMock.mockResolvedValueOnce({
+      status: 'healthy',
+      cache: { size: 0, capacity: 0, hits: 0, misses: 0, evictions: 0, hit_rate: 0 },
+    });
+    const { result } = renderHook(() => useStats({ intervalMs: 0 }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.stats.version).toBeUndefined();
+  });
 });

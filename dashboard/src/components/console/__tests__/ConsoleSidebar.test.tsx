@@ -66,12 +66,34 @@ describe('ConsoleSidebar', () => {
         <ConsoleSidebar collapsed={false} onToggleCollapsed={() => { toggled++; }} />
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByText(/collapse sidebar/i));
+    fireEvent.click(screen.getByRole('button', { name: /collapse|expand sidebar/i }));
     expect(toggled).toBe(1);
   });
 
   it('falls back to "VZ" when username is empty', () => {
     renderAt('/overview');
     expect(screen.getByText('VZ')).toBeTruthy();
+  });
+
+  it('renders the version pill from the version prop', () => {
+    render(
+      <MemoryRouter>
+        <ConsoleSidebar
+          collapsed={false}
+          onToggleCollapsed={() => {}}
+          version="3.2.1"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('3.2.1')).toBeTruthy();
+  });
+
+  it('shows em-dash when version is missing', () => {
+    render(
+      <MemoryRouter>
+        <ConsoleSidebar collapsed={false} onToggleCollapsed={() => {}} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('—')).toBeTruthy();
   });
 });

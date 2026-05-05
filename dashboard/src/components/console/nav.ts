@@ -4,8 +4,6 @@ export interface NavEntry {
   to: string;
   label: string;
   icon: keyof typeof Icons;
-  /** Set true to keep this entry out of the primary sidebar (e.g. Settings goes to the secondary section). */
-  secondary?: boolean;
   /** Optional command palette hint (e.g. "G O"). */
   hint?: string;
   /** Optional badge shown in the sidebar item. */
@@ -21,7 +19,7 @@ export const NAV: NavEntry[] = [
   { to: '/cluster',       label: 'Replication',      icon: 'globe' },
   { to: '/api-keys',      label: 'API Keys',         icon: 'keys',        hint: 'G K' },
   { to: '/mcp-tools',     label: 'MCP Tools',        icon: 'mcp' },
-  { to: '/configuration', label: 'Settings',         icon: 'settings',    secondary: true },
+  { to: '/configuration', label: 'Settings',         icon: 'settings' },
 ];
 
 /** Crumbs map for ConsoleLayout. Routes not in NAV (file-watcher, graph, etc.) are listed

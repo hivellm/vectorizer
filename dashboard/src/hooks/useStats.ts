@@ -24,6 +24,9 @@ export interface CacheStats {
 
 export interface SystemStats {
   status: string;
+  /** Server version reported by /health (e.g. "3.2.1"). Undefined until the
+   *  first response lands or when the backend doesn't emit it. */
+  version?: string;
   cache: CacheStats;
   walSequence?: number;
   walSizeBytes?: number;
@@ -104,6 +107,7 @@ function normalize(payload: unknown): SystemStats {
   const wal = p.wal && typeof p.wal === 'object' ? (p.wal as Record<string, unknown>) : {};
   return {
     status: String(p.status ?? 'unknown'),
+    version: typeof p.version === 'string' && p.version.length > 0 ? p.version : undefined,
     cache: {
       size: num(cacheSrc.size),
       capacity: num(cacheSrc.capacity),

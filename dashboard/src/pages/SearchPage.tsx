@@ -345,37 +345,6 @@ function SearchPage() {
             </CardBody>
           </Card>
 
-          <Card>
-            <CardHead title="Pipeline" />
-            <CardBody>
-              <ol style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                {[
-                  ['embed', 'BM25 · 384-d'],
-                  ['expand', '+3 query variants'],
-                  ['search', 'HNSW · ef=200'],
-                  ['rerank', 'MMR λ=0.5'],
-                  ['dedup', 'score Δ < 0.02'],
-                ].map((s, i, arr) => (
-                  <li
-                    key={s[0]}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '24px 1fr',
-                      padding: '7px 0',
-                      borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span className="mono muted-2" style={{ fontSize: 11 }}>{i + 1}.</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 500 }}>{s[0]}</div>
-                      <div className="muted mono" style={{ fontSize: 10 }}>{s[1]}</div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </CardBody>
-          </Card>
         </div>
       </div>
     </div>
