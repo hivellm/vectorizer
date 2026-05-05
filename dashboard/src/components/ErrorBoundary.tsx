@@ -1,5 +1,8 @@
 /**
- * Error Boundary component for catching React errors
+ * Error Boundary — console design.
+ *
+ * Catches uncaught render-tree errors and shows a fallback panel
+ * styled with the console palette (no Tailwind utilities).
  */
 
 import { Component, type ReactNode } from 'react';
@@ -35,12 +38,25 @@ class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex-shrink-0">
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--bg-1)',
+            padding: 16,
+          }}
+        >
+          <div className="card" style={{ width: '100%', maxWidth: 480 }}>
+            <div
+              className="card-head"
+              style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+            >
+              <div style={{ flexShrink: 0, color: 'var(--red)' }} aria-hidden>
                 <svg
-                  className="h-8 w-8 text-red-500"
+                  width={28}
+                  height={28}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -53,20 +69,24 @@ class ErrorBoundary extends Component<Props, State> {
                   />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-neutral-900">Something went wrong</h2>
+              <div className="title">Something went wrong</div>
             </div>
-            <p className="text-neutral-600 mb-4">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
-            <button
-              onClick={() => {
-                this.setState({ hasError: false, error: null });
-                window.location.reload();
-              }}
-              className="w-full px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
-            >
-              Reload Page
-            </button>
+            <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13, lineHeight: 1.5 }}>
+                {this.state.error?.message || 'An unexpected error occurred'}
+              </p>
+              <button
+                type="button"
+                className="btn primary"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => {
+                  this.setState({ hasError: false, error: null });
+                  window.location.reload();
+                }}
+              >
+                Reload Page
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -77,4 +97,3 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 export default ErrorBoundary;
-

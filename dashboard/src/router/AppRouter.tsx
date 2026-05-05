@@ -34,7 +34,14 @@ const McpToolsPage = lazy(() => import('@/pages/McpToolsPage'));
 
 // Loading fallback component
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+    }}
+  >
     <LoadingSpinner size="lg" />
   </div>
 );

@@ -1,8 +1,9 @@
 /**
- * Protected Route Component
+ * Protected Route Component — console design.
  *
- * Wraps routes that require authentication.
- * Redirects to login page if user is not authenticated.
+ * Wraps routes that require authentication. Redirects to login if
+ * the user isn't authenticated. Loading state and admin-denied
+ * fallback are styled with the console palette (no Tailwind).
  */
 
 import { ReactNode } from 'react';
@@ -23,7 +24,15 @@ function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps)
   // Show loading while checking auth status
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          background: 'var(--bg-1)',
+        }}
+      >
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -37,12 +46,29 @@ function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps)
   // Check admin requirement
   if (requireAdmin && user && !user.roles.includes('Admin')) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          background: 'var(--bg-1)',
+          padding: 16,
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              color: 'var(--text)',
+              margin: '0 0 12px',
+              letterSpacing: '-0.01em',
+            }}
+          >
             Access Denied
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p style={{ color: 'var(--text-2)', fontSize: 13, margin: 0 }}>
             You need admin privileges to access this page.
           </p>
         </div>

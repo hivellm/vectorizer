@@ -1,6 +1,9 @@
 /**
- * Welcome Banner Component
- * Shows a welcome message for first-time users who need to complete setup
+ * Welcome Banner — console design.
+ *
+ * Shows a welcome panel for first-time users that still need to
+ * complete the setup wizard. Styled with the console palette and
+ * primitives, no Tailwind utilities.
  */
 
 import { useState } from 'react';
@@ -26,64 +29,164 @@ function WelcomeBanner({ dismissible = true, className = '' }: WelcomeBannerProp
   }
 
   return (
-    <div className={`relative bg-gradient-to-r from-primary-600 to-indigo-600 rounded-xl p-6 text-white shadow-lg ${className}`}>
+    <div
+      className={['card', className].filter(Boolean).join(' ')}
+      style={{
+        position: 'relative',
+        background: 'linear-gradient(135deg, var(--magenta), var(--teal))',
+        color: 'var(--text)',
+        border: '1px solid var(--border-hi)',
+        padding: 24,
+        overflow: 'hidden',
+      }}
+    >
       {/* Dismiss button */}
       {dismissible && (
         <button
+          type="button"
+          className="icon-btn"
           onClick={() => setDismissed(true)}
-          className="absolute top-3 right-3 p-1 rounded-full hover:bg-white/20 transition-colors"
           aria-label="Dismiss banner"
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            background: 'rgba(255, 255, 255, 0.16)',
+            borderColor: 'rgba(255, 255, 255, 0.28)',
+            color: '#fff',
+          }}
         >
-          <XClose className="w-5 h-5" />
+          <XClose width={18} height={18} />
         </button>
       )}
 
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 16,
+        }}
+      >
         {/* Icon */}
-        <div className="flex-shrink-0">
-          <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
-            <Rocket01 className="w-8 h-8" />
+        <div style={{ flexShrink: 0 }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+            }}
+          >
+            <Rocket01 width={32} height={32} />
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1">
-          <h3 className="text-xl font-semibold mb-1">
-            Welcome to Vectorizer! 🎉
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <h3
+            style={{
+              fontSize: 20,
+              fontWeight: 600,
+              color: '#fff',
+              margin: '0 0 6px',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Welcome to Vectorizer!
           </h3>
-          <p className="text-white/90 text-sm mb-3">
+          <p
+            style={{
+              color: 'rgba(255, 255, 255, 0.92)',
+              fontSize: 13,
+              lineHeight: 1.5,
+              margin: '0 0 12px',
+            }}
+          >
             Get started by configuring your workspace. The Setup Wizard will help you
             detect your projects and create optimized collections automatically.
           </p>
 
           {/* Stats */}
           {status && (
-            <div className="flex flex-wrap gap-4 text-sm text-white/80 mb-4">
-              <span>Version: <strong className="text-white">{status.version}</strong></span>
-              <span>•</span>
-              <span>Collections: <strong className="text-white">{status.collection_count}</strong></span>
-              <span>•</span>
-              <span>Deployment: <strong className="text-white capitalize">{status.deployment_type}</strong></span>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 12,
+                fontSize: 12,
+                color: 'rgba(255, 255, 255, 0.85)',
+                marginBottom: 12,
+              }}
+            >
+              <span>
+                Version:{' '}
+                <strong style={{ color: '#fff' }}>{status.version}</strong>
+              </span>
+              <span aria-hidden>•</span>
+              <span>
+                Collections:{' '}
+                <strong style={{ color: '#fff' }}>{status.collection_count}</strong>
+              </span>
+              <span aria-hidden>•</span>
+              <span>
+                Deployment:{' '}
+                <strong style={{ color: '#fff', textTransform: 'capitalize' }}>
+                  {status.deployment_type}
+                </strong>
+              </span>
             </div>
           )}
         </div>
 
-        {/* CTA Button */}
-        <div className="flex-shrink-0">
+        {/* CTA */}
+        <div style={{ flexShrink: 0 }}>
           <button
+            type="button"
             onClick={() => navigate('/setup')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-lg hover:bg-white/90 transition-colors shadow-md"
+            className="btn"
+            style={{
+              background: '#fff',
+              borderColor: '#fff',
+              color: 'var(--bg-1)',
+              gap: 8,
+              padding: '10px 18px',
+            }}
           >
-            <Settings02 className="w-5 h-5" />
+            <Settings02 width={18} height={18} />
             Open Setup Wizard
           </button>
         </div>
       </div>
 
       {/* Quick tips */}
-      <div className="mt-4 pt-4 border-t border-white/20">
-        <p className="text-sm text-white/80">
-          <strong>Quick tip:</strong> You can also run <code className="bg-white/20 px-1.5 py-0.5 rounded text-xs">vectorizer-cli setup /path/to/project</code> from the terminal.
+      <div
+        style={{
+          marginTop: 16,
+          paddingTop: 16,
+          borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+        }}
+      >
+        <p style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.85)', margin: 0 }}>
+          <strong style={{ color: '#fff' }}>Quick tip:</strong> You can also run{' '}
+          <code
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              padding: '2px 6px',
+              borderRadius: 4,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              color: '#fff',
+            }}
+          >
+            vectorizer-cli setup /path/to/project
+          </code>{' '}
+          from the terminal.
         </p>
       </div>
     </div>

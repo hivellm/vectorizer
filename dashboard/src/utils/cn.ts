@@ -1,10 +1,13 @@
 /**
- * Utility function to merge Tailwind CSS classes
+ * Utility to merge class names.
+ *
+ * After dropping Tailwind, the previous `twMerge` step is no longer
+ * needed. We delegate to `clsx`, which already handles conditional
+ * classes, arrays, and object shorthand.
  */
 
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return clsx(inputs);
 }

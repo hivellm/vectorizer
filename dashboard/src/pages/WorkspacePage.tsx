@@ -771,9 +771,9 @@ function WorkspacePage() {
         </CardBody>
       </Card>
 
-      {/* TODO(workspace-modal): FileBrowser still uses legacy
-          Tailwind/UntitledUI styling. Replace once the console design
-          ships a folder-picker primitive. */}
+      {/* FileBrowser is now console-styled (Phase 5.8). It still
+          renders as an absolute-positioned overlay; if a console-native
+          folder-picker primitive ships later, swap it in. */}
       {browsingProject && (
         <FileBrowser
           initialPath={

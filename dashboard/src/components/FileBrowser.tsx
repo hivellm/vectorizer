@@ -1,12 +1,25 @@
 /**
- * File Browser Component
- * Directory browser for selecting folders in the Setup Wizard
+ * File Browser — console design.
+ *
+ * Directory browser used by the Setup Wizard and the Workspace page
+ * to pick a project folder. The imperative selection API
+ * (`onSelect`, `onCancel`, `initialPath`) is preserved.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type CSSProperties } from 'react';
 import Button from '@/components/ui/Button';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import { Folder, FolderCode, File06, ChevronRight, ChevronUp, Home03, Check, RefreshCw01 } from '@untitledui/icons';
+import { Pill } from '@/components/console';
+import {
+  Folder,
+  FolderCode,
+  File06,
+  ChevronRight,
+  ChevronUp,
+  Home03,
+  Check,
+  RefreshCw01,
+} from '@untitledui/icons';
 
 interface DirectoryEntry {
   name: string;
@@ -118,24 +131,61 @@ function FileBrowser({ onSelect, onCancel, initialPath }: FileBrowserProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const overlayStyle: CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0, 0, 0, 0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+    padding: 16,
+  };
+
+  const panelStyle: CSSProperties = {
+    background: 'var(--bg-1)',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
+    boxShadow: '0 24px 48px rgba(0, 0, 0, 0.4)',
+    width: '100%',
+    maxWidth: 768,
+    maxHeight: '80vh',
+    display: 'flex',
+    flexDirection: 'column',
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+    <div style={overlayStyle} role="dialog" aria-modal aria-label="Select Project Folder">
+      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
+        <div
+          style={{
+            padding: 16,
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: 'var(--text)',
+              margin: '0 0 12px',
+              letterSpacing: '-0.01em',
+            }}
+          >
             Select Project Folder
           </h2>
 
           {/* Path Input */}
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: 8 }}>
             <input
               type="text"
               value={manualPath}
               onChange={(e) => setManualPath(e.target.value)}
               placeholder="/path/to/project"
-              className="flex-1 px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg 
-                       bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white font-mono"
+              className="input mono"
+              style={{ flex: 1 }}
               onKeyDown={(e) => e.key === 'Enter' && handleManualPathSubmit()}
             />
             <Button variant="secondary" size="sm" onClick={handleManualPathSubmit}>
@@ -145,115 +195,222 @@ function FileBrowser({ onSelect, onCancel, initialPath }: FileBrowserProps) {
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-2 px-4 py-2 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-700">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 16px',
+            background: 'var(--bg-2)',
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
+          }}
+        >
           <button
+            type="button"
+            className="icon-btn"
             onClick={handleGoUp}
             disabled={!parentPath}
-            className="p-2 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Go to parent folder"
+            aria-label="Go to parent folder"
           >
-            <ChevronUp className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />
+            <ChevronUp width={16} height={16} />
           </button>
           <button
+            type="button"
+            className="icon-btn"
             onClick={handleGoHome}
-            className="p-2 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
             title="Go to home folder"
+            aria-label="Go to home folder"
           >
-            <Home03 className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />
+            <Home03 width={16} height={16} />
           </button>
           <button
+            type="button"
+            className="icon-btn"
             onClick={() => fetchDirectory(currentPath)}
-            className="p-2 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
             title="Refresh"
+            aria-label="Refresh"
           >
-            <RefreshCw01 className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />
+            <RefreshCw01 width={16} height={16} />
           </button>
-          <div className="flex-1 text-sm text-neutral-600 dark:text-neutral-400 font-mono truncate">
+          <div
+            style={{
+              flex: 1,
+              fontSize: 12,
+              color: 'var(--text-2)',
+              fontFamily: 'var(--font-mono)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {currentPath}
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-2">
+        <div style={{ flex: 1, overflow: 'auto', padding: 8 }}>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '48px 0',
+              }}
+            >
               <LoadingSpinner size="lg" />
             </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-500 dark:text-red-400 mb-4">{error}</p>
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <p style={{ color: 'var(--red)', marginBottom: 16 }}>{error}</p>
               <Button variant="secondary" size="sm" onClick={() => fetchDirectory('')}>
                 Go to Home
               </Button>
             </div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-12 text-neutral-500 dark:text-neutral-400">
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '48px 0',
+                color: 'var(--text-2)',
+                fontSize: 13,
+              }}
+            >
               This folder is empty
             </div>
           ) : (
-            <div className="space-y-0.5">
-              {entries.map((entry) => (
-                <div
-                  key={entry.path}
-                  onClick={() => handleEntryClick(entry)}
-                  onDoubleClick={() => handleEntryDoubleClick(entry)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${selectedPath === entry.path
-                      ? 'bg-primary-100 dark:bg-primary-900/30 border border-primary-500'
-                      : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 border border-transparent'
-                    }`}
-                >
-                  {/* Icon */}
-                  <div className="flex-shrink-0">
-                    {entry.is_directory ? (
-                      entry.is_project ? (
-                        <FolderCode className="w-5 h-5 text-primary-500" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {entries.map((entry) => {
+                const isSelected = selectedPath === entry.path;
+                const rowStyle: CSSProperties = {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  border: '1px solid transparent',
+                  background: isSelected ? 'var(--teal-dim)' : 'transparent',
+                  borderColor: isSelected ? 'var(--teal)' : 'transparent',
+                  transition: 'background 120ms ease, border-color 120ms ease',
+                };
+                return (
+                  <div
+                    key={entry.path}
+                    onClick={() => handleEntryClick(entry)}
+                    onDoubleClick={() => handleEntryDoubleClick(entry)}
+                    style={rowStyle}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-2)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        (e.currentTarget as HTMLDivElement).style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    {/* Icon */}
+                    <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                      {entry.is_directory ? (
+                        entry.is_project ? (
+                          <FolderCode
+                            width={20}
+                            height={20}
+                            style={{ color: 'var(--teal-hi)' }}
+                          />
+                        ) : (
+                          <Folder
+                            width={20}
+                            height={20}
+                            style={{ color: 'var(--amber)' }}
+                          />
+                        )
                       ) : (
-                        <Folder className="w-5 h-5 text-yellow-500" />
-                      )
-                    ) : (
-                      <File06 className="w-5 h-5 text-neutral-400" />
-                    )}
-                  </div>
-
-                  {/* Name */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm truncate ${entry.is_project
-                          ? 'font-medium text-primary-700 dark:text-primary-400'
-                          : 'text-neutral-900 dark:text-white'
-                        }`}>
-                        {entry.name}
-                      </span>
-                      {entry.is_project && (
-                        <span className="px-1.5 py-0.5 text-xs bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded">
-                          Project
-                        </span>
+                        <File06
+                          width={20}
+                          height={20}
+                          style={{ color: 'var(--text-2)' }}
+                        />
                       )}
                     </div>
-                  </div>
 
-                  {/* Size / Navigate Arrow */}
-                  <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
-                    {!entry.is_directory && entry.size && (
-                      <span>{formatSize(entry.size)}</span>
-                    )}
-                    {entry.is_directory && (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
+                    {/* Name */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            color: entry.is_project ? 'var(--teal-hi)' : 'var(--text)',
+                            fontWeight: entry.is_project ? 500 : 400,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {entry.name}
+                        </span>
+                        {entry.is_project && <Pill tone="teal">Project</Pill>}
+                      </div>
+                    </div>
+
+                    {/* Size / Navigate */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontSize: 12,
+                        color: 'var(--text-2)',
+                      }}
+                    >
+                      {!entry.is_directory && entry.size && (
+                        <span>{formatSize(entry.size)}</span>
+                      )}
+                      {entry.is_directory && <ChevronRight width={16} height={16} />}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Selected Path Display */}
         {selectedPath && (
-          <div className="px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-t border-primary-200 dark:border-primary-800">
-            <div className="flex items-center gap-2 text-sm">
-              <Check className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-              <span className="text-primary-700 dark:text-primary-300">Selected:</span>
-              <span className="font-mono text-primary-900 dark:text-primary-100 truncate">
+          <div
+            style={{
+              padding: '10px 16px',
+              background: 'var(--teal-dim)',
+              borderTop: '1px solid var(--border)',
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12,
+                color: 'var(--teal-hi)',
+                minWidth: 0,
+              }}
+            >
+              <Check width={16} height={16} />
+              <span>Selected:</span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--text)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  minWidth: 0,
+                }}
+              >
                 {selectedPath}
               </span>
             </div>
@@ -261,11 +418,21 @@ function FileBrowser({ onSelect, onCancel, initialPath }: FileBrowserProps) {
         )}
 
         {/* Footer */}
-        <div className="flex justify-between items-center gap-3 p-4 border-t border-neutral-200 dark:border-neutral-700">
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            padding: 16,
+            borderTop: '1px solid var(--border)',
+            flexShrink: 0,
+          }}
+        >
+          <p style={{ fontSize: 11, color: 'var(--text-2)', margin: 0 }}>
             Double-click to navigate, single-click to select
           </p>
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
@@ -273,8 +440,8 @@ function FileBrowser({ onSelect, onCancel, initialPath }: FileBrowserProps) {
               variant="primary"
               onClick={handleConfirmSelection}
               disabled={!selectedPath && !currentPath}
+              leftIcon={<Check width={16} height={16} />}
             >
-              <Check className="w-4 h-4 mr-2" />
               Select {selectedPath ? 'Folder' : 'Current Folder'}
             </Button>
           </div>

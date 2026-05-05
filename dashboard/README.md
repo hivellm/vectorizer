@@ -31,7 +31,7 @@ npm run build
 - **Vite 7** - Fast build tool and dev server
 - **React 19** - UI library
 - **TypeScript 5.9** - Type safety
-- **Tailwind CSS 4** - Utility-first CSS
+- **Console design system** - Hand-rolled CSS in `src/styles/console.css` + primitives in `src/components/console/`
 - **React Router 7** - Client-side routing
 - **Zustand** - State management
 - **Untitled UI** - Design system and icons
@@ -95,7 +95,7 @@ dashboard/
 - TypeScript strict mode enabled
 - ESLint for code quality
 - Prettier for formatting
-- Tailwind CSS for styling
+- Console design system (`src/styles/console.css` + `src/components/console/*`) for styling
 
 ### API Integration
 
@@ -177,9 +177,8 @@ npm run dev
 
 - [Vite Documentation](https://vite.dev/)
 - [React Documentation](https://react.dev/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/)
 - [React Router Documentation](https://reactrouter.com/)
-- [Untitled UI](https://www.untitledui.com/)
+- [Untitled UI](https://www.untitledui.com/) (icons only)
 
 ## 🤝 Contributing
 
@@ -191,56 +190,36 @@ When adding new features:
 4. Add API methods in `src/lib/api-client.ts` if needed
 5. Update this README if adding major features
 
-## Hybrid styling (console + Tailwind)
+## Console design system
 
-The dashboard currently runs **two style systems side-by-side**. New code
-should pick the right one based on where it lives.
+Tailwind has been **fully removed** from the dashboard. The single source
+of truth for styling is the console design system:
 
-### Primary: console design system
+- `src/styles/console.css` — design tokens (`--bg-1`, `--border`, `--teal`,
+  `--magenta`, `--green`, `--red`, `--amber`, `--text`, `--text-2`, etc.),
+  shell layout, `.btn`, `.card`, `.tbl`, `.input`, `.pill`, `.spinner`, and
+  the rest of the console primitives' base classes.
+- `src/components/console/*` — typed React primitives (`Card`, `CardHead`,
+  `CardBody`, `Tbl`, `Th`, `Td`, `Pill`, `Modal`, `Field`, `Kpi`, `Bar`,
+  `Sparkline`, `Ring`, `StatusPill`, `KeyValue`, `HexLogo`,
+  `ConsoleLayout`, `ConsoleSidebar`, `ConsoleTopbar`, `CommandPalette`).
 
-Source of truth for every page and shell chrome:
+Shared `ui/*` wrappers (`Button`, `Card`, `Table`, `Modal`, `Input`,
+`Select`, `Checkbox`, `Toast`, `StatCard`, etc.) are thin pass-throughs over
+the console primitives, preserving their legacy prop API so consumers that
+still use `<Button>` / `<Modal>` keep working.
 
-- `src/styles/console.css` — design tokens, layout primitives, dark theme.
-- `src/components/console/*` — `Card`, `Stat`, `Tbl`, `Btn`, `Tag`, `Field`,
-  `ConsoleSidebar`, `ConsoleTopbar`, `CommandPalette`, etc.
+### Conventions for new code
 
-All routes mounted under `ConsoleLayout` (Phase 1.8) and every page rewritten
-in Phase 2/3 use this system **exclusively**. Pages must NOT introduce
-Tailwind utility classes — use console primitives + inline `style={{ }}`
-escape hatches that rely on the `--c-*` CSS variables defined in
-`console.css`.
-
-### Legacy: Tailwind v4
-
-Still required by 24 shared components that have not been migrated to
-console primitives yet:
-
-- `src/components/ui/*` — `Modal`, `Input`, `Select`, `Checkbox`, `Dropdown`,
-  `Toast`, `StatCard`, `PasswordStrengthIndicator`, `CodeEditor`.
-- `src/components/modals/*` — every modal (Create/Delete/Details for
-  collections, vectors, edges, files, plus `DiscoveryConfigModal`,
-  `PathFinderModal`, `FileUploadModal`).
-- `src/components/FileBrowser.tsx`, `WelcomeBanner.tsx`, `ProtectedRoute.tsx`,
-  `ErrorBoundary.tsx`, `LoadingState.tsx`.
-
-Tailwind v4 is wired through:
-
-- `dashboard/src/styles/theme.css` — `@import "tailwindcss"` plus the
-  `@theme {}` block that pins primary/gray to grayscale-only tokens.
-- `dashboard/vite.config.ts` — `@tailwindcss/vite` plugin.
-- `package.json` deps: `tailwindcss`, `@tailwindcss/vite`, `tailwind-merge`,
-  `tailwindcss-animate`, `tailwindcss-react-aria-components`.
-
-### TODO markers
-
-Several Phase 2/3 page rewrites left `// TODO(actions)`,
-`// TODO(workspace-modal)`, `// TODO(graph-modals)`, and
-`// TODO(api-docs-section)` comments where modal triggers still mount the
-old Tailwind-styled modals. Each marker is a future migration point: replace
-the trigger with a console-native modal primitive, then delete the
-Tailwind-only shared component once nothing imports it. When the last
-shared component is migrated, drop Tailwind v4 entirely (delete `theme.css`,
-remove the Vite plugin, prune the five `tailwindcss*` packages).
+- Compose styling via console class names (`btn`, `btn primary`, `card`,
+  `tbl`, `pill`, `input`, `icon-btn`, `spinner`).
+- Use console CSS variables (`var(--bg-1)`, `var(--teal)`, etc.) inside
+  inline `style={{ }}` for one-off layout/escape-hatch styling.
+- Prefer a console primitive (`Card`, `Pill`, `Tbl`, `Modal`) over inline
+  HTML+CSS when one exists.
+- **Do not** add Tailwind packages or utility classes back into the
+  codebase. The repo is Tailwind-free and the Tailwind plugin is no longer
+  wired into `vite.config.ts`.
 
 ## Screenshots
 

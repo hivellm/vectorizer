@@ -1,9 +1,13 @@
 /**
- * Table component - UntitledUI style
+ * Table — console design.
+ *
+ * Wrappers around the console `.tbl` styles. Preserves the legacy
+ * named-export API (`Table`, `TableHeader`, `TableBody`, `TableRow`,
+ * `TableHead`, `TableCell`) so existing consumers keep working.
  */
 
-import { ReactNode } from 'react';
-import { cn } from '@/utils/cn';
+import type { ReactNode } from 'react';
+import { Tbl } from '@/components/console';
 
 interface TableProps {
   children: ReactNode;
@@ -12,10 +16,8 @@ interface TableProps {
 
 export function Table({ children, className }: TableProps) {
   return (
-    <div className="overflow-x-auto">
-      <table className={cn('w-full border-collapse', className)}>
-        {children}
-      </table>
+    <div style={{ overflowX: 'auto' }}>
+      <Tbl className={className}>{children}</Tbl>
     </div>
   );
 }
@@ -26,11 +28,7 @@ interface TableHeaderProps {
 }
 
 export function TableHeader({ children, className }: TableHeaderProps) {
-  return (
-    <thead className={cn('bg-neutral-50 dark:bg-neutral-900/50', className)}>
-      {children}
-    </thead>
-  );
+  return <thead className={className}>{children}</thead>;
 }
 
 interface TableBodyProps {
@@ -51,12 +49,9 @@ interface TableRowProps {
 export function TableRow({ children, className, onClick }: TableRowProps) {
   return (
     <tr
-      className={cn(
-        'border-b border-neutral-200 dark:border-neutral-800',
-        onClick && 'cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-colors',
-        className
-      )}
+      className={className}
       onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : undefined}
     >
       {children}
     </tr>
@@ -70,20 +65,8 @@ interface TableHeadProps {
 }
 
 export function TableHead({ children, className, align = 'left' }: TableHeadProps) {
-  const alignClasses = {
-    left: 'text-left',
-    center: 'text-center',
-    right: 'text-right',
-  };
-
   return (
-    <th
-      className={cn(
-        'px-4 py-3 text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wider',
-        alignClasses[align],
-        className
-      )}
-    >
+    <th className={className} style={{ textAlign: align }}>
       {children}
     </th>
   );
@@ -96,22 +79,9 @@ interface TableCellProps {
 }
 
 export function TableCell({ children, className, align = 'left' }: TableCellProps) {
-  const alignClasses = {
-    left: 'text-left',
-    center: 'text-center',
-    right: 'text-right',
-  };
-
   return (
-    <td
-      className={cn(
-        'px-4 py-3 text-sm text-neutral-900 dark:text-neutral-100',
-        alignClasses[align],
-        className
-      )}
-    >
+    <td className={className} style={{ textAlign: align }}>
       {children}
     </td>
   );
 }
-
