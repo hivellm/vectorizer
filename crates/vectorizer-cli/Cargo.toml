@@ -22,7 +22,7 @@ vectorizer = { path = "../vectorizer" }
 clap = { version = "4.5", features = ["derive", "env"] }
 serde = { version = "1.0", features = ["derive"], default-features = false }
 serde_yaml = { version = "0.9", default-features = false }
-tokio = { version = "1.48", features = ["rt-multi-thread", "macros", "signal"], default-features = false }
+tokio = { version = "1.52", features = ["rt-multi-thread", "macros", "signal"], default-features = false }
 tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"], default-features = false }
 anyhow = { version = "1.0", features = ["backtrace"], default-features = false }
