@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
 export default defineConfig(({ mode }) => {
@@ -43,7 +42,6 @@ export default defineConfig(({ mode }) => {
           plugins: [],
         },
       }),
-      tailwindcss(),
     ],
     resolve: {
       alias: {
@@ -57,7 +55,7 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       emptyOutDir: true,
       // Production optimizations
-      minify: 'esbuild', // Faster than terser
+      minify: 'oxc',
       sourcemap: false, // Disable sourcemaps in production for smaller bundle
       // Code splitting configuration
       rollupOptions: {
