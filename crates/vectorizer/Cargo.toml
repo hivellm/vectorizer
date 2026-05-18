@@ -16,17 +16,17 @@ categories = ["database", "science"]
 # layer to a newer alpha whose behavior we haven't vetted. When a stable
 # 0.10 or 0.11 ships, bump both pins together and retest the HA path
 # (tests/integration/cluster_ha.rs). Risk note published in CHANGELOG.
-openraft = { version = "=0.10.0-alpha.18", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.18"
+openraft = { version = "=0.10.0-alpha.20", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.20"
 futures = "0.3"
 ctrlc = { version = "3.5", optional = true }
 dirs = "6.0"
 # Core dependencies
 # Optimized: Use only needed tokio features instead of "full" (saves ~30% compile time)
-tokio = { version = "1.48", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
+tokio = { version = "1.52", features = ["rt-multi-thread", "net", "io-util", "time", "signal", "sync", "macros"], default-features = false }
 axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
 tower = { version = "0.5", default-features = false }
-tower-http = { version = "0.6.7", features = ["cors", "trace", "fs", "set-header"], default-features = false }
+tower-http = { version = "0.6.11", features = ["cors", "trace", "fs", "set-header"], default-features = false }
 serde = { version = "1.0", features = ["derive"], default-features = false }
 serde_json = { version = "1.0", default-features = false }
 serde_yaml = { version = "0.9", default-features = false }
@@ -39,7 +39,7 @@ sha2 = "0.11"
 walkdir = "2.5"
 notify = "8.2"
 fastrand = "2.3"
-sysinfo = "0.38"
+sysinfo = "0.39"
 
 # Index and vector operations
 hnsw_rs = "0.3"
@@ -65,7 +65,7 @@ num_cpus = "1.16"
 memory-stats = "1.0"
 
 # Data structures
-dashmap = "6.1"
+dashmap = "6.2"
 parking_lot = "0.12"
 once_cell = "1.20"
 arc-swap = "1.7"
@@ -114,7 +114,7 @@ regex = { version = "1.10", default-features = false, features = ["std", "unicod
 openssl = { version = "0.10", features = ["vendored"], optional = true }
 
 # Authentication and security
-jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.4", features = ["rust_crypto"] }
 uuid = { version = "1.22", features = ["v4", "v5", "serde"] }
 rand = "0.9"
 hmac = "0.13"           # HMAC for request signing
@@ -170,10 +170,10 @@ async-graphql-axum = "7.0"
 
 # Monitoring and Observability
 prometheus = "0.14"
-opentelemetry = { version = "0.31", features = ["metrics", "trace"] }
-opentelemetry_sdk = { version = "0.31", features = ["metrics", "trace", "rt-tokio"] }
+opentelemetry = { version = "0.32", features = ["metrics", "trace"] }
+opentelemetry_sdk = { version = "0.32", features = ["metrics", "trace", "rt-tokio"] }
 opentelemetry-prometheus = "0.31"
-opentelemetry-otlp = { version = "0.31", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
+opentelemetry-otlp = { version = "0.32", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
 tracing-opentelemetry = "0.32"
 
 # gRPC support
