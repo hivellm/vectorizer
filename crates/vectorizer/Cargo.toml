@@ -114,7 +114,7 @@ regex = { version = "1.10", default-features = false, features = ["std", "unicod
 openssl = { version = "0.10", features = ["vendored"], optional = true }
 
 # Authentication and security
-jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.4", features = ["rust_crypto"] }
 uuid = { version = "1.22", features = ["v4", "v5", "serde"] }
 rand = "0.9"
 hmac = "0.13"           # HMAC for request signing

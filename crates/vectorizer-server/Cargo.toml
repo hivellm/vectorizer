@@ -47,7 +47,7 @@ async-graphql = { version = "7.0", features = ["chrono", "uuid"] }
 async-graphql-axum = "7.0"
 
 # Auth + security primitives
-jsonwebtoken = { version = "10.1", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.4", features = ["rust_crypto"] }
 hmac = "0.13"
 base64 = "0.22"
 bcrypt = "0.19"
