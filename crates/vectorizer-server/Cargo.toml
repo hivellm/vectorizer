@@ -135,7 +135,7 @@ tantivy = "0.26"
 
 # Openraft (replication)
 openraft = { version = "=0.10.0-alpha.20", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.18"
+openraft-memstore = "=0.10.0-alpha.20"
 
 # Prometheus / OTel
 prometheus = "0.14"
