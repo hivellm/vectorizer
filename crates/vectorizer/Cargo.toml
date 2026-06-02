@@ -115,7 +115,7 @@ openssl = { version = "0.10", features = ["vendored"], optional = true }
 
 # Authentication and security
 jsonwebtoken = { version = "10.4", features = ["rust_crypto"] }
-uuid = { version = "1.22", features = ["v4", "v5", "serde"] }
+uuid = { version = "1.23", features = ["v4", "v5", "serde"] }
 rand = "0.9"
 hmac = "0.13"           # HMAC for request signing
 base64 = "0.22"         # Base64 encoding for signing secrets
