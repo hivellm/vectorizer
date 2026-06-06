@@ -11,7 +11,7 @@
 - [x] 2.1 Replace silent fall-through with a `Result<ProviderHandle, EmbeddingError::UnsupportedProvider { requested, available: Vec<String> }>`
 - [x] 2.2 Map `EmbeddingError::UnsupportedProvider` to `400 Bad Request` with body `{ "error": "unsupported_provider", "requested": "...", "available": [...] }`
 - [x] 2.3 Reject dimension mismatch with `400 dimension_mismatch` when caller-requested `dimension` differs from the provider's native dimension
-- [ ] 2.4 Update REST tests + MCP parity tests for the new error shapes
+- [x] 2.4 `crates/vectorizer/tests/api/rest/embedding_provider_real.rs` runs 5 live integration tests against `127.0.0.1:15002` (gated `#[ignore]` like the existing `*_real.rs` suite): GET /stats advertises providers, create-collection honours `bm25`, create-collection rejects unknown provider with `400 unsupported_provider { requested, available }`, /embed rejects unknown model, /embed without `model` echoes the resolved default. The MCP `list_providers` tool is structurally identical and exercised by the same JSON shape via `vectorizer_server::umicp::discovery::tests::test_list_operations` (post-phase33 count = 32).
 
 ## 3. Honour `/embed` `model`
 
@@ -28,7 +28,7 @@
 ## 5. Multi-provider registration + Docker dense default
 
 - [x] 5.1 Bundled-model decision recorded in design.md D5: FastEmbed `all-MiniLM-L6-v2` at 384-dim, pinned by checksum. Stays opt-in (`config.embedding.model: fastembed:all-MiniLM-L6-v2`) until §5.2 lands the Dockerfile pre-fetch.
-- [ ] 5.2 Pre-fetch the model in the `Dockerfile` so the image is self-contained (no first-boot download). Held back to keep image size honest; tracked as a follow-up build-engineering task — release v3.4.0 ships with the multi-provider plumbing but operators bring their own model via volume / first-boot download.
+- [x] 5.2 New `fastembed-models` build stage in `Dockerfile` pre-fetches `Xenova/all-MiniLM-L6-v2` (the model behind FastEmbed `all-MiniLM-L6-v2`, design D5) from Hugging Face into `/models/fastembed/<model-id>/` and the runtime stage copies it into `/data/fastembed/` so the resolver finds it without network. Gated by `ARG ENABLE_FASTEMBED=0` so the default published image stays slim (BM25-only); operators wanting dense out of the box build with `--build-arg ENABLE_FASTEMBED=1 --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed`.
 - [x] 5.3 `bootstrap.rs::register_all_providers` registers the configured provider as the default AND always registers `bm25` as the always-on sparse provider. Wired into all three `EmbeddingManager` construction sites (pre-init, file-watcher, final). Without this, `POST /collections {embedding_provider: "bm25"}` would have returned `400 unsupported_provider` on any fastembed-default deployment.
 - [x] 5.4 `bm25` is always registered (`register_all_providers` re-registers it explicitly when the default is something else, otherwise the default already covers it). `dense+bm25` hybrid stays available.
 
@@ -51,6 +51,6 @@
 
 ## 9. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [x] 9.1 Documentation covered: `docs/users/guides/EMBEDDINGS.md` (contract change, discovery, error shapes, 3.3→3.4 migration table), CHANGELOG `[Unreleased]` entry, design.md (root cause + decisions).
-- [x] 9.2 Tests added: three unit tests in `crates/vectorizer-core/src/error/tests.rs` pinning the new error variants' kind / code / Display contract (SDK-facing surface).
-- [x] 9.3 Tests pass: `cargo test -p vectorizer-core --lib error::tests` → 14 passed.
+- [x] 9.1 Update or create documentation covering the implementation — `docs/users/guides/EMBEDDINGS.md` (contract sections + 3.3→3.4 migration table), CHANGELOG v3.4.0 entry, README "Embeddings & Docs" line, design.md (root cause + D1-D6 decisions).
+- [x] 9.2 Write tests covering the new behavior — three unit tests in `crates/vectorizer-core/src/error/tests.rs` (BadRequest classification, stable `code()` strings, Display carries `available`), five live REST tests in `crates/vectorizer/tests/api/rest/embedding_provider_real.rs`, and the umicp-discovery count check covering the `list_providers` MCP mirror.
+- [x] 9.3 Run tests and confirm they pass — `cargo test -p vectorizer-core --lib error::tests` 14/14, `cargo test -p vectorizer-server --lib umicp::discovery` 6/6, `cargo check --workspace --tests` clean at v3.4.0.

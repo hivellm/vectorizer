@@ -33,6 +33,6 @@
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [x] 6.1 Documentation covered: `docs/users/configuration/DATA_DIRECTORY.md` Docker section, CHANGELOG entry, root README Docker block, `docker-compose.yml` rationale comment.
-- [x] 6.2 Tests added: `ephemeral_detector_no_op_outside_real_proc` in `crates/vectorizer-core/src/paths.rs` covering the writable-layer detector's negative path on every Linux runner.
-- [x] 6.3 Tests pass: `cargo check --workspace` clean; `cargo test -p vectorizer-core --lib paths` runs the new test alongside the existing env-override tests.
+- [x] 6.1 Update or create documentation covering the implementation — `docs/users/configuration/DATA_DIRECTORY.md` Docker section + CHANGELOG entry + root README Docker block + `docker-compose.yml` rationale comment.
+- [x] 6.2 Write tests covering the new behavior — `ephemeral_detector_no_op_outside_real_proc` in `crates/vectorizer-core/src/paths.rs` (writable-layer detector negative path) + `scripts/docker-data-persistence-test.sh` (end-to-end recreate-survives-volume regression) + `.github/workflows/docker-data-persistence.yml` (CI gate on Dockerfile / paths.rs / entry point changes).
+- [x] 6.3 Run tests and confirm they pass — `cargo test -p vectorizer-core --lib paths` green, `cargo check --workspace` clean, the Docker regression test runs on every relevant PR via the new workflow.

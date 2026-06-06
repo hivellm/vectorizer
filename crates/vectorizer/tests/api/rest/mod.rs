@@ -7,6 +7,7 @@ pub mod batch_insert_real;
 pub mod batch_ops_real;
 #[cfg(test)]
 pub mod dashboard_spa;
+pub mod embedding_provider_real;
 #[cfg(test)]
 pub mod encryption;
 #[cfg(test)]

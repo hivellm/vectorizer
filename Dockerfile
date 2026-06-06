@@ -274,6 +274,39 @@ RUN unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
 FROM debian:bookworm-slim AS writable-dirs
 RUN mkdir -p /vectorizer/data /data && chown -R 65532:65532 /vectorizer /data
 
+# Optional FastEmbed model pre-fetch (phase33 / issue #306).
+#
+# When the operator builds with `--build-arg ENABLE_FASTEMBED=1`, this
+# stage downloads the bundled dense model (design.md D5:
+# `all-MiniLM-L6-v2`, 384-dim) at image-build time so the first
+# container boot does not need a network round-trip to Hugging Face.
+# The files land at `/models/fastembed/<model-id>/` and the runtime
+# stage copies them into `/data/fastembed/` so the existing resolver
+# (`vectorizer_core::paths::data_dir().join("fastembed")`) picks them
+# up without code changes.
+#
+# Default builds set `ENABLE_FASTEMBED=0`, leaving the stage as a
+# no-op so the published slim image (BM25-only, ~release-docker
+# profile) stays unchanged. Operators who want dense out of the box
+# build with `--build-arg ENABLE_FASTEMBED=1 --build-arg
+# NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed`.
+FROM debian:bookworm-slim AS fastembed-models
+ARG ENABLE_FASTEMBED=0
+ARG FASTEMBED_MODEL=Xenova/all-MiniLM-L6-v2
+RUN if [ "$ENABLE_FASTEMBED" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+      DEST="/models/fastembed/${FASTEMBED_MODEL}" && \
+      mkdir -p "$DEST" && \
+      for f in onnx/model.onnx tokenizer.json config.json special_tokens_map.json; do \
+        curl --fail --silent --show-error --location \
+          -o "${DEST}/$(basename $f)" \
+          "https://huggingface.co/${FASTEMBED_MODEL}/resolve/main/$f"; \
+      done && \
+      chown -R 65532:65532 /models; \
+    else \
+      mkdir -p /models/fastembed && chown -R 65532:65532 /models; \
+    fi
+
 # Static busybox — the runtime is distroless (no shell, no curl, no wget), so
 # docker-compose / orchestrator healthchecks against /health need their own
 # HTTP probe binary. busybox:stable-musl is a ~1 MB static binary that
@@ -319,6 +352,11 @@ ARG GIT_COMMIT_ID
 # later copies don't implicitly recreate the parent as root.
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer /vectorizer
 COPY --from=writable-dirs --chown=65532:65532 /data /data
+# phase33 §5.2 (#306): bring the optional FastEmbed model into
+# /data/fastembed so the resolver picks it up on first boot. When
+# ENABLE_FASTEMBED=0 (default) the source dir is just an empty
+# `/models/fastembed` placeholder, so the COPY is a cheap no-op.
+COPY --from=fastembed-models --chown=65532:65532 /models/fastembed /data/fastembed
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=dashboard-builder --chown=65532:65532 /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder --chown=65532:65532 /vectorizer/config/config.example.yml /vectorizer/config/config.yml
