@@ -58,7 +58,7 @@
     "overrides": {
       "tar": ">=7.5.11",
       "glob": ">=10.5.0",
-      "axios": ">=1.15.0",
+      "axios": ">=1.16.0",
       "follow-redirects": ">=1.16.0",
       "lodash": ">=4.18.0",
       "rollup": ">=4.59.0",
@@ -72,7 +72,8 @@
       "picomatch@<2.3.2": "2.3.2",
       "picomatch@>=4.0.0 <4.0.4": "4.0.4",
       "vite@>=7.0.0 <7.3.2": "7.3.2",
-      "fast-uri@<3.1.2": ">=3.1.2"
+      "fast-uri@<3.1.2": ">=3.1.2",
+      "tmp@<0.2.6": ">=0.2.6"
     },
     "onlyBuiltDependencies": [
       "@tailwindcss/oxide",
