@@ -1,0 +1,71 @@
+name: Docker data persistence (phase32 / #300)
+
+# Pins the regression that motivated phase32: the 3.3.0 image wrote
+# persistent state to `/.local/share/vectorizer/` even though the
+# README advertised `/data` as the volume mount, so a routine
+# `docker compose up -d --force-recreate vectorizer` silently wiped
+# every collection. This job builds the image fresh, runs a
+# create-collection / stop-rm / recreate cycle against a single
+# `/data` volume, and asserts the collection survives.
+#
+# Triggers:
+#   - PRs that touch the Dockerfile or the data-dir resolver
+#     (`vectorizer-core::paths` is the single source of truth for
+#     where state lands; a change there can re-introduce the
+#     regression without anyone editing the Dockerfile).
+#   - workflow_dispatch for manual smoke runs against a feature branch.
+#
+# The job intentionally skips the docker registry cache: this test
+# guards against a code-level regression, not a build-system one, so
+# a cold rebuild keeps the gate honest.
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'crates/vectorizer-core/src/paths.rs'
+      - 'crates/vectorizer-server/src/bin/vectorizer.rs'
+      - 'scripts/docker-data-persistence-test.sh'
+      - '.github/workflows/docker-data-persistence.yml'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to test (defaults to the workflow trigger ref)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install jq + curl (sanity)
+        run: |
+          jq --version
+          curl --version | head -n1
+
+      - name: Run phase32 data-persistence regression test
+        env:
+          IMAGE: local/vectorizer:phase32-ci
+          PORT: '15010'
+        run: |
+          bash scripts/docker-data-persistence-test.sh
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs vec-phase32-test || true

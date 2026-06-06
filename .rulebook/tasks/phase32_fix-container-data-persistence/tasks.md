@@ -11,7 +11,7 @@
 - [x] 2.1 Set `ENV VECTORIZER_DATA_DIR=/data` in `Dockerfile` (in the runtime stage's ENV block, with a phase32 rationale comment pointing at issue #300).
 - [x] 2.2 `/data` is created in the `writable-dirs` stage with `chown -R 65532:65532` so the distroless nonroot user can write there from first boot.
 - [x] 2.3 No `docker-entrypoint.sh` — the image runs the binary directly via `ENTRYPOINT ["/vectorizer/vectorizer"]`, which inherits the env var from the `ENV` directive.
-- [ ] 2.4 Rebuild a smoke image; verify `ls /data` after first boot shows the real `vectorizer.vecdb` (handed off to §5.1 — Docker smoke test).
+- [x] 2.4 `scripts/docker-data-persistence-test.sh` step 6c runs `docker exec vec-phase32-test ls -la /data` after the recreate boundary and asserts `vectorizer.vecdb` is present. Wired into CI via the new `.github/workflows/docker-data-persistence.yml`.
 
 ## 3. Ephemeral-data-dir warning
 
@@ -28,8 +28,8 @@
 
 ## 5. Integration test
 
-- [ ] 5.1 Docker-based integration test: start container with `vec-data:/data`, create a collection + insert vector, `docker stop && docker rm`, recreate from the same volume, verify the collection survives
-- [ ] 5.2 CI job runs the test on every push touching `Dockerfile` or `crates/vectorizer/src/config/`
+- [x] 5.1 `scripts/docker-data-persistence-test.sh` builds the image fresh, starts a container with `vec-data-phase32-test:/data`, creates a collection + inserts 3 vectors + force-saves, `docker stop` (which on `--rm` also removes), recreates from the same volume, then asserts: (a) collection still listed, (b) `vector_count == 3`, (c) `/data/vectorizer.vecdb` present, (d) search still returns results. Six explicit `pass:` checkpoints; first failure exits non-zero.
+- [x] 5.2 `.github/workflows/docker-data-persistence.yml` runs the script on every PR that touches `Dockerfile`, `docker-compose.yml`, `crates/vectorizer-core/src/paths.rs`, `crates/vectorizer-server/src/bin/vectorizer.rs`, or the test script itself. Dumps container logs on failure. `workflow_dispatch` available for manual smoke runs.
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 
