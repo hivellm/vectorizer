@@ -49,6 +49,74 @@ pub fn data_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("data"))
 }
 
+/// Detect whether `path` is on the container's writable layer
+/// (i.e. lacks a backing volume/bind-mount) and warn accordingly.
+///
+/// Returns the message a caller should `tracing::warn!` when the
+/// data directory is ephemeral, or `None` when it appears to be on
+/// a real mount. The detection is Linux-only (relies on
+/// `/proc/self/mountinfo`) and a no-op on other platforms so
+/// bare-metal Windows / macOS deployments don't see false-positive
+/// warnings.
+///
+/// Heuristic: a containerised path like `/data` is "ephemeral" when
+/// no entry in `/proc/self/mountinfo` covers it — that is, the
+/// longest mount prefix is just `/` (the container's root overlay
+/// filesystem). Any tighter prefix (`/data`, `/var/lib/...`, etc.)
+/// indicates a bind / named volume that survives container recreate.
+///
+/// Phase32 / issue #300 — the canonical scenario this guards against
+/// is `docker compose up -d --force-recreate vectorizer` wiping every
+/// collection because the operator mounted `/data` but the binary
+/// historically wrote to `/.local/share/vectorizer` on the writable
+/// layer.
+#[must_use]
+pub fn ephemeral_data_dir_warning(path: &std::path::Path) -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        ephemeral_linux(path)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = path;
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn ephemeral_linux(path: &std::path::Path) -> Option<String> {
+    let mountinfo = std::fs::read_to_string("/proc/self/mountinfo").ok()?;
+    let abs = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let abs_str = abs.to_string_lossy();
+
+    // Each line of mountinfo has the mount point as the 5th
+    // whitespace-separated field. Collect every mount point, find the
+    // longest one that is a prefix of `abs`.
+    let mut best: &str = "";
+    for line in mountinfo.lines() {
+        let mut fields = line.split_whitespace();
+        let mp = fields.nth(4)?;
+        if abs_str.starts_with(mp) && mp.len() > best.len() {
+            best = mp;
+        }
+    }
+
+    // Only `/` matched — no bind / named volume covers this path, so
+    // it lives on the container's writable layer.
+    if best == "/" || best.is_empty() {
+        Some(format!(
+            "data dir at {} is ephemeral; recommend mounting a volume \
+             (issue #300). Without a persistent mount, every \
+             container recreate wipes collections, auth keys, and the \
+             JWT secret. Example: --volume vec-data:{}",
+            abs.display(),
+            abs.display()
+        ))
+    } else {
+        None
+    }
+}
+
 /// Returns the canonical Vectorizer logs directory.
 ///
 /// Resolution order:
@@ -112,6 +180,31 @@ mod tests {
             // SAFETY: see module-level comment.
             None => unsafe { std::env::remove_var(key) },
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn ephemeral_detector_no_op_outside_real_proc() {
+        // The detector reads /proc/self/mountinfo on Linux. We can't
+        // synthesise a fake mountinfo without privileges, but we can
+        // assert that whatever it returns for a clearly-mounted path
+        // (the test's tempdir, which lives under /tmp — a real
+        // mount) is `None`. That pins the negative case; the
+        // positive case is verified by the spec scenarios via Docker
+        // integration tests.
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().to_path_buf();
+        // /tmp is a tmpfs mount in most Linux setups, so the
+        // longest-matching prefix is `/tmp` (not `/`) and the
+        // detector reports the path as persistent. CI runners that
+        // don't tmpfs /tmp will still see *some* mount that covers
+        // /tmp via the underlying disk, so this assertion holds
+        // either way.
+        let warning = ephemeral_data_dir_warning(&p);
+        assert!(
+            warning.is_none(),
+            "tempdir under /tmp must not be flagged as ephemeral; got: {warning:?}"
+        );
     }
 
     #[test]

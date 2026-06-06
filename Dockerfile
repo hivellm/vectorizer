@@ -259,9 +259,20 @@ RUN unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
 # already pull from the syft attestation. See spec at
 # `.rulebook/tasks/phase10_optimize-docker-build-time/specs/build/spec.md`.
 
-# Writable data dir for distroless nonroot (binary needs ./data writable or it exits on startup)
+# Writable data dir for distroless nonroot.
+#
+# `/vectorizer/data` is kept for backward compatibility (binary still
+# writes a placeholder `vectorizer.vecdb` here from older code paths).
+#
+# `/data` is the canonical persistent state dir starting in v3.4.0 (see
+# phase32_fix-container-data-persistence / issue #300). The runtime
+# defaults `VECTORIZER_DATA_DIR=/data` so a single
+# `--volume vec-data:/data` mount captures collections, auth keys,
+# JWT secret, and snapshots — without it, the operator had to mount a
+# second volume on `/.local/share/vectorizer` and a routine
+# `docker compose up -d --force-recreate` would wipe every collection.
 FROM debian:bookworm-slim AS writable-dirs
-RUN mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
+RUN mkdir -p /vectorizer/data /data && chown -R 65532:65532 /vectorizer /data
 
 # Static busybox — the runtime is distroless (no shell, no curl, no wget), so
 # docker-compose / orchestrator healthchecks against /health need their own
@@ -307,6 +318,7 @@ ARG GIT_COMMIT_ID
 # `writable-dirs` also seeds `/vectorizer` itself as nonroot-owned so
 # later copies don't implicitly recreate the parent as root.
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer /vectorizer
+COPY --from=writable-dirs --chown=65532:65532 /data /data
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=dashboard-builder --chown=65532:65532 /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder --chown=65532:65532 /vectorizer/config/config.example.yml /vectorizer/config/config.yml
@@ -323,11 +335,20 @@ WORKDIR /vectorizer
 
 # Non-sensitive defaults only (do not bake secrets into image; pass at runtime)
 # For auth, set at run: -e VECTORIZER_AUTH_ENABLED -e VECTORIZER_ADMIN_PASSWORD -e VECTORIZER_JWT_SECRET
+#
+# VECTORIZER_DATA_DIR pins persistent state under `/data` so the
+# documented single `--volume vec-data:/data` mount survives a
+# `docker compose up -d --force-recreate` (issue #300 / phase32). The
+# resolver in `vectorizer-core::paths::data_dir` honours the env var
+# before falling back to the XDG default; without this line every
+# recreate wiped collections because the XDG path lived in the
+# container's writable layer.
 ENV TZ=Etc/UTC \
     RUN_MODE=production \
     VECTORIZER_HOST=0.0.0.0 \
     VECTORIZER_PORT=15002 \
-    VECTORIZER_ADMIN_USERNAME=admin
+    VECTORIZER_ADMIN_USERNAME=admin \
+    VECTORIZER_DATA_DIR=/data
 
 # Ports: RPC (binary, recommended primary) listed first per
 # phase6_make-rpc-default-transport. REST (15002) stays exposed for the

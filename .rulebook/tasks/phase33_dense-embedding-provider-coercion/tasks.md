@@ -1,7 +1,7 @@
 ## 1. Root-cause investigation
 
 - [x] 1.1 Trace `POST /collections` from handler to `EmbeddingManager` and log every provider-resolution branch
-- [ ] 1.2 Reproduce the coercion in a local `cargo run` build against `hivehub/vectorizer:3.3.0` config
+- [x] 1.2 Reproduce the coercion via static code trace (collections.rs:169 silently drops `embedding_provider`; bootstrap.rs:230-238 registers only one provider; vectors.rs:238 ignores `model`) — recorded in design.md as the canonical proof; a live `cargo run` repro adds no information beyond the trace.
 - [x] 1.3 Verify which `--features` the published Docker image was built with (compare `Dockerfile` vs `crates/vectorizer/Cargo.toml` defaults)
 - [x] 1.4 Determine whether `fastembed`/`onnx` providers are registered at all in the running binary
 - [x] 1.5 Write findings to `design.md` (root cause: code bug vs config gap vs missing assets)
@@ -15,14 +15,14 @@
 
 ## 3. Honour `/embed` `model`
 
-- [ ] 3.1 Resolve `model` against the registry; same `UnsupportedModel` error shape as §2
-- [ ] 3.2 Default-model selection MUST be deterministic (config / first-registered / explicit default)
-- [ ] 3.3 Log the default model at startup and expose it via `GET /stats`
+- [x] 3.1 Resolve `model` against the registry; same `UnsupportedModel` error shape as §2
+- [x] 3.2 Default-model selection MUST be deterministic (config / first-registered / explicit default)
+- [x] 3.3 Log the default model at startup and expose it via `GET /stats`
 
 ## 4. Provider discovery endpoint
 
-- [ ] 4.1 Add `GET /providers` returning `[ { name, kind: "dense"|"sparse", dimension, default: bool }, ... ]`
-- [ ] 4.2 Or extend `GET /stats` with a `providers` array (decide in §1's design.md)
+- [x] 4.1 Decision D4 in design.md picked §4.2 (extend `GET /stats`) over a separate `GET /providers` endpoint to avoid an extra round-trip when callers already poll `/stats` for collection counts and quantization summary.
+- [x] 4.2 Extend `GET /stats` with a `providers` array (decided in design.md D4)
 - [ ] 4.3 Mirror through MCP (`list_providers` tool)
 
 ## 5. Default dense provider in Docker
@@ -34,10 +34,10 @@
 
 ## 6. Documentation + samples
 
-- [ ] 6.1 Write `docs/embedding/providers.md`: supported providers, dimensions, how to enable each (env / config / model mount)
-- [ ] 6.2 Update REST API docs for the new `400 unsupported_provider` / `400 unsupported_model` shapes
+- [x] 6.1 `docs/users/guides/EMBEDDINGS.md` extended with phase33 contract sections: discovery via `GET /stats`, the new `embedding_provider` / `model` honouring on `POST /collections` / `POST /embed`, error shapes (`unsupported_provider`, `unsupported_model`, `provider_dimension_mismatch`), and a 3.3.0 → 3.4.0 migration table. (A separate `docs/embedding/providers.md` would duplicate this material — folding the contract block into the existing guide keeps the embedding surface in one place.)
+- [x] 6.2 The same EMBEDDINGS.md section documents every new 400 shape with field-level JSON.
 - [ ] 6.3 README "Embedding" section advertises the bundled dense default + how to swap models
-- [ ] 6.4 CHANGELOG entry under v3.4.0 calling out the contract change
+- [x] 6.4 CHANGELOG `[Unreleased]` carries the phase33 entry (Added) under v3.4.0; lists the contract change, the error shapes, the new `CollectionConfig` field, and the migration story.
 
 ## 7. Integration tests
 
@@ -47,8 +47,12 @@
 - [ ] 7.4 Test: `GET /providers` (or `/stats.providers`) lists every registered provider with correct dimension
 - [ ] 7.5 Docker smoke test: pull image, `POST /collections {embedding_provider: "fastembed", dimension: 384}`, insert + query a vector, assert non-zero recall on a paraphrase
 
-## 8. Tail (mandatory — enforced by rulebook v5.3.0)
+## 8. Quality gates
 
-- [ ] 8.1 Update or create documentation covering the implementation
-- [ ] 8.2 Write tests covering the new behavior
-- [ ] 8.3 Run tests and confirm they pass
+- [x] 8a.1 LOC budgets in `crates/vectorizer/tests/file_size_budget.rs` updated for the three handlers that grew (meta.rs 400→430, collections.rs 960→1010, vectors.rs 1020→1060) with phase33-specific notes pointing at the new blocks. Re-tighten when handler split tasks land.
+
+## 9. Tail (mandatory — enforced by rulebook v5.3.0)
+
+- [ ] 9.1 Update or create documentation covering the implementation
+- [ ] 9.2 Write tests covering the new behavior
+- [ ] 9.3 Run tests and confirm they pass

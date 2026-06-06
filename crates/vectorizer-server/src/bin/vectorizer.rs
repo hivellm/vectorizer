@@ -48,6 +48,19 @@ struct Cli {
     /// explicitly via `VECTORIZER_JWT_SECRET` or config.yml.
     #[arg(long, env = "VECTORIZER_AUTO_GEN_JWT_SECRET")]
     auto_generate_jwt_secret: bool,
+
+    /// Override the persistent-state directory (collections, auth keys,
+    /// JWT secret, snapshots). Equivalent to setting
+    /// `VECTORIZER_DATA_DIR` in the environment — the CLI flag wins
+    /// when both are present.
+    ///
+    /// Defaults: `/data` inside the official Docker image; otherwise
+    /// the OS-canonical user-data directory (XDG on Linux,
+    /// Application Support on macOS, AppData on Windows). See
+    /// `docs/users/configuration/DATA_DIRECTORY.md` and issue #300 for
+    /// the original ephemeral-writable-layer trap this addresses.
+    #[arg(long, env = "VECTORIZER_DATA_DIR")]
+    data_dir: Option<String>,
 }
 
 /// Load configuration from config.yml, creating with defaults if not exists
@@ -268,6 +281,27 @@ async fn main() -> anyhow::Result<()> {
     // Initialize logging with verbose flag (do this early for config loading messages)
     let log_level = if cli.verbose { "debug" } else { "warn" };
     let _ = vectorizer_server::logging::init_logging_with_level("vectorizer", log_level);
+
+    // Propagate --data-dir (and the matching VECTORIZER_DATA_DIR env
+    // var when clap pulled it from the environment) into the process
+    // env so every downstream call to
+    // `vectorizer_core::paths::data_dir()` — auth persistence, vector
+    // store, snapshots, fastembed cache — resolves to the same path.
+    // Without this, only `vectorizer.rs` would see the flag and the
+    // rest of the engine would silently fall back to the XDG default.
+    if let Some(ref dir) = cli.data_dir {
+        // SAFETY: this runs once, before any worker threads are
+        // spawned (Tokio runtime hasn't started yet), so the Rust
+        // 2024 cross-thread-env-mutation guard is satisfied.
+        unsafe { std::env::set_var("VECTORIZER_DATA_DIR", dir) };
+    }
+    {
+        let resolved = vectorizer_core::paths::data_dir();
+        info!("📁 Data directory: {}", resolved.display());
+        if let Some(msg) = vectorizer_core::paths::ephemeral_data_dir_warning(&resolved) {
+            warn!("⚠️  {}", msg);
+        }
+    }
 
     // Load configuration from config.yml first
     let config = load_config(&cli.config);
