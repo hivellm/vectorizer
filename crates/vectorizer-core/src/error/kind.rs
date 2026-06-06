@@ -66,6 +66,9 @@ impl VectorizerError {
             // that originate from the caller's payload.
             VectorizerError::InvalidDimension { .. }
             | VectorizerError::DimensionMismatch { .. }
+            | VectorizerError::UnsupportedProvider { .. }
+            | VectorizerError::UnsupportedModel { .. }
+            | VectorizerError::ProviderDimensionMismatch { .. }
             | VectorizerError::InvalidConfiguration { .. }
             | VectorizerError::ConfigurationError(_)
             | VectorizerError::Configuration(_)
@@ -107,6 +110,9 @@ impl VectorizerError {
             VectorizerError::VectorNotFound(_) => "vector_not_found",
             VectorizerError::InvalidDimension { .. } => "invalid_dimension",
             VectorizerError::DimensionMismatch { .. } => "dimension_mismatch",
+            VectorizerError::UnsupportedProvider { .. } => "unsupported_provider",
+            VectorizerError::UnsupportedModel { .. } => "unsupported_model",
+            VectorizerError::ProviderDimensionMismatch { .. } => "provider_dimension_mismatch",
             VectorizerError::PersistenceError(_) => "persistence_error",
             VectorizerError::IndexError(_) => "index_error",
             VectorizerError::ConfigurationError(_) | VectorizerError::Configuration(_) => {

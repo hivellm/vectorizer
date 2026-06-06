@@ -497,6 +497,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::None,
             compression: crate::models::CompressionConfig::default(),
+            embedding_provider: "bm25".to_string(),
             normalization: None,
             encryption: None,
             storage_type: None,

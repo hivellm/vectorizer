@@ -52,28 +52,40 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/meta.rs",
-        400,
+        430,
         "6 small handlers + phase25 §5 quantization aggregation \
          helpers (quantization_label / compression_ratio + 4 unit \
-         tests pinning their behaviour)",
+         tests pinning their behaviour) + phase33 §4 provider \
+         discovery block on GET /stats (issue #306 — lists every \
+         registered embedding provider with its dimension + default \
+         flag so callers can avoid the silent BM25 coercion trap).",
     ),
     (
         "src/server/rest_handlers/collections.rs",
-        960,
+        1010,
         "7 handlers incl. list/create + phase13 reencode_collection / \
          set_collection_ttl + phase14 rename / reindex / native snapshot \
          CRUD (snapshot_native, list_collection_snapshots_native, \
-         restore_collection_snapshot_native). Re-tighten when the \
-         schema-evolution endpoints split out (follow-up task).",
+         restore_collection_snapshot_native) + phase33 §2 \
+         embedding_provider validation on create_collection (issue \
+         #306 — resolves the requested provider against the registry \
+         and rejects with 400 unsupported_provider / \
+         provider_dimension_mismatch instead of silent BM25 coercion). \
+         Re-tighten when the schema-evolution endpoints split out \
+         (follow-up task).",
     ),
     (
         "src/server/rest_handlers/vectors.rs",
-        1020,
+        1060,
         "8 handlers + batch_insert_texts / insert_texts REST aliases + \
          do_batch_insert_texts engine (phase6 + phase8) + phase13 \
          delete_by_filter / bulk_update_metadata / copy_vectors / \
-         set_vector_expiry tier-control primitives. Re-tighten when \
-         the tier-control handlers split out (follow-up task).",
+         set_vector_expiry tier-control primitives + phase33 §3 \
+         model param resolution on /embed (issue #306 — honours the \
+         requested model or returns 400 unsupported_model instead of \
+         silently routing every embed through the default provider). \
+         Re-tighten when the tier-control handlers split out \
+         (follow-up task).",
     ),
     (
         "src/server/rest_handlers/insert.rs",

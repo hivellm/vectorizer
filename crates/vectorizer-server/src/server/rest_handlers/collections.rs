@@ -189,6 +189,50 @@ pub async fn create_collection(
         .and_then(|m| m.as_str())
         .unwrap_or("cosine");
 
+    // phase33 (#306): honour the `embedding_provider` field instead of
+    // silently coercing every collection to bm25. When omitted, fall
+    // back to the server's configured default — never to a hardcoded
+    // provider name.
+    let requested_provider = payload
+        .get("embedding_provider")
+        .and_then(|p| p.as_str())
+        .map(|s| s.to_string());
+    let resolved_provider = match requested_provider.clone() {
+        Some(name) => {
+            if !state.embedding_manager.has_provider(&name) {
+                return Err(ErrorResponse::from(
+                    vectorizer_core::error::VectorizerError::UnsupportedProvider {
+                        requested: name,
+                        available: state.embedding_manager.list_providers(),
+                    },
+                ));
+            }
+            name
+        }
+        None => state
+            .embedding_manager
+            .get_default_provider_name()
+            .unwrap_or("bm25")
+            .to_string(),
+    };
+    // Reject dimension mismatch against the provider's native dimension
+    // before persisting the collection — silent quantization to a
+    // different size is what caused the BM25-512 coercion downstream.
+    if let Ok(provider_dim) = state
+        .embedding_manager
+        .get_provider_dimension(&resolved_provider)
+    {
+        if provider_dim != dimension {
+            return Err(ErrorResponse::from(
+                vectorizer_core::error::VectorizerError::ProviderDimensionMismatch {
+                    provider: resolved_provider.clone(),
+                    provider_dimension: provider_dim,
+                    requested_dimension: dimension,
+                },
+            ));
+        }
+    }
+
     // Extract tenant ID for multi-tenant mode
     let tenant_id = extract_tenant_id(&tenant_ctx);
 
@@ -273,6 +317,7 @@ pub async fn create_collection(
         hnsw_config: vectorizer::models::HnswConfig::default(),
         quantization: vectorizer::models::QuantizationConfig::None,
         compression: vectorizer::models::CompressionConfig::default(),
+        embedding_provider: resolved_provider,
         normalization: None,
         storage_type,
         sharding: None,

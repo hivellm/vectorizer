@@ -45,7 +45,7 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Graph relationships** — automatic edge discovery, neighbor exploration, shortest-path finding.
 
 ### Embeddings & Docs
-- **Built-in providers** — TF-IDF, BM25, FastEmbed, BERT, MiniLM, custom models.
+- **Built-in providers** — TF-IDF, BM25, FastEmbed, BERT, MiniLM, custom models. **`embedding_provider` (on `POST /collections`) and `model` (on `POST /embed`) are honoured contracts as of v3.4.0** ([issue #306](https://github.com/hivellm/vectorizer/issues/306)) — unknown providers / models return `400 unsupported_provider` / `400 unsupported_model` with the available list; no more silent BM25-512 coercion. Discover registered providers via `GET /stats.providers` or the `list_providers` MCP tool. See [`docs/users/guides/EMBEDDINGS.md`](docs/users/guides/EMBEDDINGS.md#contract-post-collections-and-post-embed).
 - **Document conversion** — PDF, DOCX, XLSX, PPTX, HTML, XML, images (14 formats).
 - **Qdrant API compatibility** — Snapshots, Sharding, Cluster Management, Query (with prefetch), Search Groups, Matrix, Named Vectors (partial), PQ/Binary quantization config.
 - **Summarization** — extractive, keyword, sentence, abstractive (OpenAI GPT).
@@ -143,7 +143,7 @@ Installs CLI + Windows Service (requires Admin). Commands: `Get-Service Vectoriz
 docker run -d \
   --name vectorizer \
   -p 15002:15002 -p 15503:15503 \
-  -v $(pwd)/vectorizer-data:/vectorizer/data \
+  -v vec-data:/data \
   -e VECTORIZER_AUTH_ENABLED=true \
   -e VECTORIZER_ADMIN_USERNAME=admin \
   -e VECTORIZER_ADMIN_PASSWORD=your-secure-password \
@@ -151,6 +151,13 @@ docker run -d \
   --restart unless-stopped \
   hivehub/vectorizer:latest
 ```
+
+Starting in `hivehub/vectorizer:3.4.0` the image defaults
+`VECTORIZER_DATA_DIR=/data`, so a **single `--volume vec-data:/data`
+mount** captures every collection, auth key, JWT secret, and
+snapshot. `docker compose up -d --force-recreate vectorizer` is now
+safe; see `docs/users/configuration/DATA_DIRECTORY.md` for the
+3.3.0 migration runbook (issue [#300](https://github.com/hivellm/vectorizer/issues/300)).
 
 **Docker Compose with profiles:**
 

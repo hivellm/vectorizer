@@ -574,6 +574,7 @@ fn convert_from_qdrant_config(
         hnsw_config,
         quantization: quantization_config,
         compression: vectorizer::models::CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None, // Qdrant doesn't have normalization concept
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,

@@ -100,6 +100,7 @@ pub async fn handle_mcp_tool(
     match request.name.as_ref() {
         // Core Collection/Vector Operations
         "list_collections" => handle_list_collections(store).await,
+        "list_providers" => handle_list_providers(embedding_manager).await,
         "create_collection" => handle_create_collection(request, store).await,
         "get_collection_info" => handle_get_collection_info(request, store).await,
         "insert_text" => handle_insert_text(request, store, embedding_manager, upsert_queue).await,
@@ -222,6 +223,40 @@ async fn handle_list_collections(store: Arc<VectorStore>) -> Result<CallToolResu
     )]))
 }
 
+/// phase33 (#306): mirrors the `providers` array from
+/// `GET /stats` so MCP callers can discover what's registered
+/// before posting `embedding_provider` on `create_collection` /
+/// `model` on `embed_text`. Without this tool the only way to
+/// notice an unregistered provider was to watch the call return
+/// `400 unsupported_provider`.
+async fn handle_list_providers(
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let default = embedding_manager
+        .get_default_provider_name()
+        .map(|s| s.to_string());
+    let providers: Vec<serde_json::Value> = embedding_manager
+        .list_providers()
+        .into_iter()
+        .map(|name| {
+            let dimension = embedding_manager.get_provider_dimension(&name).unwrap_or(0);
+            let is_default = default.as_deref() == Some(name.as_str());
+            json!({
+                "name": name,
+                "dimension": dimension,
+                "default": is_default,
+            })
+        })
+        .collect();
+    let response = json!({
+        "providers": providers,
+        "default_provider": default,
+    });
+    Ok(CallToolResult::success(vec![Content::text(
+        response.to_string(),
+    )]))
+}
+
 async fn handle_create_collection(
     request: CallToolRequestParams,
     store: Arc<VectorStore>,
@@ -251,6 +286,12 @@ async fn handle_create_collection(
         _ => vectorizer::models::DistanceMetric::Cosine,
     };
 
+    let embedding_provider = args
+        .get("embedding_provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("bm25")
+        .to_string();
+
     // Parse graph configuration if provided
     let graph_config = args.get("graph").and_then(|g| {
         if let Some(enabled) = g.get("enabled").and_then(|e| e.as_bool()) {
@@ -277,6 +318,7 @@ async fn handle_create_collection(
             threshold_bytes: 1024,
             algorithm: vectorizer::models::CompressionAlgorithm::Lz4,
         },
+        embedding_provider,
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         graph: graph_config,

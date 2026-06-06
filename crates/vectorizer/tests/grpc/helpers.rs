@@ -28,6 +28,7 @@ pub fn create_test_config() -> CollectionConfig {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: Default::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: None,

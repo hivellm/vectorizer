@@ -58,6 +58,7 @@ pub fn create_test_collection_config(dimension: usize) -> CollectionConfig {
         },
         quantization: QuantizationConfig::SQ { bits: 8 },
         compression: CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,

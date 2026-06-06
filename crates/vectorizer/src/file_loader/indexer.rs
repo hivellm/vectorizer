@@ -153,6 +153,7 @@ impl Indexer {
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::SQ { bits: 8 },
             compression: Default::default(),
+            embedding_provider: self.config.embedding_type.clone(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,

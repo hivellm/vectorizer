@@ -4,7 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-06-06
+
+### Fixed
+
+- **Container deployments lose all collections on restart (phase32, issue [#300](https://github.com/hivellm/vectorizer/issues/300)).** The `hivehub/vectorizer:3.3.0` image wrote its persistent state (collections, vectors, auth keys, JWT secret, snapshots) to `/.local/share/vectorizer/` even though the README advertised `/data` as the volume mount. The XDG path lived on the container's writable layer, so `docker compose up -d --force-recreate vectorizer` silently wiped every collection.
+  - **Image default** — the Dockerfile now sets `ENV VECTORIZER_DATA_DIR=/data` and seeds the directory in the `writable-dirs` stage with the nonroot user as owner. A single `--volume vec-data:/data` mount survives recreate; the second mount on `/.local/share/vectorizer` that operators added as a workaround is no longer required.
+  - **CLI flag** — `vectorizer --data-dir <path>` is now a first-class CLI flag on `bin/vectorizer.rs`. The flag and the `VECTORIZER_DATA_DIR` env var resolve through a single helper (`vectorizer_core::paths::data_dir`) that every persistence subpath already uses (auth, vector store, snapshots, fastembed cache), so the override propagates throughout the engine without per-subsystem wiring.
+  - **Ephemeral-data-dir warning** — new `vectorizer_core::paths::ephemeral_data_dir_warning` parses `/proc/self/mountinfo` (Linux only) on startup and emits `WARN data dir at <path> is ephemeral; recommend mounting a volume` when the resolved data dir has no backing mount (i.e., it lives on the container's writable layer). Surfaces the trap the first time the operator boots without a volume.
+  - **Migration** — operators currently mounting `/.local/share/vectorizer` as a second volume should copy state into the `/data` volume; full runbook in `docs/users/configuration/DATA_DIRECTORY.md`.
+
 ### Added
+
+- **Honour `embedding_provider` / `model` in REST contracts (phase33, issue [#306](https://github.com/hivellm/vectorizer/issues/306)) — *contract change, see Breaking section*.** Stops the silent BM25-512 coercion that downstream consumers (e.g. hivellm/cortex) hit when they tried to provision a `fastembed` / `onnx` / `nomic-embed-text-v1.5` / `bge-small` collection. The 3.3.0 server accepted those payloads with `201 Created` but read them back as `embedding_provider: "bm25", dimension: 512`, and `POST /embed` always returned a BM25-512 vector regardless of the `model` param.
+  - **`POST /collections`** — honours `embedding_provider`. Defaults to the server's configured default when omitted; rejects unknown providers with `400 unsupported_provider { requested, available }`; rejects mismatched `dimension` with `400 provider_dimension_mismatch { provider, provider_dimension, requested_dimension }`.
+  - **`POST /embed`** — honours `model`. Rejects unknown models with `400 unsupported_model { requested, available }`. Response now echoes the resolved `model` so callers can confirm.
+  - **`GET /stats` discovery surface** — lists `providers: [{ name, dimension, default }]` and `default_provider` so clients can avoid the silent-coercion trap by inspecting what the deployment actually supports before posting.
+  - **`CollectionConfig.embedding_provider`** — new field persists which provider the collection was created with. Legacy `.vecdb` files default to `"bm25"` via serde so reload stays lossless.
+  - New `VectorizerError` variants: `UnsupportedProvider`, `UnsupportedModel`, `ProviderDimensionMismatch` (all `ErrorKind::BadRequest`).
 
 - **Go + C# SDK parity for v3.3.0 (phase31).** Closes the four-method gap between the Go / C# SDKs and the Rust / TypeScript / Python SDKs that v3.3.0 already shipped:
   - `UpdateApiKeyPermissions(id, request)` (Go) / `UpdateApiKeyPermissionsAsync` (C#) — `PUT /auth/keys/{id}/permissions`.

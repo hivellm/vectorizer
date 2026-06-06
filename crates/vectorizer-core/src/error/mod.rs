@@ -43,6 +43,45 @@ pub enum VectorizerError {
         actual: usize,
     },
 
+    /// Requested embedding provider is not registered.
+    /// Surfaces on `POST /collections` and `POST /embed` so callers
+    /// see an explicit failure instead of silent BM25 coercion
+    /// (issue #306).
+    #[error("Unsupported embedding provider '{requested}'; available: {}",
+            available.join(", "))]
+    UnsupportedProvider {
+        /// Provider name from the request payload.
+        requested: String,
+        /// Provider names currently registered in `EmbeddingManager`.
+        available: Vec<String>,
+    },
+
+    /// Requested embedding model is not registered.
+    /// Surfaces on `POST /embed`'s `model` parameter.
+    #[error("Unsupported embedding model '{requested}'; available: {}",
+            available.join(", "))]
+    UnsupportedModel {
+        /// Model name from the request payload.
+        requested: String,
+        /// Model names currently registered in `EmbeddingManager`.
+        available: Vec<String>,
+    },
+
+    /// Caller-supplied `dimension` differs from the provider's native dimension.
+    /// Distinct from `DimensionMismatch` (vector-vs-collection); this one
+    /// fires before the collection is created.
+    #[error(
+        "Provider '{provider}' has dimension {provider_dimension}, request asked for {requested_dimension}"
+    )]
+    ProviderDimensionMismatch {
+        /// Provider name that was selected.
+        provider: String,
+        /// Provider's native (only) dimension.
+        provider_dimension: usize,
+        /// Dimension requested by the caller.
+        requested_dimension: usize,
+    },
+
     /// Collection not found
     #[error("Collection not found: {0}")]
     CollectionNotFound(String),

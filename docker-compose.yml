@@ -55,7 +55,11 @@ services:
       - "15003:15003" # Additional port
     volumes:
       # Persistent data (config.yml + workspace.yml written here on first boot)
-      - ./data:/vectorizer/data
+      # Persistent state (collections, auth keys, JWT secret, snapshots).
+      # The image defaults VECTORIZER_DATA_DIR=/data (phase32 / issue #300),
+      # so this single bind mount survives `docker compose up -d
+      # --force-recreate vectorizer`.
+      - ./data:/data
       # Mount HiveLLM monorepo root as read-only /workspace for indexing
       - ../../:/workspace:ro
     environment:
@@ -104,7 +108,11 @@ services:
       - "15002:15002" # MCP + REST API
       - "15003:15003" # Additional port
     volumes:
-      - ./data:/vectorizer/data
+      # Persistent state (collections, auth keys, JWT secret, snapshots).
+      # The image defaults VECTORIZER_DATA_DIR=/data (phase32 / issue #300),
+      # so this single bind mount survives `docker compose up -d
+      # --force-recreate vectorizer`.
+      - ./data:/data
       - ./dashboard:/vectorizer/dashboard
       - ./workspace.docker.yml:/vectorizer/workspace.yml:ro
       - ../../:/workspace:ro
@@ -147,7 +155,11 @@ services:
       - "15002:15002" # REST API + MCP
       - "15003:15003" # gRPC
     volumes:
-      - ./data:/vectorizer/data
+      # Persistent state (collections, auth keys, JWT secret, snapshots).
+      # The image defaults VECTORIZER_DATA_DIR=/data (phase32 / issue #300),
+      # so this single bind mount survives `docker compose up -d
+      # --force-recreate vectorizer`.
+      - ./data:/data
       # Override embedded config with HiveHub config
       - ./config/presets/hub.yml:/vectorizer/config/config.yml:ro
     environment:
@@ -202,7 +214,7 @@ services:
       VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:-}"
       RUST_LOG: "info,vectorizer::replication=debug"
     volumes:
-      - master-data:/vectorizer/data
+      - master-data:/data
       - ./config/presets/ha-master.yml:/vectorizer/config/config.yml:ro
     command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config/config.yml"]
     networks:
@@ -229,7 +241,7 @@ services:
       VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:-}"
       RUST_LOG: "info,vectorizer::replication=debug"
     volumes:
-      - replica1-data:/vectorizer/data
+      - replica1-data:/data
       - ./config/presets/ha-replica.yml:/vectorizer/config/config.yml:ro
     command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config/config.yml"]
     depends_on:
@@ -253,7 +265,7 @@ services:
       VECTORIZER_JWT_SECRET: "${VECTORIZER_JWT_SECRET:-}"
       RUST_LOG: "info,vectorizer::replication=debug"
     volumes:
-      - replica2-data:/vectorizer/data
+      - replica2-data:/data
       - ./config/presets/ha-replica.yml:/vectorizer/config/config.yml:ro
     command: ["--host", "0.0.0.0", "--port", "15002", "--config", "/vectorizer/config/config.yml"]
     depends_on:

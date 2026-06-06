@@ -24,6 +24,121 @@ Vectorizer supports multiple embedding providers for different use cases:
 | BERT | Dense | 768 | Experimental | Testing only |
 | MiniLM | Dense | 384 | Experimental | Testing only |
 
+## Discovering what is registered
+
+Starting with v3.4.0 ([phase33](../../../CHANGELOG.md), issue
+[#306](https://github.com/hivellm/vectorizer/issues/306)), every
+running server advertises its registered embedding providers via
+`GET /stats`:
+
+```bash
+curl -s http://localhost:15002/stats | jq '.providers, .default_provider'
+```
+
+```json
+[
+  { "name": "bm25",     "dimension": 512, "default": true  },
+  { "name": "fastembed","dimension": 384, "default": false }
+]
+"bm25"
+```
+
+If the provider you intend to post to `POST /collections` is not
+in this list, the deployment was built without the matching Cargo
+feature (`fastembed`, `onnx`, etc.). Posting an unknown provider
+returns `400 unsupported_provider { requested, available }` — the
+3.3.0 silent-coercion-to-bm25 behaviour is gone.
+
+## Contract: `POST /collections` and `POST /embed`
+
+### Honouring `embedding_provider`
+
+`POST /collections` honours the `embedding_provider` field. The
+field is optional and defaults to the server's configured default
+when omitted. The server stores the resolved provider on
+`CollectionConfig.embedding_provider` so reload is lossless.
+
+**Success — provider is registered:**
+
+```bash
+curl -X POST http://localhost:15002/collections \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "denseprobe",
+    "dimension": 384,
+    "embedding_provider": "fastembed"
+  }'
+# 201 Created
+# GET /collections/denseprobe → { dimension: 384, embedding_provider: "fastembed", ... }
+```
+
+**Error — provider is not registered:**
+
+```json
+{
+  "error_type": "unsupported_provider",
+  "message": "Unsupported embedding provider 'fastembed'; available: bm25",
+  "details": {
+    "requested": "fastembed",
+    "available": ["bm25"]
+  },
+  "status_code": 400
+}
+```
+
+**Error — caller-supplied `dimension` conflicts with provider's
+native dimension:**
+
+```json
+{
+  "error_type": "provider_dimension_mismatch",
+  "message": "Provider 'fastembed' has dimension 384, request asked for 768",
+  "details": {
+    "provider": "fastembed",
+    "provider_dimension": 384,
+    "requested_dimension": 768
+  },
+  "status_code": 400
+}
+```
+
+### Honouring `model` on `POST /embed`
+
+`POST /embed` honours the `model` field — no more silent routing
+through the default provider. When `model` is omitted, the default
+provider is used; the response echoes the resolved `model` so
+callers can confirm.
+
+```bash
+curl -X POST http://localhost:15002/embed \
+  -H 'Content-Type: application/json' \
+  -d '{ "text": "hello", "model": "fastembed" }'
+# 200 OK
+# { "embedding": [...], "text": "hello", "dimension": 384, "model": "fastembed" }
+```
+
+```bash
+curl -X POST http://localhost:15002/embed \
+  -H 'Content-Type: application/json' \
+  -d '{ "text": "hello", "model": "nomic-embed-text-v1.5" }'
+# 400 Bad Request
+# {
+#   "error_type": "unsupported_model",
+#   "message": "Unsupported embedding model 'nomic-embed-text-v1.5'; available: bm25",
+#   "details": { "requested": "...", "available": ["bm25"] },
+#   "status_code": 400
+# }
+```
+
+### Migration from 3.3.0
+
+| 3.3.0 behaviour | 3.4.0 behaviour |
+|---|---|
+| `POST /collections { embedding_provider: "fastembed" }` returns `201`, reads back as `bm25/512` | Returns `400 unsupported_provider` when the build lacks fastembed; succeeds with `fastembed/384` when it has it |
+| `POST /embed { model: "bge-small" }` returns 512-dim BM25 vector regardless of `model` | Returns the requested model's vector OR `400 unsupported_model` |
+| No way to discover what providers exist | `GET /stats` lists `providers[]` + `default_provider` |
+| `CollectionConfig` has no `embedding_provider` field | New `embedding_provider: String` field — old `.vecdb` files default to `"bm25"` |
+
 ## Production Embedding: FastEmbed
 
 **FastEmbed is the recommended embedding provider for production use.**

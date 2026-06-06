@@ -1,0 +1,13 @@
+# Manual test config — phase33 §7 fastembed validation.
+# Sets the default embedding provider to FastEmbed all-MiniLM-L6-v2
+# (384-dim, dense). The pre-fetched model in /data/fastembed/Xenova/
+# is not in fastembed-rs's expected layout, so on first boot
+# fastembed-rs downloads the model from Hugging Face into its
+# canonical cache layout under /data/fastembed/. After this initial
+# download, recreate-survives-volume is preserved.
+
+embedding:
+  model: fastembed:all-MiniLM-L6-v2
+
+auth:
+  enabled: true

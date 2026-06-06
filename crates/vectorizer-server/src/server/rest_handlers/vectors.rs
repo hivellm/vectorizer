@@ -228,13 +228,16 @@ pub async fn delete_vector_generic(
     })))
 }
 
-/// POST /embed — generate an embedding for a text string
 /// POST /embed — generate an embedding for a text input via the
-/// server's active `EmbeddingManager` (BM25 by default, or whatever
-/// provider the operator registered in bootstrap).
+/// server's active `EmbeddingManager`.
 ///
-/// Request: `{text: string}`
-/// Response: `{embedding: [f32; dim], text, dimension}`
+/// Request: `{ text: string, model?: string }`
+/// - When `model` is omitted, the server's default provider is used.
+/// - When `model` is set but not registered, returns
+///   `400 unsupported_model` (phase33, issue #306) — the previous
+///   behavior of silently ignoring `model` is gone.
+///
+/// Response: `{ embedding: [f32; dim], text, dimension, model }`
 pub async fn embed_text(
     State(state): State<VectorizerServer>,
     Json(payload): Json<Value>,
@@ -244,18 +247,47 @@ pub async fn embed_text(
         .and_then(|t| t.as_str())
         .ok_or_else(|| create_validation_error("text", "missing or invalid text parameter"))?;
 
-    let embedding = state.embedding_manager.embed(text).map_err(|e| {
-        crate::server::error_middleware::create_bad_request_error(&format!(
-            "Failed to generate embedding: {}",
-            e
-        ))
-    })?;
+    let requested_model = payload
+        .get("model")
+        .and_then(|m| m.as_str())
+        .map(|s| s.to_string());
+
+    let (model_name, embedding) = match requested_model {
+        Some(name) => {
+            if !state.embedding_manager.has_provider(&name) {
+                return Err(ErrorResponse::from(
+                    vectorizer_core::error::VectorizerError::UnsupportedModel {
+                        requested: name,
+                        available: state.embedding_manager.list_providers(),
+                    },
+                ));
+            }
+            let emb = state
+                .embedding_manager
+                .embed_with_provider(&name, text)
+                .map_err(ErrorResponse::from)?;
+            (name, emb)
+        }
+        None => {
+            let default = state
+                .embedding_manager
+                .get_default_provider_name()
+                .unwrap_or("bm25")
+                .to_string();
+            let emb = state
+                .embedding_manager
+                .embed(text)
+                .map_err(ErrorResponse::from)?;
+            (default, emb)
+        }
+    };
     let dimension = embedding.len();
 
     Ok(Json(json!({
         "embedding": embedding,
         "text": text,
         "dimension": dimension,
+        "model": model_name,
     })))
 }
 

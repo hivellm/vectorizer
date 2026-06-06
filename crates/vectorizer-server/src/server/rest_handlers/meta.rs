@@ -98,6 +98,34 @@ pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
         })
         .unwrap_or_else(|| ("none".to_string(), 1.0));
 
+    // phase33 (#306): expose every registered embedding provider so
+    // callers can discover what the deployment actually supports
+    // before posting a collection. Without this, the only way to
+    // notice that `fastembed` was never registered was to watch a
+    // POST get coerced to bm25 — the silent-coercion bug we just
+    // closed.
+    let default_provider = state
+        .embedding_manager
+        .get_default_provider_name()
+        .map(|s| s.to_string());
+    let providers: Vec<Value> = state
+        .embedding_manager
+        .list_providers()
+        .into_iter()
+        .map(|name| {
+            let dimension = state
+                .embedding_manager
+                .get_provider_dimension(&name)
+                .unwrap_or(0);
+            let is_default = default_provider.as_deref() == Some(name.as_str());
+            json!({
+                "name": name,
+                "dimension": dimension,
+                "default": is_default,
+            })
+        })
+        .collect();
+
     Json(json!({
         "collections": collections.len(),
         "total_vectors": total_vectors,
@@ -105,6 +133,8 @@ pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
         "version": env!("CARGO_PKG_VERSION"),
         "default_quantization": default_quantization,
         "compression_ratio": compression_ratio,
+        "providers": providers,
+        "default_provider": default_provider,
     }))
 }
 

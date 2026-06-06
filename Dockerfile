@@ -132,12 +132,27 @@
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
 
 # Utilizing Docker layer caching with cargo-chef.
-# Pinned at rust 1.90-bookworm for v3.0.0: `async-graphql@7.2.1` and
-# `asynk-strim@0.1.5` (transitive deps) require rustc 1.89+; Edition
-# 2024 (which every workspace crate declares in its Cargo.toml)
-# requires rustc 1.85+. 1.90 is the current stable floor that
-# satisfies both without tracking a moving nightly target.
-FROM --platform=${BUILDPLATFORM:-linux/amd64} lukemathwalker/cargo-chef:latest-rust-1.90-bookworm AS chef
+#
+# Base: `rust:1.95-slim-trixie` (Debian 13, glibc 2.40).
+# - sysinfo@0.39.x (the default-features dep that backs
+#   GET /metrics/runtime) requires rustc 1.95.
+# - Edition 2024 (every workspace crate) requires rustc 1.85+.
+# - The runtime stage is `dhi.io/debian-base:trixie` (glibc 2.40 too)
+#   — aligning the builder and runtime libc avoids
+#   `undefined symbol: __isoc23_strtol` / `__isoc23_strtoull` link
+#   errors when the prebuilt ORT static library (pulled by the
+#   `fastembed` Cargo feature) references glibc 2.38+ C23 symbols.
+#   This was the link failure that surfaced when phase33 §5.2
+#   introduced the optional fastembed Docker variant — see
+#   `.rulebook/archive/2026-06-06-phase33_dense-embedding-provider-coercion/design.md` D6.
+# - cargo-chef is installed manually because the official
+#   `lukemathwalker/cargo-chef` image only ships bookworm tags.
+FROM --platform=${BUILDPLATFORM:-linux/amd64} rust:1.95-slim-trixie AS chef
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev clang lld git curl ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-chef --locked --version 0.1.73
+WORKDIR /vectorizer
 
 FROM chef AS planner
 WORKDIR /vectorizer
@@ -259,9 +274,53 @@ RUN unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
 # already pull from the syft attestation. See spec at
 # `.rulebook/tasks/phase10_optimize-docker-build-time/specs/build/spec.md`.
 
-# Writable data dir for distroless nonroot (binary needs ./data writable or it exits on startup)
+# Writable data dir for distroless nonroot.
+#
+# `/vectorizer/data` is kept for backward compatibility (binary still
+# writes a placeholder `vectorizer.vecdb` here from older code paths).
+#
+# `/data` is the canonical persistent state dir starting in v3.4.0 (see
+# phase32_fix-container-data-persistence / issue #300). The runtime
+# defaults `VECTORIZER_DATA_DIR=/data` so a single
+# `--volume vec-data:/data` mount captures collections, auth keys,
+# JWT secret, and snapshots — without it, the operator had to mount a
+# second volume on `/.local/share/vectorizer` and a routine
+# `docker compose up -d --force-recreate` would wipe every collection.
 FROM debian:bookworm-slim AS writable-dirs
-RUN mkdir -p /vectorizer/data && chown -R 65532:65532 /vectorizer
+RUN mkdir -p /vectorizer/data /data && chown -R 65532:65532 /vectorizer /data
+
+# Optional FastEmbed model pre-fetch (phase33 / issue #306).
+#
+# When the operator builds with `--build-arg ENABLE_FASTEMBED=1`, this
+# stage downloads the bundled dense model (design.md D5:
+# `all-MiniLM-L6-v2`, 384-dim) at image-build time so the first
+# container boot does not need a network round-trip to Hugging Face.
+# The files land at `/models/fastembed/<model-id>/` and the runtime
+# stage copies them into `/data/fastembed/` so the existing resolver
+# (`vectorizer_core::paths::data_dir().join("fastembed")`) picks them
+# up without code changes.
+#
+# Default builds set `ENABLE_FASTEMBED=0`, leaving the stage as a
+# no-op so the published slim image (BM25-only, ~release-docker
+# profile) stays unchanged. Operators who want dense out of the box
+# build with `--build-arg ENABLE_FASTEMBED=1 --build-arg
+# NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed`.
+FROM debian:bookworm-slim AS fastembed-models
+ARG ENABLE_FASTEMBED=0
+ARG FASTEMBED_MODEL=Xenova/all-MiniLM-L6-v2
+RUN if [ "$ENABLE_FASTEMBED" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+      DEST="/models/fastembed/${FASTEMBED_MODEL}" && \
+      mkdir -p "$DEST" && \
+      for f in onnx/model.onnx tokenizer.json config.json special_tokens_map.json; do \
+        curl --fail --silent --show-error --location \
+          -o "${DEST}/$(basename $f)" \
+          "https://huggingface.co/${FASTEMBED_MODEL}/resolve/main/$f"; \
+      done && \
+      chown -R 65532:65532 /models; \
+    else \
+      mkdir -p /models/fastembed && chown -R 65532:65532 /models; \
+    fi
 
 # Static busybox — the runtime is distroless (no shell, no curl, no wget), so
 # docker-compose / orchestrator healthchecks against /health need their own
@@ -307,6 +366,22 @@ ARG GIT_COMMIT_ID
 # `writable-dirs` also seeds `/vectorizer` itself as nonroot-owned so
 # later copies don't implicitly recreate the parent as root.
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer /vectorizer
+COPY --from=writable-dirs --chown=65532:65532 /data /data
+# phase33 §5.2 (#306): bring the optional FastEmbed model into
+# /data/fastembed so the resolver picks it up on first boot. When
+# ENABLE_FASTEMBED=0 (default) the source dir is just an empty
+# `/models/fastembed` placeholder, so the COPY is a cheap no-op.
+COPY --from=fastembed-models --chown=65532:65532 /models/fastembed /data/fastembed
+# phase33 §5.2 (#306): libstdc++.so.6 is a hard runtime dep of the
+# ONNX Runtime that the `fastembed` Cargo feature dynamically links
+# against. The DHI base ships full glibc + libssl but not libstdc++,
+# so a fastembed-enabled binary boots with
+# `error while loading shared libraries: libstdc++.so.6` without
+# this copy. For the BM25-only default build the lib is unused but
+# costs ~2 MB on the image — cheaper than gating the COPY on an
+# ARG and risking the conditional drifting out of sync with the
+# Cargo features.
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=dashboard-builder --chown=65532:65532 /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder --chown=65532:65532 /vectorizer/config/config.example.yml /vectorizer/config/config.yml
@@ -323,11 +398,20 @@ WORKDIR /vectorizer
 
 # Non-sensitive defaults only (do not bake secrets into image; pass at runtime)
 # For auth, set at run: -e VECTORIZER_AUTH_ENABLED -e VECTORIZER_ADMIN_PASSWORD -e VECTORIZER_JWT_SECRET
+#
+# VECTORIZER_DATA_DIR pins persistent state under `/data` so the
+# documented single `--volume vec-data:/data` mount survives a
+# `docker compose up -d --force-recreate` (issue #300 / phase32). The
+# resolver in `vectorizer-core::paths::data_dir` honours the env var
+# before falling back to the XDG default; without this line every
+# recreate wiped collections because the XDG path lived in the
+# container's writable layer.
 ENV TZ=Etc/UTC \
     RUN_MODE=production \
     VECTORIZER_HOST=0.0.0.0 \
     VECTORIZER_PORT=15002 \
-    VECTORIZER_ADMIN_USERNAME=admin
+    VECTORIZER_ADMIN_USERNAME=admin \
+    VECTORIZER_DATA_DIR=/data
 
 # Ports: RPC (binary, recommended primary) listed first per
 # phase6_make-rpc-default-transport. REST (15002) stays exposed for the

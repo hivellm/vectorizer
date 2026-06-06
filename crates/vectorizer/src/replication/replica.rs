@@ -347,6 +347,7 @@ impl ReplicaNode {
                     hnsw_config: crate::models::HnswConfig::default(),
                     quantization: crate::models::QuantizationConfig::None,
                     compression: Default::default(),
+                    embedding_provider: "bm25".to_string(),
                     normalization: None,
                     storage_type: Some(crate::models::StorageType::Memory),
                     sharding: None,

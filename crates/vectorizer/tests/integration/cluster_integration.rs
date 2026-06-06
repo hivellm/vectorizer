@@ -46,6 +46,7 @@ async fn test_distributed_sharding_with_quantization() {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::SQ { bits: 8 },
         compression: vectorizer::models::CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: Some(ShardingConfig {
@@ -111,6 +112,7 @@ async fn test_distributed_sharding_with_compression() {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: Some(ShardingConfig {
@@ -176,6 +178,7 @@ async fn test_distributed_sharding_with_payload() {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: vectorizer::models::CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: Some(ShardingConfig {
@@ -252,6 +255,7 @@ async fn test_distributed_sharding_with_sparse() {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: vectorizer::models::CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: Some(ShardingConfig {

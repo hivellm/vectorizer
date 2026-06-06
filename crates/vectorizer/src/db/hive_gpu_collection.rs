@@ -760,6 +760,7 @@ mod tests {
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::default(),
             compression: CompressionConfig::default(),
+            embedding_provider: "bm25".to_string(),
             normalization: None,
             encryption: None,
             storage_type: Some(crate::models::StorageType::Memory),

@@ -380,6 +380,7 @@ pub async fn handle_collection_command(
                 hnsw_config: vectorizer::models::HnswConfig::default(),
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: vectorizer::models::CompressionConfig::default(),
+                embedding_provider: "bm25".to_string(),
                 normalization: Some(vectorizer::normalization::NormalizationConfig::moderate()),
                 storage_type: Some(vectorizer::models::StorageType::Memory),
                 sharding: None,

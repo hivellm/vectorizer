@@ -97,11 +97,12 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        // Should have 31 individual focused operations
+        // 32 individual focused operations (31 from phase3+ + the
+        // `list_providers` MCP mirror landed in phase33 / issue #306).
         assert_eq!(
             operations.len(),
-            31,
-            "Expected 31 individual operations, got {}",
+            32,
+            "Expected 32 individual operations, got {}",
             operations.len()
         );
 
@@ -110,6 +111,7 @@ mod tests {
 
         // Core operations
         assert!(op_names.contains(&"list_collections".to_string()));
+        assert!(op_names.contains(&"list_providers".to_string()));
         assert!(op_names.contains(&"create_collection".to_string()));
         assert!(op_names.contains(&"get_collection_info".to_string()));
         assert!(op_names.contains(&"insert_text".to_string()));

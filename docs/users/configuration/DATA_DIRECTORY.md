@@ -304,34 +304,118 @@ $env:VECTORIZER_DATA_DIR = "V:\"
 
 ## Docker Volumes
 
-### Named Volume
+The official `hivehub/vectorizer:3.4.0+` image defaults
+`VECTORIZER_DATA_DIR=/data`, so a **single volume mount on `/data`**
+captures the entire persistent state (collections, auth keys, JWT
+secret, snapshots). This is the only supported mount path going
+forward.
+
+### Single canonical mount (recommended)
 
 ```yaml
 services:
   vectorizer:
+    image: hivehub/vectorizer:3.4.0
+    ports:
+      - "15002:15002"
     volumes:
-      - vectorizer-data:/var/lib/vectorizer
+      - vec-data:/data
 
 volumes:
-  vectorizer-data:
+  vec-data:
 ```
 
-### Host Directory
+After `docker compose up -d`, every collection / API key / JWT
+secret lands under `/data` inside the container, which is backed by
+the `vec-data` named volume. A subsequent
+`docker compose up -d --force-recreate vectorizer` survives without
+data loss.
+
+### Migrating from 3.3.0 and earlier
+
+**Background — issue [#300](https://github.com/hivellm/vectorizer/issues/300):**
+3.3.0 and earlier wrote persistent state to
+`/.local/share/vectorizer/` (the XDG path) even though the README
+advertised `/data`. The XDG path lived on the container's writable
+layer, so `docker compose up -d --force-recreate` silently wiped
+every collection. Operators worked around it by mounting a second
+volume on `/.local/share/vectorizer`.
+
+If your existing deployment mounted both `/data` and
+`/.local/share/vectorizer` (the workaround), follow these steps to
+consolidate onto the new single-volume layout:
+
+```bash
+# 1. Stop the service.
+docker compose stop vectorizer
+
+# 2. Copy the real data from the workaround volume into /data.
+docker run --rm \
+  -v <your-old-state-volume>:/from \
+  -v <your-data-volume>:/to \
+  alpine sh -c "cp -a /from/. /to/"
+
+# 3. Drop the second-volume line from docker-compose.yml so only
+#    `- vec-data:/data` remains.
+
+# 4. Upgrade to 3.4.0+ and start.
+docker compose up -d vectorizer
+
+# 5. Verify collections survive a recreate.
+docker compose up -d --force-recreate vectorizer
+curl http://localhost:15002/collections   # must list the prior collections
+```
+
+If you only ever mounted `/data` (no workaround in place), the
+upgrade is a straight image-tag bump — `VECTORIZER_DATA_DIR=/data`
+in 3.4.0 means the binary now writes where you were already
+mounting.
+
+### Ephemeral-data-dir warning
+
+Starting with 3.4.0, the server emits a `WARN data dir at <path> is
+ephemeral; recommend mounting a volume` on startup if the resolved
+data directory has no backing mount (i.e., it lives on the
+container's writable layer). Use this as the canary that catches a
+forgotten `--volume` flag before it costs you collections.
+
+### Legacy single-volume hosts (non-`/data` paths)
+
+If you must point Vectorizer at a non-default path inside the
+container, set `VECTORIZER_DATA_DIR` (or pass `--data-dir`) to
+match the mount:
 
 ```yaml
 services:
   vectorizer:
+    image: hivehub/vectorizer:3.4.0
+    environment:
+      VECTORIZER_DATA_DIR: /var/lib/vectorizer
     volumes:
-      - ./vectorizer-data:/var/lib/vectorizer
+      - vec-data:/var/lib/vectorizer
+
+volumes:
+  vec-data:
 ```
 
-### External Volume
+### Host bind mount
 
 ```yaml
 services:
   vectorizer:
+    image: hivehub/vectorizer:3.4.0
     volumes:
-      - external-vectorizer-data:/var/lib/vectorizer
+      - ./vectorizer-data:/data
+```
+
+### External volume
+
+```yaml
+services:
+  vectorizer:
+    image: hivehub/vectorizer:3.4.0
+    volumes:
+      - external-vectorizer-data:/data
 
 volumes:
   external-vectorizer-data:

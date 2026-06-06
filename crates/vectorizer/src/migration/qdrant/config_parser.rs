@@ -214,6 +214,7 @@ impl QdrantConfigParser {
             hnsw_config,
             quantization,
             compression: crate::models::CompressionConfig::default(),
+            embedding_provider: "bm25".to_string(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,
