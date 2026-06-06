@@ -172,7 +172,7 @@ async-graphql-axum = "7.0"
 prometheus = "0.14"
 opentelemetry = { version = "0.32", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.32", features = ["metrics", "trace", "rt-tokio"] }
-opentelemetry-prometheus = "0.31"
+opentelemetry-prometheus = "0.32"
 opentelemetry-otlp = { version = "0.32", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
 tracing-opentelemetry = "0.32"
 
