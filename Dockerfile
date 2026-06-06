@@ -132,12 +132,15 @@
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
 
 # Utilizing Docker layer caching with cargo-chef.
-# Pinned at rust 1.90-bookworm for v3.0.0: `async-graphql@7.2.1` and
-# `asynk-strim@0.1.5` (transitive deps) require rustc 1.89+; Edition
-# 2024 (which every workspace crate declares in its Cargo.toml)
-# requires rustc 1.85+. 1.90 is the current stable floor that
-# satisfies both without tracking a moving nightly target.
-FROM --platform=${BUILDPLATFORM:-linux/amd64} lukemathwalker/cargo-chef:latest-rust-1.90-bookworm AS chef
+# Pinned at rust 1.95-bookworm for v3.4.0: `sysinfo@0.39.x` (the
+# default-features dep that backs `GET /metrics/runtime`) requires
+# rustc 1.95, and Edition 2024 (every workspace crate) requires
+# rustc 1.85+. 1.95 is the current stable floor that satisfies both
+# without tracking a moving nightly target. Bumped from 1.90 to 1.95
+# in phase33 / issue #306; older base images fail with
+# "the package requires the Cargo feature called `edition2024`" or
+# "sysinfo@0.39.2 requires rustc 1.95".
+FROM --platform=${BUILDPLATFORM:-linux/amd64} lukemathwalker/cargo-chef:latest-rust-1.95-bookworm AS chef
 
 FROM chef AS planner
 WORKDIR /vectorizer
