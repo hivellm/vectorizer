@@ -59,6 +59,29 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             }),
             ToolAnnotations::new().read_only(true).idempotent(true),
         ),
+        // 1b. List Providers (phase33 / issue #306) — mirrors the
+        // `providers` array on `GET /stats` so MCP callers can
+        // discover the registered embedding surface before posting a
+        // create_collection / embed_text with an `embedding_provider`
+        // / `model` field that would otherwise come back as
+        // `400 unsupported_provider`.
+        mk_tool(
+            "list_providers",
+            "List Embedding Providers",
+            "List every embedding provider registered in the running \
+             server (name, dimension, default flag). Use this before \
+             posting `embedding_provider` on create_collection or \
+             `model` on embed_text — if the desired provider is not \
+             in this list, the deployment was built without the \
+             matching Cargo feature and posting it would return \
+             `400 unsupported_provider`.",
+            json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
         // 2. Create Collection
         mk_tool(
             "create_collection",

@@ -101,6 +101,21 @@ pub fn inventory() -> Vec<Capability> {
             auth: AuthBucket::User,
             transport: Transport::Both,
         },
+        // phase33 (#306): mirror the `providers` array from
+        // `GET /stats` as a dedicated MCP tool. The REST surface stays
+        // on `/stats` (no separate `/providers` endpoint per design
+        // D4); the MCP tool exists because the existing `get_stats`
+        // tool returns a single blob and AI agents are easier to wire
+        // up against a typed `list_providers` shape.
+        Capability {
+            id: "embedding.list_providers",
+            summary: "List every embedding provider registered in the running server (name, dimension, default flag).",
+            mcp_tool_name: Some("list_providers"),
+            mcp_input_schema: Some(schema_empty_object),
+            rest: Some(("GET", "/stats")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
         Capability {
             id: "collection.create",
             summary: "Create a new vector collection with specified dimension and distance metric.",

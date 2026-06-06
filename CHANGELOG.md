@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-06-06
+
 ### Fixed
 
 - **Container deployments lose all collections on restart (phase32, issue [#300](https://github.com/hivellm/vectorizer/issues/300)).** The `hivehub/vectorizer:3.3.0` image wrote its persistent state (collections, vectors, auth keys, JWT secret, snapshots) to `/.local/share/vectorizer/` even though the README advertised `/data` as the volume mount. The XDG path lived on the container's writable layer, so `docker compose up -d --force-recreate vectorizer` silently wiped every collection.
