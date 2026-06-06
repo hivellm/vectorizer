@@ -132,15 +132,27 @@
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
 
 # Utilizing Docker layer caching with cargo-chef.
-# Pinned at rust 1.95-bookworm for v3.4.0: `sysinfo@0.39.x` (the
-# default-features dep that backs `GET /metrics/runtime`) requires
-# rustc 1.95, and Edition 2024 (every workspace crate) requires
-# rustc 1.85+. 1.95 is the current stable floor that satisfies both
-# without tracking a moving nightly target. Bumped from 1.90 to 1.95
-# in phase33 / issue #306; older base images fail with
-# "the package requires the Cargo feature called `edition2024`" or
-# "sysinfo@0.39.2 requires rustc 1.95".
-FROM --platform=${BUILDPLATFORM:-linux/amd64} lukemathwalker/cargo-chef:latest-rust-1.95-bookworm AS chef
+#
+# Base: `rust:1.95-slim-trixie` (Debian 13, glibc 2.40).
+# - sysinfo@0.39.x (the default-features dep that backs
+#   GET /metrics/runtime) requires rustc 1.95.
+# - Edition 2024 (every workspace crate) requires rustc 1.85+.
+# - The runtime stage is `dhi.io/debian-base:trixie` (glibc 2.40 too)
+#   — aligning the builder and runtime libc avoids
+#   `undefined symbol: __isoc23_strtol` / `__isoc23_strtoull` link
+#   errors when the prebuilt ORT static library (pulled by the
+#   `fastembed` Cargo feature) references glibc 2.38+ C23 symbols.
+#   This was the link failure that surfaced when phase33 §5.2
+#   introduced the optional fastembed Docker variant — see
+#   `.rulebook/archive/2026-06-06-phase33_dense-embedding-provider-coercion/design.md` D6.
+# - cargo-chef is installed manually because the official
+#   `lukemathwalker/cargo-chef` image only ships bookworm tags.
+FROM --platform=${BUILDPLATFORM:-linux/amd64} rust:1.95-slim-trixie AS chef
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev clang lld git curl ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
+RUN cargo install cargo-chef --locked --version 0.1.73
+WORKDIR /vectorizer
 
 FROM chef AS planner
 WORKDIR /vectorizer
@@ -360,6 +372,16 @@ COPY --from=writable-dirs --chown=65532:65532 /data /data
 # ENABLE_FASTEMBED=0 (default) the source dir is just an empty
 # `/models/fastembed` placeholder, so the COPY is a cheap no-op.
 COPY --from=fastembed-models --chown=65532:65532 /models/fastembed /data/fastembed
+# phase33 §5.2 (#306): libstdc++.so.6 is a hard runtime dep of the
+# ONNX Runtime that the `fastembed` Cargo feature dynamically links
+# against. The DHI base ships full glibc + libssl but not libstdc++,
+# so a fastembed-enabled binary boots with
+# `error while loading shared libraries: libstdc++.so.6` without
+# this copy. For the BM25-only default build the lib is unused but
+# costs ~2 MB on the image — cheaper than gating the COPY on an
+# ARG and risking the conditional drifting out of sync with the
+# Cargo features.
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=dashboard-builder --chown=65532:65532 /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder --chown=65532:65532 /vectorizer/config/config.example.yml /vectorizer/config/config.yml
