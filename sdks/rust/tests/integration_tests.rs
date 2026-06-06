@@ -95,13 +95,20 @@ async fn test_create_collection() {
     // Clean up if exists
     let _ = client.delete_collection(&collection_name).await;
 
+    // 512-dim matches the server's default BM25 embedder. Before
+    // phase33 (#306) the server silently coerced any caller-supplied
+    // `dimension` to the provider's native dimension (BM25 = 512);
+    // now the contract requires the two to match or the server
+    // responds 400 `provider_dimension_mismatch`. This SDK test was
+    // posting `384` against a BM25-default server and getting away
+    // with it because of that silent coercion.
     match client
-        .create_collection(&collection_name, 384, Some(SimilarityMetric::Cosine))
+        .create_collection(&collection_name, 512, Some(SimilarityMetric::Cosine))
         .await
     {
         Ok(info) => {
             assert_eq!(info.name, collection_name);
-            assert_eq!(info.dimension, 384);
+            assert_eq!(info.dimension, 512);
             // v3 server emits `metric` in Rust-Debug form ("Cosine");
             // the create-path helper lowercases it. Normalize on both
             // sides so either shape passes.
@@ -365,8 +372,10 @@ async fn test_delete_collection() {
     }
     let collection_name = format!("test_delete_{}", uuid::Uuid::new_v4());
 
-    // Create collection
-    let _ = client.create_collection(&collection_name, 384, None).await;
+    // Create collection. 512-dim matches the server's default BM25
+    // embedder — phase33 (#306) requires the dimension to match the
+    // provider's native dimension.
+    let _ = client.create_collection(&collection_name, 512, None).await;
 
     // Verify collection exists
     let collections = client.list_collections().await.unwrap();
