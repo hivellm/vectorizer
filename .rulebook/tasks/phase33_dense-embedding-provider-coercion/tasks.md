@@ -23,7 +23,7 @@
 
 - [x] 4.1 Decision D4 in design.md picked §4.2 (extend `GET /stats`) over a separate `GET /providers` endpoint to avoid an extra round-trip when callers already poll `/stats` for collection counts and quantization summary.
 - [x] 4.2 Extend `GET /stats` with a `providers` array (decided in design.md D4)
-- [ ] 4.3 Mirror through MCP (`list_providers` tool)
+- [x] 4.3 `list_providers` MCP tool: registered in `mcp/tools.rs`, dispatched via `mcp/handlers.rs::handle_list_providers`, capability inventory entry `embedding.list_providers` pins the cross-protocol shape (REST surface `GET /stats` per design D4 — no separate `/providers` endpoint).
 
 ## 5. Multi-provider registration + Docker dense default
 
@@ -36,7 +36,7 @@
 
 - [x] 6.1 `docs/users/guides/EMBEDDINGS.md` extended with phase33 contract sections: discovery via `GET /stats`, the new `embedding_provider` / `model` honouring on `POST /collections` / `POST /embed`, error shapes (`unsupported_provider`, `unsupported_model`, `provider_dimension_mismatch`), and a 3.3.0 → 3.4.0 migration table. (A separate `docs/embedding/providers.md` would duplicate this material — folding the contract block into the existing guide keeps the embedding surface in one place.)
 - [x] 6.2 The same EMBEDDINGS.md section documents every new 400 shape with field-level JSON.
-- [ ] 6.3 README "Embedding" section advertises the bundled dense default + how to swap models
+- [x] 6.3 README "Embeddings & Docs" section calls out the phase33 contract change (issue #306), points to the EMBEDDINGS.md migration table, and mentions discovery via `GET /stats.providers` + the `list_providers` MCP tool.
 - [x] 6.4 CHANGELOG `[Unreleased]` carries the phase33 entry (Added) under v3.4.0; lists the contract change, the error shapes, the new `CollectionConfig` field, and the migration story.
 
 ## 7. Tests

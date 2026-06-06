@@ -45,7 +45,7 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Graph relationships** — automatic edge discovery, neighbor exploration, shortest-path finding.
 
 ### Embeddings & Docs
-- **Built-in providers** — TF-IDF, BM25, FastEmbed, BERT, MiniLM, custom models.
+- **Built-in providers** — TF-IDF, BM25, FastEmbed, BERT, MiniLM, custom models. **`embedding_provider` (on `POST /collections`) and `model` (on `POST /embed`) are honoured contracts as of v3.4.0** ([issue #306](https://github.com/hivellm/vectorizer/issues/306)) — unknown providers / models return `400 unsupported_provider` / `400 unsupported_model` with the available list; no more silent BM25-512 coercion. Discover registered providers via `GET /stats.providers` or the `list_providers` MCP tool. See [`docs/users/guides/EMBEDDINGS.md`](docs/users/guides/EMBEDDINGS.md#contract-post-collections-and-post-embed).
 - **Document conversion** — PDF, DOCX, XLSX, PPTX, HTML, XML, images (14 formats).
 - **Qdrant API compatibility** — Snapshots, Sharding, Cluster Management, Query (with prefetch), Search Groups, Matrix, Named Vectors (partial), PQ/Binary quantization config.
 - **Summarization** — extractive, keyword, sentence, abstractive (OpenAI GPT).
