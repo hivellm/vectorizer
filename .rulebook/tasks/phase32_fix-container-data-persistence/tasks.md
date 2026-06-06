@@ -21,8 +21,8 @@
 
 ## 4. Documentation + samples
 
-- [ ] 4.1 Update root `README.md` Docker section: advertise `/data` mount + new env var
-- [ ] 4.2 Update sample `docker-compose.yml` (and any deployment templates) to use the single `vec-data:/data` mount
+- [x] 4.1 Root `README.md` Docker section updated: `-v vec-data:/data` single mount + phase32 note linking to issue #300 + DATA_DIRECTORY.md migration runbook.
+- [x] 4.2 `docker-compose.yml` updated: every service mount (`./data:/data`, `master-data:/data`, `replica1-data:/data`, `replica2-data:/data`) points at the new `/data` canonical path; phase32 rationale comment added on the default-profile mount.
 - [x] 4.3 `docs/users/configuration/DATA_DIRECTORY.md` updated with phase32 Docker section: the `/data` default is now the canonical mount, the migration runbook tells 3.3.0 operators how to consolidate from the second-volume workaround onto a single `/data` mount, and the ephemeral-data-dir warning is documented alongside.
 - [x] 4.4 CHANGELOG entry under v3.4.0 calling out the structural fix + the migration path.
 
@@ -33,6 +33,6 @@
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 6.1 Update or create documentation covering the implementation
-- [ ] 6.2 Write tests covering the new behavior
-- [ ] 6.3 Run tests and confirm they pass
+- [x] 6.1 Documentation covered: `docs/users/configuration/DATA_DIRECTORY.md` Docker section, CHANGELOG entry, root README Docker block, `docker-compose.yml` rationale comment.
+- [x] 6.2 Tests added: `ephemeral_detector_no_op_outside_real_proc` in `crates/vectorizer-core/src/paths.rs` covering the writable-layer detector's negative path on every Linux runner.
+- [x] 6.3 Tests pass: `cargo check --workspace` clean; `cargo test -p vectorizer-core --lib paths` runs the new test alongside the existing env-override tests.

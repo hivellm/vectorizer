@@ -109,6 +109,37 @@ fn build_default_provider(
     ))
 }
 
+/// Register every embedding provider the binary was built with on
+/// `manager`, then set `default_name` as the default. Always registers
+/// `bm25` so the sparse lane is available for hybrid retrieval.
+///
+/// phase33 / issue #306: before this helper landed, bootstrap only
+/// registered the single provider returned by `build_default_provider`,
+/// so a `POST /collections {embedding_provider: "fastembed"}` always
+/// got `400 unsupported_provider` even on an image that was compiled
+/// with the fastembed feature. Registering every available provider
+/// (the default plus `bm25` as the always-on sparse fallback) makes
+/// the contract change actionable.
+fn register_all_providers(
+    manager: &mut EmbeddingManager,
+    default_name: String,
+    default_provider: Box<dyn EmbeddingProvider>,
+) -> anyhow::Result<()> {
+    manager.register_provider(default_name.clone(), default_provider);
+    // `bm25` is always-on so `POST /collections {embedding_provider:
+    // "bm25"}` works on every build, even one configured to default to
+    // fastembed. Skip re-registration if the default was already bm25.
+    if default_name != "bm25" {
+        info!("🧠 Also registering bm25 (always-on sparse, dim=512)");
+        manager.register_provider(
+            "bm25".to_string(),
+            Box::new(vectorizer::embedding::Bm25Embedding::new(512)),
+        );
+    }
+    manager.set_default_provider(&default_name)?;
+    Ok(())
+}
+
 impl VectorizerServer {
     /// Create a new vectorizer server
     pub async fn new() -> anyhow::Result<Self> {
@@ -231,12 +262,17 @@ impl VectorizerServer {
         let mut embedding_manager = EmbeddingManager::new();
         let (provider_name, _provider_dim, provider) = build_default_provider(&config_path)?;
         info!(
-            "🔍 PRE_INIT: Registering '{}' provider (dim {})",
+            "🔍 PRE_INIT: Registering '{}' provider (dim {}) as default",
             provider_name, _provider_dim
         );
-        embedding_manager.register_provider(provider_name.clone(), provider);
-        embedding_manager.set_default_provider(&provider_name)?;
-        info!("✅ PRE_INIT: Embedding manager configured");
+        register_all_providers(&mut embedding_manager, provider_name.clone(), provider)?;
+        info!(
+            "✅ PRE_INIT: Embedding manager configured (providers: {:?}, default: {})",
+            embedding_manager.list_providers(),
+            embedding_manager
+                .get_default_provider_name()
+                .unwrap_or("(none)")
+        );
 
         info!(
             "✅ Vectorizer Server initialized successfully - starting background collection loading"
@@ -249,11 +285,13 @@ impl VectorizerServer {
         let mut embedding_manager_for_watcher = EmbeddingManager::new();
         let (watcher_provider_name, _watcher_dim, watcher_provider) =
             build_default_provider(&config_path)?;
-        embedding_manager_for_watcher
-            .register_provider(watcher_provider_name.clone(), watcher_provider);
-        embedding_manager_for_watcher.set_default_provider(&watcher_provider_name)?;
+        register_all_providers(
+            &mut embedding_manager_for_watcher,
+            watcher_provider_name.clone(),
+            watcher_provider,
+        )?;
         info!(
-            "✅ STEP 2: File watcher embedding manager initialized with '{}'",
+            "✅ STEP 2: File watcher embedding manager initialized with default '{}'",
             watcher_provider_name
         );
 
@@ -750,8 +788,11 @@ impl VectorizerServer {
         let mut final_embedding_manager = EmbeddingManager::new();
         let (final_provider_name, _final_dim, final_provider) =
             build_default_provider(&config_path)?;
-        final_embedding_manager.register_provider(final_provider_name.clone(), final_provider);
-        final_embedding_manager.set_default_provider(&final_provider_name)?;
+        register_all_providers(
+            &mut final_embedding_manager,
+            final_provider_name.clone(),
+            final_provider,
+        )?;
 
         // Initialize AutoSaveManager (5min save + 1h snapshot intervals)
         info!("🔄 Initializing AutoSaveManager...");

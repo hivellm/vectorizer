@@ -70,6 +70,91 @@ fn dimension_and_config_errors_are_bad_request() {
     );
 }
 
+/// phase33 (#306): the contract change that stops the silent BM25
+/// coercion relies on these three variants resolving to
+/// `BadRequest` (HTTP 400 / gRPC InvalidArgument). Pinning them
+/// here keeps the SDK contract honest if the kind taxonomy ever
+/// gets refactored.
+#[test]
+fn phase33_provider_errors_are_bad_request() {
+    assert_eq!(
+        VectorizerError::UnsupportedProvider {
+            requested: "fastembed".into(),
+            available: vec!["bm25".into()],
+        }
+        .kind(),
+        ErrorKind::BadRequest,
+    );
+    assert_eq!(
+        VectorizerError::UnsupportedModel {
+            requested: "bge-small".into(),
+            available: vec!["bm25".into()],
+        }
+        .kind(),
+        ErrorKind::BadRequest,
+    );
+    assert_eq!(
+        VectorizerError::ProviderDimensionMismatch {
+            provider: "fastembed".into(),
+            provider_dimension: 384,
+            requested_dimension: 768,
+        }
+        .kind(),
+        ErrorKind::BadRequest,
+    );
+}
+
+/// phase33 (#306): the `code()` strings are SDK contract — the
+/// Rust / TypeScript / Python / Go / C# SDKs match on
+/// `error_type` to surface a typed error. A rename here would
+/// silently break every client.
+#[test]
+fn phase33_provider_error_codes_are_stable() {
+    assert_eq!(
+        VectorizerError::UnsupportedProvider {
+            requested: "x".into(),
+            available: vec![],
+        }
+        .code(),
+        "unsupported_provider",
+    );
+    assert_eq!(
+        VectorizerError::UnsupportedModel {
+            requested: "y".into(),
+            available: vec![],
+        }
+        .code(),
+        "unsupported_model",
+    );
+    assert_eq!(
+        VectorizerError::ProviderDimensionMismatch {
+            provider: "z".into(),
+            provider_dimension: 0,
+            requested_dimension: 0,
+        }
+        .code(),
+        "provider_dimension_mismatch",
+    );
+}
+
+/// phase33 (#306): the Display impl carries the `requested` value
+/// and the `available` list joined by `, `. Pin this so a future
+/// edit to the `#[error("...")]` attribute can't silently drop
+/// the available-providers list — which would land as
+/// "Unsupported provider 'X'" in production and tell the operator
+/// nothing about what *would* have worked.
+#[test]
+fn phase33_unsupported_provider_display_carries_available_list() {
+    let err = VectorizerError::UnsupportedProvider {
+        requested: "fastembed".into(),
+        available: vec!["bm25".into(), "onnx".into()],
+    };
+    let msg = err.to_string();
+    assert!(msg.contains("fastembed"), "missing 'requested' in: {msg}");
+    assert!(msg.contains("bm25"), "missing 'bm25' in: {msg}");
+    assert!(msg.contains("onnx"), "missing 'onnx' in: {msg}");
+}
+
 #[test]
 fn rate_limit_is_429() {
     assert_eq!(

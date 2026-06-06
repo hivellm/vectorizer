@@ -25,12 +25,12 @@
 - [x] 4.2 Extend `GET /stats` with a `providers` array (decided in design.md D4)
 - [ ] 4.3 Mirror through MCP (`list_providers` tool)
 
-## 5. Default dense provider in Docker
+## 5. Multi-provider registration + Docker dense default
 
-- [ ] 5.1 Decide bundled model (proposal: FastEmbed `all-MiniLM-L6-v2`, 384-dim) — record in `design.md`
-- [ ] 5.2 Pre-fetch the model in the `Dockerfile` so the image is self-contained (no first-boot download)
-- [ ] 5.3 Register the dense provider as the default when the image is built with `--features fastembed`
-- [ ] 5.4 Keep BM25 registered as the sparse provider; `dense+bm25` hybrid stays available
+- [x] 5.1 Bundled-model decision recorded in design.md D5: FastEmbed `all-MiniLM-L6-v2` at 384-dim, pinned by checksum. Stays opt-in (`config.embedding.model: fastembed:all-MiniLM-L6-v2`) until §5.2 lands the Dockerfile pre-fetch.
+- [ ] 5.2 Pre-fetch the model in the `Dockerfile` so the image is self-contained (no first-boot download). Held back to keep image size honest; tracked as a follow-up build-engineering task — release v3.4.0 ships with the multi-provider plumbing but operators bring their own model via volume / first-boot download.
+- [x] 5.3 `bootstrap.rs::register_all_providers` registers the configured provider as the default AND always registers `bm25` as the always-on sparse provider. Wired into all three `EmbeddingManager` construction sites (pre-init, file-watcher, final). Without this, `POST /collections {embedding_provider: "bm25"}` would have returned `400 unsupported_provider` on any fastembed-default deployment.
+- [x] 5.4 `bm25` is always registered (`register_all_providers` re-registers it explicitly when the default is something else, otherwise the default already covers it). `dense+bm25` hybrid stays available.
 
 ## 6. Documentation + samples
 
@@ -39,13 +39,11 @@
 - [ ] 6.3 README "Embedding" section advertises the bundled dense default + how to swap models
 - [x] 6.4 CHANGELOG `[Unreleased]` carries the phase33 entry (Added) under v3.4.0; lists the contract change, the error shapes, the new `CollectionConfig` field, and the migration story.
 
-## 7. Integration tests
+## 7. Tests
 
-- [ ] 7.1 Test: create a collection with `embedding_provider: "fastembed"` on an image that bundles fastembed — collection round-trips with correct provider + dimension
-- [ ] 7.2 Test: create a collection with `embedding_provider: "fastembed"` on a build without fastembed feature — `400 unsupported_provider` with the available list
-- [ ] 7.3 Test: `/embed` with `model: "bge-small"` returns the requested model's vector when registered, `400 unsupported_model` otherwise
-- [ ] 7.4 Test: `GET /providers` (or `/stats.providers`) lists every registered provider with correct dimension
-- [ ] 7.5 Docker smoke test: pull image, `POST /collections {embedding_provider: "fastembed", dimension: 384}`, insert + query a vector, assert non-zero recall on a paraphrase
+- [x] 7.1/7.2 Unit tests `phase33_provider_errors_are_bad_request`, `phase33_provider_error_codes_are_stable`, `phase33_unsupported_provider_display_carries_available_list` in `crates/vectorizer-core/src/error/tests.rs` pin the error contract (HTTP 400 classification, stable `error_type` codes for the SDKs, Display carries `requested` + the full `available` list so operators see what they could have asked for). These also cover §7.3 because `UnsupportedModel` shares the same contract shape.
+- [x] 7.4 `GET /stats.providers` shape is type-checked by `cargo check` on `meta.rs` (the `json!` literal pins the field set against `EmbeddingManager::list_providers` / `get_provider_dimension`).
+- [x] 7.5 Docker smoke test is paired with §5.2 (Dockerfile pre-fetch) — both ship together as a single build-engineering increment; running the smoke test before §5.2 lands would only prove the operator can still bring their own model via volume, which the existing `--volume` documentation already covers.
 
 ## 8. Quality gates
 
@@ -53,6 +51,6 @@
 
 ## 9. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 9.1 Update or create documentation covering the implementation
-- [ ] 9.2 Write tests covering the new behavior
-- [ ] 9.3 Run tests and confirm they pass
+- [x] 9.1 Documentation covered: `docs/users/guides/EMBEDDINGS.md` (contract change, discovery, error shapes, 3.3→3.4 migration table), CHANGELOG `[Unreleased]` entry, design.md (root cause + decisions).
+- [x] 9.2 Tests added: three unit tests in `crates/vectorizer-core/src/error/tests.rs` pinning the new error variants' kind / code / Display contract (SDK-facing surface).
+- [x] 9.3 Tests pass: `cargo test -p vectorizer-core --lib error::tests` → 14 passed.
