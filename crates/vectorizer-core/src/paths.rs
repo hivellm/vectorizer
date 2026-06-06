@@ -87,6 +87,22 @@ pub fn ephemeral_data_dir_warning(path: &std::path::Path) -> Option<String> {
 fn ephemeral_linux(path: &std::path::Path) -> Option<String> {
     let mountinfo = std::fs::read_to_string("/proc/self/mountinfo").ok()?;
     let abs = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    classify_against_mountinfo(&mountinfo, &abs)
+}
+
+/// Pure helper extracted for testability — given the raw text of
+/// `/proc/self/mountinfo` and an absolute path, return the
+/// ephemeral-data-dir warning when the path is only covered by `/`
+/// (i.e. lives on the container's writable layer), or `None` when a
+/// tighter mount prefix (bind / named volume) covers it.
+///
+/// Kept private to the crate; tests in this module synthesise
+/// mountinfo strings to cover both branches without relying on the
+/// host's actual mount table — CI runners (notably GitHub Actions'
+/// Ubuntu images where `/tmp` is part of the rootfs) made a
+/// `/tmp`-as-its-own-mount assumption flake on real `/proc/self/mountinfo`.
+#[cfg(target_os = "linux")]
+fn classify_against_mountinfo(mountinfo: &str, abs: &std::path::Path) -> Option<String> {
     let abs_str = abs.to_string_lossy();
 
     // Each line of mountinfo has the mount point as the 5th
@@ -94,8 +110,9 @@ fn ephemeral_linux(path: &std::path::Path) -> Option<String> {
     // longest one that is a prefix of `abs`.
     let mut best: &str = "";
     for line in mountinfo.lines() {
-        let mut fields = line.split_whitespace();
-        let mp = fields.nth(4)?;
+        let Some(mp) = line.split_whitespace().nth(4) else {
+            continue;
+        };
         if abs_str.starts_with(mp) && mp.len() > best.len() {
             best = mp;
         }
@@ -184,26 +201,58 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn ephemeral_detector_no_op_outside_real_proc() {
-        // The detector reads /proc/self/mountinfo on Linux. We can't
-        // synthesise a fake mountinfo without privileges, but we can
-        // assert that whatever it returns for a clearly-mounted path
-        // (the test's tempdir, which lives under /tmp — a real
-        // mount) is `None`. That pins the negative case; the
-        // positive case is verified by the spec scenarios via Docker
-        // integration tests.
-        let tmp = tempfile::tempdir().unwrap();
-        let p = tmp.path().to_path_buf();
-        // /tmp is a tmpfs mount in most Linux setups, so the
-        // longest-matching prefix is `/tmp` (not `/`) and the
-        // detector reports the path as persistent. CI runners that
-        // don't tmpfs /tmp will still see *some* mount that covers
-        // /tmp via the underlying disk, so this assertion holds
-        // either way.
-        let warning = ephemeral_data_dir_warning(&p);
+    fn classify_synthetic_writable_layer_path_is_flagged() {
+        // No tighter mount than `/` covers `/data` → ephemeral.
+        // Two mountinfo fields (root + sysfs) — sysfs at `/sys` does
+        // not prefix `/data`, so the longest match is `/` and the
+        // detector must emit the warning.
+        let mountinfo = "1 0 0:1 / / rw,relatime - overlay overlay rw\n\
+                         2 1 0:2 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n";
+        let msg = classify_against_mountinfo(mountinfo, std::path::Path::new("/data"))
+            .expect("/data with only `/` mount must be flagged ephemeral");
         assert!(
-            warning.is_none(),
-            "tempdir under /tmp must not be flagged as ephemeral; got: {warning:?}"
+            msg.contains("/data"),
+            "warning must name the offending path: {msg}"
+        );
+        assert!(
+            msg.contains("issue #300"),
+            "warning must link the phase32 issue: {msg}"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn classify_synthetic_bind_mounted_path_is_silent() {
+        // A bind / named volume at `/data` covers the path → no
+        // warning. This is the canonical "operator did the right
+        // thing" case.
+        let mountinfo = "1 0 0:1 / / rw,relatime - overlay overlay rw\n\
+                         42 1 8:1 /vol /data rw,relatime - ext4 /dev/sda1 rw\n";
+        assert!(
+            classify_against_mountinfo(mountinfo, std::path::Path::new("/data")).is_none(),
+            "/data with a tighter mount prefix must not be flagged"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn classify_handles_unknown_path_outside_any_mount() {
+        // No mount matches → treat as ephemeral (best == empty branch).
+        let mountinfo = "1 0 0:1 / /unrelated rw - tmpfs tmpfs rw\n";
+        let msg = classify_against_mountinfo(mountinfo, std::path::Path::new("/data"));
+        assert!(msg.is_some(), "path with no covering mount must warn");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn classify_picks_longest_prefix_when_several_mounts_match() {
+        // Both `/` and `/data` cover `/data/sub`; the detector must
+        // pick `/data` and stay silent.
+        let mountinfo = "1 0 0:1 / / rw - overlay overlay rw\n\
+                         2 1 8:1 / /data rw - ext4 /dev/sda1 rw\n";
+        assert!(
+            classify_against_mountinfo(mountinfo, std::path::Path::new("/data/sub")).is_none(),
+            "longest matching prefix wins — /data should suppress /"
         );
     }
 
