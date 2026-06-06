@@ -20,6 +20,7 @@ fn test_collection_config_creation() {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: Default::default(),
+        embedding_provider: "bm25".to_string(),
         sharding: None,
         normalization: None,
         storage_type: None,

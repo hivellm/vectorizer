@@ -52,6 +52,7 @@ impl TryFrom<&proto::CollectionConfig> for crate::models::CollectionConfig {
                 })
                 .unwrap_or(QuantizationConfig::None),
             compression: Default::default(),
+            embedding_provider: "bm25".to_string(),
             normalization: None,
             sharding: None,
             graph: None,

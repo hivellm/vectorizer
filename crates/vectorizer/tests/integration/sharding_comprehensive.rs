@@ -32,6 +32,7 @@ fn create_sharded_config(
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: Some(ShardingConfig {
@@ -247,6 +248,7 @@ fn test_sharded_collection_creation_no_sharding() {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: None,

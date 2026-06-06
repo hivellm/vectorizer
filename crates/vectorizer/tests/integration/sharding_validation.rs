@@ -31,6 +31,7 @@ fn create_sharded_config(shard_count: u32) -> CollectionConfig {
         hnsw_config: HnswConfig::default(),
         quantization: QuantizationConfig::None,
         compression: CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: Some(ShardingConfig {

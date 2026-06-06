@@ -599,12 +599,18 @@ fn handle_collections_create(
         "dot" => vectorizer::models::DistanceMetric::DotProduct,
         _ => vectorizer::models::DistanceMetric::Cosine,
     };
+    let embedding_provider = config_val
+        .and_then(|v| v.map_get("embedding_provider"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("bm25")
+        .to_string();
     let config = vectorizer::models::CollectionConfig {
         dimension,
         metric,
         hnsw_config: vectorizer::models::HnswConfig::default(),
         quantization: vectorizer::models::QuantizationConfig::None,
         compression: vectorizer::models::CompressionConfig::default(),
+        embedding_provider,
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         sharding: None,

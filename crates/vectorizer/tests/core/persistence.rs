@@ -55,6 +55,7 @@ async fn test_auto_save_manager_mark_changed() {
         quantization: vectorizer::models::QuantizationConfig::default(),
         hnsw_config: vectorizer::models::HnswConfig::default(),
         compression: vectorizer::models::CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: Some(StorageType::Memory),
         sharding: None,

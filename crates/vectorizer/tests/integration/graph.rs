@@ -22,6 +22,7 @@ fn create_test_collection_config() -> CollectionConfig {
         },
         quantization: QuantizationConfig::SQ { bits: 8 },
         compression: CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: None,
         sharding: None,

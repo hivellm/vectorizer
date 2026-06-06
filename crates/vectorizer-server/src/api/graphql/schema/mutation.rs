@@ -777,6 +777,7 @@ impl MutationRoot {
                 hnsw_config: HnswConfig::default(),
                 quantization: QuantizationConfig::SQ { bits: 8 },
                 compression: Default::default(),
+                embedding_provider: "bm25".to_string(),
                 normalization: None,
                 storage_type: Some(vectorizer::models::StorageType::Memory),
                 sharding: None,

@@ -91,6 +91,29 @@ impl From<VectorizerError> for ErrorResponse {
             VectorizerError::VectorNotFound(id) => Some(json!({
                 "vector_id": id
             })),
+            VectorizerError::UnsupportedProvider {
+                requested,
+                available,
+            } => Some(json!({
+                "requested": requested,
+                "available": available,
+            })),
+            VectorizerError::UnsupportedModel {
+                requested,
+                available,
+            } => Some(json!({
+                "requested": requested,
+                "available": available,
+            })),
+            VectorizerError::ProviderDimensionMismatch {
+                provider,
+                provider_dimension,
+                requested_dimension,
+            } => Some(json!({
+                "provider": provider,
+                "provider_dimension": provider_dimension,
+                "requested_dimension": requested_dimension,
+            })),
             _ => None,
         };
 

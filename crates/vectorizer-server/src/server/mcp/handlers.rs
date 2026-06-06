@@ -251,6 +251,12 @@ async fn handle_create_collection(
         _ => vectorizer::models::DistanceMetric::Cosine,
     };
 
+    let embedding_provider = args
+        .get("embedding_provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("bm25")
+        .to_string();
+
     // Parse graph configuration if provided
     let graph_config = args.get("graph").and_then(|g| {
         if let Some(enabled) = g.get("enabled").and_then(|e| e.as_bool()) {
@@ -277,6 +283,7 @@ async fn handle_create_collection(
             threshold_bytes: 1024,
             algorithm: vectorizer::models::CompressionAlgorithm::Lz4,
         },
+        embedding_provider,
         normalization: None,
         storage_type: Some(vectorizer::models::StorageType::Memory),
         graph: graph_config,

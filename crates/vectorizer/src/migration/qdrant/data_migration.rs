@@ -284,6 +284,7 @@ impl QdrantDataImporter {
             hnsw_config,
             quantization,
             compression: CompressionConfig::default(),
+            embedding_provider: "bm25".to_string(),
             normalization: None,
             storage_type: Some(crate::models::StorageType::Memory),
             sharding: None,

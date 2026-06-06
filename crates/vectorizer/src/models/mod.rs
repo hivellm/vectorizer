@@ -347,6 +347,14 @@ pub struct CollectionConfig {
     pub quantization: QuantizationConfig,
     /// Compression configuration
     pub compression: CompressionConfig,
+    /// Embedding provider name used to vectorize text inserts on this
+    /// collection (e.g. `"bm25"`, `"fastembed"`). When deserializing
+    /// legacy `.vecdb` files that predate this field, defaults to
+    /// `"bm25"` to match the historical coercion behavior — phase33
+    /// (issue #306) makes the field explicit so it can no longer be
+    /// silently swapped.
+    #[serde(default = "default_embedding_provider")]
+    pub embedding_provider: String,
     /// Text normalization configuration (optional, disabled by default)
     #[serde(default)]
     pub normalization: Option<crate::normalization::NormalizationConfig>,
@@ -366,6 +374,10 @@ pub struct CollectionConfig {
     /// If set, payload encryption will be enforced for this collection
     #[serde(default)]
     pub encryption: Option<EncryptionConfig>,
+}
+
+fn default_embedding_provider() -> String {
+    "bm25".to_string()
 }
 
 /// Encryption configuration for a collection
@@ -469,6 +481,7 @@ impl Default for CollectionConfig {
             hnsw_config: HnswConfig::default(),
             quantization: QuantizationConfig::SQ { bits: 8 }, // Enable Scalar Quantization by default
             compression: CompressionConfig::default(),
+            embedding_provider: default_embedding_provider(),
             normalization: Some(crate::normalization::NormalizationConfig::moderate()), // Enable moderate normalization by default
             storage_type: Some(StorageType::Memory),
             sharding: None,   // Sharding disabled by default

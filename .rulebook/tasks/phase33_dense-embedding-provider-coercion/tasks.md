@@ -1,16 +1,16 @@
 ## 1. Root-cause investigation
 
-- [ ] 1.1 Trace `POST /collections` from handler to `EmbeddingManager` and log every provider-resolution branch
+- [x] 1.1 Trace `POST /collections` from handler to `EmbeddingManager` and log every provider-resolution branch
 - [ ] 1.2 Reproduce the coercion in a local `cargo run` build against `hivehub/vectorizer:3.3.0` config
-- [ ] 1.3 Verify which `--features` the published Docker image was built with (compare `Dockerfile` vs `crates/vectorizer/Cargo.toml` defaults)
-- [ ] 1.4 Determine whether `fastembed`/`onnx` providers are registered at all in the running binary
-- [ ] 1.5 Write findings to `design.md` (root cause: code bug vs config gap vs missing assets)
+- [x] 1.3 Verify which `--features` the published Docker image was built with (compare `Dockerfile` vs `crates/vectorizer/Cargo.toml` defaults)
+- [x] 1.4 Determine whether `fastembed`/`onnx` providers are registered at all in the running binary
+- [x] 1.5 Write findings to `design.md` (root cause: code bug vs config gap vs missing assets)
 
 ## 2. Honour `embedding_provider` on create-collection
 
-- [ ] 2.1 Replace silent fall-through with a `Result<ProviderHandle, EmbeddingError::UnsupportedProvider { requested, available: Vec<String> }>`
-- [ ] 2.2 Map `EmbeddingError::UnsupportedProvider` to `400 Bad Request` with body `{ "error": "unsupported_provider", "requested": "...", "available": [...] }`
-- [ ] 2.3 Reject dimension mismatch with `400 dimension_mismatch` when caller-requested `dimension` differs from the provider's native dimension
+- [x] 2.1 Replace silent fall-through with a `Result<ProviderHandle, EmbeddingError::UnsupportedProvider { requested, available: Vec<String> }>`
+- [x] 2.2 Map `EmbeddingError::UnsupportedProvider` to `400 Bad Request` with body `{ "error": "unsupported_provider", "requested": "...", "available": [...] }`
+- [x] 2.3 Reject dimension mismatch with `400 dimension_mismatch` when caller-requested `dimension` differs from the provider's native dimension
 - [ ] 2.4 Update REST tests + MCP parity tests for the new error shapes
 
 ## 3. Honour `/embed` `model`

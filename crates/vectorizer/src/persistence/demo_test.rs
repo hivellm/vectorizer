@@ -33,6 +33,7 @@ async fn test_persistence_demo() {
         quantization: QuantizationConfig::default(),
         hnsw_config: HnswConfig::default(),
         compression: CompressionConfig::default(),
+        embedding_provider: "bm25".to_string(),
         normalization: None,
         storage_type: Some(crate::models::StorageType::Memory),
         encryption: None,

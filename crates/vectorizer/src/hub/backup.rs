@@ -582,6 +582,7 @@ impl UserBackupManager {
                 hnsw_config: crate::models::HnswConfig::default(),
                 quantization: crate::models::QuantizationConfig::None,
                 compression: crate::models::CompressionConfig::default(),
+                embedding_provider: "bm25".to_string(),
                 normalization: None,
                 storage_type: Some(crate::models::StorageType::Memory),
                 sharding: None,
