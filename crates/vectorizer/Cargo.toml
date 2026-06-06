@@ -174,7 +174,7 @@ opentelemetry = { version = "0.32", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.32", features = ["metrics", "trace", "rt-tokio"] }
 opentelemetry-prometheus = "0.31"
 opentelemetry-otlp = { version = "0.32", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
-tracing-opentelemetry = "0.32"
+tracing-opentelemetry = "0.33"
 
 # gRPC support
 tonic = { version = "0.14", features = [] }
