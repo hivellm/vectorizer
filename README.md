@@ -67,9 +67,41 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.3.0
+## 🎉 Latest Release: v3.4.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+
+**Fixed — Container deployments lose all collections on restart (phase32, [#300](https://github.com/hivellm/vectorizer/issues/300))**
+- 3.3.0 image wrote persistent state to `/.local/share/vectorizer/` even though the README advertised `/data` as the volume mount. The XDG path lived on the container's writable layer, so `docker compose up -d --force-recreate vectorizer` silently wiped every collection.
+- Image defaults `VECTORIZER_DATA_DIR=/data` and seeds the directory in the `writable-dirs` stage with the nonroot user as owner. A single `--volume vec-data:/data` mount now captures collections, auth keys, JWT secret, and snapshots.
+- `vectorizer --data-dir <path>` is a first-class CLI flag; resolves through `vectorizer_core::paths::data_dir` so every persistence subpath (auth, vector store, snapshots, fastembed cache) picks up the override.
+- Startup emits `WARN data dir at <path> is ephemeral; recommend mounting a volume` when the resolved data dir has no backing mount (Linux only, via `/proc/self/mountinfo`). Surfaces the trap on the first boot without a volume.
+- Migration runbook in `docs/users/configuration/DATA_DIRECTORY.md` for operators who mounted the workaround `/.local/share/vectorizer` second volume.
+
+**Added — Honour `embedding_provider` / `model` in REST contracts (phase33, [#306](https://github.com/hivellm/vectorizer/issues/306)) — _contract change_**
+- 3.3.0 silently coerced every `embedding_provider` to BM25-512. Downstream consumers (e.g. hivellm/cortex) saw their hybrid pipeline degrade to keyword-only because the vector lane was returning lexical BM25 vectors regardless of what they posted.
+- `POST /collections` honours `embedding_provider`. Unknown provider → `400 unsupported_provider { requested, available }`. Caller-requested `dimension` that conflicts with the provider's native dimension → `400 provider_dimension_mismatch`.
+- `POST /embed` honours `model`. Unknown model → `400 unsupported_model { requested, available }`. Response echoes the resolved `model` so callers can confirm which provider produced the vector.
+- `GET /stats` lists `providers[]` + `default_provider` so clients can discover the registered embedding surface without trial-and-error. Mirrored as the `list_providers` MCP tool.
+- `CollectionConfig.embedding_provider: String` persists which provider the collection was created with. Legacy `.vecdb` files default to `"bm25"` via serde so reload stays lossless.
+- Bootstrap registers every available provider at boot — without this, `POST /collections {embedding_provider: "bm25"}` would have returned 400 on any fastembed-default deployment.
+- Optional FastEmbed Docker variant: `docker build --build-arg ENABLE_FASTEMBED=1 --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed .` ships an image with `all-MiniLM-L6-v2` (384-dim dense) registered alongside `bm25`. Default published image stays slim (BM25-only).
+
+**Fixed — Bumped vulnerable transitive deps**
+- `axios` `<1.16.0` → `1.17.0` (gui pnpm override): closes 6 dependabot alerts (proxy-auth leak via redirects, prototype-pollution MITM via `config.proxy`, `shouldBypassProxy` IPv4-mapped IPv6 NO_PROXY bypass, header injection via merge gadgets, null-prototype patch bypass).
+- `tmp` `<0.2.6` → `0.2.7` (gui pnpm override): closes path-traversal via unsanitized prefix/postfix.
+- `react-router` `7.14.2` → `7.17.0` (dashboard top-level + override): closes DoS via unbounded path expansion in `__manifest`.
+- `tar` `0.4.45` → `0.4.46` (root Cargo.lock): closes PAX header desynchronization.
+
+**Build**
+- Docker builder base bumped from `lukemathwalker/cargo-chef:rust-1.90-bookworm` to `rust:1.95-slim-trixie`. glibc 2.40 matches the runtime `dhi.io/debian-base:trixie`, clearing the `__isoc23_strtol`/`__isoc23_strtoull` link errors that surfaced when fastembed pulled in ORT prebuilt binaries linked against glibc 2.38+ symbols.
+- `libstdc++.so.6` copied from the builder into the runtime stage so the fastembed Docker variant boots without `error while loading shared libraries: libstdc++.so.6`.
+
+Server-side at **v3.4.0**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.4.0 (no breaking server-contract changes beyond the embedding-provider error shapes documented above).
+
+---
+
+### v3.3.0 highlights (previous release)
 
 **Security — Hardened dashboard cookies + CSRF**
 - `POST /auth/login` and `POST /auth/refresh` now set a hardened `vectorizer_session` cookie (`HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=<jwt_exp>`) carrying the JWT, plus a sibling `XSRF-TOKEN` cookie carrying a 32-byte random CSRF token (non-`HttpOnly` so the SPA can echo it).
@@ -331,7 +363,7 @@ See [Benchmark Documentation](./docs/specs/BENCHMARKING.md).
 - **Qdrant compatibility** — full API + migration tools.
 - **Performance** — 4-5x faster than Qdrant in benchmarks.
 - **Binary RPC default** — MessagePack over TCP on port 15503 for low-overhead client traffic.
-- **Complete SDK coverage** — Rust, Python, TypeScript (+JS), Go, C# — all on v3.0.0.
+- **Complete SDK coverage** — Rust, Python, TypeScript (+JS), Go, C# — all on v3.4.0.
 
 **Best fit:** AI apps needing MCP, document ingestion, graph relationships, and sub-ms search with an embedded dashboard.
 
@@ -378,7 +410,7 @@ Cursor / Claude Desktop config:
 
 ## 📦 Client SDKs
 
-Server-side at **v3.1.0**. The Rust SDK tracks server versioning and is also at v3.1.0; the TypeScript, Python, Go, and C# SDKs are on v3.0.x and bump when they need a breaking server contract. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
+Server-side at **v3.4.0**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.4.0**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
 
 | SDK | Install |
 |---|---|
