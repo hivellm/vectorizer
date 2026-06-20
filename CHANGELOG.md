@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Build
+
+- **Bounded `target/` directory size (phase34, [#320](https://github.com/hivellm/vectorizer/issues/320)).** Cargo never garbage-collects `target/`; stale object files + rlibs from old dep versions accumulate until something deletes them. Three knobs + one wrapper script land here:
+  - `[profile.dev] debug = "line-tables-only"` — keeps `file:line` in panics/backtraces, drops the full DWARF tree. ~30-40% smaller `target/debug/` + the same speedup on incremental rebuilds (Rust perf-team).
+  - `[profile.release] strip = true` — drops the residual symbol table from the shipped release binary.
+  - `CARGO_INCREMENTAL: "0"` on every Rust workflow (`rust.yml`, `rust-all-features.yml`, `rust-docs.yml`, `rust-lint.yml`, `sdk-rust-test.yml`, `simd-matrix.yml`, `release-artifacts.yml`). CI starts cold; incremental compilation only adds artifacts and slows the build.
+  - `scripts/sweep-target.sh` + `scripts/sweep-target.ps1` wrap [`cargo-sweep`](https://github.com/holmgr/cargo-sweep) so a maintainer can drop everything not accessed in the last N days (default 14) without nuking the incremental hot set. Scheduler examples (cron / Task Scheduler / launchd) in [`docs/development/rust-target-hygiene.md`](docs/development/rust-target-hygiene.md).
+  - The dev/release profile knobs were already present pre-phase34; this entry documents them + locks them behind a header comment in `Cargo.toml` pointing at issue #320 so a drive-by edit can't silently regress them.
+
 ## [3.4.0] - 2026-06-06
 
 ### Fixed

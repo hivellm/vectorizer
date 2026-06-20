@@ -8,6 +8,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # phase34 / #320 — CI starts cold, so incremental compilation
+  # only adds artifacts and slows the build (Rust perf-team:
+  # https://kobzol.github.io/rust/rustc/2025/05/20/disable-debuginfo-to-improve-rust-compile-times.html).
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   rust-tests:

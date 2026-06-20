@@ -218,6 +218,8 @@ cargo build --release --features full          # All features
 ./target/release/vectorizer
 ```
 
+> **Keeping `target/` bounded.** Cargo never GCs `target/` — stale rlibs accumulate until you nuke them. This repo already pins `[profile.dev] debug = "line-tables-only"` + `[profile.release] strip = true` + `CARGO_INCREMENTAL=0` on CI; on a developer box, run `bash scripts/sweep-target.sh` (or `pwsh scripts/sweep-target.ps1` on Windows) weekly to drop stale artifacts without losing the incremental hot set. Full runbook + scheduler examples in [`docs/development/rust-target-hygiene.md`](docs/development/rust-target-hygiene.md) (issue [#320](https://github.com/hivellm/vectorizer/issues/320)).
+
 ### Access Points
 
 | Surface | URL | Notes |
