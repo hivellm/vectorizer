@@ -38,7 +38,7 @@ cost.
 | `target/release/` | release-profile rlibs + binaries (LTO=thin, codegen-units=4) | 5–15 GB |
 | `target/release-docker/` | container-build profile (LTO=off, codegen-units=16) when the Docker build is run host-side | 4–10 GB |
 | `target/.rustc_info.json` | incremental compilation marker — DO NOT delete | <1 KB |
-| `target/<triple>/...` | per-target outputs when cross-compiling (xx-cargo, simd-matrix) | varies |
+| `target/<triple>/...` | per-target outputs when cross-compiling (xx-cargo) | varies |
 | `target/{ci,release-fast,perf}/` | per-profile outputs from one-off runs | grows quietly |
 
 Every change to `Cargo.lock` or a feature flag invalidates a whole

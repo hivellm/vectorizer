@@ -94,41 +94,32 @@ values are the median estimate in nanoseconds.
 
 ## CI matrix
 
-`.github/workflows/simd-matrix.yml` runs the same bench + regression
-check across every ISA the project supports:
+The `simd-matrix.yml` workflow that ran the bench + regression
+check across every ISA was retired (phase34_bound-target-size,
+issue #320). It failed reliably on `main` since 2026-05-02 because
+the workflow runs `cargo test` for the whole workspace — including
+`vectorizer-server`, whose `DashboardAssets` uses `rust-embed` and
+requires `dashboard/dist/` to exist at compile time. The SIMD
+workflow never built the dashboard first, so every job hit
+`E0599: no associated function 'get' / 'iter' found for
+DashboardAssets` and exited 101.
 
-| Job | Runner | Backends |
-|---|---|---|
-| `x86-avx2` | `ubuntu-latest` (Cascade Lake) | scalar, sse2, avx2+fma |
-| `x86-avx512` | `ubuntu-latest-xlarge` (Ice Lake) | + avx512, avx512vnni |
-| `macos-arm` | `macos-14` (Apple M1) | scalar, neon |
-| `linux-arm-neon` | `ubuntu-22.04-arm` (Graviton2) | scalar, neon |
-| `linux-arm-sve` | `ubuntu-latest` + qemu-user-static | scalar, neon, sve, sve2 |
-| `wasm-simd` | `ubuntu-latest` | scalar (compile-only until crate split) |
+Future SIMD CI coverage either:
 
-The `aggregate` job downloads each backend's `simd-report.md`
-artefact and concatenates them into `simd-matrix.md` so a PR
-reviewer sees one combined view.
+- Runs the per-backend tests against the `vectorizer-core` crate
+  only (no dashboard dependency), or
+- Restores the workflow with a `pnpm --filter dashboard build`
+  step before `cargo test` so the embed has something to embed.
 
-Two jobs run with `continue-on-error: true`:
-
-- `x86-avx512` because not every contributor has access to the
-  paid `ubuntu-latest-xlarge` runner pool.
-- `wasm-simd` because the crate's transitive deps (`mio`, `tokio`'s
-  net feature) don't compile to wasm32 today; verifying the
-  Wasm128Backend in CI needs a sub-crate split that's not in scope
-  here (tracked in the SDK-split phase).
-
-`linux-arm-sve` runs SVE under QEMU emulation — fine for
-correctness, useless for benches. Native SVE benches need a
-self-hosted Graviton3+ runner; that's a future infrastructure task
-once the team commits to ARM-server support.
+Until then, SIMD primitives are exercised by `cargo test
+-p vectorizer-core --lib simd::` on every push (covered by the
+standard Rust test workflow); the per-ISA benches are run
+manually by maintainers when touching dispatch code.
 
 ## Cross-references
 
 - `benches/simd/util.rs` — shared helpers (`STANDARD_DIMS`, seeded
   vector generators, Criterion settings).
 - `scripts/simd/check-regression.sh` — regression-guard logic.
-- `.github/workflows/simd-matrix.yml` — CI matrix.
 - `docs/architecture/simd.md` — the dispatch + backend architecture
   these benches measure.
