@@ -56,6 +56,19 @@ private_intra_doc_links = "allow"
 
 # Workspace-wide build profiles. Per-crate `Cargo.toml` files don't
 # need to redeclare these; Cargo applies them across every member.
+#
+# phase34_bound-target-size / issue #320 — three knobs limit how
+# fast `target/` grows on a developer's box:
+#   - `[profile.dev] debug = "line-tables-only"` (below) — keeps
+#     file:line in panics/backtraces but drops the full DWARF tree,
+#     ~30-40% faster incremental rebuilds.
+#   - `[profile.release] strip = true` (below) — drops the residual
+#     symbol table from the shipped release binary.
+#   - `CARGO_INCREMENTAL=0` on CI (set in `.github/workflows/*.yml`)
+#     — CI starts cold, so incremental only adds artifacts.
+# Pair these with `scripts/sweep-target.sh` (cargo-sweep wrapper) to
+# garbage-collect stale rlibs without nuking the incremental hot set.
+# Full operator guide: `docs/development/rust-target-hygiene.md`.
 [profile.release]
 # Optimized for faster builds while maintaining good performance
 lto = "thin"  # Thin LTO is much faster than "fat" with minimal performance loss
