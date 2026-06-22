@@ -18,7 +18,7 @@ jobs:
   build-dashboard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -46,7 +46,7 @@ jobs:
     needs: build-dashboard
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Download dashboard artifacts
         uses: actions/download-artifact@v4
         with:
@@ -108,7 +108,7 @@ jobs:
             lib_dir: aarch64-linux-gnu
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Download dashboard artifacts
         uses: actions/download-artifact@v4
         with:
@@ -186,7 +186,7 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Download dashboard artifacts
         uses: actions/download-artifact@v4
         with:
@@ -223,7 +223,7 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Download dashboard artifacts
         uses: actions/download-artifact@v4
         with:
@@ -266,7 +266,7 @@ jobs:
     steps:
       - name: Install minimal stable
         uses: dtolnay/rust-toolchain@stable
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Download dashboard artifacts
         uses: actions/download-artifact@v4
         with:
@@ -331,7 +331,7 @@ jobs:
       packages: write
       id-token: write   # required for SLSA provenance attestation
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Download dashboard artifacts
         uses: actions/download-artifact@v4
         with:
