@@ -6966,7 +6966,7 @@ dependencies = [
  "tokio-rustls",
  "tokio-util",
  "tower",
- "tower-http",
+ "tower-http 0.6.11",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -7008,7 +7008,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tower",
- "tower-http",
+ "tower-http 0.6.11",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -8778,6 +8778,24 @@ checksum = "4cfcf7e2740e6fc6d4d688b4ef00650406bb94adf4731e43c096c3a19fe40840"
 dependencies = [
  "bitflags 2.11.1",
  "bytes",
+ "futures-util",
+ "http",
+ "http-body",
+ "pin-project-lite",
+ "tower",
+ "tower-layer",
+ "tower-service",
+ "url",
+]
+
+[[package]]
+name = "tower-http"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b11f75e912b0c2be01b63d8cf8057b8c3f97cf34abb3d431a3a4c8675498e233"
+dependencies = [
+ "bitflags 2.11.1",
+ "bytes",
  "futures-core",
  "futures-util",
  "http",
@@ -8791,11 +8809,9 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util",
- "tower",
  "tower-layer",
  "tower-service",
  "tracing",
- "url",
 ]
 
 [[package]]
@@ -9495,7 +9511,7 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tower",
- "tower-http",
+ "tower-http 0.7.0",
  "tower_governor",
  "tracing",
  "tracing-opentelemetry",
@@ -9687,7 +9703,7 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tower",
- "tower-http",
+ "tower-http 0.7.0",
  "tower_governor",
  "tracing",
  "tracing-opentelemetry",
