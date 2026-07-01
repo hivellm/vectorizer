@@ -5304,9 +5304,9 @@ dependencies = [
 
 [[package]]
 name = "openraft-memstore"
-version = "0.10.0-alpha.20"
+version = "0.10.0-alpha.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9f2f4981afe12e56a7b180f4a0a1b50bee99ce280d4dcc97240c3607f5710e3"
+checksum = "b57fe22b82ea5139f7d49a4f7e583ffe9929ea823afae1e4635829ad483a736f"
 dependencies = [
  "derive_more 2.1.1",
  "futures",
