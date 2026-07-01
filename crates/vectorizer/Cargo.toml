@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "3.4.0"
+version = "3.4.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -17,7 +17,7 @@ categories = ["database", "science"]
 # 0.10 or 0.11 ships, bump both pins together and retest the HA path
 # (tests/integration/cluster_ha.rs). Risk note published in CHANGELOG.
 openraft = { version = "=0.10.0-alpha.22", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.20"
+openraft-memstore = "=0.10.0-alpha.22"
 futures = "0.3"
 ctrlc = { version = "3.5", optional = true }
 dirs = "6.0"
@@ -153,7 +153,7 @@ hf-hub = { version = "0.5", optional = true }
 ort = { version = "2.0.0-rc.11", optional = true, features = ["half"] }
 
 # Additional serialization formats
-arrow = { version = "58", optional = true }
+arrow = { version = "59", optional = true }
 parquet = { version = "59", optional = true }
 
 # MCP SDK

@@ -681,7 +681,9 @@ async fn test_raft_trigger_elect_does_not_panic() {
     // trigger().elect() should not panic even on a single-node cluster.
     // Note: on a single-node cluster, elect may temporarily disrupt
     // leadership before re-electing. We just verify it doesn't panic.
-    let _result = mgr.raft().trigger().elect().await;
+    // openraft 0.10.0-alpha.22 added the `pre_vote: bool` argument;
+    // pass `false` to force a real election attempt.
+    let _result = mgr.raft().trigger().elect(false).await;
 
     // Give time for re-election to settle
     tokio::time::sleep(Duration::from_secs(2)).await;

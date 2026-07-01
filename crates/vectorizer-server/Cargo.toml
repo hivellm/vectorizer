@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-server"
-version = "3.4.0"
+version = "3.4.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "HTTP / gRPC / MCP server for Vectorizer."
@@ -135,7 +135,7 @@ tantivy = "0.26"
 
 # Openraft (replication)
 openraft = { version = "=0.10.0-alpha.22", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.20"
+openraft-memstore = "=0.10.0-alpha.22"
 
 # Prometheus / OTel
 prometheus = "0.14"
