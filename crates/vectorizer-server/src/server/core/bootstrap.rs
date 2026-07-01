@@ -1199,7 +1199,11 @@ impl VectorizerServer {
                                         let stuck_in_candidate =
                                             matches!(metrics.state, ServerState::Candidate);
                                         if stuck_in_candidate && attempt >= 3 {
-                                            let _ = mgr_clone.raft().trigger().elect().await;
+                                            // openraft 0.10.0-alpha.22 added a `pre_vote`
+                                            // argument to `Trigger::elect`; pass `false` so
+                                            // the stuck-candidate nudge skips the pre-vote
+                                            // gate and forces a real election attempt.
+                                            let _ = mgr_clone.raft().trigger().elect(false).await;
                                             tracing::warn!(
                                                 attempt,
                                                 state = ?metrics.state,
