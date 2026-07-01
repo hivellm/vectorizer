@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-07-01
+
+### Fixed
+
+- **Clear all 31 open dependabot security alerts (#322).** Sweep across every vulnerable transitive dep on `gui/`, `dashboard/`, `sdks/typescript/`, and the C# `Vectorizer.Rpc` package. Every fix landed either as a top-level bump or as a `pnpm.overrides` pin so the resolver locks the patched version.
+  - **`undici` → 8.5.0** (gui + dashboard). Closes 9 alerts: TLS certificate validation bypass via SOCKS5 ProxyAgent (#318 high, #312 high), cross-user cache-whitespace disclosure (#311 medium), Set-Cookie percent-decoding header injection (#324, #320 medium), Set-Cookie SameSite downgrade via permissive substring matching (#325, #321 low), and HTTP response queue poisoning via keep-alive socket reuse (#322, #317 low).
+  - **`form-data` → 4.0.6** (gui, #315 high). Closes CRLF injection via unescaped multipart field names / filenames.
+  - **`shell-quote` → 1.8.4** (gui, #284 critical). Closes newline-escape bypass in `quote()`.
+  - **`vite` → 8.0.16** (gui + dashboard + sdks/typescript). Closes `server.fs.deny` bypass on Windows alternate paths (#299 #298 #297 high) + launch-editor NTLMv2 hash disclosure via UNC path handling on Windows (#296 #295 #294 medium).
+  - **`dompurify` → 3.4.11** (dashboard). Closes hook pollution, IN_PLACE bypass, clobbered-root XSS, cross-realm sanitization (#310 #305 #304 #302 #301 medium) plus Trusted-Types-policy pollution, IN_PLACE nodeName trust, and SAFE_FOR_TEMPLATES bypass inside `<template>` (#306 #303 #300 low).
+  - **`@babel/core` → 7.29.6** (dashboard, #308 low). Closes arbitrary file read via sourceMappingURL comment.
+  - **`js-yaml` → 4.2.0** across gui + dashboard + sdks/typescript. Pinned `<5` so the resolver stays on the patched 4.x line and can't catch the 5.0.0 major API change. Closes quadratic-complexity DoS in merge-key handling via repeated aliases (#316 #313 #309 medium).
+  - **`tar` → 7.5.16** (gui, #314 medium). Closes PAX-header size-override file-smuggling.
+  - **`esbuild` → 0.28.1** (gui + dashboard + sdks/typescript). Closes Windows dev-server arbitrary file read (#290 #289 #288 low). Vite 8.0.16 no longer bundles esbuild, so the dashboard now carries an explicit `esbuild` devDep to avoid `Failed to load transformWithEsbuild ... Cannot find package 'esbuild'` at build time.
+  - **`MessagePack` → 2.5.301** (sdks/csharp/src/Vectorizer.Rpc/Vectorizer.Rpc.csproj, #285 high). Closes LZ4 decompression `AccessViolationException`.
+
+- **Dedupe `arrow-*` in `Cargo.lock`.** The lockfile carried two `arrow-array 59.0.0` entries (one with `arrow-buffer 58.3.0` deps, one with `59.0.0`) plus the same split for `arrow-buffer`, `arrow-data`, `arrow-ipc`, `arrow-schema`, and `arrow-select`. `cargo build` refused to parse it (`package 'arrow-array' is specified twice`). Root cause: the arrow major bump (#332) merged into `main` in parallel with parquet (#328) merging into `release/3.4.1`, and the resulting merge left the pre- and post-bump entries side by side. Fix: dedupe by `(name, version)` — 5 duplicate blocks dropped, `cargo build --tests --workspace` clean afterward.
+
+### Build
+
+- **`arrow` 58.3.0 → 59.0.0** (#332) across `crates/vectorizer/Cargo.toml`. Required to match the `parquet` 59.0.0 bump (#328) that landed independently; `parquet::arrow::ArrowWriter` refused the crate's `Schema` type until the two majors aligned.
+
+- **`openraft-memstore` 0.10.0-alpha.20 → 0.10.0-alpha.22** (#329) pinned in both `crates/vectorizer/Cargo.toml` and `crates/vectorizer-server/Cargo.toml` so the memstore version follows the `openraft` 0.10.0-alpha.22 bump (#324) exactly. Both pins use `=` so `cargo update` can't silently drift the consensus layer.
+
+- **`openraft::Trigger::elect()` compat.** The alpha.22 upgrade added a mandatory `pre_vote: bool` argument to `Trigger::elect`. Two call sites updated to pass `false` (skip pre-vote gate, force a real election attempt — same behaviour as before the bump):
+  - `crates/vectorizer-server/src/server/core/bootstrap.rs:1202` — stuck-candidate nudge.
+  - `crates/vectorizer/tests/integration/cluster_ha.rs:684` — HA test on single-node cluster.
+
+- **Dependency bumps consolidated into the release branch:** openraft 0.10.0-alpha.21 → alpha.22 (#324), sysinfo 0.39.2 → 0.39.5 (#325), openssl 0.10.80 → 0.10.81 (#326), regex 1.12.3 → 1.12.4 (#327), parquet 58.3.0 → 59.0.0 (#328), uuid 1.23.2 → 1.23.3 (#330), fastembed 5.16.0 → 5.17.2 (#331), tower-http 0.6.11 → 0.7.0 (#333), actions/checkout 4 → 7 (#323).
+
+- **Skipped:** `actions/cache` 4 → 6 (#334) — needs the `workflow` OAuth scope, which the bot running the batch merge lacked. Maintainer to land manually in the next batch.
+
+### Chore
+
+- SDKs bumped 3.4.0 → 3.4.1: `sdks/rust/Cargo.toml` (+ intra-workspace `vectorizer-protocol` pin), `sdks/csharp/Vectorizer.csproj`, `sdks/csharp/src/Vectorizer.Rpc/Vectorizer.Rpc.csproj`, `sdks/python/pyproject.toml`, `sdks/typescript/package.json`. Every workspace crate (`vectorizer`, `vectorizer-cli`, `vectorizer-core`, `vectorizer-protocol`, `vectorizer-server`) also carries the bump.
+
 ### Build
 
 - **Bounded `target/` directory size (phase34, [#320](https://github.com/hivellm/vectorizer/issues/320)).** Cargo never garbage-collects `target/`; stale object files + rlibs from old dep versions accumulate until something deletes them. Three knobs + one wrapper script land here:
