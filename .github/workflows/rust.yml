@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Install minimal stable
         uses: dtolnay/rust-toolchain@stable
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       - name: Install mold (optional, speeds up linking)
         uses: rui314/setup-mold@v1
@@ -186,7 +186,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Download test reports
         uses: actions/download-artifact@v5
         continue-on-error: true

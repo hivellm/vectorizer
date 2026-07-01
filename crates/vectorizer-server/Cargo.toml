@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-server"
-version = "3.4.0"
+version = "3.4.1"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "HTTP / gRPC / MCP server for Vectorizer."
@@ -27,7 +27,7 @@ vectorizer = { path = "../vectorizer", default-features = false }
 # HTTP / WebSocket server
 axum = { version = "0.8.7", features = ["ws", "json", "multipart"], default-features = false }
 tower = { version = "0.5", default-features = false }
-tower-http = { version = "0.6.11", features = ["cors", "trace", "fs", "set-header"], default-features = false }
+tower-http = { version = "0.7.0", features = ["cors", "trace", "fs", "set-header"], default-features = false }
 hyper = { version = "1.10.1", features = ["server", "http1", "http2"] }
 hyper-util = { version = "0.1.20", features = ["tokio", "server", "server-auto"] }
 
@@ -134,8 +134,8 @@ flate2 = "1.1"
 tantivy = "0.26"
 
 # Openraft (replication)
-openraft = { version = "=0.10.0-alpha.21", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.21"
+openraft = { version = "=0.10.0-alpha.22", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.22"
 
 # Prometheus / OTel
 prometheus = "0.14"
