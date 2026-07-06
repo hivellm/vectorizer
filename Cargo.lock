@@ -1273,12 +1273,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "candle-core"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ecb245093b0f791b89d3420c3df9c6d49c60ab63ba54db896bf8a3baf486706"
+dependencies = [
+ "byteorder",
+ "float8",
+ "gemm",
+ "half 2.7.1",
+ "libc",
+ "libm",
+ "memmap2",
+ "num-traits",
+ "num_cpus",
+ "rand 0.9.4",
+ "rand_distr 0.5.1",
+ "rayon",
+ "safetensors 0.8.0",
+ "thiserror 2.0.18",
+ "tokenizers",
+ "yoke",
+ "zerocopy",
+ "zip 8.6.0",
+]
+
+[[package]]
 name = "candle-nn"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9317a09d6530b758990ed7f625ac69ff43653bc9ee28b0464644ad1169ada87"
 dependencies = [
- "candle-core",
+ "candle-core 0.10.2",
  "half 2.7.1",
  "libc",
  "num-traits",
@@ -1295,7 +1321,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f59d08c89e9f4af9c464e2f3a8e16199e7cc601e6f34538c2cfbb42b623b1783"
 dependencies = [
  "byteorder",
- "candle-core",
+ "candle-core 0.10.2",
  "candle-nn",
  "fancy-regex 0.17.0",
  "num-traits",
@@ -9399,7 +9425,7 @@ dependencies = [
  "bcrypt",
  "bincode 2.0.1",
  "blake3",
- "candle-core",
+ "candle-core 0.11.0",
  "candle-nn",
  "candle-transformers",
  "chrono",
@@ -9535,7 +9561,7 @@ dependencies = [
  "anyhow",
  "axum",
  "bincode 2.0.1",
- "candle-core",
+ "candle-core 0.11.0",
  "crossbeam",
  "dirs 6.0.0",
  "fastrand",

@@ -52,7 +52,7 @@ tonic = { version = "0.14", features = [] }
 rmcp = { version = "1.7", features = ["server"] }
 
 # Optional: gates the `CandleError` enum variant in error/
-candle-core = { version = "0.10.2", optional = true }
+candle-core = { version = "0.11.0", optional = true }
 
 [dev-dependencies]
 tempfile = "3.8"
