@@ -60,25 +60,29 @@ impl QueryKey {
     }
 
     /// Build a query key from a raw query vector. The vector's bytes are
-    /// hashed with SHA-256 and the resulting hex digest is stored in the
-    /// `query` field (prefixed with `vector:` so it never collides with a
-    /// real text query). This keeps the cache-lookup key bounded and
+    /// hashed with xxh3-128 and the digest is stored in the `query`
+    /// field (prefixed with `vector:` so it never collides with a real
+    /// text query). This keeps the cache-lookup key bounded and
     /// deterministic regardless of vector dimension.
+    ///
+    /// xxh3 replaced SHA-256 in phase38: this runs on every cached
+    /// vector search and needs speed, not cryptographic strength — a
+    /// cache key collision only yields a wrong cache hit, and 128 bits
+    /// of non-adversarial collision resistance is ample.
     pub fn from_vector(
         collection: String,
         vector: &[f32],
         limit: usize,
         threshold: Option<f64>,
     ) -> Self {
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
+        let mut bytes = Vec::with_capacity(vector.len() * 4);
         for v in vector {
-            hasher.update(v.to_le_bytes());
+            bytes.extend_from_slice(&v.to_le_bytes());
         }
-        let digest = hex::encode(hasher.finalize());
+        let digest = xxhash_rust::xxh3::xxh3_128(&bytes);
         Self {
             collection,
-            query: format!("vector:{}", digest),
+            query: format!("vector:{digest:032x}"),
             limit,
             threshold: threshold.map(|t| (t * 1000.0) as u32),
         }

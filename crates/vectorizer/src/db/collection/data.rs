@@ -57,8 +57,13 @@ impl Collection {
             }
         }
 
-        // Insert vectors and update index
-        let index = self.index.write();
+        // Serialize writers WITHOUT blocking readers: the is-new check,
+        // `vector_order`, and `vector_count` bookkeeping need batch-level
+        // atomicity between concurrent writers, but `OptimizedHnswIndex`
+        // is internally synchronized, so searches only contend on the
+        // index's own narrow internal locks (see `Collection::insert_lock`).
+        let _writer_guard = self.insert_lock.lock();
+        let index = self.index.read();
         let mut vector_order = self.vector_order.write();
         // Track only NEW IDs so `vector_count` stays in sync with the
         // underlying storage (both `self.vectors` and `self.quantized_vectors`
@@ -73,7 +78,6 @@ impl Collection {
         let mut new_inserts: usize = 0;
         for mut vector in vectors {
             let id = vector.id.clone();
-            let mut data = vector.data.clone();
 
             let is_new = if is_quantized {
                 !self.quantized_vectors.lock().contains_key(&id)
@@ -81,17 +85,18 @@ impl Collection {
                 !self.vectors.contains_key(&id)?
             };
 
-            // Normalize vector for cosine similarity
+            // Normalize vector for cosine similarity (in place — the
+            // pre-phase38 flow cloned the array 3-4 times per vector).
             if matches!(self.config.metric, DistanceMetric::Cosine) {
-                data = vector_utils::normalize_vector(&data);
-                vector.data = data.clone(); // Update stored vector to normalized version
+                vector.data = vector_utils::normalize_vector(&vector.data);
                 // If sparse representation exists, update it to reflect normalized values
-                if let Some(ref sparse) = vector.sparse {
-                    // Recreate sparse from normalized dense vector
-                    let normalized_sparse = SparseVector::from_dense(&data);
-                    vector.sparse = Some(normalized_sparse);
+                if vector.sparse.is_some() {
+                    vector.sparse = Some(SparseVector::from_dense(&vector.data));
                 }
             }
+            // The index needs its own copy; `vector` keeps the original
+            // for storage. This is the single per-vector data clone.
+            let data = vector.data.clone();
 
             // Extract document ID from payload for tracking unique documents
             if let Some(payload) = &vector.payload {
@@ -113,46 +118,10 @@ impl Collection {
                 }
             }
 
-            // Apply quantization if enabled - store in quantized format to save memory
-            if matches!(
-                self.config.quantization,
-                crate::models::QuantizationConfig::SQ { bits: 8 }
-                    | crate::models::QuantizationConfig::Binary
-            ) {
-                // Store as quantized vector (75% memory reduction for SQ-8bit, 96% for Binary)
-                let quantized_vector = crate::models::QuantizedVector::from_vector(
-                    vector.clone(),
-                    &self.config.quantization,
-                );
-                debug!(
-                    "Storing quantized vector '{}' ({} bytes instead of {})",
-                    id,
-                    quantized_vector.memory_size(),
-                    data.len() * 4
-                );
-                self.quantized_vectors
-                    .lock()
-                    .insert(id.clone(), quantized_vector);
-
-                // Don't store full precision vector to save memory
-                // It will be reconstructed on-demand from quantized version
-            } else {
-                // Store full precision vector
-                self.vectors.insert(id.clone(), vector.clone())?;
-            }
-
-            // Track insertion order for persistence consistency.
-            // Only new IDs contribute to order and to `vector_count` — see
-            // the top-of-loop note on replay idempotence.
-            if is_new {
-                vector_order.push(id.clone());
-                new_inserts += 1;
-            }
-
-            // Add to index (using full precision for search accuracy)
-            index.add(id.clone(), data.clone())?;
-
-            // Discover graph relationships if graph is enabled
+            // Discover graph relationships if graph is enabled.
+            // Runs BEFORE the storage insert so `vector` can be moved into
+            // storage without a full clone — graph discovery only borrows
+            // the payload.
             // Note: Relationship discovery is done synchronously but with limited search scope
             // to avoid timeout during insertion. For large collections, consider disabling
             // auto_relationship.enabled_types or running relationship discovery in background.
@@ -223,6 +192,41 @@ impl Collection {
                     }
                 }
             }
+
+            // Store the vector — by move; the index copy was taken above.
+            if is_quantized {
+                // Store as quantized vector (75% memory reduction for SQ-8bit, 96% for Binary)
+                let quantized_vector =
+                    crate::models::QuantizedVector::from_vector(vector, &self.config.quantization);
+                debug!(
+                    "Storing quantized vector '{}' ({} bytes instead of {})",
+                    id,
+                    quantized_vector.memory_size(),
+                    data.len() * 4
+                );
+                self.quantized_vectors
+                    .lock()
+                    .insert(id.clone(), quantized_vector);
+
+                // Don't store full precision vector to save memory
+                // It will be reconstructed on-demand from quantized version
+            } else {
+                // Store full precision vector
+                self.vectors.insert(id.clone(), vector)?;
+            }
+
+            // Track insertion order for persistence consistency.
+            // Only new IDs contribute to order and to `vector_count` — see
+            // the top-of-loop note on replay idempotence.
+            if is_new {
+                vector_order.push(id.clone());
+                new_inserts += 1;
+            }
+
+            // Add to index (using full precision for search accuracy).
+            // Storage insert happens first so a concurrent search that
+            // sees the index entry can always fetch the vector.
+            index.add(id, data)?;
         }
 
         // Update vector count — only advance by IDs that were genuinely new.
