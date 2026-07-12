@@ -146,7 +146,7 @@ async def connect_async(url: str, *, timeout: Optional[float] = None) -> AsyncRp
     return await AsyncRpcClient.connect_url(url, timeout=timeout)
 
 
-__version__ = "3.8.0"
+__version__ = "3.5.0"
 __author__ = "HiveLLM Team"
 __email__ = "team@hivellm.org"
 

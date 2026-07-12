@@ -1,6 +1,6 @@
 # SDK Publishing Status
 
-All SDKs synchronized at **v3.2.0**. VectorizerRPC (binary MessagePack over TCP, port `15503`) is the default transport in every language; REST (port `15002`) remains available as a fallback via the `http(s)://...` URL scheme.
+All SDKs synchronized at **v3.5.0**. VectorizerRPC (binary MessagePack over TCP, port `15503`) is the default transport in every language; REST (port `15002`) remains available as a fallback via the `http(s)://...` URL scheme.
 
 ## ✅ **Successfully Published**
 
@@ -8,7 +8,7 @@ All SDKs synchronized at **v3.2.0**. VectorizerRPC (binary MessagePack over TCP,
 
 - **Package**: `@hivehub/vectorizer-sdk`
 - **Registry**: npm
-- **Version**: v3.2.0
+- **Version**: v3.5.0
 - **Status**: ✅ Published
 - **Installation**: `npm install @hivehub/vectorizer-sdk`
 - **Note**: Ships compiled CommonJS + ESM and works from plain
@@ -19,23 +19,23 @@ All SDKs synchronized at **v3.2.0**. VectorizerRPC (binary MessagePack over TCP,
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: crates.io
-- **Version**: v3.2.0
+- **Version**: v3.5.0
 - **Status**: ✅ Published successfully
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.0.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.5.0"`
 
 ### Python SDK
 
 - **Package**: `vectorizer-sdk`
 - **Registry**: PyPI
-- **Version**: v3.2.0
+- **Version**: v3.5.0
 - **Status**: ✅ Published successfully
-- **Installation**: `pip install vectorizer-sdk==3.0.0`
+- **Installation**: `pip install vectorizer-sdk==3.5.0`
 
 ### C# SDK
 
 - **Packages**: `Vectorizer.Sdk` (REST), `Vectorizer.Sdk.Rpc` (RPC, added in v3.0.0)
 - **Registry**: NuGet
-- **Version**: v3.2.0
+- **Version**: v3.5.0
 - **Status**: ✅ Published successfully
 - **Installation**: `dotnet add package Vectorizer.Sdk` (add `Vectorizer.Sdk.Rpc` for the binary transport)
 
@@ -43,9 +43,9 @@ All SDKs synchronized at **v3.2.0**. VectorizerRPC (binary MessagePack over TCP,
 
 - **Package**: `github.com/hivellm/vectorizer-sdk-go`
 - **Registry**: Go Modules (git tag)
-- **Version**: v3.2.0
+- **Version**: v3.5.0
 - **Status**: ✅ Released
-- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.2.0`
+- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.5.0`
 
 ### Removed in v3.0.0
 
@@ -64,12 +64,12 @@ Build directly against the language-native SDKs instead.
 
 | SDK           | Registry   | Version  | Package Name                                |
 | ------------- | ---------- | -------- | ------------------------------------------- |
-| TypeScript    | npm        | v3.2.0   | @hivehub/vectorizer-sdk                     |
-| Rust          | crates.io  | v3.2.0   | vectorizer-sdk                              |
-| Python        | PyPI       | v3.2.0   | vectorizer-sdk                              |
-| C# (REST)     | NuGet      | v3.2.0   | Vectorizer.Sdk                              |
-| C# (RPC)      | NuGet      | v3.2.0   | Vectorizer.Sdk.Rpc                          |
-| Go            | Go Modules | v3.2.0   | github.com/hivellm/vectorizer-sdk-go        |
+| TypeScript    | npm        | v3.5.0   | @hivehub/vectorizer-sdk                     |
+| Rust          | crates.io  | v3.5.0   | vectorizer-sdk                              |
+| Python        | PyPI       | v3.5.0   | vectorizer-sdk                              |
+| C# (REST)     | NuGet      | v3.5.0   | Vectorizer.Sdk                              |
+| C# (RPC)      | NuGet      | v3.5.0   | Vectorizer.Sdk.Rpc                          |
+| Go            | Go Modules | v3.5.0   | github.com/hivellm/vectorizer-sdk-go        |
 
 ## 🔧 **Publishing Infrastructure**
 
@@ -97,6 +97,15 @@ Build directly against the language-native SDKs instead.
 ## 🎯 **SDK Feature Completeness**
 
 All published SDKs are **100% complete** with all latest features implemented.
+
+### New in v3.5.0
+
+- **Version alignment with the Vectorizer 3.5.0 server release.** No client API changes — the 3.4.x and 3.5.0 server lines are server-internal (non-blocking search during batch inserts, PQ/Binary quantization wiring, SIMD quantize kernels, BM25-after-restart + WAL-durability fixes, Docker CVE posture, dependency refresh). The full client method surface is unchanged since v3.3.0.
+
+### New in v3.3.0
+
+- **REST control-surface parity across every SDK** (~79 REST methods: admin/observability, auth/RBAC, replication, hub, discovery pipeline, schema-evolution) — no RPC dependency required.
+- **Phase25 dashboard-metrics surface** — `get_runtime_metrics` (`GET /metrics/runtime`), `Stats.default_quantization` + `compression_ratio`, and per-collection `vector_count_history`. Every new field defaults so older servers keep decoding.
 
 ### New in v3.2.0
 
@@ -176,7 +185,7 @@ All SDKs support automatic read/write routing for high-availability deployments:
 
 ## 📊 **Success Metrics**
 
-- **5 out of 5 SDKs** released at v3.2.0 ✅
+- **5 out of 5 SDKs** released at v3.5.0 ✅
 - **100% test coverage** maintained across all SDKs
 - **Cross-platform support** with Bash, PowerShell, and Batch scripts
 - **Comprehensive documentation** with troubleshooting guides

@@ -2,7 +2,11 @@
 
 High-performance client SDKs for the Hive Vectorizer vector database, available in multiple languages.
 
-All SDKs synchronized at **v3.2.0**. Every SDK accepts both `vectorizer://host[:port]` (RPC, binary MessagePack over TCP — **default in v3.x**, port `15503`) and `http(s)://host[:port]` (REST fallback, port `15002`) URLs through the same endpoint parser.
+All SDKs synchronized at **v3.5.0**. Every SDK accepts both `vectorizer://host[:port]` (RPC, binary MessagePack over TCP — **default in v3.x**, port `15503`) and `http(s)://host[:port]` (REST fallback, port `15002`) URLs through the same endpoint parser.
+
+**v3.5.0** — version alignment with the Vectorizer 3.5.0 server release (non-blocking search during batch inserts, PQ/Binary quantization wiring, SIMD quantize kernels, BM25-after-restart + WAL-durability fixes, Docker CVE posture, dependency refresh). All server-internal — **no client API changes** since v3.3.0. The 3.4.x server line is likewise SDK-transparent.
+
+**v3.3.0** — REST control-surface parity across every SDK (~79 REST methods: admin/observability, auth/RBAC, replication, hub, discovery pipeline, schema-evolution) plus the phase25 dashboard-metrics surface (`get_runtime_metrics` / `GET /metrics/runtime`, `Stats.default_quantization` + `compression_ratio`, per-collection `vector_count_history`). See each SDK's `CHANGELOG.md` for the full method list.
 
 **v3.2.0** ([#263](https://github.com/hivellm/vectorizer/issues/263)) — every SDK honors server-side bulk-upsert backpressure: on HTTP `429 Too Many Requests` the client parses `Retry-After` (1 s default, 30 s cap), sleeps, and retries up to 3 times before surfacing a typed `RateLimit` / `RateLimitError` / `VectorizerError(status=429)`.
 
@@ -13,7 +17,7 @@ All SDKs synchronized at **v3.2.0**. Every SDK accepts both `vectorizer://host[:
 ### 🟦 TypeScript SDK ✅
 
 - **Package**: `@hivehub/vectorizer-sdk`
-- **Status**: Published on npm (v3.2.0)
+- **Status**: Published on npm (v3.5.0)
 - **Features**: VectorizerRPC + REST, full TypeScript support, async/await, comprehensive type safety, intelligent search, Master/Replica routing. Ships compiled CommonJS + ESM and works from plain JavaScript projects too.
 - **Installation**: `npm install @hivehub/vectorizer-sdk`
 - **Documentation**: [TypeScript SDK README](./typescript/README.md)
@@ -21,32 +25,32 @@ All SDKs synchronized at **v3.2.0**. Every SDK accepts both `vectorizer://host[:
 ### 🦀 Rust SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on crates.io (v3.2.0)
+- **Status**: Published on crates.io (v3.5.0)
 - **Features**: VectorizerRPC + REST, high performance, async/await, MCP support, type safety, intelligent search, Master/Replica routing
-- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.2.0"`
+- **Installation**: Add to `Cargo.toml`: `vectorizer-sdk = "3.5.0"`
 - **Documentation**: [Rust SDK README](./rust/README.md)
 
 ### 🐍 Python SDK ✅
 
 - **Package**: `vectorizer-sdk`
-- **Status**: Published on PyPI (v3.2.0)
+- **Status**: Published on PyPI (v3.5.0)
 - **Features**: VectorizerRPC + REST, async/await support, comprehensive testing, CLI interface, intelligent search, Master/Replica routing
-- **Installation**: `pip install vectorizer-sdk==3.2.0`
+- **Installation**: `pip install vectorizer-sdk==3.5.0`
 - **Documentation**: [Python SDK README](./python/README.md)
 
 ### 🐹 Go SDK ✅
 
 - **Package**: `github.com/hivellm/vectorizer-sdk-go`
-- **Status**: v3.2.0
+- **Status**: v3.5.0
 - **Features**: VectorizerRPC + REST, high performance, simple API, comprehensive error handling, intelligent search, Master/Replica routing
-- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.2.0`
+- **Installation**: `go get github.com/hivellm/vectorizer-sdk-go@v3.5.0`
 - **Repository**: https://github.com/hivellm/vectorizer/tree/main/sdks/go
 - **Documentation**: [Go SDK README](./go/README.md)
 
 ### 🔷 C# SDK ✅
 
 - **Packages**: `Vectorizer.Sdk` (REST), `Vectorizer.Sdk.Rpc` (RPC, added in v3.0.0)
-- **Status**: Published on NuGet (v3.2.0)
+- **Status**: Published on NuGet (v3.5.0)
 - **Features**: Async/await support, .NET 8.0+, type-safe models, intelligent search, SourceLink, Master/Replica routing. The `Vectorizer.Sdk.Rpc` companion package adds the binary VectorizerRPC transport with MessagePack framing, connection pool, and ASP.NET Core DI.
 - **Installation**: `dotnet add package Vectorizer.Sdk` (+ `dotnet add package Vectorizer.Sdk.Rpc` for RPC)
 - **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk · https://www.nuget.org/packages/Vectorizer.Sdk.Rpc
@@ -234,14 +238,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 [dependencies]
-vectorizer-sdk = "3.2.0"
+vectorizer-sdk = "3.5.0"
 ```
 
 ## SDK Comparison Table
 
 | Feature                     | TypeScript   | Rust         | Python       | Go         | C#           |
 | --------------------------- | ------------ | ------------ | ------------ | ---------- | ------------ |
-| **Status**                  | ✅ v3.2.0    | ✅ v3.2.0    | ✅ v3.2.0    | ✅ v3.2.0  | ✅ v3.2.0    |
+| **Status**                  | ✅ v3.5.0    | ✅ v3.5.0    | ✅ v3.5.0    | ✅ v3.5.0  | ✅ v3.5.0    |
 | **VectorizerRPC**           | ✅           | ✅           | ✅           | ✅         | ✅           |
 | **Master/Replica Routing**  | ✅           | ✅           | ✅           | ✅         | ✅           |
 | **Package Manager**         | npm          | crates.io    | PyPI         | Go Modules | NuGet        |
@@ -396,7 +400,7 @@ delete_result = await client.batch_delete_vectors('documents', BatchDeleteReques
 │ • Works from JS │    │                 │    │ • SourceLink     │
 │                 │    │                 │    │                  │
 │      C# SDK     │    │      Go SDK     │    │                  │
-│  ✅ v3.2.0      │    │  ✅ v3.2.0      │    │                  │
+│  ✅ v3.5.0      │    │  ✅ v3.5.0      │    │                  │
 │                 │    │                 │    │                  │
 │ • .NET 8.0+     │    │ • High Perf     │    │                  │
 │ • SourceLink    │    │ • Simple API    │    │                  │

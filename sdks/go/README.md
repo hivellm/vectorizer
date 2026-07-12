@@ -6,7 +6,16 @@
 High-performance Go SDK for Vectorizer vector database.
 
 **Package**: `github.com/hivellm/vectorizer-sdk-go`
-**Version**: 3.3.0
+**Version**: 3.5.0
+
+## v3.5 — server alignment (no client API changes)
+
+Version tracks the Vectorizer **3.5.0** server release: non-blocking
+search during batch inserts, PQ/Binary quantization wiring, SIMD
+quantize kernels, BM25-after-restart and WAL-durability fixes, and a
+security/dependency refresh. All server-internal — the client API is
+unchanged since **v3.3** (REST control-surface parity + dashboard
+metrics). See `CHANGELOG.md` for the full method surface.
 
 ## v3.2 — backpressure-aware HTTP client (HTTP 429 + `Retry-After`)
 
@@ -174,7 +183,7 @@ rotated, _ := client.RotateApiKey(key.ID)
 go get github.com/hivellm/vectorizer-sdk-go
 
 # Or specific version
-go get github.com/hivellm/vectorizer-sdk-go@v3.3.0
+go get github.com/hivellm/vectorizer-sdk-go@v3.5.0
 ```
 
 ## Quick Start
