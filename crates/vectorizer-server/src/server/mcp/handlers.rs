@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorData};
 use serde_json::json;
 use vectorizer::VectorStore;
 use vectorizer::db::graph::RelationshipType;
@@ -207,7 +207,7 @@ async fn handle_search_vectors(
         "total": results.len()
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -218,7 +218,7 @@ async fn handle_list_collections(store: Arc<VectorStore>) -> Result<CallToolResu
         "collections": collections,
         "total": collections.len()
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -252,7 +252,7 @@ async fn handle_list_providers(
         "providers": providers,
         "default_provider": default,
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -336,7 +336,7 @@ async fn handle_create_collection(
         "dimension": dimension,
         "metric": metric
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -395,7 +395,7 @@ async fn handle_get_collection_info(
         "created_at": metadata.created_at.to_rfc3339(),
         "updated_at": metadata.updated_at.to_rfc3339(),
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -489,7 +489,7 @@ async fn handle_insert_text(
         "collection": collection_name,
         "encrypted": public_key.is_some()
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -527,7 +527,7 @@ async fn handle_get_vector(
         "payload": vector.payload,
         "collection": collection
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -565,7 +565,7 @@ async fn handle_delete_vectors(
         "collection": collection,
         "count": deleted_count
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -631,7 +631,7 @@ async fn handle_update_vector(
         "collection": collection,
         "encrypted": public_key.is_some()
     });
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -692,7 +692,7 @@ async fn handle_intelligent_search(
     let json_response = serde_json::to_value(response)
         .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json_response.to_string(),
     )]))
 }
@@ -750,7 +750,7 @@ async fn handle_multi_collection_search(
     let json_response = serde_json::to_value(response)
         .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json_response.to_string(),
     )]))
 }
@@ -803,7 +803,7 @@ async fn handle_semantic_search(
     let json_response = serde_json::to_value(response)
         .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json_response.to_string(),
     )]))
 }
@@ -976,7 +976,7 @@ async fn handle_search_extra(
         "total": all_results.len()
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -1035,7 +1035,7 @@ async fn handle_get_file_content(
         "from_cache": result.from_cache,
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -1116,7 +1116,7 @@ async fn handle_list_files_in_collection(
         })).collect::<Vec<_>>(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -1236,7 +1236,7 @@ async fn handle_hybrid_search(
         }
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -1256,7 +1256,7 @@ async fn handle_list_empty_collections(
         "count": empty_collections.len()
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -1287,7 +1287,7 @@ async fn handle_cleanup_empty_collections(
                 "message": message
             });
 
-            Ok(CallToolResult::success(vec![Content::text(
+            Ok(CallToolResult::success(vec![ContentBlock::text(
                 response.to_string(),
             )]))
         }
@@ -1327,7 +1327,7 @@ async fn handle_get_collection_stats(
         "is_empty": is_empty
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }

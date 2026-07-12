@@ -38,7 +38,7 @@ prost = "0.14"
 prost-types = "0.14"
 
 # MCP SDK
-rmcp = { version = "1.7", features = ["server", "macros", "transport-streamable-http-server"] }
+rmcp = { version = "2.1", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-tungstenite = "0.29"
 tokio-stream = { version = "0.1", features = ["sync"] }
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorData};
 use serde_json::json;
 use vectorizer::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
@@ -47,7 +47,7 @@ pub async fn handle_get_file_chunks_ordered(
         })?;
 
     let response = json!(result);
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -93,7 +93,7 @@ pub async fn handle_get_project_outline(
         })?;
 
     let response = json!(result);
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -147,7 +147,7 @@ pub async fn handle_get_related_files(
         })?;
 
     let response = json!(result);
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }
@@ -206,7 +206,7 @@ pub async fn handle_search_by_file_type(
         })?;
 
     let response = json!(result);
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         response.to_string(),
     )]))
 }

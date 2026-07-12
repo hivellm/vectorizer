@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorData};
 use serde_json::json;
 use vectorizer::db::graph::RelationshipType;
 use vectorizer::db::{CollectionType, VectorStore};
@@ -54,7 +54,7 @@ pub async fn handle_graph_list_nodes(
     let nodes = graph.get_all_nodes();
     let count = nodes.len();
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json!({
             "nodes": nodes,
             "count": count
@@ -116,7 +116,7 @@ pub async fn handle_graph_get_neighbors(
         })
         .collect();
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json!({
             "neighbors": neighbor_infos
         })
@@ -191,7 +191,7 @@ pub async fn handle_graph_find_related(
         })
         .collect();
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json!({
             "related": related_infos
         })
@@ -244,7 +244,7 @@ pub async fn handle_graph_find_path(
     })?;
 
     match graph.find_path(source, target) {
-        Ok(path) => Ok(CallToolResult::success(vec![Content::text(
+        Ok(path) => Ok(CallToolResult::success(vec![ContentBlock::text(
             json!({
                 "path": path,
                 "found": true
@@ -253,7 +253,7 @@ pub async fn handle_graph_find_path(
         )])),
         Err(e) => {
             if e.to_string().contains("not found") || e.to_string().contains("No path") {
-                Ok(CallToolResult::success(vec![Content::text(
+                Ok(CallToolResult::success(vec![ContentBlock::text(
                     json!({
                         "path": [],
                         "found": false,
@@ -346,7 +346,7 @@ pub async fn handle_graph_create_edge(
         .add_edge(edge)
         .map_err(|e| ErrorData::internal_error(format!("Failed to create edge: {}", e), None))?;
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json!({
             "edge_id": edge_id,
             "success": true,
@@ -398,7 +398,7 @@ pub async fn handle_graph_delete_edge(
         ));
     }
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json!({
             "success": true,
             "message": "Edge deleted successfully"
@@ -482,7 +482,7 @@ pub async fn handle_graph_discover_edges(
         )
         .map_err(|e| ErrorData::internal_error(format!("Failed to discover edges: {}", e), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             json!({
                 "success": true,
                 "edges_created": edges_created,
@@ -500,7 +500,7 @@ pub async fn handle_graph_discover_edges(
         )
         .map_err(|e| ErrorData::internal_error(format!("Failed to discover edges: {}", e), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(
+        Ok(CallToolResult::success(vec![ContentBlock::text(
             json!({
                 "success": true,
                 "total_nodes": stats.total_nodes,
@@ -572,7 +572,7 @@ pub async fn handle_graph_discover_status(
         0.0
     };
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         json!({
             "total_nodes": total_nodes,
             "nodes_with_edges": nodes_with_edges,

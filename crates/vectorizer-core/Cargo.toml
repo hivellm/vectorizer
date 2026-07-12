@@ -49,7 +49,7 @@ tracing = { version = "0.1", default-features = false }
 # rule forces them to sit alongside `VectorizerError`.
 axum = { version = "0.8.7", default-features = false }
 tonic = { version = "0.14", features = [] }
-rmcp = { version = "1.7", features = ["server"] }
+rmcp = { version = "2.1", features = ["server"] }
 
 # Optional: gates the `CandleError` enum variant in error/.
 # Version MUST match the umbrella crate's candle family pin
