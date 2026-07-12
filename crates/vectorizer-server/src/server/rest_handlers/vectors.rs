@@ -756,6 +756,13 @@ pub async fn bulk_update_metadata(
     let all_vectors = collection.get_all_vectors();
     let scanned = all_vectors.len();
 
+    // `collection` is a DashMap shard Ref; `store.update` below takes a
+    // RefMut on the same shard. Holding the Ref across the update loop
+    // is the re-entrancy deadlock documented in the 2026-07-11 analysis
+    // §1.5 — every bulk_update_metadata call hung forever until the
+    // phase39 in-process coverage caught it.
+    drop(collection);
+
     let matching: Vec<vectorizer::models::Vector> = all_vectors
         .into_iter()
         .filter(|v| {

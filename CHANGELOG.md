@@ -37,6 +37,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`bulk_update_metadata` deadlocked on every call (phase39).** The
+  handler held the DashMap collection `Ref` across `store.update`,
+  which takes a `RefMut` on the same shard — the re-entrancy trap the
+  2026-07-11 analysis documented (§1.5). The endpoint had zero test
+  coverage, so every production call simply hung forever; caught the
+  moment the new in-process handler coverage ran it. The `Ref` is now
+  dropped before the update loop.
 - **BM25 search returned nothing after a restart (phase37).** Auto-save
   wrote a minimal tokenizer (`vocab_size: 0`) and the vocabulary loaders
   had zero callers, so a restarted server embedded text queries in the
