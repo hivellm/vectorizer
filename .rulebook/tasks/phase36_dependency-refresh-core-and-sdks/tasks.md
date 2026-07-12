@@ -17,15 +17,15 @@
 
 ## 4. SDK dependency refresh (one commit per SDK)
 
-- [ ] 4.1 TypeScript: `pnpm update` within ranges in `sdks/typescript`; review `@msgpack/msgpack`, vitest, eslint for safe majors; keep phase-security overrides (js-yaml <5 pin, esbuild, vite) intact; `pnpm test` green
-- [ ] 4.2 Python: refresh `sdks/python/pyproject.toml` dev/runtime pins (pytest, msgpack, httpx/requests line) to current stable; run the SDK's pytest suite
-- [ ] 4.3 Go: `go get -u ./... && go mod tidy` in `sdks/go` (stay within module major); `go vet ./... && go test -short ./...` green
-- [ ] 4.4 C#: refresh `Microsoft.Extensions.*` to latest 8.x patch across `sdks/csharp/**/*.csproj` (MessagePack already 2.5.301); `dotnet test` green
+- [x] 4.1 TypeScript: `pnpm update` within ranges — @types/node 25.9.5, vitest/coverage 4.1.10, eslint 10.7.0, typescript-eslint 8.63.0, js-yaml 4.3.0 (override `<5` respected); overrides block byte-identical; **515 passed / 12 env-gated** + tsc 0 errors + lint 0 errors; vite hard-pinned at 8.0.16 by the security override (pnpm rewrites the spec — documented)
+- [x] 4.2 Python: floors raised in pyproject (aiohttp 3.10.11, msgpack 1.1.1, pytest 8.3.5, mypy 1.14.1, flake8 7.1.2, httpx 0.28.1, sphinx-rtd-theme 3.1.0); **94 passed / 5 env-gated**; 1 failing test + 2 collection errors are pre-existing live-server/bit-rot issues (import `vectorizer_sdk` inexistente; connection-refused sem servidor) — registrados no escopo do phase39
+- [x] 4.3 Go: `go get -u` + `go mod tidy` = zero changes (msgpack v5.4.1 e tagparser v2.0.0 já são as últimas da major line); `go vet` limpo; `go test -short` ok (2 módulos)
+- [x] 4.4 C#: System.Text.Json 10.0.9, SourceLink 10.0.300, MessagePack 2.5.302; Microsoft.Extensions.* já na última patch da linha 8.x (DI core não tem 8.0.2 — verificado no índice NuGet); 7 csproj build limpos; RPC tests **66/66**; 21 falhas em Vectorizer.Tests são pré-existentes (detecção de connection-refused por substring em inglês quebra em Windows pt-BR) — item 3.4 do phase39
 
 ## 5. Dependabot config hygiene
 
-- [ ] 5.1 Extend `.github/dependabot.yml` with update entries for `sdks/typescript` (npm), `sdks/python` (pip), `sdks/go` (gomod), `sdks/csharp` (nuget) at the same weekly cadence as the root cargo ecosystem
-- [ ] 5.2 Verify the config parses (dependabot validates on push; check the Insights → Dependency graph → Dependabot tab shows the new ecosystems)
+- [x] 5.1 `.github/dependabot.yml` estendido: npm (sdks/typescript), pip (sdks/python), gomod (sdks/go), nuget (sdks/csharp), weekly monday 09:00; sdks/rust coberto pela entry cargo raiz (workspace member, lock compartilhado — entry separada duplicaria PRs)
+- [x] 5.2 Config validada estruturalmente por teste (tests/dependabot_coverage.rs, tail 6.2); a aba Insights → Dependabot só reflete após push do branch
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 

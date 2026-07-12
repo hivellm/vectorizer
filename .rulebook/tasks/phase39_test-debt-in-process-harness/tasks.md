@@ -14,6 +14,7 @@
 - [ ] 3.1 Wire `comprehensive.rs`, `integration_basic.rs`, `api.rs`, `qdrant_migration.rs`, `qdrant_api.rs` into `tests/replication/mod.rs`, fixing compile bit-rot; delete only files that duplicate wired coverage, with per-file justification
 - [ ] 3.2 Root-cause the gRPC `test_update_vector` failure shared across 5+ files; fix the bug or document findings in a dedicated follow-up task created before this task archives
 - [ ] 3.3 Add reason strings to every bare `#[ignore]` (`failover.rs`, `comprehensive.rs`, `gpu/hive_gpu.rs`, `product.rs`)
+- [ ] 3.4 Fix locale-fragile connection-refused detection in `sdks/csharp/Vectorizer.Tests/QdrantAdvancedTests.cs`: the catch matches English substrings ("ECONNREFUSED"/"No connection"), so on pt-BR Windows the socket error text ("Nenhuma conexão...") re-throws and produces 21 false failures when no server is running (found during phase36 dep refresh); match on `SocketException` / inner-exception type instead of message text
 
 ## 4. CI + SDK integration
 
