@@ -9292,7 +9292,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer"
-version = "3.4.1"
+version = "3.5.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -9414,7 +9414,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer-cli"
-version = "3.4.1"
+version = "3.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -9437,7 +9437,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer-core"
-version = "3.4.1"
+version = "3.5.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -9465,7 +9465,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer-protocol"
-version = "3.4.1"
+version = "3.5.0"
 dependencies = [
  "prost",
  "prost-types",
@@ -9483,7 +9483,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer-sdk"
-version = "3.4.1"
+version = "3.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -9504,7 +9504,7 @@ dependencies = [
 
 [[package]]
 name = "vectorizer-server"
-version = "3.4.1"
+version = "3.5.0"
 dependencies = [
  "aes-gcm",
  "anyhow",

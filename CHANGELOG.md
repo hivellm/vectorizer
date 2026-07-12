@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.5.0] - TBD
+
+### Security
+
+- **Docker image CVE posture (phase35).** Rebuild against the refreshed
+  `dhi.io/debian-base:trixie` (openssl `3.5.6-1~deb13u2`) clears all 4
+  HIGH openssl CVEs — Scout scan drops 31 → 16 (0C/0H; remainder has no
+  fix in trixie). Runtime base is now **pinned by digest** in the
+  `Dockerfile`; `docker/vex.json` (OpenVEX) documents the 15 unfixable
+  base CVEs with per-CVE justification; new `docker-cve-gate.yml`
+  workflow scans weekly + on release (VEX applied, fails on unexcepted
+  CRITICAL/HIGH) and tracks base-digest staleness (≥14 days → issue).
+- **cmov 0.5.3 → 0.5.4** — CVE-2026-50185 (aarch64 inline-asm high-bits
+  bug in the constant-time select primitive on the hmac/pbkdf2 path).
+
+### Build
+
+- **Dependency refresh, core + SDKs (phase36).**
+  - Dependabot cascade #336–#345 merged: uuid 1.23.4, tracing-opentelemetry
+    0.33.0, bcrypt 0.19.2, memmap2 0.9.11, transmutation 0.3.3,
+    xxhash-rust 0.8.16.
+  - Majors as isolated compat commits: **candle family 0.10.2 → 0.11.0**
+    in lockstep incl. vectorizer-core's optional pin (supersedes #341/#337);
+    **aes-gcm 0.10.3 → 0.11.0** with the aead 0.6 `Generate` trait for
+    key/nonce material (supersedes #343); **rmcp 1.7.0 → 2.1.0** —
+    MCP 2025-11-25 model alignment, `Content` → `ContentBlock` across
+    the MCP handlers (supersedes #342).
+  - Workspace-wide `cargo update` (~120 compatible bumps). Full gate on
+    the refreshed tree: clippy all-targets 0 warnings, nextest
+    **1822 passed / 0 failed**.
+  - `dependabot.yml` now covers `sdks/{typescript,python,go,csharp}`
+    (npm/pip/gomod/nuget, weekly).
+
 ## [3.4.1] - 2026-07-01
 
 ### Fixed
