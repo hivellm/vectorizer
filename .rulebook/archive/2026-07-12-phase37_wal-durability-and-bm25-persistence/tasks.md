@@ -14,6 +14,6 @@
 
 ## 3. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [x] 3.1 Documentation: design.md (D1-D5) + CHANGELOG [3.5.0] + doc-comments at the integration points
-- [x] 3.2 Tests: 5 new WAL unit tests (torn-final, mid-file corruption, legacy read, seq reopen, concurrent tx) + `tests/bm25_vocab_persistence.rs` full round-trip (save → restart → restore → same top hit) + degraded surfacing
-- [x] 3.3 Ran: WAL lib 11/11, WAL integration 19 passed, bm25 round-trip 1/1, lib suite 1026 passed, clippy 0 warnings
+- [x] 3.1 Update or create documentation covering the implementation — design.md (D1-D5) + CHANGELOG [3.5.0] Fixed section + doc-comments at the integration points
+- [x] 3.2 Write tests covering the new behavior — 5 new WAL unit tests (torn-final, mid-file corruption, legacy read, seq reopen, concurrent tx) + `tests/bm25_vocab_persistence.rs` full round-trip (save → restart → restore → same top hit) + degraded surfacing
+- [x] 3.3 Run tests and confirm they pass — WAL lib 11/11, WAL integration 19 passed, bm25 round-trip 1/1, lib suite 1026 passed, clippy 0 warnings

@@ -29,6 +29,6 @@
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 6.1 Update or create documentation covering the implementation
-- [ ] 6.2 Write tests covering the new behavior
-- [ ] 6.3 Run tests and confirm they pass
+- [x] 6.1 Update or create documentation covering the implementation — CHANGELOG [3.5.0] Build section (majors, cargo update, dependabot SDK coverage)
+- [x] 6.2 Write tests covering the new behavior — tests/dependabot_coverage.rs pins the SDK-ecosystem invariant
+- [x] 6.3 Run tests and confirm they pass — dependabot_coverage 1/1; full gate nextest 1822 passed / clippy 0
