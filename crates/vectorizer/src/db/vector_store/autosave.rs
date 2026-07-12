@@ -330,7 +330,19 @@ impl VectorStore {
         use std::fs::File;
         use std::io::Write;
 
-        let json_data = serde_json::to_string_pretty(&persisted_collection)?;
+        // Wrap in the versioned envelope: `load_persisted_collection`
+        // deserializes `PersistedVectorStore` and rejects files without
+        // a `version` field. Serializing the bare collection here (as
+        // this method did before phase37) made every legacy-format save
+        // unreadable on the next boot. Built via `json!` because
+        // `PersistedCollection` is not `Clone` and the envelope only
+        // needs a borrowed view for serialization.
+        let persisted_store = serde_json::json!({
+            "version": 1,
+            "collections": [persisted_collection],
+        });
+
+        let json_data = serde_json::to_string_pretty(&persisted_store)?;
         let mut file = File::create(path)?;
         file.write_all(json_data.as_bytes())?;
 
@@ -395,16 +407,58 @@ impl VectorStore {
         Ok(())
     }
 
-    /// Save collection tokenizer to JSON file
+    /// Save collection tokenizer to JSON file.
+    ///
+    /// When a [`crate::db::vector_store::TokenizerSaver`] is registered
+    /// (server bootstrap does this), the REAL vocabulary is written via
+    /// the embedding manager — that file is what makes text search work
+    /// again after a restart. The minimal-tokenizer fallback only fires
+    /// in bare-`VectorStore` environments (unit tests) and is logged at
+    /// warn so a misconfigured server can't silently lose its vocab
+    /// (phase37).
     fn save_collection_tokenizer(
         &self,
         collection_name: &str,
         path: &std::path::Path,
     ) -> Result<()> {
+        if let Some(saver) = self.tokenizer_saver.read().clone() {
+            match saver(collection_name, path) {
+                Ok(()) => {
+                    debug!(
+                        "Saved real vocabulary for '{}' to {}",
+                        collection_name,
+                        path.display()
+                    );
+                    return Ok(());
+                }
+                Err(e) => {
+                    // Fall through to the minimal tokenizer so the save
+                    // set stays structurally complete, but make noise:
+                    // a failed vocab save means degraded search after
+                    // the next restart.
+                    warn!(
+                        "Vocabulary save failed for '{}' ({}); writing minimal tokenizer",
+                        collection_name, e
+                    );
+                }
+            }
+        } else {
+            warn!(
+                "No tokenizer saver registered; writing minimal tokenizer for '{}' — \
+                 text search on this collection will degrade after a restart",
+                collection_name
+            );
+        }
+
+        Self::write_minimal_tokenizer(collection_name, path)
+    }
+
+    /// Legacy minimal tokenizer file (`vocab_size: 0`) — structural
+    /// completeness only, carries no vocabulary.
+    fn write_minimal_tokenizer(collection_name: &str, path: &std::path::Path) -> Result<()> {
         use std::fs::File;
         use std::io::Write;
 
-        // For dynamic collections, create a minimal tokenizer
         let tokenizer_data = serde_json::json!({
             "collection_name": collection_name,
             "tokenizer_type": "dynamic",
@@ -418,7 +472,7 @@ impl VectorStore {
         file.write_all(json_data.as_bytes())?;
 
         debug!(
-            "Saved tokenizer for '{}' to {}",
+            "Saved minimal tokenizer for '{}' to {}",
             collection_name,
             path.display()
         );

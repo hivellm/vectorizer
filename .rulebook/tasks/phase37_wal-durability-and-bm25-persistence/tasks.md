@@ -1,19 +1,19 @@
 ## 1. WAL durability
 
-- [ ] 1.1 Add fsync (`sync_data`) after flush in WAL append and checkpoint paths (`wal.rs:198,217`), behind a `wal.fsync` config flag defaulting to true
-- [ ] 1.2 Add per-record CRC32 + length-prefix framing to WAL writes (`crc32fast` already in deps)
-- [ ] 1.3 Make WAL reader accept both framed records and legacy JSON-lines; tolerate a trailing torn/corrupt record instead of aborting recovery
-- [ ] 1.4 Compute transaction sequence numbers under the file lock (fix race at `wal.rs:179`)
-- [ ] 1.5 Store `max_sequence + 1` after recovery (fix duplicate-sequence off-by-one at `wal.rs:149`)
+- [x] 1.1 fsync (`sync_data`) after flush in append + transaction + checkpoint-truncate paths, behind `WALConfig.fsync` (default true); `wal_integration.rs` literal replaced with `unwrap_or_default()`
+- [x] 1.2 CRC32 + length framing per record (`C1 <crc8> <len> <json>` lines, `crc32fast`); writer always frames
+- [x] 1.3 Reader accepts framed + legacy bare-JSON lines; damaged FINAL line = torn append → warn + discard + recovery continues; damaged mid-file line → `WALError::Corruption` (tests: torn-final, mid-file, legacy)
+- [x] 1.4 `append_transaction` reserves the full sequence range via `fetch_add(n)` up-front (fixes the same-base race; concurrency test: 8 tx × 5 ops = 40 disjoint sequences)
+- [x] 1.5 `initialize_sequence` stores `max + 1` (fixes duplicate seq after restart; reopen test + dense validate_integrity)
 
 ## 2. BM25 vocabulary persistence
 
-- [ ] 2.1 Replace the tokenizer stub in `autosave.rs:398-426,508-534` with a real `save_vocabulary_json` call for BM25 collections
-- [ ] 2.2 Wire `load_vocabulary_json`/`restore_vocabulary_data` into the collection load path so restarts restore the BM25 space
-- [ ] 2.3 Add a fallback guard: if vocab load fails, log at warn and surface a collection health flag instead of silently hashing
+- [x] 2.1 `save_collection_tokenizer` uses the injected `TokenizerSaver` (bootstrap closure → `EmbeddingManager::save_vocabulary_json`); minimal-tokenizer fallback only when no saver is registered, logged at warn. Bonus: fixed a latent bug — the legacy save wrote a bare `PersistedCollection` while the loader requires the `PersistedVectorStore{version}` envelope, so every legacy-format save was unreadable on the next boot
+- [x] 2.2 `EmbeddingProvider::load_vocabulary_json` on the trait + impls (bm25/tfidf/bow/char_ngram) + manager dispatch + `restore_vocabulary_from_disk` (raw files + `_tokenizer.json` entries inside .vecdb via StorageReader; snapshot with the largest (total_docs, vocab) wins — see design.md D4); called in bootstrap before the manager Arc-wrap
+- [x] 2.3 Guard: missing/empty snapshots → warn + `degraded_vocabulary:{collection}=true` metadata on the VectorStore (`VocabularyRestoreReport.degraded_collections`)
 
 ## 3. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 3.1 Update or create documentation covering the implementation
-- [ ] 3.2 Write tests covering the new behavior (WAL torn-write recovery, sequence continuity, BM25 save→restart→search round-trip)
-- [ ] 3.3 Run tests and confirm they pass
+- [x] 3.1 Documentation: design.md (D1-D5) + CHANGELOG [3.5.0] + doc-comments at the integration points
+- [x] 3.2 Tests: 5 new WAL unit tests (torn-final, mid-file corruption, legacy read, seq reopen, concurrent tx) + `tests/bm25_vocab_persistence.rs` full round-trip (save → restart → restore → same top hit) + degraded surfacing
+- [x] 3.3 Ran: WAL lib 11/11, WAL integration 19 passed, bm25 round-trip 1/1, lib suite 1026 passed, clippy 0 warnings

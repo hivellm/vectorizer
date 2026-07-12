@@ -6,6 +6,33 @@ All notable changes to this project will be documented in this file.
 
 ## [3.5.0] - TBD
 
+### Fixed
+
+- **BM25 search returned nothing after a restart (phase37).** Auto-save
+  wrote a minimal tokenizer (`vocab_size: 0`) and the vocabulary loaders
+  had zero callers, so a restarted server embedded text queries in the
+  hash-fallback space — disjoint from the stored vectors. Auto-save now
+  persists the real vocabulary through an injected saver, and bootstrap
+  restores the newest snapshot (from raw files or inside
+  `vectorizer.vecdb`) into the query-time provider; collections without
+  a usable snapshot are flagged `degraded_vocabulary:{name}` and logged.
+  Pinned by an end-to-end round-trip test.
+- **Legacy-format collection saves were unreadable on reload.** The
+  instance save path serialized a bare `PersistedCollection` while the
+  loader requires the versioned `PersistedVectorStore` envelope — every
+  `save_collection_to_file` output failed to load with
+  `missing field 'version'`. Found by the phase37 round-trip test.
+- **WAL durability (phase37).** The WAL now fsyncs after every
+  append/checkpoint (`WALConfig.fsync`, default on — previously only
+  `flush()`, so acknowledged writes died with the page cache on power
+  loss), frames each record with CRC32 + length (a torn final record is
+  discarded with a warning instead of aborting recovery of everything
+  after it; legacy bare-JSON WALs remain readable), reserves transaction
+  sequence ranges atomically (two concurrent transactions could
+  previously interleave the same sequence numbers), and resumes
+  sequences at `max + 1` after recovery (the first append after every
+  restart used to duplicate the last entry's sequence).
+
 ### Security
 
 - **Docker image CVE posture (phase35).** Rebuild against the refreshed

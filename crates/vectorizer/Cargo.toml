@@ -138,6 +138,10 @@ hivehub-internal-sdk = "1.0"
 # CLI utilities
 sys-info = "0.9"
 
+# Vocabulary restore round-trips tokenizer snapshots from the .vecdb
+# archive through a temp file into the provider loaders (phase37).
+tempfile = "3.8"
+
 # MCP (Model Context Protocol) dependencies
 tokio-tungstenite = "0.29"
 tokio-stream = { version = "0.1", features = ["sync"] }

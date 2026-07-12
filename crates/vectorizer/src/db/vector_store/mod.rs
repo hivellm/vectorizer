@@ -52,6 +52,15 @@ mod wal;
 pub use collection_type::CollectionType;
 pub use metadata::VectorStoreStats;
 
+/// Callback that persists the embedding vocabulary for a collection to
+/// a tokenizer JSON file. Injected by the server bootstrap (which owns
+/// the `EmbeddingManager`) so auto-save can write the real vocabulary;
+/// without it the tokenizer file carries `vocab_size: 0` and BM25
+/// search returns nothing after a restart (phase37).
+/// Args: (collection_name, tokenizer_path).
+pub type TokenizerSaver =
+    Arc<dyn Fn(&str, &std::path::Path) -> crate::error::Result<()> + Send + Sync>;
+
 /// Thread-safe in-memory vector store
 #[derive(Clone)]
 pub struct VectorStore {
@@ -70,6 +79,8 @@ pub struct VectorStore {
     pub(super) metadata: Arc<DashMap<String, String>>,
     /// WAL integration (optional, for crash recovery)
     pub(super) wal: Arc<parking_lot::Mutex<Option<WalIntegration>>>,
+    /// Vocabulary persister injected by bootstrap (see [`TokenizerSaver`])
+    pub(super) tokenizer_saver: Arc<parking_lot::RwLock<Option<TokenizerSaver>>>,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -81,6 +92,15 @@ impl std::fmt::Debug for VectorStore {
 }
 
 impl VectorStore {
+    /// Register the vocabulary persister used by auto-save when writing
+    /// `{collection}_tokenizer.json`. Called once from the server
+    /// bootstrap after the `EmbeddingManager` exists; without a saver
+    /// auto-save falls back to the legacy minimal tokenizer and logs a
+    /// warning (see `autosave.rs`).
+    pub fn set_tokenizer_saver(&self, saver: TokenizerSaver) {
+        *self.tokenizer_saver.write() = Some(saver);
+    }
+
     /// Create a new empty vector store
     pub fn new() -> Self {
         info!("Creating new VectorStore");
@@ -92,6 +112,7 @@ impl VectorStore {
             pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
+            tokenizer_saver: Arc::new(parking_lot::RwLock::new(None)),
             wal: Arc::new(parking_lot::Mutex::new(
                 Some(WalIntegration::new_disabled()),
             )),
@@ -115,6 +136,7 @@ impl VectorStore {
             pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
+            tokenizer_saver: Arc::new(parking_lot::RwLock::new(None)),
             wal: Arc::new(parking_lot::Mutex::new(
                 Some(WalIntegration::new_disabled()),
             )),
@@ -132,6 +154,7 @@ impl VectorStore {
             pending_saves: Arc::new(parking_lot::Mutex::new(HashSet::new())),
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
+            tokenizer_saver: Arc::new(parking_lot::RwLock::new(None)),
             wal: Arc::new(parking_lot::Mutex::new(
                 Some(WalIntegration::new_disabled()),
             )),

@@ -112,6 +112,10 @@ impl EmbeddingProvider for BagOfWordsEmbedding {
         BagOfWordsEmbedding::save_vocabulary_json(self, path)
     }
 
+    fn load_vocabulary_json(&mut self, path: &Path) -> Result<()> {
+        BagOfWordsEmbedding::load_vocabulary_json(self, path)
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

@@ -132,6 +132,158 @@ impl EmbeddingManager {
             VectorizerError::Other(format!("Provider '{}': {}", provider_name, e))
         })
     }
+
+    /// Restore vocabulary for a specific provider from a tokenizer JSON
+    /// file (the inverse of [`Self::save_vocabulary_json`]).
+    pub fn load_vocabulary_json<P: AsRef<Path>>(
+        &mut self,
+        provider_name: &str,
+        path: P,
+    ) -> Result<()> {
+        let provider = self.get_provider_mut(provider_name).ok_or_else(|| {
+            VectorizerError::Other(format!("Provider '{provider_name}' not found"))
+        })?;
+        provider
+            .load_vocabulary_json(path.as_ref())
+            .map_err(|e| VectorizerError::Other(format!("Provider '{}': {}", provider_name, e)))
+    }
+
+    /// Restore the provider's vocabulary from the persisted tokenizer
+    /// snapshots in `data_dir` (phase37: without this, every text query
+    /// after a restart embeds in the hash-fallback space and matches
+    /// nothing until a full re-index).
+    ///
+    /// Sources scanned, both produced by auto-save:
+    /// - raw `*_tokenizer.json` files (legacy storage format)
+    /// - `_tokenizer.json` entries inside `vectorizer.vecdb` (compact
+    ///   format — the compactor deletes the raw files after packing)
+    ///
+    /// Snapshot files are written from the single global provider, one
+    /// per collection, so they are point-in-time copies of the same
+    /// vocabulary. The archive format carries no timestamps, so the
+    /// snapshot with the largest `(total_docs, vocabulary size)` is
+    /// selected — the final rebuild of a session has seen the most
+    /// documents. Snapshots whose `type` doesn't match the provider or
+    /// whose vocabulary is empty (legacy minimal tokenizers) are
+    /// ignored.
+    ///
+    /// Returns the names of collections whose tokenizer snapshot was
+    /// missing or empty — the caller surfaces those as degraded (their
+    /// stored vectors may predate the restored vocabulary).
+    pub fn restore_vocabulary_from_disk(
+        &mut self,
+        provider_name: &str,
+        data_dir: &Path,
+    ) -> Result<VocabularyRestoreReport> {
+        let mut candidates: Vec<(String, serde_json::Value)> = Vec::new();
+        let mut degraded: Vec<String> = Vec::new();
+
+        // Raw tokenizer files (legacy format).
+        if let Ok(entries) = std::fs::read_dir(data_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                if let Some(collection) = name.strip_suffix("_tokenizer.json") {
+                    match std::fs::read_to_string(entry.path())
+                        .ok()
+                        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                    {
+                        Some(v) => candidates.push((collection.to_string(), v)),
+                        None => degraded.push(collection.to_string()),
+                    }
+                }
+            }
+        }
+
+        // Tokenizer entries inside vectorizer.vecdb (compact format).
+        if data_dir.join("vectorizer.vecdb").exists() {
+            let reader = crate::storage::StorageReader::new(data_dir)?;
+            for collection in reader.list_collections()? {
+                let Ok(files) = reader.read_collection_files(&collection) else {
+                    degraded.push(collection);
+                    continue;
+                };
+                let mut found = false;
+                for (path, bytes) in files {
+                    if path.ends_with("_tokenizer.json") {
+                        if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                            candidates.push((collection.clone(), v));
+                            found = true;
+                        }
+                    }
+                }
+                if !found {
+                    degraded.push(collection);
+                }
+            }
+        }
+
+        // Keep only real snapshots for THIS provider kind.
+        let usable = |v: &serde_json::Value| -> bool {
+            let type_matches = v
+                .get("type")
+                .and_then(|t| t.as_str())
+                .is_some_and(|t| t == provider_name);
+            let vocab_nonempty = v
+                .get("vocabulary")
+                .and_then(|m| m.as_object())
+                .is_some_and(|m| !m.is_empty());
+            type_matches && vocab_nonempty
+        };
+
+        let mut best: Option<(String, serde_json::Value)> = None;
+        for (collection, v) in candidates {
+            if !usable(&v) {
+                degraded.push(collection);
+                continue;
+            }
+            let rank = |val: &serde_json::Value| {
+                (
+                    val.get("total_docs").and_then(|d| d.as_u64()).unwrap_or(0),
+                    val.get("vocabulary")
+                        .and_then(|m| m.as_object())
+                        .map_or(0, |m| m.len()),
+                )
+            };
+            let better = best.as_ref().is_none_or(|(_, b)| rank(&v) > rank(b));
+            if better {
+                best = Some((collection, v));
+            }
+        }
+
+        let Some((source_collection, snapshot)) = best else {
+            return Ok(VocabularyRestoreReport {
+                restored_from: None,
+                degraded_collections: degraded,
+            });
+        };
+
+        // Provider loaders read from a file path; round-trip the chosen
+        // snapshot through a temp file rather than widening the trait.
+        let tmp = tempfile::NamedTempFile::new().map_err(|e| {
+            VectorizerError::Other(format!("Failed to create temp tokenizer file: {e}"))
+        })?;
+        std::fs::write(tmp.path(), snapshot.to_string()).map_err(|e| {
+            VectorizerError::Other(format!("Failed to write temp tokenizer file: {e}"))
+        })?;
+        self.load_vocabulary_json(provider_name, tmp.path())?;
+
+        degraded.sort();
+        degraded.dedup();
+        Ok(VocabularyRestoreReport {
+            restored_from: Some(source_collection),
+            degraded_collections: degraded,
+        })
+    }
+}
+
+/// Outcome of [`EmbeddingManager::restore_vocabulary_from_disk`].
+#[derive(Debug)]
+pub struct VocabularyRestoreReport {
+    /// Collection whose tokenizer snapshot was loaded, if any.
+    pub restored_from: Option<String>,
+    /// Collections without a usable vocabulary snapshot — their text
+    /// search may be degraded until re-indexed.
+    pub degraded_collections: Vec<String>,
 }
 
 impl Default for EmbeddingManager {

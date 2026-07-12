@@ -154,6 +154,10 @@ impl EmbeddingProvider for TfIdfEmbedding {
         TfIdfEmbedding::save_vocabulary_json(self, path)
     }
 
+    fn load_vocabulary_json(&mut self, path: &Path) -> Result<()> {
+        TfIdfEmbedding::load_vocabulary_json(self, path)
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

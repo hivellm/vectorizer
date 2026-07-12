@@ -794,6 +794,52 @@ impl VectorizerServer {
             final_provider,
         )?;
 
+        // Restore the persisted vocabulary into the query-time provider
+        // (phase37). Without this every text query after a restart is
+        // embedded via the hash fallback — a vector space disjoint from
+        // the stored vectors — and search returns nothing until a full
+        // re-index. Reads tokenizer snapshots directly from data_dir /
+        // vectorizer.vecdb, so it doesn't depend on the background
+        // collection load having finished.
+        {
+            let data_dir = VectorStore::get_data_dir();
+            match final_embedding_manager
+                .restore_vocabulary_from_disk(&final_provider_name, &data_dir)
+            {
+                Ok(report) => {
+                    if let Some(source) = &report.restored_from {
+                        info!(
+                            "✅ Restored '{}' vocabulary from tokenizer snapshot of '{}'",
+                            final_provider_name, source
+                        );
+                    } else {
+                        info!(
+                            "No usable '{}' vocabulary snapshot found in {:?} (fresh instance or non-vocab provider)",
+                            final_provider_name, data_dir
+                        );
+                    }
+                    for collection in &report.degraded_collections {
+                        warn!(
+                            "⚠️ Collection '{}' has no usable vocabulary snapshot — \
+                             text search may be degraded until it is re-indexed",
+                            collection
+                        );
+                        store_arc.set_metadata(
+                            &format!("degraded_vocabulary:{collection}"),
+                            "true".to_string(),
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "⚠️ Vocabulary restore failed for provider '{}': {} — \
+                         text search will use the hash fallback until re-index",
+                        final_provider_name, e
+                    );
+                }
+            }
+        }
+
         // Initialize AutoSaveManager (5min save + 1h snapshot intervals)
         info!("🔄 Initializing AutoSaveManager...");
         let auto_save_manager =
@@ -1609,6 +1655,24 @@ impl VectorizerServer {
         // accepted connection; nothing else in `Self` needs to retain a
         // handle to it (the listener owns its TcpListener for life).
         let embedding_manager_arc = Arc::new(final_embedding_manager);
+
+        // Register the tokenizer saver so auto-save persists the REAL
+        // vocabulary (phase37). The closure snapshots the query-time
+        // provider state on every save; the restore block above reads it
+        // back on the next boot. Collection name is unused because the
+        // provider vocabulary is global (see phase37 design.md D4).
+        {
+            let saver_manager = embedding_manager_arc.clone();
+            let saver_provider = final_provider_name.clone();
+            store_arc.set_tokenizer_saver(Arc::new(move |_collection, path| {
+                saver_manager.save_vocabulary_json(&saver_provider, path)
+            }));
+            info!(
+                "✅ Tokenizer saver registered (provider '{}') — auto-save persists real vocabulary",
+                final_provider_name
+            );
+        }
+
         let rpc_config = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
