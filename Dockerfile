@@ -350,7 +350,13 @@ FROM busybox:stable-musl AS busybox
 #   - CIS-compliant, end-of-life 2028-08-09.
 # Pull requires `docker login dhi.io` with Docker Hub credentials; CI does
 # the same before `docker buildx build --push`.
-FROM dhi.io/debian-base:trixie AS vectorizer
+#
+# The base is pinned by digest so the image contents are a function of
+# the git commit, not the build date (spec: phase35 image-security).
+# Bump procedure: docs/development/docker-builds.md § "Base digest bump".
+# Pinned 2026-07-11 — carries openssl 3.5.6-1~deb13u2+dhi0 (fixes
+# CVE-2026-45447, CVE-2026-7383, CVE-2026-9076, CVE-2026-34180).
+FROM dhi.io/debian-base:trixie@sha256:17dc256ec746f1168765cab1fc552418b60d09de8337d03ffa92cc529ed2ea7a AS vectorizer
 
 # Build metadata for supply chain attestation
 ARG BUILD_DATE

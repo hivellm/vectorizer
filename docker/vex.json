@@ -1,0 +1,189 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/hivellm/vectorizer/blob/main/docker/vex.json",
+  "author": "HiveLLM Vectorizer maintainers",
+  "timestamp": "2026-07-11T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": { "name": "CVE-2025-45582" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/tar" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "GNU tar path-traversal via crafted archives requires the system tar binary to extract untrusted archives. The vectorizer entrypoint execs the Rust binary directly and never shells out to /usr/bin/tar; archive handling (.vecdb snapshots) uses the Rust `tar` crate compiled into the binary. The deb tar package exists in the base only for operator debugging via docker exec."
+    },
+    {
+      "vulnerability": { "name": "CVE-2005-2541" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/tar" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Historic tar setuid/setgid-preservation behaviour (disputed, 2005). The runtime never invokes system tar; container runs as nonroot UID 65532, so preserved setuid bits from an extraction could not grant elevation anyway."
+    },
+    {
+      "vulnerability": { "name": "CVE-2019-9192" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/glibc" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "Disputed uncontrolled-recursion in glibc regcomp with crafted patterns. The vectorizer binary does not pass untrusted input to POSIX regcomp/regexec; Rust regex handling uses the `regex` crate (no glibc regex). No network-reachable path feeds patterns to glibc."
+    },
+    {
+      "vulnerability": { "name": "CVE-2019-1010022" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/glibc" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "inline_mitigations_already_exist",
+      "impact_statement": "Alleged stack-guard bypass, disputed by glibc upstream as not a vulnerability. Binary is compiled with stack protectors and runs as nonroot; no adversary-controlled native code execution path exists in the container."
+    },
+    {
+      "vulnerability": { "name": "CVE-2019-1010023" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/glibc" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "Disputed ldd/ld.so code-execution when running ldd on a crafted binary. Nothing in the runtime executes ldd, and no untrusted executables are loaded; the container runs a single fixed binary."
+    },
+    {
+      "vulnerability": { "name": "CVE-2019-1010024" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/glibc" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "inline_mitigations_already_exist",
+      "impact_statement": "Alleged ASLR-mmap weakness, disputed by upstream. Exploitation requires an existing memory-corruption primitive in the process; none is exposed, and the finding is informational at LOW severity with no fix planned in trixie."
+    },
+    {
+      "vulnerability": { "name": "CVE-2019-1010025" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/glibc" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "inline_mitigations_already_exist",
+      "impact_statement": "Alleged thread-stack address-guessing hardening gap, disputed by upstream as not a vulnerability. Requires a separate memory-disclosure primitive to matter; no such surface is exposed by the runtime."
+    },
+    {
+      "vulnerability": { "name": "CVE-2018-20796" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/glibc" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "Uncontrolled recursion in glibc regexec with a crafted pattern (denial of service). No code path passes adversary-controlled patterns to glibc regex functions; the binary's regex engine is the Rust `regex` crate."
+    },
+    {
+      "vulnerability": { "name": "CVE-2010-4756" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/glibc" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_cannot_be_controlled_by_adversary",
+      "impact_statement": "glob() denial-of-service with crafted patterns, relevant to FTP-style servers exposing glob to remote users. The vectorizer never exposes glibc glob() to network input; file discovery uses Rust globset/walkdir compiled into the binary."
+    },
+    {
+      "vulnerability": { "name": "CVE-2023-31437" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/systemd" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "systemd-journald forgery issue (disputed). systemd is not PID 1 in the container and journald never runs — the image entrypoint directly execs the vectorizer binary. Only libsystemd0 shared-library files are present as a dependency of other deb packages; the vulnerable daemon code never executes."
+    },
+    {
+      "vulnerability": { "name": "CVE-2023-31438" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/systemd" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "systemd-journald sealing bypass (disputed). No journald process exists at runtime; the container has no systemd init. Vulnerable code is present on disk only and is never executed."
+    },
+    {
+      "vulnerability": { "name": "CVE-2023-31439" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/systemd" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "systemd-journald FSS sealing weakness (disputed). Journald is never started in the container; logging goes to stdout/stderr and is collected by the container runtime."
+    },
+    {
+      "vulnerability": { "name": "CVE-2013-4392" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/systemd" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "component_not_present",
+      "impact_statement": "systemd TOCTOU when updating file permissions during systemd-managed service startup. The container does not run systemd as init and no systemd unit files are processed; the vectorizer process is exec'd directly by the container runtime."
+    },
+    {
+      "vulnerability": { "name": "CVE-2025-5278" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/coreutils" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "coreutils sort heap-overflow via crafted key spec. The runtime never invokes coreutils binaries; they exist in the base image solely for interactive docker exec debugging by operators, who control their own inputs."
+    },
+    {
+      "vulnerability": { "name": "CVE-2017-18018" },
+      "products": [
+        {
+          "@id": "pkg:docker/hivehub/vectorizer",
+          "subcomponents": [{ "@id": "pkg:deb/debian/coreutils" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "chown/chgrp TOCTOU race in coreutils. No runtime code path executes chown/chgrp; file ownership is fixed at image build time via COPY --chown, and the process runs as a single non-root user."
+    }
+  ]
+}

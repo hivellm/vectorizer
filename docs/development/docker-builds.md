@@ -198,6 +198,60 @@ The downstream `publish-docker-manifest` job:
 Without the Docker Hub secrets the workflow still publishes to
 ghcr.io but skips the Hub push and the Scout gate.
 
+## CVE posture (phase35)
+
+### Base digest bump
+
+The runtime base is pinned by digest in the `Dockerfile`:
+
+```dockerfile
+# Pinned YYYY-MM-DD — carries openssl <version> (...)
+FROM dhi.io/debian-base:trixie@sha256:<digest> AS vectorizer
+```
+
+DHI rebuilds the base weekly with patched packages. The
+`docker-cve-gate.yml` workflow compares the pinned digest against the
+live tag every Monday; when the pin is ≥14 days old **and** upstream
+has moved, it opens a "Base digest stale" issue containing the new
+digest.
+
+To bump:
+
+1. `docker pull dhi.io/debian-base:trixie` and copy the digest from
+   `docker image inspect dhi.io/debian-base:trixie --format '{{index .RepoDigests 0}}'`.
+2. Verify the fix you're after is actually in the new base:
+   `docker scout sbom dhi.io/debian-base:trixie --format list | grep -i <package>`.
+3. Update the `FROM ...@sha256:` line **and** the `# Pinned YYYY-MM-DD`
+   comment (the freshness check parses that date).
+4. Rebuild + rescan locally:
+   `docker scout cves local/vectorizer:<tag> --vex-location docker/vex.json --vex-author 'HiveLLM Vectorizer maintainers' --only-severity critical,high --exit-code`.
+   (`--vex-author` is required — the Scout CLI default only trusts
+   VEX documents authored by `<.*@docker.com>` and silently ignores
+   ours without it.)
+5. Commit the one-line diff; the release build inherits the pin.
+
+### VEX exceptions (`docker/vex.json`)
+
+CVEs in base packages with **no fixed version in trixie** are
+documented as OpenVEX `not_affected` statements in `docker/vex.json`,
+each with a `justification` + `impact_statement` (bare exceptions are
+forbidden by the phase35 spec). The CVE gate and any local scan apply
+it via `--vex-location docker/vex.json`.
+
+When a scan surfaces a new unfixable CVE: verify the vectorizer
+runtime genuinely doesn't execute the vulnerable path, then add a
+statement with reasoning. If a fix later ships in trixie, delete the
+statement and bump the base digest instead.
+
+### CVE gate workflow
+
+`.github/workflows/docker-cve-gate.yml` runs on release publish +
+weekly cron: scans `hivehub/vectorizer:<latest-release>` and
+`:<latest-release>-fastembed` with the VEX applied, failing on any
+unexcepted CRITICAL/HIGH. Failures open/update a pinned
+`Docker CVE gate failing` issue; digest staleness opens/updates a
+`Base digest stale` issue.
+
 ## Troubleshooting
 
 ### Docker Desktop OOMs partway through `cargo chef cook`

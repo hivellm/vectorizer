@@ -1,26 +1,26 @@
 ## 1. Base image refresh (clears the 4 HIGH + openssl MED + 11 LOW)
 
-- [ ] 1.1 Pull the current `dhi.io/debian-base:trixie` and confirm it carries `openssl 3.5.6-1~deb13u2` (`docker run --rm --entrypoint dpkg <img> -l openssl` or inspect via scout)
-- [ ] 1.2 Record the new digest and pin it in `Dockerfile`: `FROM dhi.io/debian-base:trixie@sha256:<digest>` with a dated comment
-- [ ] 1.3 Rebuild `local/vectorizer:3.5.0` (slim) + `:3.5.0-fastembed` and re-scan with `docker scout cves` — assert 0 CRITICAL, 0 HIGH, 0 fixable MEDIUM
+- [x] 1.1 Pulled current `dhi.io/debian-base:trixie` — SBOM confirms `openssl 3.5.6-1~deb13u2+dhi0` (dpkg absent in distroless base; used `docker scout sbom`)
+- [x] 1.2 Digest `sha256:17dc256ec746f1168765cab1fc552418b60d09de8337d03ffa92cc529ed2ea7a` pinned in `Dockerfile` with dated comment + CVE list
+- [x] 1.3 Rebuilt `local/vectorizer:3.5.0-scan` and rescanned: **0 CRITICAL, 0 HIGH, 1 MEDIUM (tar, not fixed upstream), 15 LOW** — 31→16; the only MEDIUM is unfixable and VEX-covered; gate command exits 0
 
 ## 2. Base variant evaluation (removes tar/coreutils/systemd CVE surface)
 
-- [ ] 2.1 Enumerate available DHI trixie variants (`minimal` / `static` / `nonroot`) and diff their package lists against the current base
-- [ ] 2.2 Test-build the runtime stage against the smallest variant that still satisfies: glibc + libssl3 + libstdc++ copy target dir + busybox HEALTHCHECK + `docker exec` shell for ops debugging
-- [ ] 2.3 Record the go/no-go decision in `design.md` (if no-go, the VEX in §3 covers the residual packages; if go, re-run §1.3 scan on the new variant)
+- [x] 2.1 Enumerated: only `trixie` + `trixie-dev` exist in the org's DHI catalog; no minimal/static/nonroot/slim variants (probed 9 tag/repo combinations)
+- [x] 2.2 No smaller variant exists to test-build against; static base non-viable anyway (binary dynamically links libssl3/libstdc++/glibc)
+- [x] 2.3 NO-GO decision recorded in `design.md` (D1) — stay on `debian-base:trixie` + VEX
 
 ## 3. VEX for the not-fixable set
 
-- [ ] 3.1 Author `docker/vex.json` (OpenVEX) covering: tar CVE-2025-45582 + CVE-2005-2541 (binary uses the compiled-in Rust `tar` crate, never shells out), glibc CVE-2019-9192/1010022-25/2018-20796/2010-4756 (regex/DoS in APIs the binary doesn't call via system glibc paths), systemd CVE-2023-31437/38/39 + CVE-2013-4392 (no systemd at runtime — direct-exec entrypoint), coreutils CVE-2025-5278 + CVE-2017-18018 (not invoked at runtime)
-- [ ] 3.2 Attach the VEX to the pushed image (`docker scout attestation add` or sidecar in repo, per what the org's Scout plan supports) and verify Scout consumes it (dashboard drops the excepted findings)
-- [ ] 3.3 Each VEX statement carries `justification` + `impact_statement` — no bare `not_affected` without reasoning
+- [x] 3.1 `docker/vex.json` (OpenVEX 0.2.0) authored: tar (2), glibc (7), systemd (4), coreutils (2) = 15 statements
+- [x] 3.2 Verified Scout consumes it: requires `--vex-author 'HiveLLM Vectorizer maintainers'` (CLI default only trusts `<.*@docker.com>` — discovered by testing; recorded in design.md D3 + runbook); attestation-attach path documented as D3, gate uses `--vex-location` which works on any Scout plan
+- [x] 3.3 Every statement carries `justification` + `impact_statement`
 
 ## 4. CI CVE gate + digest freshness
 
-- [ ] 4.1 New `.github/workflows/docker-cve-gate.yml`: on release publish + weekly cron, run `docker scout cves hivehub/vectorizer:<latest-release> --exit-code --only-severity critical,high` (VEX applied); failure opens/updates a pinned issue
-- [ ] 4.2 Same workflow: compare the Dockerfile's pinned base digest against the live `dhi.io/debian-base:trixie` tag; when stale ≥14 days, open/update a "base digest stale" issue with the new digest ready to paste
-- [ ] 4.3 Document the digest-bump runbook in `docs/development/docker-builds.md` (who bumps, how to verify, how the gate reacts)
+- [x] 4.1 `.github/workflows/docker-cve-gate.yml`: release publish + weekly cron + manual dispatch; scans slim and -fastembed tags with VEX applied; failure opens/updates `Docker CVE gate failing` issue
+- [x] 4.2 `base-digest-freshness` job compares pinned digest vs live tag; stale ≥14 days → opens/updates `Base digest stale` issue with new digest
+- [x] 4.3 Runbook added to `docs/development/docker-builds.md` § "CVE posture (phase35)": digest-bump procedure, VEX maintenance, gate behaviour
 
 ## 5. Release the patched images
 
@@ -30,6 +30,6 @@
 
 ## 6. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 6.1 Update or create documentation covering the implementation
-- [ ] 6.2 Write tests covering the new behavior
-- [ ] 6.3 Run tests and confirm they pass
+- [x] 6.1 Documentation: `docs/development/docker-builds.md` CVE-posture section (digest bump runbook + VEX + gate)
+- [x] 6.2 Tests: `crates/vectorizer/tests/docker_vex.rs` — validates docker/vex.json structure (OpenVEX context, every statement has vulnerability name + status + justification + impact_statement, product purl present) and Dockerfile digest-pin format (pinned FROM + dated comment the freshness check parses)
+- [x] 6.3 `cargo test --test docker_vex` — 2 passed, 0 failed
