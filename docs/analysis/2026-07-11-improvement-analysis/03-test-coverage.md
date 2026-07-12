@@ -94,11 +94,16 @@ integration runs in CI at all.**
 
 ## 3.6 Replication / cluster test reality
 
-- **`replication/mod.rs` wires only `failover, handlers, integration,
+- ~~**`replication/mod.rs` wires only `failover, handlers, integration,
   qdrant`.** Five files — `comprehensive.rs`, `integration_basic.rs`,
   `api.rs`, `qdrant_migration.rs`, `qdrant_api.rs` — are **orphaned:
-  never compiled or run**. The doc's "12 Category C tests in
-  `integration_basic.rs`" are dead code.
+  never compiled or run**.~~ **CORRECTED during phase39
+  implementation:** those five files ARE compiled — `integration.rs`
+  and `qdrant.rs` pull them in via `#[path]` includes, which the
+  mod.rs-only scan missed. They run in the normal suite (13 + 26
+  tests pass), and `integration_basic`'s "Category C known bug" tests
+  pass too, i.e. the tracked snapshot-sync bug has since been fixed.
+  The stale part of the claim was the testing doc, not the wiring.
 - `failover.rs`'s 5 tests are bare-ignored (TCP).
 - **Cluster is healthier**: `integration/mod.rs` wires all
   `cluster_*` + `raft`/`sharding`; only `cluster_performance` (3) is

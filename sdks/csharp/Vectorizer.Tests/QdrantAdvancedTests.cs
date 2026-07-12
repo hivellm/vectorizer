@@ -12,6 +12,34 @@ public class QdrantAdvancedTests
         _client = new VectorizerClient(new ClientConfig { BaseUrl = "http://localhost:15002" });
     }
 
+    /// <summary>
+    /// Locale-independent server-unavailable detection. The previous
+    /// message-substring check ("ECONNREFUSED" / "No connection") only
+    /// matched English socket error text, so on non-English Windows
+    /// (e.g. pt-BR: "Nenhuma conexao pode ser feita...") every test in
+    /// this class re-threw and produced 21 false failures whenever no
+    /// server was listening. Walking the exception chain for
+    /// SocketException matches the TYPE, not the localized message.
+    /// </summary>
+    private static bool IsServerUnavailable(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            if (e is System.Net.Sockets.SocketException)
+            {
+                return true;
+            }
+        }
+
+        // "Authentication required" is added for v3.0.0+ servers with
+        // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
+        // These tests exercise Qdrant-compat wire shapes, not the auth
+        // gate; dedicated auth tests cover enforcement.
+        return ex.Message.Contains("ECONNREFUSED")
+            || ex.Message.Contains("No connection")
+            || ex.Message.Contains("Authentication required");
+    }
+
     [Fact]
     public async Task QdrantListCollectionSnapshots_ShouldReturnResult()
     {
@@ -27,9 +55,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -51,9 +77,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -75,9 +99,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -99,9 +121,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -123,9 +143,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -147,9 +165,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -171,9 +187,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -196,9 +210,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -221,9 +233,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -245,9 +255,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -269,9 +277,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -293,9 +299,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -317,9 +321,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -341,9 +343,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -366,9 +366,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -395,9 +393,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -432,9 +428,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -463,9 +457,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -494,9 +486,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -523,9 +513,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }
@@ -552,9 +540,7 @@ public class QdrantAdvancedTests
             // auth.enabled: true (see phase8_gate-data-routes-when-auth-enabled).
             // These tests exercise Qdrant-compat wire shapes, not the auth
             // gate; dedicated auth tests cover enforcement.
-            if (ex.Message.Contains("ECONNREFUSED")
-                || ex.Message.Contains("No connection")
-                || ex.Message.Contains("Authentication required"))
+            if (IsServerUnavailable(ex))
             {
                 return;
             }

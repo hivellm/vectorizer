@@ -550,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow test - trains 1000 vectors with K-means, takes >60 seconds
+    #[ignore = "slow: K-means training of 1000 vectors, >60s"]
     fn test_pq_compression_and_search_accuracy() {
         // Test PQ compression ratio and verify search accuracy
         let config = ProductQuantizationConfig {

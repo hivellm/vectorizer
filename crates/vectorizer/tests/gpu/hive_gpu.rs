@@ -85,7 +85,7 @@ mod hive_gpu_integration_tests {
     }
 
     #[tokio::test]
-    #[ignore] // Performance test - requires GPU, skipped on CPU-only systems
+    #[ignore = "requires GPU hardware; CPU-only systems cannot run it"]
     async fn test_performance_comparison() {
         // Test that hive-gpu provides performance benefits
         let store = VectorStore::new_auto();

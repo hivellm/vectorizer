@@ -5,6 +5,28 @@ tests are currently `#[ignore]`d with the reason for each. It exists because
 `phase4_reenable-ignored-tests` found ~40 ignored tests across the repo and
 we needed a central record of why.
 
+> **Current count (2026-07-12, phase39): 154 `#[ignore]` attributes
+> under `crates/`**, every one carrying a reason string. The count is
+> enforced by `crates/vectorizer/tests/ignore_count_gate.rs`: adding an
+> ignore without migrating a test onto the in-process harness fails CI
+> unless the baseline is consciously bumped. Bare `#[ignore]` (no
+> reason) fails the same gate outright.
+>
+> **In-process REST harness** (phase39): live-server REST suites are
+> being migrated onto `crates/vectorizer-server/tests/common` — a real
+> `build_router` axum app over in-memory state driven by
+> `tower::ServiceExt::oneshot`. Migrated suites run on every PR with
+> no server process. See `rest_vector_search.rs` for the pattern.
+>
+> **Replication test files**: `api.rs`, `comprehensive.rs`,
+> `integration_basic.rs`, `qdrant_api.rs`, `qdrant_migration.rs` look
+> orphaned (no `pub mod` line in `replication/mod.rs`) but are compiled
+> through `integration.rs` / `qdrant.rs` via `#[path]` includes — the
+> 2026-07-11 analysis flagged them as never-compiled and that was
+> wrong. All of them run in the normal suite, and integration_basic's
+> "known bug" tests (replica snapshot sync) pass — the tracked bug was
+> fixed at some point after the doc entry below was written.
+
 ## What runs in CI today
 
 | Suite | Command | Runs on |

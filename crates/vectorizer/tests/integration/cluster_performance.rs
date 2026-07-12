@@ -105,7 +105,7 @@ async fn test_concurrent_inserts_distributed() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, concurrent distributed operations
+#[ignore = "slow: >60s concurrent distributed operations"]
 async fn test_concurrent_searches_distributed() {
     let cluster_config = create_test_cluster_config();
     let cluster_manager = Arc::new(ClusterManager::new(cluster_config).unwrap());
@@ -172,7 +172,7 @@ async fn test_concurrent_searches_distributed() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, throughput comparison test
+#[ignore = "slow: >60s throughput comparison"]
 async fn test_throughput_comparison() {
     // This test compares throughput of distributed vs single-node operations
     // Note: In a real scenario, this would compare against a non-distributed collection
@@ -284,7 +284,7 @@ async fn test_latency_distribution() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, memory measurement test
+#[ignore = "slow: >60s memory measurement"]
 async fn test_memory_usage_distributed() {
     // This test verifies that memory usage is reasonable in distributed mode
     // Note: Actual memory measurement would require system APIs

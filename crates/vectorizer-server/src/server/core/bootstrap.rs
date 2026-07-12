@@ -1787,4 +1787,75 @@ impl VectorizerServer {
             dashboard_tx,
         })
     }
+
+    /// Build a minimal `VectorizerServer` for in-process REST test
+    /// harnesses (see `crates/vectorizer-server/tests/common/mod.rs`).
+    ///
+    /// Unlike [`Self::new_with_root_config`], this constructor does no
+    /// disk I/O (no `config.yml` read), spawns no background tasks
+    /// (no file watcher, no auto-save, no runtime-metrics ticker, no
+    /// status/collections/log-tailer publishers), and leaves
+    /// cluster/replication/Raft/HiveHub/auth fields at their disabled
+    /// defaults (`None`). Callers supply a real `VectorStore` and a
+    /// real `EmbeddingManager` (e.g. `VectorStore::new_cpu_only()` +
+    /// a BM25 provider fitted via `build_vocabulary`); every handler
+    /// invoked through the resulting router runs the exact same code
+    /// path production traffic does, backed by real in-memory state.
+    ///
+    /// Exists specifically because several `VectorizerServer` fields
+    /// are `pub(super)` (background task handles) and therefore not
+    /// constructible from outside this crate — an external test file
+    /// cannot write a `VectorizerServer { .. }` struct literal.
+    #[doc(hidden)]
+    pub fn new_for_test_harness(
+        store: Arc<VectorStore>,
+        embedding_manager: Arc<EmbeddingManager>,
+    ) -> Self {
+        let (dashboard_tx, _) = tokio::sync::broadcast::channel(16);
+        let mut runtime_sampler = crate::server::runtime_metrics::RuntimeSampler::new();
+        runtime_sampler.set_broadcast(dashboard_tx.clone());
+
+        let backpressure_config = vectorizer::config::BackpressureConfig::default();
+
+        Self {
+            store,
+            embedding_manager,
+            start_time: std::time::Instant::now(),
+            file_watcher_system: Arc::new(tokio::sync::Mutex::new(None)),
+            metrics_collector: Arc::new(MetricsCollector::new()),
+            auto_save_manager: None,
+            master_node: None,
+            replica_node: None,
+            query_cache: Arc::new(vectorizer::cache::query_cache::QueryCache::new(
+                vectorizer::cache::query_cache::QueryCacheConfig::default(),
+            )),
+            slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
+                vectorizer::cache::slow_query::SlowQueryConfig::default(),
+            ),
+            background_task: Arc::new(tokio::sync::Mutex::new(None)),
+            system_collector_task: Arc::new(tokio::sync::Mutex::new(None)),
+            file_watcher_task: Arc::new(tokio::sync::Mutex::new(None)),
+            file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(None)),
+            grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
+            auto_save_task: Arc::new(tokio::sync::Mutex::new(None)),
+            cluster_manager: None,
+            cluster_client_pool: None,
+            max_request_size_mb: 100,
+            snapshot_manager: None,
+            auth_handler_state: None,
+            hub_manager: None,
+            backup_manager: None,
+            mcp_hub_gateway: None,
+            raft_manager: None,
+            ha_manager: None,
+            upsert_queue: Arc::new(vectorizer::db::UpsertQueue::from_config(
+                &backpressure_config,
+            )),
+            backpressure_guard: Arc::new(vectorizer::db::BackpressureGuard::from_config(
+                &backpressure_config,
+            )),
+            runtime_sampler: Arc::new(runtime_sampler),
+            dashboard_tx,
+        }
+    }
 }
