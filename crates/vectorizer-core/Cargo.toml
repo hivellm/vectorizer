@@ -51,8 +51,12 @@ axum = { version = "0.8.7", default-features = false }
 tonic = { version = "0.14", features = [] }
 rmcp = { version = "1.7", features = ["server"] }
 
-# Optional: gates the `CandleError` enum variant in error/
-candle-core = { version = "0.10.2", optional = true }
+# Optional: gates the `CandleError` enum variant in error/.
+# Version MUST match the umbrella crate's candle family pin
+# (crates/vectorizer/Cargo.toml) — a mismatch produces two distinct
+# `candle_core::Error` types and every `?` conversion in
+# embedding/real_models.rs fails with E0277.
+candle-core = { version = "0.11.0", optional = true }
 
 [dev-dependencies]
 tempfile = "3.8"
