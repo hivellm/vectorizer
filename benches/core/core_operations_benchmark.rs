@@ -9,7 +9,14 @@
 //! Usage:
 //!   cargo bench --bench core_operations_benchmark
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+// Benchmark binary: unwrap is idiomatic for the harness setup, the
+// `unwrap_used` / `expect_used` workspace lints apply only to library
+// code (see benches/filter/filter_benchmark.rs for the same pattern).
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::collapsible_match)]
+
+use std::hint::black_box;
+
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use vectorizer::db::{OptimizedHnswConfig, OptimizedHnswIndex};
 use vectorizer::models::DistanceMetric;
 

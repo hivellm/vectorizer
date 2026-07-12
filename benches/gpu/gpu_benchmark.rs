@@ -8,7 +8,9 @@ use std::sync::Arc;
 use tracing::{info, error, warn, debug};
 use std::time::Instant;
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use std::hint::black_box;
+
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use rand::prelude::*;
 use vectorizer::db::optimized_hnsw::OptimizedHnswIndex;
 use vectorizer::error::Result;

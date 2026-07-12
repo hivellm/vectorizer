@@ -5,7 +5,9 @@
 //!
 //! Run with: cargo bench --features hive-gpu --bench gpu_benchmarks
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use vectorizer::{CollectionConfig, VectorStore};
 use vectorizer::models::{DistanceMetric, HnswConfig, QuantizationConfig, CompressionConfig, Vector};
 

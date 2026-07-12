@@ -52,10 +52,12 @@ pub trait SimdBackend: Send + Sync + 'static {
 
     /// INT8 dot product: `∑ a[i] * b[i]` returning an `i32`. Used by
     /// the phase 7f quantized-distance code path. Default impl is a
-    /// straight scalar loop; backends with a hardware primitive
-    /// (AVX-512 VNNI, NEON DOTPROD) override this. The `i32`
-    /// accumulator absorbs the worst-case `127 * 127 * len` without
-    /// overflow for `len < 130_000`.
+    /// straight scalar loop. AVX2 (`x86::avx2`) and AVX-512 VNNI
+    /// (`x86::avx512_vnni`) override this on x86_64; NEON
+    /// (`aarch64::neon`) and SVE2 (`aarch64::sve2`) override it on
+    /// aarch64. Plain SSE2, AVX-512F, and SVE inherit this scalar
+    /// default. The `i32` accumulator absorbs the worst-case
+    /// `127 * 127 * len` without overflow for `len < 130_000`.
     fn int8_dot_product(&self, a: &[i8], b: &[i8]) -> i32 {
         debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
         a.iter()
@@ -137,9 +139,14 @@ pub trait SimdBackend: Send + Sync + 'static {
     /// Quantize `src` into `dst` as 8-bit unsigned codes:
     /// `dst[i] = clamp(round((src[i] - offset) / scale), 0, levels - 1)`.
     ///
-    /// Default implementation is a scalar loop; SIMD backends benefit
-    /// because every step (subtract, multiply by `1/scale`, clamp,
-    /// round, narrow-convert) vectorises cleanly.
+    /// Default implementation is a scalar loop. AVX2 (`x86::avx2`)
+    /// and NEON (`aarch64::neon`) override this: the subtract,
+    /// multiply-by-`1/scale`, and clamp/round steps vectorise
+    /// cleanly, with a scalar tail for the remainder and a scalar
+    /// narrow-to-`u8` step (see those modules' kernel docs for the
+    /// exact rounding/NaN-handling rationale). Every other backend
+    /// (SSE2, AVX-512F, AVX-512 VNNI, SVE, SVE2, WASM128) inherits
+    /// this scalar default.
     ///
     /// Caller invariants: `dst.len() == src.len()`, `levels > 0`.
     /// Out-of-range inputs (NaN, infinite, magnitudes past the clamp
@@ -181,9 +188,14 @@ pub trait SimdBackend: Send + Sync + 'static {
 
     /// Dequantize `src` back to f32 as `dst[i] = offset + src[i] * scale`.
     ///
-    /// Default implementation is a scalar loop; SIMD backends benefit
-    /// from the load-widen-FMA pattern (one cycle per lane on every
-    /// CPU since AVX2).
+    /// Default implementation is a scalar loop. AVX2 (`x86::avx2`)
+    /// and NEON (`aarch64::neon`) override this with a load-widen-
+    /// multiply-add pattern (`u8 -> i32 -> f32`, widening is exact
+    /// for the full `0..=255` range). The multiply and add stay two
+    /// separate ops (not fused) so the rounding matches this scalar
+    /// reference bit-for-bit. Every other backend (SSE2, AVX-512F,
+    /// AVX-512 VNNI, SVE, SVE2, WASM128) inherits this scalar
+    /// default.
     ///
     /// Caller invariants: `dst.len() == src.len()`.
     fn dequantize_u8_to_f32(&self, src: &[u8], dst: &mut [f32], scale: f32, offset: f32) {

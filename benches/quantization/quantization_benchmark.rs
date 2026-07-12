@@ -12,7 +12,9 @@ use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use std::hint::black_box;
+
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use serde::{Deserialize, Serialize};
 use vectorizer::VectorStore;
 use vectorizer::db::{OptimizedHnswConfig, OptimizedHnswIndex};

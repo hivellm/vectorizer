@@ -6,6 +6,35 @@ All notable changes to this project will be documented in this file.
 
 ## [3.5.0] - TBD
 
+### Performance
+
+- **Search no longer blocks behind batch inserts (phase38).**
+  `insert_batch` held the HNSW index write lock for the entire batch —
+  payload indexing, quantization, and graph discovery included — so
+  concurrent search p99 collapsed under mixed load. Writers now
+  serialize on a dedicated mutex while searches proceed against the
+  internally-synchronized index. Per-vector copies on the insert path
+  cut from 3-4 to 1. Covered by a concurrency test that searches while
+  a 30k batch runs.
+- **PQ and Binary quantization are reachable (phase38).** The HNSW
+  quantization integration accepted only Scalar and silently
+  substituted 8-bit for everything else; Product/Binary (implemented
+  since long ago) are now wired, `None` and unknown types error
+  explicitly. Also fixed: quantized search paths fed raw vectors to
+  the unit-input-only clamped-dot cosine, scoring every pair 1.0 on
+  non-normalized data.
+- **SIMD kernels (phase38):** AVX2 + NEON `quantize_f32_to_u8` /
+  `dequantize_u8_to_f32`, AVX2 `int8_dot_product`
+  (`_mm256_maddubs_epi16`), all bit-exact vs the scalar oracle. SIMD
+  correctness is CI-verified again via `simd-matrix.yml` (x86_64
+  scalar/sse2/avx2 + native aarch64 scalar/neon).
+- **Hot-path allocations (phase38):** upsert admission no longer heap
+  allocates the collection name per request; query-cache keys use
+  xxh3-128 instead of SHA-256.
+- **Benchmarks resurrected (phase38):** 7 commented-out benches
+  re-registered and de-bit-rotted + new `insert_pipeline` and
+  `bm25_vocab` benches, so hot-path regressions are measurable again.
+
 ### Fixed
 
 - **BM25 search returned nothing after a restart (phase37).** Auto-save

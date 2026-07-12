@@ -275,6 +275,14 @@ mod tests {
     #[test]
     #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
     fn x86_picks_avx2_or_better_when_available() {
+        // This asserts the AUTO-DETECTION ladder specifically, so it
+        // does not apply when `VECTORIZER_SIMD_BACKEND` forces a
+        // (possibly slower) backend — e.g. the phase38 §3 CI matrix,
+        // which exercises `scalar`/`sse2`/`avx2` overrides one at a
+        // time on the same AVX2-capable runner.
+        if std::env::var("VECTORIZER_SIMD_BACKEND").is_ok() {
+            return;
+        }
         // On a CI box with AVX2 (every modern x86_64 server qualifies),
         // we must land on AVX2 (or AVX-512 / VNNI if the CPU also
         // has those). Never plain scalar.

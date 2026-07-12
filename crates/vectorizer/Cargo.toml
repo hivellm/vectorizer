@@ -267,26 +267,79 @@ name = "simd_quantize"
 path = "../../benches/simd/quantize.rs"
 harness = false
 
+# Core operations, search, update, cache and embedding benches
+# (phase38 §5) — re-registered as criterion `[[bench]]` targets after
+# fixing bit rot accumulated since the workspace split. Each one is
+# a self-contained criterion harness with `harness = false` (same
+# idiom as the SIMD benches above).
+[[bench]]
+name = "core_operations_benchmark"
+path = "../../benches/core/core_operations_benchmark.rs"
+harness = false
+
+[[bench]]
+name = "search_bench"
+path = "../../benches/search/search_bench.rs"
+harness = false
+
+[[bench]]
+name = "update_bench"
+path = "../../benches/core/update_bench.rs"
+harness = false
+
+[[bench]]
+name = "query_cache_bench"
+path = "../../benches/core/query_cache_bench.rs"
+harness = false
+
+[[bench]]
+name = "cache_benchmark"
+path = "../../benches/core/cache_benchmark.rs"
+harness = false
+
+[[bench]]
+name = "benchmark_embeddings"
+path = "../../benches/embeddings/benchmark_embeddings.rs"
+harness = false
+
+[[bench]]
+name = "storage_benchmark"
+path = "../../benches/storage/storage_benchmark.rs"
+harness = false
+
+# insert_pipeline / bm25_vocab (phase38 §5) — new coverage for the
+# Collection batch-insert path (via VectorStore) and BM25 vocabulary
+# build + embed.
+[[bench]]
+name = "insert_pipeline"
+path = "../../benches/insert_pipeline.rs"
+harness = false
+
+[[bench]]
+name = "bm25_vocab"
+path = "../../benches/bm25_vocab.rs"
+harness = false
+
+# quantization_benchmark.rs (benches/quantization/ and benches/scripts/
+# variants) stays disabled: TestDataset::load_from_workspace calls
+# `.await` inside a non-async fn (load_and_index_project became async
+# since this bench was written) AND never actually appends anything to
+# `all_documents`, so even with the async mismatch patched it always
+# returns Err("No documents loaded from workspace") at runtime. It also
+# hard-codes sibling checkouts ("../gov", "../governance/src", ...) that
+# do not exist next to this repo. This is beyond a bit-rot fix (API
+# rename/signature change) — the dataset-loading logic needs a rewrite,
+# which is out of scope for phase38 §5.
+#
+# [[bench]]
+# name = "quantization_benchmark"
+# path = "../../benches/quantization/quantization_benchmark.rs"
+# harness = false
 
 # Disabled benchmarks - need refactoring for current API
 # [[bin]]
-# name = "benchmark_embeddings"
-# path = "../../benches/scripts/benchmark_embeddings.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
 # name = "gpu_benchmark"
 # path = "../../benches/scripts/gpu_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "quantization_benchmark"
-# path = "../../benches/scripts/quantization_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "core_operations_benchmark"
-# path = "../../benches/scripts/core_operations_benchmark.rs"
 # required-features = ["benchmarks"]
 #
 # [[bin]]
