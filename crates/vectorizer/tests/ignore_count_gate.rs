@@ -19,8 +19,10 @@ use std::path::{Path, PathBuf};
 /// Total `#[ignore...]` attributes allowed under `crates/`.
 ///
 /// History: 152 at the 2026-07-11 analysis; 154 after phase38 added
-/// reason-annotated ignores for slow PQ-training and perf tests.
-const IGNORE_BASELINE: usize = 154;
+/// reason-annotated ignores for slow PQ-training and perf tests;
+/// 150 after phase39 un-ignored the 4 gRPC update tests (the "fails
+/// in CI" bug no longer reproduces — they pass in-process).
+const IGNORE_BASELINE: usize = 150;
 
 fn repo_crates_dir() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

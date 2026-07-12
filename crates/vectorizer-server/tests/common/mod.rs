@@ -80,8 +80,9 @@ const BM25_SEED_CORPUS: &[&str] = &[
 /// In-process test harness wrapping the real production Axum router.
 pub struct TestApp {
     router: Router,
-    /// Keeps the per-`TestApp` temp data directory alive; removed on drop.
-    _data_dir: tempfile::TempDir,
+    /// Keeps the per-`TestApp` temp data directory alive (removed on
+    /// drop) and backs the [`TestApp::data_dir`] accessor.
+    temp_dir: tempfile::TempDir,
 }
 
 impl TestApp {
@@ -127,13 +128,19 @@ impl TestApp {
 
         Self {
             router,
-            _data_dir: data_dir,
+            temp_dir: data_dir,
         }
     }
 
     /// Dispatch `POST <path>` with a JSON body through the real router.
     /// Returns the status code and the decoded JSON body (`Value::Null`
     /// when the body is empty or not valid JSON).
+    ///
+    /// Not every test binary that links this shared harness exercises
+    /// every dispatch method — `dead_code` is allowed per-method to
+    /// match the existing convention for shared test helpers (see
+    /// `crates/vectorizer/tests/helpers/mod.rs`).
+    #[allow(dead_code)]
     pub async fn post_json(&self, path: &str, body: Value) -> (StatusCode, Value) {
         let req = Request::builder()
             .method("POST")
@@ -146,7 +153,36 @@ impl TestApp {
         self.dispatch(req).await
     }
 
+    /// Path to this instance's temp data directory (the same path
+    /// written to `VECTORIZER_DATA_DIR` in [`TestApp::new`]). Read this
+    /// instead of `std::env::var("VECTORIZER_DATA_DIR")` when a test
+    /// needs to assert on-disk artifacts: the env var is process-global
+    /// and races with concurrently-running `TestApp` instances in the
+    /// same test binary, but this accessor reads the field captured at
+    /// construction time for `self` only.
+    #[allow(dead_code)]
+    pub fn data_dir(&self) -> &std::path::Path {
+        self.temp_dir.path()
+    }
+
+    /// Dispatch `PUT <path>` with a JSON body through the real router.
+    /// Returns the status code and the decoded JSON body (`Value::Null`
+    /// when the body is empty or not valid JSON).
+    #[allow(dead_code)]
+    pub async fn put_json(&self, path: &str, body: Value) -> (StatusCode, Value) {
+        let req = Request::builder()
+            .method("PUT")
+            .uri(path)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::to_vec(&body).expect("serialize request body"),
+            ))
+            .expect("build PUT request");
+        self.dispatch(req).await
+    }
+
     /// Dispatch `DELETE <path>` (no body) through the real router.
+    #[allow(dead_code)]
     pub async fn delete(&self, path: &str) -> (StatusCode, Value) {
         let req = Request::builder()
             .method("DELETE")
@@ -157,6 +193,7 @@ impl TestApp {
     }
 
     /// Dispatch `GET <path>` through the real router.
+    #[allow(dead_code)]
     pub async fn get(&self, path: &str) -> (StatusCode, Value) {
         let req = Request::builder()
             .method("GET")

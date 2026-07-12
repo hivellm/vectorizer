@@ -1,0 +1,97 @@
+name: SDK integration (server-backed)
+
+# phase39 §4.2 / test-harness spec: at least one CI job runs each SDK's
+# integration suite against a REAL running server. Everything else in
+# sdk-*-test.yml is unit-only (integration env-gated off), so before
+# this job existed no SDK-to-server call was exercised anywhere in CI.
+#
+# Weekly + manual instead of per-PR: the job builds the release binary
+# (~10 min cached) and runs four SDK suites; per-PR cost isn't worth it
+# while the suites are still being de-flaked. Tighten later if green.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 7 * * 1" # Mondays, after the deps + CVE crons
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  sdk-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: sdk-integration
+
+      # Slim server: no GPU, no fastembed (BM25 default provider is
+      # built in) — SDK integration exercises the HTTP/RPC surface,
+      # not the embedding models.
+      - name: Build server
+        run: cargo build --release --no-default-features -p vectorizer-server
+
+      - name: Boot server
+        run: |
+          mkdir -p /tmp/vectorizer-data
+          VECTORIZER_DATA_DIR=/tmp/vectorizer-data \
+          VECTORIZER_HOST=127.0.0.1 \
+          VECTORIZER_AUTH_ENABLED=false \
+            nohup ./target/release/vectorizer > server.log 2>&1 &
+          echo $! > server.pid
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:15002/health > /dev/null; then
+              echo "server up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "server never became healthy"; tail -50 server.log; exit 1
+
+      - name: TypeScript SDK integration
+        working-directory: sdks/typescript
+        run: |
+          corepack enable pnpm
+          pnpm install --frozen-lockfile
+          VITEST_SKIP_S2S=0 pnpm test
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python SDK integration
+        working-directory: sdks/python
+        run: |
+          python -m pip install -e ".[test]"
+          SKIP_INTEGRATION_TESTS=0 python -m pytest tests/ -q \
+            --ignore=tests/test_file_upload.py --ignore=tests/test_routing.py
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache-dependency-path: sdks/go/go.sum
+
+      - name: Go SDK integration
+        working-directory: sdks/go
+        run: go test ./... # no -short: integration tests included
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: C# SDK integration
+        working-directory: sdks/csharp
+        run: dotnet test -c Release
+
+      - name: Server log on failure
+        if: ${{ failure() }}
+        run: tail -100 server.log
+
+      - name: Stop server
+        if: ${{ always() }}
+        run: kill "$(cat server.pid)" || true

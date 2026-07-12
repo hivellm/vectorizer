@@ -89,7 +89,6 @@ async fn test_insert_with_payload() {
 }
 
 #[tokio::test]
-#[ignore = "Update operation fails in CI environment"]
 async fn test_update_vector() {
     let port = 15032;
     let store = start_test_server(port).await.unwrap();
