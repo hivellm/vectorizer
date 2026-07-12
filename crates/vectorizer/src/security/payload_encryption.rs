@@ -36,11 +36,17 @@
 // phase4_enforce-public-api-docs.
 #![allow(missing_docs)]
 
-use aes_gcm::aead::{Aead, AeadCore, KeyInit, OsRng};
-use aes_gcm::{Aes256Gcm, Nonce};
+// aes-gcm 0.11 (aead 0.6) dropped the `OsRng` re-export: AES nonces now
+// come from the `Generate` trait (system CSPRNG via the default
+// `getrandom` feature). p256 0.13 still speaks rand_core 0.6, so its
+// `SecretKey::random` keeps using the rand_core 0.6 `OsRng` re-exported
+// through `p256::elliptic_curve`.
+use aes_gcm::aead::{Aead, Generate};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use p256::ecdh::diffie_hellman;
+use p256::elliptic_curve::rand_core::OsRng;
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use p256::{EncodedPoint, PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
@@ -146,8 +152,8 @@ pub fn encrypt_payload(
     let cipher = Aes256Gcm::new_from_slice(&aes_key)
         .map_err(|e| EncryptionError::EncryptionFailed(e.to_string()))?;
 
-    // Generate a random nonce (96 bits for GCM)
-    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    // Generate a random nonce (96 bits for GCM) from the system CSPRNG
+    let nonce = aes_gcm::aead::Nonce::<Aes256Gcm>::generate();
 
     // Serialize payload to JSON bytes
     let payload_bytes = serde_json::to_vec(payload_json)?;

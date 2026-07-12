@@ -51,7 +51,7 @@ jsonwebtoken = { version = "10.4", features = ["rust_crypto"] }
 hmac = "0.13"
 base64 = "0.22"
 bcrypt = "0.19"
-aes-gcm = "0.10"
+aes-gcm = "0.11"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 p256 = { version = "0.13", features = ["ecdh", "pem"] }
 hex = "0.4"

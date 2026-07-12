@@ -5,9 +5,11 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use aes_gcm::aead::rand_core::RngCore;
-use aes_gcm::aead::{Aead, OsRng};
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+// aes-gcm 0.11 (aead 0.6) dropped the `OsRng` re-export; random key /
+// nonce material now comes from the `Generate` trait, which pulls the
+// system CSPRNG via the crate's default `getrandom` feature.
+use aes_gcm::aead::{Aead, Generate};
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
@@ -139,9 +141,8 @@ impl AuthPersistence {
             }
         }
 
-        // Generate new key
-        let mut key = [0u8; KEY_LENGTH];
-        OsRng.fill_bytes(&mut key);
+        // Generate new key from the system CSPRNG
+        let key: [u8; KEY_LENGTH] = Key::<Aes256Gcm>::generate().into();
 
         // Save the key with restricted permissions
         if let Err(e) = std::fs::write(key_path, &key) {
@@ -180,17 +181,15 @@ impl AuthPersistence {
 
     /// Encrypt data using AES-GCM
     fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, String> {
-        let mut nonce_bytes = [0u8; NONCE_LENGTH];
-        OsRng.fill_bytes(&mut nonce_bytes);
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = aes_gcm::aead::Nonce::<Aes256Gcm>::generate();
 
         let ciphertext = self
             .cipher
-            .encrypt(nonce, plaintext)
+            .encrypt(&nonce, plaintext)
             .map_err(|e| format!("Encryption failed: {}", e))?;
 
         // Prepend nonce to ciphertext
-        let mut result = nonce_bytes.to_vec();
+        let mut result = nonce.to_vec();
         result.extend(ciphertext);
         Ok(result)
     }
