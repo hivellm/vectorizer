@@ -45,12 +45,17 @@
 //! ## Known limitation
 //!
 //! [`TestApp::new`] calls `std::env::set_var("VECTORIZER_DATA_DIR", ..)`,
-//! which is process-global. Tests built on this harness only exercise
-//! in-memory collection/vector operations, so a data-dir race between
-//! concurrently-running `TestApp` instances in the same test binary is
-//! not currently a correctness risk — but a future suite that asserts on
-//! on-disk paths (snapshots, backups) MUST NOT run in parallel with other
-//! `TestApp`-based tests without additional serialization.
+//! which is process-global. Most tests built on this harness only
+//! exercise in-memory collection/vector operations, so a data-dir race
+//! between concurrently-running `TestApp` instances in the same test
+//! binary is not a correctness risk for them — but any suite that
+//! asserts on on-disk paths (native snapshots, backups) MUST NOT run in
+//! parallel with other `TestApp` construction in the same binary without
+//! additional serialization. See `tests/rest_lifecycle_handlers.rs`
+//! (`ENV_DIR_LOCK`) for the pattern: a file-local
+//! `tokio::sync::Mutex` held across the full body of the disk-dependent
+//! test(s), with every other test in that binary taking the same lock
+//! briefly around its own `TestApp::new()` call.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -181,6 +186,22 @@ impl TestApp {
         self.dispatch(req).await
     }
 
+    /// Dispatch `PATCH <path>` with a JSON body through the real router.
+    /// Returns the status code and the decoded JSON body (`Value::Null`
+    /// when the body is empty or not valid JSON).
+    #[allow(dead_code)]
+    pub async fn patch_json(&self, path: &str, body: Value) -> (StatusCode, Value) {
+        let req = Request::builder()
+            .method("PATCH")
+            .uri(path)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::to_vec(&body).expect("serialize request body"),
+            ))
+            .expect("build PATCH request");
+        self.dispatch(req).await
+    }
+
     /// Dispatch `DELETE <path>` (no body) through the real router.
     #[allow(dead_code)]
     pub async fn delete(&self, path: &str) -> (StatusCode, Value) {
@@ -200,6 +221,33 @@ impl TestApp {
             .uri(path)
             .body(Body::empty())
             .expect("build GET request");
+        self.dispatch(req).await
+    }
+
+    /// Dispatch `POST <path>` with an arbitrary raw body and explicit
+    /// `Content-Type`, bypassing `serde_json` serialization entirely.
+    ///
+    /// [`TestApp::post_json`] can only ever send well-formed JSON (any
+    /// `serde_json::Value` serializes to valid JSON), so it cannot
+    /// exercise axum's `Json<T>` extractor rejection path. This method
+    /// exists for handlers whose own business logic has no field-level
+    /// validation to test (e.g. `update_workspace_config` accepts any
+    /// JSON `Value` and never returns its own 4xx) — for those, a
+    /// syntactically malformed body rejected by the extractor before
+    /// the handler runs is the closest meaningful error-branch contract.
+    #[allow(dead_code)]
+    pub async fn post_raw(
+        &self,
+        path: &str,
+        content_type: &str,
+        body: &[u8],
+    ) -> (StatusCode, Value) {
+        let req = Request::builder()
+            .method("POST")
+            .uri(path)
+            .header(header::CONTENT_TYPE, content_type)
+            .body(Body::from(body.to_vec()))
+            .expect("build POST request");
         self.dispatch(req).await
     }
 
