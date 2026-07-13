@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCollections } from '@/hooks/useCollections';
 import { useWsTopic } from '@/providers/WsDashboardProvider';
 import { useMetrics } from '@/hooks/useMetrics';
@@ -37,6 +38,7 @@ function eventDotTone(level: string): 'green' | 'amber' | 'teal' | 'red' {
 }
 
 function OverviewPage() {
+  const navigate = useNavigate();
   const { listCollections } = useCollections();
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
   const { metrics } = useMetrics();
@@ -109,6 +111,14 @@ function OverviewPage() {
           <button className="btn" onClick={fetchCollections}>
             <Icons.refresh size={13} />
             Refresh
+          </button>
+          <button className="btn" onClick={() => navigate('/workspace')}>
+            <Icons.plus size={13} />
+            Add Directory
+          </button>
+          <button className="btn" onClick={() => navigate('/backups')}>
+            <Icons.database size={13} />
+            Create Backup
           </button>
           <button className="btn primary">
             <Icons.plus size={13} />

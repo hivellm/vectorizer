@@ -61,6 +61,8 @@ function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [logLevel, setLogLevel] = useState<LogLevel>('all');
+  const [searchText, setSearchText] = useState('');
+  const [maxLines, setMaxLines] = useState(1000);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [autoScroll, setAutoScroll] = useState(true);
   const logsEndRef = useRef<HTMLDivElement>(null);
@@ -122,17 +124,17 @@ function LogsPage() {
   }, []);
 
   // Phase30 — append each tailed log line into the rolling view when
-  // auto-refresh is on. Cap at 1000 entries to avoid unbounded growth
-  // on long-running sessions.
+  // auto-refresh is on. Cap at `maxLines` entries to avoid unbounded
+  // growth on long-running sessions.
   const wsLog = useWsTopic<LogEntry>('logs');
   useEffect(() => {
     if (!autoRefresh) return;
     if (!wsLog) return;
     setLogs((prev) => {
       const next = prev.concat(wsLog);
-      return next.length > 1000 ? next.slice(next.length - 1000) : next;
+      return next.length > maxLines ? next.slice(next.length - maxLines) : next;
     });
-  }, [wsLog, autoRefresh]);
+  }, [wsLog, autoRefresh, maxLines]);
 
   useEffect(() => {
     if (autoScroll && logsEndRef.current) {
@@ -141,20 +143,24 @@ function LogsPage() {
   }, [logs, autoScroll]);
 
   const filteredLogs = logs.filter((log) => {
-    if (logLevel === 'all') return true;
-    return log.level.toLowerCase() === logLevel.toLowerCase();
+    if (logLevel !== 'all' && log.level.toLowerCase() !== logLevel.toLowerCase()) {
+      return false;
+    }
+    const query = searchText.trim().toLowerCase();
+    if (query && !log.message.toLowerCase().includes(query)) {
+      return false;
+    }
+    return true;
   });
 
   const handleDownload = () => {
-    const logText = filteredLogs
-      .map((log) => `[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message}`)
-      .join('\n');
+    const logJson = JSON.stringify(filteredLogs, null, 2);
 
-    const blob = new Blob([logText], { type: 'text/plain' });
+    const blob = new Blob([logJson], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `vectorizer-logs-${new Date().toISOString()}.txt`;
+    a.download = `vectorizer-logs-${new Date().toISOString()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -255,6 +261,34 @@ function LogsPage() {
                 <option value="info">Info</option>
                 <option value="debug">Debug</option>
                 <option value="trace">Trace</option>
+              </select>
+            </label>
+            <label
+              className="col"
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 220 }}
+            >
+              <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Search message</span>
+              <input
+                type="text"
+                className="input"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+            </label>
+            <label
+              className="col"
+              style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 140 }}
+            >
+              <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Max lines</span>
+              <select
+                className="input"
+                value={maxLines}
+                onChange={(e) => setMaxLines(Number(e.target.value))}
+              >
+                <option value={100}>100</option>
+                <option value={500}>500</option>
+                <option value={1000}>1000</option>
+                <option value={5000}>5000</option>
               </select>
             </label>
           </div>

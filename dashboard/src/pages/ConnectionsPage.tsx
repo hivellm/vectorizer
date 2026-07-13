@@ -63,6 +63,7 @@ function ConnectionsPage() {
     removeConnection,
     checkConnectionHealth,
     checkAllConnectionsHealth,
+    testConnectionReachable,
     setActiveConnection,
   } = useConnections();
   const toast = useToastContext();
@@ -72,6 +73,7 @@ function ConnectionsPage() {
   const [editing, setEditing] = useState<Connection | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [checking, setChecking] = useState<string | null>(null);
+  const [testingForm, setTestingForm] = useState(false);
 
   useEffect(() => {
     if (connections.length > 0) {
@@ -154,6 +156,25 @@ function ConnectionsPage() {
       await checkConnectionHealth(id);
     } finally {
       setChecking(null);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!form.host || !form.port) {
+      toast.error('Enter a host and port before testing');
+      return;
+    }
+
+    setTestingForm(true);
+    try {
+      const reachable = await testConnectionReachable(form.host, form.port, form.token || undefined);
+      if (reachable) {
+        toast.success(`Connection successful — ${form.host}:${form.port} is reachable`);
+      } else {
+        toast.error(`Connection failed — ${form.host}:${form.port} is not reachable`);
+      }
+    } finally {
+      setTestingForm(false);
     }
   };
 
@@ -462,6 +483,10 @@ function ConnectionsPage() {
                   <button className="btn primary" onClick={handleSave}>
                     <Icons.check size={13} />
                     {addOpen ? 'Add connection' : 'Save changes'}
+                  </button>
+                  <button className="btn" onClick={handleTestConnection} disabled={testingForm}>
+                    <Icons.zap size={13} />
+                    {testingForm ? 'Testing…' : 'Test connection'}
                   </button>
                   <button className="btn" onClick={closeAll}>
                     Cancel

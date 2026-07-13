@@ -89,34 +89,49 @@ export function useConnections() {
     }
   }, [activeConnectionId]);
 
+  // Probe an arbitrary host:port pair without requiring a saved
+  // connection entry — used both by checkConnectionHealth (existing
+  // rows) and by the add/edit form's "Test Connection" action (values
+  // that may not be persisted yet).
+  const testConnectionReachable = useCallback(
+    async (host: string, port: number, token?: string): Promise<boolean> => {
+      try {
+        const url = `http://${host}:${port}/status`;
+        const headers: HeadersInit = {};
+
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers,
+          signal: AbortSignal.timeout(5000),
+        });
+
+        return response.ok;
+      } catch (error) {
+        return false;
+      }
+    },
+    []
+  );
+
   const checkConnectionHealth = useCallback(async (id: string): Promise<ConnectionStatus> => {
     const connection = connections.find((c) => c.id === id);
     if (!connection) return 'offline';
 
     updateConnection(id, { status: 'connecting' });
 
-    try {
-      const url = `http://${connection.host}:${connection.port}/status`;
-      const headers: HeadersInit = {};
-      
-      if (connection.auth?.token) {
-        headers['Authorization'] = `Bearer ${connection.auth.token}`;
-      }
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers,
-        signal: AbortSignal.timeout(5000),
-      });
-
-      const status: ConnectionStatus = response.ok ? 'online' : 'offline';
-      updateConnection(id, { status });
-      return status;
-    } catch (error) {
-      updateConnection(id, { status: 'offline' });
-      return 'offline';
-    }
-  }, [connections, updateConnection]);
+    const reachable = await testConnectionReachable(
+      connection.host,
+      connection.port,
+      connection.auth?.token
+    );
+    const status: ConnectionStatus = reachable ? 'online' : 'offline';
+    updateConnection(id, { status });
+    return status;
+  }, [connections, updateConnection, testConnectionReachable]);
 
   const checkAllConnectionsHealth = useCallback(async () => {
     const promises = connections.map((c) => checkConnectionHealth(c.id));
@@ -143,6 +158,7 @@ export function useConnections() {
     removeConnection,
     checkConnectionHealth,
     checkAllConnectionsHealth,
+    testConnectionReachable,
     setActiveConnection,
   };
 }
