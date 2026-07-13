@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
+import { useToastContext } from '@/providers/ToastProvider';
+import FileUploadModal from '@/components/modals/FileUploadModal';
 import {
   Icons,
   Pill,
@@ -32,6 +34,7 @@ function VectorsPage() {
   const api = useApiClient();
   const { listCollections } = useCollections();
   const { collections, setCollections } = useCollectionsStore();
+  const toast = useToastContext();
 
   const [collection, setCollection] = useState<string>('');
   const [vectors, setVectors] = useState<VectorRow[]>([]);
@@ -39,6 +42,58 @@ function VectorsPage() {
   const [selected, setSelected] = useState<VectorRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [insertOpen, setInsertOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const loadVectors = async () => {
+    if (!collection) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const resp = await api.get<{ vectors?: VectorRow[] } | VectorRow[]>(
+        `/collections/${encodeURIComponent(collection)}/vectors?limit=200`,
+      );
+      const payload = (resp as { data?: unknown })?.data ?? resp;
+      const arr = Array.isArray(payload)
+        ? (payload as VectorRow[])
+        : ((payload as { vectors?: VectorRow[] })?.vectors ?? []);
+      setVectors(arr);
+      setSelected((prev) => (prev && arr.find((v) => v.id === prev.id)) || arr[0] || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch vectors');
+      setVectors([]);
+      setSelected(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!selected) return;
+    try {
+      await navigator.clipboard.writeText(selected.id);
+      toast.success('Vector ID copied');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
+  };
+
+  const handleDeleteVector = async () => {
+    if (!selected || deleting) return;
+    if (!window.confirm(`Delete vector "${selected.id}" from "${collection}"?`)) return;
+    setDeleting(true);
+    try {
+      await api.delete(
+        `/collections/${encodeURIComponent(collection)}/vectors/${encodeURIComponent(selected.id)}`,
+      );
+      toast.success('Vector deleted');
+      await loadVectors();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete vector');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Hydrate collection list once
   useEffect(() => {
@@ -59,34 +114,7 @@ function VectorsPage() {
 
   // Fetch vectors whenever collection changes
   useEffect(() => {
-    if (!collection) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const resp = await api.get<{ vectors?: VectorRow[] } | VectorRow[]>(
-          `/collections/${encodeURIComponent(collection)}/vectors?limit=200`,
-        );
-        const payload = (resp as { data?: unknown })?.data ?? resp;
-        const arr = Array.isArray(payload)
-          ? (payload as VectorRow[])
-          : ((payload as { vectors?: VectorRow[] })?.vectors ?? []);
-        if (cancelled) return;
-        setVectors(arr);
-        setSelected(arr[0] ?? null);
-      } catch (err) {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Failed to fetch vectors');
-        setVectors([]);
-        setSelected(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    loadVectors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collection]);
 
@@ -132,7 +160,7 @@ function VectorsPage() {
               <option key={c.name} value={c.name}>{c.name}</option>
             ))}
           </select>
-          <button className="btn">
+          <button className="btn" onClick={() => setInsertOpen(true)}>
             <Icons.plus size={13} />
             Insert vector
           </button>
@@ -220,14 +248,17 @@ function VectorsPage() {
                 </span>
               </div>
               <div className="row" style={{ gap: 6 }}>
-                {/* TODO(actions): wire copy/delete to API */}
-                <button className="btn sm" disabled={!selected}>
+                <button className="btn sm" disabled={!selected} onClick={handleCopy}>
                   <Icons.copy size={11} />
                   Copy
                 </button>
-                <button className="btn sm magenta" disabled={!selected}>
+                <button
+                  className="btn sm magenta"
+                  disabled={!selected || deleting}
+                  onClick={handleDeleteVector}
+                >
                   <Icons.trash size={11} />
-                  Delete
+                  {deleting ? 'Deleting…' : 'Delete'}
                 </button>
               </div>
             </CardHead>
@@ -342,6 +373,15 @@ function VectorsPage() {
           </Card>
         </div>
       </div>
+
+      <FileUploadModal
+        isOpen={insertOpen}
+        onClose={() => setInsertOpen(false)}
+        onSuccess={() => {
+          setInsertOpen(false);
+          loadVectors();
+        }}
+      />
     </div>
   );
 }

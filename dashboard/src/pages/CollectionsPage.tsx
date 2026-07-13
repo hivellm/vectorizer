@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
+import { useApiClient } from '@/hooks/useApiClient';
 import { useWsTopic } from '@/providers/WsDashboardProvider';
+import { useToastContext } from '@/providers/ToastProvider';
+import CreateCollectionModal from '@/components/modals/CreateCollectionModal';
+import DeleteCollectionModal from '@/components/modals/DeleteCollectionModal';
 import LoadingState from '@/components/LoadingState';
 import {
   Icons,
@@ -23,8 +27,40 @@ interface CollectionsSnapshot {
 function CollectionsPage() {
   const { listCollections } = useCollections();
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
+  const api = useApiClient();
+  const toast = useToastContext();
   const [filter, setFilter] = useState('');
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteName, setDeleteName] = useState<string | null>(null);
+  const [reindexing, setReindexing] = useState(false);
+
+  const handleReindex = async (name: string) => {
+    if (reindexing) return;
+    if (!window.confirm(`Reindex collection "${name}"? This rebuilds the HNSW index.`)) return;
+    setReindexing(true);
+    try {
+      await api.post(`/collections/${encodeURIComponent(name)}/reindex`, {
+        m: 16,
+        ef_construction: 200,
+      });
+      toast.success(`Reindex started for "${name}"`);
+      fetchCollections();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reindex collection');
+    } finally {
+      setReindexing(false);
+    }
+  };
+
+  const handleCopyId = async (name: string) => {
+    try {
+      await navigator.clipboard.writeText(name);
+      toast.success('Collection name copied');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
+  };
 
   const fetchCollections = async () => {
     setLoading(true);
@@ -87,7 +123,7 @@ function CollectionsPage() {
             <Icons.refresh size={13} />
             Refresh
           </button>
-          <button className="btn primary">
+          <button className="btn primary" onClick={() => setCreateOpen(true)}>
             <Icons.plus size={13} />
             Create collection
           </button>
@@ -166,16 +202,19 @@ function CollectionsPage() {
                     </div>
                   </div>
                   <div className="row" style={{ gap: 6 }}>
-                    {/* TODO(actions): wire reindex/copy/delete to API */}
-                    <button className="btn sm">
+                    <button
+                      className="btn sm"
+                      onClick={() => handleReindex(selected.name)}
+                      disabled={reindexing}
+                    >
                       <Icons.refresh size={11} />
-                      Reindex
+                      {reindexing ? 'Reindexing…' : 'Reindex'}
                     </button>
-                    <button className="btn sm">
+                    <button className="btn sm" onClick={() => handleCopyId(selected.name)}>
                       <Icons.copy size={11} />
                       Copy ID
                     </button>
-                    <button className="btn sm magenta">
+                    <button className="btn sm magenta" onClick={() => setDeleteName(selected.name)}>
                       <Icons.trash size={11} />
                       Delete
                     </button>
@@ -304,6 +343,13 @@ function CollectionsPage() {
           )}
         </div>
       </div>
+
+      <CreateCollectionModal isOpen={createOpen} onClose={() => setCreateOpen(false)} />
+      <DeleteCollectionModal
+        isOpen={deleteName !== null}
+        onClose={() => setDeleteName(null)}
+        collectionName={deleteName ?? ''}
+      />
     </div>
   );
 }
