@@ -72,8 +72,9 @@ impl MetricsSink for NoopMetricsSink {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
+    use super::*;
 
     #[test]
     fn noop_sink_accepts_all_calls_without_panicking() {

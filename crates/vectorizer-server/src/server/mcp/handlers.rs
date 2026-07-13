@@ -4,8 +4,6 @@ use std::sync::Arc;
 
 use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorCode, ErrorData};
 use serde_json::json;
-use vectorizer::VectorStore;
-use vectorizer::VectorizerError;
 use vectorizer::db::graph::RelationshipType;
 use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use vectorizer::discovery::{
@@ -16,6 +14,7 @@ use vectorizer::embedding::EmbeddingManager;
 use vectorizer::file_operations::{FileListFilter, FileOperations, SortBy, SummaryType};
 use vectorizer::intelligent_search::mcp_tools::*;
 use vectorizer::models::SparseVector;
+use vectorizer::{VectorStore, VectorizerError};
 use vectorizer_core::error::mapping;
 
 use crate::server::discovery_handlers::*;

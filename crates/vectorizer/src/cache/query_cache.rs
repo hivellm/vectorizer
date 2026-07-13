@@ -297,9 +297,10 @@ pub struct CacheStats {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use super::*;
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::*;
 
     /// A [`MetricsSink`] that records every `cache_request` call it
     /// receives, so tests can assert a consumer actually emits the
