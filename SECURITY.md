@@ -1,14 +1,17 @@
 # Security Policy
 
-**Version**: 1.3.0  
-**Last Updated**: November 16, 2025
+**Version**: 3.5.0  
+**Last Updated**: July 13, 2026
 
 ---
 
 ## Reporting Security Vulnerabilities
 
-If you discover a security vulnerability, please report it privately:
+If you discover a security vulnerability, please report it privately via
+either channel:
 
+- **GitHub Security Advisories** (preferred): open a private report at
+  <https://github.com/hivellm/vectorizer/security/advisories/new>
 - **Email**: security@hivellm.dev
 - **Expected Response Time**: 48 hours
 - **Public Disclosure**: After fix is released
@@ -288,6 +291,32 @@ security:
 - Operation queuing when limits exceeded
 - Violation logging and alerting
 - Graceful degradation
+
+### 8. Container Image Security
+
+The official `hivehub/vectorizer` images ship with a hardened supply-chain
+posture (introduced in 3.5.0).
+
+- **Hardened base**: the runtime stage is Docker's minimal hardened Debian
+  image (`dhi.io/debian-base:trixie`), pinned by digest — no shell, no
+  package manager, and a non-root default user.
+- **Continuous CVE scanning**: `.github/workflows/docker-cve-gate.yml` runs
+  `docker scout` weekly, on every release, and on base-image digest
+  staleness. A release build fails the gate if an un-triaged
+  critical/high CVE is present.
+- **OpenVEX attestations**: known-but-not-affected CVEs are documented in
+  `docker/vex.json` and attached to the published image as an OpenVEX
+  attestation, so scanners see the maintainers' triage instead of raw
+  noise.
+- **Verify an image** before deploying:
+
+  ```bash
+  docker scout cves hivehub/vectorizer:3.5.0
+  docker scout attestation list hivehub/vectorizer:3.5.0
+  ```
+
+Pin production deployments to an immutable digest
+(`hivehub/vectorizer@sha256:...`) rather than a floating tag.
 
 ---
 
@@ -640,11 +669,10 @@ const client = new VectorizerClient({
 
 | Version | Supported  |
 | ------- | ---------- |
-| 1.3.x   | ✅ Yes     |
-| 1.2.x   | ✅ Yes     |
-| 1.1.x   | ✅ Yes     |
-| 1.0.x   | ⚠️ Limited |
-| < 1.0   | ❌ No      |
+| 3.5.x   | ✅ Yes     |
+| 3.4.x   | ✅ Yes     |
+| 3.0–3.3 | ⚠️ Limited |
+| < 3.0   | ❌ No      |
 
 ### Security Updates
 
@@ -666,8 +694,9 @@ const client = new VectorizerClient({
 ## Acknowledgments
 
 We thank security researchers who responsibly disclose vulnerabilities.
-Hall of Fame for contributors will be maintained in `SECURITY_HALL_OF_FAME.md`.
+Contributors are credited in the corresponding GitHub Security Advisory and
+in the release notes for the fix.
 
 ---
 
-**For monitoring and observability, see**: `docs/MONITORING.md`
+**For monitoring and observability, see**: [docs/users/operations/MONITORING.md](docs/users/operations/MONITORING.md)
