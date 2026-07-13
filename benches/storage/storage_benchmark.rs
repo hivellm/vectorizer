@@ -30,6 +30,17 @@ struct BenchmarkResult {
 
 /// Run all storage benchmarks
 fn main() {
+    // `cargo nextest run --all-targets` (the CI test job) enumerates every
+    // target — including this `harness = false` bench — by invoking it as
+    // `<bin> --list --format terse`. Criterion-based benches answer that
+    // libtest discovery protocol internally; this hand-rolled bench must do
+    // the same, otherwise it runs the full suite during test *discovery*
+    // (and blocks CI). Emit an empty test list and exit, so nextest records
+    // zero tests for this binary. `cargo bench` invokes main without `--list`.
+    if std::env::args().any(|a| a == "--list") {
+        return;
+    }
+
     tracing::info!("🚀 Storage Format Benchmark");
     tracing::info!("=====================================\n");
 
@@ -110,14 +121,20 @@ fn benchmark_compact_format(vector_count: usize) -> BenchmarkResult {
     fs::create_dir_all(&temp_base).unwrap();
     let data_dir = temp_base.join("data");
     let collections_dir = data_dir.join("collections");
-    let collection_dir = collections_dir.join("test_collection");
-    fs::create_dir_all(&collection_dir).unwrap();
+    fs::create_dir_all(&collections_dir).unwrap();
 
     // Create test data
     let vectors = create_test_vectors(vector_count);
 
-    // Save in legacy format first
-    save_vectors_legacy(&collection_dir, &vectors);
+    // Write the flat per-collection layout that
+    // `StorageWriter::discover_collections` recognises — a single
+    // `<collection>_vector_store.bin` file at the collections root, rather
+    // than a `<collection>/` subdirectory. This is what the archive keys the
+    // collection index on, so it can be read back below.
+    let store_path = collections_dir.join("test_collection_vector_store.bin");
+    let vector_data: Vec<Vec<f32>> = vectors.iter().map(|v| v.data.clone()).collect();
+    let serialized = codec::serialize(&vector_data).unwrap();
+    fs::write(&store_path, &serialized).unwrap();
 
     // Measure compaction time
     let save_start = Instant::now();
