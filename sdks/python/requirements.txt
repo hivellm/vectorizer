@@ -9,7 +9,7 @@ dataclasses>=0.6; python_version<"3.7"
 
 # Optional dependencies for enhanced functionality
 httpx>=0.24.0
-pydantic>=2.0.0
+pydantic>=2.13.4
 typing-extensions>=4.0.0
 
 # Development dependencies (optional)
