@@ -14,10 +14,23 @@ import {
 } from '@/components/console';
 import { formatBytes, formatNumber, formatRelativeTime } from '@/utils/formatters';
 
-// REST/MCP throughput breakdown, p99, 5xx rate, SIMD primitive throughput, and
-// WAL stats were previously shown with synthetic data. They have been removed
-// because the backend does not expose them via /stats, /health, or
-// /metrics/runtime. These sections will be re-added once real endpoints land.
+// System health (CPU, memory, uptime, connections) and WAL stats are read
+// live from GET /metrics/runtime (phase25), streamed over the dashboard WS
+// (phase29). Throughput/per-route panels populate once the server sees
+// sustained traffic; they read 0/empty at idle, which is real, not mocked.
+
+/** Format an uptime in seconds as a compact "1d 2h 3m" / "4h 5m" / "6m 7s". */
+function formatUptime(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
+}
 
 function MonitoringPage() {
   const { metrics } = useMetrics();
@@ -114,6 +127,55 @@ function MonitoringPage() {
 
       <div style={{ height: 14 }} />
 
+      {/* System health — live from /metrics/runtime (cpu/mem/uptime/connections) */}
+      <Card>
+        <CardHead title="System" sub="process resource usage · live" />
+        <CardBody>
+          <div className="grid grid-4" style={{ gap: 14 }}>
+            <div>
+              <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                CPU
+              </div>
+              <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
+                {runtimeUnavailable ? '--' : `${runtimeMetrics.cpuPercent.toFixed(1)}%`}
+              </div>
+              <Bar percent={Math.max(0, Math.min(100, runtimeMetrics.cpuPercent))} ariaLabel="CPU utilization" />
+            </div>
+            <div>
+              <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Memory (RSS)
+              </div>
+              <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
+                {runtimeUnavailable ? '--' : formatBytes(runtimeMetrics.memoryRssBytes, 0)}
+              </div>
+              <Bar
+                percent={Math.max(0, Math.min(100, runtimeMetrics.memoryPercent))}
+                tone="amber"
+                ariaLabel="Memory utilization"
+              />
+            </div>
+            <div>
+              <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Uptime
+              </div>
+              <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
+                {runtimeUnavailable ? '--' : formatUptime(runtimeMetrics.uptimeSeconds)}
+              </div>
+            </div>
+            <div>
+              <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Active connections
+              </div>
+              <div className="tnum" style={{ fontSize: 22, fontWeight: 600 }}>
+                {runtimeUnavailable ? '--' : formatNumber(runtimeMetrics.activeConnections)}
+              </div>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      <div style={{ height: 14 }} />
+
       <div className="grid grid-2" style={{ gap: 14, marginBottom: 14 }}>
         {/* Per-route throughput — wired to /metrics/runtime.throughput_by_route */}
         <Card>
@@ -164,9 +226,8 @@ function MonitoringPage() {
                   Sequence
                 </div>
                 <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  {/* phase25 §3 (WAL stats) is not yet shipped; renders live once
-                      useStats picks up wal.sequence from GET /health. */}
-                  {stats.walSequence !== undefined ? formatNumber(stats.walSequence) : '--'}
+                  {/* Live from /metrics/runtime.wal (phase25 §3). */}
+                  {runtimeUnavailable ? '--' : formatNumber(runtimeMetrics.wal.currentSeq)}
                 </div>
               </div>
               <div>
@@ -177,7 +238,7 @@ function MonitoringPage() {
                   Size on disk
                 </div>
                 <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  {stats.walSizeBytes !== undefined ? formatBytes(stats.walSizeBytes, 0) : '--'}
+                  {runtimeUnavailable ? '--' : formatBytes(runtimeMetrics.wal.sizeBytes, 0)}
                 </div>
               </div>
               <div>
@@ -188,8 +249,8 @@ function MonitoringPage() {
                   Last checkpoint
                 </div>
                 <div className="tnum" style={{ fontSize: 18, fontWeight: 600 }}>
-                  {stats.walLastCheckpointAt
-                    ? formatRelativeTime(stats.walLastCheckpointAt)
+                  {!runtimeUnavailable && runtimeMetrics.wal.lastCheckpointAt > 0
+                    ? formatRelativeTime(runtimeMetrics.wal.lastCheckpointAt * 1000)
                     : '--'}
                 </div>
               </div>
@@ -211,9 +272,8 @@ function MonitoringPage() {
         </Card>
       </div>
 
-      <div className="grid grid-2" style={{ gap: 14 }}>
-        {/* Query Cache — live from GET /health via useStats */}
-        <Card>
+      {/* Query Cache — live from GET /health via useStats */}
+      <Card>
           <CardHead
             title="Query Cache"
             right={<Pill tone="green" className="mono">{`${hitPct.toFixed(1)}% hit rate`}</Pill>}
@@ -282,47 +342,7 @@ function MonitoringPage() {
               <KeyValueRow term="Invalidation">collection-scoped on writes</KeyValueRow>
             </KeyValue>
           </CardBody>
-        </Card>
-
-        {/* File-ops Cache */}
-        <Card>
-          <CardHead
-            title="File-ops Cache"
-            right={<Pill tone="teal" className="mono">3-tier LRU</Pill>}
-          />
-          <CardBody>
-            <div className="col" style={{ gap: 14 }}>
-              {(
-                [
-                  ['File content cache', 78, 100, 'files'],
-                  ['Summary cache', 432, 500, 'summaries'],
-                  ['File list cache (TTL 60s)', 18, 50, 'collections'],
-                ] as const
-              ).map(([name, used, cap, unit]) => (
-                <div key={name}>
-                  <div className="row" style={{ fontSize: 12, marginBottom: 5 }}>
-                    <span>{name}</span>
-                    <span className="right mono muted">
-                      {used}/{cap} {unit}
-                    </span>
-                  </div>
-                  <Bar
-                    percent={(used / cap) * 100}
-                    tone="amber"
-                    ariaLabel={`${name} utilization`}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="divider" />
-            <KeyValue>
-              <KeyValueRow term="Owner">FileOperationsManager</KeyValueRow>
-              <KeyValueRow term="Eviction">LRU · per-entry TTL</KeyValueRow>
-              <KeyValueRow term="Triggers">file watcher events · explicit clear_*</KeyValueRow>
-            </KeyValue>
-          </CardBody>
-        </Card>
-      </div>
+      </Card>
     </div>
   );
 }

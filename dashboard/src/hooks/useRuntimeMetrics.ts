@@ -26,6 +26,13 @@ export interface ThroughputRoute {
   p99Ms: number;
 }
 
+export interface WalStats {
+  currentSeq: number;
+  sizeBytes: number;
+  lastCheckpointAt: number;
+  lastCheckpointSeq: number;
+}
+
 export interface RuntimeMetrics {
   cpuPercent: number;
   memoryPercent: number;
@@ -36,6 +43,7 @@ export interface RuntimeMetrics {
   qpsWindow60s: number;
   errorRate5xx60s: number;
   throughputByRoute: ThroughputRoute[];
+  wal: WalStats;
 }
 
 const ZERO: RuntimeMetrics = {
@@ -48,6 +56,7 @@ const ZERO: RuntimeMetrics = {
   qpsWindow60s: 0,
   errorRate5xx60s: 0,
   throughputByRoute: [],
+  wal: { currentSeq: 0, sizeBytes: 0, lastCheckpointAt: 0, lastCheckpointSeq: 0 },
 };
 
 const QPS_BUFFER_SIZE = 60;
@@ -144,6 +153,8 @@ function normalize(payload: unknown): RuntimeMetrics {
     }
   }
 
+  const walRaw = (p.wal && typeof p.wal === 'object' ? p.wal : {}) as Record<string, unknown>;
+
   return {
     cpuPercent: num(p.cpu_percent ?? p.cpuPercent),
     memoryPercent: num(p.memory_percent ?? p.memoryPercent),
@@ -154,6 +165,12 @@ function normalize(payload: unknown): RuntimeMetrics {
     qpsWindow60s: num(p.qps_window_60s ?? p.qpsWindow60s),
     errorRate5xx60s: num(p.error_rate_5xx_60s ?? p.errorRate5xx60s),
     throughputByRoute: routes,
+    wal: {
+      currentSeq: num(walRaw.current_seq ?? walRaw.currentSeq),
+      sizeBytes: num(walRaw.size_bytes ?? walRaw.sizeBytes),
+      lastCheckpointAt: num(walRaw.last_checkpoint_at ?? walRaw.lastCheckpointAt),
+      lastCheckpointSeq: num(walRaw.last_checkpoint_seq ?? walRaw.lastCheckpointSeq),
+    },
   };
 }
 
