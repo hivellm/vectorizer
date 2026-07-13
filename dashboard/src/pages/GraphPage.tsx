@@ -80,6 +80,9 @@ function GraphPage() {
   const [selectedEdge, setSelectedEdge] = useState<GraphEdge | null>(null);
   const [graphEnabled, setGraphEnabled] = useState<boolean | null>(null);
   const [enablingGraph, setEnablingGraph] = useState(false);
+  // Right-click quick-action menu for a graph node
+  const [contextMenu, setContextMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   // Modal states
   const [showEdgeCreateModal, setShowEdgeCreateModal] = useState(false);
@@ -515,13 +518,30 @@ function GraphPage() {
         }
       });
 
-      // Handle double click to fit
+      // Handle double click to fit and load the node's neighbors
       network.on('doubleClick', (params) => {
         if (params.nodes.length > 0) {
-          network.focus(params.nodes[0] as string, {
+          const nodeId = params.nodes[0] as string;
+          network.focus(nodeId, {
             scale: 1.2,
             animation: true,
           });
+          handleViewNeighbors(nodeId);
+        }
+      });
+
+      // Handle right click to show a quick-action context menu
+      network.on('oncontext', (params) => {
+        params.event.preventDefault();
+        const nodeId = network.getNodeAt(params.pointer.DOM) as string | undefined;
+        if (nodeId) {
+          setContextMenu({
+            nodeId,
+            x: params.event.clientX,
+            y: params.event.clientY,
+          });
+        } else {
+          setContextMenu(null);
         }
       });
     }
@@ -534,6 +554,30 @@ function GraphPage() {
       }
     };
   }, [nodes, edges, searchQuery, relationshipFilter, selectedNode]);
+
+  // Close the node context menu on outside click or Escape
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenuRef.current && contextMenuRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setContextMenu(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [contextMenu]);
 
   // Get unique relationship types
   const relationshipTypes = Array.from(new Set(edges.map((e) => e.relationship_type))).sort();
@@ -1077,6 +1121,83 @@ function GraphPage() {
             </CardBody>
           </Card>
         </>
+      )}
+
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="col"
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            zIndex: 1000,
+            minWidth: 180,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            padding: 4,
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 4,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          }}
+        >
+          <div
+            className="mono"
+            style={{
+              padding: '4px 8px',
+              fontSize: 11,
+              color: 'var(--text-2)',
+              borderBottom: '1px solid var(--border)',
+              marginBottom: 2,
+              maxWidth: 260,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {contextMenu.nodeId}
+          </div>
+          <button
+            className="btn sm"
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => {
+              handleViewNeighbors(contextMenu.nodeId);
+              setContextMenu(null);
+            }}
+          >
+            <Icons.collections size={11} />
+            Load neighbors
+          </button>
+          <button
+            className="btn sm"
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => {
+              handleFindRelated(contextMenu.nodeId);
+              setContextMenu(null);
+            }}
+          >
+            <Icons.activity size={11} />
+            Find related
+          </button>
+          <button
+            className="btn sm"
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(contextMenu.nodeId);
+                toast.success('Node ID copied to clipboard');
+              } catch (error) {
+                toast.error('Failed to copy node ID');
+              }
+              setContextMenu(null);
+            }}
+          >
+            <Icons.copy size={11} />
+            Copy ID
+          </button>
+        </div>
       )}
 
       {/* Modals — wiring preserved verbatim. Modal internals still use
