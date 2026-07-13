@@ -91,6 +91,11 @@ const KNOWN_TOP_LEVEL_KEYS: &[&str] = &[
     "collections",
     "workspace",
     "normalization",
+    // Read via raw-value lookup in bootstrap (`embedding.model` selects
+    // the default embedding provider, e.g. "fastembed:all-MiniLM-L6-v2")
+    // rather than a `VectorizerConfig` field — found as a false-positive
+    // warn during the 3.5.0-fastembed release validation.
+    "embedding",
 ];
 
 /// Return every top-level mapping key in `merged` that isn't in
