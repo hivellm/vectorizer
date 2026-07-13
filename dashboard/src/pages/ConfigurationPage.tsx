@@ -1,77 +1,127 @@
 /**
  * Settings page — server configuration.
  *
- * Console-redesign port of the legacy ConfigurationPage. The new layout is
- * intentionally minimal:
+ * Layout:
+ *   1. General — editable form for server.{host,port,mcp_port}
+ *   2. Logging — editable form for logging.{level,log_requests,log_responses,log_errors}
+ *   3. Raw config — the Monaco YAML editor for everything else
  *
- *   1. General  — KeyValue card derived from the loaded YAML (server.*)
- *   2. Defaults — KeyValue card derived from collections.defaults.*
- *   3. Raw config — the legacy Monaco YAML editor + save/load wiring
- *
- * The legacy page exposed per-section forms for: server, embedding, collections,
- * performance, file_watcher, logging, transmutation, normalization, workspace,
- * storage, api. Those structured editors are intentionally collapsed into the
- * single Raw config editor for now — see TODO(config-features-deferred) below.
- *
- * The save/load endpoint (`GET/POST /config`) is preserved exactly as the
- * legacy page used it, so the runtime API contract is unchanged.
+ * The structured cards only expose fields that actually exist in the live
+ * `GET /config` payload, so a save never injects sections the backend's config
+ * struct would reject. Structured edits live in local `form` state (smooth
+ * typing) and are merged onto the parsed YAML at save time: the raw editor is
+ * the source of truth for fields the forms don't cover; the form fields win for
+ * the paths they own. The save/load endpoint (`GET/POST /config`) is unchanged.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { useApiClient } from '@/hooks/useApiClient';
 import { useToastContext } from '@/providers/ToastProvider';
-import {
-  Icons,
-  Card,
-  CardHead,
-  CardBody,
-  KeyValue,
-  KeyValueRow,
-  Pill,
-} from '@/components/console';
+import { Icons, Card, CardHead, CardBody, Pill } from '@/components/console';
 import CodeEditor from '@/components/ui/CodeEditor';
 
-// Subset of the legacy ConfigData shape that the new KeyValue cards read.
-// The full YAML round-trips through the editor untouched, so the rest of the
-// shape (performance, file_watcher, normalization, storage, api…) is preserved
-// in `yamlContent` even though we don't surface it as structured fields here.
 interface ParsedConfig {
-  server?: {
-    host?: string;
-    port?: number;
-    data_dir?: string;
-  };
-  collections?: {
-    defaults?: {
-      metric?: string;
-      embedding?: { model?: string };
-      index?: { type?: string };
-      quantization?: { type?: string };
-    };
-  };
+  server?: { host?: string; port?: number; mcp_port?: number };
   logging?: {
     level?: string;
-  };
-  api?: {
-    rest?: { enabled?: boolean };
-    mcp?: { enabled?: boolean };
-  };
-  cache?: {
-    ttl_seconds?: number;
+    log_requests?: boolean;
+    log_responses?: boolean;
+    log_errors?: boolean;
   };
   [key: string]: unknown;
 }
 
-function muted(text: string) {
-  return <span style={{ color: 'var(--text-3)' }}>{text}</span>;
+interface ConfigForm {
+  host: string;
+  port: string;
+  mcpPort: string;
+  logLevel: string;
+  logRequests: boolean;
+  logResponses: boolean;
+  logErrors: boolean;
 }
+
+const EMPTY_FORM: ConfigForm = {
+  host: '',
+  port: '',
+  mcpPort: '',
+  logLevel: 'info',
+  logRequests: false,
+  logResponses: false,
+  logErrors: false,
+};
+
+function formFromConfig(c: ParsedConfig): ConfigForm {
+  return {
+    host: c.server?.host ?? '',
+    port: c.server?.port != null ? String(c.server.port) : '',
+    mcpPort: c.server?.mcp_port != null ? String(c.server.mcp_port) : '',
+    logLevel: c.logging?.level ?? 'info',
+    logRequests: c.logging?.log_requests ?? false,
+    logResponses: c.logging?.log_responses ?? false,
+    logErrors: c.logging?.log_errors ?? false,
+  };
+}
+
+/** Merge the form fields onto a base config (deep-cloned). Numeric text fields
+ *  are applied only when non-empty and valid so clearing a box never writes a
+ *  bad value; the log level and toggles always carry a value. */
+function applyFormToConfig(base: ParsedConfig, f: ConfigForm): ParsedConfig {
+  const c: ParsedConfig = JSON.parse(JSON.stringify(base ?? {}));
+  c.server = { ...c.server };
+  if (f.host) c.server.host = f.host;
+  if (f.port !== '' && !Number.isNaN(Number(f.port))) c.server.port = Number(f.port);
+  if (f.mcpPort !== '' && !Number.isNaN(Number(f.mcpPort))) c.server.mcp_port = Number(f.mcpPort);
+
+  c.logging = {
+    ...c.logging,
+    level: f.logLevel,
+    log_requests: f.logRequests,
+    log_responses: f.logResponses,
+    log_errors: f.logErrors,
+  };
+  return c;
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label style={{ display: 'block', marginBottom: 12 }}>
+      <div
+        className="muted"
+        style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}
+      >
+        {label}
+      </div>
+      {children}
+    </label>
+  );
+}
+
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="row" style={{ gap: 8, marginBottom: 10, cursor: 'pointer', fontSize: 12 }}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+const fieldStyle: CSSProperties = { height: 30, padding: '4px 10px', fontSize: 12, width: '100%' };
 
 function ConfigurationPage() {
   const api = useApiClient();
   const toast = useToastContext();
 
-  const [config, setConfig] = useState<ParsedConfig>({});
   const [yamlContent, setYamlContent] = useState<string>('');
+  const [form, setForm] = useState<ConfigForm>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -82,15 +132,14 @@ function ConfigurationPage() {
     setError(null);
     try {
       const configData = await api.get<ParsedConfig>('/config');
-      setConfig(configData ?? {});
+      const parsed = configData ?? {};
+      setForm(formFromConfig(parsed));
 
-      // Round-trip through js-yaml when available; fall back to JSON so the
-      // editor still has something useful to display in restricted environments.
       try {
         const yamlMod = await import('js-yaml');
-        setYamlContent(yamlMod.dump(configData, { indent: 2, lineWidth: 120 }));
+        setYamlContent(yamlMod.dump(parsed, { indent: 2, lineWidth: 120 }));
       } catch {
-        setYamlContent(JSON.stringify(configData, null, 2));
+        setYamlContent(JSON.stringify(parsed, null, 2));
       }
 
       setIsDirty(false);
@@ -104,24 +153,29 @@ function ConfigurationPage() {
 
   useEffect(() => {
     loadConfig();
-    // loadConfig is stable enough for the page lifecycle; no deps to watch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const update = (patch: Partial<ConfigForm>) => {
+    setForm((f) => ({ ...f, ...patch }));
+    setIsDirty(true);
+  };
 
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
-      let payload: ParsedConfig;
+      let base: ParsedConfig;
       try {
         const yamlMod = await import('js-yaml');
-        payload = (yamlMod.load(yamlContent) as ParsedConfig) ?? {};
+        base = (yamlMod.load(yamlContent) as ParsedConfig) ?? {};
       } catch {
         toast.error('Failed to parse YAML');
         setError('Failed to parse YAML');
         return;
       }
 
+      const payload = applyFormToConfig(base, form);
       await api.post('/config', payload);
       setIsDirty(false);
       toast.success('Configuration saved. Restart the server for changes to take effect.');
@@ -136,21 +190,6 @@ function ConfigurationPage() {
     }
   };
 
-  // Derive General + Defaults rows from the loaded structured config. We don't
-  // re-parse the editor text on every keystroke — the cards reflect the last
-  // saved/loaded state until the user reloads.
-  const general = config.server ?? {};
-  const defaults = config.collections?.defaults ?? {};
-
-  const bindAddress = useMemo(() => {
-    if (general.host && general.port) return `${general.host}:${general.port}`;
-    if (general.host) return general.host;
-    if (general.port) return `${general.port}`;
-    return null;
-  }, [general.host, general.port]);
-
-  const cacheTtl = config.cache?.ttl_seconds;
-
   return (
     <div className="page">
       <div className="page-head">
@@ -164,12 +203,7 @@ function ConfigurationPage() {
           </p>
         </div>
         <div className="row" style={{ gap: 8 }}>
-          <button
-            className="btn"
-            onClick={loadConfig}
-            disabled={loading}
-            type="button"
-          >
+          <button className="btn" onClick={loadConfig} disabled={loading} type="button">
             <Icons.refresh size={13} />
             Reload
           </button>
@@ -188,64 +222,69 @@ function ConfigurationPage() {
         <Card>
           <CardHead title="General" />
           <CardBody>
-            <KeyValue>
-              {/* TODO(config-derive): server.name is not exposed by the
-                  current /config payload. Surface it once the backend ships
-                  the field; until then we show the host as a stand-in. */}
-              <KeyValueRow term="Server name">
-                {general.host ?? muted('hivellm-prod')}
-              </KeyValueRow>
-              <KeyValueRow term="Bind address">
-                {bindAddress ? (
-                  <span className="mono">{bindAddress}</span>
-                ) : (
-                  muted('127.0.0.1:15002')
-                )}
-              </KeyValueRow>
-              <KeyValueRow term="Workspace">
-                {general.data_dir ? (
-                  <span className="mono">{general.data_dir}</span>
-                ) : (
-                  muted('/var/lib/vectorizer')
-                )}
-              </KeyValueRow>
-              <KeyValueRow term="Log level">
-                {config.logging?.level ?? muted('info')}
-              </KeyValueRow>
-              <KeyValueRow term="Telemetry">
-                {/* TODO(config-derive): telemetry isn't represented as a single
-                    field in the current YAML; show a sensible static label. */}
-                {muted('Prometheus + tracing')}
-              </KeyValueRow>
-            </KeyValue>
+            <Field label="Host">
+              <input
+                className="input"
+                style={fieldStyle}
+                value={form.host}
+                onChange={(e) => update({ host: e.target.value })}
+              />
+            </Field>
+            <Field label="REST port">
+              <input
+                className="input"
+                type="number"
+                style={fieldStyle}
+                value={form.port}
+                onChange={(e) => update({ port: e.target.value })}
+              />
+            </Field>
+            <Field label="MCP port">
+              <input
+                className="input"
+                type="number"
+                style={fieldStyle}
+                value={form.mcpPort}
+                onChange={(e) => update({ mcpPort: e.target.value })}
+              />
+            </Field>
           </CardBody>
         </Card>
+
         <Card>
-          <CardHead title="Defaults" />
+          <CardHead title="Logging" />
           <CardBody>
-            <KeyValue>
-              <KeyValueRow term="Embedding">
-                {defaults.embedding?.model
-                  ? <span className="mono">{defaults.embedding.model}</span>
-                  : muted('BM25')}
-              </KeyValueRow>
-              <KeyValueRow term="Index">
-                {defaults.index?.type
-                  ? <span className="mono">{defaults.index.type}</span>
-                  : muted('HNSW (M=16, ef=200)')}
-              </KeyValueRow>
-              <KeyValueRow term="Quantization">
-                {defaults.quantization?.type
-                  ? <span className="mono">{defaults.quantization.type}</span>
-                  : muted('SQ-8bit (auto)')}
-              </KeyValueRow>
-              <KeyValueRow term="Distance">
-                {defaults.metric ?? muted('cosine')}
-              </KeyValueRow>
-              <KeyValueRow term="Cache TTL">
-                {typeof cacheTtl === 'number' ? `${cacheTtl}s` : muted('300s')}
-              </KeyValueRow>
-            </KeyValue>
+            <Field label="Level">
+              <select
+                className="input"
+                style={fieldStyle}
+                value={form.logLevel}
+                onChange={(e) => update({ logLevel: e.target.value })}
+              >
+                {['trace', 'debug', 'info', 'warn', 'error'].map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div style={{ marginTop: 6 }}>
+              <Toggle
+                label="Log requests"
+                checked={form.logRequests}
+                onChange={(v) => update({ logRequests: v })}
+              />
+              <Toggle
+                label="Log responses"
+                checked={form.logResponses}
+                onChange={(v) => update({ logResponses: v })}
+              />
+              <Toggle
+                label="Log errors"
+                checked={form.logErrors}
+                onChange={(v) => update({ logErrors: v })}
+              />
+            </div>
           </CardBody>
         </Card>
       </div>
@@ -253,6 +292,7 @@ function ConfigurationPage() {
       <Card>
         <CardHead
           title="Raw config"
+          sub="everything not covered by the forms above · YAML"
           right={
             error ? (
               <Pill tone="red">{error}</Pill>
@@ -264,15 +304,6 @@ function ConfigurationPage() {
           }
         />
         <CardBody>
-          {/*
-            TODO(config-features-deferred): the legacy ConfigurationPage
-            exposed dedicated tabs with structured form controls for every
-            section of config.yaml — server, embedding, collections,
-            performance, file_watcher, logging, transmutation, normalization,
-            workspace, storage, api (REST + MCP). The console redesign
-            collapses all of those into this single Monaco editor. Bring
-            them back as discrete cards once we agree on the visual language.
-          */}
           <CodeEditor
             value={yamlContent}
             onChange={(next) => {
