@@ -22,12 +22,25 @@
 //!
 //! Until the runtime suite lands, the structural assertions here keep
 //! the registry honest and detect schema drift in CI.
+//!
+//! phase40 §1.3 adds the [`documented_rest_exclusions`] cross-check
+//! below: every route the registry knows about but intentionally
+//! doesn't track yet (pending the concurrent MCP-parity work) is listed
+//! in `capabilities::documented_rest_exclusions()`. The companion
+//! runtime suite in
+//! `vectorizer-server/tests/capability_registry_route_reachability.rs`
+//! dispatches every `inventory()` REST route *and* every excluded route
+//! against the real production router (via
+//! `VectorizerServer::build_router`) and asserts neither 404s nor 405s —
+//! catching both a registry entry pointing at a route that no longer
+//! exists and a registry entry declaring the wrong HTTP method (the
+//! exact bug `graph.find_related` had before phase40 §1.1).
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::collections::HashSet;
 
-use vectorizer_server::server::capabilities::{Transport, inventory};
+use vectorizer_server::server::capabilities::{Transport, documented_rest_exclusions, inventory};
 use vectorizer_server::server::mcp_tools::{get_mcp_tools, tools_from_inventory};
 
 #[test]
@@ -129,5 +142,36 @@ fn both_entries_carry_full_dual_registration() {
     assert!(
         bad.is_empty(),
         "Both entries missing either an MCP or REST registration: {bad:?}"
+    );
+}
+
+#[test]
+fn excluded_routes_are_well_formed() {
+    let bad: Vec<(&'static str, &'static str, &'static str)> = documented_rest_exclusions()
+        .iter()
+        .filter(|(method, path, reason)| method.is_empty() || path.is_empty() || reason.is_empty())
+        .copied()
+        .collect();
+    assert!(
+        bad.is_empty(),
+        "documented_rest_exclusions() entries must carry a non-empty method, path and reason: {bad:?}"
+    );
+}
+
+#[test]
+fn no_route_is_both_tracked_and_excluded() {
+    let tracked: HashSet<(&'static str, &'static str)> =
+        inventory().into_iter().filter_map(|c| c.rest).collect();
+
+    let overlap: Vec<(&'static str, &'static str)> = documented_rest_exclusions()
+        .iter()
+        .map(|(method, path, _)| (*method, *path))
+        .filter(|route| tracked.contains(route))
+        .collect();
+
+    assert!(
+        overlap.is_empty(),
+        "route(s) present in both inventory() and documented_rest_exclusions() — remove the \
+         stale exclusion once a route is tracked: {overlap:?}"
     );
 }

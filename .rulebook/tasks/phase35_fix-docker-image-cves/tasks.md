@@ -33,3 +33,8 @@
 - [x] 6.1 Documentation: `docs/development/docker-builds.md` CVE-posture section (digest bump runbook + VEX + gate)
 - [x] 6.2 Tests: `crates/vectorizer/tests/docker_vex.rs` — validates docker/vex.json structure (OpenVEX context, every statement has vulnerability name + status + justification + impact_statement, product purl present) and Dockerfile digest-pin format (pinned FROM + dated comment the freshness check parses)
 - [x] 6.3 `cargo test --test docker_vex` — 2 passed, 0 failed
+
+## 7. Tail (mandatory — enforced by rulebook v5.3.0)
+- [ ] 7.1 Update or create documentation covering the implementation
+- [ ] 7.2 Write tests covering the new behavior
+- [ ] 7.3 Run tests and confirm they pass

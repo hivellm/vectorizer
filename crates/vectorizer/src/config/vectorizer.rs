@@ -58,6 +58,49 @@ pub struct VectorizerConfig {
     /// once a hard limit is exceeded.
     #[serde(default)]
     pub backpressure: BackpressureConfig,
+    /// API surface configuration (`api:` top-level section). See
+    /// [`ApiConfig`] for which sub-keys are actually wired to runtime
+    /// behavior.
+    #[serde(default)]
+    pub api: ApiConfig,
+}
+
+/// API surface configuration (`api:` top-level section in
+/// `config.yml`). Only `rest.max_request_size_mb` currently drives
+/// runtime behavior (the REST request-body-size limit resolved once at
+/// boot — see `phase40_api-parity-and-hardening` §6.2). The remaining
+/// documented sub-keys (`rest.enabled`, `rest.cors_enabled`,
+/// `rest.timeout_seconds`, `mcp.*`, `grpc.*`) are accepted so a typo in
+/// `rest.max_request_size_mb` itself would still deserialize (serde
+/// tolerates unknown fields without `deny_unknown_fields`); they are
+/// not yet wired to a typed field.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ApiConfig {
+    /// REST-specific settings.
+    #[serde(default)]
+    pub rest: RestApiConfig,
+}
+
+/// REST-specific settings under `api.rest`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestApiConfig {
+    /// Maximum accepted request body size, in megabytes.
+    #[serde(default = "RestApiConfig::default_max_request_size_mb")]
+    pub max_request_size_mb: usize,
+}
+
+impl RestApiConfig {
+    fn default_max_request_size_mb() -> usize {
+        100
+    }
+}
+
+impl Default for RestApiConfig {
+    fn default() -> Self {
+        Self {
+            max_request_size_mb: Self::default_max_request_size_mb(),
+        }
+    }
 }
 
 /// VectorizerRPC listener configuration. **Enabled by default in v3.x**
@@ -671,6 +714,7 @@ impl Default for VectorizerConfig {
             replication: ReplicationYamlConfig::default(),
             rpc: RpcConfig::default(),
             backpressure: BackpressureConfig::default(),
+            api: ApiConfig::default(),
         }
     }
 }

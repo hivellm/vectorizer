@@ -316,3 +316,55 @@ fn test_file_upload_config_extension_categories() {
     assert!(config.allowed_extensions.contains(&"html".to_string()));
     assert!(config.allowed_extensions.contains(&"css".to_string()));
 }
+
+#[test]
+fn test_api_config_default_max_request_size() {
+    let config = ApiConfig::default();
+    assert_eq!(config.rest.max_request_size_mb, 100);
+}
+
+#[test]
+fn test_api_config_deserializes_documented_shape() {
+    // Matches the `api:` section shipped in config/config.example.yml —
+    // sub-keys beyond `rest.max_request_size_mb` (mcp, grpc,
+    // rest.enabled/cors_enabled/timeout_seconds) are accepted without
+    // error even though they aren't wired to a typed field yet.
+    let yaml = r#"
+        rest:
+          enabled: true
+          cors_enabled: true
+          max_request_size_mb: 50
+          timeout_seconds: 60
+        mcp:
+          enabled: true
+          port: 15002
+          max_connections: 500
+        grpc:
+          enabled: false
+    "#;
+    let config: ApiConfig = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(config.rest.max_request_size_mb, 50);
+}
+
+#[test]
+fn test_vectorizer_config_defaults_api_when_section_absent() {
+    // Legacy/minimal config.yml files predating phase40 §6.2 have no
+    // `api:` section at all — `#[serde(default)]` must fill it in
+    // rather than failing deserialization.
+    let yaml = r#"
+        server:
+          host: 127.0.0.1
+          port: 15002
+          mcp_port: 15002
+        file_watcher:
+          enabled: false
+          collection_name: workspace-files
+        logging:
+          level: info
+          log_requests: true
+          log_responses: false
+          log_errors: true
+    "#;
+    let config: VectorizerConfig = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(config.api.rest.max_request_size_mb, 100);
+}

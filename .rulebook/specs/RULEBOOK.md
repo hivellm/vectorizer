@@ -16,24 +16,13 @@ Skip for:
 - ❌ Typos, formatting, comments
 - ❌ Dependency updates (non-breaking)
 
-## Persistent Memory Integration
+## Knowledge Capture
 
-**IMPORTANT**: Task management is tightly integrated with persistent memory system for cross-session context:
+Task management is paired with the file-based knowledge base for cross-session context:
 
-### Task Completion and Memory
-When a task is marked as completed:
-1. **Auto-save to memory** (if enabled): Key learnings, patterns, gotchas from task specs are captured
-2. **Search past tasks**: Before creating similar tasks, search memory for past implementations:
-   ```bash
-   rulebook memory search "authentication" --type feature
-   ```
-3. **Update implementation faster**: Reference past solutions documented in memory
-
-### Memory during Task Development
-As you work on a task:
-- **Save discoveries**: Use `rulebook memory save` to capture patterns and gotchas
-- **Reference past context**: Search memory for related implementations
-- **Document decisions**: Save architectural choices for future developers
+- **On completion**: capture reusable patterns/anti-patterns with `rulebook_knowledge_add` and implementation insights with `rulebook_learn_capture`.
+- **Before creating similar tasks**: review `rulebook_knowledge_list` and `rulebook_learn_list` for past solutions.
+- **Document decisions**: record significant architectural choices with `rulebook_decision_create`.
 
 ## ⚠️ CRITICAL: Task Creation is MANDATORY Before Implementation
 

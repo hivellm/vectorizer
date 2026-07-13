@@ -1,42 +1,42 @@
 ## 1. Capability registry
 
-- [ ] 1.1 Fix `graph.find_related` method mismatch (`capabilities.rs:328` GET vs `api/graph.rs:64` POST)
-- [ ] 1.2 Add missing REST endpoints to the registry (`/contextual_search`, `/discover`, `/discovery/*`, `/embed`, `DELETE /collections/{name}`, `/collections/{name}/search/{text,file}`, graph enable/status/edges) or mark them explicitly excluded
-- [ ] 1.3 Extend `tests/api/parity.rs` to diff the axum router's actual routes against the registry and fail on drift
+- [x] 1.1 `graph.find_related` registry fixed to POST (router is source of truth)
+- [x] 1.2 Missing REST endpoints registered (+592 lines in capabilities.rs: search/text, search/file, graph enable/status/edges, discovery, embed, delete_collection, ...) with explicit surface classification; exclusion set for the deliberate leftovers
+- [x] 1.3 Parity test extended + new `capability_registry_route_reachability.rs` (3 tests): every registry path probed against the real in-process router — wrong method/absent route fails
 
 ## 2. MCP parity + error codes
 
-- [ ] 2.1 Add MCP tools: `delete_collection`, `embed_text`, `contextual_search`, `get_database_stats`
-- [ ] 2.2 Add MCP tools for the discovery pipeline (8 ops) and `batch_*` operations
-- [ ] 2.3 Route MCP handler errors through `VectorizerError` → `mapping::mcp_code()` (replace hardcoded `internal_error` at `handlers.rs:180,360,518,522`)
-- [ ] 2.4 Carry `VectorizerError::code()` into RPC error frames (`rpc/dispatch.rs`)
+- [x] 2.1 MCP tools added: `delete_collection`, `embed_text`, `contextual_search`, `get_database_stats` (+924 lines handlers.rs, +395 tools.rs)
+- [x] 2.2 Discovery pipeline (8 ops) + `batch_*` MCP tools registered
+- [x] 2.3 MCP handler errors routed through `VectorizerError` → `mcp_code()` — not-found surfaces as the mapped code, not −32603
+- [x] 2.4 RPC error frames carry `VectorizerError::code()` (dispatch.rs)
 
 ## 3. Input hardening
 
-- [ ] 3.1 Clamp `limit` to schema max (100) in REST `/search`, `/search/text`, MCP `search`, and RPC search dispatch
-- [ ] 3.2 Cap `list_vectors` offset (`vectors.rs:42-45`)
+- [x] 3.1 `MAX_SEARCH_LIMIT = 100` server-side clamp: REST search/text/vector, hybrid (dense_k/sparse_k/final_k), explain k, batch entries; MCP/RPC via their dispatch paths
+- [x] 3.2 `list_vectors` offset capped (absurd-input guard; scan is already materialized so offset can't drive allocation)
 
 ## 4. GraphQL multi-tenancy
 
-- [ ] 4.1 Single tenant-prefix helper; unify `mutation.rs:92` (colon) vs `:767` (underscore)
-- [ ] 4.2 Fix `create_collection` metadata lookup to use the prefixed name (`mutation.rs:123-126`)
+- [x] 4.1 Shared `tenant_collection_name` helper (schema/mod.rs); both `create_collection` and `upload_file` use it (colon form) — uploads land in the created collection; regression test proves create-then-upload targets the same collection (verified to fail with the bug reintroduced)
+- [x] 4.2 `create_collection` metadata lookup uses the prefixed name
 
 ## 5. Error-shape unification
 
-- [ ] 5.1 Replace ad-hoc auth-middleware JSON (`routing.rs:1064-1093`) with the standard `ErrorResponse` shape
+- [x] 5.1 Auth-middleware 401 bodies use the standard shape (`error_type`/`message`/`status_code`) in both prod-auth branches
 
 ## 6. Config + startup hardening
 
-- [ ] 6.1 Reject or loudly warn on unknown config keys (layered loader / `deny_unknown_fields` strategy)
-- [ ] 6.2 Load config once via the layered loader in bootstrap; remove the four `serde_yaml::from_str(...).ok()` re-parses (`bootstrap.rs:1341,1362,1438`, `setup_handlers.rs:26`)
-- [ ] 6.3 Make first boot succeed with the shipped default config (auto-generate JWT secret by default or default host to 127.0.0.1)
+- [x] 6.1 `unknown_top_level_keys` allowlist check in `load_layered` → per-key warn (allowlist = modeled fields ∪ documented-but-unwired sections; full deny_unknown_fields would false-positive on the shipped default config)
+- [x] 6.2 Config loaded ONCE into `Arc<VectorizerConfig>` in bootstrap; the four `.ok()` re-parses removed (max_request_size now a typed `api.rest` field; auth/hub from the loaded config; backpressure guard threaded through setup_handlers); parse failures warn loudly
+- [x] 6.3 First boot succeeds with shipped defaults: empty jwt_secret → unconditional auto-generate (persisted via load_or_generate) with a prominent warn; legacy flag/env kept as no-ops; 0.0.0.0-without-auth rejection untouched (auth now legitimately stays on)
 
 ## 7. Docs
 
-- [ ] 7.1 Correct API_REFERENCE tool count (32, not "38+") and wrong route paths; document registered-but-undocumented endpoints
+- [x] 7.1 API_REFERENCE tool count + route paths corrected (+68-line diff); undocumented endpoints noted
 
 ## 8. Tail (mandatory — enforced by rulebook v5.3.0)
 
-- [ ] 8.1 Update or create documentation covering the implementation
-- [ ] 8.2 Write tests covering the new behavior
-- [ ] 8.3 Run tests and confirm they pass
+- [x] 8.1 Update or create documentation covering the implementation — API_REFERENCE + CHANGELOG [3.5.0] + doc-comments at every changed site
+- [x] 8.2 Write tests covering the new behavior — route-reachability suite (3), parity extensions (8 total), GraphQL tenant regression test, 11 new config/bootstrap unit tests (unknown keys, mode overlay, jwt resolution)
+- [x] 8.3 Run tests and confirm they pass — server lib 218, MCP integration 30, parity 8, reachability 3, graphql+mcp+parity filter 43, config module 138; clippy -D warnings 0

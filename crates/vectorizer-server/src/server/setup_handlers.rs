@@ -15,25 +15,6 @@ use vectorizer::workspace::templates::{ConfigTemplate, get_template_by_id, get_t
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::ErrorResponse;
 
-/// Resolve the shared bulk-upsert backpressure guard from the running
-/// config. Returns `None` when `config.yml` is unreadable / unparsable
-/// so setup-time indexing keeps working on misconfigured deployments.
-/// Tracks issue #263.
-fn backpressure_guard_from_config() -> Option<vectorizer::db::BackpressureGuard> {
-    let candidates = ["config.yml", "config/config.yml"];
-    for path in candidates {
-        if let Ok(content) = std::fs::read_to_string(path) {
-            if let Ok(cfg) = serde_yaml::from_str::<vectorizer::config::VectorizerConfig>(&content)
-            {
-                return Some(vectorizer::db::BackpressureGuard::from_config(
-                    &cfg.backpressure,
-                ));
-            }
-        }
-    }
-    None
-}
-
 /// Setup status response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetupStatus {
@@ -194,13 +175,16 @@ pub async fn apply_setup_config(
                 );
             }
 
-            // Index project files using FileLoader
+            // Index project files using FileLoader. Reuses the
+            // BackpressureGuard already built once at bootstrap
+            // instead of re-parsing config.yml here (phase40 §6.2).
             match index_project_with_loader(
                 &state.store,
                 collection_name,
                 &project.path,
                 &collection.include_patterns,
                 &collection.exclude_patterns,
+                state.backpressure_guard.as_ref().clone(),
             )
             .await
             {
@@ -287,6 +271,7 @@ async fn index_project_with_loader(
     project_path: &str,
     include_patterns: &[String],
     exclude_patterns: &[String],
+    backpressure: vectorizer::db::BackpressureGuard,
 ) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
     use vectorizer::embedding::{Bm25Embedding, EmbeddingManager};
     use vectorizer::file_loader::{FileLoader, LoaderConfig};
@@ -371,13 +356,10 @@ async fn index_project_with_loader(
 
     // Create FileLoader
     let mut loader = FileLoader::with_embedding_manager(loader_config, embedding_manager);
-    // Issue #263: opt into the shared vocab-build backpressure when
-    // the running config provides a guard. Falls through silently if
-    // config.yml is unreadable so setup-time indexing keeps working
-    // on misconfigured deployments.
-    if let Some(guard) = backpressure_guard_from_config() {
-        loader.set_backpressure(guard);
-    }
+    // Issue #263: opt into the shared vocab-build backpressure guard
+    // already built once at bootstrap (phase40 §6.2 — no more
+    // re-parsing config.yml here).
+    loader.set_backpressure(backpressure);
 
     // Index the project
     match loader.load_and_index_project(project_path, store).await {

@@ -1,22 +1,15 @@
 {
-  "version": "5.5.0",
-  "installedAt": "2026-05-01T18:17:13.859Z",
-  "updatedAt": "2026-05-01T18:17:13.859Z",
+  "version": "6.0.0",
+  "installedAt": "2026-07-13T00:33:19.940Z",
+  "updatedAt": "2026-07-13T00:33:19.940Z",
   "projectId": "Vectorizer",
   "mode": "full",
   "features": {
-    "watcher": false,
-    "agent": false,
     "logging": true,
-    "telemetry": false,
-    "notifications": false,
-    "dryRun": false,
     "gitHooks": true,
-    "repl": false,
     "templates": true,
     "context": true,
     "health": true,
-    "plugins": false,
     "parallel": true,
     "smartContinue": true
   },
@@ -29,38 +22,6 @@
     "taskExecution": 300000,
     "cliResponse": 60000,
     "testRun": 120000
-  },
-  "memory": {
-    "enabled": false,
-    "dbPath": ".rulebook/memory/memory.db",
-    "maxSizeBytes": 524288000,
-    "autoCapture": false,
-    "vectorDimensions": 256
-  },
-  "ralph": {
-    "enabled": true,
-    "maxIterations": 10,
-    "tool": "claude",
-    "maxContextLoss": 3,
-    "securityGate": {
-      "enabled": true,
-      "failOn": "high",
-      "tool": "auto"
-    },
-    "contextCompression": {
-      "enabled": true,
-      "recentCount": 3,
-      "threshold": 5
-    },
-    "parallel": {
-      "enabled": false,
-      "maxWorkers": 3
-    },
-    "planCheckpoint": {
-      "enabled": false,
-      "autoApproveAfterSeconds": 0,
-      "requireApprovalForStories": "all"
-    }
   },
   "skills": {
     "enabled": [

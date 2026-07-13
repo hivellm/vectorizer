@@ -4,3 +4,4 @@
 
 pub mod encryption;
 pub mod hub_integration;
+pub mod tenant_scoping;

@@ -39,10 +39,14 @@ pub async fn list_vectors(
         .and_then(|l| l.parse::<usize>().ok())
         .unwrap_or(10)
         .min(50);
+    // The handler already materializes the collection scan, so `offset`
+    // can't drive allocation — the cap just rejects absurd inputs while
+    // keeping legitimate deep pagination working (phase40 §3.2).
     let offset = params
         .get("offset")
         .and_then(|o| o.parse::<usize>().ok())
-        .unwrap_or(0);
+        .unwrap_or(0)
+        .min(1_000_000);
     let min_score = params
         .get("min_score")
         .and_then(|s| s.parse::<f32>().ok())

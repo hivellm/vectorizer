@@ -1,6 +1,6 @@
 //! UMICP Tool Discovery for Vectorizer
 //!
-//! Implements the DiscoverableService trait to expose all 31 MCP tools
+//! Implements the DiscoverableService trait to expose all MCP tools
 //! via UMICP v0.2.1 tool discovery protocol
 
 use serde_json::json;
@@ -26,10 +26,10 @@ impl DiscoverableService for VectorizerDiscoveryService {
             "workspace-management".to_string(),
             "mcp-compatible".to_string(),
         ])
-        .operations_count(31)
+        .operations_count(48)
         .mcp_compatible(true)
         .metadata(json!({
-            "description": "HiveLLM Vectorizer - High-performance semantic search and vector database system with 31 tools"
+            "description": "HiveLLM Vectorizer - High-performance semantic search and vector database system with 48 tools"
         }))
     }
 
@@ -97,12 +97,14 @@ mod tests {
         let service = VectorizerDiscoveryService;
         let operations = service.list_operations();
 
-        // 32 individual focused operations (31 from phase3+ + the
-        // `list_providers` MCP mirror landed in phase33 / issue #306).
+        // 48 individual focused operations (32 from phase3+/phase33 +
+        // the 16 MCP tools phase40 §2 added: delete_collection,
+        // embed_text, contextual_search, get_database_stats, the 8-step
+        // discovery pipeline, and the 4 batch_* operations).
         assert_eq!(
             operations.len(),
-            32,
-            "Expected 32 individual operations, got {}",
+            48,
+            "Expected 48 individual operations, got {}",
             operations.len()
         );
 

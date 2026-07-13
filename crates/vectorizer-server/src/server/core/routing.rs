@@ -1251,14 +1251,18 @@ impl VectorizerServer {
                             }
                         }
 
-                        // If no valid credentials, return 401
+                        // If no valid credentials, return 401. The body uses
+                        // the standard ErrorResponse shape (error_type/
+                        // message/status_code) — the ad-hoc {"error": …} form
+                        // predated the central error middleware and broke
+                        // uniform client-side error handling (phase40 §5).
                         if user_claims.is_none() {
                             return axum::response::Response::builder()
                                 .status(axum::http::StatusCode::UNAUTHORIZED)
                                 .header("Content-Type", "application/json")
                                 .header("Access-Control-Allow-Origin", "*")
                                 .body(axum::body::Body::from(
-                                    r#"{"error":"unauthorized","message":"Authentication required. Provide a valid JWT token or API key."}"#
+                                    r#"{"error_type":"unauthorized","message":"Authentication required. Provide a valid JWT token or API key.","status_code":401}"#
                                 ))
                                 .unwrap();
                         }
@@ -1280,7 +1284,7 @@ impl VectorizerServer {
                             .header("Content-Type", "application/json")
                             .header("Access-Control-Allow-Origin", "*")
                             .body(axum::body::Body::from(
-                                r#"{"error":"unauthorized","message":"Authentication not configured."}"#
+                                r#"{"error_type":"unauthorized","message":"Authentication not configured.","status_code":401}"#
                             ))
                             .unwrap();
                     }

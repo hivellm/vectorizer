@@ -2,9 +2,10 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorCode, ErrorData};
 use serde_json::json;
 use vectorizer::VectorStore;
+use vectorizer::VectorizerError;
 use vectorizer::db::graph::RelationshipType;
 use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use vectorizer::discovery::{
@@ -15,10 +16,79 @@ use vectorizer::embedding::EmbeddingManager;
 use vectorizer::file_operations::{FileListFilter, FileOperations, SortBy, SummaryType};
 use vectorizer::intelligent_search::mcp_tools::*;
 use vectorizer::models::SparseVector;
+use vectorizer_core::error::mapping;
 
 use crate::server::discovery_handlers::*;
 use crate::server::files::operations::*;
 use crate::server::graph_handlers::*;
+
+/// Convert a [`VectorizerError`] into the matching MCP [`ErrorData`],
+/// routing through the centralized `ErrorKind` → JSON-RPC code mapping
+/// (`mapping::mcp_code`) instead of hardcoding `internal_error`
+/// (`-32603`) for every failure mode (phase40 §2.3). A
+/// `CollectionNotFound` now surfaces as the mapped not-found code
+/// instead of Internal, matching the REST `404` / gRPC `NotFound`
+/// codes for the same underlying error. The stable
+/// [`VectorizerError::code`] identifier travels in `data.code` so MCP
+/// clients get the same machine-readable signal REST's `error_type`
+/// field carries.
+fn to_mcp_error(err: VectorizerError) -> ErrorData {
+    let code = mapping::mcp_code(&err);
+    let data = json!({ "code": err.code() });
+    ErrorData::new(ErrorCode(code), err.to_string(), Some(data))
+}
+
+/// Same idea as [`to_mcp_error`] but for
+/// [`vectorizer::file_operations::FileOperationError`] — a distinct
+/// error type from [`VectorizerError`] predating the centralized error
+/// taxonomy. Reclassifies each variant into the closest
+/// [`VectorizerError`] kind so file-not-found / invalid-parameter
+/// errors get the same non-Internal MCP codes that collection/vector
+/// lookups already do.
+fn to_mcp_error_file_op(err: vectorizer::file_operations::FileOperationError) -> ErrorData {
+    use vectorizer::file_operations::FileOperationError as FileOpError;
+
+    let mapped = match err {
+        FileOpError::FileNotFound {
+            file_path,
+            collection,
+        } => VectorizerError::NotFound(format!(
+            "file '{}' not found in collection '{}'",
+            file_path, collection
+        )),
+        FileOpError::NoChunksFound { file_path } => {
+            VectorizerError::NotFound(format!("no chunks found for file '{}'", file_path))
+        }
+        FileOpError::CollectionNotFound { collection } => {
+            VectorizerError::CollectionNotFound(collection)
+        }
+        FileOpError::FileTooLarge {
+            size_kb,
+            max_size_kb,
+        } => VectorizerError::InvalidConfiguration {
+            message: format!(
+                "file too large: {}KB exceeds limit of {}KB",
+                size_kb, max_size_kb
+            ),
+        },
+        FileOpError::InvalidPath { path, reason } => VectorizerError::InvalidConfiguration {
+            message: format!("invalid path '{}': {}", path, reason),
+        },
+        FileOpError::InvalidParameter { param, reason } => VectorizerError::InvalidConfiguration {
+            message: format!("invalid parameter '{}': {}", param, reason),
+        },
+        FileOpError::CacheError { message } => {
+            VectorizerError::Other(format!("cache error: {}", message))
+        }
+        FileOpError::SummarizationError { message } => {
+            VectorizerError::Other(format!("summarization error: {}", message))
+        }
+        FileOpError::VectorStoreError(message) => VectorizerError::Other(message),
+        FileOpError::IoError(e) => VectorizerError::IoError(e),
+        FileOpError::JsonError(e) => VectorizerError::JsonError(e),
+    };
+    to_mcp_error(mapped)
+}
 
 /// Helper function to create an embedding manager for a specific collection
 fn create_embedding_manager_for_collection(
@@ -144,6 +214,35 @@ pub async fn handle_mcp_tool(
         "cleanup_empty_collections" => handle_cleanup_empty_collections(request, store).await,
         "get_collection_stats" => handle_get_collection_stats(request, store).await,
 
+        // phase40 §2.1: MCP tools mirroring REST-only endpoints
+        // (delete_collection, embed_text, contextual_search,
+        // get_database_stats) — REST-first rule: same underlying
+        // VectorStore/EmbeddingManager calls the REST handlers make.
+        "delete_collection" => handle_delete_collection(request, store).await,
+        "embed_text" => handle_embed_text(request, embedding_manager).await,
+        "contextual_search" => handle_contextual_search(request, store).await,
+        "get_database_stats" => handle_get_database_stats(store, embedding_manager).await,
+
+        // phase40 §2.2: discovery pipeline (8 ops). The handlers already
+        // existed in `discovery_handlers` for REST/RPC — this wires them
+        // into the MCP dispatch table.
+        "discover" => handle_discover(request, store, embedding_manager).await,
+        "score_collections" => handle_score_collections(request, store).await,
+        "broad_discovery" => handle_broad_discovery(request, store, embedding_manager).await,
+        "semantic_focus" => handle_semantic_focus(request, store, embedding_manager).await,
+        "promote_readme" => handle_promote_readme(request).await,
+        "compress_evidence" => handle_compress_evidence(request).await,
+        "build_answer_plan" => handle_build_answer_plan(request).await,
+        "render_llm_prompt" => handle_render_llm_prompt(request).await,
+
+        // phase40 §2.2: batch operations mirroring REST /batch_* routes
+        "batch_insert_texts" => {
+            handle_batch_insert_texts(request, store, embedding_manager, upsert_queue).await
+        }
+        "batch_search" => handle_batch_search(request, store, embedding_manager).await,
+        "batch_update" => handle_batch_update(request, store).await,
+        "batch_delete" => handle_batch_delete(request, store).await,
+
         _ => Err(ErrorData::invalid_params("Unknown tool", None)),
     }
 }
@@ -177,7 +276,7 @@ async fn handle_search_vectors(
     // Get the collection to access its embedding type and dimension
     let collection = store
         .get_collection(collection_name)
-        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+        .map_err(to_mcp_error)?;
 
     let embedding_type = collection.get_embedding_type();
     let dimension = collection.config().dimension;
@@ -191,12 +290,12 @@ async fn handle_search_vectors(
     // Generate embedding using the collection-specific manager
     let embedding = collection_embedding_manager
         .embed(query)
-        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+        .map_err(to_mcp_error)?;
 
     // Search
     let results = store
         .search(collection_name, &embedding, limit)
-        .map_err(|e| ErrorData::internal_error(format!("Search failed: {}", e), None))?;
+        .map_err(to_mcp_error)?;
 
     let response = json!({
         "results": results.iter().map(|r| json!({
@@ -326,9 +425,9 @@ async fn handle_create_collection(
         encryption: None,
     };
 
-    store.create_collection(name, config).map_err(|e| {
-        ErrorData::internal_error(format!("Failed to create collection: {}", e), None)
-    })?;
+    store
+        .create_collection(name, config)
+        .map_err(to_mcp_error)?;
 
     let response = json!({
         "status": "created",
@@ -355,9 +454,7 @@ async fn handle_get_collection_info(
         .and_then(|v| v.as_str())
         .ok_or_else(|| ErrorData::invalid_params("Missing name", None))?;
 
-    let collection = store
-        .get_collection(name)
-        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+    let collection = store.get_collection(name).map_err(to_mcp_error)?;
 
     let metadata = collection.metadata();
     let config = collection.config();
@@ -449,9 +546,7 @@ async fn handle_insert_text(
     let public_key = args.get("public_key").and_then(|v| v.as_str());
 
     // Generate embedding
-    let embedding = embedding_manager
-        .embed(text)
-        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+    let embedding = embedding_manager.embed(text).map_err(to_mcp_error)?;
 
     let vector_id = uuid::Uuid::new_v4().to_string();
 
@@ -464,9 +559,8 @@ async fn handle_insert_text(
     // Encrypt payload if public_key is provided
     let payload = if let Some(key) = public_key {
         let encrypted =
-            vectorizer::security::payload_encryption::encrypt_payload(&payload_json, key).map_err(
-                |e| ErrorData::internal_error(format!("Encryption failed: {}", e), None),
-            )?;
+            vectorizer::security::payload_encryption::encrypt_payload(&payload_json, key)
+                .map_err(|e| to_mcp_error(VectorizerError::EncryptionError(e.to_string())))?;
         vectorizer::models::Payload::from_encrypted(encrypted)
     } else {
         vectorizer::models::Payload::new(payload_json)
@@ -481,7 +575,7 @@ async fn handle_insert_text(
                 payload,
             )],
         )
-        .map_err(|e| ErrorData::internal_error(format!("Insert failed: {}", e), None))?;
+        .map_err(to_mcp_error)?;
 
     let response = json!({
         "status": "inserted",
@@ -513,13 +607,9 @@ async fn handle_get_vector(
         .and_then(|v| v.as_str())
         .ok_or_else(|| ErrorData::invalid_params("Missing vector_id", None))?;
 
-    let coll = store
-        .get_collection(collection)
-        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+    let coll = store.get_collection(collection).map_err(to_mcp_error)?;
 
-    let vector = coll
-        .get_vector(vector_id)
-        .map_err(|e| ErrorData::internal_error(format!("Vector not found: {}", e), None))?;
+    let vector = coll.get_vector(vector_id).map_err(to_mcp_error)?;
 
     let response = json!({
         "id": vector.id,
@@ -595,9 +685,7 @@ async fn handle_update_vector(
     let public_key = args.get("public_key").and_then(|v| v.as_str());
 
     if let Some(text) = text {
-        let embedding = embedding_manager
-            .embed(text)
-            .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+        let embedding = embedding_manager.embed(text).map_err(to_mcp_error)?;
 
         let payload_json = if let Some(meta) = metadata {
             meta
@@ -609,9 +697,7 @@ async fn handle_update_vector(
         let payload = if let Some(key) = public_key {
             let encrypted =
                 vectorizer::security::payload_encryption::encrypt_payload(&payload_json, key)
-                    .map_err(|e| {
-                        ErrorData::internal_error(format!("Encryption failed: {}", e), None)
-                    })?;
+                    .map_err(|e| to_mcp_error(VectorizerError::EncryptionError(e.to_string())))?;
             vectorizer::models::Payload::from_encrypted(encrypted)
         } else {
             vectorizer::models::Payload::new(payload_json)
@@ -622,7 +708,7 @@ async fn handle_update_vector(
                 collection,
                 vectorizer::models::Vector::with_payload(vector_id.to_string(), embedding, payload),
             )
-            .map_err(|e| ErrorData::internal_error(format!("Update failed: {}", e), None))?;
+            .map_err(to_mcp_error)?;
     }
 
     let response = json!({
@@ -858,9 +944,7 @@ async fn handle_search_extra(
         match strategy.as_str() {
             "basic" => {
                 // Basic search
-                let coll = store.get_collection(collection).map_err(|e| {
-                    ErrorData::internal_error(format!("Collection not found: {}", e), None)
-                })?;
+                let coll = store.get_collection(collection).map_err(to_mcp_error)?;
                 let embedding_type = coll.get_embedding_type();
                 let dimension = coll.config().dimension;
                 let coll_emb_manager =
@@ -872,14 +956,10 @@ async fn handle_search_extra(
                             )
                         },
                     )?;
-                let embedding = coll_emb_manager.embed(query).map_err(|e| {
-                    ErrorData::internal_error(format!("Embedding failed: {}", e), None)
-                })?;
+                let embedding = coll_emb_manager.embed(query).map_err(to_mcp_error)?;
                 let results = store
                     .search(collection, &embedding, max_results)
-                    .map_err(|e| {
-                        ErrorData::internal_error(format!("Search failed: {}", e), None)
-                    })?;
+                    .map_err(to_mcp_error)?;
 
                 for result in results {
                     if !seen_ids.contains(&result.id) {
@@ -1016,9 +1096,7 @@ async fn handle_get_file_content(
     let result = file_ops
         .get_file_content(collection, file_path, max_size_kb)
         .await
-        .map_err(|e| {
-            ErrorData::internal_error(format!("Failed to get file content: {}", e), None)
-        })?;
+        .map_err(to_mcp_error_file_op)?;
 
     let response = json!({
         "file_path": result.file_path,
@@ -1100,7 +1178,7 @@ async fn handle_list_files_in_collection(
     let result = file_ops
         .list_files_in_collection(collection, filter)
         .await
-        .map_err(|e| ErrorData::internal_error(format!("Failed to list files: {}", e), None))?;
+        .map_err(to_mcp_error_file_op)?;
 
     let response = json!({
         "collection": result.collection,
@@ -1144,7 +1222,7 @@ async fn handle_hybrid_search(
     // Get collection to determine embedding type and dimension
     let collection = store
         .get_collection(collection_name)
-        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+        .map_err(to_mcp_error)?;
 
     let embedding_type = collection.get_embedding_type();
     let dimension = collection.config().dimension;
@@ -1158,7 +1236,7 @@ async fn handle_hybrid_search(
     // Generate dense embedding from query text
     let query_dense = collection_embedding_manager
         .embed(query)
-        .map_err(|e| ErrorData::internal_error(format!("Embedding failed: {}", e), None))?;
+        .map_err(to_mcp_error)?;
 
     // Parse optional sparse query
     let query_sparse = if let Some(sparse_obj) = args.get("query_sparse") {
@@ -1218,7 +1296,7 @@ async fn handle_hybrid_search(
     // Perform hybrid search
     let results = store
         .hybrid_search(collection_name, &query_dense, query_sparse.as_ref(), config)
-        .map_err(|e| ErrorData::internal_error(format!("Hybrid search failed: {}", e), None))?;
+        .map_err(to_mcp_error)?;
 
     let response = json!({
         "results": results.iter().map(|r| json!({
@@ -1291,10 +1369,7 @@ async fn handle_cleanup_empty_collections(
                 response.to_string(),
             )]))
         }
-        Err(e) => Err(ErrorData::internal_error(
-            format!("Failed to cleanup empty collections: {}", e),
-            None,
-        )),
+        Err(e) => Err(to_mcp_error(e)),
     }
 }
 
@@ -1313,9 +1388,7 @@ async fn handle_get_collection_stats(
         .ok_or_else(|| ErrorData::invalid_params("Missing collection name", None))?;
 
     // Get collection to check if it exists
-    let collection_ref = store
-        .get_collection(collection)
-        .map_err(|e| ErrorData::internal_error(format!("Collection not found: {}", e), None))?;
+    let collection_ref = store.get_collection(collection).map_err(to_mcp_error)?;
 
     let vector_count = collection_ref.vector_count();
     let is_empty = vector_count == 0;
@@ -1325,6 +1398,744 @@ async fn handle_get_collection_stats(
         "collection": collection,
         "vector_count": vector_count,
         "is_empty": is_empty
+    });
+
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        response.to_string(),
+    )]))
+}
+
+// =============================================
+// phase40 §2.1 — MCP tools mirroring REST-only endpoints
+// =============================================
+
+/// Mirrors `DELETE /collections/{name}`
+/// (`rest_handlers::collections::delete_collection`). The REST handler
+/// also invalidates the query cache and marks the auto-save manager
+/// dirty; those live on `VectorizerServer`, which `handle_mcp_tool`
+/// doesn't have access to (only `store`/`embedding_manager`/
+/// `cluster_manager`/`upsert_queue`) — the same constraint the existing
+/// `cleanup_empty_collections` MCP tool already accepts.
+async fn handle_delete_collection(
+    request: CallToolRequestParams,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let name = args
+        .get("name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing name", None))?;
+
+    store.delete_collection(name).map_err(to_mcp_error)?;
+
+    let response = json!({
+        "message": format!("Collection '{}' deleted successfully", name)
+    });
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        response.to_string(),
+    )]))
+}
+
+/// Mirrors `POST /embed` (`rest_handlers::vectors::embed_text`): embeds
+/// `text` via the requested `model` (falls back to the server's default
+/// provider when omitted). An unregistered `model` now maps to the
+/// `BadRequest` MCP code instead of silently coercing to BM25.
+async fn handle_embed_text(
+    request: CallToolRequestParams,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let text = args
+        .get("text")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing text", None))?;
+
+    let requested_model = args
+        .get("model")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let (model_name, embedding) = match requested_model {
+        Some(name) => {
+            if !embedding_manager.has_provider(&name) {
+                return Err(to_mcp_error(VectorizerError::UnsupportedModel {
+                    requested: name,
+                    available: embedding_manager.list_providers(),
+                }));
+            }
+            let emb = embedding_manager
+                .embed_with_provider(&name, text)
+                .map_err(to_mcp_error)?;
+            (name, emb)
+        }
+        None => {
+            let default = embedding_manager
+                .get_default_provider_name()
+                .unwrap_or("bm25")
+                .to_string();
+            let emb = embedding_manager.embed(text).map_err(to_mcp_error)?;
+            (default, emb)
+        }
+    };
+    let dimension = embedding.len();
+
+    let response = json!({
+        "embedding": embedding,
+        "text": text,
+        "dimension": dimension,
+        "model": model_name,
+    });
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        response.to_string(),
+    )]))
+}
+
+/// Mirrors `POST /contextual_search`
+/// (`rest_handlers::intelligent_search::contextual_search`) — uses the
+/// same `RESTAPIHandler`/`ContextualSearchRequest` path the REST route
+/// does.
+async fn handle_contextual_search(
+    request: CallToolRequestParams,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    use vectorizer::intelligent_search::rest_api::{ContextualSearchRequest, RESTAPIHandler};
+
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let query = args
+        .get("query")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
+
+    let collection = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+
+    let context_filters = args
+        .get("context_filters")
+        .and_then(|f| f.as_object())
+        .map(|obj| {
+            let mut map = std::collections::HashMap::new();
+            for (k, v) in obj {
+                map.insert(k.clone(), v.clone());
+            }
+            map
+        });
+
+    let context_weight = args
+        .get("context_weight")
+        .and_then(|w| w.as_f64())
+        .map(|w| w as f32);
+
+    let context_reranking = args.get("context_reranking").and_then(|r| r.as_bool());
+
+    let max_results = args
+        .get("max_results")
+        .and_then(|m| m.as_u64())
+        .map(|m| m as usize);
+
+    let handler = RESTAPIHandler::new_with_store(store.clone());
+    let search_request = ContextualSearchRequest {
+        query: query.to_string(),
+        collection: collection.to_string(),
+        context_filters,
+        context_weight,
+        context_reranking,
+        max_results,
+    };
+
+    let response = handler
+        .handle_contextual_search(search_request)
+        .await
+        .map_err(|e| {
+            ErrorData::internal_error(format!("Contextual search failed: {}", e.error), None)
+        })?;
+
+    let json_response = serde_json::to_value(response)
+        .map_err(|e| ErrorData::internal_error(format!("Serialization failed: {}", e), None))?;
+
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        json_response.to_string(),
+    )]))
+}
+
+/// Mirrors `GET /stats` (`rest_handlers::meta::get_stats`) for MCP
+/// callers: aggregate collection/vector counts plus the embedding
+/// provider registry. Two REST-only fields are intentionally omitted:
+/// `uptime_seconds` (the server start time lives on `VectorizerServer`,
+/// not on the `store`/`embedding_manager` pair `handle_mcp_tool`
+/// receives) and `default_quantization`/`compression_ratio` (derived by
+/// private helpers in `rest_handlers::meta` not reachable from this
+/// module).
+async fn handle_get_database_stats(
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    let collections = store.list_collections();
+    let mut total_vectors: usize = 0;
+    for name in &collections {
+        if let Ok(coll) = store.get_collection(name) {
+            total_vectors += coll.vector_count();
+        }
+    }
+
+    let default_provider = embedding_manager
+        .get_default_provider_name()
+        .map(|s| s.to_string());
+    let providers: Vec<serde_json::Value> = embedding_manager
+        .list_providers()
+        .into_iter()
+        .map(|name| {
+            let dimension = embedding_manager.get_provider_dimension(&name).unwrap_or(0);
+            let is_default = default_provider.as_deref() == Some(name.as_str());
+            json!({
+                "name": name,
+                "dimension": dimension,
+                "default": is_default,
+            })
+        })
+        .collect();
+
+    let response = json!({
+        "collections": collections.len(),
+        "total_vectors": total_vectors,
+        "version": env!("CARGO_PKG_VERSION"),
+        "providers": providers,
+        "default_provider": default_provider,
+    });
+
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        response.to_string(),
+    )]))
+}
+
+// =============================================
+// phase40 §2.2 — Batch operations (mirror REST /batch_* routes)
+// =============================================
+
+/// Mirrors `POST /batch_insert`
+/// (`rest_handlers::vectors::batch_insert_texts`) using the same
+/// embed-then-insert primitives the singular `insert_text` MCP tool
+/// uses. Per-item failures are captured in `results` without aborting
+/// the batch, matching the REST response shape (`{collection, inserted,
+/// failed, count, results}`).
+async fn handle_batch_insert_texts(
+    request: CallToolRequestParams,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+    upsert_queue: Arc<vectorizer::db::UpsertQueue>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let collection_name = args
+        .get("collection_name")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection_name", None))?;
+
+    let texts = args
+        .get("texts")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing texts array", None))?;
+
+    if texts.is_empty() {
+        return Err(ErrorData::invalid_params(
+            "texts array must contain at least one entry",
+            None,
+        ));
+    }
+
+    // Issue #263: per-collection admission, mirrors the REST batch path.
+    // Held until the batch completes.
+    let _ticket = match upsert_queue.try_admit(collection_name) {
+        Ok((ticket, _status)) => ticket,
+        Err(vectorizer::db::AdmissionError::QueueFull {
+            depth,
+            hard_limit,
+            retry_after_seconds,
+        }) => {
+            return Err(ErrorData::internal_error(
+                format!(
+                    "queue_full: collection '{}' depth {} >= hard_limit {} (retry after {}s)",
+                    collection_name, depth, hard_limit, retry_after_seconds,
+                ),
+                Some(json!({
+                    "code": "queue_full",
+                    "collection": collection_name,
+                    "depth": depth,
+                    "hard_limit": hard_limit,
+                    "retryAfterSeconds": retry_after_seconds,
+                })),
+            ));
+        }
+    };
+
+    let mut inserted: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(texts.len());
+
+    for (idx, entry) in texts.iter().enumerate() {
+        let Some(text) = entry.get("text").and_then(|t| t.as_str()) else {
+            failed += 1;
+            results.push(json!({
+                "index": idx,
+                "status": "error",
+                "error": "missing or invalid text field",
+            }));
+            continue;
+        };
+
+        let client_id = entry.get("id").and_then(|i| i.as_str()).map(str::to_string);
+        let metadata = entry.get("metadata").cloned();
+        let public_key = entry.get("public_key").and_then(|k| k.as_str());
+
+        let embedding = match embedding_manager.embed(text) {
+            Ok(e) => e,
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "client_id": client_id,
+                    "status": "error",
+                    "error": e.to_string(),
+                    "error_type": e.code(),
+                }));
+                continue;
+            }
+        };
+
+        let vector_id = client_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let payload_json = metadata.unwrap_or_else(|| json!({}));
+
+        let payload = if let Some(key) = public_key {
+            match vectorizer::security::payload_encryption::encrypt_payload(&payload_json, key) {
+                Ok(encrypted) => vectorizer::models::Payload::from_encrypted(encrypted),
+                Err(e) => {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "client_id": client_id,
+                        "status": "error",
+                        "error": format!("Encryption failed: {}", e),
+                    }));
+                    continue;
+                }
+            }
+        } else {
+            vectorizer::models::Payload::new(payload_json)
+        };
+
+        match store.insert(
+            collection_name,
+            vec![vectorizer::models::Vector::with_payload(
+                vector_id.clone(),
+                embedding,
+                payload,
+            )],
+        ) {
+            Ok(()) => {
+                inserted += 1;
+                results.push(json!({
+                    "index": idx,
+                    "client_id": client_id,
+                    "status": "ok",
+                    "vector_id": vector_id,
+                }));
+            }
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "client_id": client_id,
+                    "status": "error",
+                    "error": e.to_string(),
+                    "error_type": e.code(),
+                }));
+            }
+        }
+    }
+
+    let response = json!({
+        "collection": collection_name,
+        "inserted": inserted,
+        "failed": failed,
+        "count": texts.len(),
+        "results": results,
+    });
+
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        response.to_string(),
+    )]))
+}
+
+/// Mirrors `POST /batch_search`
+/// (`rest_handlers::search::batch_search_vectors`): each entry may
+/// carry a text `query` (embedded server-side) or a raw `vector`.
+/// `limit` is clamped to the same 100-result ceiling the `search`
+/// tool's schema declares. Per-query failures are captured without
+/// aborting the batch.
+async fn handle_batch_search(
+    request: CallToolRequestParams,
+    store: Arc<VectorStore>,
+    embedding_manager: Arc<EmbeddingManager>,
+) -> Result<CallToolResult, ErrorData> {
+    const MAX_BATCH_SEARCH_LIMIT: usize = 100;
+
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let collection_name = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+
+    let queries = args
+        .get("queries")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing queries array", None))?;
+
+    if queries.is_empty() {
+        return Err(ErrorData::invalid_params(
+            "queries array must contain at least one entry",
+            None,
+        ));
+    }
+
+    let mut succeeded: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(queries.len());
+
+    for (idx, entry) in queries.iter().enumerate() {
+        let limit = (entry.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize)
+            .min(MAX_BATCH_SEARCH_LIMIT);
+
+        let embedding = if let Some(vec_arr) = entry.get("vector").and_then(|v| v.as_array()) {
+            let mut query_vector = Vec::with_capacity(vec_arr.len());
+            let mut bad_entry = false;
+            for v in vec_arr {
+                match v.as_f64() {
+                    Some(f) => query_vector.push(f as f32),
+                    None => {
+                        bad_entry = true;
+                        break;
+                    }
+                }
+            }
+            if bad_entry {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "status": "error",
+                    "error": "vector entries must be numbers",
+                }));
+                continue;
+            }
+            query_vector
+        } else if let Some(query) = entry.get("query").and_then(|q| q.as_str()) {
+            match embedding_manager.embed(query) {
+                Ok(e) => e,
+                Err(e) => {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "status": "error",
+                        "error": e.to_string(),
+                        "error_type": e.code(),
+                    }));
+                    continue;
+                }
+            }
+        } else {
+            failed += 1;
+            results.push(json!({
+                "index": idx,
+                "status": "error",
+                "error": format!("entry[{}] missing both `query` and `vector`", idx),
+            }));
+            continue;
+        };
+
+        match store.search(collection_name, &embedding, limit) {
+            Ok(hits) => {
+                succeeded += 1;
+                results.push(json!({
+                    "index": idx,
+                    "status": "ok",
+                    "query": entry.get("query").cloned().unwrap_or(serde_json::Value::Null),
+                    "total_results": hits.len(),
+                    "results": hits.iter().map(|r| json!({
+                        "id": r.id,
+                        "score": r.score,
+                        "payload": r.payload,
+                    })).collect::<Vec<_>>(),
+                }));
+            }
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "status": "error",
+                    "error": e.to_string(),
+                    "error_type": e.code(),
+                    "query": entry.get("query").cloned().unwrap_or(serde_json::Value::Null),
+                }));
+            }
+        }
+    }
+
+    let response = json!({
+        "collection": collection_name,
+        "count": queries.len(),
+        "succeeded": succeeded,
+        "failed": failed,
+        "results": results,
+    });
+
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        response.to_string(),
+    )]))
+}
+
+/// Mirrors `POST /batch_update`
+/// (`rest_handlers::search::batch_update_vectors`): replaces a
+/// vector's dense data and/or payload in bulk. Per-entry failures are
+/// captured without aborting the batch.
+async fn handle_batch_update(
+    request: CallToolRequestParams,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let collection_name = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+
+    let updates = args
+        .get("updates")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing updates array", None))?;
+
+    if updates.is_empty() {
+        return Err(ErrorData::invalid_params(
+            "updates array must contain at least one entry",
+            None,
+        ));
+    }
+
+    let collection_dim = store
+        .get_collection(collection_name)
+        .map_err(to_mcp_error)?
+        .config()
+        .dimension;
+
+    let mut updated: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(updates.len());
+
+    for (idx, entry) in updates.iter().enumerate() {
+        let Some(id) = entry.get("id").and_then(|i| i.as_str()) else {
+            failed += 1;
+            results.push(json!({
+                "index": idx,
+                "status": "error",
+                "error": "missing `id` field",
+            }));
+            continue;
+        };
+
+        let existing = match store
+            .get_collection(collection_name)
+            .and_then(|c| c.get_vector(id))
+        {
+            Ok(v) => v,
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "id": id,
+                    "status": "error",
+                    "error": e.to_string(),
+                }));
+                continue;
+            }
+        };
+
+        let new_data = match entry.get("vector").and_then(|v| v.as_array()) {
+            Some(arr) => {
+                let mut v = Vec::with_capacity(arr.len());
+                let mut bad = false;
+                for x in arr {
+                    match x.as_f64() {
+                        Some(f) => v.push(f as f32),
+                        None => {
+                            bad = true;
+                            break;
+                        }
+                    }
+                }
+                if bad {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "id": id,
+                        "status": "error",
+                        "error": "vector entries must be numbers",
+                    }));
+                    continue;
+                }
+                if v.len() != collection_dim {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "id": id,
+                        "status": "error",
+                        "error": format!(
+                            "vector dim {} != collection dim {}",
+                            v.len(),
+                            collection_dim
+                        ),
+                    }));
+                    continue;
+                }
+                v
+            }
+            None => existing.data.clone(),
+        };
+
+        let new_payload = match entry.get("payload") {
+            Some(p) if !p.is_null() => Some(vectorizer::models::Payload::new(p.clone())),
+            Some(_) => None,
+            None => existing.payload.clone(),
+        };
+
+        let updated_vector = vectorizer::models::Vector {
+            id: id.to_string(),
+            data: new_data,
+            sparse: existing.sparse.clone(),
+            payload: new_payload,
+            document_id: existing.document_id.clone(),
+        };
+
+        match store.update(collection_name, updated_vector) {
+            Ok(()) => {
+                updated += 1;
+                results.push(json!({ "index": idx, "id": id, "status": "ok" }));
+            }
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "id": id,
+                    "status": "error",
+                    "error": e.to_string(),
+                }));
+            }
+        }
+    }
+
+    let response = json!({
+        "collection": collection_name,
+        "count": updates.len(),
+        "updated": updated,
+        "failed": failed,
+        "results": results,
+    });
+
+    Ok(CallToolResult::success(vec![ContentBlock::text(
+        response.to_string(),
+    )]))
+}
+
+/// Mirrors `POST /batch_delete`
+/// (`rest_handlers::search::batch_delete_vectors`): deletes a list of
+/// vector ids from a single collection. Per-id failures are captured
+/// without aborting the batch.
+async fn handle_batch_delete(
+    request: CallToolRequestParams,
+    store: Arc<VectorStore>,
+) -> Result<CallToolResult, ErrorData> {
+    let args = request
+        .arguments
+        .as_ref()
+        .ok_or_else(|| ErrorData::invalid_params("Missing arguments", None))?;
+
+    let collection_name = args
+        .get("collection")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ErrorData::invalid_params("Missing collection", None))?;
+
+    let ids = args
+        .get("ids")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ErrorData::invalid_params("Missing ids array", None))?;
+
+    if ids.is_empty() {
+        return Err(ErrorData::invalid_params(
+            "ids array must contain at least one entry",
+            None,
+        ));
+    }
+
+    let mut deleted: usize = 0;
+    let mut failed: usize = 0;
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(ids.len());
+
+    for (idx, entry) in ids.iter().enumerate() {
+        let Some(id) = entry.as_str() else {
+            failed += 1;
+            results.push(json!({
+                "index": idx,
+                "status": "error",
+                "error": "id must be a string",
+            }));
+            continue;
+        };
+
+        match store.delete(collection_name, id) {
+            Ok(()) => {
+                deleted += 1;
+                results.push(json!({ "index": idx, "id": id, "status": "ok" }));
+            }
+            Err(e) => {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "id": id,
+                    "status": "error",
+                    "error": e.to_string(),
+                }));
+            }
+        }
+    }
+
+    let response = json!({
+        "collection": collection_name,
+        "count": ids.len(),
+        "deleted": deleted,
+        "failed": failed,
+        "results": results,
     });
 
     Ok(CallToolResult::success(vec![ContentBlock::text(

@@ -69,6 +69,32 @@ All notable changes to this project will be documented in this file.
   sequences at `max + 1` after recovery (the first append after every
   restart used to duplicate the last entry's sequence).
 
+### Changed
+
+- **API parity + hardening (phase40).**
+  - MCP now mirrors REST: `delete_collection`, `embed_text`,
+    `contextual_search`, `get_database_stats`, the 8-op discovery
+    pipeline, and `batch_*` tools added; MCP errors carry mapped codes
+    (not-found is no longer −32603 Internal); RPC error frames carry
+    the stable `VectorizerError::code()`.
+  - Capability registry completed (+~40 endpoints/tools), the
+    `graph.find_related` GET/POST mismatch fixed, and a new
+    route-reachability test probes every registry entry against the
+    real router so registry drift fails CI.
+  - Search `limit` (and hybrid `dense_k`/`sparse_k`/`final_k`, explain
+    `k`) clamped server-side at 100 — the schema said so, the handlers
+    now enforce it (memory-DoS guard).
+  - GraphQL tenant prefix unified via a single helper: `upload_file`
+    used `user_{id}_{name}` while `create_collection` used
+    `user_{id}:{name}`, so uploads landed in a different collection;
+    metadata lookup also fixed to the prefixed name.
+  - Auth-middleware 401s use the standard `error_type` body shape.
+  - Config: loaded once via the layered loader (was re-parsed 4× with
+    errors swallowed — mode overrides never reached auth/hub); unknown
+    top-level keys warn at boot; first boot with the shipped default
+    config now succeeds by auto-generating a persisted JWT secret
+    (prominent warning) instead of failing the bind check.
+
 ### Security
 
 - **Docker image CVE posture (phase35).** Rebuild against the refreshed
