@@ -1,8 +1,11 @@
 name: Release Helm Chart
 
+# Helm chart publishing on release is DISABLED. It no longer runs
+# automatically when a GitHub release is published; it can only be
+# triggered manually from the Actions tab. To re-enable automatic
+# publishing, restore the `release: types: [published]` trigger below.
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: write
