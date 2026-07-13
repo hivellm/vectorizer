@@ -108,6 +108,29 @@ All notable changes to this project will be documented in this file.
     config now succeeds by auto-generating a persisted JWT secret
     (prominent warning) instead of failing the bind check.
 
+### Testing
+
+- **In-process REST harness (phase39).** `TestApp` builds the REAL
+  production router over in-memory state and dispatches via
+  `tower::ServiceExt::oneshot` — the 12 live-server-only REST suites
+  (98 tests) plus router-level coverage for ~30 previously untested
+  handlers now run on every PR with no server process. The very first
+  coverage run caught the `bulk_update_metadata` production deadlock
+  (see Fixed). Auth-enabled variant included (real JWT login through
+  the real handlers).
+- **Ignore hygiene (phase39).** Every `#[ignore]` carries a reason;
+  `ignore_count_gate.rs` fails CI when the repo-wide count (150) grows,
+  a bare ignore appears, or the baseline goes stale. Two "known bug"
+  ignore clusters turned out long-fixed and were re-enabled (4 gRPC
+  update tests; the replication snapshot-sync suite — which was never
+  orphaned, the analysis misread `#[path]` includes).
+- **Server-backed SDK CI (phase39).** New `sdk-integration.yml` boots
+  the slim server on the runner weekly and runs the TS/Python/Go/C#
+  integration suites against it — the first SDK-to-server coverage in
+  CI. Also fixed: the C# suite's connection-refused detection matched
+  English error text only, producing 21 false failures on pt-BR
+  Windows; it now walks the exception chain for `SocketException`.
+
 ### Security
 
 - **Docker image CVE posture (phase35).** Rebuild against the refreshed

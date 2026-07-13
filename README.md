@@ -67,9 +67,42 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.4.0
+## 🎉 Latest Release: v3.5.0
 
 Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+
+**Fixed — Text search survived nothing: BM25 vocabulary was never restored after a restart (phase37)**
+- Auto-save wrote a stub tokenizer (`vocab_size: 0`) and no code path ever reloaded the vocabulary, so a restarted server embedded queries in a hash-fallback space disjoint from the stored vectors — text search returned zero hits until a full re-index.
+- Auto-save now persists the real vocabulary and bootstrap restores the newest snapshot (from raw files or from inside `vectorizer.vecdb`) into the query-time provider. Collections without a usable snapshot are flagged `degraded_vocabulary:{name}` and logged instead of silently degrading. Pinned by an end-to-end save → restart → search test.
+
+**Fixed — WAL durability (phase37)**
+- The WAL only `flush()`ed — acknowledged writes died with the OS page cache on power loss. It now fsyncs on every append/checkpoint (`wal.fsync`, default on), frames each record with CRC32 + length (a torn final record no longer aborts recovery of everything after it), and sequence numbers survive restarts and concurrent transactions without duplication.
+
+**Fixed — `bulk_update_metadata` deadlocked on every call (phase39)**
+- The handler held a DashMap shard reference across an operation that takes a write reference on the same shard. The endpoint had zero test coverage, so every production call simply hung forever. Caught by the first-ever run of the new in-process handler coverage; the deadlock *class* was removed in phase41 (`VectorStore::update` no longer takes an unconditional shard write ref).
+
+**Performance — search no longer blocks behind batch inserts (phase38)**
+- `insert_batch` held the HNSW index write lock for the entire batch, collapsing search p99 under mixed load. Searches now proceed against the internally-synchronized index while writers serialize on a dedicated mutex. Per-vector copies on the insert path cut from 3-4 to 1.
+- Product Quantization and Binary quantization are actually reachable (the integration silently substituted 8-bit scalar for everything before); AVX2 + NEON quantize/dequantize and AVX2 int8 dot-product kernels landed, CI-verified against the scalar oracle on x86_64 and native arm64.
+
+**Security — Docker image CVE posture (phase35)**
+- 3.4.0 shipped with 31 base-image CVEs (4 HIGH in openssl on the TLS hot path). 3.5.0 rebuilds against the patched `dhi.io/debian-base:trixie` pinned **by digest**: 0 CRITICAL / 0 HIGH; the unfixable remainder (no patched version exists in Debian trixie) is documented per-CVE in an OpenVEX attestation attached to the image, so Scout dashboards read clean without hiding real signal. A weekly + on-release CI gate fails on any new fixable CRITICAL/HIGH and tracks base-digest staleness.
+
+**Changed — API parity + hardening (phase40)**
+- MCP now mirrors REST: `delete_collection`, `embed_text`, `contextual_search`, `get_database_stats`, the 8-op discovery pipeline, and `batch_*` tools; MCP error codes are mapped (not-found is no longer a generic internal error); RPC error frames carry the stable error code.
+- Search `limit` (and hybrid `dense_k`/`sparse_k`/`final_k`) is clamped server-side at 100 — the schema said so, the handlers now enforce it.
+- GraphQL multi-tenancy bug fixed: `upload_file` and `create_collection` disagreed on the tenant prefix, so uploads landed in a different collection than the one created.
+- **First boot with the shipped default config now works**: an empty `jwt_secret` auto-generates a persisted secret (with a prominent warning) instead of failing the bind check. Unknown config keys warn at boot; the config is loaded once through the layered loader so mode overrides actually reach every subsystem.
+
+**Testing (phase39)** — an in-process REST harness runs the real production router with no server process: 98 formerly live-server-only tests plus coverage for ~30 previously untested handlers now run on every PR; a CI gate keeps the `#[ignore]` count from creeping; a weekly job boots the server and runs all four SDK integration suites against it.
+
+**Build — dependency refresh (phase36)** — rmcp 2.1 (MCP 2025-11-25), candle 0.11, aes-gcm 0.11, ~120 compatible bumps, SDK dep refreshes, and dependabot now covers every SDK ecosystem.
+
+Server-side at **v3.5.0**; all five SDKs synced to v3.5.0.
+
+---
+
+### v3.4.0 highlights (previous release)
 
 **Fixed — Container deployments lose all collections on restart (phase32, [#300](https://github.com/hivellm/vectorizer/issues/300))**
 - 3.3.0 image wrote persistent state to `/.local/share/vectorizer/` even though the README advertised `/data` as the volume mount. The XDG path lived on the container's writable layer, so `docker compose up -d --force-recreate vectorizer` silently wiped every collection.
@@ -101,55 +134,7 @@ Server-side at **v3.4.0**. The Rust SDK tracks server versioning; TypeScript, Py
 
 ---
 
-### v3.3.0 highlights (previous release)
-
-**Security — Hardened dashboard cookies + CSRF**
-- `POST /auth/login` and `POST /auth/refresh` now set a hardened `vectorizer_session` cookie (`HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=<jwt_exp>`) carrying the JWT, plus a sibling `XSRF-TOKEN` cookie carrying a 32-byte random CSRF token (non-`HttpOnly` so the SPA can echo it).
-- New `require_csrf_middleware` rejects `POST/PUT/PATCH/DELETE` requests under `/auth/*` and `/admin/*` with HTTP 403 unless the `X-CSRF-Token` header matches the token bound to the caller's session JWT. `GET/HEAD/OPTIONS`, `/auth/login`, `/auth/validate-password`, and `X-API-Key` requests bypass the gate.
-- `POST /auth/logout` emits expired `Set-Cookie` headers for both cookies and drops the CSRF binding.
-- New `auth.cookies.insecure_dev` config flag (default `false`) drops only `Secure` for plain-HTTP `127.0.0.1` development. Boot rejects the flag on any non-loopback host.
-- `dashboard/src/lib/api-middleware.ts` adds a `csrfMiddleware` that reads the `XSRF-TOKEN` cookie and echoes it on every mutating request. Legacy `access_token` JSON body preserved for SDK / `Authorization: Bearer` callers.
-
-**Security — Loopback dev-mode auth bypass**
-- New `auth.dev_mode_skip_loopback` config flag (default `false`) lets local devs run the dashboard / SDK against `127.0.0.1` without minting a JWT or echoing tokens on every cURL.
-- When on: middleware short-circuits with a synthetic `local-dev-admin` principal (`Role::Admin`) and every response carries `X-Vectorizer-Dev-Mode: true`. CSRF middleware no-ops in the same mode.
-- Boot fails fast when the flag is on and the bind host is anything other than `127.0.0.1`, `::1`, or `localhost`. Multi-line `WARN` banner emitted at boot when engaged on a loopback bind.
-- See `docs/users/api/AUTHENTICATION.md` → "Local Development".
-
-**Added — API key usage metrics + permission update**
-- Per-key `usage_count` (atomic, lock-free on the validation hot path) plus a 30-day per-key per-day ring buffer. Every successful `validate_api_key` bumps both. Counter persists across restarts; old payloads deserialize with `usage_count: 0`.
-- New `PUT /auth/keys/{id}/permissions` (admin-gated) replaces a key's permissions/scopes without rotating the credential. `key_hash`/`id`/`user_id`/`created_at` stay immutable.
-- New `GET /auth/keys/{id}/usage?window=<n>` (admin-gated) returns the per-day counter ring (default 7, max 30) plus live key view + window total. Zero-count days included so consumers render gap-free sparklines.
-- `GET /auth/keys` list response now carries `usage_count` + `usage_24h` per row — dashboard renders `Last 24h` + `Total` columns without an N+1 fetch.
-- SDK parity (Rust / TypeScript / Python): `update_api_key_permissions`, `get_api_key_usage`, plus `ApiKeyView`, `ApiKeyUsageReport`, `ApiKeyUsageBucket`, `ApiKeyScope`, `UpdateApiKeyPermissionsRequest`. `ApiKey` gains `usage_count` (additive).
-- Dashboard `ApiKeysPage.tsx` adds the new columns and a `Usage` button that opens a modal with a 14-day SVG sparkline (new dependency-free `Sparkline.tsx`) + per-day bucket table.
-
-**Added — Cluster admin endpoints**
-- `POST /cluster/failover` — promote a replica with a pre-flight WAL-lag check (HTTP 409 when lag exceeds `max_lag_segments`).
-- `POST /cluster/replicas/{id}/resync` — force a full snapshot + WAL replay on a lagging replica.
-- `POST /cluster/peers` — add a member or observer peer.
-- `POST /cluster/rebalance` + `GET /cluster/rebalance/status` — async shard rebalance using insert-before-delete invariant; poll the job by id.
-
-**Added — Auth / RBAC admin endpoints**
-- `POST /auth/keys/{id}/rotate` — atomic key rotation with a 300 s grace window. Returns `{old_key_id, new_key_id, new_token, grace_until}`.
-- `POST /auth/keys` (extended) — optional `scopes: [{collection, permissions}]` for collection-scoped keys; empty list = default-deny on scope-aware routes. Existing global-key callers unaffected.
-- `POST /auth/introspect` — RFC 7662 token introspection for any JWT or API key.
-- `GET /auth/audit` — admin-only audit log query (in-memory ring + daily-rotated JSONL files), filterable by `from`, `to`, `actor`, `action`.
-- New `AuditLogger` ships record events through an unbounded `mpsc` channel — never blocks the handler hot-path.
-
-**Added — Tier-demotion API ([#265](https://github.com/hivellm/vectorizer/issues/265))**
-- `POST /collections/{src}/vectors/move` — cross-collection move with insert-before-delete invariant; per-id status (`ok | missing_in_src | dst_insert_failed | src_delete_failed`) so a mid-batch crash leaves a recoverable duplicate, never data loss. See [`docs/users/api/API_REFERENCE.md`](docs/users/api/API_REFERENCE.md).
-- All three SDKs (Rust / TypeScript / Python): `delete_vector`, `delete_vectors` (batch with per-id `DeleteReport`), `move_to_collection` (cross-collection with `MoveReport`). TypeScript / Python `delete_vectors` now return the canonical `DeleteReport` shape — callers asserting on the old `{deleted: number}` / `bool` shapes need to read `report.deleted` / `report.results`.
-
-**Build — Docker pipeline overhaul**
-- Cuts cold local multi-arch build from ~30–45 min to ~15–20 min, warm to under 10 min via four changes:
-  1. **Buildx registry cache** on `hivehub/vectorizer-cache:buildx` (opt out with `-NoCache`).
-  2. **Dedicated `release-docker` Cargo profile** (`lto = false`, `codegen-units = 16`, `incremental = false`) — ~30 % faster compile, ~50 % lower peak rustc memory; ~10–15 % lower throughput on hot paths vs the host `release` profile, which is unchanged.
-  3. **Drop in-image `cargo sbom`** — SBOM now exclusively from BuildKit's `--sbom=true` syft attestation.
-  4. **Native arm64 in CI + Docker Hub publish** — per-arch matrix, manifest-list stitched and pushed to both `ghcr.io/hivellm/vectorizer` and `hivehub/vectorizer`. Eliminates QEMU emulation from the arm64 build.
-- Operator runbook: [`docs/development/docker-builds.md`](docs/development/docker-builds.md).
-
-For prior releases see [CHANGELOG.md](./CHANGELOG.md).
+For prior releases (v3.3.0 and earlier) see [CHANGELOG.md](./CHANGELOG.md).
 
 ## 🚀 Quick Start
 
@@ -365,7 +350,7 @@ See [Benchmark Documentation](./docs/specs/BENCHMARKING.md).
 - **Qdrant compatibility** — full API + migration tools.
 - **Performance** — 4-5x faster than Qdrant in benchmarks.
 - **Binary RPC default** — MessagePack over TCP on port 15503 for low-overhead client traffic.
-- **Complete SDK coverage** — Rust, Python, TypeScript (+JS), Go, C# — all on v3.4.0.
+- **Complete SDK coverage** — Rust, Python, TypeScript (+JS), Go, C# — all on v3.5.0.
 
 **Best fit:** AI apps needing MCP, document ingestion, graph relationships, and sub-ms search with an embedded dashboard.
 
@@ -412,7 +397,7 @@ Cursor / Claude Desktop config:
 
 ## 📦 Client SDKs
 
-Server-side at **v3.4.0**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.4.0**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
+Server-side at **v3.5.0**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.5.0**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
 
 | SDK | Install |
 |---|---|
