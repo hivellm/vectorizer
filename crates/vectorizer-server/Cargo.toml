@@ -39,7 +39,7 @@ prost-types = "0.14"
 
 # MCP SDK
 rmcp = { version = "2.1", features = ["server", "macros", "transport-streamable-http-server"] }
-tokio-tungstenite = "0.29"
+tokio-tungstenite = "0.30"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # GraphQL
