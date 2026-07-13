@@ -143,7 +143,7 @@ sys-info = "0.9"
 tempfile = "3.8"
 
 # MCP (Model Context Protocol) dependencies
-tokio-tungstenite = "0.29"
+tokio-tungstenite = "0.30"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Optional ML dependencies. The candle family (core/nn/transformers)
