@@ -66,7 +66,10 @@ async fn test_concurrent_inserts_distributed() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-concurrent-inserts".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -127,7 +130,10 @@ async fn test_concurrent_searches_distributed() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-concurrent-search".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -196,7 +202,10 @@ async fn test_throughput_comparison() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-throughput".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -247,7 +256,10 @@ async fn test_latency_distribution() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-latency".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -306,7 +318,10 @@ async fn test_memory_usage_distributed() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-memory".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),

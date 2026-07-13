@@ -67,7 +67,10 @@ async fn test_node_failure_during_insert() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-failure".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -127,7 +130,10 @@ async fn test_node_failure_during_search() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-search-failure".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,

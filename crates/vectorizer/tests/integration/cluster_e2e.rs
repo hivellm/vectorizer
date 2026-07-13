@@ -67,7 +67,10 @@ async fn test_e2e_distributed_workflow() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-e2e".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -178,7 +181,10 @@ async fn test_e2e_multi_collection_cluster() {
     let collection1: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-collection-1".to_string(),
         collection_config.clone(),
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -188,7 +194,10 @@ async fn test_e2e_multi_collection_cluster() {
     let collection2: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-collection-2".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -252,7 +261,10 @@ async fn test_e2e_cluster_scaling() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-scaling".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -328,7 +340,10 @@ async fn test_e2e_cluster_maintenance() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-maintenance".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,

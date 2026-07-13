@@ -11,7 +11,7 @@ use vectorizer_protocol::grpc_gen::cluster as cluster_proto;
 
 use super::node::NodeId;
 use crate::error::{Result, VectorizerError};
-use crate::hub::TenantContext;
+use crate::models::tenant::TenantContext;
 
 /// Convert hub TenantContext to proto TenantContext
 fn tenant_to_proto(tenant: Option<&TenantContext>) -> Option<cluster_proto::TenantContext> {
@@ -801,6 +801,14 @@ impl ClusterClientPool {
             ),
             timeout,
         }
+    }
+
+    /// String-id variant of [`Self::get_client`] for callers on the far
+    /// side of the [`ShardTopology`](crate::db::shard_topology::ShardTopology)
+    /// seam (phase41): db-layer code addresses nodes as plain strings
+    /// so it doesn't need the `NodeId` newtype import.
+    pub async fn get_client_by_id(&self, node_id: &str, address: &str) -> Result<ClusterClient> {
+        self.get_client(&NodeId(node_id.to_string()), address).await
     }
 
     /// Get or create a client for a node.

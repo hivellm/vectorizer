@@ -17,6 +17,7 @@ mod server_client;
 pub mod shard_migrator;
 mod shard_router;
 mod state_sync;
+mod topology;
 pub mod validator;
 
 use std::sync::Arc;
@@ -37,6 +38,7 @@ pub use rebalance::{PeerInfo, PeerRole, RebalanceJob, RebalanceStatus};
 pub use server_client::{ClusterClient, ClusterClientPool};
 pub use shard_router::DistributedShardRouter;
 pub use state_sync::ClusterStateSynchronizer;
+pub use topology::ClusterShardTopology;
 use tracing::{error, info, warn};
 pub use validator::{
     ClusterConfigValidator, ClusterValidationError, ClusterValidationResult,

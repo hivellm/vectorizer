@@ -71,6 +71,19 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Architecture decoupling (phase41).** Eight of the nine upward
+  back-references that stalled the workspace split are gone:
+  `monitoring::METRICS` is now a `MetricsSink` trait injected into
+  db/cache/hub/auth; `AuthConfig`/`HubConfig`/`ClusterConfig` live in
+  `config/sections/` (services re-export them); the tenant model moved
+  to `models/tenant.rs` (kills cluster→hub); and sharded collections
+  route through a `ShardTopology` trait instead of concrete cluster
+  types (the gRPC `ClusterClientPool` stays concrete by design — it is
+  the transport). Also: dead `[[bin]]` stanzas removed, the two
+  1000-line persistence/collections files split along concern seams,
+  `VectorStore::update` no longer takes an unconditional shard write
+  ref (removing the deadlock class fixed in phase39), and the db lock
+  convention is documented.
 - **API parity + hardening (phase40).**
   - MCP now mirrors REST: `delete_collection`, `embed_text`,
     `contextual_search`, `get_database_stats`, the 8-op discovery

@@ -12,22 +12,22 @@ use tracing::{debug, error, info, warn};
 
 use super::HybridSearchConfig;
 use super::collection::Collection;
+use super::shard_topology::ShardTopology;
 use super::sharding::ShardId;
-use crate::cluster::{ClusterClientPool, ClusterManager, DistributedShardRouter, NodeId};
+use crate::cluster::ClusterClientPool;
 use crate::error::{Result, VectorizerError};
 use crate::models::{CollectionConfig, SearchResult, SparseVector, Vector};
 
 /// A distributed sharded collection that distributes vectors across multiple servers
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DistributedShardedCollection {
     /// Collection name
     name: String,
     /// Base collection configuration
     config: CollectionConfig,
     /// Distributed shard router
-    shard_router: Arc<DistributedShardRouter>,
+    topology: Arc<dyn ShardTopology>,
     /// Cluster manager
-    cluster_manager: Arc<ClusterManager>,
     /// Client pool for remote operations
     client_pool: Arc<ClusterClientPool>,
     /// Local shard collections (shard_id -> Collection) for shards on this node
@@ -49,7 +49,7 @@ impl DistributedShardedCollection {
     pub fn new(
         name: String,
         config: CollectionConfig,
-        cluster_manager: Arc<ClusterManager>,
+        topology: Arc<dyn ShardTopology>,
         client_pool: Arc<ClusterClientPool>,
     ) -> Result<Self> {
         let sharding_config =
@@ -60,13 +60,11 @@ impl DistributedShardedCollection {
                     message: "Collection config must have sharding enabled".to_string(),
                 })?;
 
-        // Create distributed shard router
-        let shard_router = Arc::new(DistributedShardRouter::new(
-            sharding_config.virtual_nodes_per_shard,
-        ));
-
-        // Get active nodes
-        let nodes = cluster_manager.get_active_nodes();
+        // Get active nodes from the injected topology (phase41: the
+        // router lives behind the ShardTopology seam; production callers
+        // pass cluster::ClusterShardTopology built with
+        // `sharding_config.virtual_nodes_per_shard`).
+        let nodes = topology.active_node_ids();
         if nodes.is_empty() {
             return Err(VectorizerError::InvalidConfiguration {
                 message: "No active cluster nodes available".to_string(),
@@ -78,16 +76,15 @@ impl DistributedShardedCollection {
             .map(|i| ShardId::new(i))
             .collect();
 
-        let node_ids: Vec<NodeId> = nodes.iter().map(|n| n.id.clone()).collect();
-        shard_router.rebalance(&shard_ids, &node_ids);
+        topology.rebalance(&shard_ids, &nodes);
 
         // Create local shards for shards assigned to this node
-        let local_node_id = cluster_manager.local_node_id();
+        let local_node_id = topology.local_node_id();
         let local_shards = Arc::new(parking_lot::RwLock::new(HashMap::new()));
 
         for shard_id in &shard_ids {
-            if let Some(node_id) = shard_router.get_node_for_shard(shard_id) {
-                if node_id == *local_node_id {
+            if let Some(node_id) = topology.node_for_shard(shard_id) {
+                if node_id == local_node_id {
                     // This shard is on this node, create local collection
                     let mut shard_config = config.clone();
                     shard_config.sharding = None; // Shards themselves are not sharded
@@ -109,8 +106,7 @@ impl DistributedShardedCollection {
         Ok(Self {
             name,
             config,
-            shard_router,
-            cluster_manager,
+            topology,
             client_pool,
             local_shards,
             vector_count_cache: Arc::new(RwLock::new(None)),
@@ -137,10 +133,10 @@ impl DistributedShardedCollection {
 
     /// Insert a vector into the appropriate shard (local or remote)
     pub async fn insert(&self, vector: Vector) -> Result<()> {
-        let shard_id = self.shard_router.get_shard_for_vector(&vector.id);
+        let shard_id = self.topology.shard_for_vector(&vector.id);
 
-        if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
-            let local_node_id = self.cluster_manager.local_node_id();
+        if let Some(node_id) = self.topology.node_for_shard(&shard_id) {
+            let local_node_id = self.topology.local_node_id();
 
             if node_id == *local_node_id {
                 // Local shard
@@ -157,10 +153,10 @@ impl DistributedShardedCollection {
                 }
             } else {
                 // Remote shard - use gRPC client
-                if let Some(node) = self.cluster_manager.get_node(&node_id) {
+                if let Some(node_addr) = self.topology.node_grpc_address(&node_id) {
                     let client = self
                         .client_pool
-                        .get_client(&node_id, &node.grpc_address())
+                        .get_client_by_id(&node_id, &node_addr)
                         .await
                         .map_err(|e| {
                             VectorizerError::Storage(format!(
@@ -219,17 +215,17 @@ impl DistributedShardedCollection {
         // Group vectors by shard
         let mut shard_vectors: HashMap<ShardId, Vec<Vector>> = HashMap::new();
         for vector in vectors {
-            let shard_id = self.shard_router.get_shard_for_vector(&vector.id);
+            let shard_id = self.topology.shard_for_vector(&vector.id);
             shard_vectors.entry(shard_id).or_default().push(vector);
         }
 
         // Group shards by node
-        let local_node_id = self.cluster_manager.local_node_id();
+        let local_node_id = self.topology.local_node_id();
         let mut local_vectors: HashMap<ShardId, Vec<Vector>> = HashMap::new();
-        let mut remote_vectors: HashMap<NodeId, Vec<Vector>> = HashMap::new();
+        let mut remote_vectors: HashMap<String, Vec<Vector>> = HashMap::new();
 
         for (shard_id, vectors) in shard_vectors {
-            if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
+            if let Some(node_id) = self.topology.node_for_shard(&shard_id) {
                 if node_id == *local_node_id {
                     local_vectors.insert(shard_id, vectors);
                 } else {
@@ -257,10 +253,10 @@ impl DistributedShardedCollection {
 
         // Insert into remote shards
         for (node_id, vectors) in remote_vectors {
-            if let Some(node) = self.cluster_manager.get_node(&node_id) {
+            if let Some(node_addr) = self.topology.node_grpc_address(&node_id) {
                 let client = self
                     .client_pool
-                    .get_client(&node_id, &node.grpc_address())
+                    .get_client_by_id(&node_id, &node_addr)
                     .await
                     .map_err(|e| {
                         VectorizerError::Storage(format!(
@@ -311,10 +307,10 @@ impl DistributedShardedCollection {
 
     /// Update a vector in the appropriate shard (local or remote)
     pub async fn update(&self, vector: Vector) -> Result<()> {
-        let shard_id = self.shard_router.get_shard_for_vector(&vector.id);
+        let shard_id = self.topology.shard_for_vector(&vector.id);
 
-        if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
-            let local_node_id = self.cluster_manager.local_node_id();
+        if let Some(node_id) = self.topology.node_for_shard(&shard_id) {
+            let local_node_id = self.topology.local_node_id();
 
             if node_id == *local_node_id {
                 // Local shard
@@ -331,10 +327,10 @@ impl DistributedShardedCollection {
                 }
             } else {
                 // Remote shard - use gRPC client
-                if let Some(node) = self.cluster_manager.get_node(&node_id) {
+                if let Some(node_addr) = self.topology.node_grpc_address(&node_id) {
                     let client = self
                         .client_pool
-                        .get_client(&node_id, &node.grpc_address())
+                        .get_client_by_id(&node_id, &node_addr)
                         .await
                         .map_err(|e| {
                             VectorizerError::Storage(format!(
@@ -381,10 +377,10 @@ impl DistributedShardedCollection {
 
     /// Delete a vector from the appropriate shard (local or remote)
     pub async fn delete(&self, vector_id: &str) -> Result<()> {
-        let shard_id = self.shard_router.get_shard_for_vector(vector_id);
+        let shard_id = self.topology.shard_for_vector(vector_id);
 
-        if let Some(node_id) = self.shard_router.get_node_for_shard(&shard_id) {
-            let local_node_id = self.cluster_manager.local_node_id();
+        if let Some(node_id) = self.topology.node_for_shard(&shard_id) {
+            let local_node_id = self.topology.local_node_id();
 
             if node_id == *local_node_id {
                 // Local shard
@@ -400,10 +396,10 @@ impl DistributedShardedCollection {
                 }
             } else {
                 // Remote shard - use gRPC client
-                if let Some(node) = self.cluster_manager.get_node(&node_id) {
+                if let Some(node_addr) = self.topology.node_grpc_address(&node_id) {
                     let client = self
                         .client_pool
-                        .get_client(&node_id, &node.grpc_address())
+                        .get_client_by_id(&node_id, &node_addr)
                         .await
                         .map_err(|e| {
                             VectorizerError::Storage(format!(
@@ -451,7 +447,7 @@ impl DistributedShardedCollection {
             keys.to_vec()
         } else {
             // Get all shards from the router
-            self.shard_router.get_all_shards()
+            self.topology.all_shards()
         };
 
         if shard_ids.is_empty() {
@@ -459,12 +455,12 @@ impl DistributedShardedCollection {
         }
 
         let mut all_results = Vec::new();
-        let local_node_id = self.cluster_manager.local_node_id();
+        let local_node_id = self.topology.local_node_id();
 
         // Group shards by node
-        let mut node_shards: HashMap<NodeId, Vec<ShardId>> = HashMap::new();
+        let mut node_shards: HashMap<String, Vec<ShardId>> = HashMap::new();
         for shard_id in &shard_ids {
-            if let Some(node_id) = self.shard_router.get_node_for_shard(shard_id) {
+            if let Some(node_id) = self.topology.node_for_shard(shard_id) {
                 node_shards
                     .entry(node_id)
                     .or_insert_with(Vec::new)
@@ -473,7 +469,7 @@ impl DistributedShardedCollection {
         }
 
         // Search local shards
-        if let Some(local_shard_ids) = node_shards.get(local_node_id) {
+        if let Some(local_shard_ids) = node_shards.get(&local_node_id) {
             let local_shards = self.local_shards.read();
             for shard_id in local_shard_ids {
                 if let Some(shard) = local_shards.get(shard_id) {
@@ -496,10 +492,10 @@ impl DistributedShardedCollection {
                 continue; // Already handled
             }
 
-            if let Some(node) = self.cluster_manager.get_node(&node_id) {
+            if let Some(node_addr) = self.topology.node_grpc_address(&node_id) {
                 match self
                     .client_pool
-                    .get_client(&node_id, &node.grpc_address())
+                    .get_client_by_id(&node_id, &node_addr)
                     .await
                 {
                     Ok(client) => {
@@ -580,8 +576,8 @@ impl DistributedShardedCollection {
             keys.to_vec()
         } else {
             let mut all_shards = Vec::new();
-            for node in self.cluster_manager.get_active_nodes() {
-                all_shards.extend(self.shard_router.get_shards_for_node(&node.id));
+            for node in self.topology.active_node_ids() {
+                all_shards.extend(self.topology.shards_for_node(&node));
             }
             all_shards
         };
@@ -591,12 +587,12 @@ impl DistributedShardedCollection {
         }
 
         let mut all_results = Vec::new();
-        let local_node_id = self.cluster_manager.local_node_id();
+        let local_node_id = self.topology.local_node_id();
 
         // Group shards by node
-        let mut node_shards: HashMap<NodeId, Vec<ShardId>> = HashMap::new();
+        let mut node_shards: HashMap<String, Vec<ShardId>> = HashMap::new();
         for shard_id in &shard_ids {
-            if let Some(node_id) = self.shard_router.get_node_for_shard(shard_id) {
+            if let Some(node_id) = self.topology.node_for_shard(shard_id) {
                 node_shards
                     .entry(node_id)
                     .or_insert_with(Vec::new)
@@ -605,7 +601,7 @@ impl DistributedShardedCollection {
         }
 
         // Search local shards with hybrid search
-        if let Some(local_shard_ids) = node_shards.get(local_node_id) {
+        if let Some(local_shard_ids) = node_shards.get(&local_node_id) {
             let local_shards = self.local_shards.read();
             for shard_id in local_shard_ids {
                 if let Some(shard) = local_shards.get(shard_id) {
@@ -632,13 +628,13 @@ impl DistributedShardedCollection {
                 continue;
             }
 
-            let Some(node) = self.cluster_manager.get_node(&node_id) else {
+            let Some(node_addr) = self.topology.node_grpc_address(&node_id) else {
                 continue;
             };
 
             let client = match self
                 .client_pool
-                .get_client(&node_id, &node.grpc_address())
+                .get_client_by_id(&node_id, &node_addr)
                 .await
             {
                 Ok(c) => c,
@@ -788,27 +784,23 @@ impl DistributedShardedCollection {
         drop(local_shards);
 
         // Count remote shards via gRPC
-        let local_node_id = self.cluster_manager.local_node_id();
-        let all_nodes = self.cluster_manager.get_active_nodes();
+        let local_node_id = self.topology.local_node_id();
+        let all_nodes = self.topology.active_node_ids();
 
         for node in all_nodes {
-            if node.id == *local_node_id {
+            if *node == local_node_id {
                 continue; // Already counted
             }
 
             // Get shards for this node
-            let node_shards = self.shard_router.get_shards_for_node(&node.id);
+            let node_shards = self.topology.shards_for_node(&node);
             if node_shards.is_empty() {
                 continue;
             }
 
             // Get collection info from remote node
-            if let Some(node) = self.cluster_manager.get_node(&node.id) {
-                match self
-                    .client_pool
-                    .get_client(&node.id, &node.grpc_address())
-                    .await
-                {
+            if let Some(node_addr) = self.topology.node_grpc_address(&node) {
+                match self.client_pool.get_client_by_id(&node, &node_addr).await {
                     Ok(client) => {
                         // Get collection info for each shard on this node
                         // Since shards are separate collections, we need to query each shard
@@ -823,19 +815,19 @@ impl DistributedShardedCollection {
                                     total += info.vector_count as usize;
                                     debug!(
                                         "Remote shard {} on node {} has {} vectors",
-                                        shard_id, node.id, info.vector_count
+                                        shard_id, node, info.vector_count
                                     );
                                 }
                                 Ok(None) => {
                                     debug!(
                                         "No collection info returned for shard {} on node {}",
-                                        shard_id, node.id
+                                        shard_id, node
                                     );
                                 }
                                 Err(e) => {
                                     warn!(
                                         "Failed to get collection info for shard {} on node {}: {}",
-                                        shard_id, node.id, e
+                                        shard_id, node, e
                                     );
                                 }
                             }
@@ -844,7 +836,7 @@ impl DistributedShardedCollection {
                     Err(e) => {
                         warn!(
                             "Failed to get client for node {} to count vectors: {}",
-                            node.id, e
+                            node, e
                         );
                     }
                 }
@@ -889,25 +881,21 @@ impl DistributedShardedCollection {
         drop(local_shards);
 
         // Count remote shards via gRPC
-        let local_node_id = self.cluster_manager.local_node_id();
-        let all_nodes = self.cluster_manager.get_active_nodes();
+        let local_node_id = self.topology.local_node_id();
+        let all_nodes = self.topology.active_node_ids();
 
         for node in all_nodes {
-            if node.id == *local_node_id {
+            if *node == local_node_id {
                 continue;
             }
 
-            let node_shards = self.shard_router.get_shards_for_node(&node.id);
+            let node_shards = self.topology.shards_for_node(&node);
             if node_shards.is_empty() {
                 continue;
             }
 
-            if let Some(node) = self.cluster_manager.get_node(&node.id) {
-                match self
-                    .client_pool
-                    .get_client(&node.id, &node.grpc_address())
-                    .await
-                {
+            if let Some(node_addr) = self.topology.node_grpc_address(&node) {
+                match self.client_pool.get_client_by_id(&node, &node_addr).await {
                     Ok(client) => {
                         for shard_id in &node_shards {
                             let shard_collection_name = format!("{}_{}", self.name, shard_id);
@@ -922,13 +910,13 @@ impl DistributedShardedCollection {
                                 Ok(None) => {
                                     debug!(
                                         "No collection info for shard {} on node {}",
-                                        shard_id, node.id
+                                        shard_id, node
                                     );
                                 }
                                 Err(e) => {
                                     warn!(
                                         "Failed to get document count for shard {} on node {}: {}",
-                                        shard_id, node.id, e
+                                        shard_id, node, e
                                     );
                                 }
                             }
@@ -937,7 +925,7 @@ impl DistributedShardedCollection {
                     Err(e) => {
                         warn!(
                             "Failed to get client for node {} to count documents: {}",
-                            node.id, e
+                            node, e
                         );
                     }
                 }

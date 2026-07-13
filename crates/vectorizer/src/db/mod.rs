@@ -47,6 +47,7 @@ pub mod distributed_sharded_collection;
 pub mod multi_tenancy;
 pub mod optimized_hnsw;
 pub mod raft;
+pub mod shard_topology;
 pub mod sharded_collection;
 pub mod sharding;
 pub mod vector_store;
