@@ -27,7 +27,7 @@ tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"], default-features = false }
 anyhow = { version = "1.0", features = ["backtrace"], default-features = false }
 chrono = { version = "0.4", features = ["serde"], default-features = false }
-rand = "0.9"
+rand = "0.10"
 sys-info = "0.9"
 whoami = "2"
 
