@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [3.5.0] - TBD
+## [3.5.0] - 2026-07-13
 
 ### Performance
 
