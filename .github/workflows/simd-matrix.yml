@@ -1,0 +1,81 @@
+name: SIMD matrix
+
+# Runs the vectorizer-core SIMD test suite once per forced backend, on
+# both x86_64 and aarch64 GitHub-hosted runners, via the
+# `VECTORIZER_SIMD_BACKEND` env override (see
+# `crates/vectorizer-core/src/simd/dispatch.rs`).
+#
+# Scoped to `-p vectorizer-core --lib simd::` only — never the whole
+# workspace. The previous matrix (removed in cf298f7d) ran a
+# whole-workspace `cargo test`, which pulls in
+# `vectorizer-server::DashboardAssets` (rust-embed); that derive
+# requires `dashboard/dist/` to exist at compile time, which this
+# workflow never builds. Restricting to `-p vectorizer-core` avoids
+# that dependency entirely.
+
+on:
+  push:
+    branches: [main, "release/**"]
+    paths:
+      - "crates/vectorizer-core/src/simd/**"
+      - ".github/workflows/simd-matrix.yml"
+  pull_request:
+    paths:
+      - "crates/vectorizer-core/src/simd/**"
+      - ".github/workflows/simd-matrix.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: 1
+
+jobs:
+  x86_64:
+    name: x86_64 (${{ matrix.backend }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - backend: scalar
+            features: simd
+          - backend: sse2
+            features: simd
+          - backend: avx2
+            features: simd,simd-avx2
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system OpenSSL (ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+      - name: SIMD tests (VECTORIZER_SIMD_BACKEND=${{ matrix.backend }})
+        env:
+          VECTORIZER_SIMD_BACKEND: ${{ matrix.backend }}
+        run: |
+          cargo test -p vectorizer-core --features "${{ matrix.features }}" --lib simd::
+
+  aarch64:
+    name: aarch64 (${{ matrix.backend }})
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        include:
+          - backend: scalar
+            features: simd
+          - backend: neon
+            features: simd,simd-neon
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system OpenSSL (ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
+      - name: SIMD tests (VECTORIZER_SIMD_BACKEND=${{ matrix.backend }})
+        env:
+          VECTORIZER_SIMD_BACKEND: ${{ matrix.backend }}
+        run: |
+          cargo test -p vectorizer-core --features "${{ matrix.features }}" --lib simd::

@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-server"
-version = "3.4.1"
+version = "3.5.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "HTTP / gRPC / MCP server for Vectorizer."
@@ -38,7 +38,7 @@ prost = "0.14"
 prost-types = "0.14"
 
 # MCP SDK
-rmcp = { version = "1.7", features = ["server", "macros", "transport-streamable-http-server"] }
+rmcp = { version = "2.1", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-tungstenite = "0.29"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
@@ -51,7 +51,7 @@ jsonwebtoken = { version = "10.4", features = ["rust_crypto"] }
 hmac = "0.13"
 base64 = "0.22"
 bcrypt = "0.19"
-aes-gcm = "0.10"
+aes-gcm = "0.11"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 p256 = { version = "0.13", features = ["ecdh", "pem"] }
 hex = "0.4"
@@ -143,7 +143,7 @@ opentelemetry = { version = "0.32", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.32", features = ["metrics", "trace", "rt-tokio"] }
 opentelemetry-prometheus = "0.32"
 opentelemetry-otlp = { version = "0.32", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
-tracing-opentelemetry = "0.32"
+tracing-opentelemetry = "0.33"
 
 # Unix-specific dependencies (SIGHUP for graceful restart in admin handler)
 [target.'cfg(unix)'.dependencies]

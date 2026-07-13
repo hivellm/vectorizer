@@ -76,26 +76,13 @@ Run these checks in order - ALL must pass:
 - Do NOT create status tables or emoji reports
 - Use concise format: "✅ type-check pass" or "❌ tests fail: reason"
 
-### Step 2: Capture to Persistent Memory
+### Step 2: Capture Knowledge & Learnings
 
-**IMPORTANT**: Save implementation insights and decisions to persistent memory for context across future sessions.
+**IMPORTANT**: Record implementation insights and decisions for context across future sessions, using the file-based knowledge base (committed with the repo):
 
-```bash
-# 1. Identify key learnings from this implementation:
-#    - Design decisions made
-#    - Patterns discovered or applied
-#    - Gotchas or edge cases encountered
-#    - Performance insights
-#    - Test coverage notes
-
-# 2. Save to memory (via MCP or CLI):
-rulebook memory save "<content>" --type feature --title "Brief title" --tags tag1,tag2
-
-# 3. Example:
-rulebook memory save "Implemented OAuth token refresh with 30-min expiry. Key gotcha: tokens expire silently without warning on API calls - must check headers before retry. Pattern: Use interceptor middleware for transparent refresh." --type feature --title "OAuth token refresh implementation" --tags auth,oauth,gotchas
-```
-
-**Memory Auto-Capture**: If memory auto-capture is enabled in `.rulebook`, significant implementation outputs are automatically captured. Review and augment with additional context as needed.
+- `rulebook_knowledge_add` — reusable patterns and anti-patterns.
+- `rulebook_learn_capture` — implementation insights that don't belong in code comments (design decisions, gotchas, edge cases, performance notes).
+- `rulebook_decision_create` — significant architectural choices (ADRs).
 
 ### Step 3: Security & Dependency Audits
 
@@ -168,7 +155,7 @@ git commit -m "<type>(<scope>): <description>
 - Detailed change 2
 - Tests: [describe coverage]
 - Coverage: X% (threshold: 95%)
-- Memory: [saved key learnings to persistent memory]
+- Knowledge: [captured patterns / learnings / decisions]
 
 Closes #<issue> (if applicable)"
 ```
@@ -255,7 +242,7 @@ If workflow fails 3+ times:
 **Complete workflow after EVERY implementation:**
 
 1. ✅ Quality checks (type, lint, format, test, coverage)
-2. ✅ Capture to persistent memory (save learnings and decisions)
+2. ✅ Capture knowledge/learnings/decisions
 3. ✅ Security audit
 4. ✅ Update rulebook tasks
 5. ✅ Update OpenSpec tasks (if applicable)
@@ -265,32 +252,22 @@ If workflow fails 3+ times:
 
 **Only skip with explicit user permission and document why.**
 
-## Persistent Memory Best Practices
+## Knowledge Capture Best Practices
 
 ### What to Capture
-- **Design decisions**: Why a particular approach was chosen
-- **Patterns**: Reusable solutions discovered during implementation
-- **Gotchas**: Edge cases, limitations, or surprising behaviors
-- **Performance insights**: Optimization lessons or bottleneck discoveries
-- **Bug fixes**: Root cause and resolution for future reference
+- **Design decisions**: why a particular approach was chosen → `rulebook_decision_create`
+- **Patterns / anti-patterns**: reusable solutions or pitfalls → `rulebook_knowledge_add`
+- **Gotchas & insights**: edge cases, limitations, performance lessons, root causes → `rulebook_learn_capture`
 
-### How to Capture
+### Review Before Implementing
+Before building similar features, review prior context to avoid redundant work:
+
 ```bash
-# Via CLI
-rulebook memory save "<detailed content>" --type <type> --title "Short title" --tags tag1,tag2
-
-# Memory types: bugfix, feature, refactor, decision, discovery, change, observation
-
-# Example: Feature capture
-rulebook memory save "Implemented async batch processing for large datasets. Pattern: use queue with worker threads (maxWorkers=4). Gotcha: Queue memory grows unbounded - added max size limit with drop strategy. Tests: Added batch-size edge cases." --type feature --title "Async batch processing implementation" --tags performance,queues,patterns
+rulebook knowledge list
+rulebook learn list
+rulebook decision list
 ```
 
-### Search Previous Context
-Before implementing similar features, search memory for past learnings:
-```bash
-rulebook memory search "batch processing" --mode hybrid
-```
-
-This surfaces past decisions and patterns to avoid redundant work and preserve institutional knowledge.
+This surfaces past decisions and patterns and preserves institutional knowledge — committed with the repo, not in a separate database.
 
 <!-- AGENT_AUTOMATION:END -->

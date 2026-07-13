@@ -193,7 +193,7 @@ async fn test_replication_log_concurrent_access() {
 // ============================================================================
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore] // Requires TCP connection
+#[ignore = "requires a live TCP replication pair; run via cargo test -- --ignored"]
 async fn test_basic_master_replica_sync() {
     let (_master, master_store, master_addr) = create_master().await;
 
@@ -241,7 +241,7 @@ async fn test_basic_master_replica_sync() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore] // Requires TCP connection
+#[ignore = "requires a live TCP replication pair; run via cargo test -- --ignored"]
 async fn test_incremental_replication() {
     let (_master, master_store, master_addr) = create_master().await;
 
@@ -284,7 +284,7 @@ async fn test_incremental_replication() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore] // Requires TCP connection
+#[ignore = "requires a live TCP replication pair; run via cargo test -- --ignored"]
 async fn test_multiple_replicas() {
     let (_master, master_store, master_addr) = create_master().await;
 
@@ -341,7 +341,7 @@ async fn test_multiple_replicas() {
 // ============================================================================
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore] // Run with: cargo test --release -- --ignored
+#[ignore = "long-running stress test; run via cargo test --release -- --ignored"]
 async fn test_stress_high_volume_replication() {
     let (_master, master_store, master_addr) = create_master().await;
 

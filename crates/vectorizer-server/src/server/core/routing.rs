@@ -145,6 +145,198 @@ impl VectorizerServer {
         *self.grpc_task.lock().await = Some(grpc_handle);
         info!("✅ gRPC server task spawned");
 
+        let app = self.build_router(is_production_bind).await;
+        info!("🌐 Vectorizer Server available at:");
+        info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
+        info!("   🔌 REST API: http://{}:{}", host, port);
+        info!("   🔗 UMICP: http://{}:{}/umicp", host, port);
+        info!(
+            "   🔍 UMICP Discovery (v0.2.1): http://{}:{}/umicp/discover",
+            host, port
+        );
+        info!("   🎯 Qdrant API: http://{}:{}/qdrant", host, port);
+        info!("   📊 GraphQL API: http://{}:{}/graphql", host, port);
+        info!(
+            "   🎮 GraphQL Playground: http://{}:{}/graphiql",
+            host, port
+        );
+        info!("   📊 Dashboard: http://{}:{}/dashboard/", host, port);
+        if self.auth_handler_state.is_some() {
+            info!("   🔐 Auth API: http://{}:{}/auth", host, port);
+        }
+        if self.hub_manager.is_some() {
+            info!("   🌐 HiveHub: Cluster mode enabled (internal service access)");
+        }
+
+        // Bind and start the server
+        let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
+        info!(
+            "✅ MCP server (StreamableHTTP) with REST API listening on {}:{}",
+            host, port
+        );
+
+        // Display first-start guidance if setup is needed
+        let collection_count = self.store.list_collections().len();
+        setup_handlers::display_first_start_guidance(host, port, collection_count);
+
+        // Create shutdown signal for axum graceful shutdown
+        let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+        // Spawn task to listen for shutdown signals (Ctrl+C and SIGTERM on Unix)
+        tokio::spawn(async move {
+            // Create futures for different shutdown signals
+            let ctrl_c = async {
+                tokio::signal::ctrl_c()
+                    .await
+                    .expect("Failed to install Ctrl+C handler");
+                info!("🛑 Received shutdown signal (Ctrl+C)");
+            };
+
+            // On Unix, also listen for SIGTERM (used by Docker, Kubernetes, systemd)
+            #[cfg(unix)]
+            let terminate = async {
+                use tokio::signal::unix::{SignalKind, signal};
+                let mut sigterm =
+                    signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
+                sigterm.recv().await;
+                info!("🛑 Received shutdown signal (SIGTERM)");
+            };
+
+            // On Windows, SIGTERM is not available, so we only listen for Ctrl+C
+            #[cfg(not(unix))]
+            let terminate = std::future::pending::<()>();
+
+            // Wait for either signal
+            tokio::select! {
+                _ = ctrl_c => {},
+                _ = terminate => {},
+            }
+
+            // Send shutdown signal
+            let _ = shutdown_tx.send(());
+        });
+
+        // Serve the application with graceful shutdown
+        let server_handle = axum::serve(listener, app).with_graceful_shutdown(async {
+            shutdown_rx.await.ok();
+            info!("🛑 Graceful shutdown signal received, stopping HTTP server...");
+        });
+
+        // Spawn server task
+        let server_task = tokio::spawn(async move {
+            if let Err(e) = server_handle.await {
+                error!("❌ Server error: {}", e);
+            } else {
+                info!("✅ HTTP server stopped");
+            }
+        });
+
+        // Get abort handle before moving server_task (for emergency shutdown)
+        let server_task_abort = server_task.abort_handle();
+
+        // Wait for HTTP server to stop (this will block until Ctrl+C is pressed)
+        // When shutdown signal is received, the server will stop gracefully
+        // No timeout here - server should run indefinitely until Ctrl+C
+        match server_task.await {
+            Ok(_) => {
+                info!("✅ HTTP server stopped gracefully");
+            }
+            Err(e) => {
+                error!("❌ HTTP server task join error: {}", e);
+                // Force abort as fallback
+                server_task_abort.abort();
+            }
+        }
+
+        // Now shutdown all background tasks AFTER HTTP server has stopped
+        info!("🛑 Stopping all background tasks...");
+
+        // Background collection loading task (non-blocking)
+        if let Ok(mut bg_task) = self.background_task.try_lock() {
+            if let Some((handle, cancel_tx)) = bg_task.take() {
+                let _ = cancel_tx.send(true);
+                handle.abort();
+                info!("✅ Background task aborted");
+            }
+        }
+
+        // File watcher cancellation (non-blocking)
+        if let Ok(mut cancel) = self.file_watcher_cancel.try_lock() {
+            if let Some(cancel_tx) = cancel.take() {
+                let _ = cancel_tx.send(true);
+            }
+        }
+
+        // File watcher task (non-blocking)
+        if let Ok(mut fw_task) = self.file_watcher_task.try_lock() {
+            if let Some(handle) = fw_task.take() {
+                handle.abort();
+                info!("✅ File watcher task aborted");
+            }
+        }
+
+        // File watcher system (non-blocking)
+        if let Ok(mut fw_system) = self.file_watcher_system.try_lock() {
+            fw_system.take(); // Just drop it
+            info!("✅ File watcher system dropped");
+        }
+
+        // gRPC server task (non-blocking)
+        if let Ok(mut grpc_task) = self.grpc_task.try_lock() {
+            if let Some(handle) = grpc_task.take() {
+                handle.abort();
+                info!("✅ gRPC server task aborted");
+            }
+        }
+
+        // System collector task (non-blocking)
+        if let Ok(mut sys_task) = self.system_collector_task.try_lock() {
+            if let Some(handle) = sys_task.take() {
+                handle.abort();
+                info!("✅ System collector task aborted");
+            }
+        }
+
+        // Force save all data before shutdown to prevent data loss
+        // This ensures any changes made since the last auto-save are persisted
+        if let Some(auto_save) = &self.auto_save_manager {
+            info!("💾 Forcing final save before shutdown...");
+            match auto_save.force_save().await {
+                Ok(_) => info!("✅ Final save completed successfully"),
+                Err(e) => warn!("⚠️ Final save failed (data may be lost): {}", e),
+            }
+        }
+
+        // Auto save task (non-blocking) - abort AFTER force_save
+        if let Ok(mut auto_task) = self.auto_save_task.try_lock() {
+            if let Some(handle) = auto_task.take() {
+                handle.abort();
+                info!("✅ Auto save task aborted");
+            }
+        }
+
+        // Auto save manager shutdown (non-blocking, no await)
+        if let Some(auto_save) = &self.auto_save_manager {
+            auto_save.shutdown();
+        }
+
+        info!("✅ Server stopped");
+        Ok(())
+    }
+
+    /// Build the fully-assembled Axum router (public routes, UMICP,
+    /// MCP, admin, REST/Qdrant/GraphQL/graph, auth, hub middleware,
+    /// body-limit, CORS, security headers, and the HA write-redirect
+    /// layer) without binding a TCP listener.
+    ///
+    /// Extracted from `start()` so an in-process test harness (see
+    /// `crates/vectorizer-server/tests/common/mod.rs`) can exercise the
+    /// exact production routing/middleware stack via
+    /// `tower::ServiceExt::oneshot`, without spinning up gRPC, a real
+    /// TCP listener, or the Ctrl+C/SIGTERM shutdown signal handler (all
+    /// of which remain in `start()`).
+    #[allow(clippy::too_many_lines)]
+    pub async fn build_router(&self, is_production_bind: bool) -> Router {
         // Create server state for metrics endpoint
         let server_state = ServerState {
             file_watcher_system: self.file_watcher_system.clone(),
@@ -1059,14 +1251,18 @@ impl VectorizerServer {
                             }
                         }
 
-                        // If no valid credentials, return 401
+                        // If no valid credentials, return 401. The body uses
+                        // the standard ErrorResponse shape (error_type/
+                        // message/status_code) — the ad-hoc {"error": …} form
+                        // predated the central error middleware and broke
+                        // uniform client-side error handling (phase40 §5).
                         if user_claims.is_none() {
                             return axum::response::Response::builder()
                                 .status(axum::http::StatusCode::UNAUTHORIZED)
                                 .header("Content-Type", "application/json")
                                 .header("Access-Control-Allow-Origin", "*")
                                 .body(axum::body::Body::from(
-                                    r#"{"error":"unauthorized","message":"Authentication required. Provide a valid JWT token or API key."}"#
+                                    r#"{"error_type":"unauthorized","message":"Authentication required. Provide a valid JWT token or API key.","status_code":401}"#
                                 ))
                                 .unwrap();
                         }
@@ -1088,7 +1284,7 @@ impl VectorizerServer {
                             .header("Content-Type", "application/json")
                             .header("Access-Control-Allow-Origin", "*")
                             .body(axum::body::Body::from(
-                                r#"{"error":"unauthorized","message":"Authentication not configured."}"#
+                                r#"{"error_type":"unauthorized","message":"Authentication not configured.","status_code":401}"#
                             ))
                             .unwrap();
                     }
@@ -1156,182 +1352,7 @@ impl VectorizerServer {
             app
         };
 
-        info!("🌐 Vectorizer Server available at:");
-        info!("   📡 MCP StreamableHTTP: http://{}:{}/mcp", host, port);
-        info!("   🔌 REST API: http://{}:{}", host, port);
-        info!("   🔗 UMICP: http://{}:{}/umicp", host, port);
-        info!(
-            "   🔍 UMICP Discovery (v0.2.1): http://{}:{}/umicp/discover",
-            host, port
-        );
-        info!("   🎯 Qdrant API: http://{}:{}/qdrant", host, port);
-        info!("   📊 GraphQL API: http://{}:{}/graphql", host, port);
-        info!(
-            "   🎮 GraphQL Playground: http://{}:{}/graphiql",
-            host, port
-        );
-        info!("   📊 Dashboard: http://{}:{}/dashboard/", host, port);
-        if self.auth_handler_state.is_some() {
-            info!("   🔐 Auth API: http://{}:{}/auth", host, port);
-        }
-        if self.hub_manager.is_some() {
-            info!("   🌐 HiveHub: Cluster mode enabled (internal service access)");
-        }
-
-        // Bind and start the server
-        let listener = tokio::net::TcpListener::bind(format!("{}:{}", host, port)).await?;
-        info!(
-            "✅ MCP server (StreamableHTTP) with REST API listening on {}:{}",
-            host, port
-        );
-
-        // Display first-start guidance if setup is needed
-        let collection_count = self.store.list_collections().len();
-        setup_handlers::display_first_start_guidance(host, port, collection_count);
-
-        // Create shutdown signal for axum graceful shutdown
-        let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-
-        // Spawn task to listen for shutdown signals (Ctrl+C and SIGTERM on Unix)
-        tokio::spawn(async move {
-            // Create futures for different shutdown signals
-            let ctrl_c = async {
-                tokio::signal::ctrl_c()
-                    .await
-                    .expect("Failed to install Ctrl+C handler");
-                info!("🛑 Received shutdown signal (Ctrl+C)");
-            };
-
-            // On Unix, also listen for SIGTERM (used by Docker, Kubernetes, systemd)
-            #[cfg(unix)]
-            let terminate = async {
-                use tokio::signal::unix::{SignalKind, signal};
-                let mut sigterm =
-                    signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
-                sigterm.recv().await;
-                info!("🛑 Received shutdown signal (SIGTERM)");
-            };
-
-            // On Windows, SIGTERM is not available, so we only listen for Ctrl+C
-            #[cfg(not(unix))]
-            let terminate = std::future::pending::<()>();
-
-            // Wait for either signal
-            tokio::select! {
-                _ = ctrl_c => {},
-                _ = terminate => {},
-            }
-
-            // Send shutdown signal
-            let _ = shutdown_tx.send(());
-        });
-
-        // Serve the application with graceful shutdown
-        let server_handle = axum::serve(listener, app).with_graceful_shutdown(async {
-            shutdown_rx.await.ok();
-            info!("🛑 Graceful shutdown signal received, stopping HTTP server...");
-        });
-
-        // Spawn server task
-        let server_task = tokio::spawn(async move {
-            if let Err(e) = server_handle.await {
-                error!("❌ Server error: {}", e);
-            } else {
-                info!("✅ HTTP server stopped");
-            }
-        });
-
-        // Get abort handle before moving server_task (for emergency shutdown)
-        let server_task_abort = server_task.abort_handle();
-
-        // Wait for HTTP server to stop (this will block until Ctrl+C is pressed)
-        // When shutdown signal is received, the server will stop gracefully
-        // No timeout here - server should run indefinitely until Ctrl+C
-        match server_task.await {
-            Ok(_) => {
-                info!("✅ HTTP server stopped gracefully");
-            }
-            Err(e) => {
-                error!("❌ HTTP server task join error: {}", e);
-                // Force abort as fallback
-                server_task_abort.abort();
-            }
-        }
-
-        // Now shutdown all background tasks AFTER HTTP server has stopped
-        info!("🛑 Stopping all background tasks...");
-
-        // Background collection loading task (non-blocking)
-        if let Ok(mut bg_task) = self.background_task.try_lock() {
-            if let Some((handle, cancel_tx)) = bg_task.take() {
-                let _ = cancel_tx.send(true);
-                handle.abort();
-                info!("✅ Background task aborted");
-            }
-        }
-
-        // File watcher cancellation (non-blocking)
-        if let Ok(mut cancel) = self.file_watcher_cancel.try_lock() {
-            if let Some(cancel_tx) = cancel.take() {
-                let _ = cancel_tx.send(true);
-            }
-        }
-
-        // File watcher task (non-blocking)
-        if let Ok(mut fw_task) = self.file_watcher_task.try_lock() {
-            if let Some(handle) = fw_task.take() {
-                handle.abort();
-                info!("✅ File watcher task aborted");
-            }
-        }
-
-        // File watcher system (non-blocking)
-        if let Ok(mut fw_system) = self.file_watcher_system.try_lock() {
-            fw_system.take(); // Just drop it
-            info!("✅ File watcher system dropped");
-        }
-
-        // gRPC server task (non-blocking)
-        if let Ok(mut grpc_task) = self.grpc_task.try_lock() {
-            if let Some(handle) = grpc_task.take() {
-                handle.abort();
-                info!("✅ gRPC server task aborted");
-            }
-        }
-
-        // System collector task (non-blocking)
-        if let Ok(mut sys_task) = self.system_collector_task.try_lock() {
-            if let Some(handle) = sys_task.take() {
-                handle.abort();
-                info!("✅ System collector task aborted");
-            }
-        }
-
-        // Force save all data before shutdown to prevent data loss
-        // This ensures any changes made since the last auto-save are persisted
-        if let Some(auto_save) = &self.auto_save_manager {
-            info!("💾 Forcing final save before shutdown...");
-            match auto_save.force_save().await {
-                Ok(_) => info!("✅ Final save completed successfully"),
-                Err(e) => warn!("⚠️ Final save failed (data may be lost): {}", e),
-            }
-        }
-
-        // Auto save task (non-blocking) - abort AFTER force_save
-        if let Ok(mut auto_task) = self.auto_save_task.try_lock() {
-            if let Some(handle) = auto_task.take() {
-                handle.abort();
-                info!("✅ Auto save task aborted");
-            }
-        }
-
-        // Auto save manager shutdown (non-blocking, no await)
-        if let Some(auto_save) = &self.auto_save_manager {
-            auto_save.shutdown();
-        }
-
-        info!("✅ Server stopped");
-        Ok(())
+        app
     }
 
     /// Create MCP router with StreamableHTTP transport (rmcp 0.8.1).

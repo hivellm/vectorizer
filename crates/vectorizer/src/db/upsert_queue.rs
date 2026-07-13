@@ -127,15 +127,20 @@ impl UpsertQueue {
         &self,
         collection: &str,
     ) -> Result<(UpsertTicket, AdmissionStatus), AdmissionError> {
-        // Look up or create the per-collection counter. We use
-        // `entry().or_insert_with` because a `get` followed by an
+        // Fast path: the counter almost always exists already — `get`
+        // avoids the `collection.to_string()` heap alloc that `entry()`
+        // requires on EVERY admission (phase38 hot-path). The slow path
+        // still uses `entry().or_insert_with` because a bare `get` +
         // `insert` would race two admissions for the same fresh
         // collection.
-        let counter = self
-            .depth
-            .entry(collection.to_string())
-            .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
-            .clone();
+        let counter = match self.depth.get(collection) {
+            Some(existing) => existing.clone(),
+            None => self
+                .depth
+                .entry(collection.to_string())
+                .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
+                .clone(),
+        };
 
         if !self.cfg.enabled {
             counter.fetch_add(1, Ordering::AcqRel);

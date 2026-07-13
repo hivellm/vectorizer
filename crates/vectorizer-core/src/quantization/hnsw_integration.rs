@@ -70,15 +70,25 @@ impl QuantizedHnswIndex {
         config: HnswQuantizationConfig,
         storage: Arc<QuantizedVectorStorage>,
     ) -> QuantizationResult<Self> {
-        // Create quantization method based on config
+        // Create quantization method based on config. The untrained
+        // instance is replaced at first `add_vectors` (fit path); PQ's
+        // dimension is only known at that point, so it starts at 0
+        // until the fit constructs the real quantizer.
         let quantization: Box<dyn QuantizationMethod + Send + Sync> = match config.quantization_type
         {
             QuantizationType::Scalar(bits) => Box::new(ScalarQuantization::new(bits)?),
-            _ => {
-                return Err(QuantizationError::InvalidParameters(format!(
-                    "Unsupported quantization type: {:?}",
-                    config.quantization_type
-                )));
+            QuantizationType::Product => Box::new(
+                crate::quantization::product::ProductQuantization::new(Default::default(), 0),
+            ),
+            QuantizationType::Binary => {
+                Box::new(crate::quantization::binary::BinaryQuantization::new())
+            }
+            QuantizationType::None => {
+                return Err(QuantizationError::InvalidParameters(
+                    "QuantizationType::None cannot back a quantized index — \
+                     use the unquantized HNSW path instead"
+                        .to_string(),
+                ));
             }
         };
 
@@ -116,15 +126,36 @@ impl QuantizedHnswIndex {
             }
         }
 
-        // Fit quantization if needed
+        // Fit quantization on the first batch. Each type constructs and
+        // trains its real quantizer here — before phase38 this arm was
+        // Scalar-only with a silent 8-bit fallback for PQ/Binary, which
+        // meant those fully-implemented methods were never reachable.
         if self.vector_count == 0 {
-            // Create new quantization with fitted parameters
-            let mut scalar_q = ScalarQuantization::new(match self.config.quantization_type {
-                QuantizationType::Scalar(bits) => bits,
-                _ => 8,
-            })?;
-            scalar_q.fit(vectors)?;
-            self.quantization = Box::new(scalar_q);
+            self.quantization = match self.config.quantization_type {
+                QuantizationType::Scalar(bits) => {
+                    let mut scalar_q = ScalarQuantization::new(bits)?;
+                    scalar_q.fit(vectors)?;
+                    Box::new(scalar_q)
+                }
+                QuantizationType::Product => {
+                    let mut pq = crate::quantization::product::ProductQuantization::new(
+                        Default::default(),
+                        self.dimension,
+                    );
+                    pq.train(vectors)?;
+                    Box::new(pq)
+                }
+                QuantizationType::Binary => {
+                    let mut bq = crate::quantization::binary::BinaryQuantization::new();
+                    bq.train(vectors)?;
+                    Box::new(bq)
+                }
+                QuantizationType::None => {
+                    return Err(QuantizationError::InvalidParameters(
+                        "QuantizationType::None cannot back a quantized index".to_string(),
+                    ));
+                }
+            };
         }
 
         // Quantize vectors
@@ -167,13 +198,22 @@ impl QuantizedHnswIndex {
         let mut results = Vec::new();
         let quantized_cache = self.quantized_cache.read();
 
-        // For now, use original vectors for similarity calculation.
-        // SIMD path: phase7a routed this through `crate::simd` so the
-        // brute-force scan picks up the AVX2 (or NEON, etc.) backend
-        // instead of the local scalar fallback.
+        // Use original vectors for similarity calculation, via the SIMD
+        // backend (phase7a). True cosine = dot / (|q| · |v|): callers
+        // hand us RAW vectors, and `crate::simd::cosine_similarity` is
+        // a clamped dot product that ASSUMES unit-length inputs — used
+        // directly it returned 1.0 for every pair of non-normalised
+        // vectors (phase38 fix; the old tests only used unit vectors,
+        // which is why it never surfaced).
+        let query_norm = crate::simd::l2_norm(query);
         let original_cache = self.original_cache.read();
         for (id, original_vector) in original_cache.iter() {
-            let similarity = crate::simd::cosine_similarity(query, original_vector);
+            let vector_norm = crate::simd::l2_norm(original_vector);
+            let similarity = if query_norm == 0.0 || vector_norm == 0.0 {
+                0.0
+            } else {
+                crate::simd::dot_product(query, original_vector) / (query_norm * vector_norm)
+            };
             results.push((*id, similarity));
         }
 
@@ -191,10 +231,17 @@ impl QuantizedHnswIndex {
         k: usize,
     ) -> QuantizationResult<Vec<(usize, f32)>> {
         let mut results = Vec::new();
+        let query_norm = crate::simd::l2_norm(query);
         let original_cache = self.original_cache.read();
 
         for (id, vector) in original_cache.iter() {
-            let similarity = crate::simd::cosine_similarity(query, vector);
+            // True cosine — see the note in `search_quantized`.
+            let vector_norm = crate::simd::l2_norm(vector);
+            let similarity = if query_norm == 0.0 || vector_norm == 0.0 {
+                0.0
+            } else {
+                crate::simd::dot_product(query, vector) / (query_norm * vector_norm)
+            };
             results.push((*id, similarity));
         }
 
@@ -326,16 +373,14 @@ impl QuantizedHnswIndex {
 
     fn cache_quantized_vectors(&self, quantized: &QuantizedVectors) -> QuantizationResult<()> {
         let mut cache = self.quantized_cache.write();
-        let bytes_per_vector = match self.config.quantization_type {
-            QuantizationType::Scalar(bits) => match bits {
-                8 => quantized.dimension,
-                4 => (quantized.dimension + 1) / 2,
-                2 => (quantized.dimension + 3) / 4,
-                1 => (quantized.dimension + 7) / 8,
-                _ => quantized.dimension,
-            },
-            _ => quantized.dimension,
-        };
+        if quantized.count == 0 {
+            return Ok(());
+        }
+        // Records are fixed-size per method (scalar: packed bits ×
+        // dimension; PQ: one code byte per subvector; binary: dimension
+        // bits) — deriving the stride from the payload itself works for
+        // every method and can't drift from the per-type formulas.
+        let bytes_per_vector = quantized.data.len() / quantized.count;
 
         for i in 0..quantized.count {
             let start = i * bytes_per_vector;
@@ -466,6 +511,111 @@ mod tests {
 
         let stats = new_index.get_quantization_stats().unwrap();
         assert_eq!(stats.vector_count, 100);
+    }
+
+    /// Distinct, deterministic vectors with a unique dominant axis per
+    /// vector (requires `n <= dim`) so the nearest neighbour of any
+    /// vector is unambiguously itself under cosine similarity, even
+    /// after lossy quantization.
+    fn spread_vectors(n: usize, dim: usize) -> Vec<Vec<f32>> {
+        assert!(n <= dim, "unique dominant axis requires n <= dim");
+        (0..n)
+            .map(|i| {
+                (0..dim)
+                    .map(|d| {
+                        if d == i {
+                            10.0
+                        } else {
+                            0.05 * ((i * 13 + d * 7) % 5) as f32
+                        }
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_product_quantization_round_trip() {
+        let temp_dir = tempdir().unwrap();
+        let storage_config = crate::quantization::StorageConfig {
+            storage_dir: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let storage = Arc::new(QuantizedVectorStorage::new(storage_config).unwrap());
+
+        let config = HnswQuantizationConfig {
+            quantization_type: QuantizationType::Product,
+            ..Default::default()
+        };
+        let mut index = QuantizedHnswIndex::new(config, storage).unwrap();
+
+        // Enough vectors for k-means to have something to chew on;
+        // dimension divisible by the default 8 subvectors.
+        let vectors = spread_vectors(48, 64);
+        index.add_vectors(&vectors).unwrap();
+
+        let results = index.search_quantized(&vectors[3], 3).unwrap();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].0, 3, "self-query must return itself first");
+
+        // Persisted round trip keeps the codebooks (trained state).
+        index.save_to_storage("pq_collection").unwrap();
+        let mut reloaded = QuantizedHnswIndex::new(
+            HnswQuantizationConfig {
+                quantization_type: QuantizationType::Product,
+                ..Default::default()
+            },
+            index.quantized_storage.clone(),
+        )
+        .unwrap();
+        reloaded.load_from_storage("pq_collection").unwrap();
+        let stats = reloaded.get_quantization_stats().unwrap();
+        assert_eq!(stats.vector_count, 48);
+        assert!(stats.compression_ratio > 1.0);
+    }
+
+    #[test]
+    fn test_binary_quantization_round_trip() {
+        let temp_dir = tempdir().unwrap();
+        let storage_config = crate::quantization::StorageConfig {
+            storage_dir: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let storage = Arc::new(QuantizedVectorStorage::new(storage_config).unwrap());
+
+        let config = HnswQuantizationConfig {
+            quantization_type: QuantizationType::Binary,
+            ..Default::default()
+        };
+        let mut index = QuantizedHnswIndex::new(config, storage).unwrap();
+
+        let vectors = spread_vectors(32, 64);
+        index.add_vectors(&vectors).unwrap();
+
+        let results = index.search_quantized(&vectors[5], 3).unwrap();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].0, 5, "self-query must return itself first");
+
+        let stats = index.get_quantization_stats().unwrap();
+        assert_eq!(stats.vector_count, 32);
+    }
+
+    #[test]
+    fn test_none_quantization_is_explicit_error() {
+        let temp_dir = tempdir().unwrap();
+        let storage_config = crate::quantization::StorageConfig {
+            storage_dir: temp_dir.path().to_path_buf(),
+            ..Default::default()
+        };
+        let storage = Arc::new(QuantizedVectorStorage::new(storage_config).unwrap());
+
+        let config = HnswQuantizationConfig {
+            quantization_type: QuantizationType::None,
+            ..Default::default()
+        };
+        // Spec: unsupported types fail construction explicitly — the
+        // pre-phase38 code silently substituted 8-bit scalar at fit time.
+        assert!(QuantizedHnswIndex::new(config, storage).is_err());
     }
 
     #[test]

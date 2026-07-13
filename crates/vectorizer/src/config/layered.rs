@@ -33,10 +33,11 @@
 //! - **Null** in the override clears the base value (rarely needed, but
 //!   the only way to "unset" a field that has a non-null base default).
 //!
-//! After the merge, the resulting [`serde_yaml::Value`] is deserialized
-//! into the strict [`crate::config::VectorizerConfig`] struct, which
-//! carries the actual validation (unknown keys are tolerated at the
-//! merge layer because YAML can't tell them apart from typos; serde's
+//! After the merge, every top-level key is checked against
+//! [`KNOWN_TOP_LEVEL_KEYS`] — an unrecognized key (typically a typo)
+//! produces a `warn!` naming it — and the resulting [`serde_yaml::Value`]
+//! is deserialized into the strict [`crate::config::VectorizerConfig`]
+//! struct, which carries the rest of the validation (serde's
 //! `#[serde(default)]` + per-section validation is the source of truth
 //! for "is this a real config?").
 
@@ -47,6 +48,71 @@ use thiserror::Error;
 use tracing::{debug, info, warn};
 
 use super::VectorizerConfig;
+
+/// Top-level YAML keys the config system recognizes: the fields
+/// modeled on [`VectorizerConfig`] plus documented sections from
+/// `config/config.example.yml` that are intentionally passthrough
+/// (accepted, not yet wired to a typed struct field). See
+/// `phase40_api-parity-and-hardening` §6.1.
+///
+/// Deliberately **top-level only** — `VectorizerConfig` does not use
+/// `deny_unknown_fields`, and several of these sections (`monitoring`,
+/// `performance`, `security`, `collections`, `workspace`,
+/// `normalization`) have no typed representation at all today. Running
+/// unknown-*field* detection (e.g. `serde_ignored`) against the full
+/// document would flag every nested key under those sections as
+/// "unknown" on the very first boot with the shipped default config —
+/// noise that would drown out genuine typos instead of surfacing them.
+/// Top-level-only detection catches the common operator mistake (a
+/// misspelled section name) without that false-positive storm.
+const KNOWN_TOP_LEVEL_KEYS: &[&str] = &[
+    // Modeled on `VectorizerConfig` fields.
+    "server",
+    "file_watcher",
+    "logging",
+    "gpu",
+    "summarization",
+    "transmutation",
+    "storage",
+    "projects",
+    "cluster",
+    "auth",
+    "hub",
+    "file_upload",
+    "replication",
+    "rpc",
+    "backpressure",
+    // Documented in config.example.yml but not yet wired to a typed
+    // field — accepted as-is, not validated.
+    "monitoring",
+    "api",
+    "performance",
+    "security",
+    "collections",
+    "workspace",
+    "normalization",
+    // Read via raw-value lookup in bootstrap (`embedding.model` selects
+    // the default embedding provider, e.g. "fastembed:all-MiniLM-L6-v2")
+    // rather than a `VectorizerConfig` field — found as a false-positive
+    // warn during the 3.5.0-fastembed release validation.
+    "embedding",
+];
+
+/// Return every top-level mapping key in `merged` that isn't in
+/// [`KNOWN_TOP_LEVEL_KEYS`]. Called after the base/mode merge so a
+/// typo introduced by either layer is caught in one place. Returns an
+/// empty vec for a non-mapping document (schema validation downstream
+/// rejects that shape anyway).
+pub fn unknown_top_level_keys(merged: &Value) -> Vec<String> {
+    let Value::Mapping(map) = merged else {
+        return Vec::new();
+    };
+    map.keys()
+        .filter_map(|k| k.as_str())
+        .filter(|k| !KNOWN_TOP_LEVEL_KEYS.contains(k))
+        .map(str::to_owned)
+        .collect()
+}
 
 /// Options for [`load_layered`].
 #[derive(Debug, Clone, Default)]
@@ -149,6 +215,14 @@ pub fn load_layered(
             merge_yaml(base_yaml, override_yaml)
         }
     };
+
+    for key in unknown_top_level_keys(&merged) {
+        warn!(
+            key = %key,
+            "config: unrecognized top-level key '{key}' — possible typo; see \
+             config/config.example.yml for the supported schema"
+        );
+    }
 
     serde_yaml::from_value(merged).map_err(|e| ConfigError::Schema(e.to_string()))
 }
@@ -455,6 +529,139 @@ logging:
             "port stays at base value because the override did not touch it"
         );
         assert_eq!(cfg.server.mcp_port, 15002, "mcp_port stays at base too");
+    }
+
+    #[test]
+    fn unknown_top_level_keys_flags_typo() {
+        let merged = yaml(
+            r#"
+            server:
+              host: 127.0.0.1
+            authh:
+              enabled: true
+            "#,
+        );
+        let unknown = unknown_top_level_keys(&merged);
+        assert_eq!(unknown, vec!["authh".to_string()]);
+    }
+
+    #[test]
+    fn unknown_top_level_keys_accepts_every_recognized_section() {
+        let merged = yaml(
+            r#"
+            server: {}
+            file_watcher: {}
+            logging: {}
+            gpu: {}
+            summarization: {}
+            transmutation: {}
+            storage: {}
+            projects: {}
+            cluster: {}
+            auth: {}
+            hub: {}
+            file_upload: {}
+            replication: {}
+            rpc: {}
+            backpressure: {}
+            monitoring: {}
+            api: {}
+            performance: {}
+            security: {}
+            collections: {}
+            workspace: {}
+            normalization: {}
+            "#,
+        );
+        assert!(unknown_top_level_keys(&merged).is_empty());
+    }
+
+    #[test]
+    fn unknown_top_level_keys_ignores_non_mapping_document() {
+        assert!(unknown_top_level_keys(&yaml("42")).is_empty());
+    }
+
+    #[test]
+    fn load_layered_surfaces_typoed_key_via_unknown_top_level_keys() {
+        // Regression guard for phase40 §6.1: a typo in the base config
+        // must be visible through the same function `load_layered`
+        // uses internally, even though the typo doesn't stop the load
+        // from succeeding (unknown top-level keys are ignored by serde,
+        // not rejected).
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let base_path = tmp.path().join("config.yml");
+        std::fs::write(
+            &base_path,
+            format!("{MINIMUM_BASE}\nauthh:\n  enabled: true\n"),
+        )
+        .expect("write base");
+
+        let base_yaml = read_yaml(&base_path).expect("read base");
+        let unknown = unknown_top_level_keys(&base_yaml);
+        assert_eq!(unknown, vec!["authh".to_string()]);
+
+        // The typoed key doesn't block loading — it's silently dropped
+        // by serde, same as before. Only the warning changes.
+        let cfg = load_layered(
+            &base_path,
+            LayeredOptions {
+                mode: None,
+                modes_dir: None,
+            },
+        )
+        .expect("load succeeds despite the typo");
+        assert_eq!(cfg.server.host, "127.0.0.1");
+    }
+
+    #[test]
+    fn mode_override_reaches_auth_config() {
+        // Task requirement: "mode overrides reach all subsystems" —
+        // exercised here for `auth`, the section phase40 §6.2 wires
+        // straight from the loaded config into the auth subsystem.
+        //
+        // `AuthConfig`'s fields (other than `cookies` /
+        // `dev_mode_skip_loopback`) have no `#[serde(default)]`, so —
+        // matching the real `config/config.yml` + `modes/production.yml`
+        // shape — the BASE must carry a complete `auth:` section and
+        // the override only touches the keys it cares about; the deep
+        // merge preserves the rest from base.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let base_path = tmp.path().join("config.yml");
+        std::fs::write(
+            &base_path,
+            format!(
+                "{MINIMUM_BASE}\nauth:\n  jwt_secret: \"\"\n  jwt_expiration: 3600\n  \
+                 api_key_length: 32\n  rate_limit_per_minute: 100\n  \
+                 rate_limit_per_hour: 1000\n  enabled: false\n"
+            ),
+        )
+        .expect("write base");
+
+        let modes_dir = tmp.path().join("config").join("modes");
+        std::fs::create_dir_all(&modes_dir).expect("mkdir");
+        std::fs::write(
+            modes_dir.join("production.yml"),
+            "auth:\n  enabled: true\n  jwt_secret: a-production-secret-that-is-long-enough\n",
+        )
+        .expect("write override");
+
+        let cfg = load_layered(
+            &base_path,
+            LayeredOptions {
+                mode: Some("production".to_owned()),
+                modes_dir: Some(modes_dir),
+            },
+        )
+        .expect("load");
+        assert!(cfg.auth.enabled, "production override must enable auth");
+        assert_eq!(
+            cfg.auth.jwt_secret.expose_secret(),
+            "a-production-secret-that-is-long-enough"
+        );
+        assert_eq!(
+            cfg.auth.jwt_expiration, 3600,
+            "override didn't touch jwt_expiration — base value must survive the merge"
+        );
     }
 
     #[test]

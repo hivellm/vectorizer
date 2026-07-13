@@ -74,6 +74,17 @@ pub struct Collection {
     pub(super) vector_order: Arc<RwLock<Vec<String>>>,
     /// HNSW index for similarity search
     pub(super) index: Arc<RwLock<OptimizedHnswIndex>>,
+    /// Serializes writers (`insert_batch`) without blocking readers.
+    ///
+    /// `OptimizedHnswIndex` is internally synchronized (every field sits
+    /// behind its own lock and all methods take `&self`), so writers
+    /// take `index.read()` and rely on this mutex for batch-level
+    /// atomicity of the is-new check / `vector_order` / `vector_count`
+    /// bookkeeping. Taking `index.write()` for the whole batch — the
+    /// pre-phase38 behaviour — blocked every concurrent search for the
+    /// duration of the batch (payload indexing, quantization, and graph
+    /// discovery included), collapsing search p99 under mixed load.
+    pub(super) insert_lock: Arc<Mutex<()>>,
     /// Embedding type used for this collection
     pub(super) embedding_type: Arc<RwLock<String>>,
     /// Set of unique document IDs (for counting documents)
@@ -244,6 +255,7 @@ impl Collection {
             quantized_vectors: Arc::new(Mutex::new(HashMap::new())),
             vector_order: Arc::new(RwLock::new(Vec::new())),
             index: Arc::new(RwLock::new(index)),
+            insert_lock: Arc::new(Mutex::new(())),
             embedding_type: Arc::new(RwLock::new(embedding_type)),
             document_ids: Arc::new(DashMap::new()),
             vector_count: Arc::new(RwLock::new(0)),

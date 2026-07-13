@@ -2,6 +2,15 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
+## [3.5.0] - TBD
+
+Version alignment with the Vectorizer 3.5.0 server release. No SDK API
+changes — the 3.4.x and 3.5.0 server lines are internal (non-blocking
+search during batch inserts, PQ/Binary quantization wiring, SIMD
+quantize kernels, BM25-after-restart + WAL-durability fixes, Docker CVE
+posture, dependency refresh). The full client method surface remains as
+shipped in 3.3.0.
+
 ## [3.3.0] - 2026-05-02
 
 > Note: phantom entries 3.4.0–3.8.0 (released 2026-05-02) consolidated into 3.3.0 to align with the server release. See `fb8ddb89` for the same operation on the server CHANGELOG. The phase25/27 dashboard metrics surface (originally drafted as `[Unreleased]`) is also rolled into this entry.

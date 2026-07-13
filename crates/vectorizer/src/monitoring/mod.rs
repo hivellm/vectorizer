@@ -32,6 +32,7 @@
 pub mod api_key_usage;
 pub mod correlation;
 pub mod metrics;
+pub mod metrics_sink;
 pub mod registry;
 pub mod system_collector;
 pub mod telemetry;
@@ -41,6 +42,7 @@ pub use correlation::{
     CORRELATION_ID_HEADER, correlation_middleware, current_correlation_id, generate_correlation_id,
 };
 pub use metrics::Metrics;
+pub use metrics_sink::PrometheusMetricsSink;
 use prometheus::{Encoder, TextEncoder};
 pub use system_collector::{SystemCollector, SystemCollectorConfig};
 

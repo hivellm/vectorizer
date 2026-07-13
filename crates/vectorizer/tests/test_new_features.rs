@@ -23,6 +23,7 @@ async fn test_wal_enable_disable() {
         max_wal_size_mb: 100,
         checkpoint_interval: std::time::Duration::from_secs(300),
         compression: false,
+        fsync: true,
     };
 
     assert!(store.enable_wal(data_dir, Some(wal_config)).await.is_ok());

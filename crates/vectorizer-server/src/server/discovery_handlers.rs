@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, Content, ErrorData};
+use rmcp::model::{CallToolRequestParams, CallToolResult, ContentBlock, ErrorData};
 use serde_json::json;
 use vectorizer::VectorStore;
 use vectorizer::discovery::{
@@ -101,7 +101,7 @@ pub async fn handle_discover(
         }
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -144,7 +144,7 @@ pub async fn handle_filter_collections(
         "count": filtered.len(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -189,7 +189,7 @@ pub async fn handle_score_collections(
         "count": scored.len(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -231,7 +231,7 @@ pub async fn handle_expand_queries(
         "count": expanded.len(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -279,7 +279,7 @@ pub async fn handle_broad_discovery(
         "count": chunks.len(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -345,7 +345,7 @@ pub async fn handle_semantic_focus(
         "count": chunks.len(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -395,7 +395,7 @@ pub async fn handle_promote_readme(
         "count": promoted.len(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -456,7 +456,7 @@ pub async fn handle_compress_evidence(
         "count": bullets.len(),
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -516,7 +516,7 @@ pub async fn handle_build_answer_plan(
         "sources": plan.sources,
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }
@@ -606,7 +606,7 @@ pub async fn handle_render_llm_prompt(
         "estimated_tokens": prompt.len() / 4,
     });
 
-    Ok(CallToolResult::success(vec![Content::text(
+    Ok(CallToolResult::success(vec![ContentBlock::text(
         result.to_string(),
     )]))
 }

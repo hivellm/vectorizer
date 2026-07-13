@@ -11,6 +11,13 @@ High-performance C# SDK for the Vectorizer vector database.
 
 ## What changed in 3.x
 
+**3.5.0 — server alignment (no client API changes).** Version tracks
+the Vectorizer 3.5.0 server release: non-blocking search during batch
+inserts, PQ/Binary quantization wiring, SIMD quantize kernels,
+BM25-after-restart and WAL-durability fixes, and a security/dependency
+refresh. All server-internal — the client API is unchanged since 3.3.0
+(REST control-surface parity + dashboard metrics).
+
 **3.2.0 — backpressure-aware HTTP client.** Both `RpcVectorizerClient`
 and `HttpVectorizerClient` honor the server-side bulk-upsert
 backpressure shipped in Vectorizer 3.2.0
@@ -121,7 +128,7 @@ rejected — credentials go through the `HELLO` handshake, not the URL.
 ## Legacy REST client (`Vectorizer.Sdk`)
 
 **Package**: `Vectorizer.Sdk`
-**Version**: 3.3.0
+**Version**: 3.5.0
 **NuGet**: https://www.nuget.org/packages/Vectorizer.Sdk
 
 ### v3.3 — REST control surface parity

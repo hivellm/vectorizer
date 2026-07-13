@@ -38,14 +38,7 @@ impl WalIntegration {
         data_dir: PathBuf,
         config: Option<WALConfig>,
     ) -> std::result::Result<Self, WALError> {
-        let config = config.unwrap_or_else(|| {
-            WALConfig {
-                checkpoint_threshold: 1000,
-                max_wal_size_mb: 100,
-                checkpoint_interval: std::time::Duration::from_secs(300), // 5 minutes
-                compression: false,
-            }
-        });
+        let config = config.unwrap_or_default();
 
         let wal_path = data_dir.join("vectorizer.wal");
         let wal = WriteAheadLog::new(&wal_path, config).await?;

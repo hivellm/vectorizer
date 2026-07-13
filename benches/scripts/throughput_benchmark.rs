@@ -336,7 +336,9 @@ fn bench_search_performance(c: &mut Criterion) {
 }
 
 // Add rand dependency for benchmarks
-use criterion::{BenchmarkId, black_box};
+use std::hint::black_box;
+
+    use criterion::BenchmarkId;
 use vectorizer::models;
 
 criterion_group!(

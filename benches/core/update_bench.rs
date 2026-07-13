@@ -1,4 +1,10 @@
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+// Benchmark binary: unwrap is idiomatic for the harness setup, the
+// `unwrap_used` / `expect_used` workspace lints apply only to library code.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+use std::hint::black_box;
+
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
@@ -15,6 +21,7 @@ fn create_test_store_with_vectors(count: usize) -> (VectorStore, String) {
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        ..Default::default()
     };
 
     store.create_collection(collection_name, config).unwrap();
@@ -84,6 +91,7 @@ fn bench_update_with_different_dimensions(c: &mut Criterion) {
             quantization: QuantizationConfig::None,
             compression: Default::default(),
             normalization: None,
+            ..Default::default()
         };
 
         store.create_collection(collection_name, config).unwrap();

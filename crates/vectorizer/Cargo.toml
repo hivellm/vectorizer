@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "3.4.1"
+version = "3.5.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -120,7 +120,7 @@ rand = "0.9"
 hmac = "0.13"           # HMAC for request signing
 base64 = "0.22"         # Base64 encoding for signing secrets
 bcrypt = "0.19"
-aes-gcm = "0.10"  # AES-GCM encryption for auth persistence
+aes-gcm = "0.11"  # AES-GCM encryption for auth persistence
 zeroize = { version = "1", features = ["zeroize_derive"] }  # Redacting Secret<T> newtype; zeroizes on Drop
 p256 = { version = "0.13", features = ["ecdh", "pem"] }  # ECC for payload encryption
 hex = "0.4"  # Hex encoding/decoding for public keys
@@ -138,14 +138,20 @@ hivehub-internal-sdk = "1.0"
 # CLI utilities
 sys-info = "0.9"
 
+# Vocabulary restore round-trips tokenizer snapshots from the .vecdb
+# archive through a temp file into the provider loaders (phase37).
+tempfile = "3.8"
+
 # MCP (Model Context Protocol) dependencies
 tokio-tungstenite = "0.29"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
-# Optional ML dependencies
-candle-core = { version = "0.10.2", optional = true }
-candle-nn = { version = "0.10.2", optional = true }
-candle-transformers = { version = "0.10.2", optional = true }
+# Optional ML dependencies. The candle family (core/nn/transformers)
+# MUST move in lockstep — bumping one without the others is a build
+# error (spec: phase36 dependency-refresh).
+candle-core = { version = "0.11.0", optional = true }
+candle-nn = { version = "0.11.0", optional = true }
+candle-transformers = { version = "0.11.0", optional = true }
 tokenizers = { version = "0.22.2", optional = true }
 hf-hub = { version = "0.5", optional = true }
 
@@ -157,7 +163,7 @@ arrow = { version = "59", optional = true }
 parquet = { version = "59", optional = true }
 
 # MCP SDK
-rmcp = { version = "1.7", features = ["server", "macros", "transport-streamable-http-server"] }
+rmcp = { version = "2.1", features = ["server", "macros", "transport-streamable-http-server"] }
 tokio-util = "0.7"
 async-trait = "0.1"
 lru = "0.18"
@@ -174,7 +180,7 @@ opentelemetry = { version = "0.32", features = ["metrics", "trace"] }
 opentelemetry_sdk = { version = "0.32", features = ["metrics", "trace", "rt-tokio"] }
 opentelemetry-prometheus = "0.32"
 opentelemetry-otlp = { version = "0.32", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
-tracing-opentelemetry = "0.32"
+tracing-opentelemetry = "0.33"
 
 # gRPC support
 tonic = { version = "0.14", features = [] }
@@ -261,62 +267,74 @@ name = "simd_quantize"
 path = "../../benches/simd/quantize.rs"
 harness = false
 
+# Core operations, search, update, cache and embedding benches
+# (phase38 §5) — re-registered as criterion `[[bench]]` targets after
+# fixing bit rot accumulated since the workspace split. Each one is
+# a self-contained criterion harness with `harness = false` (same
+# idiom as the SIMD benches above).
+[[bench]]
+name = "core_operations_benchmark"
+path = "../../benches/core/core_operations_benchmark.rs"
+harness = false
 
-# Disabled benchmarks - need refactoring for current API
-# [[bin]]
-# name = "benchmark_embeddings"
-# path = "../../benches/scripts/benchmark_embeddings.rs"
-# required-features = ["benchmarks"]
+[[bench]]
+name = "search_bench"
+path = "../../benches/search/search_bench.rs"
+harness = false
+
+[[bench]]
+name = "update_bench"
+path = "../../benches/core/update_bench.rs"
+harness = false
+
+[[bench]]
+name = "query_cache_bench"
+path = "../../benches/core/query_cache_bench.rs"
+harness = false
+
+[[bench]]
+name = "cache_benchmark"
+path = "../../benches/core/cache_benchmark.rs"
+harness = false
+
+[[bench]]
+name = "benchmark_embeddings"
+path = "../../benches/embeddings/benchmark_embeddings.rs"
+harness = false
+
+[[bench]]
+name = "storage_benchmark"
+path = "../../benches/storage/storage_benchmark.rs"
+harness = false
+
+# insert_pipeline / bm25_vocab (phase38 §5) — new coverage for the
+# Collection batch-insert path (via VectorStore) and BM25 vocabulary
+# build + embed.
+[[bench]]
+name = "insert_pipeline"
+path = "../../benches/insert_pipeline.rs"
+harness = false
+
+[[bench]]
+name = "bm25_vocab"
+path = "../../benches/bm25_vocab.rs"
+harness = false
+
+# quantization_benchmark.rs (benches/quantization/ and benches/scripts/
+# variants) stays disabled: TestDataset::load_from_workspace calls
+# `.await` inside a non-async fn (load_and_index_project became async
+# since this bench was written) AND never actually appends anything to
+# `all_documents`, so even with the async mismatch patched it always
+# returns Err("No documents loaded from workspace") at runtime. It also
+# hard-codes sibling checkouts ("../gov", "../governance/src", ...) that
+# do not exist next to this repo. This is beyond a bit-rot fix (API
+# rename/signature change) — the dataset-loading logic needs a rewrite,
+# which is out of scope for phase38 §5.
 #
-# [[bin]]
-# name = "gpu_benchmark"
-# path = "../../benches/scripts/gpu_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
+# [[bench]]
 # name = "quantization_benchmark"
-# path = "../../benches/scripts/quantization_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "core_operations_benchmark"
-# path = "../../benches/scripts/core_operations_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "dimension_comparison_benchmark"
-# path = "../../benches/scripts/dimension_comparison_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "combined_optimization_benchmark"
-# path = "../../benches/scripts/combined_optimization_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "scale_benchmark"
-# path = "../../benches/scripts/scale_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "patched_benchmark"
-# path = "../../benches/scripts/patched_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "large_scale_benchmark"
-# path = "../../benches/scripts/large_scale_benchmark.rs"
-# required-features = ["benchmarks"]
-
-# [[bin]]
-# name = "storage_benchmark"
-# path = "../../benches/scripts/storage_benchmark.rs"
-# required-features = ["benchmarks"]
-
-# [[bin]]
-# name = "diagnostic_benchmark"
-# path = "../../benches/scripts/diagnostic_benchmark.rs"
-# required-features = ["benchmarks"]
+# path = "../../benches/quantization/quantization_benchmark.rs"
+# harness = false
 
 # vectorizer-cli + create_mcp_key binaries moved to the dedicated
 # `vectorizer-cli` crate under phase4_split-vectorizer-workspace
@@ -329,45 +347,6 @@ harness = false
 # here pending re-registration in vectorizer-server (where they have
 # access to the moved server stack). The .rs sources still live at
 # benches/{grpc,comparison}/ + scripts/dev/.
-#
-# [[bin]]
-# name = "benchmark_grpc_vs_rest"
-# path = "../../benches/grpc/benchmark_grpc_vs_rest.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "qdrant_comparison_benchmark"
-# path = "../../benches/comparison/qdrant_comparison_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "test_routes"
-# path = "../../scripts/dev/test_routes.rs"
-
-# [[bin]]
-# name = "test_basic_metal"
-# path = "../../benches/scripts/test_basic_metal.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "metal_native_search_benchmark"
-# path = "../../benches/scripts/metal_native_search_benchmark.rs"
-# required-features = ["hive-gpu-metal"]
-
-# [[bin]]
-# name = "metal_hnsw_search_benchmark"
-# path = "../../benches/scripts/metal_hnsw_search_benchmark.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "simple_metal_test"
-# path = "../../benches/scripts/simple_metal_test.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "gpu_scale_benchmark"
-# path = "../../benches/scripts/gpu_scale_benchmark.rs"
-# required-features = ["hive-gpu-wgpu"]
 
 [features]
 default = ["hive-gpu", "fastembed", "transmutation", "simd", "simd-avx2", "simd-neon", "simd-wasm"]
@@ -398,9 +377,12 @@ vendored-openssl = ["dep:openssl"]
 # Future: CUDA, ROCm, WebGPU support when hive-gpu implements them
 hive-gpu = ["dep:hive-gpu"]
 
-# Legacy features (deprecated - kept for backward compatibility)
+# Legacy feature (deprecated - kept for backward compatibility; consumed by
+# scripts/build/build.sh's `cargo build --release --features metal-native`).
+# `gpu-accel` (former sibling alias) was removed in phase41 after an
+# external-consumer audit found zero references anywhere in the repo,
+# docs, or CI workflows.
 metal-native = ["hive-gpu"]
-gpu-accel = ["hive-gpu"]
 
 # Server-to-Server (S2S) tests - only compile when explicitly enabled
 # Usage: cargo test --features s2s-tests --test grpc_s2s
@@ -444,21 +426,6 @@ full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
 # Unix-specific dependencies (for signal handling)
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.31", features = ["signal"] }
-
-# [[bin]]
-# name = "gpu_scale_benchmark"
-# path = "../../benches/scripts/gpu_scale_benchmark.rs"
-# required-features = ["wgpu-gpu"]
-#
-# [[bin]]
-# name = "cache_benchmark"
-# path = "../../benches/scripts/cache_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "complete_normalization_benchmark"
-# path = "../../benches/scripts/complete_normalization_benchmark.rs"
-# required-features = ["benchmarks"]
 
 # Heavy end-to-end suite — gated by the `integration-tests` feature so
 # `cargo build --tests` and the default CI nextest run skip it.

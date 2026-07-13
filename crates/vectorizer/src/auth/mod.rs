@@ -28,7 +28,14 @@ pub use roles::{Permission, Role};
 pub use secret::Secret;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+use vectorizer_core::metrics_sink::{MetricsSink, NoopMetricsSink};
 
+// `AuthConfig` and `CookieConfig` are plain serde data types owned by
+// `config` (phase41_architecture-decoupling §2: config must not depend
+// on auth, so the dependency now points the other way). Re-exported
+// here under the historical `crate::auth::*` paths so every existing
+// call site keeps compiling.
+pub use crate::config::sections::auth::{AuthConfig, CookieConfig};
 use crate::error::{Result, VectorizerError};
 
 /// The insecure literal that shipped as the hardcoded default in every
@@ -40,77 +47,6 @@ pub const LEGACY_INSECURE_DEFAULT_SECRET: &str =
 /// Minimum accepted length for a JWT secret. Matches the length check in
 /// `JwtManager::new` and `ConfigManager::validate_config`.
 pub const MIN_JWT_SECRET_LEN: usize = 32;
-
-/// Cookie hardening configuration for dashboard session + CSRF cookies.
-///
-/// Every dashboard cookie is emitted with `HttpOnly; Secure;
-/// SameSite=Strict; Path=/` by default. The `insecure_dev` escape
-/// hatch drops only the `Secure` flag so a developer can run the
-/// dashboard against plain-HTTP `127.0.0.1`. Boot rejects this flag
-/// when binding to `0.0.0.0` — see `VectorizerServer::start`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct CookieConfig {
-    /// Drop the `Secure` cookie attribute. INTENDED FOR LOCAL DEVELOPMENT
-    /// ONLY against plain-HTTP `127.0.0.1`. Boot fails if this is `true`
-    /// while binding to `0.0.0.0`.
-    #[serde(default)]
-    pub insecure_dev: bool,
-}
-
-/// Authentication configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthConfig {
-    /// JWT secret key for token signing. Must be set explicitly (via config
-    /// file or `VECTORIZER_JWT_SECRET` env var) to a value that is at least
-    /// `MIN_JWT_SECRET_LEN` characters long and is NOT the legacy default.
-    ///
-    /// Stored in a redacting `Secret<String>` — `Debug`/`Display` of an
-    /// `AuthConfig` will show `<redacted>` for this field.
-    pub jwt_secret: Secret<String>,
-    /// JWT token expiration time in seconds (default: 3600 = 1 hour)
-    pub jwt_expiration: u64,
-    /// API key length (default: 32)
-    pub api_key_length: usize,
-    /// Rate limiting: requests per minute per API key
-    pub rate_limit_per_minute: u32,
-    /// Rate limiting: requests per hour per API key
-    pub rate_limit_per_hour: u32,
-    /// Enable authentication (default: true)
-    pub enabled: bool,
-    /// Cookie hardening configuration for dashboard sessions.
-    #[serde(default)]
-    pub cookies: CookieConfig,
-    /// Local-development convenience: when `true`, the auth middleware
-    /// short-circuits with an implicit `local-dev-admin` principal and
-    /// every response carries the `X-Vectorizer-Dev-Mode: true`
-    /// header. The boot path refuses to start with this flag set on
-    /// any non-loopback host (`0.0.0.0`, LAN IPs, etc.) so the only
-    /// way to engage it is to bind explicitly to `127.0.0.1`, `::1`,
-    /// or `localhost`. Defaults to `false`; absent payloads
-    /// deserialize cleanly thanks to `#[serde(default)]`.
-    #[serde(default)]
-    pub dev_mode_skip_loopback: bool,
-}
-
-impl Default for AuthConfig {
-    /// Returns a default config with an **empty** JWT secret. Callers must
-    /// populate `jwt_secret` before instantiating an `AuthManager`, or boot
-    /// will fail via `AuthConfig::validate` / `AuthManager::new`. This is
-    /// intentional: shipping a real default value historically caused a known
-    /// auth-bypass vulnerability.
-    fn default() -> Self {
-        Self {
-            jwt_secret: Secret::new(String::new()),
-            jwt_expiration: 3600, // 1 hour
-            api_key_length: 32,
-            rate_limit_per_minute: 100,
-            rate_limit_per_hour: 1000,
-            enabled: true,
-            cookies: CookieConfig::default(),
-            dev_mode_skip_loopback: false,
-        }
-    }
-}
 
 impl AuthConfig {
     /// Fail-fast validation called during `AuthManager::new`. Rejects three
@@ -289,13 +225,13 @@ pub struct AuthManager {
     rate_limits: Arc<RwLock<HashMap<String, RateLimitInfo>>>,
     /// Configuration
     config: AuthConfig,
-    /// Optional per-key per-day usage recorder. Populated via
-    /// `set_usage_recorder` at boot when the operator wants the
-    /// dashboard sparkline / `GET /auth/keys/{id}/usage` endpoint
-    /// backed by real data. Left `None` in tests / programmatic
-    /// embeddings that don't need a time-series.
-    usage_recorder:
-        Arc<arc_swap::ArcSwapOption<crate::monitoring::api_key_usage::ApiKeyUsageRecorder>>,
+    /// Metrics sink for cross-cutting instrumentation — in particular,
+    /// per-API-key usage tracking consumed by the dashboard sparkline
+    /// and `GET /auth/keys/{id}/usage`. Defaults to a
+    /// [`NoopMetricsSink`]; installed via `set_metrics` at boot once
+    /// the operator's `ApiKeyUsageRecorder` exists (it is constructed
+    /// after `AuthManager::new`, so it can't be a constructor param).
+    metrics: parking_lot::RwLock<Arc<dyn MetricsSink>>,
 }
 
 impl AuthManager {
@@ -315,27 +251,18 @@ impl AuthManager {
             api_key_manager,
             rate_limits: Arc::new(RwLock::new(HashMap::new())),
             config,
-            usage_recorder: Arc::new(arc_swap::ArcSwapOption::from(None)),
+            metrics: parking_lot::RwLock::new(Arc::new(NoopMetricsSink)),
         })
     }
 
-    /// Install (or replace) the per-key per-day usage recorder shared
-    /// with the server's `GET /auth/keys/{id}/usage` handler. Calling
-    /// this with `Some(...)` activates the time-series; calling with
-    /// `None` (or never calling) disables it without breaking
-    /// validation.
-    pub fn set_usage_recorder(
-        &self,
-        recorder: Option<Arc<crate::monitoring::api_key_usage::ApiKeyUsageRecorder>>,
-    ) {
-        self.usage_recorder.store(recorder);
-    }
-
-    /// Borrow the currently installed usage recorder, if any.
-    pub fn usage_recorder(
-        &self,
-    ) -> Option<Arc<crate::monitoring::api_key_usage::ApiKeyUsageRecorder>> {
-        self.usage_recorder.load_full()
+    /// Install (or replace) the metrics sink used for cross-cutting
+    /// instrumentation, in particular the per-key per-day usage
+    /// recorder shared with the server's `GET /auth/keys/{id}/usage`
+    /// handler. Calling this activates real instrumentation; leaving
+    /// the default [`NoopMetricsSink`] in place disables it without
+    /// breaking validation.
+    pub fn set_metrics(&self, metrics: Arc<dyn MetricsSink>) {
+        *self.metrics.write() = metrics;
     }
 
     /// Create a new authentication manager with default configuration.
@@ -377,13 +304,12 @@ impl AuthManager {
 
         // Bump the per-key usage counter atomically. Runs OUTSIDE the
         // validate_key read lock so concurrent validations on different
-        // keys never contend on the same shard. The optional recorder
+        // keys never contend on the same shard. The metrics sink
         // captures the per-day bucket consumed by the dashboard
-        // sparkline + GET /auth/keys/{id}/usage.
+        // sparkline + GET /auth/keys/{id}/usage (a no-op unless
+        // `set_metrics` installed a real sink).
         self.api_key_manager.increment_usage(&key_info.id);
-        if let Some(recorder) = self.usage_recorder.load_full() {
-            recorder.record(&key_info.id);
-        }
+        self.metrics.read().api_key_validated(&key_info.id);
 
         // Create user claims from API key
         Ok(UserClaims {

@@ -975,6 +975,401 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             }),
             ToolAnnotations::new().read_only(true).idempotent(true),
         ),
+        // =============================================
+        // phase40 §2.1 — MCP tools mirroring REST-only endpoints (4 tools)
+        // =============================================
+
+        // Delete Collection
+        mk_tool(
+            "delete_collection",
+            "Delete Collection",
+            "Delete a collection and all of its vectors. Mirrors DELETE /collections/{name}.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Collection name"
+                    }
+                },
+                "required": ["name"]
+            }),
+            ToolAnnotations::new().read_only(false),
+        ),
+        // Embed Text
+        mk_tool(
+            "embed_text",
+            "Embed Text",
+            "Generate an embedding for a text input via the server's active embedding provider. Mirrors POST /embed.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "Text to embed"
+                    },
+                    "model": {
+                        "type": "string",
+                        "description": "Embedding provider name (optional, uses the server default when omitted)"
+                    }
+                },
+                "required": ["text"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Contextual Search
+        mk_tool(
+            "contextual_search",
+            "Contextual Search",
+            "Search with context-aware filtering and reranking. Mirrors POST /contextual_search.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "context_filters": {
+                        "type": "object",
+                        "description": "Context metadata filters (optional)"
+                    },
+                    "context_weight": {
+                        "type": "number",
+                        "description": "Context weight in scoring",
+                        "default": 0.3
+                    },
+                    "context_reranking": {
+                        "type": "boolean",
+                        "description": "Enable context-aware reranking",
+                        "default": true
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum results to return",
+                        "default": 10
+                    }
+                },
+                "required": ["query", "collection"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Get Database Stats
+        mk_tool(
+            "get_database_stats",
+            "Get Database Stats",
+            "Get aggregate collection/vector counts and the embedding provider registry for the whole server. Mirrors GET /stats.",
+            json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // =============================================
+        // phase40 §2.2 — Discovery pipeline (8 tools)
+        // =============================================
+
+        // Discover (full pipeline)
+        mk_tool(
+            "discover",
+            "Discover",
+            "Run the full discovery pipeline (filter, score, expand, broad search, semantic focus, README promotion, evidence compression, answer plan, prompt rendering) for a query. Mirrors POST /discover.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "include_collections": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Collections to include (optional)"
+                    },
+                    "exclude_collections": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Collections to exclude (optional)"
+                    },
+                    "max_bullets": {
+                        "type": "integer",
+                        "description": "Maximum evidence bullets to extract",
+                        "default": 20
+                    },
+                    "broad_k": {
+                        "type": "integer",
+                        "description": "Number of chunks retrieved in the broad discovery step",
+                        "default": 50
+                    },
+                    "focus_k": {
+                        "type": "integer",
+                        "description": "Number of chunks retrieved in the semantic focus step",
+                        "default": 15
+                    }
+                },
+                "required": ["query"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Score Collections
+        mk_tool(
+            "score_collections",
+            "Score Collections",
+            "Score collections by relevance to a query (name match, term boost, signal boost). Mirrors POST /discovery/score_collections.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query"
+                    },
+                    "name_match_weight": {
+                        "type": "number",
+                        "description": "Weight for collection-name term matches",
+                        "default": 0.4
+                    },
+                    "term_boost_weight": {
+                        "type": "number",
+                        "description": "Weight for query-term boosting",
+                        "default": 0.3
+                    },
+                    "signal_boost_weight": {
+                        "type": "number",
+                        "description": "Weight for collection signal boosting",
+                        "default": 0.3
+                    }
+                },
+                "required": ["query"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Broad Discovery
+        mk_tool(
+            "broad_discovery",
+            "Broad Discovery",
+            "Search across all matching collections with multiple query variations to gather a wide candidate set. Mirrors POST /discovery/broad_discovery.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "queries": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Query variations to search with"
+                    },
+                    "k": {
+                        "type": "integer",
+                        "description": "Maximum number of chunks to return",
+                        "default": 50
+                    }
+                },
+                "required": ["queries"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Semantic Focus
+        mk_tool(
+            "semantic_focus",
+            "Semantic Focus",
+            "Narrow a broad candidate set down to the most relevant chunks within a single collection. Mirrors POST /discovery/semantic_focus.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "queries": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Query variations to search with"
+                    },
+                    "k": {
+                        "type": "integer",
+                        "description": "Maximum number of chunks to return",
+                        "default": 15
+                    }
+                },
+                "required": ["collection", "queries"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Promote Readme
+        mk_tool(
+            "promote_readme",
+            "Promote Readme",
+            "Boost README-like chunks to the front of a scored chunk list. Mirrors POST /discovery/promote_readme.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "chunks": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Scored chunks: [{collection, doc_id, content, score, file_path, chunk_index, file_extension}]"
+                    }
+                },
+                "required": ["chunks"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Compress Evidence
+        mk_tool(
+            "compress_evidence",
+            "Compress Evidence",
+            "Compress scored chunks into short evidence bullets, capped per document. Mirrors POST /discovery/compress_evidence.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "chunks": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Scored chunks: [{collection, doc_id, content, score, file_path, chunk_index, file_extension}]"
+                    },
+                    "max_bullets": {
+                        "type": "integer",
+                        "description": "Maximum number of bullets to produce",
+                        "default": 20
+                    },
+                    "max_per_doc": {
+                        "type": "integer",
+                        "description": "Maximum bullets per source document",
+                        "default": 3
+                    }
+                },
+                "required": ["chunks"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Build Answer Plan
+        mk_tool(
+            "build_answer_plan",
+            "Build Answer Plan",
+            "Group evidence bullets into an ordered answer plan (sections by category). Mirrors POST /discovery/build_answer_plan.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "bullets": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Evidence bullets: [{text, source_id, collection, file_path, score, category}]"
+                    }
+                },
+                "required": ["bullets"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Render LLM Prompt
+        mk_tool(
+            "render_llm_prompt",
+            "Render LLM Prompt",
+            "Render an answer plan into the final LLM-ready prompt string. Mirrors POST /discovery/render_llm_prompt.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "plan": {
+                        "type": "object",
+                        "description": "Answer plan: {sections: [{title, priority, bullets: [...]}], total_bullets, sources}"
+                    }
+                },
+                "required": ["plan"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // =============================================
+        // phase40 §2.2 — Batch operations (4 tools)
+        // =============================================
+
+        // Batch Insert Texts
+        mk_tool(
+            "batch_insert_texts",
+            "Batch Insert Texts",
+            "Insert multiple texts into a collection in one call, embedding each server-side. Mirrors POST /batch_insert.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "collection_name": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "texts": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Texts to insert: [{id?, text, metadata?, public_key?}]"
+                    }
+                },
+                "required": ["collection_name", "texts"]
+            }),
+            ToolAnnotations::new().read_only(false),
+        ),
+        // Batch Search
+        mk_tool(
+            "batch_search",
+            "Batch Search",
+            "Run multiple searches against one collection in a single call. Mirrors POST /batch_search.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "queries": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Queries: [{query?, vector?, limit?}] — each entry needs either `query` (embedded server-side) or a raw `vector`"
+                    }
+                },
+                "required": ["collection", "queries"]
+            }),
+            ToolAnnotations::new().read_only(true).idempotent(true),
+        ),
+        // Batch Update
+        mk_tool(
+            "batch_update",
+            "Batch Update",
+            "Update multiple vectors' data and/or payload in one call. Mirrors POST /batch_update.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "updates": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                        "description": "Updates: [{id, vector?, payload?}]"
+                    }
+                },
+                "required": ["collection", "updates"]
+            }),
+            ToolAnnotations::new().read_only(false),
+        ),
+        // Batch Delete
+        mk_tool(
+            "batch_delete",
+            "Batch Delete",
+            "Delete multiple vectors by ID from one collection in a single call. Mirrors POST /batch_delete.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "collection": {
+                        "type": "string",
+                        "description": "Collection name"
+                    },
+                    "ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Vector IDs to delete"
+                    }
+                },
+                "required": ["collection", "ids"]
+            }),
+            ToolAnnotations::new().read_only(false),
+        ),
     ]
 }
 

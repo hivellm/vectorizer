@@ -253,7 +253,6 @@ async fn test_search() {
 }
 
 #[tokio::test]
-#[ignore = "Update operation fails in CI environment"]
 async fn test_update_vector() {
     let port = 15008;
     let store = start_test_server(port).await.unwrap();

@@ -333,8 +333,125 @@ impl ProductQuantization {
     }
 }
 
-// Note: ProductQuantization implements its own methods directly
-// and is used via direct method calls, not through the QuantizationMethod trait
+impl crate::quantization::traits::QuantizationMethod for ProductQuantization {
+    fn quantize(
+        &self,
+        vectors: &[Vec<f32>],
+    ) -> crate::quantization::QuantizationResult<crate::quantization::traits::QuantizedVectors>
+    {
+        if vectors.is_empty() {
+            return Err(QuantizationError::InvalidParameters(
+                "Cannot quantize empty vector set".to_string(),
+            ));
+        }
+        if !self.trained {
+            return Err(QuantizationError::InvalidParameters(
+                "Product quantizer not trained".to_string(),
+            ));
+        }
+
+        let mut data = Vec::with_capacity(vectors.len() * self.config.subvectors);
+        for vector in vectors {
+            data.extend_from_slice(&ProductQuantization::quantize(self, vector)?);
+        }
+
+        Ok(crate::quantization::traits::QuantizedVectors {
+            data,
+            dimension: self.dimension,
+            count: vectors.len(),
+            parameters: self.serialize_params()?,
+        })
+    }
+
+    fn dequantize(
+        &self,
+        quantized: &crate::quantization::traits::QuantizedVectors,
+    ) -> crate::quantization::QuantizationResult<Vec<Vec<f32>>> {
+        let codes_per_vector = self.config.subvectors;
+        let expected = codes_per_vector * quantized.count;
+        if quantized.data.len() < expected {
+            return Err(QuantizationError::InvalidParameters(format!(
+                "Invalid quantized data size: expected at least {}, got {}",
+                expected,
+                quantized.data.len()
+            )));
+        }
+
+        let mut out = Vec::with_capacity(quantized.count);
+        for i in 0..quantized.count {
+            let start = i * codes_per_vector;
+            out.push(self.reconstruct(&quantized.data[start..start + codes_per_vector])?);
+        }
+        Ok(out)
+    }
+
+    fn memory_usage(&self, vector_count: usize, _dimension: usize) -> usize {
+        vector_count * self.memory_per_vector()
+    }
+
+    fn quality_loss(&self) -> f32 {
+        // Rough estimate: PQ with 8 subvectors × 256 centroids typically
+        // preserves ~90-95% recall on natural embeddings. Actual loss
+        // depends on data distribution, like the Binary estimate.
+        0.08
+    }
+
+    fn method_type(&self) -> crate::quantization::QuantizationType {
+        crate::quantization::QuantizationType::Product
+    }
+
+    fn validate_parameters(&self) -> crate::quantization::QuantizationResult<()> {
+        if self.config.subvectors == 0 {
+            return Err(QuantizationError::InvalidParameters(
+                "subvectors must be > 0".to_string(),
+            ));
+        }
+        if self.config.centroids_per_subvector == 0 || self.config.centroids_per_subvector > 256 {
+            return Err(QuantizationError::InvalidParameters(
+                "centroids_per_subvector must be in 1..=256 (codes are single bytes)".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn serialize_params(
+        &self,
+    ) -> crate::quantization::QuantizationResult<crate::quantization::traits::QuantizationParams>
+    {
+        Ok(crate::quantization::traits::QuantizationParams::Product {
+            subvector_count: self.config.subvectors,
+            subvector_size: self.subvector_size,
+            codebook_size: self.config.centroids_per_subvector,
+            codebooks: self.codebooks.clone(),
+        })
+    }
+
+    fn deserialize_params(
+        &mut self,
+        params: crate::quantization::traits::QuantizationParams,
+    ) -> crate::quantization::QuantizationResult<()> {
+        match params {
+            crate::quantization::traits::QuantizationParams::Product {
+                subvector_count,
+                subvector_size,
+                codebook_size,
+                codebooks,
+            } => {
+                self.config.subvectors = subvector_count;
+                self.config.centroids_per_subvector = codebook_size;
+                self.subvector_size = subvector_size;
+                self.dimension = subvector_size * subvector_count;
+                self.codebooks = codebooks;
+                self.trained = true;
+                Ok(())
+            }
+            other => Err(QuantizationError::InvalidParameters(format!(
+                "Expected Product parameters, got {:?}",
+                std::mem::discriminant(&other)
+            ))),
+        }
+    }
+}
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
@@ -433,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Slow test - trains 1000 vectors with K-means, takes >60 seconds
+    #[ignore = "slow: K-means training of 1000 vectors, >60s"]
     fn test_pq_compression_and_search_accuracy() {
         // Test PQ compression ratio and verify search accuracy
         let config = ProductQuantizationConfig {

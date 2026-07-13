@@ -512,6 +512,10 @@ impl EmbeddingProvider for Bm25Embedding {
         Bm25Embedding::save_vocabulary_json(self, path)
     }
 
+    fn load_vocabulary_json(&mut self, path: &Path) -> Result<()> {
+        Bm25Embedding::load_vocabulary_json(self, path)
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

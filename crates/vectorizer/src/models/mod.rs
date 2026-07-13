@@ -908,6 +908,9 @@ pub mod qdrant;
 /// Sparse vector support module
 pub mod sparse_vector;
 
+/// Tenant identity + permission model (moved from hub/auth.rs, phase41)
+pub mod tenant;
+
 /// SIMD-accelerated vector utilities
 pub mod vector_utils_simd;
 

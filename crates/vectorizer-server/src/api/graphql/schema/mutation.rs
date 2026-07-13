@@ -18,7 +18,7 @@ use vectorizer::models::{
 use super::super::types::*;
 use super::{
     GraphQLContext, base64_decode, check_collection_ownership, get_language_from_extension,
-    is_binary_content, load_file_upload_config,
+    is_binary_content, load_file_upload_config, tenant_collection_name,
 };
 
 pub struct MutationRoot;
@@ -89,7 +89,7 @@ impl MutationRoot {
 
         // In multi-tenant mode, add tenant prefix to collection name
         let collection_name = if let Some(tenant) = tenant_ctx {
-            format!("user_{}:{}", tenant.tenant_id, input.name)
+            tenant_collection_name(&tenant.tenant_id, &input.name)
         } else {
             input.name.clone()
         };
@@ -119,10 +119,14 @@ impl MutationRoot {
             auto_save.mark_changed();
         }
 
-        // Return the created collection metadata
+        // Return the created collection metadata. Must look up by
+        // `collection_name` (the tenant-prefixed name the collection was
+        // actually created under above), not the raw `input.name` — in
+        // multi-tenant mode those differ, and looking up the unprefixed
+        // name here would fail (phase40 §4.2).
         let meta = gql_ctx
             .store
-            .get_collection_metadata(&input.name)
+            .get_collection_metadata(&collection_name)
             .map_err(|e| async_graphql::Error::new(format!("Failed to get metadata: {e}")))?;
 
         Ok(meta.into())
@@ -762,9 +766,11 @@ impl MutationRoot {
         // Determine language from extension
         let language = get_language_from_extension(&extension);
 
-        // Apply tenant prefix if in hub mode
+        // Apply tenant prefix if in hub mode. Must match the format
+        // `create_collection` uses (phase40 §4.1) — otherwise an upload
+        // targets a collection the user never created.
         let collection_name = if let Some(tenant) = tenant_ctx {
-            format!("user_{}_{}", tenant.tenant_id, input.collection_name)
+            tenant_collection_name(&tenant.tenant_id, &input.collection_name)
         } else {
             input.collection_name.clone()
         };

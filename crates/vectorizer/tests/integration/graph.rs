@@ -534,7 +534,7 @@ fn test_graph_persistence_corrupted_file() {
 }
 
 #[test]
-#[ignore] // Performance test - run explicitly with `cargo test -- --ignored`
+#[ignore = "performance benchmark; run explicitly via cargo test -- --ignored"]
 fn test_graph_discovery_performance_large_collection() {
     use std::time::Instant;
 

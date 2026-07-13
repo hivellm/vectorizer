@@ -115,6 +115,22 @@ pub fn create_schema_with_hub(
 // HELPER FUNCTIONS
 // =============================================================================
 
+/// Build the tenant-scoped collection name every multi-tenant resolver
+/// must use to address a given user's collection.
+///
+/// phase40 §4: `create_collection` (which is what actually creates the
+/// collection in the store) used `user_{id}:{name}` while `upload_file`
+/// independently built `user_{id}_{name}` — the underscore variant never
+/// matched anything `create_collection` had made, so uploads silently
+/// targeted (and auto-created) a *different* collection than the one the
+/// user thought they were uploading into. This is now the single source
+/// of truth for that format; every resolver that needs to build a
+/// tenant-scoped collection name calls this instead of formatting its
+/// own copy.
+pub fn tenant_collection_name(tenant_id: &str, name: &str) -> String {
+    format!("user_{tenant_id}:{name}")
+}
+
 /// Verify collection ownership in multi-tenant mode
 fn check_collection_ownership(
     store: &VectorStore,

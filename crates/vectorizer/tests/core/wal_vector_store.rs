@@ -20,6 +20,7 @@ async fn test_vector_store_wal_integration() {
         max_wal_size_mb: 10,
         checkpoint_interval: std::time::Duration::from_secs(60),
         compression: false,
+        fsync: true,
     };
 
     assert!(

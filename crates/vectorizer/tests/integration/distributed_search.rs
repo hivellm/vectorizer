@@ -66,7 +66,10 @@ async fn test_distributed_search_merges_results() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-merge".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -128,7 +131,10 @@ async fn test_distributed_search_ordering() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-ordering".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -184,7 +190,10 @@ async fn test_distributed_search_with_threshold() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-threshold".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -242,7 +251,10 @@ async fn test_distributed_search_shard_filtering() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-shard-filter".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -291,7 +303,10 @@ async fn test_distributed_search_performance() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-performance".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -339,7 +354,10 @@ async fn test_distributed_search_consistency() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-consistency".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,

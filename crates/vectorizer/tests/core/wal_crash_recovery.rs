@@ -21,6 +21,7 @@ async fn test_wal_crash_recovery_insert() {
         max_wal_size_mb: 100,
         checkpoint_interval: std::time::Duration::from_secs(300),
         compression: false,
+        fsync: true,
     };
     store
         .enable_wal(data_dir.clone(), Some(wal_config.clone()))
@@ -118,6 +119,7 @@ async fn test_wal_crash_recovery_update() {
         max_wal_size_mb: 100,
         checkpoint_interval: std::time::Duration::from_secs(300),
         compression: false,
+        fsync: true,
     };
     store
         .enable_wal(data_dir.clone(), Some(wal_config.clone()))
@@ -215,6 +217,7 @@ async fn test_wal_crash_recovery_delete() {
         max_wal_size_mb: 100,
         checkpoint_interval: std::time::Duration::from_secs(300),
         compression: false,
+        fsync: true,
     };
     store
         .enable_wal(data_dir.clone(), Some(wal_config.clone()))
@@ -291,6 +294,7 @@ async fn test_wal_recover_all_collections() {
         max_wal_size_mb: 100,
         checkpoint_interval: std::time::Duration::from_secs(300),
         compression: false,
+        fsync: true,
     };
     store
         .enable_wal(data_dir.clone(), Some(wal_config.clone()))

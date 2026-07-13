@@ -35,6 +35,25 @@ use crate::server::error_middleware::{
     ErrorResponse, create_bad_request_error, create_validation_error,
 };
 
+/// Server-side ceiling for the `limit` field on every search shape.
+///
+/// The OpenAPI/tool schemas document `maximum: 100`, but schemas don't
+/// execute — before phase40 a client could send `limit: 100000000` and
+/// drive result allocation directly (memory-DoS vector, analysis §2).
+/// Clamping (rather than rejecting) matches how the capped `list`
+/// endpoints already behave.
+pub(crate) const MAX_SEARCH_LIMIT: usize = 100;
+
+/// Parse `payload.limit`, defaulting to `default` and clamping to
+/// [`MAX_SEARCH_LIMIT`].
+pub(crate) fn clamped_limit(payload: &Value, default: usize) -> usize {
+    (payload
+        .get("limit")
+        .and_then(|l| l.as_u64())
+        .unwrap_or(default as u64) as usize)
+        .min(MAX_SEARCH_LIMIT)
+}
+
 pub async fn search_vectors_by_text(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
@@ -56,7 +75,7 @@ pub async fn search_vectors_by_text(
         .get("query")
         .and_then(|q| q.as_str())
         .ok_or_else(|| create_validation_error("query", "missing or invalid query parameter"))?;
-    let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
+    let limit = clamped_limit(&payload, 10);
     let threshold = payload.get("threshold").and_then(|t| t.as_f64());
 
     // Check cache first
@@ -210,19 +229,22 @@ pub async fn hybrid_search_vectors(
         "alpha" => HybridScoringAlgorithm::AlphaBlending,
         _ => HybridScoringAlgorithm::ReciprocalRankFusion,
     };
-    let dense_k = payload
+    let dense_k = (payload
         .get("dense_k")
         .and_then(|v| v.as_u64())
-        .unwrap_or(20) as usize;
-    let sparse_k = payload
+        .unwrap_or(20) as usize)
+        .min(MAX_SEARCH_LIMIT);
+    let sparse_k = (payload
         .get("sparse_k")
         .and_then(|v| v.as_u64())
-        .unwrap_or(20) as usize;
-    let final_k = payload
+        .unwrap_or(20) as usize)
+        .min(MAX_SEARCH_LIMIT);
+    let final_k = (payload
         .get("final_k")
         .and_then(|v| v.as_u64())
         .or_else(|| payload.get("limit").and_then(|v| v.as_u64()))
-        .unwrap_or(10) as usize;
+        .unwrap_or(10) as usize)
+        .min(MAX_SEARCH_LIMIT);
 
     // Check cache first
     let cache_key = QueryKey::new(
@@ -329,7 +351,7 @@ pub async fn search_by_file(
         .ok_or_else(|| {
             create_validation_error("file_path", "missing or invalid file_path parameter")
         })?;
-    let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
+    let limit = clamped_limit(&payload, 10);
 
     // Extract tenant ID for multi-tenant access control
     let tenant_id = extract_tenant_id(&tenant_ctx);
@@ -464,7 +486,7 @@ fn parse_vector_search_payload(
         })?;
         query_vector.push(f as f32);
     }
-    let limit = payload.get("limit").and_then(|l| l.as_u64()).unwrap_or(10) as usize;
+    let limit = clamped_limit(&payload, 10);
     let threshold = payload.get("threshold").and_then(|t| t.as_f64());
     Ok((query_vector, limit, threshold))
 }
@@ -574,7 +596,7 @@ pub async fn batch_search_vectors(
     let mut results: Vec<Value> = Vec::with_capacity(queries.len());
 
     for (idx, entry) in queries.iter().enumerate() {
-        let limit = entry.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+        let limit = clamped_limit(entry, 10);
         let threshold = entry.get("threshold").and_then(|v| v.as_f64());
 
         let outcome = if let Some(vec_arr) = entry.get("vector").and_then(|v| v.as_array()) {
@@ -970,7 +992,8 @@ pub async fn explain_search(
     Path(collection_name): Path<String>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, ErrorResponse> {
-    let k = payload.get("k").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+    let k =
+        (payload.get("k").and_then(|v| v.as_u64()).unwrap_or(10) as usize).min(MAX_SEARCH_LIMIT);
 
     let query_vector: Vec<f32> = payload
         .get("vector")

@@ -70,7 +70,10 @@ async fn test_cluster_3_nodes_load_distribution() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-3nodes".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,

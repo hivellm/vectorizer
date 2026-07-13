@@ -230,6 +230,31 @@ pub fn inventory() -> Vec<Capability> {
             auth: AuthBucket::User,
             transport: Transport::Both,
         },
+        // phase40 §1.2: REST-only search variants over a single named
+        // collection. No MCP counterpart exists today — search_semantic /
+        // search_intelligent cover the AI-driven query paths, and adding a
+        // dedicated MCP tool for a raw text-query-string or file-upload
+        // search would just re-expose what `search` already does over
+        // this transport. Tracked here (rather than left undocumented)
+        // so the registry stops omitting a live route.
+        Capability {
+            id: "search.by_text",
+            summary: "Search a specific collection using a raw text query string.",
+            mcp_tool_name: None,
+            mcp_input_schema: None,
+            rest: Some(("POST", "/collections/{name}/search/text")),
+            auth: AuthBucket::User,
+            transport: Transport::RestOnly,
+        },
+        Capability {
+            id: "search.by_file",
+            summary: "Search a specific collection using an uploaded file as the query.",
+            mcp_tool_name: None,
+            mcp_input_schema: None,
+            rest: Some(("POST", "/collections/{name}/search/file")),
+            auth: AuthBucket::User,
+            transport: Transport::RestOnly,
+        },
         // -----------------------------------------------------------------
         // Discovery
         // -----------------------------------------------------------------
@@ -325,7 +350,10 @@ pub fn inventory() -> Vec<Capability> {
             summary: "Find all nodes related to a given node within N hops in the graph.",
             mcp_tool_name: Some("graph_find_related"),
             mcp_input_schema: Some(schema_graph_find_related),
-            rest: Some(("GET", "/graph/nodes/{collection}/{node_id}/related")),
+            // phase40 §1.1: the router (`api/graph.rs:64`) registers this
+            // route as POST, not GET — the registry previously disagreed
+            // and would have sent registry-driven callers into a 405.
+            rest: Some(("POST", "/graph/nodes/{collection}/{node_id}/related")),
             auth: AuthBucket::User,
             transport: Transport::Both,
         },
@@ -374,6 +402,38 @@ pub fn inventory() -> Vec<Capability> {
             auth: AuthBucket::User,
             transport: Transport::Both,
         },
+        // phase40 §1.2: REST-only graph lifecycle + inspection routes with
+        // no MCP counterpart. `graph.discover_edges`/`graph.discover_status`
+        // above cover automatic edge discovery; these three cover turning
+        // graph tracking on for a collection, reading whether it's on, and
+        // listing raw edges (as opposed to per-node neighbors).
+        Capability {
+            id: "graph.enable",
+            summary: "Enable graph relationship tracking for a collection.",
+            mcp_tool_name: None,
+            mcp_input_schema: None,
+            rest: Some(("POST", "/graph/enable/{collection}")),
+            auth: AuthBucket::User,
+            transport: Transport::RestOnly,
+        },
+        Capability {
+            id: "graph.status",
+            summary: "Get whether graph relationship tracking is enabled for a collection.",
+            mcp_tool_name: None,
+            mcp_input_schema: None,
+            rest: Some(("GET", "/graph/status/{collection}")),
+            auth: AuthBucket::User,
+            transport: Transport::RestOnly,
+        },
+        Capability {
+            id: "graph.list_edges",
+            summary: "List all edges in a collection's graph.",
+            mcp_tool_name: None,
+            mcp_input_schema: None,
+            rest: Some(("GET", "/graph/collections/{collection}/edges")),
+            auth: AuthBucket::User,
+            transport: Transport::RestOnly,
+        },
         // -----------------------------------------------------------------
         // Collection maintenance
         // -----------------------------------------------------------------
@@ -408,6 +468,168 @@ pub fn inventory() -> Vec<Capability> {
             transport: Transport::McpOnly,
         },
         // -----------------------------------------------------------------
+        // phase40 §2.1: MCP tools mirroring REST-only endpoints. These
+        // routes used to live in `documented_rest_exclusions` pending this
+        // work; they convert to `Transport::Both` now that the matching
+        // MCP tool exists.
+        // -----------------------------------------------------------------
+        Capability {
+            id: "collection.delete",
+            summary: "Delete a collection and all of its vectors.",
+            mcp_tool_name: Some("delete_collection"),
+            mcp_input_schema: Some(schema_delete_collection),
+            rest: Some(("DELETE", "/collections/{name}")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "embedding.embed_text",
+            summary: "Generate an embedding for a text input via the server's active embedding provider.",
+            mcp_tool_name: Some("embed_text"),
+            mcp_input_schema: Some(schema_embed_text),
+            rest: Some(("POST", "/embed")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "search.contextual",
+            summary: "Search with context-aware filtering and reranking.",
+            mcp_tool_name: Some("contextual_search"),
+            mcp_input_schema: Some(schema_contextual_search),
+            rest: Some(("POST", "/contextual_search")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "stats.get_database_stats",
+            summary: "Get aggregate collection/vector counts and the embedding provider registry for the whole server.",
+            mcp_tool_name: Some("get_database_stats"),
+            mcp_input_schema: Some(schema_empty_object),
+            // GET /stats is already tracked under `embedding.list_providers`
+            // (same route, different capability slice) — a second `Both`
+            // row pointing at the same (method, path) would trip the
+            // duplicate-REST-route invariant, so this stays McpOnly.
+            rest: None,
+            auth: AuthBucket::User,
+            transport: Transport::McpOnly,
+        },
+        // -----------------------------------------------------------------
+        // phase40 §2.2: discovery pipeline (8 ops). Same exclusion→Both
+        // conversion rationale as the block above.
+        // -----------------------------------------------------------------
+        Capability {
+            id: "discovery.discover",
+            summary: "Run the full discovery pipeline (filter, score, expand, broad search, semantic focus, README promotion, evidence compression, answer plan, prompt rendering) for a query.",
+            mcp_tool_name: Some("discover"),
+            mcp_input_schema: Some(schema_discover),
+            rest: Some(("POST", "/discover")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "discovery.score_collections",
+            summary: "Score collections by relevance to a query (name match, term boost, signal boost).",
+            mcp_tool_name: Some("score_collections"),
+            mcp_input_schema: Some(schema_score_collections),
+            rest: Some(("POST", "/discovery/score_collections")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "discovery.broad_discovery",
+            summary: "Search across all matching collections with multiple query variations to gather a wide candidate set.",
+            mcp_tool_name: Some("broad_discovery"),
+            mcp_input_schema: Some(schema_broad_discovery),
+            rest: Some(("POST", "/discovery/broad_discovery")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "discovery.semantic_focus",
+            summary: "Narrow a broad candidate set down to the most relevant chunks within a single collection.",
+            mcp_tool_name: Some("semantic_focus"),
+            mcp_input_schema: Some(schema_semantic_focus),
+            rest: Some(("POST", "/discovery/semantic_focus")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "discovery.promote_readme",
+            summary: "Boost README-like chunks to the front of a scored chunk list.",
+            mcp_tool_name: Some("promote_readme"),
+            mcp_input_schema: Some(schema_promote_readme),
+            rest: Some(("POST", "/discovery/promote_readme")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "discovery.compress_evidence",
+            summary: "Compress scored chunks into short evidence bullets, capped per document.",
+            mcp_tool_name: Some("compress_evidence"),
+            mcp_input_schema: Some(schema_compress_evidence),
+            rest: Some(("POST", "/discovery/compress_evidence")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "discovery.build_answer_plan",
+            summary: "Group evidence bullets into an ordered answer plan (sections by category).",
+            mcp_tool_name: Some("build_answer_plan"),
+            mcp_input_schema: Some(schema_build_answer_plan),
+            rest: Some(("POST", "/discovery/build_answer_plan")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "discovery.render_llm_prompt",
+            summary: "Render an answer plan into the final LLM-ready prompt string.",
+            mcp_tool_name: Some("render_llm_prompt"),
+            mcp_input_schema: Some(schema_render_llm_prompt),
+            rest: Some(("POST", "/discovery/render_llm_prompt")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        // -----------------------------------------------------------------
+        // phase40 §2.2: batch operations. No REST-exclusion entries existed
+        // for these routes (they were simply absent from the registry).
+        // -----------------------------------------------------------------
+        Capability {
+            id: "vector.batch_insert_texts",
+            summary: "Insert multiple texts into a collection in one call, embedding each server-side.",
+            mcp_tool_name: Some("batch_insert_texts"),
+            mcp_input_schema: Some(schema_batch_insert_texts),
+            rest: Some(("POST", "/batch_insert")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "search.batch_search",
+            summary: "Run multiple searches against one collection in a single call.",
+            mcp_tool_name: Some("batch_search"),
+            mcp_input_schema: Some(schema_batch_search),
+            rest: Some(("POST", "/batch_search")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "vector.batch_update",
+            summary: "Update multiple vectors' data and/or payload in one call.",
+            mcp_tool_name: Some("batch_update"),
+            mcp_input_schema: Some(schema_batch_update),
+            rest: Some(("POST", "/batch_update")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        Capability {
+            id: "vector.batch_delete",
+            summary: "Delete multiple vectors by ID from one collection in a single call.",
+            mcp_tool_name: Some("batch_delete"),
+            mcp_input_schema: Some(schema_batch_delete),
+            rest: Some(("POST", "/batch_delete")),
+            auth: AuthBucket::User,
+            transport: Transport::Both,
+        },
+        // -----------------------------------------------------------------
         // Transport-specific markers (RestOnly entries) — pin the design
         // intent so the parity test never tries to call MCP for these.
         // -----------------------------------------------------------------
@@ -421,6 +643,29 @@ pub fn inventory() -> Vec<Capability> {
             transport: Transport::RestOnly,
         },
     ]
+}
+
+/// Live REST routes deliberately left out of [`inventory`] for now.
+///
+/// phase40 §1.2 found these routes registered in
+/// `core/routing.rs`/`api/graph.rs` with no matching capability entry.
+/// Rather than adding them as bare `RestOnly` rows (which would forever
+/// forgo the MCP counterpart they're slated to get), each one is parked
+/// here with a reason. phase40 §2 (MCP parity) has since landed the
+/// `delete_collection`, `embed_text`, `contextual_search`, and 8-step
+/// discovery pipeline MCP tools — those routes converted to
+/// `Transport::Both` entries in [`inventory`] and were removed from this
+/// list.
+///
+/// Consumed by the route-reachability test in
+/// `vectorizer-server/tests/capability_registry_route_reachability.rs`
+/// (every entry here is dispatched against the real router exactly like
+/// an [`inventory`] entry, so a route removed out from under an
+/// exclusion is caught the same way a removed registry route is) and by
+/// the fast structural check in `vectorizer/tests/api/parity.rs` that
+/// asserts no route is simultaneously tracked and excluded.
+pub fn documented_rest_exclusions() -> &'static [(&'static str, &'static str, &'static str)] {
+    &[]
 }
 
 fn schema_empty_object() -> Value {
@@ -1032,6 +1277,317 @@ fn schema_get_collection_stats() -> Value {
     })
 }
 
+fn schema_delete_collection() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "description": "Collection name"
+            }
+        },
+        "required": ["name"]
+    })
+}
+
+fn schema_embed_text() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "text": {
+                "type": "string",
+                "description": "Text to embed"
+            },
+            "model": {
+                "type": "string",
+                "description": "Embedding provider name (optional, uses the server default when omitted)"
+            }
+        },
+        "required": ["text"]
+    })
+}
+
+fn schema_contextual_search() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query"
+            },
+            "collection": {
+                "type": "string",
+                "description": "Collection name"
+            },
+            "context_filters": {
+                "type": "object",
+                "description": "Context metadata filters (optional)"
+            },
+            "context_weight": {
+                "type": "number",
+                "description": "Context weight in scoring",
+                "default": 0.3
+            },
+            "context_reranking": {
+                "type": "boolean",
+                "description": "Enable context-aware reranking",
+                "default": true
+            },
+            "max_results": {
+                "type": "integer",
+                "description": "Maximum results to return",
+                "default": 10
+            }
+        },
+        "required": ["query", "collection"]
+    })
+}
+
+fn schema_discover() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query"
+            },
+            "include_collections": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Collections to include (optional)"
+            },
+            "exclude_collections": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Collections to exclude (optional)"
+            },
+            "max_bullets": {
+                "type": "integer",
+                "description": "Maximum evidence bullets to extract",
+                "default": 20
+            },
+            "broad_k": {
+                "type": "integer",
+                "description": "Number of chunks retrieved in the broad discovery step",
+                "default": 50
+            },
+            "focus_k": {
+                "type": "integer",
+                "description": "Number of chunks retrieved in the semantic focus step",
+                "default": 15
+            }
+        },
+        "required": ["query"]
+    })
+}
+
+fn schema_score_collections() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query"
+            },
+            "name_match_weight": {
+                "type": "number",
+                "description": "Weight for collection-name term matches",
+                "default": 0.4
+            },
+            "term_boost_weight": {
+                "type": "number",
+                "description": "Weight for query-term boosting",
+                "default": 0.3
+            },
+            "signal_boost_weight": {
+                "type": "number",
+                "description": "Weight for collection signal boosting",
+                "default": 0.3
+            }
+        },
+        "required": ["query"]
+    })
+}
+
+fn schema_broad_discovery() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "queries": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Query variations to search with"
+            },
+            "k": {
+                "type": "integer",
+                "description": "Maximum number of chunks to return",
+                "default": 50
+            }
+        },
+        "required": ["queries"]
+    })
+}
+
+fn schema_semantic_focus() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "collection": {
+                "type": "string",
+                "description": "Collection name"
+            },
+            "queries": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Query variations to search with"
+            },
+            "k": {
+                "type": "integer",
+                "description": "Maximum number of chunks to return",
+                "default": 15
+            }
+        },
+        "required": ["collection", "queries"]
+    })
+}
+
+fn schema_promote_readme() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "chunks": {
+                "type": "array",
+                "items": {"type": "object"},
+                "description": "Scored chunks: [{collection, doc_id, content, score, file_path, chunk_index, file_extension}]"
+            }
+        },
+        "required": ["chunks"]
+    })
+}
+
+fn schema_compress_evidence() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "chunks": {
+                "type": "array",
+                "items": {"type": "object"},
+                "description": "Scored chunks: [{collection, doc_id, content, score, file_path, chunk_index, file_extension}]"
+            },
+            "max_bullets": {
+                "type": "integer",
+                "description": "Maximum number of bullets to produce",
+                "default": 20
+            },
+            "max_per_doc": {
+                "type": "integer",
+                "description": "Maximum bullets per source document",
+                "default": 3
+            }
+        },
+        "required": ["chunks"]
+    })
+}
+
+fn schema_build_answer_plan() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "bullets": {
+                "type": "array",
+                "items": {"type": "object"},
+                "description": "Evidence bullets: [{text, source_id, collection, file_path, score, category}]"
+            }
+        },
+        "required": ["bullets"]
+    })
+}
+
+fn schema_render_llm_prompt() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "plan": {
+                "type": "object",
+                "description": "Answer plan: {sections: [{title, priority, bullets: [...]}], total_bullets, sources}"
+            }
+        },
+        "required": ["plan"]
+    })
+}
+
+fn schema_batch_insert_texts() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "collection_name": {
+                "type": "string",
+                "description": "Collection name"
+            },
+            "texts": {
+                "type": "array",
+                "items": {"type": "object"},
+                "description": "Texts to insert: [{id?, text, metadata?, public_key?}]"
+            }
+        },
+        "required": ["collection_name", "texts"]
+    })
+}
+
+fn schema_batch_search() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "collection": {
+                "type": "string",
+                "description": "Collection name"
+            },
+            "queries": {
+                "type": "array",
+                "items": {"type": "object"},
+                "description": "Queries: [{query?, vector?, limit?}] — each entry needs either `query` (embedded server-side) or a raw `vector`"
+            }
+        },
+        "required": ["collection", "queries"]
+    })
+}
+
+fn schema_batch_update() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "collection": {
+                "type": "string",
+                "description": "Collection name"
+            },
+            "updates": {
+                "type": "array",
+                "items": {"type": "object"},
+                "description": "Updates: [{id, vector?, payload?}]"
+            }
+        },
+        "required": ["collection", "updates"]
+    })
+}
+
+fn schema_batch_delete() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "collection": {
+                "type": "string",
+                "description": "Collection name"
+            },
+            "ids": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Vector IDs to delete"
+            }
+        },
+        "required": ["collection", "ids"]
+    })
+}
+
 /// Validate the registry's structural invariants. Called from server
 /// boot so a typo in [`inventory`] crashes startup loudly instead of
 /// silently desyncing the MCP tool list and the REST router.
@@ -1171,5 +1727,39 @@ mod tests {
             }
         }
         assert!(had_dup, "duplicate id detector must fire");
+    }
+
+    // phase40 §1.2/§1.3: mirrored in `vectorizer/tests/api/parity.rs`
+    // (`excluded_routes_are_well_formed` /
+    // `no_route_is_both_tracked_and_excluded`). Duplicated here as a
+    // plain unit test — unlike that integration file, this one runs
+    // under a bare `cargo test -p vectorizer-server` with no extra
+    // feature flag needed.
+    #[test]
+    fn documented_exclusions_are_well_formed_and_disjoint_from_inventory() {
+        let bad: Vec<(&'static str, &'static str, &'static str)> = documented_rest_exclusions()
+            .iter()
+            .filter(|(method, path, reason)| {
+                method.is_empty() || path.is_empty() || reason.is_empty()
+            })
+            .copied()
+            .collect();
+        assert!(
+            bad.is_empty(),
+            "documented_rest_exclusions() entries must carry a non-empty method, path and \
+             reason: {bad:?}"
+        );
+
+        let tracked: std::collections::HashSet<(&'static str, &'static str)> =
+            inventory().into_iter().filter_map(|c| c.rest).collect();
+        let overlap: Vec<(&'static str, &'static str)> = documented_rest_exclusions()
+            .iter()
+            .map(|(method, path, _)| (*method, *path))
+            .filter(|route| tracked.contains(route))
+            .collect();
+        assert!(
+            overlap.is_empty(),
+            "route(s) present in both inventory() and documented_rest_exclusions(): {overlap:?}"
+        );
     }
 }

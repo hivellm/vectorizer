@@ -1,13 +1,19 @@
 //! Storage format benchmark - Compare legacy vs .vecdb performance
 
-#![allow(clippy::uninlined_format_args)]
+// Benchmark binary: unwrap is idiomatic for the harness setup, the
+// `unwrap_used` / `expect_used` workspace lints apply only to library code.
+#![allow(
+    clippy::uninlined_format_args,
+    clippy::unwrap_used,
+    clippy::expect_used
+)]
 
 use std::fs::{self, File};
-use tracing::{info, error, warn, debug};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
+use vectorizer::codec;
 use vectorizer::models::{Payload, Vector};
 use vectorizer::storage::{StorageReader, StorageWriter};
 
@@ -163,7 +169,7 @@ fn create_test_vectors(count: usize) -> Vec<Vector> {
 fn save_vectors_legacy(dir: &Path, vectors: &[Vector]) {
     for (i, vector) in vectors.iter().enumerate() {
         let file_path = dir.join(format!("vector_{}.bin", i));
-        let data = bincode::serialize(&vector.data).unwrap();
+        let data = codec::serialize(&vector.data).unwrap();
 
         let mut file = File::create(&file_path).unwrap();
         file.write_all(&data).unwrap();
@@ -178,7 +184,7 @@ fn load_vectors_legacy(dir: &PathBuf) -> Vec<Vec<f32>> {
         let entry = entry.unwrap();
         if entry.path().extension().and_then(|e| e.to_str()) == Some("bin") {
             let data = fs::read(entry.path()).unwrap();
-            let vector: Vec<f32> = bincode::deserialize(&data).unwrap_or_default();
+            let vector: Vec<f32> = codec::deserialize(&data).unwrap_or_default();
             vectors.push(vector);
         }
     }
@@ -217,7 +223,12 @@ fn estimate_memory_usage(vectors: &[Vector]) -> f64 {
 fn print_results_table(results: &[BenchmarkResult]) {
     tracing::info!(
         "\n{:<25} {:>12} {:>12} {:>12} {:>12} {:>10}",
-        "Test", "Load (ms)", "Save (ms)", "Size (MB)", "Memory (MB)", "Compress"
+        "Test",
+        "Load (ms)",
+        "Save (ms)",
+        "Size (MB)",
+        "Memory (MB)",
+        "Compress"
     );
     tracing::info!("{}", "-".repeat(95));
 

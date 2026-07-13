@@ -237,31 +237,22 @@ curl -X DELETE http://localhost:15002/collections/my_collection
 
 ### Insert Vector
 
-Insert a single vector into a collection.
+Insert a single vector into a collection. This is a body-based endpoint —
+the target collection is identified by the `collection` field, not a path
+parameter.
 
-**Endpoint:** `POST /collections/{name}/insert`
+**Endpoint:** `POST /insert`
 
 **Request Body:**
 
 ```json
 {
+  "collection": "my_collection",
   "id": "vector_001",
   "text": "Vectorizer is a high-performance vector database",
   "metadata": {
     "source": "readme",
     "category": "documentation"
-  }
-}
-```
-
-**Or with pre-computed vector:**
-
-```json
-{
-  "id": "vector_001",
-  "vector": [0.1, 0.2, 0.3, ...],
-  "metadata": {
-    "source": "custom"
   }
 }
 ```
@@ -278,9 +269,10 @@ Insert a single vector into a collection.
 **Example:**
 
 ```bash
-curl -X POST http://localhost:15002/collections/my_collection/insert \
+curl -X POST http://localhost:15002/insert \
   -H "Content-Type: application/json" \
   -d '{
+    "collection": "my_collection",
     "text": "Vectorizer is awesome!",
     "metadata": {"source": "readme"}
   }'
@@ -515,15 +507,18 @@ curl -X POST http://localhost:15002/collections/my_collection/search \
 
 ### Intelligent Search
 
-Advanced search with query expansion and MMR.
+Advanced search with query expansion and MMR. Body-based endpoint; omit
+`collections` to search across every collection, or pass an array to
+restrict the search.
 
-**Endpoint:** `POST /collections/{name}/intelligent_search`
+**Endpoint:** `POST /intelligent_search`
 
 **Request Body:**
 
 ```json
 {
   "query": "neural networks for image recognition",
+  "collections": ["my_collection"],
   "max_results": 15,
   "domain_expansion": true,
   "technical_focus": true,
@@ -553,15 +548,17 @@ Advanced search with query expansion and MMR.
 
 ### Semantic Search
 
-High-precision semantic search with reranking.
+High-precision semantic search with reranking. Body-based endpoint — the
+target collection is identified by the `collection` field.
 
-**Endpoint:** `POST /collections/{name}/semantic_search`
+**Endpoint:** `POST /semantic_search`
 
 **Request Body:**
 
 ```json
 {
   "query": "deep learning architectures",
+  "collection": "my_collection",
   "max_results": 10,
   "semantic_reranking": true,
   "similarity_threshold": 0.75
@@ -613,15 +610,18 @@ Search across multiple collections.
 
 ### Batch Insert
 
-Insert multiple vectors efficiently.
+Insert multiple vectors efficiently. Body-based endpoint — `collection`
+identifies the target and `texts` carries the batch (note the field name:
+`texts`, not `vectors`).
 
-**Endpoint:** `POST /collections/{name}/batch_insert`
+**Endpoint:** `POST /batch_insert`
 
 **Request Body:**
 
 ```json
 {
-  "vectors": [
+  "collection": "my_collection",
+  "texts": [
     {
       "id": "vec_001",
       "text": "First document",
@@ -649,15 +649,17 @@ Insert multiple vectors efficiently.
 
 ### Batch Update
 
-Update multiple vectors.
+Update multiple vectors. Body-based endpoint — `collection` identifies the
+target and `updates` carries the batch.
 
-**Endpoint:** `POST /collections/{name}/batch_update`
+**Endpoint:** `POST /batch_update`
 
 **Request Body:**
 
 ```json
 {
-  "vectors": [
+  "collection": "my_collection",
+  "updates": [
     {
       "id": "vec_001",
       "text": "Updated document 1",
@@ -669,14 +671,16 @@ Update multiple vectors.
 
 ### Batch Delete
 
-Delete multiple vectors.
+Delete multiple vectors. Body-based endpoint — `collection` identifies the
+target.
 
-**Endpoint:** `POST /collections/{name}/batch_delete`
+**Endpoint:** `POST /batch_delete`
 
 **Request Body:**
 
 ```json
 {
+  "collection": "my_collection",
   "ids": ["vec_001", "vec_002", "vec_003"]
 }
 ```
@@ -694,14 +698,16 @@ Delete multiple vectors.
 
 ### Batch Search
 
-Search with multiple queries.
+Search with multiple queries. Body-based endpoint — `collection` identifies
+the target.
 
-**Endpoint:** `POST /collections/{name}/batch_search`
+**Endpoint:** `POST /batch_search`
 
 **Request Body:**
 
 ```json
 {
+  "collection": "my_collection",
   "queries": [
     { "query": "vector database", "limit": 5 },
     { "query": "semantic search", "limit": 5 }
@@ -781,7 +787,7 @@ Establishes an MCP session and handles JSON-RPC 2.0 requests.
 }
 ```
 
-### Available MCP Tools (38+ tools)
+### Available MCP Tools (48 tools)
 
 #### Collection Management
 
@@ -1035,7 +1041,7 @@ curl http://localhost:15002/umicp/discover
 
 ### Supported Operations via UMICP
 
-All 38+ MCP tools are available through UMICP:
+All 48 MCP tools are available through UMICP:
 
 - **Collection Management** (4): `list_collections`, `create_collection`, `get_collection_info`, `delete_collection`
 - **Vector Operations** (6): `search`, `insert_text`, `embed_text`, `get_vector`, `update_vector`, `delete_vectors`

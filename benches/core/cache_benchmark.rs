@@ -2,8 +2,20 @@
 //!
 //! Measures throughput, latency, and efficiency of the multi-tier cache system.
 
+// Benchmark binary: unwrap is idiomatic for the harness setup, the
+// `unwrap_used` / `expect_used` workspace lints apply only to library code.
+// The remaining allows cover harness-only formatting/style patterns that
+// aren't worth restructuring in a benchmark (fixed-size literal arrays via
+// `vec!`, `{}`-style format args mixing computed and literal values).
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::cast_lossless,
+    clippy::uninlined_format_args,
+    clippy::useless_vec
+)]
+
 use std::sync::Arc;
-use tracing::{info, error, warn, debug};
 use std::time::Instant;
 
 use tokio::sync::RwLock;
@@ -28,15 +40,15 @@ async fn main() {
     let cache = Arc::new(RwLock::new(CacheManager::new(config).unwrap()));
 
     benchmark_hot_cache_performance(&cache).await;
-    tracing::info!();
+    tracing::info!("");
     benchmark_warm_store_performance(&cache).await;
-    tracing::info!();
+    tracing::info!("");
     benchmark_cold_store_performance(&cache).await;
-    tracing::info!();
+    tracing::info!("");
     benchmark_concurrent_access(&cache).await;
-    tracing::info!();
+    tracing::info!("");
     benchmark_compression_efficiency(&cache).await;
-    tracing::info!();
+    tracing::info!("");
     benchmark_cache_hit_rates(&cache).await;
 }
 
@@ -125,7 +137,9 @@ async fn benchmark_warm_store_performance(cache: &Arc<RwLock<CacheManager>>) {
 
         tracing::info!(
             "│ {:15} │ {:>10.0} ops/s │ {:>8} μs/op │",
-            name, ops_per_sec, avg_latency_us
+            name,
+            ops_per_sec,
+            avg_latency_us
         );
     }
 
@@ -177,7 +191,9 @@ async fn benchmark_cold_store_performance(cache: &Arc<RwLock<CacheManager>>) {
 
         tracing::info!(
             "│ {:15} │ {:>10.0} ops/s │ {:>8} μs/op │",
-            name, ops_per_sec, avg_latency_us
+            name,
+            ops_per_sec,
+            avg_latency_us
         );
     }
 
@@ -234,7 +250,9 @@ async fn benchmark_concurrent_access(cache: &Arc<RwLock<CacheManager>>) {
 
         tracing::info!(
             "│ {:2} threads │ {:>6} total ops │ {:>12.0} ops/s │",
-            thread_count, total_ops, ops_per_sec
+            thread_count,
+            total_ops,
+            ops_per_sec
         );
     }
 
@@ -289,7 +307,11 @@ async fn benchmark_compression_efficiency(cache: &Arc<RwLock<CacheManager>>) {
 
         tracing::info!(
             "│ {:15} │ {:>8} │ {:>10} │ {:>6} │ {:>8} │",
-            name, total_hits, total_misses, total_writes, "N/A"
+            name,
+            total_hits,
+            total_misses,
+            total_writes,
+            "N/A"
         );
     }
 

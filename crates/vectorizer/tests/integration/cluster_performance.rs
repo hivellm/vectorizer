@@ -66,7 +66,10 @@ async fn test_concurrent_inserts_distributed() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-concurrent-inserts".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -105,7 +108,7 @@ async fn test_concurrent_inserts_distributed() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, concurrent distributed operations
+#[ignore = "slow: >60s concurrent distributed operations"]
 async fn test_concurrent_searches_distributed() {
     let cluster_config = create_test_cluster_config();
     let cluster_manager = Arc::new(ClusterManager::new(cluster_config).unwrap());
@@ -127,7 +130,10 @@ async fn test_concurrent_searches_distributed() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-concurrent-search".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -172,7 +178,7 @@ async fn test_concurrent_searches_distributed() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, throughput comparison test
+#[ignore = "slow: >60s throughput comparison"]
 async fn test_throughput_comparison() {
     // This test compares throughput of distributed vs single-node operations
     // Note: In a real scenario, this would compare against a non-distributed collection
@@ -196,7 +202,10 @@ async fn test_throughput_comparison() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-throughput".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -247,7 +256,10 @@ async fn test_latency_distribution() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-latency".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),
@@ -284,7 +296,7 @@ async fn test_latency_distribution() {
 }
 
 #[tokio::test]
-#[ignore] // Slow test - takes >60 seconds, memory measurement test
+#[ignore = "slow: >60s memory measurement"]
 async fn test_memory_usage_distributed() {
     // This test verifies that memory usage is reasonable in distributed mode
     // Note: Actual memory measurement would require system APIs
@@ -306,7 +318,10 @@ async fn test_memory_usage_distributed() {
     let collection: Arc<DistributedShardedCollection> = match DistributedShardedCollection::new(
         "test-memory".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => Arc::new(c),

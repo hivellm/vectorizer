@@ -476,11 +476,11 @@ pub async fn get_api_key_usage(
         .await
         .map_err(|e| not_found_err(&format!("API key {} not found: {}", id, e)))?;
 
-    let recorder = state.auth_manager.usage_recorder();
-    let buckets = match recorder.as_ref() {
-        Some(r) => r.snapshot(&id, window),
-        None => Vec::new(),
-    };
+    // The recorder lives on AuthHandlerState directly; AuthManager only
+    // sees it through the injected MetricsSink since phase41 (the
+    // usage_recorder() accessor was removed with the monitoring
+    // back-reference).
+    let buckets = state.api_key_usage.snapshot(&id, window);
     let window_total: u64 = buckets.iter().map(|b| b.count).sum();
 
     Ok(Json(ApiKeyUsageResponse {

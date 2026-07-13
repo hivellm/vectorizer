@@ -11,7 +11,13 @@
 
 // Removed unused import: std::time::Instant
 
-use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
+// Benchmark binary: unwrap is idiomatic for the harness setup, the
+// `unwrap_used` / `expect_used` workspace lints apply only to library code.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+use std::hint::black_box;
+
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use vectorizer::db::{OptimizedHnswConfig, OptimizedHnswIndex};
 use vectorizer::embedding::{
     BertEmbedding, Bm25Embedding, EmbeddingProvider, MiniLmEmbedding, SvdEmbedding, TfIdfEmbedding,

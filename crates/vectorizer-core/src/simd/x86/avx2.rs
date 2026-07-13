@@ -131,6 +131,58 @@ impl SimdBackend for Avx2Backend {
         }
     }
 
+    fn quantize_f32_to_u8(
+        &self,
+        src: &[f32],
+        dst: &mut [u8],
+        scale: f32,
+        offset: f32,
+        levels: u32,
+    ) {
+        debug_assert_eq!(dst.len(), src.len(), "Buffers must have same length");
+        debug_assert!(levels > 0, "levels must be positive");
+        if scale == 0.0 {
+            // Constant-input short circuit; matches the trait default
+            // documented on `SimdBackend::quantize_f32_to_u8`.
+            for d in dst.iter_mut() {
+                *d = 0;
+            }
+            return;
+        }
+        if std::is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 verified by the runtime detector
+            // immediately above; equal-length precondition is
+            // debug-asserted on entry.
+            unsafe { quantize_f32_to_u8_avx2(src, dst, scale, offset, levels) };
+        } else {
+            crate::simd::scalar::ScalarBackend.quantize_f32_to_u8(src, dst, scale, offset, levels);
+        }
+    }
+
+    fn dequantize_u8_to_f32(&self, src: &[u8], dst: &mut [f32], scale: f32, offset: f32) {
+        debug_assert_eq!(dst.len(), src.len(), "Buffers must have same length");
+        if std::is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 verified by the runtime detector
+            // immediately above; equal-length precondition is
+            // debug-asserted on entry.
+            unsafe { dequantize_u8_to_f32_avx2(src, dst, scale, offset) };
+        } else {
+            crate::simd::scalar::ScalarBackend.dequantize_u8_to_f32(src, dst, scale, offset);
+        }
+    }
+
+    fn int8_dot_product(&self, a: &[i8], b: &[i8]) -> i32 {
+        debug_assert_eq!(a.len(), b.len(), "Vectors must have same length");
+        if std::is_x86_feature_detected!("avx2") {
+            // SAFETY: AVX2 verified by the runtime detector
+            // immediately above; equal-length precondition is
+            // debug-asserted on entry.
+            unsafe { int8_dot_product_avx2(a, b) }
+        } else {
+            crate::simd::scalar::ScalarBackend.int8_dot_product(a, b)
+        }
+    }
+
     fn name(&self) -> &'static str {
         if self.with_fma { "avx2+fma" } else { "avx2" }
     }
@@ -353,6 +405,199 @@ unsafe fn horizontal_sum_avx2(v: __m256) -> f32 {
     }
 }
 
+/// # Safety
+///
+/// Caller must ensure AVX2 is available on the running CPU, `dst.len()
+/// == src.len()`, `levels > 0`, and `scale != 0.0` (the zero-scale
+/// short circuit lives in the public wrapper). Reading/writing past
+/// the end of either buffer is UB; loop bound `i + SIMD_LANES <=
+/// simd_len <= len` keeps every access inside both allocations.
+///
+/// Every step is ordered to match [`crate::simd::scalar::ScalarBackend::quantize_f32_to_u8`]
+/// exactly (same rounding at every intermediate): `(s - offset) *
+/// inv_scale` (sub then mul, not fused), clamp to `[0, max_level]`,
+/// round half-away-from-zero via `floor(x + 0.5)` (valid because the
+/// clamped value is always non-negative and — for the realistic
+/// `levels <= 256` domain this function targets — never large enough
+/// for the `+ 0.5` to lose precision), then saturate to the u8 range
+/// before narrowing (mirrors Rust's saturating `f32 as u8` cast for
+/// `levels > 256` callers, where `max_level` can exceed 255).
+#[target_feature(enable = "avx2")]
+#[inline]
+unsafe fn quantize_f32_to_u8_avx2(
+    src: &[f32],
+    dst: &mut [u8],
+    scale: f32,
+    offset: f32,
+    levels: u32,
+) {
+    let len = src.len();
+    let simd_len = len - (len % SIMD_LANES);
+
+    // SAFETY: AVX2 gated by `#[target_feature]`. Loop bound
+    // `i + SIMD_LANES <= simd_len <= len` keeps every load/write
+    // inside the slice's allocation.
+    unsafe {
+        let inv_scale = 1.0 / scale;
+        let max_level = (levels - 1) as f32;
+        let v_offset = _mm256_set1_ps(offset);
+        let v_inv_scale = _mm256_set1_ps(inv_scale);
+        let v_zero = _mm256_setzero_ps();
+        let v_max = _mm256_set1_ps(max_level);
+        let v_half = _mm256_set1_ps(0.5);
+        let v_u8_max = _mm256_set1_epi32(255);
+
+        let mut i = 0;
+        while i < simd_len {
+            let vs = _mm256_loadu_ps(src.as_ptr().add(i));
+            // Scalar order: `(s - offset) * inv_scale` — sub then
+            // mul, NOT fma, so the rounding matches the scalar
+            // reference bit-for-bit.
+            let normalised = _mm256_mul_ps(_mm256_sub_ps(vs, v_offset), v_inv_scale);
+            // NaN handling: `_mm256_max_ps(a, b)` returns `b` whenever
+            // `a` is NaN (Intel's "second operand wins" rule, not
+            // IEEE `maxNum`). `normalised` can only be NaN in the `a`
+            // position here, so a NaN input resolves to `0.0` before
+            // it ever reaches `_mm256_cvttps_epi32` — matching the
+            // scalar path's `NaN.clamp(..).round() as u8 == 0`
+            // outcome (Rust's saturating float→int cast maps NaN to
+            // 0) without hitting `cvttps_epi32`'s NaN→`i32::MIN`
+            // "integer indefinite" behaviour.
+            let clamped = _mm256_min_ps(_mm256_max_ps(normalised, v_zero), v_max);
+            // Round half away from zero: `clamped` is always >= 0.0
+            // here, so `floor(x + 0.5)` matches `f32::round()` exactly.
+            let rounded = _mm256_floor_ps(_mm256_add_ps(clamped, v_half));
+            let as_i32 = _mm256_cvttps_epi32(rounded);
+            let saturated = _mm256_min_epi32(as_i32, v_u8_max);
+
+            let mut tmp = [0i32; SIMD_LANES];
+            _mm256_storeu_si256(tmp.as_mut_ptr().cast(), saturated);
+            for (k, &v) in tmp.iter().enumerate() {
+                dst[i + k] = v as u8;
+            }
+            i += SIMD_LANES;
+        }
+
+        // Tail loop for the leftover (len % SIMD_LANES) elements —
+        // literally the scalar reference's body, so it is bit-exact
+        // by construction.
+        for idx in simd_len..len {
+            let normalised = (src[idx] - offset) * inv_scale;
+            let clamped = normalised.clamp(0.0, max_level);
+            dst[idx] = clamped.round() as u8;
+        }
+    }
+}
+
+/// # Safety
+///
+/// Caller must ensure AVX2 is available on the running CPU and
+/// `dst.len() == src.len()`. Loop bound `i + SIMD_LANES <= simd_len <=
+/// len` keeps every load/write inside both allocations.
+///
+/// Computed as `offset + (src[i] as f32) * scale` — mul then add, NOT
+/// fma — to match the scalar reference's two separate rounding steps
+/// bit-for-bit. Widening `u8 -> i32 -> f32` is exact for the full
+/// `0..=255` range (well within f32's 24-bit mantissa).
+#[target_feature(enable = "avx2")]
+#[inline]
+unsafe fn dequantize_u8_to_f32_avx2(src: &[u8], dst: &mut [f32], scale: f32, offset: f32) {
+    let len = src.len();
+    let simd_len = len - (len % SIMD_LANES);
+
+    // SAFETY: AVX2 gated by `#[target_feature]`. `_mm_loadl_epi64`
+    // reads exactly 8 bytes (the low half of a 128-bit register,
+    // upper half zeroed), and `i + SIMD_LANES <= simd_len <= len`
+    // keeps that 8-byte read inside `src`'s allocation.
+    unsafe {
+        let v_scale = _mm256_set1_ps(scale);
+        let v_offset = _mm256_set1_ps(offset);
+
+        let mut i = 0;
+        while i < simd_len {
+            let bytes = _mm_loadl_epi64(src.as_ptr().add(i).cast());
+            let widened = _mm256_cvtepu8_epi32(bytes);
+            let as_f32 = _mm256_cvtepi32_ps(widened);
+            let result = _mm256_add_ps(v_offset, _mm256_mul_ps(as_f32, v_scale));
+            _mm256_storeu_ps(dst.as_mut_ptr().add(i), result);
+            i += SIMD_LANES;
+        }
+
+        for idx in simd_len..len {
+            dst[idx] = offset + (src[idx] as f32) * scale;
+        }
+    }
+}
+
+/// # Safety
+///
+/// Caller must ensure AVX2 is available on the running CPU; `a` and
+/// `b` must have equal length. Loop bound `i + LANES <= simd_len <=
+/// len` keeps every load inside both allocations.
+///
+/// Both operands are true SIGNED `i8` (unlike VNNI's `vpdpbusd`, which
+/// wants one unsigned operand), so this sign-extends both sides to
+/// `i16` via `_mm256_cvtepi8_epi16` — exact, no bias trick needed —
+/// then uses `_mm256_madd_epi16` to multiply i16 pairs into i32 and
+/// sum adjacent pairs. Both steps are exact: the widened values stay
+/// in `[-128, 127]`, so each product is at most `128 * 128 = 16384`
+/// and each pairwise sum at most `32768` — nowhere near `i32`
+/// overflow, and `madd_epi16`'s pairwise add does not saturate (unlike
+/// `maddubs_epi16`, which would saturate the intermediate `i16` sum
+/// for large-magnitude `u8 * i8` products — the reason this kernel
+/// avoids `maddubs` entirely).
+#[target_feature(enable = "avx2")]
+#[inline]
+unsafe fn int8_dot_product_avx2(a: &[i8], b: &[i8]) -> i32 {
+    const LANES: usize = 16; // `_mm256_cvtepi8_epi16` widens 16 x i8 -> 16 x i16 per call.
+
+    let len = a.len();
+    let simd_len = len - (len % LANES);
+
+    // SAFETY: AVX2 gated by `#[target_feature]`. `_mm_loadu_si128`
+    // reads exactly 16 bytes per call; `i + LANES <= simd_len <= len`
+    // keeps every read inside both slices' allocations.
+    unsafe {
+        let mut acc = _mm256_setzero_si256();
+
+        let mut i = 0;
+        while i < simd_len {
+            let va = _mm256_cvtepi8_epi16(_mm_loadu_si128(a.as_ptr().add(i).cast()));
+            let vb = _mm256_cvtepi8_epi16(_mm_loadu_si128(b.as_ptr().add(i).cast()));
+            let prod = _mm256_madd_epi16(va, vb);
+            acc = _mm256_add_epi32(acc, prod);
+            i += LANES;
+        }
+
+        let mut result = horizontal_sum_epi32_avx2(acc);
+        for idx in simd_len..len {
+            result += (a[idx] as i32) * (b[idx] as i32);
+        }
+        result
+    }
+}
+
+/// # Safety
+///
+/// AVX2 must be available. Pure shuffle/add intrinsics on `i32` lanes
+/// — only called from [`int8_dot_product_avx2`], which already
+/// enforces the precondition. Integer addition is exact (no rounding),
+/// so this reduction is bit-exact regardless of the tree shape.
+#[target_feature(enable = "avx2")]
+#[inline]
+unsafe fn horizontal_sum_epi32_avx2(v: __m256i) -> i32 {
+    // SAFETY: AVX2 gated by `#[target_feature]`. All operations are
+    // pure register shuffles + adds with no memory access.
+    unsafe {
+        let hi = _mm256_extracti128_si256(v, 1);
+        let lo = _mm256_castsi256_si128(v);
+        let sum128 = _mm_add_epi32(hi, lo);
+        let sum64 = _mm_hadd_epi32(sum128, sum128);
+        let sum32 = _mm_hadd_epi32(sum64, sum64);
+        _mm_cvtsi128_si32(sum32)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
@@ -474,5 +719,136 @@ mod tests {
             "fma={with_fma} no_fma={no_fma} diff={}",
             (with_fma - no_fma).abs()
         );
+    }
+
+    // ── Oracle tests: AVX2 quantize/dequantize/int8_dot_product vs
+    // `ScalarBackend`. Elementwise kernels (quantize, dequantize) are
+    // asserted bit-exact (no cross-lane reduction, so no rounding-order
+    // divergence is possible); `int8_dot_product` reduces via integer
+    // addition, which is exact regardless of summation order, so it
+    // is also asserted bit-exact. ──────────────────────────────────
+
+    use crate::simd::scalar::ScalarBackend;
+
+    /// Linear congruential generator — deterministic, no `rand` dep.
+    /// Mirrors the generator in `tests/simd/scalar_oracle.rs`.
+    fn lcg(state: &mut u64) -> u32 {
+        *state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (*state >> 32) as u32
+    }
+
+    /// Deterministic f32 vector in `[-3.0, 3.0]` — the amplitude
+    /// intentionally exceeds a typical `[-1, 1]` quantization range so
+    /// the clamp path is exercised, not just the interior.
+    fn random_f32_vector(seed: u64, len: usize) -> Vec<f32> {
+        let mut state = seed;
+        (0..len)
+            .map(|_| {
+                let bits = lcg(&mut state) >> 8; // top 24 bits → exact f32 unit range
+                let unit = (bits as f32) / ((1u32 << 24) as f32);
+                (unit * 2.0 - 1.0) * 3.0
+            })
+            .collect()
+    }
+
+    /// Deterministic full-range `u8` vector.
+    fn random_u8_vector(seed: u64, len: usize) -> Vec<u8> {
+        let mut state = seed;
+        (0..len).map(|_| (lcg(&mut state) % 256) as u8).collect()
+    }
+
+    /// Deterministic full-range `i8` vector (including the `-128`
+    /// edge, which is the value most likely to expose a signed/
+    /// unsigned confusion in the SIMD kernel).
+    fn random_i8_vector(seed: u64, len: usize) -> Vec<i8> {
+        let mut state = seed;
+        (0..len)
+            .map(|_| (lcg(&mut state) % 256) as u8 as i8)
+            .collect()
+    }
+
+    const ORACLE_LENGTHS: [usize; 11] = [0, 1, 7, 8, 9, 31, 32, 33, 255, 256, 1000];
+
+    #[test]
+    fn quantize_f32_to_u8_matches_scalar_oracle() {
+        if skip_unless_avx2() {
+            return;
+        }
+        let scale = 2.0 / 255.0;
+        let offset = -1.0;
+        let levels = 256u32;
+        for &len in &ORACLE_LENGTHS {
+            let src = random_f32_vector(0xA5A5_0000 ^ len as u64, len);
+            let mut got = vec![0u8; len];
+            let mut want = vec![0u8; len];
+            Avx2Backend::auto_detect().quantize_f32_to_u8(&src, &mut got, scale, offset, levels);
+            ScalarBackend.quantize_f32_to_u8(&src, &mut want, scale, offset, levels);
+            assert_eq!(got, want, "len={len}");
+        }
+    }
+
+    #[test]
+    fn quantize_f32_to_u8_zero_scale_matches_scalar() {
+        if skip_unless_avx2() {
+            return;
+        }
+        for &len in &ORACLE_LENGTHS {
+            let src = random_f32_vector(0xB6B6_0000 ^ len as u64, len);
+            let mut got = vec![0xFFu8; len];
+            let mut want = vec![0xFFu8; len];
+            Avx2Backend::auto_detect().quantize_f32_to_u8(&src, &mut got, 0.0, 0.0, 256);
+            ScalarBackend.quantize_f32_to_u8(&src, &mut want, 0.0, 0.0, 256);
+            assert_eq!(got, want, "len={len}");
+        }
+    }
+
+    #[test]
+    fn dequantize_u8_to_f32_matches_scalar_oracle() {
+        if skip_unless_avx2() {
+            return;
+        }
+        let scale = 2.0 / 255.0;
+        let offset = -1.0;
+        for &len in &ORACLE_LENGTHS {
+            let src = random_u8_vector(0xC7C7_0000 ^ len as u64, len);
+            let mut got = vec![0.0f32; len];
+            let mut want = vec![0.0f32; len];
+            Avx2Backend::auto_detect().dequantize_u8_to_f32(&src, &mut got, scale, offset);
+            ScalarBackend.dequantize_u8_to_f32(&src, &mut want, scale, offset);
+            assert_eq!(got, want, "len={len}");
+        }
+    }
+
+    #[test]
+    fn int8_dot_product_matches_scalar_oracle() {
+        if skip_unless_avx2() {
+            return;
+        }
+        for &len in &ORACLE_LENGTHS {
+            let a = random_i8_vector(0xD8D8_0000 ^ len as u64, len);
+            let b = random_i8_vector(0xE9E9_0000 ^ len as u64, len);
+            let got = Avx2Backend::auto_detect().int8_dot_product(&a, &b);
+            let want = ScalarBackend.int8_dot_product(&a, &b);
+            assert_eq!(got, want, "len={len}");
+        }
+    }
+
+    #[test]
+    fn int8_dot_product_extremes_do_not_overflow_i16_intermediate() {
+        if skip_unless_avx2() {
+            return;
+        }
+        // All-(-128) against all-(-128): the classic maddubs-style
+        // saturation trap (255 * 128 summed pairwise would overflow a
+        // signed i16 intermediate). The sign-extend + madd_epi16
+        // design in `int8_dot_product_avx2` must not saturate here.
+        let a = vec![-128i8; 64];
+        let b = vec![-128i8; 64];
+        let got = Avx2Backend::auto_detect().int8_dot_product(&a, &b);
+        let want = ScalarBackend.int8_dot_product(&a, &b);
+        assert_eq!(got, want);
+        assert_eq!(want, 128 * 128 * 64);
     }
 }

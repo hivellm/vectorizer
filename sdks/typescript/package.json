@@ -1,6 +1,6 @@
 {
   "name": "@hivehub/vectorizer-sdk",
-  "version": "3.4.1",
+  "version": "3.5.0",
   "description": "TypeScript SDK for Vectorizer - High-performance vector database. Ships the VectorizerRPC binary transport (default in v3.x) plus the legacy REST client.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -47,15 +47,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.6.0",
-    "@vitest/coverage-v8": "^4.1.5",
-    "eslint": "^10.3.0",
-    "js-yaml": "^4.1.1",
+    "@types/node": "^25.9.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10.7.0",
+    "js-yaml": "^4.3.0",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.1",
-    "vite": "^8.0.10",
-    "vitest": "^4.1.5"
+    "typescript-eslint": "^8.63.0",
+    "vite": "8.0.16",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=16.0.0"

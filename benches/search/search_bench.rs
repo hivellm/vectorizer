@@ -6,7 +6,13 @@
 //! - Search accuracy vs speed trade-offs
 //! - Concurrent search performance
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+// Benchmark binary: unwrap is idiomatic for the harness setup, the
+// `unwrap_used` / `expect_used` workspace lints apply only to library code.
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
+use std::hint::black_box;
+
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use vectorizer::db::VectorStore;
 use vectorizer::models::{
     CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig, Vector,
@@ -20,6 +26,7 @@ fn create_test_collection(store: &VectorStore, name: &str, dimension: usize, vec
         quantization: QuantizationConfig::None,
         compression: Default::default(),
         normalization: None,
+        ..Default::default()
     };
 
     store.create_collection(name, config).unwrap();
@@ -124,6 +131,7 @@ fn bench_search_with_quantization(c: &mut Criterion) {
             quantization: quantization.1,
             compression: Default::default(),
             normalization: None,
+            ..Default::default()
         };
 
         store.create_collection(&collection_name, config).unwrap();

@@ -39,6 +39,25 @@ fn require_admin(auth: &ConnectionAuth, id: u32) -> Option<Response> {
     }
 }
 
+// ── Error-code helper (phase40 §2.4) ─────────────────────────────────────────
+
+/// Build an RPC error [`Response`] whose message carries
+/// [`vectorizer::VectorizerError::code`] — the same stable identifier
+/// REST surfaces as `error_type` and gRPC status details derive from —
+/// as a `"[<code>] "` prefix in front of the existing `"<context>:
+/// <error>"` text.
+///
+/// `Response::result` is `Result<VectorizerValue, String>` (wire spec
+/// v1): there is no room for an additive structured field without a
+/// breaking wire change, so the code travels as a message prefix
+/// instead. This is non-breaking for existing clients (the previous
+/// `"<context>: <error>"` text is still present verbatim, just after
+/// the prefix) while letting newer clients recover the machine-readable
+/// code by splitting on the first `"] "`.
+fn vectorizer_err_ctx(id: u32, context: &str, err: &vectorizer::VectorizerError) -> Response {
+    Response::err(id, format!("[{}] {}: {}", err.code(), context, err))
+}
+
 // ── Value conversion helpers ─────────────────────────────────────────────────
 
 /// Convert a `serde_json::Value` into a `VectorizerValue`.
@@ -484,7 +503,7 @@ fn handle_collection_info(state: &Arc<RpcState>, id: u32, args: &[VectorizerValu
             ];
             Response::ok(id, VectorizerValue::Map(map))
         }
-        Err(e) => Response::err(id, format!("collection '{}' not found: {}", name, e)),
+        Err(e) => vectorizer_err_ctx(id, &format!("collection '{}' not found", name), &e),
     }
 }
 
@@ -505,7 +524,7 @@ fn handle_vector_get(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]) -
     };
     match state.store.get_vector(collection, vector_id) {
         Ok(vector) => Response::ok(id, vector_to_value(&vector)),
-        Err(e) => Response::err(id, format!("vectors.get: {}", e)),
+        Err(e) => vectorizer_err_ctx(id, "vectors.get", &e),
     }
 }
 
@@ -538,12 +557,12 @@ fn handle_search_basic(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue])
 
     let embedding = match state.embedding_manager.embed(query) {
         Ok(e) => e,
-        Err(e) => return Response::err(id, format!("embedding failed: {}", e)),
+        Err(e) => return vectorizer_err_ctx(id, "embedding failed", &e),
     };
 
     let results = match state.store.search(collection, &embedding, limit) {
         Ok(r) => r,
-        Err(e) => return Response::err(id, format!("search.basic: {}", e)),
+        Err(e) => return vectorizer_err_ctx(id, "search.basic", &e),
     };
 
     let arr = results
@@ -639,7 +658,7 @@ fn handle_collections_create(
             ];
             Response::ok(id, VectorizerValue::Map(map))
         }
-        Err(e) => Response::err(id, format!("collections.create: {}", e)),
+        Err(e) => vectorizer_err_ctx(id, "collections.create", &e),
     }
 }
 
@@ -670,7 +689,7 @@ fn handle_collections_delete(
             ];
             Response::ok(id, VectorizerValue::Map(map))
         }
-        Err(e) => Response::err(id, format!("collections.delete: {}", e)),
+        Err(e) => vectorizer_err_ctx(id, "collections.delete", &e),
     }
 }
 
@@ -708,7 +727,7 @@ fn handle_collections_cleanup_empty(
             ];
             Response::ok(id, VectorizerValue::Map(map))
         }
-        Err(e) => Response::err(id, format!("collections.cleanup_empty: {}", e)),
+        Err(e) => vectorizer_err_ctx(id, "collections.cleanup_empty", &e),
     }
 }
 
@@ -795,7 +814,7 @@ fn handle_vectors_insert(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue
             ];
             Response::ok(id, VectorizerValue::Map(map))
         }
-        Err(e) => Response::err(id, format!("vectors.insert: {}", e)),
+        Err(e) => vectorizer_err_ctx(id, "vectors.insert", &e),
     }
 }
 
@@ -820,7 +839,7 @@ async fn handle_vectors_insert_text(
     };
     let embedding = match state.embedding_manager.embed(text) {
         Ok(e) => e,
-        Err(e) => return Response::err(id, format!("vectors.insert_text: embed failed: {}", e)),
+        Err(e) => return vectorizer_err_ctx(id, "vectors.insert_text: embed failed", &e),
     };
     let payload_json = args.get(3).map(value_to_json);
     let payload = payload_json.map(vectorizer::models::Payload::new);
@@ -856,7 +875,7 @@ async fn handle_vectors_insert_text(
             ];
             Response::ok(id, VectorizerValue::Map(map))
         }
-        Err(e) => Response::err(id, format!("vectors.insert_text: {}", e)),
+        Err(e) => vectorizer_err_ctx(id, "vectors.insert_text", &e),
     }
 }
 
@@ -904,7 +923,7 @@ fn handle_vectors_update(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue
             ];
             Response::ok(id, VectorizerValue::Map(map))
         }
-        Err(e) => Response::err(id, format!("vectors.update: {}", e)),
+        Err(e) => vectorizer_err_ctx(id, "vectors.update", &e),
     }
 }
 

@@ -10,11 +10,11 @@ use std::time::{Duration, Instant};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
+use vectorizer_core::metrics_sink::{MetricsSink, NoopMetricsSink};
 
 use super::HubCacheConfig;
 use super::client::HubClient;
 use crate::error::{Result, VectorizerError};
-use crate::monitoring::metrics::METRICS;
 
 /// Types of quotas that can be checked
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -265,17 +265,32 @@ pub struct QuotaManager {
     cache_ttl: Duration,
     /// Maximum cache entries
     max_cache_entries: usize,
+    /// Metrics sink for quota-check counters/gauges/latency.
+    metrics: Arc<dyn MetricsSink>,
 }
 
 impl QuotaManager {
-    /// Create a new QuotaManager
+    /// Create a new QuotaManager with metrics disabled (a
+    /// [`NoopMetricsSink`]). Use [`QuotaManager::new_with_metrics`] to
+    /// record quota-check metrics through a real [`MetricsSink`].
     pub fn new(client: Arc<HubClient>, cache_config: &HubCacheConfig) -> Self {
+        Self::new_with_metrics(client, cache_config, Arc::new(NoopMetricsSink))
+    }
+
+    /// Create a new QuotaManager, recording quota-check counters,
+    /// gauges, and latency through `metrics`.
+    pub fn new_with_metrics(
+        client: Arc<HubClient>,
+        cache_config: &HubCacheConfig,
+        metrics: Arc<dyn MetricsSink>,
+    ) -> Self {
         Self {
             client,
             cache: Arc::new(RwLock::new(HashMap::new())),
             rate_limits: Arc::new(RwLock::new(HashMap::new())),
             cache_ttl: Duration::from_secs(cache_config.quota_ttl_seconds),
             max_cache_entries: cache_config.max_entries,
+            metrics,
         }
     }
 
@@ -286,7 +301,7 @@ impl QuotaManager {
         quota_type: QuotaType,
         requested: u64,
     ) -> Result<bool> {
-        let timer = METRICS.hub_quota_check_latency_seconds.start_timer();
+        let started_at = Instant::now();
         let quota_type_str = quota_type.to_string();
 
         let quota_info = self.get_quota(tenant_id).await?;
@@ -304,17 +319,10 @@ impl QuotaManager {
         };
 
         // Record metrics
-        let result_label = if allowed { "allowed" } else { "denied" };
-        METRICS
-            .hub_quota_checks_total
-            .with_label_values(&[tenant_id, &quota_type_str, result_label])
-            .inc();
+        self.metrics
+            .hub_quota_check(tenant_id, &quota_type_str, allowed);
 
         if !allowed {
-            METRICS
-                .hub_quota_exceeded_total
-                .with_label_values(&[tenant_id, &quota_type_str])
-                .inc();
             debug!(
                 "Quota check failed for tenant {}: {} (requested: {})",
                 tenant_id, quota_type, requested
@@ -328,12 +336,11 @@ impl QuotaManager {
             QuotaType::CollectionCount => quota_info.collections.used as f64,
             _ => 0.0,
         };
-        METRICS
-            .hub_quota_usage
-            .with_label_values(&[tenant_id, &quota_type_str])
-            .set(usage);
+        self.metrics
+            .hub_quota_usage(tenant_id, &quota_type_str, usage);
 
-        drop(timer);
+        self.metrics
+            .hub_quota_check_latency(started_at.elapsed().as_secs_f64());
         Ok(allowed)
     }
 

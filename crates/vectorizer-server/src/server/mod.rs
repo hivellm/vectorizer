@@ -159,10 +159,12 @@ pub struct RootUserConfig {
     pub root_password: Option<String>,
     /// Path to config file (defaults to "config.yml" if not set)
     pub config_path: Option<String>,
-    /// When true and `auth.jwt_secret` is empty, generate a cryptographically
-    /// random key on first boot and persist it under the auth data directory
-    /// as `jwt_secret.key`. Opt-in so production deployments fail fast instead
-    /// of silently running with an unconfigured secret.
+    /// Deprecated / no-op: generating and persisting a JWT secret under
+    /// the auth data directory (`jwt_secret.key`) when `auth.jwt_secret`
+    /// is empty is now the unconditional default (phase40 §6.3 — see
+    /// `bootstrap::resolve_jwt_secret`), so this flag no longer gates
+    /// anything. Retained on the struct so existing callers that set it
+    /// keep compiling.
     pub auto_generate_jwt_secret: bool,
 }
 

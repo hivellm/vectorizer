@@ -41,3 +41,65 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+
+  # SDK ecosystems (phase36 dependency-refresh spec: dependabot MUST
+  # cover every SDK so client deps don't silently rot between releases)
+  - package-ecosystem: "npm"
+    directory: "/sdks/typescript"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "sdk-typescript"
+
+  - package-ecosystem: "pip"
+    directory: "/sdks/python"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "sdk-python"
+
+  - package-ecosystem: "gomod"
+    directory: "/sdks/go"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "sdk-go"
+
+  - package-ecosystem: "nuget"
+    directory: "/sdks/csharp"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "sdk-csharp"
+
+  # NOTE: sdks/rust is a workspace member sharing the root Cargo.lock,
+  # so the root "cargo" entry above already covers it — a separate
+  # /sdks/rust entry would open duplicate PRs.

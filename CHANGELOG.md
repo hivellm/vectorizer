@@ -4,6 +4,164 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-07-13
+
+### Performance
+
+- **Search no longer blocks behind batch inserts (phase38).**
+  `insert_batch` held the HNSW index write lock for the entire batch —
+  payload indexing, quantization, and graph discovery included — so
+  concurrent search p99 collapsed under mixed load. Writers now
+  serialize on a dedicated mutex while searches proceed against the
+  internally-synchronized index. Per-vector copies on the insert path
+  cut from 3-4 to 1. Covered by a concurrency test that searches while
+  a 30k batch runs.
+- **PQ and Binary quantization are reachable (phase38).** The HNSW
+  quantization integration accepted only Scalar and silently
+  substituted 8-bit for everything else; Product/Binary (implemented
+  since long ago) are now wired, `None` and unknown types error
+  explicitly. Also fixed: quantized search paths fed raw vectors to
+  the unit-input-only clamped-dot cosine, scoring every pair 1.0 on
+  non-normalized data.
+- **SIMD kernels (phase38):** AVX2 + NEON `quantize_f32_to_u8` /
+  `dequantize_u8_to_f32`, AVX2 `int8_dot_product`
+  (`_mm256_maddubs_epi16`), all bit-exact vs the scalar oracle. SIMD
+  correctness is CI-verified again via `simd-matrix.yml` (x86_64
+  scalar/sse2/avx2 + native aarch64 scalar/neon).
+- **Hot-path allocations (phase38):** upsert admission no longer heap
+  allocates the collection name per request; query-cache keys use
+  xxh3-128 instead of SHA-256.
+- **Benchmarks resurrected (phase38):** 7 commented-out benches
+  re-registered and de-bit-rotted + new `insert_pipeline` and
+  `bm25_vocab` benches, so hot-path regressions are measurable again.
+
+### Fixed
+
+- **`bulk_update_metadata` deadlocked on every call (phase39).** The
+  handler held the DashMap collection `Ref` across `store.update`,
+  which takes a `RefMut` on the same shard — the re-entrancy trap the
+  2026-07-11 analysis documented (§1.5). The endpoint had zero test
+  coverage, so every production call simply hung forever; caught the
+  moment the new in-process handler coverage ran it. The `Ref` is now
+  dropped before the update loop.
+- **BM25 search returned nothing after a restart (phase37).** Auto-save
+  wrote a minimal tokenizer (`vocab_size: 0`) and the vocabulary loaders
+  had zero callers, so a restarted server embedded text queries in the
+  hash-fallback space — disjoint from the stored vectors. Auto-save now
+  persists the real vocabulary through an injected saver, and bootstrap
+  restores the newest snapshot (from raw files or inside
+  `vectorizer.vecdb`) into the query-time provider; collections without
+  a usable snapshot are flagged `degraded_vocabulary:{name}` and logged.
+  Pinned by an end-to-end round-trip test.
+- **Legacy-format collection saves were unreadable on reload.** The
+  instance save path serialized a bare `PersistedCollection` while the
+  loader requires the versioned `PersistedVectorStore` envelope — every
+  `save_collection_to_file` output failed to load with
+  `missing field 'version'`. Found by the phase37 round-trip test.
+- **WAL durability (phase37).** The WAL now fsyncs after every
+  append/checkpoint (`WALConfig.fsync`, default on — previously only
+  `flush()`, so acknowledged writes died with the page cache on power
+  loss), frames each record with CRC32 + length (a torn final record is
+  discarded with a warning instead of aborting recovery of everything
+  after it; legacy bare-JSON WALs remain readable), reserves transaction
+  sequence ranges atomically (two concurrent transactions could
+  previously interleave the same sequence numbers), and resumes
+  sequences at `max + 1` after recovery (the first append after every
+  restart used to duplicate the last entry's sequence).
+
+### Changed
+
+- **Architecture decoupling (phase41).** Eight of the nine upward
+  back-references that stalled the workspace split are gone:
+  `monitoring::METRICS` is now a `MetricsSink` trait injected into
+  db/cache/hub/auth; `AuthConfig`/`HubConfig`/`ClusterConfig` live in
+  `config/sections/` (services re-export them); the tenant model moved
+  to `models/tenant.rs` (kills cluster→hub); and sharded collections
+  route through a `ShardTopology` trait instead of concrete cluster
+  types (the gRPC `ClusterClientPool` stays concrete by design — it is
+  the transport). Also: dead `[[bin]]` stanzas removed, the two
+  1000-line persistence/collections files split along concern seams,
+  `VectorStore::update` no longer takes an unconditional shard write
+  ref (removing the deadlock class fixed in phase39), and the db lock
+  convention is documented.
+- **API parity + hardening (phase40).**
+  - MCP now mirrors REST: `delete_collection`, `embed_text`,
+    `contextual_search`, `get_database_stats`, the 8-op discovery
+    pipeline, and `batch_*` tools added; MCP errors carry mapped codes
+    (not-found is no longer −32603 Internal); RPC error frames carry
+    the stable `VectorizerError::code()`.
+  - Capability registry completed (+~40 endpoints/tools), the
+    `graph.find_related` GET/POST mismatch fixed, and a new
+    route-reachability test probes every registry entry against the
+    real router so registry drift fails CI.
+  - Search `limit` (and hybrid `dense_k`/`sparse_k`/`final_k`, explain
+    `k`) clamped server-side at 100 — the schema said so, the handlers
+    now enforce it (memory-DoS guard).
+  - GraphQL tenant prefix unified via a single helper: `upload_file`
+    used `user_{id}_{name}` while `create_collection` used
+    `user_{id}:{name}`, so uploads landed in a different collection;
+    metadata lookup also fixed to the prefixed name.
+  - Auth-middleware 401s use the standard `error_type` body shape.
+  - Config: loaded once via the layered loader (was re-parsed 4× with
+    errors swallowed — mode overrides never reached auth/hub); unknown
+    top-level keys warn at boot; first boot with the shipped default
+    config now succeeds by auto-generating a persisted JWT secret
+    (prominent warning) instead of failing the bind check.
+
+### Testing
+
+- **In-process REST harness (phase39).** `TestApp` builds the REAL
+  production router over in-memory state and dispatches via
+  `tower::ServiceExt::oneshot` — the 12 live-server-only REST suites
+  (98 tests) plus router-level coverage for ~30 previously untested
+  handlers now run on every PR with no server process. The very first
+  coverage run caught the `bulk_update_metadata` production deadlock
+  (see Fixed). Auth-enabled variant included (real JWT login through
+  the real handlers).
+- **Ignore hygiene (phase39).** Every `#[ignore]` carries a reason;
+  `ignore_count_gate.rs` fails CI when the repo-wide count (150) grows,
+  a bare ignore appears, or the baseline goes stale. Two "known bug"
+  ignore clusters turned out long-fixed and were re-enabled (4 gRPC
+  update tests; the replication snapshot-sync suite — which was never
+  orphaned, the analysis misread `#[path]` includes).
+- **Server-backed SDK CI (phase39).** New `sdk-integration.yml` boots
+  the slim server on the runner weekly and runs the TS/Python/Go/C#
+  integration suites against it — the first SDK-to-server coverage in
+  CI. Also fixed: the C# suite's connection-refused detection matched
+  English error text only, producing 21 false failures on pt-BR
+  Windows; it now walks the exception chain for `SocketException`.
+
+### Security
+
+- **Docker image CVE posture (phase35).** Rebuild against the refreshed
+  `dhi.io/debian-base:trixie` (openssl `3.5.6-1~deb13u2`) clears all 4
+  HIGH openssl CVEs — Scout scan drops 31 → 16 (0C/0H; remainder has no
+  fix in trixie). Runtime base is now **pinned by digest** in the
+  `Dockerfile`; `docker/vex.json` (OpenVEX) documents the 15 unfixable
+  base CVEs with per-CVE justification; new `docker-cve-gate.yml`
+  workflow scans weekly + on release (VEX applied, fails on unexcepted
+  CRITICAL/HIGH) and tracks base-digest staleness (≥14 days → issue).
+- **cmov 0.5.3 → 0.5.4** — CVE-2026-50185 (aarch64 inline-asm high-bits
+  bug in the constant-time select primitive on the hmac/pbkdf2 path).
+
+### Build
+
+- **Dependency refresh, core + SDKs (phase36).**
+  - Dependabot cascade #336–#345 merged: uuid 1.23.4, tracing-opentelemetry
+    0.33.0, bcrypt 0.19.2, memmap2 0.9.11, transmutation 0.3.3,
+    xxhash-rust 0.8.16.
+  - Majors as isolated compat commits: **candle family 0.10.2 → 0.11.0**
+    in lockstep incl. vectorizer-core's optional pin (supersedes #341/#337);
+    **aes-gcm 0.10.3 → 0.11.0** with the aead 0.6 `Generate` trait for
+    key/nonce material (supersedes #343); **rmcp 1.7.0 → 2.1.0** —
+    MCP 2025-11-25 model alignment, `Content` → `ContentBlock` across
+    the MCP handlers (supersedes #342).
+  - Workspace-wide `cargo update` (~120 compatible bumps). Full gate on
+    the refreshed tree: clippy all-targets 0 warnings, nextest
+    **1822 passed / 0 failed**.
+  - `dependabot.yml` now covers `sdks/{typescript,python,go,csharp}`
+    (npm/pip/gomod/nuget, weekly).
+
 ## [3.4.1] - 2026-07-01
 
 ### Fixed

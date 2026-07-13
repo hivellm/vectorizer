@@ -100,7 +100,10 @@ async fn test_eventual_consistency() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-consistency".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,
@@ -152,7 +155,10 @@ async fn test_data_durability() {
     let collection: DistributedShardedCollection = match DistributedShardedCollection::new(
         "test-durability".to_string(),
         collection_config,
-        cluster_manager.clone(),
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager.clone(),
+            100, // virtual_nodes_per_shard — matches the sharding config above
+        )),
         client_pool.clone(),
     ) {
         Ok(c) => c,

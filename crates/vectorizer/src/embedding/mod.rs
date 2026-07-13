@@ -51,6 +51,21 @@ pub trait EmbeddingProvider: Send + Sync {
         ))
     }
 
+    /// Restore this provider's vocabulary (if any) from a JSON file
+    /// previously written by [`Self::save_vocabulary_json`].
+    ///
+    /// Default implementation returns an error, mirroring the save
+    /// side: only sparse vocabulary providers (BM25, TF-IDF, CharNGram,
+    /// BagOfWords) override it. Wired at boot so a restarted server
+    /// embeds queries in the same vector space as the stored vectors
+    /// (phase37: BM25 vocab was never reloaded, so every post-restart
+    /// text query fell back to the hash space and matched nothing).
+    fn load_vocabulary_json(&mut self, _path: &Path) -> Result<()> {
+        Err(VectorizerError::Other(
+            "Provider does not support vocabulary loading".to_string(),
+        ))
+    }
+
     /// Cast to Any for downcasting (mutable)
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 

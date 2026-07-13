@@ -140,6 +140,42 @@ fn register_all_providers(
     Ok(())
 }
 
+/// Where the JWT secret used to initialize [`vectorizer::auth::AuthManager`]
+/// came from. Distinguishing the two cases only matters for logging —
+/// callers warn loudly when a secret was generated so operators notice
+/// the first-boot default instead of assuming they configured one.
+enum JwtSecretSource {
+    /// The operator supplied a non-empty secret via `config.yml` or
+    /// `VECTORIZER_JWT_SECRET`.
+    Configured(String),
+    /// No secret was configured; one was generated (or reloaded from a
+    /// prior boot's persisted file at `key_path`).
+    Generated(String),
+}
+
+/// Resolve the effective JWT secret for auth initialization.
+///
+/// An already-configured (non-empty) secret always wins unchanged. An
+/// empty secret is replaced by a secret persisted at `key_path`,
+/// generated on first call and reused on every subsequent boot.
+///
+/// `phase40_api-parity-and-hardening` §6.3: this path used to be
+/// gated behind `--auto-generate-jwt-secret` /
+/// `VECTORIZER_AUTO_GEN_JWT_SECRET` (opt-in). It is now unconditional
+/// whenever the configured secret is empty — the shipped default
+/// `config.yml` ships `auth.enabled: true` with an empty `jwt_secret`,
+/// which used to collapse first boot to no-auth and then fail the
+/// `0.0.0.0`-without-auth boot guard in `routing.rs::start`.
+fn resolve_jwt_secret(
+    configured: &str,
+    key_path: &std::path::Path,
+) -> vectorizer::error::Result<JwtSecretSource> {
+    if !configured.is_empty() {
+        return Ok(JwtSecretSource::Configured(configured.to_string()));
+    }
+    vectorizer::auth::jwt_secret::load_or_generate(key_path).map(JwtSecretSource::Generated)
+}
+
 impl VectorizerServer {
     /// Create a new vectorizer server
     pub async fn new() -> anyhow::Result<Self> {
@@ -190,34 +226,56 @@ impl VectorizerServer {
             }
         });
 
-        // Layered config loader (`base → mode → env → CLI`). When the
-        // operator sets `VECTORIZER_MODE=production` (or `dev`,
-        // `cluster`, `hub`), this validates the merged config eagerly
-        // so a typo in the override surfaces at boot rather than
-        // randomly later. The base + every mode override file already
-        // pass the strict serde schema, so a successful merge is the
-        // signal we need.
-        if let Some(mode) = vectorizer::config::layered::mode_from_env() {
+        // Layered config loader (`base → mode → env → CLI`), loaded
+        // exactly ONCE here. `loaded_config` is the single source of
+        // truth for the downstream consumers that used to each
+        // re-parse `config.yml` independently with `.ok()`-swallowed
+        // errors that silently bypassed `VECTORIZER_MODE` overlays:
+        // the REST max-request-size limit, the auth subsystem, and
+        // the HiveHub manager. See `phase40_api-parity-and-hardening`
+        // §6.2.
+        let config_mode = vectorizer::config::layered::mode_from_env();
+        let loaded_config: Arc<vectorizer::config::VectorizerConfig> =
             match vectorizer::config::layered::load_layered(
                 std::path::Path::new(&config_path),
                 vectorizer::config::layered::LayeredOptions {
-                    mode: Some(mode.clone()),
+                    mode: config_mode.clone(),
                     modes_dir: None,
                 },
             ) {
-                Ok(_) => info!(
-                    "📑 VECTORIZER_MODE={} — config validated through the layered loader",
-                    mode
-                ),
-                Err(e) => {
-                    return Err(anyhow::anyhow!(
-                        "VECTORIZER_MODE={} requested but the merged config did not validate: {}",
-                        mode,
-                        e
-                    ));
+                Ok(cfg) => {
+                    if let Some(ref mode) = config_mode {
+                        info!(
+                            "📑 VECTORIZER_MODE={} — config loaded and validated through the \
+                             layered loader",
+                            mode
+                        );
+                    }
+                    Arc::new(cfg)
                 }
-            }
-        }
+                Err(e) => {
+                    // An explicitly requested mode that fails to merge/validate is a
+                    // hard boot failure (unchanged behavior) — the operator asked for a
+                    // specific overlay and it doesn't exist or doesn't typecheck.
+                    if let Some(ref mode) = config_mode {
+                        return Err(anyhow::anyhow!(
+                            "VECTORIZER_MODE={} requested but the merged config did not validate: {}",
+                            mode,
+                            e
+                        ));
+                    }
+                    // No mode requested: warn loudly instead of the previous silent
+                    // per-consumer `.ok()` fallback, then use built-in defaults so a
+                    // missing/malformed config.yml doesn't crash an otherwise-working
+                    // deployment.
+                    warn!(
+                        "⚠️  Failed to load '{}' via the layered config loader: {}. Falling \
+                         back to built-in defaults for max_request_size, auth, and hub config.",
+                        config_path, e
+                    );
+                    Arc::new(vectorizer::config::VectorizerConfig::default())
+                }
+            };
 
         // Initialize monitoring system
         if let Err(e) = vectorizer::monitoring::init() {
@@ -794,6 +852,52 @@ impl VectorizerServer {
             final_provider,
         )?;
 
+        // Restore the persisted vocabulary into the query-time provider
+        // (phase37). Without this every text query after a restart is
+        // embedded via the hash fallback — a vector space disjoint from
+        // the stored vectors — and search returns nothing until a full
+        // re-index. Reads tokenizer snapshots directly from data_dir /
+        // vectorizer.vecdb, so it doesn't depend on the background
+        // collection load having finished.
+        {
+            let data_dir = VectorStore::get_data_dir();
+            match final_embedding_manager
+                .restore_vocabulary_from_disk(&final_provider_name, &data_dir)
+            {
+                Ok(report) => {
+                    if let Some(source) = &report.restored_from {
+                        info!(
+                            "✅ Restored '{}' vocabulary from tokenizer snapshot of '{}'",
+                            final_provider_name, source
+                        );
+                    } else {
+                        info!(
+                            "No usable '{}' vocabulary snapshot found in {:?} (fresh instance or non-vocab provider)",
+                            final_provider_name, data_dir
+                        );
+                    }
+                    for collection in &report.degraded_collections {
+                        warn!(
+                            "⚠️ Collection '{}' has no usable vocabulary snapshot — \
+                             text search may be degraded until it is re-indexed",
+                            collection
+                        );
+                        store_arc.set_metadata(
+                            &format!("degraded_vocabulary:{collection}"),
+                            "true".to_string(),
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "⚠️ Vocabulary restore failed for provider '{}': {} — \
+                         text search will use the hash fallback until re-index",
+                        final_provider_name, e
+                    );
+                }
+            }
+        }
+
         // Initialize AutoSaveManager (5min save + 1h snapshot intervals)
         info!("🔄 Initializing AutoSaveManager...");
         let auto_save_manager =
@@ -1337,36 +1441,20 @@ impl VectorizerServer {
             }
         };
 
-        // Load API config for max request size
-        let max_request_size_mb = std::fs::read_to_string(&config_path)
-            .ok()
-            .and_then(|content| {
-                serde_yaml::from_str::<serde_yaml::Value>(&content)
-                    .ok()
-                    .and_then(|config| {
-                        config
-                            .get("api")
-                            .and_then(|api| api.get("rest"))
-                            .and_then(|rest| rest.get("max_request_size_mb"))
-                            .and_then(|size| size.as_u64())
-                            .map(|size| size as usize)
-                    })
-            })
-            .unwrap_or(100); // Default to 100MB if not configured
+        // API config for max request size — sourced from the single
+        // `loaded_config` read at the top of this function instead of
+        // a fresh re-parse of `config.yml` (phase40 §6.2).
+        let max_request_size_mb = loaded_config.api.rest.max_request_size_mb;
 
         info!("📦 API max request size: {}MB", max_request_size_mb);
 
         // Initialize auth handler state if auth is enabled
         let auth_handler_state = {
-            // Try to load auth config from config.yml
-            let mut auth_config = std::fs::read_to_string(&config_path)
-                .ok()
-                .and_then(|content| {
-                    serde_yaml::from_str::<vectorizer::config::VectorizerConfig>(&content)
-                        .ok()
-                        .map(|config| config.auth)
-                })
-                .unwrap_or_default();
+            // Sourced from the single `loaded_config` read at the top
+            // of this function instead of a fresh re-parse of
+            // `config.yml` (phase40 §6.2) — mode overrides (e.g.
+            // `VECTORIZER_MODE=production`) reach this subsystem.
+            let mut auth_config = loaded_config.auth.clone();
 
             // Override with environment variables if set (for Docker)
             if let Ok(enabled) = std::env::var("VECTORIZER_AUTH_ENABLED") {
@@ -1376,33 +1464,34 @@ impl VectorizerServer {
                 auth_config.jwt_secret = vectorizer::auth::Secret::new(secret);
             }
 
-            // Opt-in auto-generated JWT secret for first-boot UX. Triggered by
-            // either the CLI flag (plumbed via RootUserConfig) or the env var.
-            // Only fires when the operator hasn't already set a secret — an
-            // explicit VECTORIZER_JWT_SECRET or config.yml value always wins.
-            let env_opt_in = std::env::var("VECTORIZER_AUTO_GEN_JWT_SECRET")
-                .map(|v| matches!(v.to_lowercase().as_str(), "1" | "true" | "yes"))
-                .unwrap_or(false);
-            let opt_in = root_config.auto_generate_jwt_secret || env_opt_in;
-            if opt_in && auth_config.jwt_secret.expose_secret().is_empty() {
-                let key_path = vectorizer::auth::persistence::AuthPersistence::get_data_dir()
-                    .join("jwt_secret.key");
-                match vectorizer::auth::jwt_secret::load_or_generate(&key_path) {
-                    Ok(secret) => {
-                        // Path-only — never log the secret value itself.
-                        info!(
-                            "🔑 Using auto-generated JWT secret persisted at {}",
-                            key_path.display()
-                        );
-                        auth_config.jwt_secret = vectorizer::auth::Secret::new(secret);
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to load or generate JWT secret at {}: {}",
-                            key_path.display(),
-                            e
-                        );
-                    }
+            // Auto-generate + persist a JWT secret whenever auth is enabled
+            // but no secret was supplied via config.yml or
+            // VECTORIZER_JWT_SECRET (phase40 §6.3 — see `resolve_jwt_secret`
+            // doc for why this is now unconditional rather than gated
+            // behind --auto-generate-jwt-secret / VECTORIZER_AUTO_GEN_JWT_SECRET).
+            let key_path = vectorizer::auth::persistence::AuthPersistence::get_data_dir()
+                .join("jwt_secret.key");
+            match resolve_jwt_secret(auth_config.jwt_secret.expose_secret(), &key_path) {
+                Ok(JwtSecretSource::Configured(_)) => {}
+                Ok(JwtSecretSource::Generated(secret)) => {
+                    // Path-only — never log the secret value itself.
+                    warn!("════════════════════════════════════════════════════════════════════");
+                    warn!("⚠️  No auth.jwt_secret configured — using an auto-generated secret");
+                    warn!("⚠️  Persisted at: {}", key_path.display());
+                    warn!("⚠️  If this data directory is NOT preserved across restarts (e.g. an");
+                    warn!("⚠️  ephemeral container), a fresh secret is generated on the next boot");
+                    warn!("⚠️  and existing sessions / API keys stop validating. Set");
+                    warn!("⚠️  VECTORIZER_JWT_SECRET or auth.jwt_secret in config.yml for a");
+                    warn!("⚠️  stable secret across restarts.");
+                    warn!("════════════════════════════════════════════════════════════════════");
+                    auth_config.jwt_secret = vectorizer::auth::Secret::new(secret);
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to load or generate JWT secret at {}: {}",
+                        key_path.display(),
+                        e
+                    );
                 }
             }
 
@@ -1434,28 +1523,14 @@ impl VectorizerServer {
 
         // Initialize HiveHub manager if hub integration is enabled
         let hub_manager = {
-            // Try to load hub config from config.yml
-            let hub_config = match std::fs::read_to_string(&config_path) {
-                Ok(content) => {
-                    match serde_yaml::from_str::<vectorizer::config::VectorizerConfig>(&content) {
-                        Ok(config) => {
-                            info!(
-                                "✅ Loaded hub config from config.yml: enabled={}",
-                                config.hub.enabled
-                            );
-                            config.hub
-                        }
-                        Err(e) => {
-                            warn!("⚠️  Failed to parse config.yml for hub config: {}", e);
-                            vectorizer::hub::HubConfig::default()
-                        }
-                    }
-                }
-                Err(e) => {
-                    warn!("⚠️  Failed to read config.yml for hub config: {}", e);
-                    vectorizer::hub::HubConfig::default()
-                }
-            };
+            // Sourced from the single `loaded_config` read at the top
+            // of this function instead of a fresh re-parse of
+            // `config.yml` (phase40 §6.2).
+            let hub_config = loaded_config.hub.clone();
+            info!(
+                "✅ Loaded hub config from the layered config loader: enabled={}",
+                hub_config.enabled
+            );
 
             if hub_config.enabled {
                 info!("🌐 Initializing HiveHub integration...");
@@ -1609,6 +1684,24 @@ impl VectorizerServer {
         // accepted connection; nothing else in `Self` needs to retain a
         // handle to it (the listener owns its TcpListener for life).
         let embedding_manager_arc = Arc::new(final_embedding_manager);
+
+        // Register the tokenizer saver so auto-save persists the REAL
+        // vocabulary (phase37). The closure snapshots the query-time
+        // provider state on every save; the restore block above reads it
+        // back on the next boot. Collection name is unused because the
+        // provider vocabulary is global (see phase37 design.md D4).
+        {
+            let saver_manager = embedding_manager_arc.clone();
+            let saver_provider = final_provider_name.clone();
+            store_arc.set_tokenizer_saver(Arc::new(move |_collection, path| {
+                saver_manager.save_vocabulary_json(&saver_provider, path)
+            }));
+            info!(
+                "✅ Tokenizer saver registered (provider '{}') — auto-save persists real vocabulary",
+                final_provider_name
+            );
+        }
+
         let rpc_config = std::fs::read_to_string(&config_path)
             .ok()
             .and_then(|content| {
@@ -1722,5 +1815,147 @@ impl VectorizerServer {
             // phase29 + phase30: dashboard broadcast bus sender.
             dashboard_tx,
         })
+    }
+
+    /// Build a minimal `VectorizerServer` for in-process REST test
+    /// harnesses (see `crates/vectorizer-server/tests/common/mod.rs`).
+    ///
+    /// Unlike [`Self::new_with_root_config`], this constructor does no
+    /// disk I/O (no `config.yml` read), spawns no background tasks
+    /// (no file watcher, no auto-save, no runtime-metrics ticker, no
+    /// status/collections/log-tailer publishers), and leaves
+    /// cluster/replication/Raft/HiveHub/auth fields at their disabled
+    /// defaults (`None`). Callers supply a real `VectorStore` and a
+    /// real `EmbeddingManager` (e.g. `VectorStore::new_cpu_only()` +
+    /// a BM25 provider fitted via `build_vocabulary`); every handler
+    /// invoked through the resulting router runs the exact same code
+    /// path production traffic does, backed by real in-memory state.
+    ///
+    /// Exists specifically because several `VectorizerServer` fields
+    /// are `pub(super)` (background task handles) and therefore not
+    /// constructible from outside this crate — an external test file
+    /// cannot write a `VectorizerServer { .. }` struct literal.
+    #[doc(hidden)]
+    pub fn new_for_test_harness(
+        store: Arc<VectorStore>,
+        embedding_manager: Arc<EmbeddingManager>,
+    ) -> Self {
+        let (dashboard_tx, _) = tokio::sync::broadcast::channel(16);
+        let mut runtime_sampler = crate::server::runtime_metrics::RuntimeSampler::new();
+        runtime_sampler.set_broadcast(dashboard_tx.clone());
+
+        let backpressure_config = vectorizer::config::BackpressureConfig::default();
+
+        Self {
+            store,
+            embedding_manager,
+            start_time: std::time::Instant::now(),
+            file_watcher_system: Arc::new(tokio::sync::Mutex::new(None)),
+            metrics_collector: Arc::new(MetricsCollector::new()),
+            auto_save_manager: None,
+            master_node: None,
+            replica_node: None,
+            query_cache: Arc::new(vectorizer::cache::query_cache::QueryCache::new(
+                vectorizer::cache::query_cache::QueryCacheConfig::default(),
+            )),
+            slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
+                vectorizer::cache::slow_query::SlowQueryConfig::default(),
+            ),
+            background_task: Arc::new(tokio::sync::Mutex::new(None)),
+            system_collector_task: Arc::new(tokio::sync::Mutex::new(None)),
+            file_watcher_task: Arc::new(tokio::sync::Mutex::new(None)),
+            file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(None)),
+            grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
+            auto_save_task: Arc::new(tokio::sync::Mutex::new(None)),
+            cluster_manager: None,
+            cluster_client_pool: None,
+            max_request_size_mb: 100,
+            snapshot_manager: None,
+            auth_handler_state: None,
+            hub_manager: None,
+            backup_manager: None,
+            mcp_hub_gateway: None,
+            raft_manager: None,
+            ha_manager: None,
+            upsert_queue: Arc::new(vectorizer::db::UpsertQueue::from_config(
+                &backpressure_config,
+            )),
+            backpressure_guard: Arc::new(vectorizer::db::BackpressureGuard::from_config(
+                &backpressure_config,
+            )),
+            runtime_sampler: Arc::new(runtime_sampler),
+            dashboard_tx,
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    // phase40 §6.3: `resolve_jwt_secret` is the extracted, pure
+    // decision point behind "first boot succeeds with the shipped
+    // default config" — a fresh install ships `auth.enabled: true`
+    // with an empty `jwt_secret`, and this function is what turns that
+    // into a usable (generated + persisted) secret instead of a boot
+    // failure. Exercised at the unit level per the task's own
+    // allowance: a full `VectorizerServer::new()` integration test
+    // would need to manipulate the process's current directory to
+    // point at a fresh `config/config.yml`, which is unsafe to do
+    // inside a parallel test binary (every test in the binary shares
+    // one process CWD).
+
+    #[test]
+    fn resolve_jwt_secret_keeps_configured_value_unchanged() {
+        let tmp = tempfile::tempdir().unwrap();
+        let key_path = tmp.path().join("jwt_secret.key");
+
+        let resolved = resolve_jwt_secret("already-configured-secret", &key_path).unwrap();
+        match resolved {
+            JwtSecretSource::Configured(secret) => {
+                assert_eq!(secret, "already-configured-secret");
+            }
+            JwtSecretSource::Generated(_) => panic!("must not generate when already configured"),
+        }
+        // A configured secret must not touch disk at all.
+        assert!(!key_path.exists());
+    }
+
+    #[test]
+    fn resolve_jwt_secret_generates_and_persists_when_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let key_path = tmp.path().join("jwt_secret.key");
+
+        let resolved = resolve_jwt_secret("", &key_path).unwrap();
+        let generated = match resolved {
+            JwtSecretSource::Generated(secret) => secret,
+            JwtSecretSource::Configured(_) => panic!("must generate when empty"),
+        };
+        assert!(!generated.is_empty());
+        assert!(
+            key_path.exists(),
+            "secret must be persisted for reuse across restarts"
+        );
+    }
+
+    #[test]
+    fn resolve_jwt_secret_reuses_persisted_secret_on_second_call() {
+        // This is the property that makes "first boot succeeds" not a
+        // one-shot fluke: a second boot against the same data
+        // directory must resolve the SAME secret, not a fresh one,
+        // or every restart would invalidate existing sessions/API keys.
+        let tmp = tempfile::tempdir().unwrap();
+        let key_path = tmp.path().join("jwt_secret.key");
+
+        let first = match resolve_jwt_secret("", &key_path).unwrap() {
+            JwtSecretSource::Generated(secret) => secret,
+            JwtSecretSource::Configured(_) => panic!("must generate when empty"),
+        };
+        let second = match resolve_jwt_secret("", &key_path).unwrap() {
+            JwtSecretSource::Generated(secret) => secret,
+            JwtSecretSource::Configured(_) => panic!("must generate when empty"),
+        };
+        assert_eq!(first, second, "second boot must reuse the persisted secret");
     }
 }

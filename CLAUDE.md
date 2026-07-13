@@ -9,7 +9,7 @@ The authoritative rules come from the imports below. Claude Code loads all of th
 automatically at session start (see [Anthropic memory docs](https://code.claude.com/docs/en/memory#claude-md-imports)).
 
 ## Project identity & live state
-<!-- @.rulebook/STATE.md (skipped — target file not present) -->
+@.rulebook/STATE.md
 
 ## Core standards (team-shared, versioned)
 @AGENTS.md
@@ -18,7 +18,7 @@ automatically at session start (see [Anthropic memory docs](https://code.claude.
 @AGENTS.override.md
 
 ## Session scratchpad (human notes)
-<!-- @.rulebook/PLANS.md (skipped — target file not present) -->
+@.rulebook/PLANS.md
 
 ## Critical rules (highest precedence — apply on every turn)
 
@@ -31,6 +31,16 @@ automatically at session start (see [Anthropic memory docs](https://code.claude.
 7. **Capture learnings**: at the end of significant work, save patterns and anti-patterns to `.rulebook/knowledge/` and insights to `.rulebook/learnings/`.
 8. **Never archive a task** without docs updated, tests written, and tests passing — the task tail enforces this structurally.
 
+## Delegation & parallelism (highest precedence — apply on every turn)
+
+**Default behavior: delegate, don't do it yourself. Parallelize, don't serialize. Create new agents/skills when the gap is real.**
+
+1. **Delegate by default.** If a step matches an agent in the delegation table, dispatch it via `Agent` instead of doing it inline. Implementation → `implementer` (sonnet). Research / read-only exploration → `researcher` (haiku). Tests → `tester`. Docs → `docs-writer` (haiku). Architecture / cross-cutting → `architect` (opus). Reserve the main conversation for orchestration + decisions.
+2. **Parallelize independent work.** When a turn requires multiple independent investigations or edits, dispatch every independent piece in **a single message with multiple `Agent` tool-use blocks**. Sequential `Agent` calls are a smell — every time you catch yourself writing "first X, then Y", check whether the two halves are independent.
+3. **Use Teams for multi-specialist work.** Anything that needs ≥2 background agents to coordinate MUST go through a Team (`TeamCreate` + `team_name` on dispatch). Standalone background `Agent` calls without `team_name` are blocked by the enforcement hook.
+4. **Create skills + agents when the gap is real.** If you write the same multi-step instructions twice in one session, lift it into a skill (`templates/skills/<category>/<name>/SKILL.md`). If a class of work repeats across projects, create an agent definition under `.claude/agents/`. Default to creating, not improvising.
+5. **Foreground vs background.** Use foreground `Agent` when you need the result to inform your next step. Use background only with `team_name` so messages can flow.
+
 ## Editing discipline (Karpathy-inspired)
 
 Behavioral guidelines that reduce common LLM coding mistakes. Adapted from [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills), grounded in [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876).
@@ -40,15 +50,10 @@ Behavioral guidelines that reduce common LLM coding mistakes. Adapted from [forr
 3. **Surgical changes.** Touch only what you must. Don't "improve" adjacent code, comments, or formatting. Don't refactor things that aren't broken. Match existing style. If you notice unrelated dead code, mention it — don't delete it. Every changed line must trace directly to the user's request.
 4. **Goal-driven execution.** Define verifiable success criteria upfront. "Add validation" → "write tests for invalid inputs, then make them pass." For multi-step tasks, state a brief plan: `[step] → verify: [check]`. Strong criteria let you loop independently; weak criteria require constant clarification.
 
-## Persistent memory
+## Session continuity
 
-This project uses the Rulebook MCP server for persistent memory across sessions.
-
-- **Start of session**: `rulebook_memory_search` for relevant prior context.
-- **During work**: `rulebook_memory_save` for decisions, bugs, discoveries, user preferences.
-- **End of session**: `rulebook_session_end` to write a session summary.
-
-Memory is auto-captured for tool interactions (task create/update/archive, skill enable/disable). Manual saves are required for everything else worth remembering.
+- **Start of session**: read `.rulebook/PLANS.md` and call `rulebook_session_start` to load prior context.
+- **End of session**: `rulebook_session_end` writes a summary to `.rulebook/PLANS.md`.
 
 ## Knowledge base
 

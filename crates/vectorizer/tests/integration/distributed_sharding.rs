@@ -54,7 +54,10 @@ async fn test_distributed_sharded_collection_creation() {
     let result = DistributedShardedCollection::new(
         "test-distributed".to_string(),
         collection_config,
-        cluster_manager,
+        std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+            cluster_manager,
+            100, // virtual_nodes_per_shard
+        )),
         client_pool,
     );
 
@@ -97,7 +100,10 @@ async fn test_distributed_sharded_collection_with_nodes() {
         DistributedShardedCollection::new(
             "test-distributed".to_string(),
             collection_config,
-            cluster_manager.clone(),
+            std::sync::Arc::new(vectorizer::cluster::ClusterShardTopology::new(
+                cluster_manager.clone(),
+                100, // virtual_nodes_per_shard — matches the sharding config above
+            )),
             client_pool,
         );
 

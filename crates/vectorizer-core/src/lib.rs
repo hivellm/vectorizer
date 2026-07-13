@@ -18,6 +18,9 @@
 //! - [`parallel`] — `rayon` thread-pool helpers.
 //! - [`compression`] — `lz4` / `zstd` wrappers used by the
 //!   persistence layer.
+//! - [`metrics_sink`] — `MetricsSink` trait so foundation modules can
+//!   record metrics without depending on the service-layer
+//!   `monitoring` module (phase41 §1).
 //!
 //! Heavier modules (`db`, `embedding`, `models`, `persistence`,
 //! `file_*`, `discovery`) stay in `vectorizer` for now — they have
@@ -45,6 +48,7 @@
 pub mod codec;
 pub mod compression;
 pub mod error;
+pub mod metrics_sink;
 pub mod parallel;
 pub mod paths;
 pub mod quantization;

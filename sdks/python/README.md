@@ -7,8 +7,17 @@
 A comprehensive Python SDK for the Vectorizer semantic search service.
 
 **Package**: `vectorizer_sdk` (PEP 625 compliant)
-**Version**: 3.2.0
+**Version**: 3.5.0
 **PyPI**: https://pypi.org/project/vectorizer-sdk/
+
+## v3.5 — server alignment (no client API changes)
+
+Version tracks the Vectorizer **3.5.0** server release: non-blocking
+search during batch inserts, PQ/Binary quantization wiring, SIMD
+quantize kernels, BM25-after-restart and WAL-durability fixes, and a
+security/dependency refresh. All server-internal — the client API is
+unchanged since **v3.3** (REST control-surface parity + dashboard
+metrics). See `CHANGELOG.md` for the full method surface.
 
 ## v3.2 — backpressure-aware client (HTTP 429 + `Retry-After`)
 
@@ -120,7 +129,7 @@ for a runnable end-to-end example.
 pip install vectorizer-sdk
 
 # Or specific version
-pip install vectorizer-sdk==3.2.0
+pip install vectorizer-sdk==3.5.0
 ```
 
 ## Package Layout (v3.x)

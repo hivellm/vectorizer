@@ -39,10 +39,14 @@ pub async fn list_vectors(
         .and_then(|l| l.parse::<usize>().ok())
         .unwrap_or(10)
         .min(50);
+    // The handler already materializes the collection scan, so `offset`
+    // can't drive allocation — the cap just rejects absurd inputs while
+    // keeping legitimate deep pagination working (phase40 §3.2).
     let offset = params
         .get("offset")
         .and_then(|o| o.parse::<usize>().ok())
-        .unwrap_or(0);
+        .unwrap_or(0)
+        .min(1_000_000);
     let min_score = params
         .get("min_score")
         .and_then(|s| s.parse::<f32>().ok())
@@ -755,6 +759,13 @@ pub async fn bulk_update_metadata(
 
     let all_vectors = collection.get_all_vectors();
     let scanned = all_vectors.len();
+
+    // `collection` is a DashMap shard Ref; `store.update` below takes a
+    // RefMut on the same shard. Holding the Ref across the update loop
+    // is the re-entrancy deadlock documented in the 2026-07-11 analysis
+    // §1.5 — every bulk_update_metadata call hung forever until the
+    // phase39 in-process coverage caught it.
+    drop(collection);
 
     let matching: Vec<vectorizer::models::Vector> = all_vectors
         .into_iter()
