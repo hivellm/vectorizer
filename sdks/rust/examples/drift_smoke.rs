@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(
                 "login OK — jwt len={} prefix={:?}",
                 tok.access_token.len(),
-                &tok.access_token.chars().take(16).collect::<String>()
+                tok.access_token.chars().take(16).collect::<String>()
             );
             Some(tok.access_token)
         }
