@@ -133,7 +133,11 @@ impl AuthHandlerState {
         let audit_logger = AuditLogger::new(None, 4096, 30);
         let csrf_tokens = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         let api_key_usage = Arc::new(ApiKeyUsageRecorder::new());
-        auth_manager.set_usage_recorder(Some(api_key_usage.clone()));
+        auth_manager.set_metrics(std::sync::Arc::new(
+            vectorizer::monitoring::PrometheusMetricsSink::with_api_key_usage(
+                api_key_usage.clone(),
+            ),
+        ));
         Self {
             auth_manager,
             users,
@@ -307,7 +311,11 @@ impl AuthHandlerState {
         let audit_logger = AuditLogger::new(Some(backup_dir), 4096, 30);
         let csrf_tokens = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         let api_key_usage = Arc::new(ApiKeyUsageRecorder::new());
-        auth_manager.set_usage_recorder(Some(api_key_usage.clone()));
+        auth_manager.set_metrics(std::sync::Arc::new(
+            vectorizer::monitoring::PrometheusMetricsSink::with_api_key_usage(
+                api_key_usage.clone(),
+            ),
+        ));
 
         Self {
             auth_manager,

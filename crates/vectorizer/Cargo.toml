@@ -336,47 +336,6 @@ harness = false
 # path = "../../benches/quantization/quantization_benchmark.rs"
 # harness = false
 
-# Disabled benchmarks - need refactoring for current API
-# [[bin]]
-# name = "gpu_benchmark"
-# path = "../../benches/scripts/gpu_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "dimension_comparison_benchmark"
-# path = "../../benches/scripts/dimension_comparison_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "combined_optimization_benchmark"
-# path = "../../benches/scripts/combined_optimization_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "scale_benchmark"
-# path = "../../benches/scripts/scale_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "patched_benchmark"
-# path = "../../benches/scripts/patched_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "large_scale_benchmark"
-# path = "../../benches/scripts/large_scale_benchmark.rs"
-# required-features = ["benchmarks"]
-
-# [[bin]]
-# name = "storage_benchmark"
-# path = "../../benches/scripts/storage_benchmark.rs"
-# required-features = ["benchmarks"]
-
-# [[bin]]
-# name = "diagnostic_benchmark"
-# path = "../../benches/scripts/diagnostic_benchmark.rs"
-# required-features = ["benchmarks"]
-
 # vectorizer-cli + create_mcp_key binaries moved to the dedicated
 # `vectorizer-cli` crate under phase4_split-vectorizer-workspace
 # sub-phase 5. The `vectorizer` server binary moved to
@@ -388,45 +347,6 @@ harness = false
 # here pending re-registration in vectorizer-server (where they have
 # access to the moved server stack). The .rs sources still live at
 # benches/{grpc,comparison}/ + scripts/dev/.
-#
-# [[bin]]
-# name = "benchmark_grpc_vs_rest"
-# path = "../../benches/grpc/benchmark_grpc_vs_rest.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "qdrant_comparison_benchmark"
-# path = "../../benches/comparison/qdrant_comparison_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "test_routes"
-# path = "../../scripts/dev/test_routes.rs"
-
-# [[bin]]
-# name = "test_basic_metal"
-# path = "../../benches/scripts/test_basic_metal.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "metal_native_search_benchmark"
-# path = "../../benches/scripts/metal_native_search_benchmark.rs"
-# required-features = ["hive-gpu-metal"]
-
-# [[bin]]
-# name = "metal_hnsw_search_benchmark"
-# path = "../../benches/scripts/metal_hnsw_search_benchmark.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "simple_metal_test"
-# path = "../../benches/scripts/simple_metal_test.rs"
-# required-features = ["benchmarks", "hive-gpu"]
-
-# [[bin]]
-# name = "gpu_scale_benchmark"
-# path = "../../benches/scripts/gpu_scale_benchmark.rs"
-# required-features = ["hive-gpu-wgpu"]
 
 [features]
 default = ["hive-gpu", "fastembed", "transmutation", "simd", "simd-avx2", "simd-neon", "simd-wasm"]
@@ -457,9 +377,12 @@ vendored-openssl = ["dep:openssl"]
 # Future: CUDA, ROCm, WebGPU support when hive-gpu implements them
 hive-gpu = ["dep:hive-gpu"]
 
-# Legacy features (deprecated - kept for backward compatibility)
+# Legacy feature (deprecated - kept for backward compatibility; consumed by
+# scripts/build/build.sh's `cargo build --release --features metal-native`).
+# `gpu-accel` (former sibling alias) was removed in phase41 after an
+# external-consumer audit found zero references anywhere in the repo,
+# docs, or CI workflows.
 metal-native = ["hive-gpu"]
-gpu-accel = ["hive-gpu"]
 
 # Server-to-Server (S2S) tests - only compile when explicitly enabled
 # Usage: cargo test --features s2s-tests --test grpc_s2s
@@ -503,21 +426,6 @@ full = ["real-models", "onnx-models", "arrow", "parquet", "transmutation"]
 # Unix-specific dependencies (for signal handling)
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.31", features = ["signal"] }
-
-# [[bin]]
-# name = "gpu_scale_benchmark"
-# path = "../../benches/scripts/gpu_scale_benchmark.rs"
-# required-features = ["wgpu-gpu"]
-#
-# [[bin]]
-# name = "cache_benchmark"
-# path = "../../benches/scripts/cache_benchmark.rs"
-# required-features = ["benchmarks"]
-#
-# [[bin]]
-# name = "complete_normalization_benchmark"
-# path = "../../benches/scripts/complete_normalization_benchmark.rs"
-# required-features = ["benchmarks"]
 
 # Heavy end-to-end suite — gated by the `integration-tests` feature so
 # `cargo build --tests` and the default CI nextest run skip it.

@@ -55,9 +55,43 @@ impl VectorStore {
         // Log to WAL before applying changes
         self.log_wal_update(collection_name, &vector)?;
 
-        let mut collection_ref = self.get_collection_mut(collection_name)?;
-        // Use atomic update method (2x faster than delete+add)
-        collection_ref.update_vector(vector)?;
+        // Prefer a shared DashMap shard reference for variants whose inner
+        // update uses interior mutability (CPU, Sharded), mirroring the
+        // pattern `delete` uses below. Holding only a shared shard lock
+        // means concurrent readers do not deadlock against this call, and
+        // it removes the `get_collection`/`get_collection_mut` re-entrancy
+        // trap documented on those two methods (bulk_update_metadata
+        // production deadlock, fixed in phase39) for the common case.
+        let pending_gpu_vector = {
+            let collection_ref = self.get_collection(collection_name)?;
+            match &*collection_ref {
+                CollectionType::Cpu(c) => {
+                    c.update(vector)?;
+                    None
+                }
+                CollectionType::Sharded(c) => {
+                    c.update(vector)?;
+                    None
+                }
+                CollectionType::DistributedSharded(_) => {
+                    return Err(VectorizerError::Storage(
+                        "update is not supported synchronously on distributed \
+                         collections; use the async cluster router"
+                            .to_string(),
+                    ));
+                }
+                #[cfg(feature = "hive-gpu")]
+                CollectionType::HiveGpu(_) => Some(vector),
+            }
+        };
+
+        // HiveGpu still needs &mut self because it tracks vector_count in a
+        // non-atomic field. Re-acquire the shard with an exclusive lock only
+        // for that case.
+        if let Some(vector) = pending_gpu_vector {
+            let mut collection_ref = self.get_collection_mut(collection_name)?;
+            collection_ref.update_vector(vector)?;
+        }
 
         // Mark collection for auto-save
         self.mark_collection_for_save(collection_name);

@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 use lru::LruCache;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use vectorizer_core::metrics_sink::{MetricsSink, NoopMetricsSink};
 
 /// Configuration for query cache
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,11 +133,21 @@ pub struct QueryCache<T: Clone> {
     hits: Arc<parking_lot::Mutex<u64>>,
     misses: Arc<parking_lot::Mutex<u64>>,
     evictions: Arc<parking_lot::Mutex<u64>>,
+    metrics: Arc<dyn MetricsSink>,
 }
 
 impl<T: Clone> QueryCache<T> {
-    /// Create a new query cache with configuration
+    /// Create a new query cache with configuration. Metrics are
+    /// disabled (a [`NoopMetricsSink`]) — use
+    /// [`QueryCache::new_with_metrics`] to record cache hit/miss
+    /// counters through a real [`MetricsSink`].
     pub fn new(config: QueryCacheConfig) -> Self {
+        Self::new_with_metrics(config, Arc::new(NoopMetricsSink))
+    }
+
+    /// Create a new query cache with configuration, recording hit/miss
+    /// outcomes through `metrics`.
+    pub fn new_with_metrics(config: QueryCacheConfig, metrics: Arc<dyn MetricsSink>) -> Self {
         let capacity = NonZeroUsize::new(config.max_size).unwrap_or(QUERY_CACHE_DEFAULT_CAPACITY);
 
         Self {
@@ -145,20 +156,20 @@ impl<T: Clone> QueryCache<T> {
             hits: Arc::new(parking_lot::Mutex::new(0)),
             misses: Arc::new(parking_lot::Mutex::new(0)),
             evictions: Arc::new(parking_lot::Mutex::new(0)),
+            metrics,
         }
     }
 
     /// Get a cached query result.
     ///
-    /// Updates internal hit/miss counters AND increments the
-    /// Prometheus `vectorizer_cache_requests_total{cache_type="query",
-    /// result="hit"|"miss"}` counter, so a `/prometheus/metrics`
-    /// scrape reflects real cache behaviour. The dual-counter shape
-    /// (in-process + Prometheus) is intentional: the in-process
-    /// counter is hot-path-cheap and surfaces in `/stats` JSON; the
-    /// Prometheus counter is what alerting and dashboards consume.
+    /// Updates internal hit/miss counters AND records a
+    /// `cache_type="query"` hit/miss observation through the injected
+    /// [`MetricsSink`], so a `/prometheus/metrics` scrape reflects real
+    /// cache behaviour when the production sink is wired in. The
+    /// dual-counter shape (in-process + sink) is intentional: the
+    /// in-process counter is hot-path-cheap and surfaces in `/stats`
+    /// JSON; the sink is what alerting and dashboards consume.
     pub fn get(&self, key: &QueryKey) -> Option<T> {
-        use crate::monitoring::metrics::METRICS;
         let mut cache = self.cache.write();
 
         if let Some(entry) = cache.get(key) {
@@ -166,25 +177,16 @@ impl<T: Clone> QueryCache<T> {
                 // Entry expired, remove it
                 cache.pop(key);
                 *self.misses.lock() += 1;
-                METRICS
-                    .cache_requests_total
-                    .with_label_values(&["query", "miss"])
-                    .inc();
+                self.metrics.cache_request("query", false);
                 None
             } else {
                 *self.hits.lock() += 1;
-                METRICS
-                    .cache_requests_total
-                    .with_label_values(&["query", "hit"])
-                    .inc();
+                self.metrics.cache_request("query", true);
                 Some(entry.value.clone())
             }
         } else {
             *self.misses.lock() += 1;
-            METRICS
-                .cache_requests_total
-                .with_label_values(&["query", "miss"])
-                .inc();
+            self.metrics.cache_request("query", false);
             None
         }
     }
@@ -296,6 +298,49 @@ pub struct CacheStats {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A [`MetricsSink`] that records every `cache_request` call it
+    /// receives, so tests can assert a consumer actually emits the
+    /// expected metric instead of just checking observable side effects.
+    #[derive(Debug, Default)]
+    struct RecordingMetricsSink {
+        cache_requests: Mutex<Vec<(String, bool)>>,
+        calls: AtomicUsize,
+    }
+
+    impl MetricsSink for RecordingMetricsSink {
+        fn cache_request(&self, cache_type: &str, hit: bool) {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            self.cache_requests
+                .lock()
+                .unwrap()
+                .push((cache_type.to_string(), hit));
+        }
+    }
+
+    #[test]
+    fn query_cache_records_hit_and_miss_via_metrics_sink() {
+        let sink = Arc::new(RecordingMetricsSink::default());
+        let cache: QueryCache<Vec<String>> =
+            QueryCache::new_with_metrics(QueryCacheConfig::default(), sink.clone());
+
+        let key = QueryKey::new("test".to_string(), "hello".to_string(), 10, None);
+
+        // Miss: nothing cached yet.
+        assert!(cache.get(&key).is_none());
+        // Hit: after inserting the same key.
+        cache.insert(key.clone(), vec!["result".to_string()]);
+        assert!(cache.get(&key).is_some());
+
+        assert_eq!(sink.calls.load(Ordering::Relaxed), 2);
+        let calls = sink.cache_requests.lock().unwrap();
+        assert_eq!(
+            calls.as_slice(),
+            &[("query".to_string(), false), ("query".to_string(), true),]
+        );
+    }
 
     #[test]
     fn test_query_cache_creation() {

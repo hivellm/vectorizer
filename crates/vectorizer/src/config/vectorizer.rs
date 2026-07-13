@@ -4,9 +4,10 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::auth::AuthConfig;
 use crate::config::FileWatcherYamlConfig;
-use crate::hub::HubConfig;
+use crate::config::sections::auth::AuthConfig;
+use crate::config::sections::cluster::ClusterConfig;
+use crate::config::sections::hub::HubConfig;
 use crate::storage::StorageConfig;
 use crate::summarization::SummarizationConfig;
 
@@ -36,7 +37,7 @@ pub struct VectorizerConfig {
     pub projects: Vec<ProjectConfig>,
     /// Cluster configuration (for distributed sharding)
     #[serde(default)]
-    pub cluster: crate::cluster::ClusterConfig,
+    pub cluster: ClusterConfig,
     /// Authentication configuration
     #[serde(default)]
     pub auth: AuthConfig,
@@ -703,7 +704,7 @@ impl Default for VectorizerConfig {
             file_watcher: FileWatcherYamlConfig::default(),
             logging: LoggingConfig::default(),
             gpu: GpuConfig::default(),
-            cluster: crate::cluster::ClusterConfig::default(),
+            cluster: ClusterConfig::default(),
             summarization: SummarizationConfig::default(),
             transmutation: TransmutationConfig::default(),
             storage: StorageConfig::default(),

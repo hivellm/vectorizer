@@ -15,6 +15,11 @@
 //!
 //! Shutdown is signalled via an `Arc<AtomicBool>`, matching the pattern
 //! used by `AutoSaveManager` in `src/db/auto_save.rs`.
+//!
+//! Metrics are recorded through the [`MetricsSink`] trait (injected via
+//! [`TtlReaper::spawn_with_metrics`]) instead of a direct dependency on
+//! `crate::monitoring` — see phase41 §1 (2026-07-11 improvement
+//! analysis, §1.1).
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,9 +27,9 @@ use std::time::{Duration, Instant};
 
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
+use vectorizer_core::metrics_sink::{MetricsSink, NoopMetricsSink};
 
 use crate::db::VectorStore;
-use crate::monitoring::metrics::METRICS;
 
 /// Default reaper sweep interval in seconds.
 pub const DEFAULT_REAPER_INTERVAL_SECS: u64 = 60;
@@ -41,11 +46,32 @@ pub struct TtlReaper {
 }
 
 impl TtlReaper {
-    /// Spawn a TTL reaper task for `collection`.
+    /// Spawn a TTL reaper task for `collection`, with metrics disabled
+    /// (a [`NoopMetricsSink`]). Use [`TtlReaper::spawn_with_metrics`]
+    /// to wire up real instrumentation.
     ///
     /// Returns the reaper handle. The background task runs until the
     /// `shutdown` flag is set to `true`.
     pub fn spawn(store: Arc<VectorStore>, collection: String, check_interval_secs: u64) -> Self {
+        Self::spawn_with_metrics(
+            store,
+            collection,
+            check_interval_secs,
+            Arc::new(NoopMetricsSink),
+        )
+    }
+
+    /// Spawn a TTL reaper task for `collection`, recording sweep lag,
+    /// scan completions, and expired-vector counts through `metrics`.
+    ///
+    /// Returns the reaper handle. The background task runs until the
+    /// `shutdown` flag is set to `true`.
+    pub fn spawn_with_metrics(
+        store: Arc<VectorStore>,
+        collection: String,
+        check_interval_secs: u64,
+        metrics: Arc<dyn MetricsSink>,
+    ) -> Self {
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_clone = shutdown.clone();
         let collection_clone = collection.clone();
@@ -72,17 +98,11 @@ impl TtlReaper {
 
                 // Record lag: how far past the scheduled wake-up are we?
                 let lag = scheduled_at.elapsed().saturating_sub(interval);
-                METRICS
-                    .ttl_reaper_lag_secs
-                    .with_label_values(&[&collection_clone])
-                    .set(lag.as_secs_f64());
+                metrics.ttl_reaper_lag_seconds(&collection_clone, lag.as_secs_f64());
 
-                Self::sweep(&store, &collection_clone);
+                Self::sweep(&store, &collection_clone, metrics.as_ref());
 
-                METRICS
-                    .ttl_reaper_scans_total
-                    .with_label_values(&[&collection_clone])
-                    .inc();
+                metrics.ttl_reaper_scan_completed(&collection_clone);
             }
         });
 
@@ -102,7 +122,7 @@ impl TtlReaper {
     /// Uses a shared (read) reference to the collection so concurrent
     /// writes are not blocked during ID collection. Individual deletes
     /// use the standard `VectorStore::delete` path.
-    fn sweep(store: &VectorStore, collection: &str) {
+    fn sweep(store: &VectorStore, collection: &str, metrics: &dyn MetricsSink) {
         let now_ms = chrono::Utc::now().timestamp_millis();
 
         // Collect expired IDs via a read-only pass.
@@ -144,10 +164,7 @@ impl TtlReaper {
         }
 
         if deleted > 0 {
-            METRICS
-                .ttl_vectors_expired_total
-                .with_label_values(&[collection])
-                .inc_by(deleted as f64);
+            metrics.ttl_vectors_expired(collection, deleted as f64);
             info!(
                 "TTL reaper: expired {}/{} vectors from '{}'",
                 deleted, count, collection

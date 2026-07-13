@@ -1,4 +1,28 @@
 //! Database module for Vectorizer
+//!
+//! ## Lock convention
+//!
+//! `db/` mixes two lock libraries on purpose, not by accident — pick the
+//! right one for the critical section you're writing:
+//!
+//! - **`parking_lot::{Mutex, RwLock}`** is the default for every short,
+//!   synchronous critical section (no `.await` while the guard is held).
+//!   It is faster than `std::sync` and, unlike `tokio::sync`, panics
+//!   loudly if you try to hold a guard across an `.await` point instead
+//!   of silently blocking the executor thread. Almost all of `db/` uses
+//!   this (e.g. `VectorStore`'s internal maps, `DashMap` shard guards).
+//! - **`tokio::sync::{Mutex, RwLock}`** is reserved for the few call sites
+//!   that genuinely hold a guard across an `.await` — currently
+//!   `auto_save.rs` and `wal_integration.rs`. Both modules run inside the
+//!   async auto-save / WAL-flush tasks and need the guard to survive
+//!   asynchronous I/O, which a `parking_lot` guard cannot do safely.
+//!
+//! Do not introduce a third lock type, and do not reach for
+//! `tokio::sync` outside the two sanctioned modules above — if a new
+//! critical section needs to cross an `.await`, either restructure it to
+//! avoid holding the guard across the await, or extend this list
+//! (deliberately, with a comment) rather than silently mixing lock
+//! libraries per call site.
 
 pub mod async_indexing;
 pub mod auto_save;
