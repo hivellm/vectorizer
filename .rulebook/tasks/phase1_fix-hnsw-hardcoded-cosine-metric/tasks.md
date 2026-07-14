@@ -1,10 +1,10 @@
 ## 1. Implementation
-- [ ] 1.1 Add a metric-aware distance for OptimizedHnswIndex (runtime-dispatching Distance<f32> impl or enum over DistCosine/DistL2/DistDot), driven by config.distance_metric instead of hardcoded DistCosine
-- [ ] 1.2 Make the distance→similarity/score conversion metric-aware (optimized_hnsw.rs:234-236) — cosine `1-d`, L2, and dot handled correctly
-- [ ] 1.3 Ensure vector normalization in collection/data.rs is applied only for Cosine and stays consistent with the chosen index metric
-- [ ] 1.4 Verify reindex_with_params (collection/index.rs) preserves the metric through the rebuild
+- [x] 1.1 Add a metric-aware distance for OptimizedHnswIndex (runtime-dispatching MetricDistance impl over DistCosine/DistL2/sigmoid(-dot)), driven by config.distance_metric instead of hardcoded DistCosine
+- [x] 1.2 Make the distance→similarity/score conversion metric-aware (distance_to_similarity) — cosine `1-d`, L2 `1/(1+d)`, dot `1-sigmoid(-dot)`
+- [x] 1.3 Vector normalization in collection/data.rs already applies only for Cosine (data.rs:90/288/446/521) — consistent with the chosen index metric; no change needed
+- [x] 1.4 reindex_with_params already passes self.config.metric (index.rs:150); now effective since new() honors it
 
 ## 2. Tail (mandatory — enforced by rulebook v5.3.0)
-- [ ] 2.1 Update or create documentation covering the implementation
-- [ ] 2.2 Write tests: per-metric ranking correctness (Cosine/Euclidean/Dot) proving non-cosine collections rank by the requested metric, incl. a case where cosine vs euclidean give different top-k
-- [ ] 2.3 Run tests and confirm they pass
+- [x] 2.1 Documentation: CHANGELOG [Unreleased] Fixed entry + thorough MetricDistance/distance_to_similarity doc comments
+- [x] 2.2 Tests: euclidean_ranks_by_l2_not_cosine + dot_product_ranks_by_inner_product_not_cosine (discriminating cases where metrics disagree on top-k) + cosine-unchanged assertion
+- [x] 2.3 Tests pass: 4/4 optimized_hnsw + 36/36 db::collection (no regression), clippy clean

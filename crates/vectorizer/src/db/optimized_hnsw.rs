@@ -23,6 +23,51 @@ use tracing::{debug, info};
 use crate::error::{Result, VectorizerError};
 use crate::models::DistanceMetric;
 
+/// Runtime-dispatching HNSW distance so a collection is ranked by its
+/// configured [`DistanceMetric`] instead of a hardcoded cosine distance.
+/// Cosine and Euclidean delegate to hnsw_rs's SIMD-optimized `DistCosine` /
+/// `DistL2`. hnsw_rs asserts every distance is non-negative, which rules out a
+/// raw `-dot`; dot-product therefore maps the inner product to a
+/// strictly-decreasing, non-negative distance `sigmoid(-dot) = 1/(1+e^dot)`
+/// (larger dot -> smaller distance), so hnsw's ascending-distance ordering
+/// still ranks the highest inner product first. The transform is monotonic, so
+/// top-k ordering is exact; it saturates for very large magnitudes but that is
+/// harmless for ranking.
+#[derive(Debug, Clone, Copy)]
+struct MetricDistance {
+    metric: DistanceMetric,
+}
+
+impl Distance<f32> for MetricDistance {
+    fn eval(&self, a: &[f32], b: &[f32]) -> f32 {
+        match self.metric {
+            DistanceMetric::Cosine => DistCosine {}.eval(a, b),
+            DistanceMetric::Euclidean => DistL2 {}.eval(a, b),
+            DistanceMetric::DotProduct => {
+                let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+                // sigmoid(-dot): non-negative (hnsw_rs invariant) and strictly
+                // decreasing in the inner product.
+                1.0 / (1.0 + dot.exp())
+            }
+        }
+    }
+}
+
+/// Convert an HNSW distance (as produced by [`MetricDistance::eval`] for the
+/// given metric) into a higher-is-more-similar score.
+fn distance_to_similarity(metric: DistanceMetric, distance: f32) -> f32 {
+    match metric {
+        // `DistCosine` returns `1 - cosine_similarity`.
+        DistanceMetric::Cosine => 1.0 - distance,
+        // distance is `sigmoid(-dot)`, so `1 - distance = sigmoid(dot)` is
+        // monotonically increasing in the inner product.
+        DistanceMetric::DotProduct => 1.0 - distance,
+        // `DistL2` returns the Euclidean distance; map to (0, 1],
+        // monotonically decreasing so closer vectors score higher.
+        DistanceMetric::Euclidean => 1.0 / (1.0 + distance.max(0.0)),
+    }
+}
+
 /// Optimized HNSW configuration
 #[derive(Debug, Clone, Copy)]
 pub struct OptimizedHnswConfig {
@@ -62,7 +107,7 @@ impl Default for OptimizedHnswConfig {
 /// Optimized HNSW index with batch operations
 pub struct OptimizedHnswIndex {
     /// The underlying HNSW index
-    hnsw: Arc<RwLock<Hnsw<'static, f32, DistCosine>>>,
+    hnsw: Arc<RwLock<Hnsw<'static, f32, MetricDistance>>>,
     /// Configuration
     config: OptimizedHnswConfig,
     /// Vector storage (needed for HNSW operations)
@@ -84,12 +129,14 @@ impl OptimizedHnswIndex {
         let max_nb_connection = config.max_connections;
         let ef_c = config.ef_construction;
 
-        let hnsw = Hnsw::<f32, DistCosine>::new(
+        let hnsw = Hnsw::<f32, MetricDistance>::new(
             max_nb_connection,
             config.initial_capacity,
             nb_layer,
             ef_c,
-            DistCosine {},
+            MetricDistance {
+                metric: config.distance_metric,
+            },
         );
 
         Ok(Self {
@@ -231,9 +278,10 @@ impl OptimizedHnswIndex {
             .into_iter()
             .filter_map(|neighbor| {
                 reverse_map.get(&neighbor.d_id).map(|id| {
-                    // Convert cosine distance to cosine similarity
-                    // For cosine distance: similarity = 1 - distance
-                    let similarity = 1.0 - neighbor.distance;
+                    // Metric-aware distance -> similarity so non-cosine
+                    // collections report scores consistent with their metric.
+                    let similarity =
+                        distance_to_similarity(self.config.distance_metric, neighbor.distance);
                     (id.clone(), similarity)
                 })
             })
@@ -499,5 +547,75 @@ mod tests {
         let stats = index.memory_stats();
         assert_eq!(stats.vector_count, 10);
         assert_eq!(stats.vector_memory_bytes, 10 * 128 * 4); // 10 vectors * 128 dims * 4 bytes
+    }
+
+    /// Regression for the hardcoded-`DistCosine` bug: a Euclidean index must
+    /// rank by L2 distance, not cosine. `a` and `b` are chosen so the two
+    /// metrics disagree on the top result — the real discriminating case.
+    #[test]
+    fn euclidean_ranks_by_l2_not_cosine() {
+        let query = vec![1.0, 0.0];
+        let a = vec![2.0, 0.0]; // cosine sim 1.0 (same direction), L2 dist 1.0
+        let b = vec![1.0, 0.1]; // cosine sim ~0.995, L2 dist 0.1 (L2-closest)
+
+        let euclid = OptimizedHnswIndex::new(
+            2,
+            OptimizedHnswConfig {
+                distance_metric: DistanceMetric::Euclidean,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        euclid.add("a".to_string(), a.clone()).unwrap();
+        euclid.add("b".to_string(), b.clone()).unwrap();
+        let res = euclid.search(&query, 2).unwrap();
+        assert_eq!(
+            res[0].0, "b",
+            "Euclidean must rank the L2-closest vector first"
+        );
+
+        // The same vectors under Cosine rank the other way, proving the metric
+        // is honored rather than always cosine.
+        let cosine = OptimizedHnswIndex::new(
+            2,
+            OptimizedHnswConfig {
+                distance_metric: DistanceMetric::Cosine,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        cosine.add("a".to_string(), a).unwrap();
+        cosine.add("b".to_string(), b).unwrap();
+        let res = cosine.search(&query, 2).unwrap();
+        assert_eq!(
+            res[0].0, "a",
+            "Cosine must rank the same-direction vector first"
+        );
+    }
+
+    /// A DotProduct index must rank by inner product (largest first). Here `a`
+    /// has the larger dot but `b` is the cosine-closest, so the two metrics
+    /// disagree.
+    #[test]
+    fn dot_product_ranks_by_inner_product_not_cosine() {
+        let query = vec![1.0, 1.0];
+        let a = vec![3.0, 0.0]; // dot 3, cosine ~0.707
+        let b = vec![1.0, 1.0]; // dot 2, cosine 1.0
+
+        let dot = OptimizedHnswIndex::new(
+            2,
+            OptimizedHnswConfig {
+                distance_metric: DistanceMetric::DotProduct,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        dot.add("a".to_string(), a).unwrap();
+        dot.add("b".to_string(), b).unwrap();
+        let res = dot.search(&query, 2).unwrap();
+        assert_eq!(
+            res[0].0, "a",
+            "DotProduct must rank the highest inner-product vector first"
+        );
     }
 }

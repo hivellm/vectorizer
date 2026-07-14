@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **HNSW ignored the collection's distance metric (ranked everything by
+  cosine).** `OptimizedHnswIndex` hardcoded `DistCosine` at the type level and
+  never read `config.distance_metric`, so Euclidean and Dot collections were
+  silently ranked by cosine similarity — masked for Cosine collections because
+  vectors are L2-normalized only there, which is why cross-engine parity only
+  held on the cosine axis. Introduced a runtime-dispatching `MetricDistance`
+  that ranks by the configured metric: Cosine/Euclidean via hnsw_rs's SIMD
+  `DistCosine`/`DistL2`, DotProduct via a non-negative `sigmoid(-dot)` transform
+  (hnsw_rs asserts distances are non-negative, so a raw `-dot` is illegal).
+  Similarity scores are now metric-aware. Regression tests prove Euclidean and
+  Dot rank by their own metric in cases where it disagrees with cosine.
+
 ## [3.5.0] - 2026-07-13
 
 ### Performance
