@@ -5,6 +5,6 @@
 - [x] 1.4 reindex_with_params already passes self.config.metric (index.rs:150); now effective since new() honors it
 
 ## 2. Tail (mandatory — enforced by rulebook v5.3.0)
-- [x] 2.1 Documentation: CHANGELOG [Unreleased] Fixed entry + thorough MetricDistance/distance_to_similarity doc comments
-- [x] 2.2 Tests: euclidean_ranks_by_l2_not_cosine + dot_product_ranks_by_inner_product_not_cosine (discriminating cases where metrics disagree on top-k) + cosine-unchanged assertion
-- [x] 2.3 Tests pass: 4/4 optimized_hnsw + 36/36 db::collection (no regression), clippy clean
+- [x] 2.1 Update or create documentation covering the implementation — CHANGELOG [Unreleased] Fixed entry + MetricDistance/distance_to_similarity doc comments
+- [x] 2.2 Write tests covering the new behavior — euclidean_ranks_by_l2_not_cosine + dot_product_ranks_by_inner_product_not_cosine (discriminating cases) + cosine-unchanged assertion
+- [x] 2.3 Run tests and confirm they pass — 4/4 optimized_hnsw + 36/36 db::collection, clippy clean
