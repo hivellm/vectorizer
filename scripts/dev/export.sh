@@ -124,8 +124,8 @@ if [[ -f "$PROJECT_ROOT/config.exemple.yml" ]]; then
 fi
 
 if [[ "$PACKAGE_TYPE" == "full" ]]; then
-    if [[ -f "$PROJECT_ROOT/workspace.example.yml" ]]; then
-        cp "$PROJECT_ROOT/workspace.example.yml" "$PACKAGE_DIR/config/workspace.yml"
+    if [[ -f "$PROJECT_ROOT/config/workspace.example.yml" ]]; then
+        cp "$PROJECT_ROOT/config/workspace.example.yml" "$PACKAGE_DIR/config/workspace.yml"
         echo -e "${GREEN}  ✅ workspace.yml${NC}"
     fi
 fi

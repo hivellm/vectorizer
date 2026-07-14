@@ -13,7 +13,7 @@ Write-Host "🚀 Starting Vectorizer with HiveHub Integration" -ForegroundColor 
 # Check if .env.hub exists
 if (-not (Test-Path ".env.hub")) {
     Write-Host "⚠️  .env.hub not found. Creating from template..." -ForegroundColor Yellow
-    Copy-Item ".env.hub.example" ".env.hub"
+    Copy-Item "config/.env.hub" ".env.hub"
     Write-Host "❗ Please edit .env.hub and set your HIVEHUB_SERVICE_API_KEY" -ForegroundColor Red
     Write-Host "   Then run this script again." -ForegroundColor Red
     exit 1

@@ -3,7 +3,7 @@
 //!
 //! Two repo files are load-bearing for the CVE gate:
 //!
-//! 1. `docker/vex.json` — the OpenVEX document the gate applies via
+//! 1. `deploy/docker/vex.json` — the OpenVEX document the gate applies via
 //!    `--vex-location`. A malformed statement (missing justification
 //!    or impact_statement) silently weakens the exception audit trail
 //!    the image-security spec requires.
@@ -29,10 +29,10 @@ fn repo_root() -> PathBuf {
 
 #[test]
 fn vex_document_is_well_formed_openvex() {
-    let raw = fs::read_to_string(repo_root().join("docker").join("vex.json"))
-        .expect("docker/vex.json must exist — the CVE gate applies it via --vex-location");
+    let raw = fs::read_to_string(repo_root().join("deploy").join("docker").join("vex.json"))
+        .expect("deploy/docker/vex.json must exist — the CVE gate applies it via --vex-location");
     let doc: serde_json::Value =
-        serde_json::from_str(&raw).expect("docker/vex.json must be valid JSON");
+        serde_json::from_str(&raw).expect("deploy/docker/vex.json must be valid JSON");
 
     assert_eq!(
         doc["@context"], "https://openvex.dev/ns/v0.2.0",

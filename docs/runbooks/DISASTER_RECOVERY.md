@@ -290,7 +290,7 @@ curl http://localhost:15002/api/hub/backups/{backup_id}/download \
    terraform apply -var-file=disaster-recovery.tfvars
 
    # Or Kubernetes
-   kubectl apply -f k8s/disaster-recovery/
+   kubectl apply -f deploy/k8s/disaster-recovery/
    ```
 
 2. **Deploy Vectorizer:**

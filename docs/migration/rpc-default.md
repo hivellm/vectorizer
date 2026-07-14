@@ -15,7 +15,7 @@ documentation, not to the transport surface itself.
 | `Dockerfile` | `EXPOSE 15002` | `EXPOSE 15503 15002` (RPC first) |
 | `docker-compose.yml` | publishes `15002` and `15003` | publishes `15503`, `15002`, `15003` |
 | Helm chart | `service.port: 15002` only | `service.rpcPort: 15503` + `service.port: 15002` (both exposed) |
-| k8s manifests (`k8s/service.yaml`, `statefulset.yaml`, `statefulset-ha.yaml`) | port `15002` only | named ports `rpc` (15503), `http` (15002), and existing replication / grpc |
+| k8s manifests (`deploy/k8s/service.yaml`, `statefulset.yaml`, `statefulset-ha.yaml`) | port `15002` only | named ports `rpc` (15503), `http` (15002), and existing replication / grpc |
 
 ## What did NOT change
 
@@ -63,7 +63,7 @@ deployment to publish both:
   disable the RPC port for a chart deployment, override
   `--set service.rpcPort=""` (or drop the port from a values file
   copy). Templates skip the port if rpcPort is unset.
-- **k8s raw manifests**: the bundled `k8s/service.yaml` and the
+- **k8s raw manifests**: the bundled `deploy/k8s/service.yaml` and the
   StatefulSet specs include the `rpc` named port. Apply the new
   manifests or merge the additional port into your existing copies.
 

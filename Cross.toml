@@ -9,7 +9,7 @@ passthrough = [
 
 [target.x86_64-unknown-linux-musl]
 # Custom image extending cross musl base with protoc for proto compilation
-dockerfile = "./docker/Dockerfile.x86_64-unknown-linux-musl"
+dockerfile = "./deploy/docker/Dockerfile.x86_64-unknown-linux-musl"
 
 [target.x86_64-unknown-linux-musl.env]
 passthrough = [
@@ -27,7 +27,7 @@ passthrough = [
 
 [target.aarch64-unknown-linux-musl]
 # Custom image extending cross musl base with protoc for proto compilation
-dockerfile = "./docker/Dockerfile.aarch64-unknown-linux-musl"
+dockerfile = "./deploy/docker/Dockerfile.aarch64-unknown-linux-musl"
 
 [target.aarch64-unknown-linux-musl.env]
 passthrough = [

@@ -48,7 +48,7 @@ docker run -d \
 
 1. **Copy the example environment file:**
 ```bash
-cp .env.example .env
+cp config/.env.example .env
 ```
 
 2. **Edit `.env` with your credentials:**

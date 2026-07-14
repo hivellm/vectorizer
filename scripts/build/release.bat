@@ -187,7 +187,7 @@ copy "%PROJECT_ROOT%\target\release\vectorizer-cli.exe" "%PACKAGE_DIR%\"
 REM Copy configuration files
 if not exist "%PACKAGE_DIR%\config" mkdir "%PACKAGE_DIR%\config"
 copy "%PROJECT_ROOT%\config.example.yml" "%PACKAGE_DIR%\config\"
-copy "%PROJECT_ROOT%\workspace.example.yml" "%PACKAGE_DIR%\config\"
+copy "%PROJECT_ROOT%\config\workspace.example.yml" "%PACKAGE_DIR%\config\"
 
 REM Copy scripts
 if not exist "%PACKAGE_DIR%\scripts" mkdir "%PACKAGE_DIR%\scripts"

@@ -17,13 +17,13 @@ The Vectorizer Helm chart provides a production-ready deployment for Kubernetes 
 
 ```bash
 # Install from local chart
-helm install vectorizer ./helm/vectorizer
+helm install vectorizer ./deploy/helm/vectorizer
 
 # Install with custom values
-helm install vectorizer ./helm/vectorizer -f my-values.yaml
+helm install vectorizer ./deploy/helm/vectorizer -f my-values.yaml
 
 # Install with persistence
-helm install vectorizer ./helm/vectorizer \
+helm install vectorizer ./deploy/helm/vectorizer \
   --set persistence.enabled=true \
   --set persistence.size=100Gi
 ```
@@ -136,7 +136,7 @@ config:
 ```
 
 ```bash
-helm install vectorizer ./helm/vectorizer -f ha-values.yaml -n vectorizer
+helm install vectorizer ./deploy/helm/vectorizer -f ha-values.yaml -n vectorizer
 ```
 
 > **Important:** v2.5.4 is required for production Kubernetes HA. Earlier versions have critical bugs (stale DNS caching, startup panic with cluster enabled).
@@ -191,7 +191,7 @@ affinity:
 ### Development
 
 ```bash
-helm install vectorizer-dev ./helm/vectorizer \
+helm install vectorizer-dev ./deploy/helm/vectorizer \
   --set replicaCount=1 \
   --set resources.limits.cpu=2 \
   --set resources.limits.memory=4Gi \
@@ -202,7 +202,7 @@ helm install vectorizer-dev ./helm/vectorizer \
 ### Production
 
 ```bash
-helm install vectorizer-prod ./helm/vectorizer \
+helm install vectorizer-prod ./deploy/helm/vectorizer \
   -f production-values.yaml \
   --namespace vectorizer \
   --create-namespace
@@ -211,7 +211,7 @@ helm install vectorizer-prod ./helm/vectorizer \
 ### High Availability (Raft)
 
 ```bash
-helm install vectorizer ./helm/vectorizer \
+helm install vectorizer ./deploy/helm/vectorizer \
   --set replicaCount=3 \
   --set image.tag=2.5.4 \
   --set cluster.enabled=true \
@@ -227,10 +227,10 @@ If the leader pod dies, Raft automatically elects a new leader (~1-3s). Writes a
 
 ```bash
 # Upgrade to new version
-helm upgrade vectorizer ./helm/vectorizer
+helm upgrade vectorizer ./deploy/helm/vectorizer
 
 # Upgrade with new values
-helm upgrade vectorizer ./helm/vectorizer -f new-values.yaml
+helm upgrade vectorizer ./deploy/helm/vectorizer -f new-values.yaml
 
 # Rollback
 helm rollback vectorizer
@@ -264,7 +264,7 @@ helm get values vectorizer
 ### Debug Template
 
 ```bash
-helm template vectorizer ./helm/vectorizer --debug
+helm template vectorizer ./deploy/helm/vectorizer --debug
 ```
 
 ### Check Resources
@@ -299,4 +299,4 @@ kubectl get pvc -l app.kubernetes.io/name=vectorizer
 
 - [Kubernetes Deployment Guide](./KUBERNETES.md)
 - [Production Guide](./PRODUCTION_GUIDE.md)
-- [Helm Chart README](../../helm/vectorizer/README.md)
+- [Helm Chart README](../../deploy/helm/vectorizer/README.md)

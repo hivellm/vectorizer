@@ -194,7 +194,7 @@ env:
 - **Headless service** (`clusterIP: None`) for pod-to-pod DNS resolution (ports 15002, 7001, 15003)
 - **ClusterIP service** for client access (port 15002)
 
-See `k8s/configmap-ha.yaml` and `k8s/statefulset-ha.yaml` for complete production-ready manifests.
+See `deploy/k8s/configmap-ha.yaml` and `deploy/k8s/statefulset-ha.yaml` for complete production-ready manifests.
 
 **5. Connect your application:**
 

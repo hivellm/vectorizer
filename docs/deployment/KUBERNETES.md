@@ -13,10 +13,10 @@ Complete guide for deploying Vectorizer on Kubernetes.
 
 ```bash
 # Deploy Vectorizer
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/statefulset.yaml
-kubectl apply -f k8s/service.yaml
+kubectl apply -f deploy/k8s/namespace.yaml
+kubectl apply -f deploy/k8s/configmap.yaml
+kubectl apply -f deploy/k8s/statefulset.yaml
+kubectl apply -f deploy/k8s/service.yaml
 
 # Check status
 kubectl get pods -n vectorizer
@@ -28,7 +28,7 @@ kubectl logs -f -n vectorizer vectorizer-0
 ### Namespace
 
 ```yaml
-# k8s/namespace.yaml
+# deploy/k8s/namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -38,7 +38,7 @@ metadata:
 ### ConfigMap
 
 ```yaml
-# k8s/configmap.yaml
+# deploy/k8s/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -63,11 +63,11 @@ data:
 
 ### StatefulSet
 
-See [k8s/statefulset.yaml](./k8s/statefulset.yaml)
+See [deploy/k8s/statefulset.yaml](./deploy/k8s/statefulset.yaml)
 
 ### Service
 
-See [k8s/service.yaml](./k8s/service.yaml)
+See [deploy/k8s/service.yaml](./deploy/k8s/service.yaml)
 
 ## Configuration
 
@@ -151,7 +151,7 @@ Required services:
 - **Headless service** (`clusterIP: None`) with ports 15002, 7001, 15003
 - **ClusterIP service** for external access on port 15002
 
-See `k8s/configmap-ha.yaml` and `k8s/statefulset-ha.yaml` for complete production manifests.
+See `deploy/k8s/configmap-ha.yaml` and `deploy/k8s/statefulset-ha.yaml` for complete production manifests.
 
 See [HA Cluster Guide](../users/guides/HA_CLUSTER.md) for detailed configuration and failover behavior.
 
@@ -245,7 +245,7 @@ spec:
 
 ## Helm Chart
 
-See [helm/vectorizer/](./helm/vectorizer/) for Helm chart.
+See [deploy/helm/vectorizer/](./deploy/helm/vectorizer/) for Helm chart.
 
 ## Troubleshooting
 

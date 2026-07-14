@@ -459,7 +459,7 @@ assets = [
     ["../../README.md", "usr/share/doc/vectorizer/README", "644"],
     ["../../config/config.example.yml", "etc/vectorizer/config.yml", "644"],
     ["../../config/config.example.yml", "etc/vectorizer/", "644"],
-    ["../../workspace.example.yml", "etc/vectorizer/", "644"],
+    ["../../config/workspace.example.yml", "etc/vectorizer/", "644"],
     ["../../dashboard/index.html", "usr/share/vectorizer/dashboard/", "644"],
     ["../../dashboard/app.js", "usr/share/vectorizer/dashboard/", "644"],
     ["../../dashboard/api-client.js", "usr/share/vectorizer/dashboard/", "644"],

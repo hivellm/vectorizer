@@ -169,7 +169,7 @@ Each matrix job:
    `build-dashboard`) and the matching pre-built Linux binary
    (`binaries/linux-${arch}/vectorizer`, built natively in
    `build-linux-gnu-for-docker`).
-2. Builds against `docker/Dockerfile.artifacts` (which only does
+2. Builds against `deploy/docker/Dockerfile.artifacts` (which only does
    `COPY` + `chmod` + `chown` — no Rust compile inside Docker).
 3. Pushes by digest to `ghcr.io/hivellm/vectorizer` (no tag yet).
 4. Uploads the digest as a tiny artifact for the manifest job.
@@ -224,19 +224,19 @@ To bump:
 3. Update the `FROM ...@sha256:` line **and** the `# Pinned YYYY-MM-DD`
    comment (the freshness check parses that date).
 4. Rebuild + rescan locally:
-   `docker scout cves local/vectorizer:<tag> --vex-location docker/vex.json --vex-author 'HiveLLM Vectorizer maintainers' --only-severity critical,high --exit-code`.
+   `docker scout cves local/vectorizer:<tag> --vex-location deploy/docker/vex.json --vex-author 'HiveLLM Vectorizer maintainers' --only-severity critical,high --exit-code`.
    (`--vex-author` is required — the Scout CLI default only trusts
    VEX documents authored by `<.*@docker.com>` and silently ignores
    ours without it.)
 5. Commit the one-line diff; the release build inherits the pin.
 
-### VEX exceptions (`docker/vex.json`)
+### VEX exceptions (`deploy/docker/vex.json`)
 
 CVEs in base packages with **no fixed version in trixie** are
-documented as OpenVEX `not_affected` statements in `docker/vex.json`,
+documented as OpenVEX `not_affected` statements in `deploy/docker/vex.json`,
 each with a `justification` + `impact_statement` (bare exceptions are
 forbidden by the phase35 spec). The CVE gate and any local scan apply
-it via `--vex-location docker/vex.json`.
+it via `--vex-location deploy/docker/vex.json`.
 
 When a scan surfaces a new unfixable CVE: verify the vectorizer
 runtime genuinely doesn't execute the vulnerable path, then add a
@@ -312,5 +312,5 @@ Fix: verify the matrix `runner` field; arm64 must point at
   (proposal, tasks, spec).
 - Earlier Docker scout-compliance work:
   `docs/development/BUILD_OPTIMIZATION.md`.
-- Hive workspace Dockerfile conventions: `docker/dockerhub-readme.md`
+- Hive workspace Dockerfile conventions: `deploy/docker/dockerhub-readme.md`
   (image-side documentation, published to Docker Hub on every release).

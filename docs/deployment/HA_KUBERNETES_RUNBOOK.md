@@ -478,7 +478,7 @@ restart looks like a fresh first-time-setup even when
 `vectorizer.vecdb` is sitting unread on the PVC at `/data/data/`.
 
 The Step 6 manifest above sets `VECTORIZER_DATA_DIR=/data/data`
-explicitly for this reason. Deploys built off the old `k8s/statefulset-ha.yaml`
+explicitly for this reason. Deploys built off the old `deploy/k8s/statefulset-ha.yaml`
 (prior to the v3.0.13 release) silently dropped this env var and lost
 visibility into pre-existing data — the data was still on disk, just
 read from the wrong path. If you suspect this happened to a running
@@ -634,10 +634,10 @@ started electing.
 
 The repository ships ready-to-edit copies of the manifests in this guide:
 
-- [`k8s/configmap-ha.yaml`](../../k8s/configmap-ha.yaml)
-- [`k8s/statefulset-ha.yaml`](../../k8s/statefulset-ha.yaml)
-- [`k8s/service.yaml`](../../k8s/service.yaml)
-- [`helm/vectorizer/`](../../helm/vectorizer/) — Helm chart that wraps the
+- [`deploy/k8s/configmap-ha.yaml`](../../deploy/k8s/configmap-ha.yaml)
+- [`deploy/k8s/statefulset-ha.yaml`](../../deploy/k8s/statefulset-ha.yaml)
+- [`deploy/k8s/service.yaml`](../../deploy/k8s/service.yaml)
+- [`deploy/helm/vectorizer/`](../../deploy/helm/vectorizer/) — Helm chart that wraps the
   same shapes; set `cluster.enabled=true` in your values overlay to land
   the HA topology described here.
 

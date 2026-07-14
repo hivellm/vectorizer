@@ -122,7 +122,7 @@ All nodes share the same JWT secret. Writes are automatically routed to the lead
 Deploy with Helm:
 
 ```bash
-helm install vectorizer ./helm/vectorizer \
+helm install vectorizer ./deploy/helm/vectorizer \
   --set replicaCount=3 \
   --set cluster.enabled=true \
   --set cluster.discovery=dns
@@ -131,8 +131,8 @@ helm install vectorizer ./helm/vectorizer \
 Or apply the production-ready manifests directly:
 
 ```bash
-kubectl apply -f k8s/configmap-ha.yaml
-kubectl apply -f k8s/statefulset-ha.yaml
+kubectl apply -f deploy/k8s/configmap-ha.yaml
+kubectl apply -f deploy/k8s/statefulset-ha.yaml
 ```
 
 Key requirements:

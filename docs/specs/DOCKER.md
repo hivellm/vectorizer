@@ -90,7 +90,7 @@ docker exec vectorizer ls -la /workspace/
 1. Create workspace configs:
 ```bash
 # For local execution (relative paths)
-cp workspace.example.yml workspace.yml
+cp config/workspace.example.yml workspace.yml
 
 # For Docker execution (container paths /workspace/*)
 cp workspace.docker.example.yml workspace.docker.yml

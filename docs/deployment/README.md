@@ -23,10 +23,10 @@ Complete deployment guides for Vectorizer in various environments.
 
 ```bash
 # Deploy to Kubernetes
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/statefulset.yaml
-kubectl apply -f k8s/service.yaml
+kubectl apply -f deploy/k8s/namespace.yaml
+kubectl apply -f deploy/k8s/configmap.yaml
+kubectl apply -f deploy/k8s/statefulset.yaml
+kubectl apply -f deploy/k8s/service.yaml
 ```
 
 See [Kubernetes Deployment Guide](./KUBERNETES.md) for details.

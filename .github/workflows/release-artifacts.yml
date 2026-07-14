@@ -364,7 +364,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docker/Dockerfile.artifacts
+          file: ./deploy/docker/Dockerfile.artifacts
           push: true
           platforms: ${{ matrix.platform }}
           # Push by digest (no tag) — the manifest job below assembles

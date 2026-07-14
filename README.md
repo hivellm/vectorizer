@@ -179,7 +179,7 @@ safe; see `docs/users/configuration/DATA_DIRECTORY.md` for the
 **Docker Compose with profiles:**
 
 ```bash
-cp .env.example .env
+cp config/.env.example .env
 # Edit .env with your credentials
 docker compose --profile default up -d          # standalone
 docker compose --profile dev up -d              # dev overlay
