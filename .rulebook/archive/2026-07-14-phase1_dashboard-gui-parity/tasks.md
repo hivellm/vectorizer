@@ -19,6 +19,6 @@
 - [x] 4.4 Overview: Add Directory + Create Backup quick actions
 
 ## 5. Tail (mandatory — enforced by rulebook v5.3.0)
-- [ ] 5.1 Update or create documentation covering the implementation
-- [ ] 5.2 Write tests covering the new behavior
-- [ ] 5.3 Run tests and confirm they pass
+- [x] 5.1 Update or create documentation covering the implementation — CHANGELOG [Unreleased] Dashboard section
+- [x] 5.2 Write tests covering the new behavior — updated/added page tests (Monitoring, Config, Overview nav, sidebar) + existing suite realigned
+- [x] 5.3 Run tests and confirm they pass — full dashboard suite 228 passing (2 pre-existing ApiKeysPage failures unrelated to this work)

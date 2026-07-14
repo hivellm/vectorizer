@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Dashboard
+
+- **Console reaches functional parity with the legacy Electron/Vue GUI and
+  drops remaining mock data.** Monitoring now renders live `/metrics/runtime`
+  data (CPU / memory / uptime / connections + WAL) and no longer shows a
+  hardcoded File-ops cache. Dead/stub actions are wired to real endpoints:
+  Collections create / delete / reindex / copy-ID, Vectors insert / delete /
+  copy. Settings gains structured editable forms (server host/ports, logging)
+  over the raw-YAML editor. Logs get message search + a max-lines control +
+  JSON export; Connections gets a pre-save "Test Connection"; Graph gets a
+  node context menu + double-click-to-load-neighbors; Overview gets Add
+  Directory / Create Backup quick actions and clickable Top Collections rows.
+  The mock-only Replication screen is removed. (Search modes/scores already
+  existed on the dedicated Search page.)
+
 ### Fixed
 
 - **HNSW ignored the collection's distance metric (ranked everything by
