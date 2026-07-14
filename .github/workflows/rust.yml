@@ -132,10 +132,16 @@ jobs:
           exit 1
         shell: bash
       - name: Run unit and integration tests
-        # The workspace nextest run lives on the edge of the previous
-        # 30-minute budget on stock GitHub runners. 45 minutes gives
-        # slow shared runners breathing room without masking real
-        # test hangs.
+        # Scope: --lib --bins --tests (unit + integration tests). We must NOT
+        # use --all-targets here: that also enumerates every `[[bench]]` and the
+        # SDK `examples/*` (drift_smoke, test_master_replica, comprehensive_test,
+        # …), which are custom-`main` binaries that connect to / spin up servers.
+        # nextest executes them during its run/list phase and one blocks on a
+        # socket, hanging the whole job until the 45-minute timeout (run
+        # 29297062082 sat idle for 45m after "Finished" with zero test output).
+        # Excluding them also cuts build+run time (benches pull candle/criterion).
+        # Benches and examples stay compile-checked by rust-lint.yml's
+        # `clippy --workspace --all-targets`.
         #
         # Note: the heavy end-to-end suite at
         # `crates/vectorizer/tests/all_tests.rs` is gated behind the
@@ -146,7 +152,7 @@ jobs:
         # locally with
         # `cargo nextest run -p vectorizer --features integration-tests --test all_tests`.
         timeout-minutes: 45
-        run: cargo nextest run --workspace --all-targets --test-threads 4
+        run: cargo nextest run --workspace --lib --bins --tests --test-threads 4
         env:
           # Set test timeouts for integration tests
           NEXTEST_TIMEOUT: 300s
