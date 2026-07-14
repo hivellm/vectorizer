@@ -1,7 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import OverviewPage from '../OverviewPage';
+
+const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }));
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => navigateMock };
+});
 
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
@@ -64,5 +70,12 @@ describe('OverviewPage', () => {
     expect(screen.getByText(/Total vectors/i)).toBeTruthy();
     expect(screen.getByText('docs')).toBeTruthy();
     expect(screen.getByText('code')).toBeTruthy();
+  });
+
+  it('navigates to a collection when its Top Collections row is clicked', () => {
+    navigateMock.mockClear();
+    render(<MemoryRouter><OverviewPage /></MemoryRouter>);
+    fireEvent.click(screen.getByText('docs'));
+    expect(navigateMock).toHaveBeenCalledWith('/collections?name=docs');
   });
 });

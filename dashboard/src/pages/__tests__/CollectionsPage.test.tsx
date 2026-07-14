@@ -3,6 +3,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import CollectionsPage from '../CollectionsPage';
 
+// The page uses `useToastContext` (Reindex/Copy feedback) and the create/delete
+// modals; stub the toast barrel so it renders without a ToastProvider.
+vi.mock('@/providers/ToastProvider', () => ({
+  useToastContext: () => ({
+    show: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
+}));
+
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
     listCollections: async () => [

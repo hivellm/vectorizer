@@ -38,10 +38,15 @@ describe('ConsoleSidebar', () => {
     renderAt('/overview');
     for (const label of [
       'Overview', 'Collections', 'Search', 'Vectors', 'Monitoring',
-      'Replication', 'API Keys', 'MCP Tools', 'Settings',
+      'API Keys', 'MCP Tools', 'Settings',
     ]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
+  });
+
+  it('does not render the removed Replication link', () => {
+    renderAt('/overview');
+    expect(screen.queryByText('Replication')).toBeNull();
   });
 
   it('marks the active route', () => {

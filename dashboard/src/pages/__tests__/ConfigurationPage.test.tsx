@@ -3,6 +3,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import ConfigurationPage from '../ConfigurationPage';
 
+// The page uses `useToastContext` (save feedback); stub the toast barrel so it
+// renders without a ToastProvider.
+vi.mock('@/providers/ToastProvider', () => ({
+  useToastContext: () => ({
+    show: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
+}));
+
 // Mock the API client. The Settings page hits the legacy /config endpoint;
 // the rewrite preserves that endpoint exactly. Returning a parsed object lets
 // the General/Defaults KeyValue cards derive labels even before the dynamic
@@ -47,7 +59,7 @@ describe('ConfigurationPage (Settings)', () => {
     render(<MemoryRouter><ConfigurationPage /></MemoryRouter>);
     expect(await screen.findByRole('heading', { name: /Settings/i })).toBeTruthy();
     expect(screen.getByText(/General/i)).toBeTruthy();
-    expect(screen.getByText(/Defaults/i)).toBeTruthy();
+    expect(screen.getByText(/Logging/i)).toBeTruthy();
     expect(screen.getByText(/Raw config/i)).toBeTruthy();
   });
 

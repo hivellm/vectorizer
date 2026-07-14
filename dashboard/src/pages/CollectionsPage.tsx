@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
 import { useApiClient } from '@/hooks/useApiClient';
@@ -29,8 +30,11 @@ function CollectionsPage() {
   const { collections, loading, setCollections, setLoading, setError } = useCollectionsStore();
   const api = useApiClient();
   const toast = useToastContext();
+  const [searchParams] = useSearchParams();
   const [filter, setFilter] = useState('');
-  const [selectedName, setSelectedName] = useState<string | null>(null);
+  // Preselect a collection when navigated to as /collections?name=… (e.g. from
+  // the Overview "Top Collections" table).
+  const [selectedName, setSelectedName] = useState<string | null>(() => searchParams.get('name'));
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteName, setDeleteName] = useState<string | null>(null);
   const [reindexing, setReindexing] = useState(false);

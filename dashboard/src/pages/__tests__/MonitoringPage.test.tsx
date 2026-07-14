@@ -37,24 +37,43 @@ vi.mock('@/hooks/useStats', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useRuntimeMetrics', () => ({
+  useRuntimeMetrics: () => ({
+    metrics: {
+      cpuPercent: 19.4,
+      memoryPercent: 0.6,
+      memoryRssBytes: 188_000_000,
+      memoryTotalBytes: 33_000_000_000,
+      activeConnections: 3,
+      uptimeSeconds: 6947,
+      qpsWindow60s: 0,
+      errorRate5xx60s: 0,
+      throughputByRoute: [],
+      wal: { currentSeq: 0, sizeBytes: 0, lastCheckpointAt: 0, lastCheckpointSeq: 0 },
+    },
+    qpsHistory: [],
+    loading: false,
+    error: null,
+  }),
+}));
+
 describe('MonitoringPage', () => {
-  it('renders the page heading and the four metric cards', () => {
+  it('renders the page heading and the metric cards', () => {
     render(<MemoryRouter><MonitoringPage /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: /Monitoring/i })).toBeTruthy();
-    expect(screen.getByText(/SIMD Backend/i)).toBeTruthy();
+    // "HTTP throughput" appears in the subtitle and the card title.
+    expect(screen.getAllByText(/HTTP throughput/i).length).toBeGreaterThan(0);
+    expect(screen.getByText('System')).toBeTruthy();
     expect(screen.getByText(/Write-Ahead Log/i)).toBeTruthy();
-    // "Query Cache" appears in the page subtitle and as the card title;
-    // assert at least one match (the card title is one of them).
+    // "Query Cache" appears in the page subtitle and as the card title.
     expect(screen.getAllByText(/Query Cache/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/File-ops Cache/i)).toBeTruthy();
   });
 
-  it('renders the throughput strip with REST and MCP breakdown', () => {
+  it('renders the System card with live resource metrics from /metrics/runtime', () => {
     render(<MemoryRouter><MonitoringPage /></MemoryRouter>);
-    expect(screen.getByText(/HTTP \/ MCP throughput/i)).toBeTruthy();
-    expect(screen.getByText(/REST/i)).toBeTruthy();
-    // "MCP" appears in the throughput card title and as the per-protocol label;
-    // assert at least one match (the per-protocol label is one of them).
-    expect(screen.getAllByText(/MCP/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^CPU$/i)).toBeTruthy();
+    expect(screen.getByText(/Memory \(RSS\)/i)).toBeTruthy();
+    expect(screen.getByText(/Uptime/i)).toBeTruthy();
+    expect(screen.getByText(/Active connections/i)).toBeTruthy();
   });
 });

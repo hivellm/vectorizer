@@ -261,7 +261,11 @@ function OverviewPage() {
               </thead>
               <tbody>
                 {top.map((c) => (
-                  <tr key={c.name}>
+                  <tr
+                    key={c.name}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/collections?name=${encodeURIComponent(c.name)}`)}
+                  >
                     <Td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Icons.database size={13} className="muted" />

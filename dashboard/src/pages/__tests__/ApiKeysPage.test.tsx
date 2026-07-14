@@ -8,6 +8,18 @@ vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token', user: null }),
 }));
 
+// ApiKeysPage uses `useToastContext`; stub the barrel so it renders without a
+// ToastProvider.
+vi.mock('@/providers/ToastProvider', () => ({
+  useToastContext: () => ({
+    show: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
+}));
+
 // Mock the API client used by ApiKeysPage to fetch the keys list.
 // The legacy /auth/keys response shape is { keys: ApiKey[] }.
 vi.mock('@/hooks/useApiClient', () => ({

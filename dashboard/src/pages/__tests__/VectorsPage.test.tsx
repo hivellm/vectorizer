@@ -3,6 +3,24 @@ import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import VectorsPage from '../VectorsPage';
 
+// The page uses `useToastContext` (Copy/Delete feedback); stub the toast barrel
+// so it renders without a ToastProvider.
+vi.mock('@/providers/ToastProvider', () => ({
+  useToastContext: () => ({
+    show: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  }),
+}));
+
+// The Insert modal (rendered but closed) pulls useAuth via the API client; it
+// is not under test here, so stub it out.
+vi.mock('@/components/modals/FileUploadModal', () => ({
+  default: () => null,
+}));
+
 const SAMPLE = [
   { id: 'vec_aaa', text: 'first vector text payload', dimension: 4, vector: [0.5, -0.3, 0.1, -0.7] },
   { id: 'vec_bbb', text: 'second vector text payload', dimension: 4, vector: [0.2, 0.4, -0.1, 0.6] },
