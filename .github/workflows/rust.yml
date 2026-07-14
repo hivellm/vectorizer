@@ -41,22 +41,18 @@ jobs:
             fi
           fi
         shell: bash
-      - name: Install protoc (Protocol Buffers compiler) + system OpenSSL (ubuntu)
+      - name: Install protoc (Protocol Buffers compiler)
+        # GitHub-releases-backed install instead of the Chocolatey mirror, which
+        # returns flaky 503s on the Windows runner (choco was down for the whole
+        # retry window in run 29297062082).
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install system OpenSSL (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y protobuf-compiler libssl-dev pkg-config
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            # Chocolatey mirror returns flaky 503s — retry up to 3 times.
-            for i in 1 2 3; do
-              if choco install protoc -y --no-progress; then
-                break
-              fi
-              echo "choco install protoc attempt $i failed; sleeping 15s"
-              sleep 15
-            done
-            command -v protoc >/dev/null 2>&1 || { echo "protoc install failed after 3 attempts"; exit 1; }
-          fi
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config
         shell: bash
 
       - name: Override leaked Windows OPENSSL_DIR (ubuntu matrix only)
