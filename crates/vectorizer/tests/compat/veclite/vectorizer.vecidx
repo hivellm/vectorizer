@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "created_at": "2026-07-17T04:28:23Z",
+  "updated_at": "2026-07-17T04:28:23Z",
+  "collections": [
+    {
+      "name": "docs",
+      "files": [
+        {
+          "path": "docs_vector_store.bin",
+          "size": 171930,
+          "compressed_size": 171930,
+          "checksum": "78a59db72ef825687b6d505d39205fac7cb04b520bb23e21f6b97a5ba292714d",
+          "type": "vectors"
+        },
+        {
+          "path": "docs_metadata.json",
+          "size": 632,
+          "compressed_size": 632,
+          "checksum": "b669bba00a3563945e5e3f00d6c49981c6dbd4391823e11eed570df3cb37fb99",
+          "type": "metadata"
+        },
+        {
+          "path": "docs_tokenizer.json",
+          "size": 2909,
+          "compressed_size": 2909,
+          "checksum": "330c342d076b3f9d8ce94554c3f02174bf25fa8390457e1f12580b38e9f3b214",
+          "type": "tokenizer"
+        }
+      ],
+      "vector_count": 120,
+      "dimension": 256,
+      "metadata": {
+        "veclite.aliases": "[\"latest-docs\"]"
+      }
+    },
+    {
+      "name": "vecs",
+      "files": [
+        {
+          "path": "vecs_vector_store.bin",
+          "size": 163163,
+          "compressed_size": 163163,
+          "checksum": "6a4a1a758e1b3d3aa840e6cdf55ae8c435dd9706f066731f324513cdebfd13fd",
+          "type": "vectors"
+        },
+        {
+          "path": "vecs_metadata.json",
+          "size": 631,
+          "compressed_size": 631,
+          "checksum": "8e2b958a657012bb8e80f807192f38e7cb5ffcc843ea298206692bf90c9e4652",
+          "type": "metadata"
+        }
+      ],
+      "vector_count": 200,
+      "dimension": 64,
+      "metadata": {
+        "veclite.auto_embed": "false"
+      }
+    }
+  ],
+  "total_size": 339265,
+  "compressed_size": 339265,
+  "compression_ratio": 1.0
+}
