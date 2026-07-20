@@ -71,7 +71,7 @@ jobs:
           SKIP_INTEGRATION_TESTS=0 python -m pytest tests/ -q \
             --ignore=tests/test_file_upload.py --ignore=tests/test_routing.py
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.23"
           cache-dependency-path: sdks/go/go.sum
