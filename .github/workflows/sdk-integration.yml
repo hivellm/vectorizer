@@ -60,7 +60,7 @@ jobs:
           pnpm install --frozen-lockfile
           VITEST_SKIP_S2S=0 pnpm test
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
