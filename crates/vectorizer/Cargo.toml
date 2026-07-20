@@ -97,7 +97,7 @@ rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
 mime_guess = "2.0"
 
 # Compression and caching
-lz4_flex = "0.13"
+lz4_flex = "0.14"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
