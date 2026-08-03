@@ -13,6 +13,8 @@ categories = ["database", "web-programming::http-server"]
 # Workspace seams
 vectorizer-core = { path = "../vectorizer-core" }
 vectorizer-protocol = { path = "../vectorizer-protocol" }
+# tonic/prost gRPC types, relocated out of vectorizer-protocol.
+vectorizer-grpc = { path = "../vectorizer-grpc" }
 # Engine + auth + cluster + hub + monitoring still live in the
 # umbrella `vectorizer` crate because of bidirectional deps
 # (db→cluster, cache→monitoring, config→{auth,hub}). A future

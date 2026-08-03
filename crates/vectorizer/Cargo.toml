@@ -192,9 +192,12 @@ prost-types = "0.14"
 transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
 
 # Wire-protocol seam (phase4_split-vectorizer-workspace, sub-phase 2):
-# RPC + gRPC types live in the standalone `vectorizer-protocol` crate
+# RPC wire types live in the standalone `vectorizer-protocol` crate
 # so the Rust SDK can depend on the same shapes the server emits.
 vectorizer-protocol = { path = "../vectorizer-protocol" }
+# tonic/prost gRPC types (first-party + cluster + Qdrant-compat), relocated out
+# of vectorizer-protocol so the RPC-wire crate can move to thunder-rpc.
+vectorizer-grpc = { path = "../vectorizer-grpc" }
 # Core primitives seam (phase4_split-vectorizer-workspace, sub-phase 3):
 # error type, binary codec, quantization, simd, parallel + compression
 # helpers live in `vectorizer-core`. Re-exported through the umbrella

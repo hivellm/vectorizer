@@ -5,8 +5,8 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use tracing::{debug, error, info, warn};
 // Use the generated cluster proto code from grpc module
-use vectorizer_protocol::grpc_gen::cluster::cluster_service_server::ClusterService as ClusterServiceTrait;
-use vectorizer_protocol::grpc_gen::cluster::*;
+use vectorizer_grpc::grpc_gen::cluster::cluster_service_server::ClusterService as ClusterServiceTrait;
+use vectorizer_grpc::grpc_gen::cluster::*;
 
 use super::manager::ClusterManager;
 use super::node::{ClusterNode as LocalClusterNode, NodeId, NodeStatus};
@@ -66,16 +66,16 @@ impl ClusterServiceTrait for ClusterGrpcService {
                 grpc_port: node.grpc_port as u32,
                 status: match node.status {
                     NodeStatus::Active => {
-                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Active as i32
+                        vectorizer_grpc::grpc_gen::cluster::NodeStatus::Active as i32
                     }
                     NodeStatus::Joining => {
-                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Joining as i32
+                        vectorizer_grpc::grpc_gen::cluster::NodeStatus::Joining as i32
                     }
                     NodeStatus::Leaving => {
-                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Leaving as i32
+                        vectorizer_grpc::grpc_gen::cluster::NodeStatus::Leaving as i32
                     }
                     NodeStatus::Unavailable => {
-                        vectorizer_protocol::grpc_gen::cluster::NodeStatus::Unavailable as i32
+                        vectorizer_grpc::grpc_gen::cluster::NodeStatus::Unavailable as i32
                     }
                 },
                 shards: node.shards.iter().map(|s| s.as_u32()).collect(),
@@ -143,13 +143,13 @@ impl ClusterServiceTrait for ClusterGrpcService {
 
             // Update status
             match proto_node.status {
-                x if x == vectorizer_protocol::grpc_gen::cluster::NodeStatus::Active as i32 => {
+                x if x == vectorizer_grpc::grpc_gen::cluster::NodeStatus::Active as i32 => {
                     local_node.mark_active()
                 }
-                x if x == vectorizer_protocol::grpc_gen::cluster::NodeStatus::Joining as i32 => {
+                x if x == vectorizer_grpc::grpc_gen::cluster::NodeStatus::Joining as i32 => {
                     local_node.status = NodeStatus::Joining;
                 }
-                x if x == vectorizer_protocol::grpc_gen::cluster::NodeStatus::Leaving as i32 => {
+                x if x == vectorizer_grpc::grpc_gen::cluster::NodeStatus::Leaving as i32 => {
                     local_node.status = NodeStatus::Leaving;
                 }
                 _ => local_node.mark_unavailable(),

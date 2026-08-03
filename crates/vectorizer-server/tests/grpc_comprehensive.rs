@@ -20,8 +20,8 @@ use tonic::transport::Channel;
 use vectorizer::db::VectorStore;
 // Import protobuf types
 use vectorizer::models::{CollectionConfig, DistanceMetric, HnswConfig, QuantizationConfig};
-use vectorizer_protocol::grpc_gen::vectorizer::vectorizer_service_client::VectorizerServiceClient;
-use vectorizer_protocol::grpc_gen::vectorizer::{
+use vectorizer_grpc::grpc_gen::vectorizer::vectorizer_service_client::VectorizerServiceClient;
+use vectorizer_grpc::grpc_gen::vectorizer::{
     CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
     HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType, *,
 };
@@ -62,7 +62,7 @@ fn create_test_vector(_id: &str, seed: usize) -> Vec<f32> {
 /// Helper to start a test gRPC server
 async fn start_test_server(port: u16) -> Result<Arc<VectorStore>, Box<dyn std::error::Error>> {
     use tonic::transport::Server;
-    use vectorizer_protocol::grpc_gen::vectorizer::vectorizer_service_server::VectorizerServiceServer;
+    use vectorizer_grpc::grpc_gen::vectorizer::vectorizer_service_server::VectorizerServiceServer;
     use vectorizer_server::grpc::VectorizerGrpcService;
 
     let store = Arc::new(VectorStore::new());

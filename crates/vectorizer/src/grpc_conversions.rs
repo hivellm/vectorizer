@@ -1,6 +1,6 @@
 //! Conversion utilities between Protobuf types and internal types
 
-use vectorizer_protocol::grpc_gen::vectorizer as proto;
+use vectorizer_grpc::grpc_gen::vectorizer as proto;
 
 use crate::db::hybrid_search::{HybridScoringAlgorithm, HybridSearchConfig};
 use crate::error::{Result, VectorizerError};

@@ -544,11 +544,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_grpc::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(
+                channel,
+            );
 
         let response = client
             .raft_vote(tonic::Request::new(
-                vectorizer_protocol::grpc_gen::cluster::RaftVoteRequest { data },
+                vectorizer_grpc::grpc_gen::cluster::RaftVoteRequest { data },
             ))
             .await
             .map_err(|e| {
@@ -589,11 +591,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_grpc::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(
+                channel,
+            );
 
         let response = client
             .raft_append_entries(tonic::Request::new(
-                vectorizer_protocol::grpc_gen::cluster::RaftAppendEntriesRequest { data },
+                vectorizer_grpc::grpc_gen::cluster::RaftAppendEntriesRequest { data },
             ))
             .await
             .map_err(|e| {
@@ -648,11 +652,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_grpc::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(
+                channel,
+            );
 
         let response = client
             .raft_snapshot(tonic::Request::new(
-                vectorizer_protocol::grpc_gen::cluster::RaftSnapshotRequest {
+                vectorizer_grpc::grpc_gen::cluster::RaftSnapshotRequest {
                     vote_data,
                     snapshot_meta,
                     snapshot_data,

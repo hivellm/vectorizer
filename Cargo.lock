@@ -9449,6 +9449,7 @@ dependencies = [
  "unicode-normalization",
  "uuid",
  "vectorizer-core",
+ "vectorizer-grpc",
  "vectorizer-protocol",
  "vectorizer-server",
  "walkdir",
@@ -9512,21 +9513,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorizer-protocol"
+name = "vectorizer-grpc"
 version = "3.6.0"
 dependencies = [
  "prost",
  "prost-types",
  "protoc-bin-vendored",
+ "tonic",
+ "tonic-build",
+ "tonic-prost",
+ "tonic-prost-build",
+]
+
+[[package]]
+name = "vectorizer-protocol"
+version = "3.6.0"
+dependencies = [
  "rmp-serde",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
  "tokio",
- "tonic",
- "tonic-build",
- "tonic-prost",
- "tonic-prost-build",
 ]
 
 [[package]]
@@ -9640,6 +9647,7 @@ dependencies = [
  "uuid",
  "vectorizer",
  "vectorizer-core",
+ "vectorizer-grpc",
  "vectorizer-protocol",
  "walkdir",
  "whoami",
