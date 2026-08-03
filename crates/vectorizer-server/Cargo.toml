@@ -12,7 +12,6 @@ categories = ["database", "web-programming::http-server"]
 [dependencies]
 # Workspace seams
 vectorizer-core = { path = "../vectorizer-core" }
-vectorizer-protocol = { path = "../vectorizer-protocol" }
 # tonic/prost gRPC types, relocated out of vectorizer-protocol.
 vectorizer-grpc = { path = "../vectorizer-grpc" }
 # Engine + auth + cluster + hub + monitoring still live in the
@@ -146,6 +145,7 @@ opentelemetry_sdk = { version = "0.32", features = ["metrics", "trace", "rt-toki
 opentelemetry-prometheus = "0.32"
 opentelemetry-otlp = { version = "0.32", features = ["metrics", "trace", "tokio", "grpc-tonic"] }
 tracing-opentelemetry = "0.33"
+thunder-rpc = { version = "0.2.2", default-features = false, features = ["server"] }
 
 # Unix-specific dependencies (SIGHUP for graceful restart in admin handler)
 [target.'cfg(unix)'.dependencies]
