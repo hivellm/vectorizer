@@ -1,67 +1,110 @@
 //! `RpcClient`: connect, hello, call, ping, close.
 //!
-//! The client owns one TCP connection to the server. It runs a single
-//! background reader task that demultiplexes responses by `Request.id`
-//! into per-call `oneshot` channels, so concurrent in-flight calls
-//! on the same connection don't block each other.
+//! The transport is Thunder's ([`thunder::Client`]): one TCP connection per
+//! `RpcClient`, a background reader that demultiplexes responses by frame id
+//! so concurrent in-flight calls don't block each other, lazy reconnect, and
+//! typed errors. What lives here is Vectorizer's shape on top of it — the
+//! `vectorizer://` protocol config, the HELLO payload/response types, and the
+//! error mapping the typed wrappers in [`super::commands`] consume.
 //!
-//! Auth is **per-connection sticky** per wire spec § 4: the first
-//! frame on a connection MUST be `HELLO`; every subsequent call
-//! inherits the auth state. The client tracks the authenticated /
-//! admin flags from the HELLO response so callers can introspect
-//! after the handshake.
+//! Auth is **per-connection sticky** per wire spec § 4, and Thunder carries
+//! credentials in the connection handshake (`AUTH`) rather than in a command.
+//! [`RpcClient::hello`] therefore re-dials when its payload carries a token or
+//! an API key, so the credentials reach the session that later commands run
+//! under; the HELLO command itself still runs, because the server answers it
+//! with the capability list and auth flags this client surfaces.
 
-use std::collections::HashMap;
-use std::io;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::Duration;
 
 use parking_lot::Mutex;
-use tokio::io::BufReader;
-use tokio::net::TcpStream;
-use tokio::sync::{Notify, oneshot};
-use tokio::task::JoinHandle;
-use tracing::{debug, warn};
 
-use super::codec::{read_response, write_request};
-use super::types::{Request, Response, VectorizerValue};
+use super::types::VectorizerValue;
+
+/// Vectorizer's slot in the 15500-range binary-transport convention shared
+/// with Synap; the default when a `vectorizer://host` URL omits the port
+/// (wire spec § 12).
+pub const DEFAULT_RPC_PORT: u16 = 15503;
+
+/// Frame-body cap, matching the server's listener so neither end rejects a
+/// frame the other is willing to send.
+const MAX_FRAME_BYTES: usize = 512 * 1024 * 1024;
+
+/// How Vectorizer uses the Thunder wire — the client half of the server's
+/// `vectorizer_config()`: `vectorizer` scheme, `AUTH`-command handshake, no
+/// HELLO negotiation (the `HELLO` *command* is Vectorizer's own), RESP3-style
+/// error prefixes.
+///
+/// Declared here rather than imported from the server so the SDK depends only
+/// on registry crates — `cargo publish` rejects path dependencies.
+pub fn protocol_config() -> thunder::Config {
+    use thunder::wire::config::{ErrorConvention, Handshake, HelloStyle, PushPolicy};
+    thunder::Config::standard()
+        .scheme("vectorizer")
+        .port(DEFAULT_RPC_PORT)
+        .handshake(Handshake::AuthCommand)
+        .hello_style(HelloStyle::NotUsed)
+        .push(PushPolicy::Reserved)
+        .error_codes(ErrorConvention::Resp3Prefixes)
+        .max_frame_bytes(MAX_FRAME_BYTES)
+}
 
 /// Errors the [`RpcClient`] can return.
 #[derive(Debug, thiserror::Error)]
 pub enum RpcClientError {
-    /// Network-level I/O failure.
-    #[error("network I/O error: {0}")]
-    Io(#[from] io::Error),
-
-    /// MessagePack encode failure (should be unreachable for the v1
-    /// shapes — every type derives `Serialize`).
-    #[error("encode failed: {0}")]
-    Encode(#[from] rmp_serde::encode::Error),
+    /// Transport-level failure: dial, write, or the connection dying while
+    /// the call was pending.
+    #[error("connection error: {0}")]
+    Connection(String),
 
     /// Server returned `Result::Err(message)` for the call.
     #[error("server error: {0}")]
     Server(String),
 
-    /// The connection's reader task died before the response arrived.
-    #[error("connection closed before response (reader task ended)")]
-    ConnectionClosed,
+    /// The server refused the session's credentials — `NOAUTH` (no `AUTH`
+    /// sent, or HELLO issued without credentials against an auth-enabled
+    /// server), `WRONGPASS`, or `NOPERM` for an admin-only command.
+    #[error("not authenticated: {0}")]
+    NotAuthenticated(String),
 
-    /// Caller invoked a data-plane command before HELLO succeeded.
-    /// The server would reject this; the client surfaces it locally
-    /// so the offending caller sees a clear panic-free error.
-    #[error("HELLO must succeed before any data-plane command can be issued")]
-    NotAuthenticated,
+    /// The connect or per-call timeout elapsed.
+    #[error("timed out")]
+    Timeout,
+
+    /// The peer sent a malformed or oversized frame; the connection is
+    /// poisoned and the next call re-dials.
+    #[error("protocol error: {0}")]
+    Protocol(String),
+}
+
+impl From<thunder::ClientError> for RpcClientError {
+    fn from(err: thunder::ClientError) -> Self {
+        use thunder::ClientError;
+        match err {
+            ClientError::Auth { message } => Self::NotAuthenticated(message),
+            // The raw server string, verbatim — including any `[code]`
+            // prefix the server put in front of it.
+            ClientError::Server { message, .. } => Self::Server(message),
+            ClientError::Connection { message } => Self::Connection(message),
+            ClientError::Timeout => Self::Timeout,
+            ClientError::FrameTooLarge { message } | ClientError::Decode { message } => {
+                Self::Protocol(message)
+            }
+        }
+    }
 }
 
 /// Result type alias.
 pub type Result<T> = std::result::Result<T, RpcClientError>;
 
-/// HELLO request payload — sent as the FIRST frame on a connection.
+/// HELLO request payload.
 ///
-/// At least one of `token` / `api_key` should be populated when the
-/// server has auth enabled. When the server runs in single-user mode
-/// (`auth.enabled: false`), credentials are accepted-but-ignored and
-/// the connection runs as the implicit local admin.
+/// At least one of `token` / `api_key` should be populated when the server has
+/// auth enabled: those credentials travel in the connection handshake, so
+/// passing them to [`RpcClient::hello`] is what authenticates the session.
+/// When the server runs in single-user mode (`auth.enabled: false`) the
+/// listener is open, credentials are accepted-but-ignored, and the connection
+/// runs as the implicit local admin.
 #[derive(Debug, Clone, Default)]
 pub struct HelloPayload {
     /// Bearer JWT (same shape REST `/auth/login` returns).
@@ -101,6 +144,16 @@ impl HelloPayload {
         self
     }
 
+    /// The credentials this payload carries, if any.
+    fn credentials(&self) -> Option<thunder::client::Credentials> {
+        if let Some(token) = &self.token {
+            return Some(thunder::client::Credentials::Token(token.clone()));
+        }
+        self.api_key
+            .as_ref()
+            .map(|key| thunder::client::Credentials::ApiKey(key.clone()))
+    }
+
     fn into_value(self) -> VectorizerValue {
         let mut pairs = vec![(
             VectorizerValue::Str("version".into()),
@@ -131,7 +184,7 @@ impl HelloPayload {
 /// What the server returns for a successful `HELLO`.
 #[derive(Debug, Clone)]
 pub struct HelloResponse {
-    /// Server crate version, e.g. `"3.0.0"`.
+    /// Server crate version, e.g. `"3.6.0"`.
     pub server_version: String,
     /// Wire spec protocol version, currently always `1`.
     pub protocol_version: i64,
@@ -184,21 +237,14 @@ impl HelloResponse {
 
 /// One connection to a Vectorizer RPC server.
 pub struct RpcClient {
-    /// Owned write half of the TCP socket. Wrapped in a mutex because
-    /// every `call` writes serially; the writer is the only one that
-    /// touches this half.
-    writer: Arc<tokio::sync::Mutex<tokio::net::tcp::OwnedWriteHalf>>,
-    /// Map from request id → oneshot sender for the matching response.
-    pending: Arc<Mutex<HashMap<u32, oneshot::Sender<Response>>>>,
-    /// Monotonic id allocator.
-    next_id: AtomicU32,
-    /// Notified when the reader task exits, so pending calls fail
-    /// fast instead of hanging forever.
-    reader_done: Arc<Notify>,
-    /// Handle to the spawned reader task; aborted on `Drop`.
-    reader_task: Option<JoinHandle<()>>,
-    /// `true` once HELLO succeeded.
-    authenticated: Arc<Mutex<bool>>,
+    /// `vectorizer://host:port`, kept for re-dialing with credentials.
+    endpoint: String,
+    /// Credentials + timeouts the current connection was dialed with.
+    client_config: Mutex<thunder::ClientConfig>,
+    /// The live multiplexed connection.
+    client: Mutex<Arc<thunder::Client>>,
+    /// Serializes re-dials so two concurrent HELLOs can't race a swap.
+    redial: tokio::sync::Mutex<()>,
 }
 
 impl RpcClient {
@@ -210,16 +256,16 @@ impl RpcClient {
     /// - `vectorizer://host:port` → RPC on the given port.
     /// - `vectorizer://host` → RPC on the default port 15503.
     /// - `host:port` (no scheme) → RPC.
-    /// - `http(s)://...` → returns [`RpcClientError::Server`] with a
+    /// - `http(s)://...` → returns [`RpcClientError::Connection`] with a
     ///   clear message asking the caller to use the HTTP client
     ///   instead. The SDK ships the `http` Cargo feature for that
     ///   path; an `http://` URL is not a transport an RPC client can
     ///   speak.
     pub async fn connect_url(url: &str) -> Result<Self> {
         use super::endpoint::{Endpoint, parse_endpoint};
-        match parse_endpoint(url).map_err(|e| RpcClientError::Server(e.to_string()))? {
+        match parse_endpoint(url).map_err(|e| RpcClientError::Connection(e.to_string()))? {
             Endpoint::Rpc { host, port } => Self::connect(format!("{host}:{port}")).await,
-            Endpoint::Rest { url } => Err(RpcClientError::Server(format!(
+            Endpoint::Rest { url } => Err(RpcClientError::Connection(format!(
                 "RpcClient cannot dial REST URL '{url}'; \
                  use the HTTP client (`vectorizer_sdk::VectorizerClient`) instead, \
                  or pass a `vectorizer://` URL"
@@ -227,86 +273,78 @@ impl RpcClient {
         }
     }
 
-    /// Open a TCP connection to `addr` (which must be `host:port`)
-    /// and start the background reader task. Does NOT send HELLO —
-    /// callers MUST call [`Self::hello`] before any data-plane
-    /// command, or the server will reject it.
-    pub async fn connect(addr: impl tokio::net::ToSocketAddrs) -> Result<Self> {
-        let stream = TcpStream::connect(addr).await?;
-        let (read_half, write_half) = stream.into_split();
-        let mut reader = BufReader::new(read_half);
-
-        let pending: Arc<Mutex<HashMap<u32, oneshot::Sender<Response>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
-        let reader_done = Arc::new(Notify::new());
-
-        // Spawn the reader: read frames forever, dispatch to pending
-        // by id, close down on EOF.
-        let pending_for_reader = Arc::clone(&pending);
-        let done_for_reader = Arc::clone(&reader_done);
-        let reader_task = tokio::spawn(async move {
-            loop {
-                match read_response(&mut reader).await {
-                    Ok(resp) => {
-                        let sender = {
-                            let mut p = pending_for_reader.lock();
-                            p.remove(&resp.id)
-                        };
-                        match sender {
-                            Some(tx) => {
-                                let _ = tx.send(resp);
-                            }
-                            None => {
-                                warn!(
-                                    id = resp.id,
-                                    "RpcClient received response with no pending caller — dropping"
-                                );
-                            }
-                        }
-                    }
-                    Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
-                        debug!("RpcClient reader: clean EOF");
-                        break;
-                    }
-                    Err(e) => {
-                        warn!(error = %e, "RpcClient reader error — connection closed");
-                        break;
-                    }
-                }
-            }
-            // Drain pending — every waiting call gets ConnectionClosed.
-            let mut p = pending_for_reader.lock();
-            p.clear();
-            done_for_reader.notify_waiters();
-        });
-
+    /// Dial `addr` — `host:port`, or any form [`thunder::parse_endpoint`]
+    /// accepts. Does NOT authenticate: pass credentials to [`Self::hello`],
+    /// which re-dials with them in the handshake.
+    pub async fn connect(addr: impl AsRef<str>) -> Result<Self> {
+        let endpoint = addr.as_ref().to_owned();
+        let client_config = thunder::ClientConfig::new()
+            .client_name(concat!("vectorizer-sdk-rust/", env!("CARGO_PKG_VERSION")));
+        let client = Self::dial(&endpoint, client_config.clone()).await?;
         Ok(Self {
-            writer: Arc::new(tokio::sync::Mutex::new(write_half)),
-            pending,
-            next_id: AtomicU32::new(1),
-            reader_done,
-            reader_task: Some(reader_task),
-            authenticated: Arc::new(Mutex::new(false)),
+            endpoint,
+            client_config: Mutex::new(client_config),
+            client: Mutex::new(client),
+            redial: tokio::sync::Mutex::new(()),
         })
     }
 
-    /// Issue the `HELLO` handshake. Must be the first call on a fresh
-    /// connection. Returns the server's capability list and auth flags.
-    pub async fn hello(&self, payload: HelloPayload) -> Result<HelloResponse> {
-        let value = payload.into_value();
-        let result = self.raw_call("HELLO", vec![value]).await?;
-        let parsed = HelloResponse::parse(&result);
-        if parsed.authenticated {
-            *self.authenticated.lock() = true;
-        }
-        Ok(parsed)
+    /// Per-call and connect timeout for this connection. Re-dials so the
+    /// new timeouts apply to the live connection as well as later ones.
+    pub async fn with_timeout(&self, timeout: Duration) -> Result<()> {
+        let config = {
+            let current = self.client_config.lock().clone();
+            current.connect_timeout(timeout).call_timeout(timeout)
+        };
+        self.replace_connection(config).await
     }
 
-    /// Health check. The server treats `PING` as auth-exempt so this
-    /// works even before HELLO; the typed wrapper still validates the
-    /// response shape.
+    async fn dial(endpoint: &str, config: thunder::ClientConfig) -> Result<Arc<thunder::Client>> {
+        thunder::Client::connect_with(endpoint, protocol_config(), config)
+            .await
+            .map(Arc::new)
+            .map_err(RpcClientError::from)
+    }
+
+    /// Dial a fresh connection with `config` and swap it in, dropping the
+    /// previous one. Serialized by `redial` so concurrent callers can't
+    /// interleave swaps.
+    async fn replace_connection(&self, config: thunder::ClientConfig) -> Result<()> {
+        let _guard = self.redial.lock().await;
+        let fresh = Self::dial(&self.endpoint, config.clone()).await?;
+        *self.client_config.lock() = config;
+        *self.client.lock() = fresh;
+        Ok(())
+    }
+
+    fn client(&self) -> Arc<thunder::Client> {
+        Arc::clone(&self.client.lock())
+    }
+
+    /// Issue the `HELLO` handshake and return the server's capability list
+    /// and auth flags.
+    ///
+    /// When `payload` carries a token or an API key, the connection is
+    /// re-dialed so those credentials travel in Thunder's `AUTH` handshake —
+    /// that is what authenticates the session every later command runs under.
+    /// A credential-free payload reuses the existing connection.
+    pub async fn hello(&self, payload: HelloPayload) -> Result<HelloResponse> {
+        if let Some(credentials) = payload.credentials() {
+            let mut config = self.client_config.lock().clone();
+            config.credentials = Some(credentials);
+            if let Some(name) = &payload.client_name {
+                config = config.client_name(name.clone());
+            }
+            self.replace_connection(config).await?;
+        }
+        let result = self.call("HELLO", vec![payload.into_value()]).await?;
+        Ok(HelloResponse::parse(&result))
+    }
+
+    /// Health check. `PING` is auth-exempt, so this works before HELLO; the
+    /// typed wrapper still validates the response shape.
     pub async fn ping(&self) -> Result<String> {
-        let result = self.raw_call("PING", vec![]).await?;
+        let result = self.call("PING", vec![]).await?;
         result
             .as_str()
             .map(str::to_owned)
@@ -315,87 +353,31 @@ impl RpcClient {
 
     /// Generic call dispatcher. Most callers should use a typed
     /// wrapper from [`crate::rpc::commands`] instead.
+    ///
+    /// Concurrent calls multiplex over the one connection; the server gates
+    /// un-authenticated sessions, surfacing
+    /// [`RpcClientError::NotAuthenticated`].
     pub async fn call(
         &self,
         command: impl Into<String>,
         args: Vec<VectorizerValue>,
     ) -> Result<VectorizerValue> {
-        let cmd = command.into();
-        // Auth-exempt commands per wire spec § 4.
-        let exempt = matches!(cmd.as_str(), "HELLO" | "PING");
-        if !exempt && !*self.authenticated.lock() {
-            return Err(RpcClientError::NotAuthenticated);
-        }
-        self.raw_call(cmd, args).await
+        self.client()
+            .call(command.into(), args)
+            .await
+            .map_err(RpcClientError::from)
     }
 
-    /// Skip the local auth check — used by the HELLO + PING paths so
-    /// the auth gate doesn't block the auth handshake itself.
-    async fn raw_call(
-        &self,
-        command: impl Into<String>,
-        args: Vec<VectorizerValue>,
-    ) -> Result<VectorizerValue> {
-        let id = self.next_id.fetch_add(1, Ordering::SeqCst);
-        let (tx, rx) = oneshot::channel::<Response>();
-        {
-            let mut pending = self.pending.lock();
-            pending.insert(id, tx);
-        }
-
-        let req = Request {
-            id,
-            command: command.into(),
-            args,
-        };
-
-        // Write the frame under the writer mutex so concurrent calls
-        // don't interleave bytes.
-        {
-            let mut writer = self.writer.lock().await;
-            if let Err(e) = write_request(&mut *writer, &req).await {
-                self.pending.lock().remove(&id);
-                return Err(RpcClientError::from(e));
-            }
-        }
-
-        // Race the response against the reader-task-exited notifier so
-        // a torn connection fails fast instead of hanging.
-        let resp = tokio::select! {
-            recv = rx => match recv {
-                Ok(resp) => resp,
-                Err(_) => return Err(RpcClientError::ConnectionClosed),
-            },
-            _ = self.reader_done.notified() => {
-                self.pending.lock().remove(&id);
-                return Err(RpcClientError::ConnectionClosed);
-            }
-        };
-
-        match resp.result {
-            Ok(value) => Ok(value),
-            Err(message) => Err(RpcClientError::Server(message)),
-        }
-    }
-
-    /// Returns `true` once HELLO has succeeded on this connection.
+    /// Returns `true` once the connection's handshake authenticated. Always
+    /// `false` against an open (single-user) server, which authenticates
+    /// nobody because it gates nothing.
     pub fn is_authenticated(&self) -> bool {
-        *self.authenticated.lock()
+        self.client().is_authenticated()
     }
 
-    /// Close the connection. Aborts the reader task; in-flight calls
-    /// receive `ConnectionClosed`.
-    pub fn close(mut self) {
-        if let Some(handle) = self.reader_task.take() {
-            handle.abort();
-        }
-    }
-}
-
-impl Drop for RpcClient {
-    fn drop(&mut self) {
-        if let Some(handle) = self.reader_task.take() {
-            handle.abort();
-        }
+    /// Close the connection. In-flight calls receive
+    /// [`RpcClientError::Connection`].
+    pub async fn close(self) {
+        self.client().close().await;
     }
 }

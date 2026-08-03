@@ -9,7 +9,7 @@
 - [x] 3.1 Port the cluster RPC to thunder OR relocate the tonic/prost gRPC gen out of vectorizer-protocol (per the spec)
 
 ## 4. SDKs
-- [ ] 4.1 Rust SDK: swap vectorizer-protocol -> thunder-rpc client (follow synap/sdks/rust)
+- [x] 4.1 Rust SDK: swap vectorizer-protocol -> thunder-rpc client (follow synap/sdks/rust)
 - [ ] 4.2 TS / Python / Go / C# SDK transports migrated to thunder's wire (per the spec)
 
 ## 5. Delete the crate

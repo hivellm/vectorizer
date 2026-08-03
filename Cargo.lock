@@ -9568,16 +9568,15 @@ dependencies = [
  "chrono",
  "parking_lot",
  "reqwest 0.13.4",
- "rmp-serde",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
+ "thunder-rpc",
  "tokio",
  "tokio-test",
  "tracing",
  "umicp-core",
  "uuid",
- "vectorizer-protocol",
 ]
 
 [[package]]

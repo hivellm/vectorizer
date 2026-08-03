@@ -2,6 +2,43 @@
 
 All notable changes to the Hive Vectorizer Rust SDK will be documented in this file.
 
+## [3.6.0] - TBD
+
+### Changed
+
+- **RPC transport now runs on `thunder-rpc`** (lib `thunder`), the HiveLLM
+  family's shared binary RPC crate that `vectorizer-server` also runs. The
+  hand-rolled connection/codec layer is gone: framing, response
+  demultiplexing, lazy reconnect, timeouts and the `Request` / `Response` /
+  value model all come from Thunder. The on-wire format is unchanged (v1,
+  frozen: 4-byte little-endian length prefix + MessagePack body), and the
+  ~75-command catalog and every typed wrapper keep their signatures.
+- `rpc::types::VectorizerValue` is now an alias for `thunder::Value`. Same
+  eight variants; `Bytes` carries an `Arc<[u8]>` instead of a `Vec<u8>`.
+- `RpcClient::hello` re-dials when its payload carries a token or an API key:
+  Thunder authenticates in the connection handshake (`AUTH`), so credentials
+  must reach the session the later commands run under. Credential-free
+  payloads reuse the connection. Call sites are unchanged.
+- `RpcClient::close` is now `async` (Thunder closes gracefully).
+- `RpcClient::is_authenticated` reports the *session* handshake state, so it
+  is `false` against an open single-user server — which authenticates nobody
+  because it gates nothing.
+
+### Removed
+
+- `rpc::codec` — framing belongs to Thunder; nothing in the SDK re-implements
+  or re-exports it.
+- The `vectorizer-protocol` path dependency. The SDK now depends only on
+  registry crates.
+
+### Breaking
+
+- `RpcClientError` variants changed: `Io`, `Encode` and `ConnectionClosed`
+  collapse into `Connection(String)`; `NotAuthenticated` now carries the
+  server's message (`NOAUTH` / `WRONGPASS` / `NOPERM`) instead of being a
+  local pre-flight guess; `Timeout` and `Protocol(String)` are new.
+  `Server(String)` is unchanged.
+
 ## [3.5.0] - TBD
 
 Version alignment with the Vectorizer 3.5.0 server release. No SDK API
