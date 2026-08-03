@@ -1,0 +1,76 @@
+name: Publish Rust SDK (crates.io)
+
+# crates.io Trusted Publishing — no stored CARGO_REGISTRY_TOKEN. The
+# rust-lang/crates-io-auth-action exchanges the GitHub OIDC token for a
+# short-lived crates.io token. Registry-side setup is a one-time maintainer
+# step: on crates.io add a Trusted Publisher for crates `vectorizer-protocol`
+# and `vectorizer-sdk` bound to repo hivellm/vectorizer + workflow
+# `sdk-publish-rust.yml`. See docs/development/sdk-publishing.md.
+#
+# vectorizer-sdk depends on vectorizer-protocol (path + version), so protocol
+# publishes first. (When phase1_replace-vectorizer-protocol-with-thunder lands,
+# the SDK will depend on the already-published `thunder` crate instead and the
+# protocol publish step below is removed.)
+#
+# release:published  -> cargo publish protocol then sdk at the tag version
+# workflow_dispatch  -> --dry-run (default), no upload
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: cargo publish --dry-run only
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # crates.io Trusted Publishing OIDC exchange
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify SDK crate version matches the release tag
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          V=$(grep -m1 '^version' sdks/rust/Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "tag=$TAG sdk=$V"
+          [ "$TAG" = "$V" ] || { echo "::error::release tag $TAG != vectorizer-sdk version $V"; exit 1; }
+
+      - name: crates.io auth (OIDC -> short-lived token)
+        if: ${{ github.event_name == 'release' }}
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish vectorizer-protocol, then vectorizer-sdk
+        if: ${{ github.event_name == 'release' }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          # cargo publish blocks until the crate is visible in the index, so the
+          # dependent publish below resolves the freshly-published protocol.
+          cargo publish -p vectorizer-protocol
+          cargo publish --manifest-path sdks/rust/Cargo.toml
+
+      - name: Dry-run
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          cargo publish -p vectorizer-protocol --dry-run
+          cargo publish --manifest-path sdks/rust/Cargo.toml --dry-run

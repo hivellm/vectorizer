@@ -1,0 +1,71 @@
+name: Publish TypeScript SDK (npm)
+
+# OIDC Trusted Publishing + provenance — no stored npm token. Registry-side
+# setup is a one-time maintainer step: on npmjs.com configure Trusted
+# Publishing for @hivehub/vectorizer-sdk pointing at repo hivellm/vectorizer
+# and workflow `sdk-publish-typescript.yml`. Requires npm CLI >= 11.5.1 on the
+# runner (installed below). See docs/development/sdk-publishing.md.
+#
+# release:published  -> npm publish --provenance --access public at tag version
+# workflow_dispatch  -> --dry-run (default) to prove the pipeline
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run npm publish with --dry-run only
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # provenance + Trusted Publishing OIDC
+      contents: read
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure npm >= 11.5.1 (Trusted Publishing + provenance)
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Install deps (pnpm)
+        run: |
+          corepack enable pnpm
+          pnpm install --frozen-lockfile
+
+      - name: Verify package.json version matches the release tag
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          PKG=$(node -p "require('./package.json').version")
+          echo "tag=$TAG pkg=$PKG"
+          [ "$TAG" = "$PKG" ] || { echo "::error::release tag $TAG != package.json version $PKG"; exit 1; }
+
+      - name: Build + lint (gate)
+        run: |
+          pnpm run build
+          pnpm run lint
+
+      - name: Publish to npm (provenance via OIDC)
+        if: ${{ github.event_name == 'release' }}
+        run: npm publish --provenance --access public
+
+      - name: Dry-run publish
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: npm publish --provenance --access public --dry-run

@@ -15,6 +15,19 @@ All notable changes to this project will be documented in this file.
   v6, setup-python v7, setup-go v7. Held back: openraft alpha.30 (=-pinned,
   needs an HA retest) and js-yaml 5.x (pnpm `<5` security override).
 
+### CI
+
+- **SDK publishing moves to release-triggered OIDC Trusted Publishing.** Five
+  new workflows (`sdk-publish-{python,typescript,csharp,rust,go}.yml`) publish
+  each SDK on `release: published`, version-gated to the tag and gated on the
+  SDK's tests. No long-lived registry tokens: PyPI + npm use OIDC Trusted
+  Publishing (npm adds provenance), NuGet exchanges OIDC for a short-lived key
+  via `NuGet/login`, crates.io uses `crates-io-auth-action` (protocol then SDK),
+  and Go warms the module proxy for the `vectorizer-sdk-go` submodule tag. Each
+  workflow has a `workflow_dispatch` dry-run path (TestPyPI / `--dry-run` /
+  pack-only). Registry-side setup and the release flow are documented in
+  `docs/development/sdk-publishing.md`.
+
 ### Security
 
 - **Cleared the open Dependabot advisories on the web assets (npm).** Bumped
