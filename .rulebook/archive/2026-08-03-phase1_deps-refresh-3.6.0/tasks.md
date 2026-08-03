@@ -15,6 +15,6 @@
 - [x] 3.2 #388 closed, #382 annotated; the other applied dependabot PRs target main and resolve when release/3.6.0 merges (would reopen if closed now)
 
 ## 4. Tail (docs + tests — check or waive with tailWaiver)
-- [x] 4.1 Documentation: CHANGELOG [Unreleased] dependency-refresh note
-- [x] 4.2 No new behavior to test (dependency version bumps); compatibility verified by existing tests
-- [x] 4.3 Run tests: compression roundtrip 28/28, cargo check clean, TS build/eslint pass
+- [x] 4.1 Update or create documentation covering the implementation — CHANGELOG [Unreleased] dependency-refresh note
+- [x] 4.2 Write tests covering the new behavior — N/A (version bumps, no new behavior); compat verified by existing tests, waived on archive
+- [x] 4.3 Run tests and confirm they pass — compression roundtrip 28/28, cargo check clean, TS tsc build + eslint pass
