@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Dependencies
+
+- **3.6.0 dependency refresh.** Cargo: thiserror 2.0.19, tokio 1.53.0,
+  async-trait 0.1.91, anyhow 1.0.104, uuid 1.24.0, futures 0.3.33, serde
+  1.0.229, fastembed 5.17.3, and lz4_flex 0.13 -> 0.14 (compression roundtrip
+  verified). SDKs: C# System.Text.Json 10.0.10 + Microsoft.SourceLink.GitHub
+  10.0.301; TypeScript @types/node 26.1.2, eslint 10.8.0, typescript-eslint
+  8.65.0; Python websockets >=16.1.1. CI: actions/setup-node v7, setup-dotnet
+  v6, setup-python v7, setup-go v7. Held back: openraft alpha.30 (=-pinned,
+  needs an HA retest) and js-yaml 5.x (pnpm `<5` security override).
+
 ### Dashboard
 
 - **Console reaches functional parity with the legacy Electron/Vue GUI and
