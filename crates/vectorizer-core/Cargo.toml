@@ -24,7 +24,7 @@ umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
 bincode = { version = "2.0", features = ["serde"] }
 
 # compression/, quantization/storage.rs — lz4 + zstd wrappers
-lz4_flex = "0.13"
+lz4_flex = "0.14"
 zstd = "0.13"
 
 # paths/ — OS user-data directory resolution (XDG on Linux, Application
