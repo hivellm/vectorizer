@@ -2,11 +2,11 @@
 - [x] 1.1 Study the Synap + Nexus thunder-rpc migrations (server + Rust SDK) and thunder's wire format / multi-language story; write the spec resolving the two open questions (gRPC disposition + cross-language SDK transport) — see design.md + specs/rpc-transport/spec.md
 
 ## 2. Server + wire types
-- [ ] 2.1 Add thunder-rpc (server) to vectorizer-server; port the RPC command/dispatch table onto thunder's service model
-- [ ] 2.2 Move rpc_wire request/response types to a shared location, serialized via thunder's codec; drop the hand-rolled codec
+- [x] 2.1 Add thunder-rpc (server) to vectorizer-server; port the RPC command/dispatch table onto thunder's service model
+- [x] 2.2 Move rpc_wire request/response types to a shared location, serialized via thunder's codec; drop the hand-rolled codec
 
 ## 3. Cluster / gRPC disposition
-- [ ] 3.1 Port the cluster RPC to thunder OR relocate the tonic/prost gRPC gen out of vectorizer-protocol (per the spec)
+- [x] 3.1 Port the cluster RPC to thunder OR relocate the tonic/prost gRPC gen out of vectorizer-protocol (per the spec)
 
 ## 4. SDKs
 - [ ] 4.1 Rust SDK: swap vectorizer-protocol -> thunder-rpc client (follow synap/sdks/rust)

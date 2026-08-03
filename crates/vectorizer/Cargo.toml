@@ -191,10 +191,12 @@ prost-types = "0.14"
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
 
-# Wire-protocol seam (phase4_split-vectorizer-workspace, sub-phase 2):
-# RPC wire types live in the standalone `vectorizer-protocol` crate
-# so the Rust SDK can depend on the same shapes the server emits.
-vectorizer-protocol = { path = "../vectorizer-protocol" }
+# Wire-protocol seam: the RPC request/response/value model is Thunder's
+# (`thunder-rpc`, lib `thunder`) — the HiveLLM family's shared wire, which our
+# retired `vectorizer-protocol::rpc_wire` was a hand-copy of. Wire layer only
+# (`default-features = false`): the umbrella crate re-exports the types through
+# `vectorizer::protocol::rpc`; the listener lives in `vectorizer-server`.
+thunder-rpc = { version = "0.2.2", default-features = false }
 # tonic/prost gRPC types (first-party + cluster + Qdrant-compat), relocated out
 # of vectorizer-protocol so the RPC-wire crate can move to thunder-rpc.
 vectorizer-grpc = { path = "../vectorizer-grpc" }
@@ -221,6 +223,9 @@ proptest = "1.9"
 # sub-phase 4. Cargo allows dev-dep cycles because they don't
 # affect the main build graph.
 vectorizer-server = { path = "../vectorizer-server" }
+# The RPC integration tests drive the production listener through Thunder's
+# client instead of a hand-rolled socket client.
+thunder-rpc = { version = "0.2.2", default-features = false, features = ["client"] }
 tempfile = "3.8"
 reqwest = { version = "0.13", features = ["json", "multipart", "rustls", "blocking"], default-features = false }
 
