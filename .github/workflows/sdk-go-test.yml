@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
       - name: Setup Go ${{ matrix.go-version }}
         uses: actions/setup-go@v7
@@ -72,6 +74,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          submodules: recursive
 
       - name: Setup Go
         uses: actions/setup-go@v7
