@@ -9,7 +9,12 @@
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
 | ⬚ | phase1_bump-openraft-alpha30 | 0/6 | bump openraft alpha30 |
-| ⬚ | phase1_fix-dependabot-security-alerts | 0/10 | fix dependabot security alerts |
-| ⬚ | phase1_replace-vectorizer-protocol-with-thunder | 0/5 | replace vectorizer protocol with thunder |
+| ⬚ | phase1_replace-vectorizer-protocol-with-thunder | 0/10 | replace vectorizer protocol with thunder |
 | ⬚ | phase1_sdk-publish-ci-trusted-publisher | 0/10 | sdk publish ci trusted publisher |
+
+## phase2
+
+| Status | Task | Progress | Description |
+|--------|------|----------|-------------|
+| ⬚ | phase2_update-gui-to-thunder-sdk | 0/11 | update gui to thunder sdk |
 
