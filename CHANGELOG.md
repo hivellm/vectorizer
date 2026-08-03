@@ -15,6 +15,18 @@ All notable changes to this project will be documented in this file.
   v6, setup-python v7, setup-go v7. Held back: openraft alpha.30 (=-pinned,
   needs an HA retest) and js-yaml 5.x (pnpm `<5` security override).
 
+### Security
+
+- **Cleared the open Dependabot advisories on the web assets (npm).** Bumped
+  or override-floored the vulnerable transitive/direct deps across three
+  lockfiles — dashboard, gui, and the TypeScript SDK: postcss >=8.5.18,
+  brace-expansion (1.1.16 + >=5.0.7), dompurify >=3.4.12, react-router 7.18.x
+  (dashboard); axios >=1.18.0, app-builder-lib >=26.15.0 (electron-builder
+  26.15.x) + builder-util-runtime >=9.7.0, fast-uri >=3.1.4, shell-quote
+  >=1.9.0, tar >=7.5.18 (gui); postcss >=8.5.18 (TypeScript SDK). js-yaml stays
+  on the patched 4.x line (the pnpm `<5` override stands). Builds verified after
+  each refresh.
+
 ### Dashboard
 
 - **Console reaches functional parity with the legacy Electron/Vue GUI and
