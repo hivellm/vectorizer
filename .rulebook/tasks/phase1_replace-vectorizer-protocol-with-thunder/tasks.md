@@ -1,5 +1,5 @@
 ## 1. Design / spec
-- [ ] 1.1 Study the Synap + Nexus thunder-rpc migrations (server + Rust SDK) and thunder's wire format / multi-language story; write the spec resolving the two open questions (gRPC disposition + cross-language SDK transport)
+- [x] 1.1 Study the Synap + Nexus thunder-rpc migrations (server + Rust SDK) and thunder's wire format / multi-language story; write the spec resolving the two open questions (gRPC disposition + cross-language SDK transport) — see design.md + specs/rpc-transport/spec.md
 
 ## 2. Server + wire types
 - [ ] 2.1 Add thunder-rpc (server) to vectorizer-server; port the RPC command/dispatch table onto thunder's service model
