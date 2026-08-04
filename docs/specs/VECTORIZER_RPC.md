@@ -2,8 +2,12 @@
 
 **Status**: v1 (frozen)
 **Default port**: 15503/tcp
-**Reference implementation**: ports the production-tested SynapRPC layer
-from `../Synap/synap-server/src/protocol/synap_rpc/` (~390 LOC core).
+**Implementation**: [Thunder](https://github.com/hivellm/thunder)
+(`thunder-rpc`), the HiveLLM family's shared binary RPC stack. Vectorizer no
+longer ships a codec of its own: the server runs Thunder's server half and
+every SDK runs the Thunder client for its language, so the two ends of the
+wire cannot drift. Thunder is the packaged form of the SynapRPC layer this
+protocol was originally ported from, so the bytes below are unchanged.
 
 This document is the authoritative byte-level contract between Vectorizer
 servers and clients. Every SDK (`phase6_sdk-{rust,go,python,javascript,
@@ -44,9 +48,12 @@ Every frame on the wire — request and response — has identical shape:
 - `body` is a single MessagePack-encoded value. The server uses
   `rmp-serde` with the default externally-tagged enum representation;
   clients must encode/decode using a compatible MessagePack library.
-- **Maximum body size: 64 MiB** (`64 * 1024 * 1024 = 67_108_864` bytes).
-  The server will close the connection on a frame that declares a larger
-  length to prevent OOM amplification attacks.
+- **Maximum body size: 512 MiB** (`512 * 1024 * 1024 = 536_870_912` bytes),
+  the family default shared with Synap — large enough for batch inserts and
+  raw little-endian f32 embedding payloads. The cap is validated against the
+  length prefix *before* the body is allocated, so a hostile peer cannot drive
+  an unbounded allocation from four bytes; a frame declaring more is refused.
+  (Pre-Thunder servers and SDKs capped this at 64 MiB.)
 
 A connection is a stream of frames. Frames are not interleaved at the
 byte level; the server reads a complete frame, dispatches it (possibly
@@ -123,7 +130,12 @@ pub enum VectorizerValue {
 
 ### Cross-language mapping
 
-| Vectorizer | Rust (rmp-serde) | Python (`msgpack`) | JS (`@msgpack/msgpack`) | Go (`vmihailenco/msgpack`) |
+Every SDK gets these mappings from its Thunder client rather than
+implementing them: Rust `thunder-rpc`, Python `hivellm-thunder` (imported as
+`thunder_rpc`), TypeScript `@hivehub/thunder`, Go
+`github.com/hivellm/thunder-go`, C# `HiveLLM.Thunder`.
+
+| Vectorizer | Rust | Python | TypeScript | Go |
 |---|---|---|---|---|
 | `Null` | `()` | `None` | `null` | `nil` |
 | `Bool` | `bool` | `bool` | `boolean` | `bool` |
@@ -136,33 +148,38 @@ pub enum VectorizerValue {
 
 ## 4. Authentication
 
-Authentication is a **per-connection state**. The server starts a new
-connection in `Unauthenticated` state. The client SHOULD issue a
-`HELLO` request (§ 5) as the first frame; if `HELLO` carries valid
-credentials, the connection transitions to `Authenticated` and stays
-there for its lifetime.
+Authentication is a **per-connection state**, resolved once and sticky for
+the connection's lifetime. Subsequent requests carry no token — auth is
+implicit in the connection state. This trades per-frame overhead for a
+stickier connection model (connections are stateful, but on a long-lived TCP
+socket the overhead is amortized to zero).
 
-Subsequent requests carry no token — auth is implicit in the connection
-state. This trades per-frame overhead for a stickier connection model
-(connections are now stateful, but on a long-lived TCP socket the
-overhead is amortized to zero).
+Credentials travel in the **`AUTH` command**, Thunder's `AuthCommand`
+handshake: the client sends `AUTH <secret>` on connect (its client library
+does this for it when credentials are configured), and the server validates
+the secret as a JWT first and as an API key second. Both credential forms are
+therefore accepted through the same frame:
+
+- A bearer JWT, the same format REST `/auth/login` returns, OR
+- An API key.
+
+Until a session authenticates, only the pre-auth allowlist —
+`PING`, `HELLO`, `AUTH`, `QUIT` — is answered; anything else is refused with
+`Err("NOAUTH ...")`. Invalid credentials are refused with
+`Err("WRONGPASS ...")`. Clients classify both by prefix (the `Resp3Prefixes`
+error convention) rather than by message text.
 
 When `auth.enabled = false` server-side (single-user local setups), the
-`HELLO` is still expected but credentials are ignored; every command
-runs as the implicit local admin. This matches the existing REST/MCP
-behaviour.
+listener is *open*: no `AUTH` is required, every command runs as the implicit
+local admin, and `AUTH` is accepted-but-ignored. This matches the existing
+REST/MCP behaviour.
 
-### Credentials
-
-`HELLO` carries either:
-
-- A bearer JWT (same format as REST `/auth/login` returns), passed in
-  the `token` field, OR
-- An API key, passed in the `api_key` field.
-
-The server rejects requests that arrive on an `Unauthenticated`
-connection (other than `HELLO` itself) with an error `Err("authentication
-required: send HELLO first")`.
+> **Pre-Thunder clients**: credentials used to travel inside `HELLO`, and the
+> gate error read `"authentication required: send HELLO first"`. `HELLO` still
+> validates any credentials it carries and reports them in its reply, but the
+> *session* is authenticated by `AUTH` — which is why the first-party SDKs
+> re-dial when a `HELLO` payload carries a token or an API key. Server and
+> SDKs ship in lockstep (all at 3.6.x), and REST remains the fallback.
 
 ### Admin role
 
@@ -173,9 +190,12 @@ to the handler.
 
 ## 5. The `HELLO` command
 
-`HELLO` is the protocol-version handshake plus the auth handshake in a
-single frame. **Every connection MUST start with `HELLO`** before any
-data-plane command.
+`HELLO` is the protocol-version handshake and the capability advertisement.
+It is Vectorizer's own command (Thunder's `HelloStyle::NotUsed`), so it
+reaches the server's dispatch table like any other — it is not a
+Thunder-constructed reply. It stays in the pre-auth allowlist, and it still
+validates credentials it carries and reports the resulting flags, but the
+session's auth state comes from `AUTH` (§ 4).
 
 ```rust
 Request {
@@ -248,9 +268,9 @@ follow-up tasks but use the same wire format.
 
 Search results that exceed a single 64 MiB frame would need chunking.
 v1 does not implement streaming; instead, the server caps the result
-set at the number of items that fit comfortably in 64 MiB (~250k
-1024-dim vectors with payloads). Larger result sets must page via the
-existing REST scroll API or wait for v2.
+set at the number of items that fit within the 512 MiB frame cap (§ 1).
+Larger result sets must page via the existing REST scroll API or wait
+for v2.
 
 When v2 lands, streaming will use a `last: bool` field in the response
 envelope: the server emits multiple `Response` frames with the same
@@ -273,20 +293,26 @@ the server returns.
 
 ## 9. Comparison with SynapRPC
 
+Both products now run Thunder, so the wire is not merely compatible — it is
+the same implementation. What differs is each product's *profile*: the parts
+Thunder makes configurable.
+
 | Aspect | SynapRPC | VectorizerRPC v1 |
 |---|---|---|
-| Framing | `[u32 LE len][msgpack body]` | identical |
+| Framing | `[u32 LE len][msgpack body]` | identical (Thunder's) |
 | Request shape | `{id, command, args}` | identical |
 | Response shape | `{id, result: Result<Value, String>}` | identical |
-| Value enum | `SynapValue` | renamed `VectorizerValue`; identical variants |
-| Auth | bearer in `HELLO`, sticky | identical |
-| Pub/Sub | `SUBSCRIBE` + `_push` frames with `id: u32::MAX` | **not in v1** (no use case yet) |
-| Default port | 15500 | **15503** (Vectorizer's port range) |
-| Max frame | 16 MiB | **64 MiB** (we ship larger payloads) |
+| Value model | `thunder::Value` | identical; the SDKs alias it `VectorizerValue` |
+| Auth | `AUTH` handshake, sticky per connection | identical |
+| Error convention | RESP3 prefixes (`NOAUTH`/`WRONGPASS`/`NOPERM`) | identical |
+| Server push | `SUBSCRIBE` + push frames (`PushPolicy::Enabled`) | **reserved** — no push-producing command in v1 |
+| Scheme / default port | `synap://`, 15501 | `vectorizer://`, **15503** (Vectorizer's port range) |
+| Max frame | 512 MiB | 512 MiB |
 
-Wire-level parity with SynapRPC is intentional — a Synap-compatible
-client can talk to a Vectorizer server with only command-name changes.
-This shrinks the SDK matrix because the framing/codec layer is shared.
+Wire-level parity is what lets one client library serve both products: a
+Synap-compatible client talks to a Vectorizer server with only command-name
+changes, and the SDK matrix shrinks to the command catalog because the
+framing/codec/handshake layer is shared.
 
 ## 10. Security model
 

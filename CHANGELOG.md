@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **The binary RPC transport now runs on Thunder (`thunder-rpc` 0.2.2) across
+  the server and all five SDKs.** Vectorizer no longer ships a wire codec:
+  framing, response demultiplexing by frame id, bounded in-flight, connect and
+  per-call timeouts, lazy reconnect and typed errors come from the HiveLLM
+  family's shared RPC stack — the packaged form of the SynapRPC layer
+  `vectorizer-protocol::rpc_wire` was a hand-copy of. The on-wire format is
+  unchanged (v1, frozen: 4-byte little-endian length prefix + MessagePack
+  body) and the ~75-command catalog is untouched.
+  - Server: `vectorizer-server` implements `thunder::server::Dispatch` and
+    starts its listener via `spawn_listener`; the dispatch table's ~75 arms are
+    unchanged. The frame cap rises from 64 MiB to the family's 512 MiB, and it
+    is now validated against the length prefix before the body is allocated.
+  - **Auth moved to the `AUTH` handshake.** Credentials used to travel inside
+    `HELLO`; the session is now authenticated by Thunder's `AUTH` command, and
+    un-authenticated sessions are refused with `NOAUTH` / `WRONGPASS` prefixes
+    instead of `"authentication required: send HELLO first"`. `HELLO` remains a
+    command and still reports capabilities and auth flags. First-party SDKs
+    re-dial transparently when a `HELLO` payload carries credentials, so call
+    sites are unchanged; server and SDKs ship in lockstep at 3.6.x, and REST
+    remains the compatibility fallback.
+  - SDKs: Rust `thunder-rpc`, Python `hivellm-thunder`, TypeScript
+    `@hivehub/thunder`, Go `github.com/hivellm/thunder-go`, C#
+    `HiveLLM.Thunder` — each drops its hand-rolled socket client and codec and
+    its direct MessagePack dependency. Per-SDK API details, including the
+    breaking bits, are in each SDK's own CHANGELOG. The Go SDK's minimum Go
+    version rises to 1.25.
+  - `docs/specs/VECTORIZER_RPC.md` is updated for the new frame cap, the `AUTH`
+    handshake, and the per-language client packages.
+
+### Removed
+
+- **The `vectorizer-protocol` crate.** Its RPC wire is Thunder's now and its
+  tonic/prost gRPC generation moved to `crates/vectorizer-grpc` (proto trees,
+  `build.rs` and generated modules, unchanged — the Qdrant-compatible surface
+  stays gRPC for external Qdrant clients). `vectorizer-sdk` is consequently the
+  only crate this repo publishes: the Rust publish workflow no longer releases
+  a first-party wire crate ahead of the SDK.
+
 ### Dependencies
 
 - **3.6.0 dependency refresh.** Cargo: thiserror 2.0.19, tokio 1.53.0,
@@ -22,7 +62,7 @@ All notable changes to this project will be documented in this file.
   each SDK on `release: published`, version-gated to the tag and gated on the
   SDK's tests. No long-lived registry tokens: PyPI + npm use OIDC Trusted
   Publishing (npm adds provenance), NuGet exchanges OIDC for a short-lived key
-  via `NuGet/login`, crates.io uses `crates-io-auth-action` (protocol then SDK),
+  via `NuGet/login`, crates.io uses `crates-io-auth-action` (the SDK crate only,
   and Go warms the module proxy for the `vectorizer-sdk-go` submodule tag. Each
   workflow has a `workflow_dispatch` dry-run path (TestPyPI / `--dry-run` /
   pack-only). Registry-side setup and the release flow are documented in
