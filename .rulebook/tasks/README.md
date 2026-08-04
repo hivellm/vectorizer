@@ -8,7 +8,7 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
-| ⬚ | phase1_bump-openraft-alpha30 | 0/6 | bump openraft alpha30 |
+| ⬚ | phase1_fix-query-cache-prometheus-counter | 0/6 | fix query cache prometheus counter |
 
 ## phase2
 

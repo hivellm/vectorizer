@@ -134,9 +134,10 @@ tar = "0.4"
 flate2 = "1.1"
 tantivy = "0.26"
 
-# Openraft (replication)
-openraft = { version = "=0.10.0-alpha.22", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.22"
+# Openraft (replication) — pinned with `=`; see the rationale on the same
+# pins in crates/vectorizer/Cargo.toml. Bump both crates together.
+openraft = { version = "=0.10.0-alpha.30", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.30"
 
 # Prometheus / OTel
 prometheus = "0.14"

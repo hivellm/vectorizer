@@ -826,3 +826,210 @@ async fn test_vector_replication_operation_construction() {
         _ => panic!("Expected InsertVector"),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Test 21: Live three-node cluster — election, replication over gRPC, failover
+// ---------------------------------------------------------------------------
+
+/// Bind `127.0.0.1` to a free port and drop the listener so tonic can take it.
+async fn free_port() -> (u16, std::net::SocketAddr) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    drop(listener);
+    (addr.port(), addr)
+}
+
+/// One node of the live cluster: its Raft manager plus the task serving its
+/// Raft RPC endpoints.
+struct LiveNode {
+    id: u64,
+    port: u16,
+    raft: Arc<RaftManager>,
+    server: tokio::task::JoinHandle<()>,
+}
+
+/// Stand up a node whose gRPC service actually serves vote / append-entries /
+/// snapshot, so peers reach it over a real socket.
+async fn spawn_live_node(id: u64) -> LiveNode {
+    use vectorizer::cluster::{ClusterGrpcService, ClusterManager};
+    use vectorizer_grpc::grpc_gen::cluster::cluster_service_server::ClusterServiceServer;
+
+    let raft = Arc::new(RaftManager::new(id).await.expect("raft manager"));
+    let cluster_manager = Arc::new(
+        ClusterManager::new(vectorizer::cluster::ClusterConfig {
+            enabled: true,
+            node_id: Some(format!("node-{id}")),
+            ..Default::default()
+        })
+        .expect("cluster manager"),
+    );
+    let service = ClusterGrpcService::new(
+        Arc::new(VectorStore::new()),
+        cluster_manager,
+        Some(raft.clone()),
+    );
+
+    let (port, addr) = free_port().await;
+    let server = tokio::spawn(async move {
+        let _ = tonic::transport::Server::builder()
+            .add_service(ClusterServiceServer::new(service))
+            .serve(addr)
+            .await;
+    });
+
+    LiveNode {
+        id,
+        port,
+        raft,
+        server,
+    }
+}
+
+/// Poll the given nodes until exactly one reports itself leader, or give up.
+async fn await_leader(nodes: &[&LiveNode], within: Duration) -> Option<u64> {
+    let deadline = tokio::time::Instant::now() + within;
+    while tokio::time::Instant::now() < deadline {
+        for node in nodes {
+            if node.raft.is_leader().await {
+                return Some(node.id);
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    None
+}
+
+/// The bump this test guards: openraft is pinned with `=` because the
+/// consensus layer must not drift between alphas, and alpha.22 -> alpha.30
+/// carried consensus fixes (stale replication acks after log reversion, hung
+/// follower freezing RaftCore, snapshot install on a purged log) plus one
+/// breaking change — `SnapshotData` moved off `RaftTypeConfig`.
+///
+/// Every other test in this file drives a single Raft node, or bootstraps
+/// membership against addresses that never answer. None of them prove that
+/// three nodes elect a leader, replicate a command over the wire, and survive
+/// losing the leader. This one does, against real gRPC sockets.
+#[tokio::test]
+async fn test_live_three_node_election_replication_and_failover() {
+    let node_a = spawn_live_node(1).await;
+    let node_b = spawn_live_node(2).await;
+    let node_c = spawn_live_node(3).await;
+    // Let the three servers finish binding before anyone dials.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+
+    let mut members = BTreeMap::new();
+    for node in [&node_a, &node_b, &node_c] {
+        members.insert(
+            node.id,
+            RaftNodeInfo {
+                address: "127.0.0.1".to_string(),
+                grpc_port: node.port,
+            },
+        );
+    }
+
+    // Only the first node bootstraps; the others join through the membership
+    // entry the leader replicates to them.
+    node_a
+        .raft
+        .initialize_cluster(members)
+        .await
+        .expect("bootstrap three-node cluster");
+
+    let all = [&node_a, &node_b, &node_c];
+    let leader_id = await_leader(&all, Duration::from_secs(20))
+        .await
+        .expect("three-node cluster must elect a leader");
+
+    let leader = all
+        .iter()
+        .find(|n| n.id == leader_id)
+        .expect("leader is one of the three");
+    let followers: Vec<&&LiveNode> = all.iter().filter(|n| n.id != leader_id).collect();
+
+    // A command accepted by the leader must reach the followers' state
+    // machines, which only happens if append-entries crossed the socket.
+    let response = leader
+        .raft
+        .propose(ClusterCommand::AddNode {
+            node_id: 42,
+            address: "10.0.0.42".to_string(),
+            grpc_port: 15003,
+        })
+        .await
+        .expect("leader must accept a write");
+    assert!(response.success, "propose reported failure: {response:?}");
+
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    let mut replicated = 0;
+    while tokio::time::Instant::now() < deadline {
+        replicated = 0;
+        for follower in &followers {
+            if follower.raft.state().await.nodes.contains_key(&42) {
+                replicated += 1;
+            }
+        }
+        if replicated == followers.len() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    assert_eq!(
+        replicated,
+        followers.len(),
+        "the write reached {replicated}/{} followers — replication over gRPC is broken",
+        followers.len()
+    );
+
+    // Failover: kill the leader outright. Two of three remain, which is still
+    // a quorum, so a new leader must emerge and accept writes.
+    leader
+        .raft
+        .raft()
+        .shutdown()
+        .await
+        .expect("shutdown leader");
+    leader.server.abort();
+
+    let survivors: Vec<&LiveNode> = followers.iter().map(|n| **n).collect();
+    let new_leader_id = await_leader(&survivors, Duration::from_secs(25))
+        .await
+        .expect("surviving majority must elect a new leader");
+    assert_ne!(
+        new_leader_id, leader_id,
+        "the killed leader cannot be the new leader"
+    );
+
+    let new_leader = survivors
+        .iter()
+        .find(|n| n.id == new_leader_id)
+        .expect("new leader is a survivor");
+    let after_failover = new_leader
+        .raft
+        .propose(ClusterCommand::AddNode {
+            node_id: 43,
+            address: "10.0.0.43".to_string(),
+            grpc_port: 15003,
+        })
+        .await
+        .expect("the new leader must accept a write after failover");
+    assert!(after_failover.success);
+
+    // The pre-failover entry survived the leader change, and the new one landed.
+    let state = new_leader.raft.state().await;
+    assert!(
+        state.nodes.contains_key(&42),
+        "the pre-failover write was lost"
+    );
+    assert!(
+        state.nodes.contains_key(&43),
+        "the post-failover write was lost"
+    );
+
+    for node in survivors {
+        let _ = node.raft.raft().shutdown().await;
+        node.server.abort();
+    }
+}

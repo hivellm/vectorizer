@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **openraft 0.10.0-alpha.22 → 0.10.0-alpha.30** (Dependabot #382), consensus
+  layer. Both `openraft` and `openraft-memstore` stay pinned with `=` so the
+  consensus layer cannot drift between alphas; the sibling crates
+  (`openraft-macros`, `openraft-rt`, `openraft-rt-tokio`) are pinned to
+  alpha.30 in `Cargo.lock` as well, because upstream declares them with a
+  caret and Cargo had resolved them to alpha.32 — a combination upstream does
+  not ship together.
+  - The bump carries consensus fixes worth having: stale replication acks
+    after a log reversion are now rejected, a hung follower no longer freezes
+    the `RaftCore` loop, a dropped responder errors instead of hanging,
+    snapshot install resets purged membership, a follower behind a fully
+    purged log gets a snapshot, and the election timeout is resampled per
+    campaign.
+  - **API change adapted:** alpha.29 moved `SnapshotData` off
+    `RaftTypeConfig` and onto the components that produce and consume
+    snapshot bytes. `RaftStateMachine`, `RaftSnapshotBuilder` and
+    `RaftNetworkV2` each declare `type SnapshotData` now, and the aliases
+    take two parameters (`SnapshotOf<C, SD>`, `SnapshotDataOf<C, SM>`). A
+    single `ClusterSnapshotData` alias in `cluster::raft_node` keeps the three
+    impls in step.
+  - **HA re-validated on a live cluster**, which the pin's own rationale
+    requires. The existing suite only drove one Raft node or bootstrapped
+    against addresses that never answer, so a new test stands up three nodes
+    with real gRPC servers on loopback and asserts the full path: a leader is
+    elected, a command replicates to both followers over the wire, the leader
+    is then killed, the surviving majority elects a new leader, and both the
+    pre- and post-failover writes are present. It passed five consecutive
+    runs.
+
 ### Added
 
 - **VectorizerRPC now covers the whole data plane.** RPC is the default

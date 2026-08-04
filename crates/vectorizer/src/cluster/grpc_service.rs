@@ -932,7 +932,10 @@ impl ClusterServiceTrait for ClusterGrpcService {
 
         let snapshot_cursor = Cursor::new(inner.snapshot_data);
 
-        let snapshot = openraft::alias::SnapshotOf::<crate::cluster::raft_node::TypeConfig> {
+        let snapshot = openraft::alias::SnapshotOf::<
+            crate::cluster::raft_node::TypeConfig,
+            crate::cluster::raft_node::ClusterSnapshotData,
+        > {
             meta,
             snapshot: snapshot_cursor,
         };
