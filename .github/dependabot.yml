@@ -103,3 +103,38 @@ updates:
   # NOTE: sdks/rust is a workspace member sharing the root Cargo.lock,
   # so the root "cargo" entry above already covers it — a separate
   # /sdks/rust entry would open duplicate PRs.
+
+  # Front-end manifests. These were missing, which made their alerts
+  # invisible in practice: Dependabot *alerts* scan every manifest in the
+  # repo, but *updates* — including security updates — only run for
+  # directories listed here. The result was 16 open npm alerts (8 high)
+  # sitting in dashboard/ and gui/ with no PR ever opened for them, while
+  # every configured ecosystem stayed current. The dashboard ships inside
+  # the release artifact, so its bundle is production surface.
+  - package-ecosystem: "npm"
+    directory: "/dashboard"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "dashboard"
+
+  - package-ecosystem: "npm"
+    directory: "/gui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "gui"
