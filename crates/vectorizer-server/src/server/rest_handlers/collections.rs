@@ -731,9 +731,10 @@ pub async fn reencode_collection(
 /// (`PATCH /collections/{name}/vectors/{id}/expiry`) is more specific
 /// than the collection rule.
 ///
-/// The TTL rule is process-scoped: it lives in the store metadata map,
-/// which is not persisted, so it must be re-applied after a restart. The
-/// stamps it produced are durable (they are part of the payload).
+/// The rule is durable: it is written to the `.vecdb` archive with the
+/// collection and restored on load, so it survives a restart. It reaches
+/// disk on the next compaction, which this handler requests by marking the
+/// store changed.
 pub async fn set_collection_ttl(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
@@ -767,6 +768,13 @@ pub async fn set_collection_ttl(
     };
 
     state.store.set_collection_ttl(&collection_name, ttl_secs);
+
+    // The rule now lives in the `.vecdb` archive, so it needs a compaction to
+    // reach disk.
+    if let Some(ref auto_save) = state.auto_save_manager {
+        auto_save.mark_changed();
+    }
+
     match ttl_secs {
         Some(secs) => info!(
             "set_collection_ttl '{}': ttl_secs={}",
@@ -786,8 +794,7 @@ pub async fn set_collection_ttl(
 ///
 /// Returns `{"collection", "ttl_secs"}` with `ttl_secs: null` when no TTL
 /// is configured. Exists so a caller can verify that a `POST …/ttl` took
-/// effect, and so the process-scoped nature of the setting is observable
-/// after a restart.
+/// effect, including after a restart.
 pub async fn get_collection_ttl(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,

@@ -290,9 +290,13 @@ is more specific than the collection rule. A payload whose JSON root is
 not an object cannot hold the field and is rejected rather than stored
 without an expiry.
 
-The rule itself lives in the process-scoped store metadata map (key
-`ttl:<collection>`), so it must be re-applied after a restart; the stamps
-it produced are durable, because they are part of the payload.
+The rule is durable: it is written to the collection's `.vecdb` record as
+`PersistedCollection.ttl_secs` and restored on load, so it survives a
+restart and a native-snapshot restore. `collections.set_ttl` is therefore
+listed in `command_mutates`, which marks the store for the compaction that
+writes it out. In memory it is held under the store metadata key
+`ttl:<collection>`, resolved through the alias table so an alias sees its
+target's rule.
 
 ### Vectors
 

@@ -44,10 +44,37 @@ All notable changes to this project will be documented in this file.
   - A payload whose JSON root is not an object has nowhere to hold
     `__expires_at`, so such an insert is rejected while a TTL is configured
     instead of being stored without an expiry.
-  - **Known limitation:** the rule lives in the process-scoped store metadata
-    map (like `replication_role`) and is not persisted, so it must be
-    re-applied after a restart. The stamps it already produced are durable.
-    Tracked in `phase1_persist-collection-ttl-config`.
+
+- **A collection TTL survives a restart.** The rule was applied to every insert
+  but lived only in the process, in the store metadata map (like
+  `replication_role`), which nothing writes to disk. So after a restart new
+  inserts silently stopped expiring while `GET …/ttl` honestly reported `null` —
+  a collection that was expiring vectors yesterday quietly accumulated immortal
+  ones today.
+  - The rule now travels with the collection as
+    `PersistedCollection::ttl_secs`: `.vecdb` compaction writes it, the boot
+    loader restores it, and a native snapshot carries it too. The field is
+    `#[serde(default)]`, so archives written before it existed load as "no TTL",
+    which is the behaviour they were saved with.
+  - `POST …/ttl` and `collections.set_ttl` mark the store changed, so the rule
+    reaches disk on the next compaction — the same flush that persists vectors.
+    `collections.set_ttl` therefore joins `command_mutates`.
+  - Restoring must not extend a vector's life: the load path writes into the
+    collection directly rather than through `VectorStore::insert`, so restored
+    vectors keep the expiry they were saved with instead of being re-stamped
+    from the load time. The test asserts the exact timestamp, not just its
+    presence.
+  - Fixed three lifecycle holes found while wiring this up: `DELETE
+    /collections/{n}` left `ttl:{name}` behind for the next collection created
+    under that name to inherit; `POST …/rename` left it under the old key, so
+    the renamed collection stopped expiring; and writes addressed to an alias —
+    including the grace-window alias a rename leaves behind — looked up
+    `ttl:{alias}`, a key nobody sets. The rule is now keyed canonically and
+    resolved through the alias table.
+  - The rule itself is still not replicated. Replicas expire the same vectors
+    because the `__expires_at` stamps arrive as vector data, but a replica
+    promoted to master should have the rule re-applied or be restarted from the
+    master's archive. Documented in the API reference.
 
 - **An expired vector stops being served immediately.** Reads did not consult
   `__expires_at` at all, so removal was entirely up to the TTL reaper's sweep —

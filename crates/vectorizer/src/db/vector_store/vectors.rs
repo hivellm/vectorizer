@@ -465,4 +465,104 @@ mod tests {
             .and_then(|p| p.expires_at());
         assert_eq!(expiry, None);
     }
+
+    #[test]
+    fn inserting_through_an_alias_still_applies_the_ttl() {
+        let store = store_with_collection();
+        store.create_alias("ttl_stamp_v1", COLLECTION).unwrap();
+        store.set_collection_ttl(COLLECTION, Some(60));
+
+        store
+            .insert(
+                "ttl_stamp_v1",
+                vec![vector_with(
+                    "v1",
+                    Some(Payload::new(serde_json::json!({ "tag": "a" }))),
+                )],
+            )
+            .unwrap();
+
+        assert!(
+            stored_expiry(&store, "v1").is_some(),
+            "an alias addresses the same collection, so it carries the same \
+             TTL — otherwise a rename's grace alias becomes a hole in the rule"
+        );
+    }
+
+    #[test]
+    fn deleting_a_collection_takes_its_ttl_rule_with_it() {
+        let store = store_with_collection();
+        store.set_collection_ttl(COLLECTION, Some(60));
+
+        store.delete_collection(COLLECTION).unwrap();
+        assert_eq!(
+            store.collection_ttl(COLLECTION),
+            None,
+            "a stale rule would silently apply to the next collection created \
+             under this name"
+        );
+
+        // Prove it by re-creating and inserting.
+        store
+            .create_collection(
+                COLLECTION,
+                CollectionConfig {
+                    dimension: 4,
+                    metric: DistanceMetric::Cosine,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        store
+            .insert(
+                COLLECTION,
+                vec![vector_with(
+                    "v1",
+                    Some(Payload::new(serde_json::json!({ "tag": "a" }))),
+                )],
+            )
+            .unwrap();
+        assert_eq!(stored_expiry(&store, "v1"), None);
+    }
+
+    #[test]
+    fn renaming_a_collection_carries_its_ttl_rule_over() {
+        let store = store_with_collection();
+        store.set_collection_ttl(COLLECTION, Some(60));
+
+        store
+            .rename_collection(COLLECTION, "ttl_stamp_renamed")
+            .unwrap();
+
+        assert_eq!(
+            store.collection_ttl("ttl_stamp_renamed"),
+            Some(60),
+            "the renamed collection must keep expiring its vectors"
+        );
+        assert_eq!(
+            store.collection_ttls(),
+            vec![("ttl_stamp_renamed".to_string(), 60)],
+            "and the rule must not be left behind under the old key"
+        );
+
+        store
+            .insert(
+                "ttl_stamp_renamed",
+                vec![vector_with(
+                    "v1",
+                    Some(Payload::new(serde_json::json!({ "tag": "a" }))),
+                )],
+            )
+            .unwrap();
+        let expiry = store
+            .get_collection("ttl_stamp_renamed")
+            .unwrap()
+            .get_all_vectors()
+            .into_iter()
+            .find(|v| v.id == "v1")
+            .unwrap()
+            .payload
+            .and_then(|p| p.expires_at());
+        assert!(expiry.is_some());
+    }
 }

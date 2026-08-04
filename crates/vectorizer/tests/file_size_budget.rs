@@ -62,7 +62,7 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/collections.rs",
-        1030,
+        1035,
         "7 handlers incl. list/create + phase13 reencode_collection / \
          set_collection_ttl + get_collection_ttl + phase14 rename / \
          reindex / native snapshot CRUD (snapshot_native, \
@@ -74,7 +74,8 @@ const BUDGETS: &[(&str, usize, &str)] = &[
          provider_dimension_mismatch instead of silent BM25 coercion). \
          +20 in phase1_collection-ttl-is-never-applied: the TTL pair \
          now routes through VectorStore::set_collection_ttl, rejects \
-         ttl_secs=0, and documents the process-scoped lifetime. \
+         ttl_secs=0, and marks the store for the compaction that \
+         persists the rule (phase1_persist-collection-ttl-config). \
          Re-tighten when the schema-evolution endpoints split out \
          (follow-up task).",
     ),

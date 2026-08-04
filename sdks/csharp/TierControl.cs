@@ -188,8 +188,8 @@ public partial class VectorizerClient
     /// reaper once that timestamp passes. Existing vectors are not
     /// retroactively expired, and a vector that already carries its own
     /// __expires_at keeps it.
-    /// The rule is process-scoped on the server: re-apply it after a restart.
-    /// The stamps it produced are durable.
+    /// The rule is durable: the server stores it with the collection and
+    /// restores it on load, so it still applies after a restart.
     /// For per-vector expiry use <see cref="SetVectorExpiryAsync"/>.
     /// </summary>
     /// <param name="name">Collection name.</param>

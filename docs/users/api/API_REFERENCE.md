@@ -2077,10 +2077,21 @@ before the sweep.
   the `PATCH` response reports the expiry that is actually stored.
 - A payload whose JSON root is not an object cannot hold the field, so the
   insert is rejected rather than stored without an expiry.
-- The rule itself is **process-scoped** (store metadata key
-  `ttl:<collection>`, not persisted): re-apply it after a restart. The stamps
-  it produced are durable, because they live in the payload — which is also
-  why replicas expire the same vectors without needing the rule.
+- The rule is **durable**: it is written to the `.vecdb` archive with the
+  collection (`PersistedCollection.ttl_secs`) and restored on load, so it
+  still applies after a restart, and a native snapshot restores it too. It
+  reaches disk on the next compaction — the same flush that persists vectors —
+  so `POST …/ttl` marks the store changed. Archives written before the field
+  existed load as "no TTL", which is the behaviour they were saved with.
+- The rule follows the collection through its lifecycle: `DELETE
+  /collections/{n}` drops it (so the next collection created under that name
+  does not inherit an old expiry policy), `POST …/rename` carries it over, and
+  an alias resolves to its target's rule — including the grace-window alias a
+  rename leaves behind.
+- Replicas receive the `__expires_at` stamps as vector data and expire the
+  same vectors without needing the rule; the rule itself is not replicated, so
+  a replica promoted to master should have it re-applied (or be restarted from
+  the master's archive).
 
 ### Filter shape
 

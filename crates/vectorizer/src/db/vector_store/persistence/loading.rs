@@ -189,6 +189,14 @@ impl VectorStore {
 
             match self.create_collection_with_quantization(collection_name, config.clone()) {
                 Ok(_) => {
+                    // Restore the collection TTL rule. Applying it before the
+                    // vectors land is safe: `load_collection_from_cache` writes
+                    // into the collection directly rather than through
+                    // `VectorStore::insert`, so restored vectors keep the
+                    // expiry they were saved with instead of being re-stamped
+                    // from the load time.
+                    self.set_collection_ttl(collection_name, persisted_collection.ttl_secs);
+
                     // Enable graph BEFORE loading vectors if graph is enabled in config
                     if config.graph.as_ref().map(|g| g.enabled).unwrap_or(false) {
                         if let Err(e) = self.enable_graph_for_collection(collection_name) {
@@ -622,6 +630,11 @@ impl VectorStore {
         config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
 
         self.create_collection_with_quantization(collection_name, config.clone())?;
+
+        // Restore the collection TTL rule (see the note in
+        // `load_all_persisted_collections`: cache loading bypasses
+        // `VectorStore::insert`, so this does not re-stamp restored vectors).
+        self.set_collection_ttl(collection_name, persisted_collection.ttl_secs);
 
         // Enable graph BEFORE loading vectors if graph is enabled in config
         if config.graph.as_ref().map(|g| g.enabled).unwrap_or(false) {

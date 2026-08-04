@@ -335,17 +335,16 @@ fn replicate_vectors(
 ///
 /// Auth and workspace mutations are deliberately excluded: they persist
 /// through their own stores (`AuthPersistence`, `workspace.yml`), not through
-/// the vector-store compaction path this flag drives. `collections.set_ttl`
-/// is excluded for the same reason: it writes the process-scoped store
-/// metadata map, which compaction does not read. The `__expires_at` stamps
-/// it causes ride along with the vectors, which are covered by the insert
-/// commands below.
+/// the vector-store compaction path this flag drives.
 fn command_mutates(command: &str) -> bool {
     matches!(
         command,
         "collections.create"
             | "collections.delete"
             | "collections.cleanup_empty"
+            // The TTL rule is stored in the collection's `.vecdb` record, so a
+            // change to it has to survive a restart like any other write.
+            | "collections.set_ttl"
             | "vectors.insert"
             | "vectors.insert_text"
             | "vectors.update"
@@ -4718,6 +4717,10 @@ fn handle_collections_get_stats(
 /// pass `Null`, to clear the TTL. From then on every insert / update on the
 /// collection carries `__expires_at = now + ttl_secs` and the TTL reaper
 /// deletes it once that timestamp passes.
+///
+/// The rule is stored in the collection's `.vecdb` record and restored on
+/// load, so it survives a restart. [`command_mutates`] lists this command,
+/// which is what marks the store for the compaction that writes it out.
 fn handle_collections_set_ttl(
     state: &Arc<RpcState>,
     id: u32,

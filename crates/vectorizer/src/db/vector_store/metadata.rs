@@ -79,15 +79,14 @@ impl VectorStore {
     /// `VectorStore::update` read it and stamp `__expires_at` on the
     /// vector payload, which is what the [`TtlReaper`] then sweeps.
     ///
-    /// Like every other entry in the store metadata map (e.g.
-    /// `replication_role`), this is process-scoped: it is not written to
-    /// disk, so it must be re-applied after a restart. The per-vector
-    /// `__expires_at` stamps it produced *are* durable, because they live
-    /// in the payload.
+    /// The rule is durable: it is written to the `.vecdb` archive as
+    /// `PersistedCollection::ttl_secs` and restored on load, so it survives
+    /// a restart. It is keyed by the collection's canonical name, so an
+    /// alias resolves to the same rule as its target.
     ///
     /// [`TtlReaper`]: crate::db::TtlReaper
     pub fn set_collection_ttl(&self, collection: &str, ttl_secs: Option<u64>) {
-        let key = Self::collection_ttl_key(collection);
+        let key = self.collection_ttl_key(collection);
         match ttl_secs {
             Some(secs) => {
                 self.metadata.insert(key, secs.to_string());
@@ -105,7 +104,7 @@ impl VectorStore {
     /// must not make every insert fail.
     pub fn collection_ttl(&self, collection: &str) -> Option<u64> {
         self.metadata
-            .get(&Self::collection_ttl_key(collection))
+            .get(&self.collection_ttl_key(collection))
             .and_then(|entry| entry.value().parse::<u64>().ok())
     }
 
@@ -121,8 +120,18 @@ impl VectorStore {
             .collect()
     }
 
-    fn collection_ttl_key(collection: &str) -> String {
-        format!("{}{}", COLLECTION_TTL_PREFIX, collection)
+    /// The metadata key holding `collection`'s TTL, resolved through the
+    /// alias table so a write or an insert addressed to an alias — including
+    /// the grace-window alias `rename_collection` leaves behind — sees the
+    /// target's rule rather than a key nobody reads.
+    ///
+    /// Falls back to the raw name when resolution fails (an alias loop),
+    /// because a corrupt alias table must not make every insert error.
+    fn collection_ttl_key(&self, collection: &str) -> String {
+        let canonical = self
+            .resolve_alias_target(collection)
+            .unwrap_or_else(|_| collection.to_string());
+        format!("{}{}", COLLECTION_TTL_PREFIX, canonical)
     }
 }
 
@@ -131,6 +140,7 @@ impl VectorStore {
 pub const COLLECTION_TTL_PREFIX: &str = "ttl:";
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -187,5 +197,38 @@ mod tests {
             vec![("docs".to_string(), 30)],
             "only ttl:* keys are TTL configuration"
         );
+    }
+
+    #[test]
+    fn an_alias_reads_and_writes_its_targets_ttl() {
+        let store = VectorStore::new();
+        store
+            .create_collection("docs", collection_config())
+            .expect("create");
+        store.create_alias("docs_v1", "docs").expect("alias");
+
+        store.set_collection_ttl("docs", Some(60));
+        assert_eq!(
+            store.collection_ttl("docs_v1"),
+            Some(60),
+            "an insert addressed to the alias must see the target's rule"
+        );
+
+        // Writing through the alias must not mint a second, unread key.
+        store.set_collection_ttl("docs_v1", Some(120));
+        assert_eq!(store.collection_ttl("docs"), Some(120));
+        assert_eq!(
+            store.collection_ttls(),
+            vec![("docs".to_string(), 120)],
+            "the rule is keyed canonically"
+        );
+    }
+
+    fn collection_config() -> crate::models::CollectionConfig {
+        crate::models::CollectionConfig {
+            dimension: 4,
+            metric: crate::models::DistanceMetric::Cosine,
+            ..Default::default()
+        }
     }
 }
