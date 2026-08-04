@@ -319,16 +319,9 @@ async function loadWorkspaceConfig(): Promise<void> {
       return;
     }
     
-    const response = await fetch(`${client.config.baseURL}/api/workspace/config`, {
-      headers: client.config.apiKey ? {
-        'Authorization': `Bearer ${client.config.apiKey}`
-      } : {}
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to load workspace config: ${response.statusText}`);
-    }
-    
-    const config = await response.json();
+    // `getWorkspaceConfig()` is typed as the raw `Record<string, unknown>` the
+    // server sends; this view models the same document as `WorkspaceConfig`.
+    const config = (await client.getWorkspaceConfig()) as unknown as WorkspaceConfig;
     workspaceConfig.value = config;
     
     // Convert arrays to strings for textarea editing
@@ -368,11 +361,17 @@ async function saveWorkspaceConfig(): Promise<void> {
       });
     });
 
-    const response = await fetch(`${client.config.baseURL}/api/workspace/config`, {
+    // The SDK exposes `getWorkspaceConfig()` but has no writer, so this one
+    // call stays hand-rolled. Two things changed: the route is `/workspace/config`
+    // (the server has no `/api` prefix — every one of these fetches used to
+    // 404), and the base URL / key come from `getConfig()`, the supported
+    // accessor that replaced the removed `client.config` property.
+    const { baseURL, apiKey } = client.getConfig();
+    const response = await fetch(`${baseURL}/workspace/config`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
+        ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {})
       },
       body: JSON.stringify(configToSave)
     });

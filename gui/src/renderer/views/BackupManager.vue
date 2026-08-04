@@ -160,19 +160,12 @@ async function loadBackups(): Promise<void> {
       console.error('Vectorizer client not initialized');
       return;
     }
-    
-    const response = await fetch(`${client.config.baseURL}/api/backups`, {
-      headers: client.config.apiKey ? {
-        'Authorization': `Bearer ${client.config.apiKey}`
-      } : {}
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to load backups: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    backups.value = data.backups || [];
+
+    // `listBackupInfos` (not `listBackups`) is the one that hits the route the
+    // server actually serves — `GET /backups`. `listBackups` targets
+    // `/backups/list`, which does not exist. Its `BackupInfo[]` is also
+    // field-for-field the shape this view renders.
+    backups.value = await client.listBackupInfos();
   } catch (error) {
     console.error('Failed to load backups:', error);
     await dialog.alert(
@@ -192,18 +185,11 @@ async function loadBackupDirectory(): Promise<void> {
       return;
     }
     
-    const response = await fetch(`${client.config.baseURL}/api/backups/directory`, {
-      headers: client.config.apiKey ? {
-        'Authorization': `Bearer ${client.config.apiKey}`
-      } : {}
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to load backup directory: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    backupDirectory.value = data.path || './backups';
+    // The server answers `{path}` — verified against a running 3.6.0 server.
+    // The SDK's return type declares `{directory}`, so reading that field alone
+    // would silently fall back to the hardcoded default on every call.
+    const response = (await client.getBackupDirectory()) as { directory?: string; path?: string };
+    backupDirectory.value = response.path ?? response.directory ?? './backups';
   } catch (error) {
     console.error('Failed to load backup directory:', error);
     backupDirectory.value = './backups';
@@ -226,21 +212,12 @@ async function confirmCreateBackup(): Promise<void> {
       return;
     }
     
-    const response = await fetch(`${client.config.baseURL}/api/backups/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
-      },
-      body: JSON.stringify({
-        name: newBackup.value.name,
-        collections: newBackup.value.selectedCollections
-      })
+    // `createBackupTyped` carries the collection selection; the untyped
+    // `createBackup` only accepts a name and would silently back up everything.
+    await client.createBackupTyped({
+      name: newBackup.value.name,
+      collections: newBackup.value.selectedCollections
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create backup: ${response.statusText}`);
-    }
 
     await dialog.alert('Backup created successfully!', 'Success');
     createBackupModal.value = false;
@@ -271,21 +248,11 @@ async function restoreBackup(backupId: string): Promise<void> {
       return;
     }
     
-    const response = await fetch(`${client.config.baseURL}/api/backups/restore`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
-      },
-      body: JSON.stringify({
-        backup_id: backupId
-      })
-    });
+    // `restoreBackupTyped` sends `{backup_id}`, which is the field the server
+    // reads. The untyped `restoreBackup` sends `{filename}` and the restore
+    // would fail validation.
+    await client.restoreBackupTyped({ backup_id: backupId });
 
-    if (!response.ok) {
-      throw new Error(`Failed to restore backup: ${response.statusText}`);
-    }
-    
     await dialog.alert('Backup restored successfully. Refreshing data...', 'Success');
     await vectorizerStore.loadCollections();
   } catch (error) {

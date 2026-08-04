@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Search responses satisfy the published SDK validators.** The TypeScript SDK
+  validates every search envelope and every hit, and rejected both: it requires
+  `total` where the server sent only `total_results`, and a non-empty `data`
+  array where the server sent `vector`. A *successful* search therefore threw
+  inside the client (`Search response total must be a non-negative number`,
+  then `Search result data must be a non-empty array`) — reproduced with
+  `@hivehub/vectorizer-sdk` 3.6.0 against a running 3.6.0 server. All three
+  affected handlers — `search_vectors_by_text`, `hybrid_search_vectors`,
+  `search_by_file` — now mirror both field names. Additive: `total_results` and
+  `vector` stay for the callers already reading them.
+
 ### Changed
 
 - **BREAKING (Python SDK): `search_vectors`, `get_vector` and `embed_text`

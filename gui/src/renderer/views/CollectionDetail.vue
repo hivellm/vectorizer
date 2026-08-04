@@ -356,6 +356,9 @@ async function insertData(): Promise<void> {
 }
 
 function viewVectorDetails(vector: SearchResult): void {
+  // The hit already carries the embedding (`vector`), so there is nothing to
+  // fetch — the Dimensions and Vector Data panels render straight from it and
+  // are guarded by `v-if` for the search routes that omit the field.
   selectedVector.value = vector;
 }
 

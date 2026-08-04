@@ -691,27 +691,22 @@ async function loadConfig(): Promise<void> {
       return;
     }
     
-    const response = await fetch(`${client.config.baseURL}/api/config`, {
-      headers: client.config.apiKey ? {
-        'Authorization': `Bearer ${client.config.apiKey}`
-      } : {}
-    });
-    
-    if (response.ok) {
-      const configData = await response.json();
-      Object.assign(config, configData);
-      
-      // Convert to YAML for the YAML editor
-      try {
-        const yaml = await import('js-yaml');
-        yamlContent.value = yaml.dump(configData, { indent: 2, lineWidth: 120 });
-      } catch (e) {
-        // Fallback to JSON if js-yaml is not available
-        yamlContent.value = JSON.stringify(configData, null, 2);
-      }
-      
-      isDirty.value = false;
+    // `getServerConfig()` reads the server's config.yml (GET /config).
+    // Not to be confused with `getConfig()`, which returns this client's own
+    // connection settings.
+    const configData = await client.getServerConfig();
+    Object.assign(config, configData);
+
+    // Convert to YAML for the YAML editor
+    try {
+      const yaml = await import('js-yaml');
+      yamlContent.value = yaml.dump(configData, { indent: 2, lineWidth: 120 });
+    } catch (e) {
+      // Fallback to JSON if js-yaml is not available
+      yamlContent.value = JSON.stringify(configData, null, 2);
     }
+
+    isDirty.value = false;
   } catch (error) {
     console.error('Failed to load config:', error);
   }
@@ -742,22 +737,15 @@ async function saveAndRestart(): Promise<void> {
       payload = config;
     }
 
-    const response = await fetch(`${client.config.baseURL}/api/config`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(client.config.apiKey ? { 'Authorization': `Bearer ${client.config.apiKey}` } : {})
-      },
-      body: JSON.stringify(payload)
-    });
+    const result = await client.updateConfig(payload as Record<string, unknown>);
 
-    if (response.ok) {
+    if (result.success) {
       isDirty.value = false;
       showSuccessToast('Configuration saved successfully!');
       // Reload to sync all tabs
       await loadConfig();
     } else {
-      showSuccessToast('Failed to save configuration');
+      showSuccessToast(result.message || 'Failed to save configuration');
     }
   } catch (error) {
     console.error('Failed to save config:', error);

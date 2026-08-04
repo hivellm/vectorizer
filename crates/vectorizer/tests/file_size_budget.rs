@@ -113,12 +113,18 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/search.rs",
-        1050,
+        1085,
         "7 search-family handlers + hybrid search (dense + sparse + \
          rank-fusion + per-axis weights) + batch_search_vectors + \
          search_by_file + search_by_collection variants + Qdrant-shape \
          adapters + phase14 explain_search HNSW execution-trace handler. \
          Grew to 1045 LOC with the phase12-16 SDK-parity handlers. \
+         +26 in phase2_update-gui-to-thunder-sdk: the three result \
+         builders (text, hybrid, the shared raw-vector pipeline) mirror \
+         `vector` as `data`, their envelopes mirror `total_results` as \
+         `total`, and the search_by_file stub answers both counts — the \
+         published SDK validators reject a hit or an envelope without \
+         those field names and threw on every successful search. \
          Split across concern axes is blocked until the hybrid-search \
          task lands (phase7_hybrid-search-extraction); re-tighten this \
          budget there.",

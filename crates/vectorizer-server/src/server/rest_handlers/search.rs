@@ -122,18 +122,30 @@ pub async fn search_vectors_by_text(
                 "id": result.id,
                 "score": result.score,
                 "vector": result.vector,
+                // SDK-compat mirror: the published clients validate each hit
+                // and require a non-empty `data` array (see the note on
+                // `total` in the response envelope).
+                "data": result.vector,
                 "payload": result.payload.map(|p| p.data)
             })
         })
         .collect();
 
     // Build response
+    //
+    // `total` duplicates `total_results` on purpose: the published SDKs
+    // validate the envelope and reject a response whose `total` is not a
+    // number, so a successful search used to throw inside the client
+    // (`Search response total must be a non-negative number` — reproduced with
+    // @hivehub/vectorizer-sdk 3.6.0 against this endpoint). Adding the field is
+    // additive; `total_results` stays for the callers already reading it.
     let response = json!({
         "results": results,
         "query": query,
         "limit": limit,
         "collection": collection_name,
-        "total_results": results.len()
+        "total_results": results.len(),
+        "total": results.len()
     });
 
     // Cache the result
@@ -301,6 +313,10 @@ pub async fn hybrid_search_vectors(
                 "id": result.id,
                 "score": result.score,
                 "vector": result.vector,
+                // SDK-compat mirror: the published clients validate each hit
+                // and require a non-empty `data` array (see the note on
+                // `total` in the response envelope).
+                "data": result.vector,
                 "payload": result.payload.map(|p| p.data)
             })
         })
@@ -318,7 +334,9 @@ pub async fn hybrid_search_vectors(
         "collection": collection_name,
         "alpha": alpha,
         "algorithm": algorithm_str,
-        "total_results": results.len()
+        "total_results": results.len(),
+        // SDK-compat mirror — see search_vectors_by_text.
+        "total": results.len()
     });
 
     // Cache the result
@@ -362,12 +380,19 @@ pub async fn search_by_file(
         .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
 
-    // For now, return empty results
+    // For now, return empty results.
+    //
+    // The count fields are still required: a client that validates the envelope
+    // (every published SDK does) throws on a missing `total`, so even this
+    // placeholder has to answer an empty result set rather than an error the
+    // caller cannot distinguish from a real failure.
     Ok(Json(json!({
         "results": [],
         "file_path": file_path,
         "limit": limit,
-        "collection": collection_name
+        "collection": collection_name,
+        "total_results": 0,
+        "total": 0
     })))
 }
 
@@ -441,6 +466,10 @@ async fn do_vector_search(
                 "id": result.id,
                 "score": result.score,
                 "vector": result.vector,
+                // SDK-compat mirror: the published clients validate each hit
+                // and require a non-empty `data` array (see the note on
+                // `total` in the response envelope).
+                "data": result.vector,
                 "payload": result.payload.map(|p| p.data)
             })
         })
@@ -452,6 +481,8 @@ async fn do_vector_search(
         "limit": limit,
         "collection": collection_name,
         "total_results": results.len(),
+        // SDK-compat mirror — see search_vectors_by_text.
+        "total": results.len(),
     });
 
     state.query_cache.insert(cache_key, response.clone());

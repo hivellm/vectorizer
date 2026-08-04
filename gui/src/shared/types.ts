@@ -73,7 +73,27 @@ export interface SearchRequest {
   filters?: Record<string, unknown>;
 }
 
-export interface SearchResult extends Vector {
+/**
+ * A single search hit, modelled on what the server actually sends.
+ *
+ * `POST /collections/{name}/search/text` answers
+ * `{id, score, vector, payload}` per hit — verified against a running 3.6.0
+ * server, not read off the SDK's types, which disagree with the wire on both
+ * names: the SDK declares the embedding as `data` (required) while the server
+ * sends `vector`, and `search_vectors_by_collection` omits it entirely. Hence
+ * `vector` is optional here and the store maps SDK hits into this shape rather
+ * than passing them through.
+ *
+ * The previous version extended `Vector`, whose `vector_id` is required — a
+ * field the server never sends, which is what made SDK results unassignable.
+ */
+export interface SearchResult {
+  readonly id: string;
+  score?: number;
+  payload?: VectorPayload;
+  metadata?: Record<string, unknown>;
+  /** Embedding. Present on text search; absent on some other search routes. */
+  vector?: number[];
   collection?: string;
 }
 

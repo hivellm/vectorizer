@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { v4 as uuidv4 } from 'uuid';
 import { VectorizerClient } from '@hivehub/vectorizer-sdk';
 import type { Collection, SearchResult, IndexingProgress, IndexingStatus } from '@shared/types';
 import { useConnectionsStore } from './connections';
@@ -171,12 +172,28 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
-      // Use SDK method
       const response = await client.value.searchText(collectionName, {
         query,
         limit
       });
-      return response.results || [];
+      // Map instead of passing the SDK objects straight through: the wire and
+      // the SDK's types disagree. A hit from `/search/text` is
+      // `{id, score, vector, payload}` (verified against a running server),
+      // while the SDK declares `data: number[]` and no `payload` at all — so
+      // both real fields have to be read off the raw hit.
+      return (response.results ?? []).map((hit) => {
+        const raw = hit as typeof hit & {
+          vector?: number[];
+          payload?: SearchResult['payload'];
+        };
+        return {
+          id: hit.id,
+          score: hit.score,
+          vector: raw.vector ?? hit.data,
+          metadata: hit.metadata,
+          payload: raw.payload
+        };
+      });
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Search failed';
       throw err;
@@ -198,12 +215,14 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
-      // Use SDK method
-      const response = await client.value.insertText(collectionName, {
-        text,
-        metadata
-      });
-      return response.id || response.vector_id || 'unknown';
+      // The SDK takes the id as its own argument now
+      // (`insertText(collection, id, text, metadata?)`) rather than reading it
+      // off a request object, and answers a `Vector` whose id field is `id` —
+      // there is no `vector_id`. Callers here never supply one, so mint it with
+      // the same uuid helper the connections store uses.
+      const id = uuidv4();
+      const vector = await client.value.insertText(collectionName, id, text, metadata);
+      return vector.id || id;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to insert text';
       throw err;
@@ -214,7 +233,7 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
 
   async function batchInsertTexts(
     collectionName: string,
-    texts: Array<{ text: string; metadata?: Record<string, unknown> }>
+    texts: Array<{ id?: string; text: string; metadata?: Record<string, unknown> }>
   ): Promise<void> {
     if (!client.value) {
       throw new Error('Client not initialized');
@@ -224,8 +243,14 @@ export const useVectorizerStore = defineStore('vectorizer', () => {
       loading.value = true;
       error.value = null;
 
+      // `BatchTextRequest.id` is required. Callers may supply one (to make the
+      // insert idempotent); otherwise mint it here, same as `insertText`.
       await client.value.batchInsertTexts(collectionName, {
-        texts
+        texts: texts.map((entry) => ({
+          id: entry.id ?? uuidv4(),
+          text: entry.text,
+          metadata: entry.metadata
+        }))
       });
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to batch insert texts';

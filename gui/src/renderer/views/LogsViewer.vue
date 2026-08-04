@@ -175,21 +175,17 @@ async function refreshLogs(): Promise<void> {
       return;
     }
     
-    // Load logs from API
-    const response = await fetch(`${client.config.baseURL}/api/logs`);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to load logs: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    const vectorizerLogs = data.logs || [];
-    
-    logs.value = vectorizerLogs.map((log: any) => ({
-      timestamp: log.timestamp || new Date().toISOString(),
-      level: (log.level || 'INFO') as LogLevel,
-      message: log.message || log.msg || String(log),
-      source: 'vectorizer'
+    // `getLogEntries` returns parsed `LogEntry[]` ({timestamp, level, message,
+    // source}); the untyped `getLogs` hands back `{logs: string[]}`, which is
+    // why the previous code had to guess at `log.message || log.msg ||
+    // String(log)`.
+    const entries = await client.getLogEntries();
+
+    logs.value = entries.map((entry) => ({
+      timestamp: entry.timestamp || new Date().toISOString(),
+      level: (entry.level || 'INFO') as LogLevel,
+      message: entry.message,
+      source: entry.source || 'vectorizer'
     }));
     
     lastUpdate.value = new Date().toLocaleTimeString();
