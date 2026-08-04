@@ -65,24 +65,41 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check cargo clippy warnings for all targets and features
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Enforce layer boundary — src/models/ must not import src/db/
+      - name: Enforce layer boundary — models/ must not import db/
         # Foundation layer (models) cannot depend on Core layer (db). Guard
         # against future regressions of the layering fix in rulebook task
         # phase5_models-db-layering-violation.
+        #
+        # The path is checked first on purpose: this used to grep a bare
+        # `src/models/`, which stopped existing at the workspace split, and a
+        # `grep` on a missing path exits non-zero — so the `if` read it as "no
+        # violations" and the gate passed without inspecting a single file.
         run: |
-          if grep -rnE '^use crate::db::|crate::db::' src/models/; then
-            echo "::error::src/models/ imports from crate::db — violates layering"
+          models_dir=crates/vectorizer/src/models
+          if [[ ! -d "$models_dir" ]]; then
+            echo "::error::$models_dir not found — this gate would pass without checking anything"
+            exit 1
+          fi
+          if grep -rnE '^use crate::db::|crate::db::' "$models_dir"; then
+            echo "::error::$models_dir imports from crate::db — violates layering"
             exit 1
           fi
       - name: Enforce parking_lot over std::sync for Mutex/RwLock
         # AGENTS.md mandates parking_lot locks over std::sync variants. This
         # gate fails the build if any `use std::sync::{...Mutex...}` or
-        # `...RwLock...}` import re-appears in src/. std::sync::Arc, Once,
-        # OnceLock, atomic, and mpsc are NOT flagged (they have no
-        # parking_lot equivalent).
+        # `...RwLock...}` import re-appears in a crate's sources.
+        # std::sync::Arc, Once, OnceLock, atomic, and mpsc are NOT flagged
+        # (they have no parking_lot equivalent). Same missing-path caveat as
+        # the layering gate above.
         run: |
-          if grep -rnE '^use std::sync::\{[^}]*(Mutex|RwLock)' src/; then
-            echo "::error::src/ uses std::sync::Mutex/RwLock — migrate to parking_lot"
+          shopt -s nullglob
+          crate_srcs=(crates/*/src)
+          if [[ ${#crate_srcs[@]} -eq 0 ]]; then
+            echo "::error::no crates/*/src found — this gate would pass without checking anything"
+            exit 1
+          fi
+          if grep -rnE '^use std::sync::\{[^}]*(Mutex|RwLock)' "${crate_srcs[@]}"; then
+            echo "::error::crate sources use std::sync::Mutex/RwLock — migrate to parking_lot"
             exit 1
           fi
       - name: Enforce Tier-1 no-marker rule (TODO/FIXME/HACK/XXX)

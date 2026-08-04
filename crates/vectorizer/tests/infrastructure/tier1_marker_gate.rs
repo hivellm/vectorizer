@@ -16,8 +16,6 @@ use std::path::Path;
 use regex::Regex;
 use walkdir::WalkDir;
 
-const SRC_ROOT: &str = "src";
-
 #[test]
 fn src_tree_has_no_unqualified_tier1_markers() {
     let forbidden = Regex::new(r"\b(TODO|FIXME|HACK|XXX)\b").expect("forbidden pattern compiles");
@@ -26,12 +24,19 @@ fn src_tree_has_no_unqualified_tier1_markers() {
         Regex::new(r"grep-ignore\(tier1-markers\)").expect("sentinel pattern compiles");
 
     let project_root = locate_project_root();
-    let scan_root = project_root.join(SRC_ROOT);
+    let scan_roots = crate_source_roots(&project_root);
+    assert!(
+        !scan_roots.is_empty(),
+        "no crate source tree found under {} — this gate would pass without \
+         reading anything",
+        project_root.display()
+    );
 
     let mut violations: Vec<String> = Vec::new();
 
-    for entry in WalkDir::new(&scan_root)
-        .into_iter()
+    for entry in scan_roots
+        .iter()
+        .flat_map(|root| WalkDir::new(root).into_iter())
         .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
     {
@@ -71,8 +76,43 @@ fn src_tree_has_no_unqualified_tier1_markers() {
     );
 }
 
+/// Workspace root, derived from this crate's manifest dir
+/// (`<root>/crates/vectorizer` → `<root>`). Falls back to the manifest dir
+/// itself if the layout ever changes, so the test degrades to single-crate
+/// coverage rather than scanning nothing.
 fn locate_project_root() -> std::path::PathBuf {
     let manifest_dir =
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR set by cargo during tests");
-    Path::new(&manifest_dir).to_path_buf()
+    let manifest_dir = Path::new(&manifest_dir);
+    manifest_dir
+        .parent()
+        .and_then(Path::parent)
+        .filter(|root| root.join("crates").is_dir())
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| manifest_dir.to_path_buf())
+}
+
+/// Every `crates/*/src` in the workspace — the same scope the shell gate
+/// (`scripts/ci/check-no-tier1-markers.sh`) defaults to, so the two cannot
+/// disagree. Scanning only this crate's `src` was leaving the server crate,
+/// where most of the request handling lives, unchecked by this mirror.
+fn crate_source_roots(project_root: &Path) -> Vec<std::path::PathBuf> {
+    let crates_dir = project_root.join("crates");
+    let Ok(entries) = std::fs::read_dir(&crates_dir) else {
+        // Not the workspace layout — fall back to `<root>/src` if present.
+        let solo = project_root.join("src");
+        return if solo.is_dir() {
+            vec![solo]
+        } else {
+            Vec::new()
+        };
+    };
+
+    let mut roots: Vec<std::path::PathBuf> = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path().join("src"))
+        .filter(|src| src.is_dir())
+        .collect();
+    roots.sort();
+    roots
 }
