@@ -2,6 +2,54 @@
 
 All notable changes to the Hive Vectorizer TypeScript Client SDK will be documented in this file.
 
+## [3.6.0] - TBD
+
+### Changed
+
+- **RPC transport now runs on `@hivehub/thunder`** (0.2.2), the HiveLLM
+  family's shared binary RPC package whose Rust twin `vectorizer-server`
+  runs. The hand-rolled socket client and frame codec are gone: framing,
+  response demultiplexing by frame id, bounded in-flight, per-call timeouts
+  and lazy re-dial all come from Thunder. The on-wire format is unchanged
+  (v1, frozen: 4-byte little-endian length prefix + MessagePack body), and
+  every typed command wrapper keeps its signature.
+- `VectorizerValue` is now Thunder's `Value`. Same eight variants, but the
+  variant tags are **lowercase** (`'str'`, `'int'`, `'map'`, …) and `Int`
+  carries a `bigint`. Code that matches on `.kind` must be updated; code
+  that uses the `Value` factory and the `asStr` / `asInt` / `mapGet`
+  accessors is unaffected. The MessagePack tags on the wire are unchanged.
+- `RpcClient.hello` re-dials when its payload carries a `token` or `apiKey`:
+  Thunder authenticates in the connection handshake (`AUTH`), so credentials
+  must reach the session the later commands run under. Call sites are
+  unchanged.
+- `RpcClient.close` and `RpcPool.close` are now `async`.
+- `RpcClient.isAuthenticated()` reports the *session* handshake state, so it
+  is `false` against an open single-user server — which authenticates nobody
+  because it gates nothing.
+- `RpcNotAuthenticated` is now thrown from the server's `NOAUTH` /
+  `WRONGPASS` / `NOPERM` reply instead of a local pre-flight guess, and
+  carries the server's message.
+
+### Added
+
+- `protocolConfig()` — the client half of the server's wire config, exported
+  so tooling that builds its own Thunder client dials with the same shape.
+- `RpcTimeout` and `RpcProtocolError` error classes (Thunder's timeout and
+  malformed/oversized-frame classes).
+- Thunder's frame codec (`encodeRequest`, `decodeResponse`, `FrameReader`, …)
+  re-exported from `@hivehub/vectorizer-sdk/rpc` for tools that read or
+  write frames directly.
+
+### Removed
+
+- The `rpc/codec` module (`encodeFrame`, `decodeBody`, `MAX_BODY_SIZE`,
+  `HEADER_SIZE`, `FrameDecodeError`) and the msgpack (de)serialization
+  helpers `valueToMsgpack`, `valueFromMsgpack`, `requestToMsgpack`,
+  `responseToMsgpack`, `responseFromMsgpack`, `responseOk`, `responseErr`.
+  Framing is Thunder's; build frames with Thunder's `Response.ok` / `err`
+  plus `encodeResponse`.
+- The direct `@msgpack/msgpack` dependency (Thunder owns MessagePack now).
+
 ## [3.5.0] - TBD
 
 Version alignment with the Vectorizer 3.5.0 server release. No SDK API

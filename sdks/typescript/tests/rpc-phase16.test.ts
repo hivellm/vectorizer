@@ -567,8 +567,9 @@ describe('file ops — wire shapes', () => {
       [Value.str('content'), Value.str('file content here')],
       [Value.str('size'), Value.int(18)],
     ]);
-    // Verify it is a Map kind (what the server returns)
-    expect(wire.kind).toBe('Map');
+    // Verify it is a map kind (what the server returns). Thunder's variant
+    // tags are lowercase; the on-wire MessagePack tag is unchanged.
+    expect(wire.kind).toBe('map');
     const contentV = mapGet(wire, 'content');
     expect(contentV).not.toBeNull();
     expect(asStr(contentV!)).toBe('file content here');
