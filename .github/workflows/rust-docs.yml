@@ -49,7 +49,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@10   # pinned: pnpm 11 ignores pnpm.overrides (see sdk-publish-typescript.yml)
       - name: Build dashboard (required for rust-embed)
         run: |
           cd dashboard

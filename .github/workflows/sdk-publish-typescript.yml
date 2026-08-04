@@ -44,10 +44,21 @@ jobs:
           npm install -g npm@latest
           npm --version
 
+      # pnpm is pinned to the 10.x line on purpose. `corepack enable pnpm`
+      # without a version resolves to the latest release, and pnpm 11 stopped
+      # reading the `pnpm.overrides` block from package.json (it moved to
+      # pnpm-workspace.yaml). Every project here still declares its security
+      # overrides in package.json, so pnpm 11 sees "no overrides", disagrees
+      # with what the lockfile recorded, and `--frozen-lockfile` aborts with
+      # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH — which is exactly how the v3.6.0
+      # npm publish died. `sdk-typescript-test.yml` already pins `version: 10`
+      # via pnpm/action-setup, so this matches the surrounding convention.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
       - name: Install deps (pnpm)
-        run: |
-          corepack enable pnpm
-          pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Verify package.json version matches the release tag
         if: ${{ github.event_name == 'release' }}

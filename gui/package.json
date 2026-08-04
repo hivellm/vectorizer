@@ -1,5 +1,6 @@
 {
   "name": "vectorizer-gui",
+  "packageManager": "pnpm@10.15.1",
   "version": "0.1.0",
   "description": "Desktop GUI for Vectorizer - High-performance vector database",
   "main": "dist-electron/main/main.js",

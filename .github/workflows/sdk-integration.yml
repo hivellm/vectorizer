@@ -55,10 +55,16 @@ jobs:
           done
           echo "server never became healthy"; tail -50 server.log; exit 1
 
+      # Pinned for the same reason as sdk-publish-typescript.yml: pnpm 11 does
+      # not read `pnpm.overrides` from package.json, so an unpinned corepack
+      # install fails `--frozen-lockfile` with a config mismatch.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
       - name: TypeScript SDK integration
         working-directory: sdks/typescript
         run: |
-          corepack enable pnpm
           pnpm install --frozen-lockfile
           VITEST_SKIP_S2S=0 pnpm test
 

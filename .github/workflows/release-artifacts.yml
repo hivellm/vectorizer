@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@10   # pinned: pnpm 11 ignores pnpm.overrides (see sdk-publish-typescript.yml)
       - name: Set version from release tag
         run: echo "VITE_APP_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
       - name: Build dashboard

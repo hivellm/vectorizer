@@ -1,5 +1,6 @@
 {
   "name": "dashboard",
+  "packageManager": "pnpm@10.15.1",
   "private": true,
   "version": "0.0.0",
   "type": "module",
