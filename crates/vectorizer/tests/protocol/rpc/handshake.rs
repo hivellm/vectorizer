@@ -41,6 +41,7 @@ async fn boot_listener(auth: Option<AuthHandlerState>) -> String {
         slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
             vectorizer::cache::slow_query::SlowQueryConfig::default(),
         ),
+        auto_save_manager: None,
     };
     // `spawn_rpc_listener` returns once the socket is bound, so a client
     // may dial immediately.

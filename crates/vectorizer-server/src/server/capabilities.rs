@@ -79,6 +79,87 @@ pub struct Capability {
     pub transport: Transport,
 }
 
+/// The VectorizerRPC command that serves a registry capability.
+///
+/// RPC is the default protocol and is meant to be the primary data source, so
+/// every data-plane capability must be reachable over it. The mapping is an
+/// explicit table rather than a derivation because the two catalogs name things
+/// differently: the registry is singular and verb-suffixed
+/// (`collection.list`, `file.get_content`), the RPC catalog is plural and
+/// verb-first (`collections.list`, `file.content`).
+///
+/// `None` marks a capability that is intentionally not on RPC. Returning `None`
+/// for anything else fails [`assert_inventory_invariants`] at boot.
+pub fn rpc_command_for(id: &str) -> Option<&'static str> {
+    Some(match id {
+        // Collections
+        "collection.list" => "collections.list",
+        "collection.create" => "collections.create",
+        "collection.get_info" => "collections.get_info",
+        "collection.get_stats" => "collections.get_stats",
+        "collection.delete" => "collections.delete",
+        "collection.list_empty" => "collections.list_empty",
+        "collection.cleanup_empty" => "collections.cleanup_empty",
+        // Vectors
+        "vector.insert_text" => "vectors.insert_text",
+        "vector.get" => "vectors.get",
+        "vector.update" => "vectors.update",
+        "vector.delete" => "vectors.delete",
+        "vector.batch_insert_texts" => "vectors.batch_insert_texts",
+        "vector.batch_update" => "vectors.batch_update",
+        "vector.batch_delete" => "vectors.batch_delete",
+        // Embedding / stats
+        "embedding.embed_text" => "vectors.embed",
+        "embedding.list_providers" => "embedding.list_providers",
+        "stats.get_database_stats" => "stats.database",
+        // Search
+        "search.basic" => "search.basic",
+        "search.intelligent" => "search.intelligent",
+        "search.semantic" => "search.semantic",
+        "search.contextual" => "search.contextual",
+        "search.multi_collection" => "search.multi_collection",
+        "search.hybrid" => "search.hybrid",
+        "search.by_text" => "search.by_text",
+        "search.by_file" => "search.by_file",
+        "search.batch_search" => "vectors.batch_search",
+        "search.extra_combined" => "search.extra",
+        // Discovery
+        "discovery.discover" => "discovery.discover",
+        "discovery.filter_collections" => "discovery.filter_collections",
+        "discovery.score_collections" => "discovery.score_collections",
+        "discovery.expand_queries" => "discovery.expand_queries",
+        "discovery.broad_discovery" => "discovery.broad_discovery",
+        "discovery.semantic_focus" => "discovery.semantic_focus",
+        "discovery.promote_readme" => "discovery.promote_readme",
+        "discovery.compress_evidence" => "discovery.compress_evidence",
+        "discovery.build_answer_plan" => "discovery.build_answer_plan",
+        "discovery.render_llm_prompt" => "discovery.render_llm_prompt",
+        // File ops
+        "file.get_content" => "file.content",
+        "file.list" => "file.list",
+        "file.get_chunks" => "file.chunks",
+        "file.get_outline" => "file.outline",
+        "file.get_related" => "file.related",
+        // Graph
+        "graph.enable" => "graph.enable",
+        "graph.status" => "graph.status",
+        "graph.list_nodes" => "graph.list_nodes",
+        "graph.get_neighbors" => "graph.neighbors",
+        "graph.find_related" => "graph.find_related",
+        "graph.find_path" => "graph.find_path",
+        "graph.create_edge" => "graph.create_edge",
+        "graph.delete_edge" => "graph.delete_edge",
+        "graph.list_edges" => "graph.list_edges",
+        "graph.discover_edges" => "graph.discover_edges",
+        "graph.discover_status" => "graph.discovery_status",
+        // Auth. `auth.login` has no RPC command by design: credentials travel
+        // in Thunder's `AUTH` handshake, which is the transport's own step and
+        // therefore never appears in the command catalog.
+        "auth.login" => return None,
+        _ => return None,
+    })
+}
+
 /// The live capability inventory. Order is preserved for the MCP tool
 /// list shown to clients, so additions should append at the end of the
 /// matching topical group. Each `summary` string and each schema fn
@@ -1671,6 +1752,28 @@ pub fn assert_inventory_invariants() -> Result<()> {
                         cap.id
                     )));
                 }
+            }
+        }
+
+        // RPC is the default protocol and the primary data source, so every
+        // data-plane capability must have a command in the dispatch table.
+        // `auth.login` is the one documented exception (the credentials step is
+        // Thunder's `AUTH` handshake, not a command).
+        if cap.id != "auth.login" {
+            let Some(rpc_command) = rpc_command_for(cap.id) else {
+                return Err(VectorizerError::Configuration(format!(
+                    "capability '{}' has no VectorizerRPC command — add one to \
+                     the dispatch table and map it in `rpc_command_for`, or \
+                     document the exception",
+                    cap.id
+                )));
+            };
+            if !crate::protocol::rpc::dispatch::RPC_COMMANDS.contains(&rpc_command) {
+                return Err(VectorizerError::Configuration(format!(
+                    "capability '{}' maps to RPC command '{}', which the \
+                     dispatch table does not advertise",
+                    cap.id, rpc_command
+                )));
             }
         }
     }

@@ -66,6 +66,23 @@ pub struct RpcState {
     pub cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
     /// Slow-query ring buffer for `admin.slow_queries_*`.
     pub slow_query_ring: SlowQueryRing,
+    /// Auto-save manager. Every mutating command marks it dirty, which is
+    /// what lets the periodic compaction loop persist the write — that loop
+    /// only runs when `changes_detected` is set, so an unmarked write is
+    /// invisible to it and is lost on a hard kill. `collections.force_save`
+    /// drives an immediate compaction through the same handle. `None` only
+    /// in the test-harness constructor, where nothing is persisted.
+    pub auto_save_manager: Option<Arc<vectorizer::db::AutoSaveManager>>,
+}
+
+impl RpcState {
+    /// Record that a mutation happened, so the periodic auto-save loop
+    /// picks it up. Call from every command that writes.
+    pub fn mark_changed(&self) {
+        if let Some(manager) = &self.auto_save_manager {
+            manager.mark_changed();
+        }
+    }
 }
 
 /// Product identity carried on the Thunder session (SRV-012): resolved once at

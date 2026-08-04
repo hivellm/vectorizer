@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **VectorizerRPC now covers the whole data plane.** RPC is the default
+  protocol and is meant to be the primary data source, so every capability in
+  the registry (`crates/vectorizer-server/src/server/capabilities.rs`) is
+  reachable over it. Twelve commands close the gaps a full sweep of the
+  dispatch table found:
+  - `graph.enable`, `graph.status` — the `graph.*` family was previously
+    unreachable for any collection created over RPC, because
+    `collections.create` pinned `graph: None` and only `POST
+    /graph/enable/{collection}` could turn one on.
+  - `embedding.list_providers`, `collections.get_stats`, `stats.database` —
+    the registry capabilities behind the MCP `list_providers`,
+    `get_collection_stats` and `get_database_stats` tools.
+  - `search.extra` — the multi-strategy search behind MCP `search_extra`.
+  - `files.config_get` — the upload limits from `GET /files/config`.
+  - `cluster.nodes_list`, `cluster.node_get`, `cluster.node_remove`,
+    `cluster.leader`, `cluster.role` — the cluster inspection routes under
+    `/api/v1/cluster`.
+- **User management over RPC.** `auth.users_create`, `auth.users_list`,
+  `auth.users_delete` and `auth.users_change_password` are implemented against
+  the same user store, validation and persistence the REST handlers use;
+  previously all four answered "REST-only in v1". They keep the REST guards:
+  admin-gated, no deleting your own account or the last admin, and
+  `current_password` required unless the caller is an admin.
+- **Machine-checked RPC parity.** `capabilities::rpc_command_for` maps every
+  registry id to its RPC command (the two catalogs name things differently —
+  singular `collection.list` vs plural `collections.list`), and
+  `assert_inventory_invariants` now fails boot when a capability has no RPC
+  command or maps to one the dispatch table does not advertise. Parity is a
+  startup invariant instead of something rediscovered by hand.
+
+### Fixed
+
+- **Writes made over RPC are now durable.** No RPC command marked the auto-save
+  manager, and the periodic compaction loop only runs when changes are pending,
+  so data written exclusively over RPC was never persisted by it — a graceful
+  shutdown force-saved and hid the problem, but a hard kill (SIGKILL, container
+  OOM, crash) lost every RPC-only write since boot. Mutations are now marked
+  centrally in `dispatch`, so a newly added command cannot forget.
+- **`collections.force_save` actually saves.** It used to verify the collection
+  existed and answer `success: true` without writing anything, leaving a client
+  no way to force durability over RPC. It now drives an immediate store-wide
+  compaction and reports its `scope`.
+- **RPC mutations replicate.** Collection creates and vector writes are
+  forwarded to replicas when the node runs as master, matching the REST
+  handlers; previously only REST writes reached a replica.
+- **`collections.create` no longer accepts a collection that cannot work.** It
+  now rejects an unknown `embedding_provider` and a `dimension` that disagrees
+  with that provider's native size — the two guards REST has applied since
+  phase33 — honours `graph: { enabled: true }`, and picks MMap storage in
+  cluster mode like REST does.
+
 ### Changed
 
 - **The binary RPC transport now runs on Thunder (`thunder-rpc` 0.2.2) across

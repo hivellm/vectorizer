@@ -1723,6 +1723,7 @@ impl VectorizerServer {
                         slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
                             vectorizer::cache::slow_query::SlowQueryConfig::default(),
                         ),
+                        auto_save_manager: Some(auto_save_manager.clone()),
                     };
                     if let Err(e) = crate::protocol::rpc::spawn_rpc_listener(rpc_state, addr).await
                     {
