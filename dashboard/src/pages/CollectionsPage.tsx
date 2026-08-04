@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { useCollections } from '@/hooks/useCollections';
 import { useCollectionsStore } from '@/stores/collections';
 import { useApiClient } from '@/hooks/useApiClient';

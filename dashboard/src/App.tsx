@@ -2,7 +2,7 @@
  * Main App component
  */
 
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router';
 import AppRouter from './router/AppRouter';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { AuthProvider } from './contexts/AuthContext';

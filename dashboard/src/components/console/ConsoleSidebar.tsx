@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { Icons } from './Icons';
 import { HexLogo } from './primitives/HexLogo';

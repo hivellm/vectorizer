@@ -14,7 +14,7 @@
  */
 
 import { ReactElement, ReactNode } from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { render, RenderOptions, RenderResult } from '@testing-library/react';
 
 import AuthContext, { User } from '@/contexts/AuthContext';

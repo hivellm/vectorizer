@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import LogsPage from '../LogsPage';
 
 // The real ApiClient.get<T> resolves with the parsed body directly (no

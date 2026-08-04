@@ -3,7 +3,7 @@
  */
 
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router';
 import { ConsoleLayout } from '@/components/console';
 import WizardLayout from '@/components/layout/WizardLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';

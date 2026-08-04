@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import FileWatcherPage from '../FileWatcherPage';
 
 // The real hook (src/hooks/useFileWatcher.ts) exposes

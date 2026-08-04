@@ -51,7 +51,7 @@ export default defineConfig(({ mode }) => {
         // Resolve vis-data peer dependency (vis-network expects .js but vis-data provides .mjs)
         'vis-data/peer/esm/vis-data.js': resolve(__dirname, './node_modules/vis-data/peer/esm/vis-data.mjs'),
       },
-      dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],
+      dedupe: ['react', 'react-dom', 'react-router'],
     },
     build: {
       outDir: 'dist',

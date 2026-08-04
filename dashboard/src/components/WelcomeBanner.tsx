@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useSetupStatus } from '@/hooks/useSetupRedirect';
 import { Settings02, XClose, Rocket01 } from '@untitledui/icons';
 

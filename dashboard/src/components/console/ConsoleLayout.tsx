@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import { ToastProvider } from '@/providers/ToastProvider';
 import { ConsoleSidebar } from './ConsoleSidebar';
 import { ConsoleTopbar } from './ConsoleTopbar';

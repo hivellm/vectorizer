@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useSetup, SetupStatus, ProjectAnalysis, SetupProject, SuggestedCollection } from '@/hooks/useSetup';
 import { useTemplates, ConfigTemplate, getTemplateIcon } from '@/hooks/useTemplates.tsx';
 import { useApiKeys } from '@/hooks/useApiKeys';

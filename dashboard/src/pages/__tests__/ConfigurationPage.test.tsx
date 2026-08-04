@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import ConfigurationPage from '../ConfigurationPage';
 
 // The page uses `useToastContext` (save feedback); stub the toast barrel so it

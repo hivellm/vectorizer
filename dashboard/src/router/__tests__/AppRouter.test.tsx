@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router';
 import { renderWithProviders, screen } from '@/test-utils/render';
 import AppRouter from '../AppRouter';
 

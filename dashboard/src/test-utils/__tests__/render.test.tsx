@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 
 import {
   buildAuthState,

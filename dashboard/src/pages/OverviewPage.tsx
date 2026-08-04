@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useCollections } from '@/hooks/useCollections';
 import { useWsTopic } from '@/providers/WsDashboardProvider';
 import { useMetrics } from '@/hooks/useMetrics';

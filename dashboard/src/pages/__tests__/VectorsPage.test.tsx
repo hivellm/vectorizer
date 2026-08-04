@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import VectorsPage from '../VectorsPage';
 
 // The page uses `useToastContext` (Copy/Delete feedback); stub the toast barrel

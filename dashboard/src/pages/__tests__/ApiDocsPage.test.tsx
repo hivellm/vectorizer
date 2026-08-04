@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 
 // Skip the Monaco mount in the test environment — it's network/canvas heavy
 // and not what this test is verifying. Same pattern as ConfigurationPage.test.

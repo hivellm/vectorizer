@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { HexLogo, Card, CardBody, Pill, Icons } from '@/components/console';
 import Checkbox from '@/components/ui/Checkbox';

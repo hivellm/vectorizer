@@ -2,8 +2,16 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist-electron",
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    // TypeScript 7 removed the legacy `node10` resolution that `"node"`
+    // aliased to (TS5108) and no longer infers `rootDir` from the input set
+    // (TS5011). `node16` is the successor and must be paired with
+    // `module: Node16` (TS5110); since this package has no `"type": "module"`,
+    // Node16 still emits CommonJS, which is what the Electron main process
+    // loads (`main: dist-electron/main/main.js`). Pinning `rootDir` keeps the
+    // emitted layout stable when the include globs change.
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "rootDir": "./src",
     "noEmit": false
   },
   "include": [
