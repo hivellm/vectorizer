@@ -33,7 +33,9 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version: "1.23"
+          # thunder-go (the RPC transport) requires go 1.25, so the SDK's
+          # go.mod declares it too.
+          go-version: "1.25"
 
       - name: Verify submodule version.go matches the release tag
         if: ${{ github.event_name == 'release' }}
