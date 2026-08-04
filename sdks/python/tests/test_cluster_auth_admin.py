@@ -70,7 +70,20 @@ def _make_auth_client() -> tuple[AuthClient, MagicMock]:
 
 
 def run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Drive a coroutine on a fresh event loop.
+
+    ``asyncio.get_event_loop().run_until_complete(...)`` used to work here, but
+    only by accident: on Python 3.12+ ``get_event_loop`` raises
+    ``RuntimeError: There is no current event loop`` once nothing has set one,
+    and it auto-creates (with a DeprecationWarning) only on the first call in
+    the main thread. Every other test module in this suite uses
+    ``asyncio.run``, which closes the loop it created and leaves none current —
+    so this file passed when run alone and failed with a RuntimeError as soon
+    as any of those ran first (alphabetically: test_admin_phase12,
+    test_auth_phase12, and six more). ``asyncio.run`` per call has no such
+    ordering dependency.
+    """
+    return asyncio.run(coro)
 
 
 # ---------------------------------------------------------------------------

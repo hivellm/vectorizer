@@ -336,6 +336,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_health_check_success(self):
         """Test health check bem-sucedido."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "status": "healthy",
@@ -343,8 +346,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             "version": "1.0.0"
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             result = await self.client.health_check()
             
@@ -355,10 +359,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_health_check_failure(self):
         """Test health check com falha."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 500
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             with self.assertRaises(ServerError) as context:
                 await self.client.health_check()
@@ -368,6 +376,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_list_collections_success(self):
         """Test listagem de coleções bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "collections": [
@@ -382,8 +393,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             ]
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             collections = await self.client.list_collections()
             
@@ -395,6 +407,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_create_collection_success(self):
         """Test criação de collection bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 201
         mock_response.json = AsyncMock(return_value={
             "name": "new_collection",
@@ -404,8 +419,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             "vector_count": 0
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.post.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             collection = await self.client.create_collection(
                 name="new_collection",
@@ -434,13 +450,17 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_embed_text_success(self):
         """Test geração de embedding bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "embedding": [0.1, 0.2, 0.3, 0.4, 0.5]
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.post.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             embedding = await self.client.embed_text("test text")
             
@@ -457,6 +477,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_insert_texts_success(self):
         """Test inserção de vectores bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 201
         mock_response.json = AsyncMock(return_value={
             "inserted": 1,
@@ -469,8 +492,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             metadata={"text": "test"}
         )
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.post.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             result = await self.client.insert_texts("test_collection", [vector])
             
@@ -487,6 +511,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_search_vectors_success(self):
         """Test busca de vectores bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "results": [
@@ -499,8 +526,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             ]
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.post.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             results = await self.client.search_vectors(
                 collection="test_collection",
@@ -516,10 +544,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_search_vectors_collection_not_found(self):
         """Test busca de vectores com collection não encontrada."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 404
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.post.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             with self.assertRaises(CollectionNotFoundError) as context:
                 await self.client.search_vectors(
@@ -543,6 +575,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_get_collection_info_success(self):
         """Test obtenção de informações da collection bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "name": "test_collection",
@@ -553,8 +588,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             "document_count": 50
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             info = await self.client.get_collection_info("test_collection")
             
@@ -566,10 +602,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_get_collection_info_not_found(self):
         """Test obtenção de informações de collection não encontrada."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 404
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             with self.assertRaises(CollectionNotFoundError) as context:
                 await self.client.get_collection_info("nonexistent")
@@ -579,10 +619,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_delete_collection_success(self):
         """Test exclusão de collection bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.delete.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             result = await self.client.delete_collection("test_collection")
             
@@ -591,10 +635,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_delete_collection_not_found(self):
         """Test exclusão de collection não encontrada."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 404
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.delete.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             with self.assertRaises(CollectionNotFoundError) as context:
                 await self.client.delete_collection("nonexistent")
@@ -604,6 +652,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_get_vector_success(self):
         """Test obtenção de vector específico bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "id": "test_vector",
@@ -611,8 +662,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             "metadata": {"text": "test"}
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             vector = await self.client.get_vector("test_collection", "test_vector")
             
@@ -623,10 +675,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_get_vector_not_found(self):
         """Test obtenção de vector não encontrado."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 404
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             with self.assertRaises(CollectionNotFoundError) as context:
                 await self.client.get_vector("test_collection", "nonexistent")
@@ -636,10 +692,14 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_delete_vectors_success(self):
         """Test exclusão de vectores bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.delete.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             result = await self.client.delete_vectors(
                 "test_collection", 
@@ -658,6 +718,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     async def test_get_indexing_progress_success(self):
         """Test obtenção de progresso de indexação bem-sucedida."""
         mock_response = Mock()
+        mock_response.headers = {'Content-Type': 'application/json'}
+        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.json = AsyncMock(return_value={})
         mock_response.status = 200
         mock_response.json = AsyncMock(return_value={
             "is_indexing": False,
@@ -665,8 +728,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             "collections": ["collection1", "collection2"]
         })
         
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.return_value.__aenter__.return_value = mock_response
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.return_value.__aenter__.return_value = mock_response
             
             progress = await self.client.get_indexing_progress()
             
@@ -676,8 +740,9 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
     
     async def test_network_error_handling(self):
         """Test tratamento de erro de rede."""
-        with patch.object(self.client, '_session') as mock_session:
-            mock_session.get.side_effect = Exception("Network error")
+        with patch.object(self.client._transport, '_session') as mock_session:
+            mock_session.closed = False
+            mock_session.request.side_effect = Exception("Network error")
             
             try:
                 await self.client.health_check()
@@ -708,11 +773,17 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         
         # Mock para health check
         health_mock = Mock()
+        health_mock.headers = {'Content-Type': 'application/json'}
+        health_mock.text = AsyncMock(return_value='error body')
+        health_mock.json = AsyncMock(return_value={})
         health_mock.status = 200
         health_mock.json = AsyncMock(return_value={"status": "healthy"})
         
         # Mock para create collection
         create_mock = Mock()
+        create_mock.headers = {'Content-Type': 'application/json'}
+        create_mock.text = AsyncMock(return_value='error body')
+        create_mock.json = AsyncMock(return_value={})
         create_mock.status = 201
         create_mock.json = AsyncMock(return_value={
             "name": collection_name,
@@ -724,6 +795,9 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         
         # Mock para embed text
         embed_mock = Mock()
+        embed_mock.headers = {'Content-Type': 'application/json'}
+        embed_mock.text = AsyncMock(return_value='error body')
+        embed_mock.json = AsyncMock(return_value={})
         embed_mock.status = 200
         embed_mock.json = AsyncMock(return_value={
             "embedding": [0.1] * 512
@@ -731,11 +805,17 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         
         # Mock para insert vectors
         insert_mock = Mock()
+        insert_mock.headers = {'Content-Type': 'application/json'}
+        insert_mock.text = AsyncMock(return_value='error body')
+        insert_mock.json = AsyncMock(return_value={})
         insert_mock.status = 201
         insert_mock.json = AsyncMock(return_value={"inserted": 1})
         
         # Mock para search vectors
         search_mock = Mock()
+        search_mock.headers = {'Content-Type': 'application/json'}
+        search_mock.text = AsyncMock(return_value='error body')
+        search_mock.json = AsyncMock(return_value={})
         search_mock.status = 200
         search_mock.json = AsyncMock(return_value={
             "results": [{
@@ -747,13 +827,20 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         
         # Mock para delete collection
         delete_mock = Mock()
+        delete_mock.headers = {'Content-Type': 'application/json'}
+        delete_mock.text = AsyncMock(return_value='error body')
+        delete_mock.json = AsyncMock(return_value={})
         delete_mock.status = 200
         
-        with patch.object(self.client, '_session') as mock_session:
+        with patch.object(self.client._transport, '_session') as mock_session:
             # Configurar diferentes respostas para diferentes chamadas
-            mock_session.get.return_value.__aenter__.side_effect = [health_mock]
-            mock_session.post.return_value.__aenter__.side_effect = [create_mock, embed_mock, insert_mock, search_mock]
-            mock_session.delete.return_value.__aenter__.return_value = delete_mock
+            mock_session.closed = False
+            # Um unico ponto de entrada (`request`), logo uma unica fila na
+            # ordem em que o workflow chama: health, create, embed, insert,
+            # search, delete.
+            mock_session.request.return_value.__aenter__.side_effect = [
+                health_mock, create_mock, embed_mock, insert_mock, search_mock, delete_mock,
+            ]
             
             # Executar workflow completo
             # 1. Health check
