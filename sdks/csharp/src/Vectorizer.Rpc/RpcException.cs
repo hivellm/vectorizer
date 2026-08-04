@@ -33,9 +33,10 @@ public sealed class RpcConnectionClosedException : VectorizerRpcException
 }
 
 /// <summary>
-/// Raised when a data-plane command is issued before HELLO has
-/// succeeded. The local gate saves a network round-trip that the
-/// server would fail anyway.
+/// Raised when the server refuses the session's credentials — <c>NOAUTH</c>
+/// (no <c>AUTH</c> sent, or HELLO issued without credentials against an
+/// auth-enabled server), <c>WRONGPASS</c>, or <c>NOPERM</c> on an admin-only
+/// command.
 /// </summary>
 public sealed class RpcNotAuthenticatedException : VectorizerRpcException
 {
@@ -43,4 +44,6 @@ public sealed class RpcNotAuthenticatedException : VectorizerRpcException
         : base("HELLO must succeed before any data-plane command can be issued")
     {
     }
+
+    public RpcNotAuthenticatedException(string message) : base(message) { }
 }

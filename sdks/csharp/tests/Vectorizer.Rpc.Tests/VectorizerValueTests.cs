@@ -1,51 +1,60 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Threading;
 using Vectorizer.Rpc;
 using Xunit;
+
+// Aliased: HiveLLM.Thunder declares its own Value/Response types.
+using Thunder = HiveLLM.Thunder;
 
 namespace Vectorizer.Rpc.Tests;
 
 public class VectorizerValueTests
 {
-    [Fact]
-    public void Null_EncodesAsBareString()
+    /// <summary>
+    /// Round-trip a value through Thunder's real frame codec — the same bytes
+    /// the client and the server exchange, so this covers the SDK's conversion
+    /// seam and the encoding together.
+    /// </summary>
+    private static VectorizerValue RoundTrip(VectorizerValue value)
     {
-        var wire = VectorizerValue.Null.ToWire();
-        Assert.Equal("Null", wire);
+        var frame = Thunder.FrameCodec.EncodeResponse(Thunder.Response.Ok(1, value.ToThunder()));
+        Assert.True(Thunder.FrameCodec.TryDecodeResponse(frame, out var decoded, out var consumed));
+        Assert.Equal(frame.Length, consumed);
+        Assert.NotNull(decoded);
+        Assert.NotNull(decoded!.Value);
+        return VectorizerValue.FromThunder(decoded.Value!);
     }
 
     [Fact]
-    public async Task Int_RoundTripsThroughMsgPack()
+    public void Null_ConvertsToTheNullVariant()
+    {
+        Assert.Equal(Thunder.ValueKind.Null, VectorizerValue.Null.ToThunder().Kind);
+        Assert.Equal(ValueKind.Null, RoundTrip(VectorizerValue.Null).Kind);
+    }
+
+    [Fact]
+    public void Int_RoundTripsThroughTheWire()
     {
         var v = VectorizerValue.OfInt(42);
-        var frame = FrameCodec.EncodeFrame(v.ToWire());
-        using var ms = new MemoryStream(frame);
-        var raw = await FrameCodec.ReadFrameAsync(ms, CancellationToken.None);
-        var decoded = VectorizerValue.FromWire(raw);
+        var decoded = RoundTrip(v);
 
         Assert.True(decoded.TryAsInt(out var i));
         Assert.Equal(42, i);
     }
 
     [Fact]
-    public async Task Bytes_RoundTripsWithoutBase64()
+    public void Bytes_RoundTripsWithoutBase64()
     {
         var bytes = new byte[] { 1, 2, 3, 4, 5 };
         var v = VectorizerValue.OfBytes(bytes);
-        var frame = FrameCodec.EncodeFrame(v.ToWire());
-
-        using var ms = new MemoryStream(frame);
-        var raw = await FrameCodec.ReadFrameAsync(ms, CancellationToken.None);
-        var decoded = VectorizerValue.FromWire(raw);
+        var decoded = RoundTrip(v);
 
         Assert.True(decoded.TryAsBytes(out var got));
         Assert.Equal(bytes, got);
     }
 
     [Fact]
-    public async Task Map_PreservesInsertionOrder()
+    public void Map_PreservesInsertionOrder()
     {
         var pairs = new List<MapPair>
         {
@@ -54,11 +63,7 @@ public class VectorizerValueTests
             new(VectorizerValue.OfStr("mmm"), VectorizerValue.OfInt(3)),
         };
         var v = VectorizerValue.OfMap(pairs);
-        var frame = FrameCodec.EncodeFrame(v.ToWire());
-
-        using var ms = new MemoryStream(frame);
-        var raw = await FrameCodec.ReadFrameAsync(ms, CancellationToken.None);
-        var decoded = VectorizerValue.FromWire(raw);
+        var decoded = RoundTrip(v);
 
         Assert.True(decoded.TryAsMap(out var got));
         Assert.Equal(3, got.Count);
@@ -82,7 +87,7 @@ public class VectorizerValueTests
     }
 
     [Fact]
-    public async Task Array_OfNestedValues_RoundTrips()
+    public void Array_OfNestedValues_RoundTrips()
     {
         var v = VectorizerValue.OfArray(new[]
         {
@@ -91,11 +96,7 @@ public class VectorizerValueTests
             VectorizerValue.OfFloat(3.14),
             VectorizerValue.Null,
         });
-        var frame = FrameCodec.EncodeFrame(v.ToWire());
-
-        using var ms = new MemoryStream(frame);
-        var raw = await FrameCodec.ReadFrameAsync(ms, CancellationToken.None);
-        var decoded = VectorizerValue.FromWire(raw);
+        var decoded = RoundTrip(v);
 
         Assert.True(decoded.TryAsArray(out var arr));
         Assert.Equal(4, arr.Count);

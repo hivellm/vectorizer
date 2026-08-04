@@ -1,10 +1,11 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+
+// Aliased rather than imported: HiveLLM.Thunder declares its own `Value`,
+// `ValueKind`, `Request` and `Response`, which this assembly also defines.
+using Thunder = HiveLLM.Thunder;
 
 namespace Vectorizer.Rpc;
 
@@ -19,82 +20,91 @@ public sealed class RpcClientOptions
     /// <summary>Per-call response timeout. Defaults to 30 seconds.</summary>
     public TimeSpan CallTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>Disable Nagle's algorithm. Defaults to true (RPC frames are complete requests).</summary>
+    /// <summary>Retained for source compatibility. Thunder always disables
+    /// Nagle: every RPC frame is a complete request, so latency matters more
+    /// than packing several into one segment.</summary>
     public bool NoDelay { get; set; } = true;
 }
 
 /// <summary>
-/// Single TCP connection to a Vectorizer RPC server.
+/// Single connection to a Vectorizer RPC server, backed by
+/// <c>HiveLLM.Thunder</c> — the HiveLLM family's shared binary RPC client,
+/// the same protocol <c>vectorizer-server</c> runs, so the two ends of the
+/// wire cannot drift.
 ///
 /// <para>Thread-safe: many callers can invoke <see cref="CallAsync(string, IReadOnlyList{VectorizerValue}, CancellationToken)"/>
-/// concurrently. Writes serialise on an internal mutex; responses are
-/// demultiplexed by <c>Request.Id</c> into per-call mailboxes.</para>
+/// concurrently. Their calls multiplex over the one connection and are
+/// demultiplexed by frame id; the frame cap, per-call timeouts and lazy
+/// re-dial come from Thunder.</para>
 ///
-/// <para>Always issue <see cref="HelloAsync(HelloPayload, CancellationToken)"/> before
-/// any data-plane command — otherwise the local gate raises
-/// <see cref="RpcNotAuthenticatedException"/> and the server would also
-/// reject the request.</para>
+/// <para>Credentials travel in the connection handshake (<c>AUTH</c>), so
+/// <see cref="HelloAsync(HelloPayload, CancellationToken)"/> re-dials when its
+/// payload carries a token or an API key — that is what authenticates the
+/// session every later command runs under.</para>
 /// </summary>
 public sealed class RpcClient : IAsyncDisposable, IDisposable
 {
-    private static readonly HashSet<string> AuthExempt = new(StringComparer.Ordinal)
-    {
-        "HELLO", "PING",
-    };
+    /// <summary>Frame-body cap, matching the server's listener so neither end
+    /// rejects a frame the other is willing to send.</summary>
+    public const int MaxFrameBytes = 512 * 1024 * 1024;
 
-    private readonly TcpClient _tcp;
-    private readonly Stream _stream;
-    private readonly RpcClientOptions _options;
-    private readonly ConcurrentDictionary<uint, PendingCall> _pending = new();
-    private readonly SemaphoreSlim _writeLock = new(1, 1);
-    private readonly CancellationTokenSource _readerCts = new();
-    private readonly TaskCompletionSource _readerDone = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private Task? _readerTask;
-    private long _nextId;
-    private long _authenticated; // 0/1 via Interlocked
+    private readonly string _endpoint;
+    private readonly SemaphoreSlim _redialLock = new(1, 1);
+    private Thunder.ClientConfig _clientConfig;
+    private Thunder.ThunderClient _client;
     private int _disposed;
 
-    private RpcClient(TcpClient tcp, Stream stream, RpcClientOptions options)
+    private RpcClient(string endpoint, Thunder.ThunderClient client, Thunder.ClientConfig clientConfig)
     {
-        _tcp = tcp;
-        _stream = stream;
-        _options = options;
+        _endpoint = endpoint;
+        _client = client;
+        _clientConfig = clientConfig;
     }
 
-    /// <summary>True once <see cref="HelloAsync(HelloPayload, CancellationToken)"/> has returned
-    /// <c>Authenticated = true</c>.</summary>
-    public bool IsAuthenticated => Interlocked.Read(ref _authenticated) == 1;
+    /// <summary>
+    /// How Vectorizer uses the Thunder wire: the client half of the server's
+    /// <c>vectorizer_config()</c>. The <c>vectorizer</c> scheme, an
+    /// <c>AUTH</c>-command handshake, no HELLO negotiation (the <c>HELLO</c>
+    /// <i>command</i> is Vectorizer's own), no server push, and RESP3-style
+    /// error prefixes.
+    /// </summary>
+    /// <remarks>
+    /// Declared here rather than imported from the server so the SDK depends
+    /// only on published packages.
+    /// </remarks>
+    public static Thunder.Config ProtocolConfig() => Thunder.Config.Standard() with
+    {
+        Scheme = "vectorizer",
+        DefaultPort = EndpointParser.DefaultRpcPort,
+        Handshake = Thunder.Handshake.AuthCommand,
+        HelloStyle = Thunder.HelloStyle.NotUsed,
+        Push = Thunder.PushPolicy.Reserved,
+        ErrorCodes = Thunder.ErrorConvention.Resp3Prefixes,
+        MaxFrameBytes = MaxFrameBytes,
+    };
 
-    /// <summary>Opens a TCP connection to <paramref name="host"/>:<paramref name="port"/>.</summary>
+    /// <summary>True once the connection's handshake authenticated. Always
+    /// false against an open (single-user) server, which authenticates nobody
+    /// because it gates nothing.</summary>
+    public bool IsAuthenticated => Volatile.Read(ref _client).IsAuthenticated;
+
+    /// <summary>Dials <paramref name="host"/>:<paramref name="port"/>. Does not
+    /// authenticate — pass credentials to
+    /// <see cref="HelloAsync(HelloPayload, CancellationToken)"/>.</summary>
     public static async Task<RpcClient> ConnectAsync(
         string host, int port, RpcClientOptions? options = null, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(host);
         options ??= new RpcClientOptions();
-        var tcp = new TcpClient();
-        if (options.NoDelay) tcp.NoDelay = true;
-
-        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        connectCts.CancelAfter(options.ConnectTimeout);
-        try
+        var endpoint = $"vectorizer://{host}:{port}";
+        var clientConfig = new Thunder.ClientConfig
         {
-            await tcp.ConnectAsync(host, port, connectCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            tcp.Dispose();
-            throw new TimeoutException(
-                $"RPC connect to {host}:{port} timed out after {options.ConnectTimeout}");
-        }
-        catch
-        {
-            tcp.Dispose();
-            throw;
-        }
-
-        var stream = tcp.GetStream();
-        var client = new RpcClient(tcp, stream, options);
-        client._readerTask = Task.Run(() => client.ReaderLoopAsync(client._readerCts.Token));
-        return client;
+            ConnectTimeout = options.ConnectTimeout,
+            CallTimeout = options.CallTimeout,
+            ClientName = "vectorizer-csharp-sdk",
+        };
+        var client = await DialAsync(endpoint, clientConfig, ct).ConfigureAwait(false);
+        return new RpcClient(endpoint, client, clientConfig);
     }
 
     /// <summary>Parses <paramref name="url"/> and dials it. REST URLs are rejected.</summary>
@@ -112,25 +122,92 @@ public sealed class RpcClient : IAsyncDisposable, IDisposable
         return ConnectAsync(ep.Host, ep.Port, options, ct);
     }
 
-    /// <summary>HELLO handshake. Must be the first call on a fresh connection.</summary>
+    private static async Task<Thunder.ThunderClient> DialAsync(
+        string endpoint, Thunder.ClientConfig clientConfig, CancellationToken ct)
+    {
+        try
+        {
+            return await Thunder.ThunderClient
+                .ConnectAsync(endpoint, ProtocolConfig(), clientConfig, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Thunder.ThunderException ex)
+        {
+            throw ToRpcException(ex);
+        }
+    }
+
+    /// <summary>
+    /// HELLO handshake: returns the server's capability list and auth flags.
+    /// </summary>
+    /// <remarks>
+    /// When <paramref name="payload"/> carries a token or an API key, the
+    /// connection is re-dialed so those credentials travel in Thunder's
+    /// <c>AUTH</c> handshake. A credential-free payload reuses the existing
+    /// connection.
+    /// </remarks>
     public async Task<HelloResponse> HelloAsync(HelloPayload payload, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(payload);
         if (payload.Version == 0) payload.Version = 1;
 
-        var value = await RawCallAsync("HELLO", new[] { payload.ToValue() }, ct).ConfigureAwait(false);
-        var response = HelloResponse.FromValue(value);
-        if (response.Authenticated)
+        var credentials = Credentials(payload);
+        if (credentials is not null)
         {
-            Interlocked.Exchange(ref _authenticated, 1);
+            await RedialWithAsync(payload, credentials, ct).ConfigureAwait(false);
         }
-        return response;
+
+        var value = await CallAsync("HELLO", new[] { payload.ToValue() }, ct).ConfigureAwait(false);
+        return HelloResponse.FromValue(value);
+    }
+
+    /// <summary>The handshake credentials a HELLO payload carries, if any.</summary>
+    private static Thunder.Credentials? Credentials(HelloPayload payload)
+    {
+        if (!string.IsNullOrEmpty(payload.Token))
+        {
+            return Thunder.Credentials.Token(payload.Token!);
+        }
+        if (!string.IsNullOrEmpty(payload.ApiKey))
+        {
+            return Thunder.Credentials.ApiKey(payload.ApiKey!);
+        }
+        return null;
+    }
+
+    /// <summary>Dial a fresh authenticated connection and swap it in, closing
+    /// the previous one. Serialized so concurrent HELLOs cannot interleave.</summary>
+    private async Task RedialWithAsync(
+        HelloPayload payload, Thunder.Credentials credentials, CancellationToken ct)
+    {
+        await _redialLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var clientConfig = _clientConfig with
+            {
+                Credentials = credentials,
+                ClientName = string.IsNullOrEmpty(payload.ClientName)
+                    ? _clientConfig.ClientName
+                    : payload.ClientName,
+            };
+            var fresh = await DialAsync(_endpoint, clientConfig, ct).ConfigureAwait(false);
+            var previous = Interlocked.Exchange(ref _client, fresh);
+            _clientConfig = clientConfig;
+            if (previous is not null)
+            {
+                await previous.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _redialLock.Release();
+        }
     }
 
     /// <summary>Health-check (auth-exempt). Returns the server's PONG string.</summary>
     public async Task<string> PingAsync(CancellationToken ct = default)
     {
-        var v = await RawCallAsync("PING", Array.Empty<VectorizerValue>(), ct).ConfigureAwait(false);
+        var v = await CallAsync("PING", Array.Empty<VectorizerValue>(), ct).ConfigureAwait(false);
         if (!v.TryAsStr(out var s))
         {
             throw new RpcServerException("PING returned non-string payload");
@@ -142,172 +219,57 @@ public sealed class RpcClient : IAsyncDisposable, IDisposable
     /// Dispatches a generic command. Most callers should reach for a
     /// typed wrapper in <see cref="RpcCommands"/> instead.
     /// </summary>
-    public Task<VectorizerValue> CallAsync(
+    /// <remarks>
+    /// The server gates un-authenticated sessions, so a data-plane command on
+    /// a session that never authenticated raises
+    /// <see cref="RpcNotAuthenticatedException"/>.
+    /// </remarks>
+    public async Task<VectorizerValue> CallAsync(
         string command, IReadOnlyList<VectorizerValue> args, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(args);
-        if (!AuthExempt.Contains(command) && !IsAuthenticated)
-        {
-            throw new RpcNotAuthenticatedException();
-        }
-        return RawCallAsync(command, args, ct);
-    }
-
-    private async Task<VectorizerValue> RawCallAsync(
-        string command, IReadOnlyList<VectorizerValue> args, CancellationToken ct)
-    {
         if (Volatile.Read(ref _disposed) != 0)
         {
             throw new RpcConnectionClosedException();
         }
 
-        var id = AllocateId();
-        var request = new RpcRequest(id, command, args);
-        var frame = FrameCodec.EncodeFrame(request.ToWire());
-
-        var pending = new PendingCall();
-        _pending[id] = pending;
+        var wireArgs = new Thunder.Value[args.Count];
+        for (var i = 0; i < wireArgs.Length; i++)
+        {
+            wireArgs[i] = args[i].ToThunder();
+        }
 
         try
         {
-            await _writeLock.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await _stream.WriteAsync(frame, ct).ConfigureAwait(false);
-                await _stream.FlushAsync(ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                _writeLock.Release();
-            }
-
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            linked.CancelAfter(_options.CallTimeout);
-            try
-            {
-                var response = await pending.Task.WaitAsync(linked.Token).ConfigureAwait(false);
-                if (response.Result.IsOk)
-                {
-                    return response.Result.Value;
-                }
-                throw new RpcServerException(response.Result.ErrorMessage ?? "unknown server error");
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                throw new TimeoutException(
-                    $"RPC call '{command}' timed out after {_options.CallTimeout}");
-            }
+            var result = await Volatile.Read(ref _client)
+                .CallAsync(command, wireArgs, ct)
+                .ConfigureAwait(false);
+            return VectorizerValue.FromThunder(result);
         }
-        catch (IOException ex)
+        catch (Thunder.ThunderException ex)
         {
-            throw new RpcConnectionClosedException($"send failed: {ex.Message}", ex);
-        }
-        catch (SocketException ex)
-        {
-            throw new RpcConnectionClosedException($"send failed: {ex.Message}", ex);
-        }
-        finally
-        {
-            _pending.TryRemove(id, out _);
+            throw ToRpcException(ex);
         }
     }
 
-    private uint AllocateId()
+    /// <summary>Maps a typed Thunder error onto this SDK's exception hierarchy.</summary>
+    private static Exception ToRpcException(Thunder.ThunderException ex) => ex.ErrorClass switch
     {
-        while (true)
-        {
-            var id = (uint)Interlocked.Increment(ref _nextId);
-            if (id != 0) return id;
-        }
-    }
-
-    private async Task ReaderLoopAsync(CancellationToken ct)
-    {
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                var raw = await FrameCodec.ReadFrameAsync(_stream, ct).ConfigureAwait(false);
-                RpcResponse response;
-                try
-                {
-                    response = RpcResponse.FromWire(raw);
-                }
-                catch
-                {
-                    continue;
-                }
-
-                if (_pending.TryRemove(response.Id, out var pending))
-                {
-                    pending.TrySetResult(response);
-                }
-            }
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // Normal shutdown.
-        }
-        catch (EndOfStreamException)
-        {
-            // Peer hung up between frames.
-        }
-        catch (Exception ex) when (ex is IOException or SocketException or FrameDecodeException)
-        {
-            FailAllPending(ex.Message);
-        }
-        finally
-        {
-            FailAllPending("connection closed");
-            _readerDone.TrySetResult();
-        }
-    }
-
-    private void FailAllPending(string message)
-    {
-        foreach (var kvp in _pending)
-        {
-            kvp.Value.TrySetException(new RpcConnectionClosedException(message));
-        }
-        _pending.Clear();
-    }
+        Thunder.ThunderErrorClass.Auth => new RpcNotAuthenticatedException(ex.Message),
+        Thunder.ThunderErrorClass.Server => new RpcServerException(ex.Message),
+        Thunder.ThunderErrorClass.Timeout => new TimeoutException(ex.Message, ex),
+        _ => new RpcConnectionClosedException(ex.Message, ex),
+    };
 
     /// <summary>Closes the connection. In-flight calls raise <see cref="RpcConnectionClosedException"/>.</summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-
-        try { _readerCts.Cancel(); } catch { /* best-effort */ }
-        try { _stream.Dispose(); } catch { /* best-effort */ }
-        try { _tcp.Dispose(); } catch { /* best-effort */ }
-
-        try
-        {
-            if (_readerTask is not null)
-            {
-                await _readerTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-            }
-        }
-        catch { /* best-effort */ }
-
-        FailAllPending("connection closed");
-        _readerCts.Dispose();
-        _writeLock.Dispose();
+        await Volatile.Read(ref _client).DisposeAsync().ConfigureAwait(false);
+        _redialLock.Dispose();
     }
 
     /// <summary>Synchronous dispose for <c>using</c> blocks; prefer <see cref="DisposeAsync"/>.</summary>
     public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
-
-    private sealed class PendingCall
-    {
-        private readonly TaskCompletionSource<RpcResponse> _tcs =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public Task<RpcResponse> Task => _tcs.Task;
-
-        public void TrySetResult(RpcResponse response) => _tcs.TrySetResult(response);
-
-        public void TrySetException(Exception ex) => _tcs.TrySetException(ex);
-    }
 }

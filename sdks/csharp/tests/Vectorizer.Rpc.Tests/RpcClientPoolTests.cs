@@ -34,8 +34,11 @@ public class RpcClientPoolTests
             MaxConnections = 2,
         });
 
+        // The pool runs HELLO for the caller. `IsAuthenticated` stays false
+        // here because this fixture is an open deployment and the pool's HELLO
+        // payload carries no credentials — there is no AUTH to succeed.
         await using var leased = await pool.AcquireAsync();
-        Assert.True(leased.Client.IsAuthenticated);
+        Assert.False(leased.Client.IsAuthenticated);
         Assert.Equal("PONG", await leased.Client.PingAsync());
     }
 
@@ -52,14 +55,15 @@ public class RpcClientPoolTests
         // First acquire dials + HELLO.
         await using (var first = await pool.AcquireAsync())
         {
-            Assert.True(first.Client.IsAuthenticated);
+            Assert.Equal("PONG", await first.Client.PingAsync());
         }
         Assert.Equal(1, pool.IdleCount);
 
         // Second acquire should hand back the same idle client without a
         // second HELLO round-trip.
         await using var second = await pool.AcquireAsync();
-        Assert.True(second.Client.IsAuthenticated);
+        Assert.Equal("PONG", await second.Client.PingAsync());
+        Assert.Equal(0, pool.IdleCount);
     }
 
     [Fact]
@@ -99,6 +103,7 @@ public class RpcClientPoolTests
                 new MapPair(VectorizerValue.OfStr("capabilities"),
                     VectorizerValue.OfArray(Array.Empty<VectorizerValue>())),
             }))),
+            "PING" => new RpcResponse(id, RpcResult.Ok(VectorizerValue.OfStr("PONG"))),
             _ => new RpcResponse(id, RpcResult.Err("unknown")),
         };
 }
