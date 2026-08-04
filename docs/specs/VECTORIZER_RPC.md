@@ -306,10 +306,11 @@ normalized under a cosine metric, so a read returns the unit vector, not the
 input.
 
 `vectors.set_expiry` accepts a Unix-ms integer string or RFC3339 and stamps
-`__expires_at` into the vector's payload. Removal is the TTL reaper's job: it
-sweeps every collection once per interval (60 s by default), so an expiry takes
-effect within one sweep rather than instantly — reads do not filter on
-`__expires_at`.
+`__expires_at` into the vector's payload. It takes effect on reads immediately:
+`vectors.get` reports an expired vector as not found, and the search and
+`vectors.list` paths drop it. Reclaiming the memory is the TTL reaper's job — it
+sweeps every collection once per interval (60 s by default) — so an expired
+vector still occupies space until the next sweep, it just is not served.
 
 ### Search
 

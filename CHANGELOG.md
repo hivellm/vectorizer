@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **An expired vector stops being served immediately.** Reads did not consult
+  `__expires_at` at all, so removal was entirely up to the TTL reaper's sweep —
+  a vector stayed readable and kept appearing in search results for up to one
+  interval after its expiry lapsed. `get_vector` now reports an expired vector
+  as absent, `search` and `search_explained` drop expired hits, and the
+  paginated listings filter before counting so `total` and the page agree.
+  - Filtering, not deleting: `search` holds the index read lock while building
+    results and a delete needs the write lock, so reclaiming on read would
+    risk a deadlock. The reaper still does the removal, and the filter is one
+    payload-field comparison per hit, applied after the ANN search returns
+    candidates.
+  - The filter sits on `CollectionType::get_vector`, so the CPU, GPU and
+    sharded backends cannot drift apart.
+  - `get_all_vectors` stays raw on purpose — the reaper needs to see expired
+    vectors to delete them, and a save must not silently drop one. The
+    reaper's own tests now assert against that raw accessor, since asserting
+    through `get_vector` would have passed whether or not the sweep deleted
+    anything.
+
 - **Fetching a vector by id over REST returns the vector.**
   `GET /collections/{name}/vectors/{id}` never read the store: it checked the
   collection existed and answered `200 OK` with `vec![0.1; 512]` for any id, in

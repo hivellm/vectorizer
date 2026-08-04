@@ -248,6 +248,19 @@ mod tests {
             .unwrap();
     }
 
+    /// Is the vector still *stored*, expired or not?
+    ///
+    /// Deliberately not `store.get_vector`: that hides an expired vector from
+    /// readers, so asserting on it would pass whether or not the sweep
+    /// actually deleted anything. `get_all_vectors` is the raw accessor the
+    /// reaper itself uses, so it distinguishes "filtered" from "removed".
+    fn is_stored(store: &VectorStore, collection: &str, id: &str) -> bool {
+        store
+            .get_collection(collection)
+            .map(|coll| coll.get_all_vectors().iter().any(|v| v.id == id))
+            .unwrap_or(false)
+    }
+
     #[test]
     fn sweep_deletes_expired_and_spares_the_rest() {
         let store = store_with_collection("reap");
@@ -259,15 +272,15 @@ mod tests {
         TtlReaper::sweep(&store, "reap", &sink);
 
         assert!(
-            store.get_vector("reap", "gone").is_err(),
-            "an expired vector must be deleted"
+            !is_stored(&store, "reap", "gone"),
+            "an expired vector must be removed from the store, not merely hidden"
         );
         assert!(
-            store.get_vector("reap", "later").is_ok(),
+            is_stored(&store, "reap", "later"),
             "a future expiry must survive the sweep"
         );
         assert!(
-            store.get_vector("reap", "eternal").is_ok(),
+            is_stored(&store, "reap", "eternal"),
             "a vector with no expiry must survive the sweep"
         );
         assert_eq!(
@@ -285,7 +298,7 @@ mod tests {
         let sink = RecordingSink::default();
         TtlReaper::sweep(&store, "quiet", &sink);
 
-        assert!(store.get_vector("quiet", "later").is_ok());
+        assert!(is_stored(&store, "quiet", "later"));
         assert!(
             sink.expired.lock().unwrap().is_empty(),
             "no deletions means no expired-count sample"
@@ -324,13 +337,13 @@ mod tests {
 
         let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
         while tokio::time::Instant::now() < deadline {
-            if store.get_vector("late", "gone").is_err() {
+            if !is_stored(&store, "late", "gone") {
                 break;
             }
             tokio::time::sleep(Duration::from_millis(200)).await;
         }
         assert!(
-            store.get_vector("late", "gone").is_err(),
+            !is_stored(&store, "late", "gone"),
             "the reaper never swept a collection created after it started"
         );
         assert!(
@@ -354,12 +367,77 @@ mod tests {
         tokio::time::sleep(Duration::from_secs(2)).await;
 
         assert!(
-            store.get_vector("halt", "gone").is_ok(),
+            is_stored(&store, "halt", "gone"),
             "a stopped reaper must not delete anything"
         );
         assert!(
             sink.scans.lock().unwrap().is_empty(),
             "a reaper stopped before its first tick must not scan"
+        );
+    }
+
+    // ── Read-path filtering ──────────────────────────────────────────────
+    //
+    // The reaper bounds how long an expired vector occupies memory; these
+    // pin that it stops being *served* immediately, with no sweep involved.
+
+    #[test]
+    fn an_expired_vector_reads_as_absent_without_a_sweep() {
+        let store = store_with_collection("filter_get");
+        insert_with_expiry(&store, "filter_get", "gone", -1);
+        insert_with_expiry(&store, "filter_get", "later", 600_000);
+
+        assert!(
+            store.get_vector("filter_get", "gone").is_err(),
+            "an expired vector must not be readable, sweep or no sweep"
+        );
+        assert!(
+            is_stored(&store, "filter_get", "gone"),
+            "this test must exercise the read filter, not a deletion"
+        );
+        assert!(
+            store.get_vector("filter_get", "later").is_ok(),
+            "a live vector stays readable"
+        );
+    }
+
+    #[test]
+    fn an_expired_vector_is_not_a_search_hit() {
+        let store = store_with_collection("filter_search");
+        insert_with_expiry(&store, "filter_search", "gone", -1);
+        insert_without_expiry(&store, "filter_search", "eternal");
+
+        let hits = store
+            .search("filter_search", &[0.4, 0.3, 0.2, 0.1], 10)
+            .unwrap();
+        let ids: Vec<&str> = hits.iter().map(|h| h.id.as_str()).collect();
+
+        assert!(
+            !ids.contains(&"gone"),
+            "an expired vector was returned as a search hit: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"eternal"),
+            "the live vector must still be found: {ids:?}"
+        );
+        assert!(
+            is_stored(&store, "filter_search", "gone"),
+            "this test must exercise the read filter, not a deletion"
+        );
+    }
+
+    #[test]
+    fn an_expiry_in_the_future_is_not_filtered() {
+        let store = store_with_collection("filter_future");
+        insert_with_expiry(&store, "filter_future", "later", 600_000);
+
+        assert!(store.get_vector("filter_future", "later").is_ok());
+        let hits = store
+            .search("filter_future", &[0.1, 0.2, 0.3, 0.4], 10)
+            .unwrap();
+        assert!(
+            hits.iter().any(|h| h.id == "later"),
+            "a future expiry must not hide the vector"
         );
     }
 }

@@ -1256,10 +1256,19 @@ fn handle_vectors_list(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue])
         Ok(c) => c,
         Err(e) => return Response::err(id, format!("vectors.list: {}", e)),
     };
-    let all = coll.get_all_vectors();
-    let total = all.len();
+    // `get_all_vectors` is the raw accessor — it has to include expired
+    // vectors so the TTL reaper can find them. A listing is a read, so drop
+    // them here, and drop them before paginating so `total` and the page
+    // contents agree.
+    let now_ms = vectorizer::models::Vector::now_ms();
+    let live: Vec<_> = coll
+        .get_all_vectors()
+        .into_iter()
+        .filter(|v| !v.is_expired(now_ms))
+        .collect();
+    let total = live.len();
     let offset = page * limit;
-    let items: Vec<VectorizerValue> = all
+    let items: Vec<VectorizerValue> = live
         .into_iter()
         .skip(offset)
         .take(limit)

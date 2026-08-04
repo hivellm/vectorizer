@@ -164,9 +164,10 @@ a sweep of N collections emits N samples per tick.
 | `vectorizer_ttl_vectors_expired_total` | Counter vector | `collection` | 1   | `db/ttl_reaper.rs`; vectors actually deleted, emitted only when a sweep removed at least one |
 
 A flat `scans_total` with a live server means the reaper is not running —
-before 3.6.0 nothing spawned it at all. Note that expiry is enforced by this
-sweep only: reads do not filter on `__expires_at`, so an expired vector can be
-served for up to one interval.
+before 3.6.0 nothing spawned it at all. The sweep is what reclaims the memory;
+reads filter on `__expires_at` independently, so an expired vector stops being
+served the moment it lapses even though `vectors_expired_total` only moves on
+the next sweep.
 
 Vectorizer does **not** ship its own CPU / load / FD / network-connection
 Prometheus gauges. Pair `/prometheus/metrics` with a standard

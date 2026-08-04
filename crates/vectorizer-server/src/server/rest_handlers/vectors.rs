@@ -64,8 +64,15 @@ pub async fn list_vectors(
         .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
 
-    // Get actual vectors from the local collection
-    let all_vectors = collection.get_all_vectors();
+    // `get_all_vectors` is the raw accessor — it has to include expired
+    // vectors so the TTL reaper can find them. A listing is a read, so drop
+    // them before counting, so `total` and the page contents agree.
+    let now_ms = vectorizer::models::Vector::now_ms();
+    let all_vectors: Vec<_> = collection
+        .get_all_vectors()
+        .into_iter()
+        .filter(|v| !v.is_expired(now_ms))
+        .collect();
     let total_count = all_vectors.len();
 
     // Filter vectors by minimum score (scoring based on payload content richness)
