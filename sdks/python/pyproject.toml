@@ -41,7 +41,12 @@ classifiers = [
 
 dependencies = [
     "aiohttp>=3.10.11",
-    "msgpack>=1.1.1",
+    # Thunder is the HiveLLM family's shared binary RPC package (imported as
+    # `thunder_rpc`): the wire codec, the value model, and the multiplexed
+    # sync + async clients the `rpc` package builds on. `vectorizer-server`
+    # runs the same crate's server half, so the two ends cannot drift. It
+    # carries the msgpack dependency this SDK used to declare directly.
+    "hivellm-thunder>=0.2.2",
 ]
 
 [project.optional-dependencies]

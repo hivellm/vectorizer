@@ -2,6 +2,51 @@
 
 All notable changes to the Hive Vectorizer Python SDK will be documented in this file.
 
+## [3.6.0] - TBD
+
+### Changed
+
+- **RPC transport now runs on `hivellm-thunder`** (imported as `thunder_rpc`,
+  ≥0.2.2), the HiveLLM family's shared binary RPC package whose Rust twin
+  `vectorizer-server` runs. `RpcClient` and `AsyncRpcClient` wrap Thunder's
+  `Client` / `AsyncClient` instead of hand-rolled socket + reader-thread /
+  reader-task loops: framing, response demultiplexing by frame id, bounded
+  in-flight, connect and per-call timeouts and lazy re-dial are Thunder's.
+  The on-wire format is unchanged (v1, frozen: 4-byte little-endian length
+  prefix + MessagePack body), and every typed command wrapper keeps its
+  signature.
+- `VectorizerValue` now subclasses `thunder_rpc.Value`. The `str_` / `int_` /
+  `float_` / `bool_` / `bytes_` factories and every accessor (`as_str()`,
+  `map_get()`, …) work exactly as before; `kind` is now **lowercase**
+  (`"str"`, not `"Str"`). The MessagePack tags on the wire are unchanged.
+- `hello()` re-dials when its payload carries a `token` or `api_key`: Thunder
+  authenticates in the connection handshake (`AUTH`), so credentials must
+  reach the session the later commands run under. Call sites are unchanged.
+- `is_authenticated()` reports the *session* handshake state, so it is
+  `False` against an open single-user server — which authenticates nobody
+  because it gates nothing.
+- `RpcNotAuthenticated` is now raised from the server's `NOAUTH` /
+  `WRONGPASS` / `NOPERM` reply instead of a local pre-flight guess, and
+  carries the server's message.
+
+### Added
+
+- `protocol_config()` — the client half of the server's wire config, exported
+  so tooling that builds its own Thunder client dials with the same shape.
+- `RpcTimeout` and `RpcProtocolError` exceptions (Thunder's timeout and
+  malformed/oversized-frame classes).
+
+### Removed
+
+- The private `rpc._codec` module (`encode_frame`, `read_frame_sync`,
+  `read_frame_async`) — framing is Thunder's.
+- `VectorizerValue.to_msgpack()` / `from_msgpack()` and `Response.ok()` /
+  `Response.err()` / `Response.to_msgpack()` / `Response.from_msgpack()`.
+  `Response` is Thunder's frozen dataclass: build frames with
+  `Response(id=..., ok=value)` / `Response(id=..., err=message)` and
+  `thunder_rpc.wire.encode_frame`.
+- The direct `msgpack` dependency (Thunder carries it).
+
 ## [3.5.0] - TBD
 
 Version alignment with the Vectorizer 3.5.0 server release. No SDK API
