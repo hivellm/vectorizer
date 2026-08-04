@@ -8,7 +8,7 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
-| ⬚ | phase1_fix-query-cache-prometheus-counter | 0/6 | fix query cache prometheus counter |
+| ⬚ | phase1_ttl-reaper-never-spawned | 0/6 | ttl reaper never spawned |
 
 ## phase2
 

@@ -147,7 +147,7 @@ Emitted only on master nodes (and replicas for `*_received_total`) —
 | Metric                                | Type            | Labels                                          | Unit  | Source                                                                 |
 | ------------------------------------- | --------------- | ----------------------------------------------- | ----- | ---------------------------------------------------------------------- |
 | `vectorizer_memory_usage_bytes`       | Gauge           | —                                               | bytes | `monitoring/metrics.rs:245`; set by `SystemCollector::collect_memory_metrics` via `memory_stats::memory_stats()` (process RSS) every 15 s |
-| `vectorizer_cache_requests_total`     | Counter vector  | `cache_type`, `result`                          | 1     | `monitoring/metrics.rs:251`; emitted by `cache/query_cache.rs:150-181` — `cache_type="query"`, `result` ∈ `hit`, `miss`, `bypass` |
+| `vectorizer_cache_requests_total`     | Counter vector  | `cache_type`, `result`                          | 1     | `monitoring/metrics.rs:251`; emitted by `cache/query_cache.rs` through the injected `MetricsSink` — `cache_type="query"`, `result` ∈ `hit`, `miss`, `bypass`. Requires the cache to be built with `QueryCache::new_with_metrics(..., PrometheusMetricsSink)`; `QueryCache::new` wires a `NoopMetricsSink` and the counter then never moves |
 | `vectorizer_api_errors_total`         | Counter vector  | `endpoint`, `error_type`, `status_code`         | 1     | `monitoring/metrics.rs:257`; emitted by `security/rate_limit.rs:418`, `:439` and other error paths |
 
 Vectorizer does **not** ship its own CPU / load / FD / network-connection
@@ -408,6 +408,21 @@ Every metric family registers on server start via
 only appear after the first observation — so a freshly started server with no
 traffic will show the family lines but no samples. Generate a test query or
 insert and re-scrape.
+
+### A family shows up but its samples never move
+
+Some producers take a `MetricsSink` instead of touching `METRICS` directly:
+the query cache, the TTL reaper, HiveHub quota checks and API-key validation.
+The default constructors (`QueryCache::new`, `QuotaManager::new`,
+`TtlReaper::spawn`) inject a `NoopMetricsSink`, so the emission call happens
+and goes nowhere. Only the `*_with_metrics` variants, given a
+`PrometheusMetricsSink`, reach the registry.
+
+If a counter from that list is stuck at zero while the feature is clearly
+running, check the wiring site rather than the emission site — the call is
+usually already there. (`vectorizer_cache_requests_total` and the
+`hub_quota_*` family were both stuck this way until the bootstrap and HiveHub
+wiring were fixed.)
 
 ### A metric family is missing entirely
 

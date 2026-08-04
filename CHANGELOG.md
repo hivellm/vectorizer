@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Cache and HiveHub quota metrics reach Prometheus again.** `QueryCache::new`
+  and `QuotaManager::new` inject a `NoopMetricsSink` by design — the real sink
+  is supposed to come from the wiring site — but bootstrap and the HiveHub
+  manager both used the plain constructors. The consequence:
+  `vectorizer_cache_requests_total{cache_type="query"}` sat at zero forever, so
+  cache hit rate was invisible on a scrape and on the dashboard, and the four
+  `hub_quota_*` metrics were equally dead. Both sites now inject
+  `PrometheusMetricsSink`. The server test harness deliberately stays on the
+  Noop sink, so a test that reads a counter is not coupled to every other
+  test's cache traffic.
+  - This is what `prometheus_counter_increments_on_every_cache_get` had been
+    reporting: the test was correct and the wiring was not. It now builds its
+    cache the way bootstrap does, so it exercises the path that actually ships.
+
 ### Changed
 
 - **openraft 0.10.0-alpha.22 → 0.10.0-alpha.30** (Dependabot #382), consensus

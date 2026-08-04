@@ -935,9 +935,15 @@ impl VectorizerServer {
         let cache_config = vectorizer::cache::query_cache::QueryCacheConfig::default();
         let max_size = cache_config.max_size;
         let ttl_seconds = cache_config.ttl_seconds;
-        let query_cache = Arc::new(vectorizer::cache::query_cache::QueryCache::new(
-            cache_config,
-        ));
+        // Inject the real sink: `QueryCache::new` wires a NoopMetricsSink, so
+        // building the cache that way leaves `cache_requests_total{cache="query"}`
+        // permanently at zero and the hit rate invisible to a Prometheus scrape.
+        let query_cache = Arc::new(
+            vectorizer::cache::query_cache::QueryCache::new_with_metrics(
+                cache_config,
+                Arc::new(vectorizer::monitoring::PrometheusMetricsSink::new()),
+            ),
+        );
         info!(
             "✅ Query cache initialized (max_size: {}, ttl: {}s)",
             max_size, ttl_seconds
@@ -1856,6 +1862,10 @@ impl VectorizerServer {
             auto_save_manager: None,
             master_node: None,
             replica_node: None,
+            // Deliberately the Noop sink here, unlike the production path
+            // above: a harness that wrote into the global Prometheus registry
+            // would couple every test that reads a counter to every other
+            // test's cache traffic.
             query_cache: Arc::new(vectorizer::cache::query_cache::QueryCache::new(
                 vectorizer::cache::query_cache::QueryCacheConfig::default(),
             )),

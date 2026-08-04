@@ -114,12 +114,27 @@ Two parallel metric streams:
    `misses`, `evictions`, `hit_rate`). Surfaced as JSON via
    `GET /stats` (see `src/server/rest_handlers/meta.rs`).
 2. **Prometheus** `vectorizer_cache_requests_total{cache_type="query",
-   result="hit"|"miss"}` counter, incremented inside `QueryCache::get`
-   on every call. This is what dashboards and alerting consume.
+   result="hit"|"miss"}` counter, emitted from `QueryCache::get` on every
+   call **through the injected `MetricsSink`**. This is what dashboards
+   and alerting consume.
 
-Before this work, the Prometheus counter was registered but never
-incremented — the gauge was stuck at zero forever. The wiring is
-covered by
+That second stream depends on the wiring site, not just on `get`:
+`QueryCache::new` injects a `NoopMetricsSink`, so a cache built that way
+makes the call and drops it on the floor. Only
+`QueryCache::new_with_metrics(config, PrometheusMetricsSink)` reaches the
+registry, which is what bootstrap now does.
+
+An earlier pass added the emission call and this note claimed the counter
+was fixed. It was not: bootstrap still used `QueryCache::new`, so the
+counter stayed at zero in every real deployment while the unit test —
+which built its own cache — passed. Verified end to end on a container
+this time: two identical `POST /collections/{name}/search/text` calls move
+`miss` to 1 and `hit` to 1 on `/prometheus/metrics`, and the same probe
+against the pre-fix image leaves both at zero.
+
+The sink contract is covered by
+`src/cache/query_cache.rs::query_cache_records_hit_and_miss_via_metrics_sink`
+(a recording sink), and the Prometheus path by
 `tests/cache/query_cache_behaviour.rs::prometheus_counter_increments_on_every_cache_get`.
 
 ### Concurrency
