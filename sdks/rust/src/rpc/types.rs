@@ -10,5 +10,4 @@
 //! the eight variants are unchanged, with `Bytes` now carrying an
 //! `Arc<[u8]>` instead of a `Vec<u8>`.
 
-pub use thunder::Value as VectorizerValue;
-pub use thunder::{Request, Response};
+pub use thunder::{Request, Response, Value as VectorizerValue};

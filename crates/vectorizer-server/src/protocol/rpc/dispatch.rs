@@ -21,13 +21,13 @@
 use std::sync::Arc;
 
 use parking_lot::RwLock;
-use tracing::debug;
-use vectorizer::auth::roles::Role;
 // The RPC wire value + frame types are now Thunder's shared model (the wire is
 // byte-identical to the retired vectorizer_protocol::rpc_wire). `Value` is
 // aliased to the historical `VectorizerValue` name so the command handlers read
 // unchanged; only `Value::Bytes` differs (Arc<[u8]> vs the old Vec<u8>).
 use thunder::{Request, Response, Value as VectorizerValue};
+use tracing::debug;
+use vectorizer::auth::roles::Role;
 
 use super::server::RpcState;
 
