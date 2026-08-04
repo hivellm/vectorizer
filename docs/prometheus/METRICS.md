@@ -150,6 +150,24 @@ Emitted only on master nodes (and replicas for `*_received_total`) —
 | `vectorizer_cache_requests_total`     | Counter vector  | `cache_type`, `result`                          | 1     | `monitoring/metrics.rs:251`; emitted by `cache/query_cache.rs` through the injected `MetricsSink` — `cache_type="query"`, `result` ∈ `hit`, `miss`, `bypass`. Requires the cache to be built with `QueryCache::new_with_metrics(..., PrometheusMetricsSink)`; `QueryCache::new` wires a `NoopMetricsSink` and the counter then never moves |
 | `vectorizer_api_errors_total`         | Counter vector  | `endpoint`, `error_type`, `status_code`         | 1     | `monitoring/metrics.rs:257`; emitted by `security/rate_limit.rs:418`, `:439` and other error paths |
 
+### TTL reaper metrics
+
+The reaper sweeps every collection once per interval
+(`DEFAULT_REAPER_INTERVAL_SECS`, 60 s), deleting vectors whose `__expires_at`
+payload field is in the past. All three families carry the collection name, so
+a sweep of N collections emits N samples per tick.
+
+| Metric                             | Type           | Labels       | Unit    | Source |
+| ---------------------------------- | -------------- | ------------ | ------- | ------ |
+| `vectorizer_ttl_reaper_scans_total`| Counter vector | `collection` | 1       | `db/ttl_reaper.rs`; one increment per collection per completed sweep |
+| `vectorizer_ttl_reaper_lag_secs`   | Gauge vector   | `collection` | seconds | `db/ttl_reaper.rs`; how far past its scheduled wake-up the sweep started — a rising value means sweeps are taking longer than the interval |
+| `vectorizer_ttl_vectors_expired_total` | Counter vector | `collection` | 1   | `db/ttl_reaper.rs`; vectors actually deleted, emitted only when a sweep removed at least one |
+
+A flat `scans_total` with a live server means the reaper is not running —
+before 3.6.0 nothing spawned it at all. Note that expiry is enforced by this
+sweep only: reads do not filter on `__expires_at`, so an expired vector can be
+served for up to one interval.
+
 Vectorizer does **not** ship its own CPU / load / FD / network-connection
 Prometheus gauges. Pair `/prometheus/metrics` with a standard
 `node_exporter` / `cAdvisor` for host-level telemetry. (There is a
@@ -422,7 +440,8 @@ If a counter from that list is stuck at zero while the feature is clearly
 running, check the wiring site rather than the emission site — the call is
 usually already there. (`vectorizer_cache_requests_total` and the
 `hub_quota_*` family were both stuck this way until the bootstrap and HiveHub
-wiring were fixed.)
+wiring were fixed; the `ttl_*` families were worse — the producer was never
+started.)
 
 ### A metric family is missing entirely
 

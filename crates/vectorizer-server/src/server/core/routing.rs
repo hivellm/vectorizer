@@ -320,6 +320,13 @@ impl VectorizerServer {
             auto_save.shutdown();
         }
 
+        // TTL reaper: signal its shutdown flag so the sweep loop exits on its
+        // next wake-up instead of racing the final save.
+        if let Some(reaper) = &self.ttl_reaper {
+            reaper.stop();
+            info!("✅ TTL reaper stopped");
+        }
+
         info!("✅ Server stopped");
         Ok(())
     }
@@ -524,7 +531,10 @@ impl VectorizerServer {
             .route("/update", post(rest_handlers::update_vector))
             .route("/delete", post(rest_handlers::delete_vector))
             .route("/embed", post(rest_handlers::embed_text))
-            .route("/vector", post(rest_handlers::get_vector))
+            // Body-based, so an id containing '/' or other path-unsafe
+            // characters is still addressable. The path-based variant is
+            // mounted below on /collections/{name}/vectors/{id}.
+            .route("/vector", post(rest_handlers::get_vector_by_body))
             .route(
                 "/collections/{name}/vectors",
                 get(rest_handlers::list_vectors),

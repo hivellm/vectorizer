@@ -301,9 +301,15 @@ field; a bare `Bool` is not read and the default is a real deletion.
 The batch commands answer `Ok` with per-item `results`; a failed item
 carries `status: "error"` and its reason, so the envelope being `Ok` does
 not mean every item landed. `QdrantFilter` conditions are tagged:
-`{ must: [{ type: "match", key, match_value }] }`. `expires_at` accepts a
-Unix-ms integer string or RFC3339. Vectors are stored normalized under a
-cosine metric, so a read returns the unit vector, not the input.
+`{ must: [{ type: "match", key, match_value }] }`. Vectors are stored
+normalized under a cosine metric, so a read returns the unit vector, not the
+input.
+
+`vectors.set_expiry` accepts a Unix-ms integer string or RFC3339 and stamps
+`__expires_at` into the vector's payload. Removal is the TTL reaper's job: it
+sweeps every collection once per interval (60 s by default), so an expiry takes
+effect within one sweep rather than instantly — reads do not filter on
+`__expires_at`.
 
 ### Search
 

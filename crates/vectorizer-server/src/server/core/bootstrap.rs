@@ -930,6 +930,21 @@ impl VectorizerServer {
         let system_collector_handle = system_collector.start();
         info!("✅ System metrics collector started");
 
+        // Start the TTL reaper. Without it `__expires_at` is write-only: the
+        // expiry is recorded and nothing ever removes the vector, so it keeps
+        // consuming memory and keeps being returned by search (no read path
+        // filters on expiry).
+        info!("⏳ Starting TTL reaper...");
+        let ttl_reaper = vectorizer::db::TtlReaper::spawn_with_metrics(
+            store_arc.clone(),
+            vectorizer::db::DEFAULT_REAPER_INTERVAL_SECS,
+            Arc::new(vectorizer::monitoring::PrometheusMetricsSink::new()),
+        );
+        info!(
+            "✅ TTL reaper started (sweep every {}s)",
+            vectorizer::db::DEFAULT_REAPER_INTERVAL_SECS
+        );
+
         // Initialize query cache
         info!("💾 Initializing query cache...");
         let cache_config = vectorizer::cache::query_cache::QueryCacheConfig::default();
@@ -1771,6 +1786,7 @@ impl VectorizerServer {
             file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(Some(file_watcher_cancel_tx))),
             grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
             auto_save_task: Arc::new(tokio::sync::Mutex::new(Some(auto_save_handle))),
+            ttl_reaper: Some(Arc::new(ttl_reaper)),
             cluster_manager,
             cluster_client_pool,
             max_request_size_mb,
@@ -1878,6 +1894,9 @@ impl VectorizerServer {
             file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(None)),
             grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
             auto_save_task: Arc::new(tokio::sync::Mutex::new(None)),
+            // No reaper in the harness: a background sweep deleting vectors
+            // mid-test would make every expiry assertion timing-dependent.
+            ttl_reaper: None,
             cluster_manager: None,
             cluster_client_pool: None,
             max_request_size_mb: 100,

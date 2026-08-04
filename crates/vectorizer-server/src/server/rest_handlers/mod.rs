@@ -80,8 +80,8 @@ pub use search::{
 pub use slow_queries::{list_slow_queries, set_slow_query_config};
 pub use vectors::{
     batch_insert_texts, bulk_update_metadata, copy_vectors, delete_by_filter, delete_vector,
-    delete_vector_generic, embed_text, get_vector, insert_texts, list_vectors, move_vectors,
-    set_vector_expiry, update_vector,
+    delete_vector_generic, embed_text, get_vector, get_vector_by_body, insert_texts, list_vectors,
+    move_vectors, set_vector_expiry, update_vector,
 };
 
 #[cfg(test)]

@@ -6,6 +6,46 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **Fetching a vector by id over REST returns the vector.**
+  `GET /collections/{name}/vectors/{id}` never read the store: it checked the
+  collection existed and answered `200 OK` with `vec![0.1; 512]` for any id, in
+  any collection, whether or not the vector existed — a fabricated body
+  indistinguishable from real data. It now returns the stored embedding and
+  payload, and 404 when the vector is absent.
+  - `POST /vector`, the route the capability registry declares for
+    `vector.get`, shared that handler and could never work: its
+    `Path<(String, String)>` extractor cannot be satisfied on a route with no
+    path parameters. It now has a body-based handler taking
+    `{collection, vector_id}` — the shape the MCP `get_vector` tool uses — and
+    accepts `id` as well, since that is what every reply calls the field.
+
+- **Vector expiry actually expires.** `TtlReaper` was implemented, exported and
+  instrumented, but nothing ever spawned it — `grep 'TtlReaper::spawn'` outside
+  its own module returned nothing. So `vectors.set_expiry` (and
+  `PATCH /collections/{name}/vectors/{id}/expiry`) recorded an `__expires_at`
+  that nobody acted on: the vector kept its memory and kept being returned by
+  search, since no read path consults expiry either.
+  - The reaper now starts from bootstrap with the real `PrometheusMetricsSink`,
+    so `ttl_reaper_scans_total`, `ttl_reaper_lag_secs` and
+    `ttl_vectors_expired_total` report for the first time, and it stops on the
+    shutdown path before the final save.
+  - It became **store-wide** instead of per-collection: it enumerates
+    collections on every tick. A reaper-per-collection spawned at boot would
+    silently skip every collection created afterwards, and collections are
+    created at runtime over REST, RPC, MCP and disk load with no single choke
+    point to hook a spawn into. `TtlReaper::spawn*` therefore no longer takes a
+    collection name, and the handle no longer carries one.
+  - Keep the handle alive: `TtlReaper::drop` signals shutdown, so the server
+    holds it for its lifetime. The in-process test harness deliberately runs
+    without a reaper, so a background sweep cannot make expiry assertions
+    timing-dependent.
+  - An expired vector can still be served for up to one sweep interval (60 s by
+    default), because reads do not filter on expiry. Tracked in
+    `phase1_filter-expired-vectors-on-read`.
+  - Collection-level TTL (`POST /collections/{name}/ttl`) remains inert — it
+    writes a `ttl:{collection}` metadata key nothing reads. Tracked in
+    `phase1_collection-ttl-is-never-applied`.
+
 - **Cache and HiveHub quota metrics reach Prometheus again.** `QueryCache::new`
   and `QuotaManager::new` inject a `NoopMetricsSink` by design — the real sink
   is supposed to come from the wiring site — but bootstrap and the HiveHub

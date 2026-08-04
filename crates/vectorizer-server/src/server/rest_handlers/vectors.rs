@@ -2,6 +2,7 @@
 //!
 //! - `list_vectors`        — GET  /collections/{name}/vectors
 //! - `get_vector`          — GET  /collections/{name}/vectors/{id}
+//! - `get_vector_by_body`  — POST /vector
 //! - `delete_vector`       — DELETE /collections/{name}/vectors/{id}
 //! - `update_vector`       — PUT  /vectors
 //! - `delete_vector_generic` — DELETE /vectors
@@ -131,22 +132,58 @@ pub async fn list_vectors(
 }
 
 /// GET /collections/{name}/vectors/{id} — fetch a single vector
+///
+/// Shapes its body like `list_vectors` (`id` / `vector` / `payload`) so a
+/// caller can read one vector or a page of them without reshaping.
 pub async fn get_vector(
     State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    let _collection = state
+    let vector = state
         .store
-        .get_collection(&collection_name)
-        .map_err(|e| ErrorResponse::from(e))?;
+        .get_vector(&collection_name, &vector_id)
+        .map_err(ErrorResponse::from)?;
 
-    // Returns mock data — real retrieval by ID is tracked in a separate task
     Ok(Json(json!({
-        "id": vector_id,
-        "vector": vec![0.1; 512],
-        "metadata": {
-            "collection": collection_name
-        }
+        "id": vector.id,
+        "vector": vector.data,
+        "payload": vector.payload.map(|p| p.data),
+        "collection": collection_name,
+    })))
+}
+
+/// POST /vector — fetch a single vector by request body
+///
+/// The route the capability registry declares for `vector.get`, and the shape
+/// the MCP `get_vector` tool takes (`{collection, vector_id}`). It exists
+/// alongside the path-based `GET /collections/{name}/vectors/{id}` because an
+/// id can contain characters that are awkward in a path segment.
+pub async fn get_vector_by_body(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| create_validation_error("collection", "missing or invalid collection"))?;
+    // `vector_id` is the registry/MCP field name; `id` is accepted because the
+    // path-based handler and the RPC reply both call it that.
+    let vector_id = payload
+        .get("vector_id")
+        .or_else(|| payload.get("id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| create_validation_error("vector_id", "missing or invalid vector_id"))?;
+
+    let vector = state
+        .store
+        .get_vector(collection_name, vector_id)
+        .map_err(ErrorResponse::from)?;
+
+    Ok(Json(json!({
+        "id": vector.id,
+        "vector": vector.data,
+        "payload": vector.payload.map(|p| p.data),
+        "collection": collection_name,
     })))
 }
 
