@@ -359,24 +359,13 @@ and the minimatch transitive alert.
 
 ### 2. Rust — `vectorizer-sdk` on crates.io
 
-`vectorizer-sdk` depends on `vectorizer-protocol` (path-only in the
-workspace); crates.io requires both to carry `version = ` in the
-dep declaration AND for `vectorizer-protocol` to be published FIRST.
+`vectorizer-sdk` has no first-party path dependencies: its RPC transport is
+the published `thunder-rpc` crate, so it publishes on its own with nothing to
+release first.
 
 ```bash
-# Publish the protocol crate FIRST — the SDK's published manifest
-# strips the `path = ...` and resolves `vectorizer-protocol` from
-# crates.io on downstream builds.
-cd crates/vectorizer-protocol
+cd sdks/rust
 cargo publish --dry-run --allow-dirty   # verify
-cargo publish
-
-# Wait ~1 minute for the crates.io index to pick up the new version,
-# then:
-cd ../../sdks/rust
-# One-time manifest tweak if not already landed: add
-# `version = "3.5.0"` to the `vectorizer-protocol` dep in Cargo.toml.
-cargo publish --dry-run --allow-dirty
 cargo publish
 ```
 

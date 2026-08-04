@@ -23,7 +23,11 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use tracing::debug;
 use vectorizer::auth::roles::Role;
-use vectorizer_protocol::rpc_wire::types::{Request, Response, VectorizerValue};
+// The RPC wire value + frame types are now Thunder's shared model (the wire is
+// byte-identical to the retired vectorizer_protocol::rpc_wire). `Value` is
+// aliased to the historical `VectorizerValue` name so the command handlers read
+// unchanged; only `Value::Bytes` differs (Arc<[u8]> vs the old Vec<u8>).
+use thunder::{Request, Response, Value as VectorizerValue};
 
 use super::server::RpcState;
 
@@ -190,186 +194,369 @@ pub async fn dispatch(
             if !auth.read().authenticated {
                 return Response::err(id, "authentication required: send HELLO first");
             }
-            match other {
-                // ── Collections ──────────────────────────────────────────
-                "collections.list" => handle_collections_list(state, id),
-                "collections.get_info" => handle_collection_info(state, id, &args),
-                "collections.create" => {
-                    let auth_snap = auth.read().clone();
-                    handle_collections_create(state, id, &args, &auth_snap)
+            let mutates = command_mutates(other);
+            // Replication needs the target collection after the handler has
+            // consumed `args`. Copy only the two leading string arguments —
+            // every mutating command carries the collection there — so a
+            // multi-megabyte payload frame is never cloned.
+            let targets: [Option<String>; 2] = if mutates && state.master_node.is_some() {
+                [
+                    args.first().and_then(|v| v.as_str()).map(str::to_owned),
+                    args.get(1).and_then(|v| v.as_str()).map(str::to_owned),
+                ]
+            } else {
+                [None, None]
+            };
+            let response = dispatch_authenticated(state, auth, id, other, args).await;
+            // Durability is decided here, once, rather than inside each
+            // handler: a write that does not mark the auto-save manager is
+            // invisible to the periodic compaction loop (it only runs when
+            // `changes_detected` is set) and is lost on a hard kill. Marking
+            // centrally means a newly added mutating command cannot forget.
+            if mutates {
+                if let Ok(result) = &response.result {
+                    state.mark_changed();
+                    replicate_command(state, other, &targets, result);
                 }
-                "collections.delete" => {
-                    let auth_snap = auth.read().clone();
-                    handle_collections_delete(state, id, &args, &auth_snap)
-                }
-                "collections.list_empty" => handle_collections_list_empty(state, id),
-                "collections.cleanup_empty" => {
-                    let auth_snap = auth.read().clone();
-                    handle_collections_cleanup_empty(state, id, &args, &auth_snap)
-                }
-                "collections.force_save" => handle_collections_force_save(state, id, &args).await,
-                // ── Vectors ──────────────────────────────────────────────
-                "vectors.get" => handle_vector_get(state, id, &args),
-                "vectors.insert" => handle_vectors_insert(state, id, &args),
-                "vectors.insert_text" => handle_vectors_insert_text(state, id, &args).await,
-                "vectors.update" => handle_vectors_update(state, id, &args),
-                "vectors.delete" => handle_vectors_delete(state, id, &args),
-                "vectors.list" => handle_vectors_list(state, id, &args),
-                "vectors.embed" => handle_vectors_embed(state, id, &args),
-                "vectors.batch_insert" => handle_vectors_batch_insert(state, id, &args),
-                "vectors.batch_insert_texts" => {
-                    handle_vectors_batch_insert_texts(state, id, &args).await
-                }
-                "vectors.batch_search" => handle_vectors_batch_search(state, id, &args).await,
-                "vectors.batch_update" => handle_vectors_batch_update(state, id, &args),
-                "vectors.batch_delete" => handle_vectors_batch_delete(state, id, &args),
-                "vectors.move" => handle_vectors_move(state, id, &args),
-                "vectors.copy" => handle_vectors_copy(state, id, &args),
-                "vectors.delete_by_filter" => handle_vectors_delete_by_filter(state, id, &args),
-                "vectors.bulk_update_metadata" => {
-                    handle_vectors_bulk_update_metadata(state, id, &args)
-                }
-                "vectors.set_expiry" => handle_vectors_set_expiry(state, id, &args),
-                // ── Search ───────────────────────────────────────────────
-                "search.basic" => handle_search_basic(state, id, &args),
-                "search.intelligent" => handle_search_intelligent(state, id, &args).await,
-                "search.by_text" => handle_search_by_text(state, id, &args),
-                "search.by_file" => handle_search_by_file(state, id, &args),
-                "search.hybrid" => handle_search_hybrid(state, id, &args),
-                "search.semantic" => handle_search_semantic(state, id, &args).await,
-                "search.contextual" => handle_search_contextual(state, id, &args).await,
-                "search.multi_collection" => handle_search_multi_collection(state, id, &args).await,
-                "search.explain" => handle_search_explain(state, id, &args).await,
-                // ── Discovery ────────────────────────────────────────────
-                "discovery.discover" => handle_discovery_discover(state, id, &args).await,
-                "discovery.filter_collections" => {
-                    handle_discovery_filter_collections(state, id, &args)
-                }
-                "discovery.score_collections" => {
-                    handle_discovery_score_collections(state, id, &args)
-                }
-                "discovery.expand_queries" => handle_discovery_expand_queries(id, &args),
-                "discovery.broad_discovery" => {
-                    handle_discovery_broad_discovery(state, id, &args).await
-                }
-                "discovery.semantic_focus" => {
-                    handle_discovery_semantic_focus(state, id, &args).await
-                }
-                "discovery.promote_readme" => handle_discovery_promote_readme(id, &args),
-                "discovery.compress_evidence" => handle_discovery_compress_evidence(id, &args),
-                "discovery.build_answer_plan" => handle_discovery_build_answer_plan(id, &args),
-                "discovery.render_llm_prompt" => handle_discovery_render_llm_prompt(id, &args),
-                // ── File ops ─────────────────────────────────────────────
-                "file.content" => handle_file_content(state, id, &args).await,
-                "file.list" => handle_file_list(state, id, &args).await,
-                "file.summary" => handle_file_summary(state, id, &args).await,
-                "file.chunks" => handle_file_chunks(state, id, &args).await,
-                "file.outline" => handle_file_outline(state, id, &args).await,
-                "file.related" => handle_file_related(state, id, &args).await,
-                "file.search_by_type" => handle_file_search_by_type(state, id, &args).await,
-                // ── Graph ────────────────────────────────────────────────
-                "graph.list_nodes" => handle_graph_list_nodes(state, id, &args),
-                "graph.neighbors" => handle_graph_neighbors(state, id, &args),
-                "graph.find_related" => handle_graph_find_related(state, id, &args),
-                "graph.find_path" => handle_graph_find_path(state, id, &args),
-                "graph.create_edge" => handle_graph_create_edge(state, id, &args),
-                "graph.delete_edge" => handle_graph_delete_edge(state, id, &args),
-                "graph.list_edges" => handle_graph_list_edges(state, id, &args),
-                "graph.discover_edges" => handle_graph_discover_edges(state, id, &args),
-                "graph.discover_edges_for_node" => {
-                    handle_graph_discover_edges_for_node(state, id, &args)
-                }
-                "graph.discovery_status" => handle_graph_discovery_status(state, id, &args),
-                // ── Admin / observability ─────────────────────────────────
-                "admin.stats" => handle_admin_stats(state, id),
-                "admin.status" => handle_admin_status(state, id),
-                "admin.logs" => handle_admin_logs(id, &args),
-                "admin.indexing_progress" => handle_admin_indexing_progress(state, id),
-                "admin.config_get" => handle_admin_config_get(id),
-                "admin.config_update" => {
-                    let auth_snap = auth.read().clone();
-                    handle_admin_config_update(id, &args, &auth_snap)
-                }
-                "admin.backups_list" => handle_admin_backups_list(id),
-                "admin.backups_create" => {
-                    let auth_snap = auth.read().clone();
-                    handle_admin_backups_create(state, id, &args, &auth_snap)
-                }
-                "admin.backups_restore" => {
-                    let auth_snap = auth.read().clone();
-                    handle_admin_backups_restore(state, id, &args, &auth_snap)
-                }
-                "admin.workspaces_list" => handle_admin_workspaces_list(id),
-                "admin.workspace_get" => handle_admin_workspace_get(id),
-                "admin.workspace_add" => {
-                    let auth_snap = auth.read().clone();
-                    handle_admin_workspace_add(id, &args, &auth_snap)
-                }
-                "admin.workspace_remove" => {
-                    let auth_snap = auth.read().clone();
-                    handle_admin_workspace_remove(id, &args, &auth_snap)
-                }
-                "admin.restart" => {
-                    let auth_snap = auth.read().clone();
-                    handle_admin_restart(id, &auth_snap).await
-                }
-                "admin.slow_queries_list" => handle_admin_slow_queries_list(state, id),
-                "admin.slow_queries_config" => handle_admin_slow_queries_config(state, id, &args),
-                // ── Auth / RBAC ──────────────────────────────────────────
-                "auth.me" => handle_auth_me(state, id, &args),
-                "auth.logout" => handle_auth_logout(state, id, &args).await,
-                "auth.refresh_token" => handle_auth_refresh_token(state, id, &args).await,
-                "auth.validate_password" => handle_auth_validate_password(id, &args),
-                "auth.api_keys_create" => handle_auth_api_keys_create(state, id, &args).await,
-                "auth.api_keys_list" => handle_auth_api_keys_list(state, id, &args).await,
-                "auth.api_keys_revoke" => handle_auth_api_keys_revoke(state, id, &args).await,
-                "auth.api_keys_rotate" => handle_auth_api_keys_rotate(state, id, &args).await,
-                "auth.api_keys_create_scoped" => {
-                    handle_auth_api_keys_create_scoped(state, id, &args).await
-                }
-                "auth.users_create" => {
-                    let auth_snap = auth.read().clone();
-                    handle_auth_users_create(state, id, &args, &auth_snap).await
-                }
-                "auth.users_list" => {
-                    let auth_snap = auth.read().clone();
-                    handle_auth_users_list(state, id, &auth_snap).await
-                }
-                "auth.users_delete" => {
-                    let auth_snap = auth.read().clone();
-                    handle_auth_users_delete(state, id, &args, &auth_snap).await
-                }
-                "auth.users_change_password" => {
-                    handle_auth_users_change_password(state, id, &args).await
-                }
-                "auth.introspect" => handle_auth_introspect(state, id, &args).await,
-                "auth.audit" => handle_auth_audit(state, id, &args).await,
-                // ── Replication ──────────────────────────────────────────
-                "replication.status" => handle_replication_status(state, id),
-                "replication.configure" => handle_replication_configure(state, id, &args),
-                "replication.stats" => handle_replication_stats(state, id),
-                "replication.replicas_list" => handle_replication_replicas_list(state, id),
-                // ── Cluster ──────────────────────────────────────────────
-                "cluster.failover" => {
-                    let auth_snap = auth.read().clone();
-                    handle_cluster_failover(state, id, &args, &auth_snap)
-                }
-                "cluster.replica_resync" => {
-                    let auth_snap = auth.read().clone();
-                    handle_cluster_replica_resync(state, id, &args, &auth_snap)
-                }
-                "cluster.peer_add" => {
-                    let auth_snap = auth.read().clone();
-                    handle_cluster_peer_add(state, id, &args, &auth_snap)
-                }
-                "cluster.rebalance" => {
-                    let auth_snap = auth.read().clone();
-                    handle_cluster_rebalance(state, id, &auth_snap)
-                }
-                "cluster.rebalance_status" => handle_cluster_rebalance_status(id),
-                _ => Response::err(id, format!("unknown command '{}'", other)),
             }
+            response
         }
+    }
+}
+
+/// Forward a successful RPC mutation to the replicas, matching what the REST
+/// handlers replicate (`CreateCollection` on create, `InsertVector` per vector
+/// on insert). A no-op unless this node runs as master.
+///
+/// Vector ids come from the handler's own reply rather than the request, so a
+/// server-generated id (`vectors.insert_text` without a client id) and a batch
+/// whose items partly failed both replicate exactly what was stored. The
+/// vectors themselves are re-read from the store, so the replica receives the
+/// stored — normalized — data, exactly as `rest_handlers::insert` does.
+fn replicate_command(
+    state: &Arc<RpcState>,
+    command: &str,
+    targets: &[Option<String>; 2],
+    result: &VectorizerValue,
+) {
+    let Some(master) = &state.master_node else {
+        return;
+    };
+    match command {
+        "collections.create" => {
+            let Some(name) = targets[0].as_deref() else {
+                return;
+            };
+            let Ok(metadata) = state.store.get_collection_metadata(name) else {
+                return;
+            };
+            master.replicate(vectorizer::replication::VectorOperation::CreateCollection {
+                name: name.to_string(),
+                config: vectorizer::replication::CollectionConfigData {
+                    dimension: metadata.config.dimension,
+                    metric: format!("{:?}", metadata.config.metric).to_lowercase(),
+                },
+                owner_id: None,
+            });
+        }
+        "vectors.insert"
+        | "vectors.insert_text"
+        | "vectors.update"
+        | "vectors.batch_insert"
+        | "vectors.batch_insert_texts"
+        | "vectors.batch_update" => {
+            let Some(collection) = targets[0].as_deref() else {
+                return;
+            };
+            replicate_vectors(state, master, collection, &stored_ids(result));
+        }
+        // copy/move write into the destination collection, argument index 1.
+        "vectors.copy" | "vectors.move" => {
+            let Some(destination) = targets[1].as_deref() else {
+                return;
+            };
+            replicate_vectors(state, master, destination, &stored_ids(result));
+        }
+        _ => {}
+    }
+}
+
+/// Pull the ids a write actually stored out of its reply: `{id}` for the
+/// single-vector commands, and the `ok` rows of `{results: [{id, status}]}`
+/// for the batch commands. Rows that failed carry `status != "ok"` and are
+/// skipped, so a partly-failed batch does not replicate phantom vectors.
+fn stored_ids(result: &VectorizerValue) -> Vec<String> {
+    if let Some(id) = result.map_get("id").and_then(|v| v.as_str()) {
+        return vec![id.to_owned()];
+    }
+    let Some(rows) = result.map_get("results").and_then(|v| v.as_array()) else {
+        return Vec::new();
+    };
+    rows.iter()
+        .filter(|row| {
+            row.map_get("status")
+                .and_then(|v| v.as_str())
+                .is_some_and(|s| s == "ok")
+        })
+        .filter_map(|row| row.map_get("id").and_then(|v| v.as_str()))
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Replicate the named vectors of `collection` as they currently stand in the
+/// store. Vectors that are absent (a batch item that failed, for instance) are
+/// skipped rather than replicated as empty.
+fn replicate_vectors(
+    state: &Arc<RpcState>,
+    master: &Arc<vectorizer::replication::MasterNode>,
+    collection: &str,
+    ids: &[String],
+) {
+    for id in ids {
+        let Ok(vector) = state.store.get_vector(collection, id) else {
+            continue;
+        };
+        let payload = vector
+            .payload
+            .as_ref()
+            .and_then(|p| serde_json::to_vec(p).ok());
+        master.replicate(vectorizer::replication::VectorOperation::InsertVector {
+            collection: collection.to_string(),
+            id: id.clone(),
+            vector: vector.data,
+            payload,
+            owner_id: None,
+        });
+    }
+}
+
+/// `true` for commands that change persisted state, so [`dispatch`] can mark
+/// the auto-save manager dirty. Read-only commands are absent.
+///
+/// Auth and workspace mutations are deliberately excluded: they persist
+/// through their own stores (`AuthPersistence`, `workspace.yml`), not through
+/// the vector-store compaction path this flag drives.
+fn command_mutates(command: &str) -> bool {
+    matches!(
+        command,
+        "collections.create"
+            | "collections.delete"
+            | "collections.cleanup_empty"
+            // The TTL rule is stored in the collection's `.vecdb` record, so a
+            // change to it has to survive a restart like any other write.
+            | "collections.set_ttl"
+            | "vectors.insert"
+            | "vectors.insert_text"
+            | "vectors.update"
+            | "vectors.delete"
+            | "vectors.batch_insert"
+            | "vectors.batch_insert_texts"
+            | "vectors.batch_update"
+            | "vectors.batch_delete"
+            | "vectors.move"
+            | "vectors.copy"
+            | "vectors.delete_by_filter"
+            | "vectors.bulk_update_metadata"
+            | "vectors.set_expiry"
+            | "graph.enable"
+            | "graph.create_edge"
+            | "graph.delete_edge"
+            | "graph.discover_edges"
+            | "graph.discover_edges_for_node"
+            | "admin.backups_restore"
+    )
+}
+
+/// The post-handshake command table. Split out of [`dispatch`] so the
+/// auto-save marking wraps every arm without indenting the whole match.
+async fn dispatch_authenticated(
+    state: &Arc<RpcState>,
+    auth: &Arc<RwLock<ConnectionAuth>>,
+    id: u32,
+    other: &str,
+    args: Vec<VectorizerValue>,
+) -> Response {
+    match other {
+        // ── Collections ──────────────────────────────────────────
+        "collections.list" => handle_collections_list(state, id),
+        "collections.get_info" => handle_collection_info(state, id, &args),
+        "collections.create" => {
+            let auth_snap = auth.read().clone();
+            handle_collections_create(state, id, &args, &auth_snap)
+        }
+        "collections.delete" => {
+            let auth_snap = auth.read().clone();
+            handle_collections_delete(state, id, &args, &auth_snap)
+        }
+        "collections.list_empty" => handle_collections_list_empty(state, id),
+        "collections.cleanup_empty" => {
+            let auth_snap = auth.read().clone();
+            handle_collections_cleanup_empty(state, id, &args, &auth_snap)
+        }
+        "collections.force_save" => handle_collections_force_save(state, id, &args).await,
+        "collections.get_stats" => handle_collections_get_stats(state, id, &args),
+        "collections.set_ttl" => handle_collections_set_ttl(state, id, &args),
+        "collections.get_ttl" => handle_collections_get_ttl(state, id, &args),
+        // ── Stats / providers ────────────────────────────────────
+        "embedding.list_providers" => handle_embedding_list_providers(state, id),
+        "stats.database" => handle_stats_database(state, id),
+        // ── Vectors ──────────────────────────────────────────────
+        "vectors.get" => handle_vector_get(state, id, &args),
+        "vectors.insert" => handle_vectors_insert(state, id, &args),
+        "vectors.insert_text" => handle_vectors_insert_text(state, id, &args).await,
+        "vectors.update" => handle_vectors_update(state, id, &args),
+        "vectors.delete" => handle_vectors_delete(state, id, &args),
+        "vectors.list" => handle_vectors_list(state, id, &args),
+        "vectors.embed" => handle_vectors_embed(state, id, &args),
+        "vectors.batch_insert" => handle_vectors_batch_insert(state, id, &args),
+        "vectors.batch_insert_texts" => handle_vectors_batch_insert_texts(state, id, &args).await,
+        "vectors.batch_search" => handle_vectors_batch_search(state, id, &args).await,
+        "vectors.batch_update" => handle_vectors_batch_update(state, id, &args),
+        "vectors.batch_delete" => handle_vectors_batch_delete(state, id, &args),
+        "vectors.move" => handle_vectors_move(state, id, &args),
+        "vectors.copy" => handle_vectors_copy(state, id, &args),
+        "vectors.delete_by_filter" => handle_vectors_delete_by_filter(state, id, &args),
+        "vectors.bulk_update_metadata" => handle_vectors_bulk_update_metadata(state, id, &args),
+        "vectors.set_expiry" => handle_vectors_set_expiry(state, id, &args),
+        // ── Search ───────────────────────────────────────────────
+        "search.basic" => handle_search_basic(state, id, &args),
+        "search.intelligent" => handle_search_intelligent(state, id, &args).await,
+        "search.by_text" => handle_search_by_text(state, id, &args),
+        "search.by_file" => handle_search_by_file(state, id, &args),
+        "search.hybrid" => handle_search_hybrid(state, id, &args),
+        "search.semantic" => handle_search_semantic(state, id, &args).await,
+        "search.contextual" => handle_search_contextual(state, id, &args).await,
+        "search.multi_collection" => handle_search_multi_collection(state, id, &args).await,
+        "search.explain" => handle_search_explain(state, id, &args).await,
+        "search.extra" => handle_search_extra(state, id, &args).await,
+        // ── Discovery ────────────────────────────────────────────
+        "discovery.discover" => handle_discovery_discover(state, id, &args).await,
+        "discovery.filter_collections" => handle_discovery_filter_collections(state, id, &args),
+        "discovery.score_collections" => handle_discovery_score_collections(state, id, &args),
+        "discovery.expand_queries" => handle_discovery_expand_queries(id, &args),
+        "discovery.broad_discovery" => handle_discovery_broad_discovery(state, id, &args).await,
+        "discovery.semantic_focus" => handle_discovery_semantic_focus(state, id, &args).await,
+        "discovery.promote_readme" => handle_discovery_promote_readme(id, &args),
+        "discovery.compress_evidence" => handle_discovery_compress_evidence(id, &args),
+        "discovery.build_answer_plan" => handle_discovery_build_answer_plan(id, &args),
+        "discovery.render_llm_prompt" => handle_discovery_render_llm_prompt(id, &args),
+        // ── File ops ─────────────────────────────────────────────
+        "file.content" => handle_file_content(state, id, &args).await,
+        "file.list" => handle_file_list(state, id, &args).await,
+        "file.summary" => handle_file_summary(state, id, &args).await,
+        "file.chunks" => handle_file_chunks(state, id, &args).await,
+        "file.outline" => handle_file_outline(state, id, &args).await,
+        "file.related" => handle_file_related(state, id, &args).await,
+        "file.search_by_type" => handle_file_search_by_type(state, id, &args).await,
+        "files.config_get" => handle_files_config_get(id),
+        // ── Graph ────────────────────────────────────────────────
+        "graph.enable" => handle_graph_enable(state, id, &args),
+        "graph.status" => handle_graph_status(state, id, &args),
+        "graph.list_nodes" => handle_graph_list_nodes(state, id, &args),
+        "graph.neighbors" => handle_graph_neighbors(state, id, &args),
+        "graph.find_related" => handle_graph_find_related(state, id, &args),
+        "graph.find_path" => handle_graph_find_path(state, id, &args),
+        "graph.create_edge" => handle_graph_create_edge(state, id, &args),
+        "graph.delete_edge" => handle_graph_delete_edge(state, id, &args),
+        "graph.list_edges" => handle_graph_list_edges(state, id, &args),
+        "graph.discover_edges" => handle_graph_discover_edges(state, id, &args),
+        "graph.discover_edges_for_node" => handle_graph_discover_edges_for_node(state, id, &args),
+        "graph.discovery_status" => handle_graph_discovery_status(state, id, &args),
+        // ── Admin / observability ─────────────────────────────────
+        "admin.stats" => handle_admin_stats(state, id),
+        "admin.status" => handle_admin_status(state, id),
+        "admin.logs" => handle_admin_logs(id, &args),
+        "admin.indexing_progress" => handle_admin_indexing_progress(state, id),
+        "admin.config_get" => handle_admin_config_get(id),
+        "admin.config_update" => {
+            let auth_snap = auth.read().clone();
+            handle_admin_config_update(id, &args, &auth_snap)
+        }
+        "admin.backups_list" => handle_admin_backups_list(id),
+        "admin.backups_create" => {
+            let auth_snap = auth.read().clone();
+            handle_admin_backups_create(state, id, &args, &auth_snap)
+        }
+        "admin.backups_restore" => {
+            let auth_snap = auth.read().clone();
+            handle_admin_backups_restore(state, id, &args, &auth_snap)
+        }
+        "admin.workspaces_list" => handle_admin_workspaces_list(id),
+        "admin.workspace_get" => handle_admin_workspace_get(id),
+        "admin.workspace_add" => {
+            let auth_snap = auth.read().clone();
+            handle_admin_workspace_add(id, &args, &auth_snap)
+        }
+        "admin.workspace_remove" => {
+            let auth_snap = auth.read().clone();
+            handle_admin_workspace_remove(id, &args, &auth_snap)
+        }
+        "admin.restart" => {
+            let auth_snap = auth.read().clone();
+            handle_admin_restart(id, &auth_snap).await
+        }
+        "admin.slow_queries_list" => handle_admin_slow_queries_list(state, id),
+        "admin.slow_queries_config" => handle_admin_slow_queries_config(state, id, &args),
+        // ── Auth / RBAC ──────────────────────────────────────────
+        "auth.me" => handle_auth_me(state, id, &args),
+        "auth.logout" => handle_auth_logout(state, id, &args).await,
+        "auth.refresh_token" => handle_auth_refresh_token(state, id, &args).await,
+        "auth.validate_password" => handle_auth_validate_password(id, &args),
+        "auth.api_keys_create" => handle_auth_api_keys_create(state, id, &args).await,
+        "auth.api_keys_list" => handle_auth_api_keys_list(state, id, &args).await,
+        "auth.api_keys_revoke" => handle_auth_api_keys_revoke(state, id, &args).await,
+        "auth.api_keys_rotate" => handle_auth_api_keys_rotate(state, id, &args).await,
+        "auth.api_keys_create_scoped" => handle_auth_api_keys_create_scoped(state, id, &args).await,
+        "auth.users_create" => {
+            let auth_snap = auth.read().clone();
+            handle_auth_users_create(state, id, &args, &auth_snap).await
+        }
+        "auth.users_list" => {
+            let auth_snap = auth.read().clone();
+            handle_auth_users_list(state, id, &auth_snap).await
+        }
+        "auth.users_delete" => {
+            let auth_snap = auth.read().clone();
+            handle_auth_users_delete(state, id, &args, &auth_snap).await
+        }
+        "auth.users_change_password" => {
+            let auth_snap = auth.read().clone();
+            handle_auth_users_change_password(state, id, &args, &auth_snap).await
+        }
+        "auth.introspect" => handle_auth_introspect(state, id, &args).await,
+        "auth.audit" => handle_auth_audit(state, id, &args).await,
+        // ── Replication ──────────────────────────────────────────
+        "replication.status" => handle_replication_status(state, id),
+        "replication.configure" => handle_replication_configure(state, id, &args),
+        "replication.stats" => handle_replication_stats(state, id),
+        "replication.replicas_list" => handle_replication_replicas_list(state, id),
+        // ── Cluster ──────────────────────────────────────────────
+        "cluster.failover" => {
+            let auth_snap = auth.read().clone();
+            handle_cluster_failover(state, id, &args, &auth_snap)
+        }
+        "cluster.replica_resync" => {
+            let auth_snap = auth.read().clone();
+            handle_cluster_replica_resync(state, id, &args, &auth_snap)
+        }
+        "cluster.peer_add" => {
+            let auth_snap = auth.read().clone();
+            handle_cluster_peer_add(state, id, &args, &auth_snap)
+        }
+        "cluster.rebalance" => {
+            let auth_snap = auth.read().clone();
+            handle_cluster_rebalance(state, id, &auth_snap)
+        }
+        "cluster.rebalance_status" => handle_cluster_rebalance_status(id),
+        "cluster.nodes_list" => handle_cluster_nodes_list(state, id),
+        "cluster.node_get" => handle_cluster_node_get(state, id, &args),
+        "cluster.node_remove" => {
+            let auth_snap = auth.read().clone();
+            handle_cluster_node_remove(state, id, &args, &auth_snap)
+        }
+        "cluster.leader" => handle_cluster_leader(id),
+        "cluster.role" => handle_cluster_role(state, id),
+        _ => Response::err(id, format!("unknown command '{}'", other)),
     }
 }
 
@@ -618,11 +805,73 @@ fn handle_collections_create(
         "dot" => vectorizer::models::DistanceMetric::DotProduct,
         _ => vectorizer::models::DistanceMetric::Cosine,
     };
-    let embedding_provider = config_val
+    // Provider resolution mirrors `rest_handlers::collections::create_collection`
+    // (phase33 / issue #306): an explicitly requested provider must exist, and
+    // when none is requested fall back to the server's configured default
+    // rather than a hardcoded name.
+    let requested_provider = config_val
         .and_then(|v| v.map_get("embedding_provider"))
         .and_then(|v| v.as_str())
-        .unwrap_or("bm25")
-        .to_string();
+        .map(str::to_owned);
+    let embedding_provider = match requested_provider {
+        Some(requested) => {
+            if !state.embedding_manager.has_provider(&requested) {
+                return vectorizer_err_ctx(
+                    id,
+                    "collections.create",
+                    &vectorizer::VectorizerError::UnsupportedProvider {
+                        requested,
+                        available: state.embedding_manager.list_providers(),
+                    },
+                );
+            }
+            requested
+        }
+        None => state
+            .embedding_manager
+            .get_default_provider_name()
+            .unwrap_or("bm25")
+            .to_string(),
+    };
+    // Refuse a dimension that disagrees with the provider's native size. REST
+    // has rejected this since phase33; accepting it here is what let an RPC
+    // client create a collection whose text inserts could never index.
+    if let Ok(provider_dimension) = state
+        .embedding_manager
+        .get_provider_dimension(&embedding_provider)
+    {
+        if provider_dimension != dimension {
+            return vectorizer_err_ctx(
+                id,
+                "collections.create",
+                &vectorizer::VectorizerError::ProviderDimensionMismatch {
+                    provider: embedding_provider,
+                    provider_dimension,
+                    requested_dimension: dimension,
+                },
+            );
+        }
+    }
+    // A graph-enabled collection has to be creatable here: there is no other
+    // way to reach it over RPC, since disk load only enables a graph when the
+    // stored config already asks for one.
+    let graph = config_val
+        .and_then(|v| v.map_get("graph"))
+        .and_then(|g| g.map_get("enabled"))
+        .and_then(|e| e.as_bool())
+        .and_then(|enabled| {
+            enabled.then(|| vectorizer::models::GraphConfig {
+                enabled: true,
+                auto_relationship: vectorizer::models::AutoRelationshipConfig::default(),
+            })
+        });
+    // Cluster deployments need MMap so data survives a pod restart; standalone
+    // stays in memory. Same rule as the REST handler.
+    let storage_type = if state.cluster_manager.is_some() {
+        Some(vectorizer::models::StorageType::Mmap)
+    } else {
+        Some(vectorizer::models::StorageType::Memory)
+    };
     let config = vectorizer::models::CollectionConfig {
         dimension,
         metric,
@@ -631,13 +880,25 @@ fn handle_collections_create(
         compression: vectorizer::models::CompressionConfig::default(),
         embedding_provider,
         normalization: None,
-        storage_type: Some(vectorizer::models::StorageType::Memory),
+        storage_type,
         sharding: None,
-        graph: None,
+        graph,
         encryption: None,
     };
+    let graph_requested = config.graph.is_some();
     match state.store.create_collection(name, config) {
         Ok(()) => {
+            // The store attaches the graph lazily on load; do it now so the
+            // graph commands work on the collection the caller just made.
+            if graph_requested {
+                if let Err(e) = state.store.enable_graph_for_collection(name) {
+                    return vectorizer_err_ctx(
+                        id,
+                        "collections.create: collection created but enabling its graph failed",
+                        &e,
+                    );
+                }
+            }
             let map = vec![
                 (
                     VectorizerValue::Str("name".into()),
@@ -650,6 +911,10 @@ fn handle_collections_create(
                 (
                     VectorizerValue::Str("metric".into()),
                     VectorizerValue::Str(metric_str.to_string()),
+                ),
+                (
+                    VectorizerValue::Str("graph".into()),
+                    VectorizerValue::Bool(graph_requested),
                 ),
                 (
                     VectorizerValue::Str("success".into()),
@@ -750,6 +1015,23 @@ async fn handle_collections_force_save(
             ),
         );
     }
+    // Persistence is a store-wide compaction (`compact_from_memory` writes one
+    // .vecdb for the whole store), so the collection name validates the target
+    // but cannot narrow the write. `save_collection_to_file` is not usable
+    // here: it returns early on the compact storage format, which is the
+    // default, so it would silently save nothing.
+    let manager = match &state.auto_save_manager {
+        Some(m) => m,
+        None => {
+            return Response::err(
+                id,
+                "collections.force_save: persistence is not configured on this deployment",
+            );
+        }
+    };
+    if let Err(e) = manager.force_save().await {
+        return vectorizer_err_ctx(id, "collections.force_save", &e);
+    }
     let map = vec![
         (
             VectorizerValue::Str("success".into()),
@@ -758,6 +1040,10 @@ async fn handle_collections_force_save(
         (
             VectorizerValue::Str("name".into()),
             VectorizerValue::Str(name.to_string()),
+        ),
+        (
+            VectorizerValue::Str("scope".into()),
+            VectorizerValue::Str("store".into()),
         ),
     ];
     Response::ok(id, VectorizerValue::Map(map))
@@ -975,10 +1261,19 @@ fn handle_vectors_list(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue])
         Ok(c) => c,
         Err(e) => return Response::err(id, format!("vectors.list: {}", e)),
     };
-    let all = coll.get_all_vectors();
-    let total = all.len();
+    // `get_all_vectors` is the raw accessor — it has to include expired
+    // vectors so the TTL reaper can find them. A listing is a read, so drop
+    // them here, and drop them before paginating so `total` and the page
+    // contents agree.
+    let now_ms = vectorizer::models::Vector::now_ms();
+    let live: Vec<_> = coll
+        .get_all_vectors()
+        .into_iter()
+        .filter(|v| !v.is_expired(now_ms))
+        .collect();
+    let total = live.len();
     let offset = page * limit;
-    let items: Vec<VectorizerValue> = all
+    let items: Vec<VectorizerValue> = live
         .into_iter()
         .skip(offset)
         .take(limit)
@@ -2073,6 +2368,162 @@ async fn handle_search_intelligent(
         }
         Err(e) => Response::err(id, format!("search.intelligent: {:?}", e)),
     }
+}
+
+/// Run several search strategies over one collection and merge their hits,
+/// first-strategy-wins on duplicate ids, sorted by score. Mirrors the MCP
+/// `search_extra` tool: `strategies` defaults to `["basic", "semantic"]`, and
+/// an unknown strategy name is skipped rather than failing the call.
+async fn handle_search_extra(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]) -> Response {
+    use vectorizer::intelligent_search::rest_api::{
+        IntelligentSearchRequest, RESTAPIHandler, SemanticSearchRequest,
+    };
+
+    let payload = args
+        .first()
+        .map(value_to_json)
+        .unwrap_or(serde_json::json!({}));
+    let query = match payload.get("query").and_then(|q| q.as_str()) {
+        Some(q) => q.to_string(),
+        None => return Response::err(id, "search.extra: missing 'query'"),
+    };
+    let collection = match payload.get("collection").and_then(|c| c.as_str()) {
+        Some(c) => c.to_string(),
+        None => return Response::err(id, "search.extra: missing 'collection'"),
+    };
+    let strategies: Vec<String> = payload
+        .get("strategies")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_else(|| vec!["basic".to_string(), "semantic".to_string()]);
+    let max_results = payload
+        .get("max_results")
+        .and_then(|m| m.as_u64())
+        .unwrap_or(10) as usize;
+    let similarity_threshold = payload
+        .get("similarity_threshold")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.1) as f32;
+
+    let mut merged: Vec<serde_json::Value> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for strategy in &strategies {
+        match strategy.as_str() {
+            "basic" => {
+                let embedding = match state.embedding_manager.embed(&query) {
+                    Ok(e) => e,
+                    Err(e) => return vectorizer_err_ctx(id, "search.extra: embed failed", &e),
+                };
+                let hits = match state.store.search(&collection, &embedding, max_results) {
+                    Ok(h) => h,
+                    Err(e) => return vectorizer_err_ctx(id, "search.extra", &e),
+                };
+                for hit in hits {
+                    if seen.insert(hit.id.clone()) {
+                        merged.push(serde_json::json!({
+                            "id": hit.id,
+                            "score": hit.score,
+                            "payload": hit.payload.map(|p| p.data),
+                            "strategy": "basic",
+                        }));
+                    }
+                }
+            }
+            "semantic" => {
+                let handler = RESTAPIHandler::new_with_store(state.store.clone());
+                let request = SemanticSearchRequest {
+                    query: query.clone(),
+                    collection: collection.clone(),
+                    max_results: Some(max_results),
+                    semantic_reranking: Some(true),
+                    cross_encoder_reranking: Some(false),
+                    similarity_threshold: Some(similarity_threshold),
+                };
+                match handler.handle_semantic_search(request).await {
+                    Ok(response) => {
+                        for hit in response.results {
+                            if seen.insert(hit.doc_id.clone()) {
+                                merged.push(serde_json::json!({
+                                    "id": hit.doc_id,
+                                    "score": hit.score,
+                                    "content": hit.content,
+                                    "collection": hit.collection,
+                                    "metadata": hit.metadata,
+                                    "strategy": "semantic",
+                                }));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        return Response::err(
+                            id,
+                            format!("search.extra: semantic failed: {:?}", e),
+                        );
+                    }
+                }
+            }
+            "intelligent" => {
+                let handler = RESTAPIHandler::new_with_store(state.store.clone());
+                let request = IntelligentSearchRequest {
+                    query: query.clone(),
+                    collections: Some(vec![collection.clone()]),
+                    max_results: Some(max_results),
+                    domain_expansion: Some(true),
+                    technical_focus: Some(true),
+                    mmr_enabled: Some(false),
+                    mmr_lambda: Some(0.7),
+                };
+                match handler.handle_intelligent_search(request).await {
+                    Ok(response) => {
+                        for hit in response.results {
+                            if seen.insert(hit.doc_id.clone()) {
+                                merged.push(serde_json::json!({
+                                    "id": hit.doc_id,
+                                    "score": hit.score,
+                                    "content": hit.content,
+                                    "collection": hit.collection,
+                                    "metadata": hit.metadata,
+                                    "strategy": "intelligent",
+                                }));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        return Response::err(
+                            id,
+                            format!("search.extra: intelligent failed: {:?}", e),
+                        );
+                    }
+                }
+            }
+            _ => continue,
+        }
+    }
+
+    merged.sort_by(|a, b| {
+        let sa = a.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
+        let sb = b.get("score").and_then(|s| s.as_f64()).unwrap_or(0.0);
+        sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    // Combining strategies can legitimately exceed a single strategy's limit;
+    // the MCP tool allows twice the requested count for the same reason.
+    merged.truncate(max_results * 2);
+
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "query": query,
+            "collection": collection,
+            "strategies_used": strategies,
+            "total": merged.len(),
+            "results": merged,
+        })),
+    )
 }
 
 fn handle_search_by_text(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]) -> Response {
@@ -3310,7 +3761,7 @@ fn parse_hello_payload(
     (token, api_key, client_name, version)
 }
 
-async fn validate_credentials(
+pub(super) async fn validate_credentials(
     handler: &crate::server::AuthHandlerState,
     token: Option<&str>,
     api_key: Option<&str>,
@@ -3661,6 +4112,65 @@ fn parse_relationship_type(s: &str) -> Option<vectorizer::db::graph::Relationshi
         "DERIVED_FROM" | "DERIVEDFROM" => Some(RelationshipType::DerivedFrom),
         _ => None,
     }
+}
+
+/// Turn a collection's graph on and populate it from the existing vectors.
+///
+/// Without this command the whole `graph.*` family was unreachable for any
+/// collection made over RPC: the store only attaches a graph on disk load when
+/// the persisted config already asks for one, so an RPC client had to call
+/// `POST /graph/enable/{collection}` over HTTP first. Mirrors that endpoint.
+fn handle_graph_enable(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]) -> Response {
+    let collection_name = match args.first().and_then(|v| v.as_str()) {
+        Some(c) => c,
+        None => return Response::err(id, "graph.enable expects [Str(collection)]"),
+    };
+    if let Err(e) = state.store.enable_graph_for_collection(collection_name) {
+        return vectorizer_err_ctx(id, "graph.enable", &e);
+    }
+    let node_count = state
+        .store
+        .get_collection(collection_name)
+        .ok()
+        .and_then(|collection| {
+            get_graph_from_collection(&collection).map(|graph| graph.get_all_nodes().len())
+        })
+        .unwrap_or(0);
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "success": true,
+            "collection": collection_name,
+            "node_count": node_count,
+        })),
+    )
+}
+
+/// Report whether a collection has a graph, and how big it is. Unlike the
+/// other graph commands this one answers for a graph-less collection instead of
+/// erroring, so a client can probe before deciding to enable.
+fn handle_graph_status(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]) -> Response {
+    let collection_name = match args.first().and_then(|v| v.as_str()) {
+        Some(c) => c,
+        None => return Response::err(id, "graph.status expects [Str(collection)]"),
+    };
+    let collection = match state.store.get_collection(collection_name) {
+        Ok(c) => c,
+        Err(e) => return vectorizer_err_ctx(id, "graph.status", &e),
+    };
+    let (enabled, node_count, edge_count) = match get_graph_from_collection(&collection) {
+        Some(graph) => (true, graph.get_all_nodes().len(), graph.edge_count()),
+        None => (false, 0, 0),
+    };
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "collection": collection_name,
+            "enabled": enabled,
+            "node_count": node_count,
+            "edge_count": edge_count,
+        })),
+    )
 }
 
 fn handle_graph_list_nodes(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]) -> Response {
@@ -4128,6 +4638,174 @@ fn handle_graph_discovery_status(
             "nodes_with_edges": nodes_with_edges,
             "total_edges": total_edges,
             "progress_percentage": progress_percentage,
+        })),
+    )
+}
+
+// ── Stats and providers ───────────────────────────────────────────────────────
+
+/// The embedding providers this server can vectorize with, and which one it
+/// defaults to. Mirrors the MCP `list_providers` tool; a client needs this to
+/// pick a valid `embedding_provider` (and matching dimension) for
+/// `collections.create`, which now rejects a provider it does not know.
+fn handle_embedding_list_providers(state: &Arc<RpcState>, id: u32) -> Response {
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "providers": provider_inventory(state),
+            "default_provider": state.embedding_manager.get_default_provider_name(),
+        })),
+    )
+}
+
+/// Name / dimension / default triple for every registered provider. Shared by
+/// `embedding.list_providers` and `stats.database`, which both report it.
+fn provider_inventory(state: &Arc<RpcState>) -> Vec<serde_json::Value> {
+    let default = state
+        .embedding_manager
+        .get_default_provider_name()
+        .map(str::to_owned);
+    state
+        .embedding_manager
+        .list_providers()
+        .into_iter()
+        .map(|name| {
+            let dimension = state
+                .embedding_manager
+                .get_provider_dimension(&name)
+                .unwrap_or(0);
+            let is_default = default.as_deref() == Some(name.as_str());
+            serde_json::json!({
+                "name": name,
+                "dimension": dimension,
+                "default": is_default,
+            })
+        })
+        .collect()
+}
+
+/// Per-collection counters. Mirrors the MCP `get_collection_stats` tool.
+/// Distinct from `collections.get_info`, which returns the configuration.
+fn handle_collections_get_stats(
+    state: &Arc<RpcState>,
+    id: u32,
+    args: &[VectorizerValue],
+) -> Response {
+    let name = match args.first().and_then(|v| v.as_str()) {
+        Some(n) => n,
+        None => return Response::err(id, "collections.get_stats expects [Str(name)]"),
+    };
+    let collection = match state.store.get_collection(name) {
+        Ok(c) => c,
+        Err(e) => return vectorizer_err_ctx(id, "collections.get_stats", &e),
+    };
+    let vector_count = collection.vector_count();
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "collection": name,
+            "vector_count": vector_count,
+            "is_empty": vector_count == 0,
+        })),
+    )
+}
+
+/// Set (or clear) the collection-level TTL. Mirrors
+/// `POST /collections/{name}/ttl`.
+///
+/// Args: `[Str(collection), Int(ttl_secs)]` — omit the second argument, or
+/// pass `Null`, to clear the TTL. From then on every insert / update on the
+/// collection carries `__expires_at = now + ttl_secs` and the TTL reaper
+/// deletes it once that timestamp passes.
+///
+/// The rule is stored in the collection's `.vecdb` record and restored on
+/// load, so it survives a restart. [`command_mutates`] lists this command,
+/// which is what marks the store for the compaction that writes it out.
+fn handle_collections_set_ttl(
+    state: &Arc<RpcState>,
+    id: u32,
+    args: &[VectorizerValue],
+) -> Response {
+    let name = match args.first().and_then(|v| v.as_str()) {
+        Some(n) => n,
+        None => {
+            return Response::err(
+                id,
+                "collections.set_ttl expects [Str(name), Int(ttl_secs)] \
+                 (omit ttl_secs or pass Null to clear)",
+            );
+        }
+    };
+    if let Err(e) = state.store.get_collection(name) {
+        return vectorizer_err_ctx(id, "collections.set_ttl", &e);
+    }
+
+    let ttl_secs: Option<u64> = match args.get(1) {
+        None | Some(VectorizerValue::Null) => None,
+        Some(VectorizerValue::Int(secs)) if *secs >= 1 => Some(*secs as u64),
+        Some(VectorizerValue::Int(_)) => {
+            return Response::err(
+                id,
+                "collections.set_ttl: ttl_secs must be at least 1 second; \
+                 omit it or pass Null to clear the TTL",
+            );
+        }
+        Some(_) => {
+            return Response::err(id, "collections.set_ttl: ttl_secs must be Int or Null");
+        }
+    };
+
+    state.store.set_collection_ttl(name, ttl_secs);
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "collection": name,
+            "ttl_secs": ttl_secs,
+            "status": "ok",
+        })),
+    )
+}
+
+/// Read the collection-level TTL. Mirrors `GET /collections/{name}/ttl`.
+/// `ttl_secs` is `null` when no TTL is configured.
+fn handle_collections_get_ttl(
+    state: &Arc<RpcState>,
+    id: u32,
+    args: &[VectorizerValue],
+) -> Response {
+    let name = match args.first().and_then(|v| v.as_str()) {
+        Some(n) => n,
+        None => return Response::err(id, "collections.get_ttl expects [Str(name)]"),
+    };
+    if let Err(e) = state.store.get_collection(name) {
+        return vectorizer_err_ctx(id, "collections.get_ttl", &e);
+    }
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "collection": name,
+            "ttl_secs": state.store.collection_ttl(name),
+        })),
+    )
+}
+
+/// Store-wide counters plus the provider inventory. Mirrors the MCP
+/// `get_database_stats` tool, which reports more than `admin.stats` does.
+fn handle_stats_database(state: &Arc<RpcState>, id: u32) -> Response {
+    let collections = state.store.list_collections();
+    let total_vectors: usize = collections
+        .iter()
+        .filter_map(|name| state.store.get_collection(name).ok())
+        .map(|collection| collection.vector_count())
+        .sum();
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "collections": collections.len(),
+            "total_vectors": total_vectors,
+            "version": env!("CARGO_PKG_VERSION"),
+            "providers": provider_inventory(state),
+            "default_provider": state.embedding_manager.get_default_provider_name(),
         })),
     )
 }
@@ -4880,13 +5558,66 @@ async fn handle_auth_users_create(
                 .collect()
         })
         .unwrap_or_else(|| vec![vectorizer::auth::roles::Role::User]);
-    // User management requires AuthHandlerState (users map + persistence)
-    // which is not yet carried on RpcState. Wire in a follow-up task.
-    let _ = (handler, username, password, roles);
-    Response::err(
+
+    // Same validation order as `auth_handlers::admin::create_user`, so a
+    // request refused over REST is refused here for the same reason.
+    if username.len() < 3 {
+        return Response::err(
+            id,
+            "auth.users_create: username must be at least 3 characters",
+        );
+    }
+    let validation = vectorizer::auth::validate_password(&password);
+    if !validation.valid {
+        return Response::err(
+            id,
+            format!("auth.users_create: {}", validation.errors.join(". ")),
+        );
+    }
+    if handler.users.read().await.contains_key(&username) {
+        return Response::err(
+            id,
+            format!("auth.users_create: user '{}' already exists", username),
+        );
+    }
+    let password_hash = match bcrypt::hash(&password, bcrypt::DEFAULT_COST) {
+        // logging-allow(label): the error is bcrypt's, it does not carry the password
+        Ok(h) => vectorizer::auth::Secret::new(h),
+        Err(e) => return Response::err(id, format!("auth.users_create: hashing failed: {}", e)),
+    };
+    let user_id = uuid::Uuid::new_v4().to_string();
+    handler.users.write().await.insert(
+        username.clone(),
+        crate::server::UserRecord {
+            user_id: user_id.clone(),
+            username: username.clone(),
+            password_hash: password_hash.clone(),
+            roles: roles.clone(),
+        },
+    );
+    // Persistence failure is logged, not fatal: the user is live in memory,
+    // which is how the REST handler behaves too.
+    if let Err(e) = handler
+        .persistence
+        .save_user(vectorizer::auth::persistence::PersistedUser {
+            user_id: user_id.clone(),
+            username: username.clone(),
+            password_hash,
+            roles: roles.clone(),
+            created_at: chrono::Utc::now().timestamp() as u64,
+            last_login: None,
+        })
+    {
+        tracing::error!("auth.users_create: failed to persist user: {}", e);
+    }
+    Response::ok(
         id,
-        "auth.users_create is REST-only in v1 (RpcState does not carry AuthHandlerState); \
-         use POST /auth/users",
+        json_to_value(serde_json::json!({
+            "user_id": user_id,
+            "username": username,
+            "roles": roles.iter().map(|r| format!("{:?}", r)).collect::<Vec<_>>(),
+            "success": true,
+        })),
     )
 }
 
@@ -4898,11 +5629,22 @@ async fn handle_auth_users_list(state: &Arc<RpcState>, id: u32, auth: &Connectio
         Some(h) => h,
         None => return Response::err(id, "auth.users_list: auth is not enabled"),
     };
-    let _ = handler;
-    Response::err(
+    let users: Vec<serde_json::Value> = handler
+        .users
+        .read()
+        .await
+        .values()
+        .map(|u| {
+            serde_json::json!({
+                "user_id": u.user_id,
+                "username": u.username,
+                "roles": u.roles.iter().map(|r| format!("{:?}", r)).collect::<Vec<_>>(),
+            })
+        })
+        .collect();
+    Response::ok(
         id,
-        "auth.users_list is REST-only in v1 (RpcState does not carry AuthHandlerState); \
-         use GET /auth/users",
+        json_to_value(serde_json::json!({ "count": users.len(), "users": users })),
     )
 }
 
@@ -4919,11 +5661,59 @@ async fn handle_auth_users_delete(
         Some(h) => h,
         None => return Response::err(id, "auth.users_delete: auth is not enabled"),
     };
-    let _ = (handler, args);
-    Response::err(
+    let username = match args.first() {
+        Some(VectorizerValue::Str(s)) => s.clone(),
+        Some(other) => match other.map_get("username").and_then(|v| v.as_str()) {
+            Some(u) => u.to_string(),
+            None => {
+                return Response::err(
+                    id,
+                    "auth.users_delete expects [Str(username)] or [Map{username}]",
+                );
+            }
+        },
+        None => {
+            return Response::err(
+                id,
+                "auth.users_delete expects [Str(username)] or [Map{username}]",
+            );
+        }
+    };
+    // Both guards the REST handler applies: never delete the caller, never
+    // delete the last remaining admin — either would lock the deployment out.
+    if auth.principal.as_deref() == Some(username.as_str()) {
+        return Response::err(id, "auth.users_delete: cannot delete your own account");
+    }
+    let mut users = handler.users.write().await;
+    let target = match users.get(&username) {
+        Some(u) => u.clone(),
+        None => {
+            return Response::err(
+                id,
+                format!("auth.users_delete: user '{}' not found", username),
+            );
+        }
+    };
+    if target.roles.contains(&Role::Admin) {
+        let admins = users
+            .values()
+            .filter(|u| u.roles.contains(&Role::Admin))
+            .count();
+        if admins <= 1 {
+            return Response::err(
+                id,
+                "auth.users_delete: cannot delete the last admin user; create another admin first",
+            );
+        }
+    }
+    users.remove(&username);
+    drop(users);
+    if let Err(e) = handler.persistence.remove_user(&username) {
+        tracing::error!("auth.users_delete: failed to remove user from disk: {}", e);
+    }
+    Response::ok(
         id,
-        "auth.users_delete is REST-only in v1 (RpcState does not carry AuthHandlerState); \
-         use DELETE /auth/users/{username}",
+        json_to_value(serde_json::json!({ "success": true, "username": username })),
     )
 }
 
@@ -4931,16 +5721,111 @@ async fn handle_auth_users_change_password(
     state: &Arc<RpcState>,
     id: u32,
     args: &[VectorizerValue],
+    auth: &ConnectionAuth,
 ) -> Response {
     let handler = match &state.auth {
         Some(h) => h,
         None => return Response::err(id, "auth.users_change_password: auth is not enabled"),
     };
-    let _ = (handler, args);
-    Response::err(
+    let req_json = match args.first() {
+        Some(v) => value_to_json(v),
+        None => {
+            return Response::err(
+                id,
+                "auth.users_change_password expects [Map{username, new_password, current_password?}]",
+            );
+        }
+    };
+    let username = match req_json.get("username").and_then(|v| v.as_str()) {
+        Some(u) => u.to_string(),
+        None => return Response::err(id, "auth.users_change_password: missing 'username'"),
+    };
+    // Accept `new_password` (the REST field name) and tolerate `password`,
+    // which is what `auth.users_create` calls it.
+    let new_password = match req_json
+        .get("new_password")
+        .or_else(|| req_json.get("password"))
+        .and_then(|v| v.as_str())
+    {
+        Some(p) => p.to_string(),
+        None => return Response::err(id, "auth.users_change_password: missing 'new_password'"),
+    };
+    let is_self = auth.principal.as_deref() == Some(username.as_str());
+    if !auth.admin && !is_self {
+        return Response::err(
+            id,
+            "auth.users_change_password: you can only change your own password",
+        );
+    }
+    let validation = vectorizer::auth::validate_password(&new_password);
+    if !validation.valid {
+        return Response::err(
+            id,
+            format!(
+                "auth.users_change_password: {}",
+                validation.errors.join(". ")
+            ),
+        );
+    }
+    let mut users = handler.users.write().await;
+    let user = match users.get_mut(&username) {
+        Some(u) => u,
+        None => {
+            return Response::err(
+                id,
+                format!("auth.users_change_password: user '{}' not found", username),
+            );
+        }
+    };
+    // A non-admin changing their own password must prove the current one.
+    if !auth.admin {
+        let current = match req_json.get("current_password").and_then(|v| v.as_str()) {
+            Some(c) => c,
+            None => {
+                return Response::err(
+                    id,
+                    "auth.users_change_password: 'current_password' is required",
+                );
+            }
+        };
+        let ok = bcrypt::verify(current, user.password_hash.expose_secret()).unwrap_or(false);
+        if !ok {
+            return Response::err(
+                id,
+                "auth.users_change_password: current password is incorrect",
+            );
+        }
+    }
+    let new_hash = match bcrypt::hash(&new_password, bcrypt::DEFAULT_COST) {
+        // logging-allow(label): the error is bcrypt's, it does not carry the password
+        Ok(h) => vectorizer::auth::Secret::new(h),
+        Err(e) => {
+            return Response::err(
+                id,
+                format!("auth.users_change_password: hashing failed: {}", e),
+            );
+        }
+    };
+    user.password_hash = new_hash.clone();
+    let persisted = vectorizer::auth::persistence::PersistedUser {
+        user_id: user.user_id.clone(),
+        username: user.username.clone(),
+        password_hash: new_hash,
+        roles: user.roles.clone(),
+        created_at: chrono::Utc::now().timestamp() as u64,
+        last_login: None,
+    };
+    drop(users);
+    if let Err(e) = handler.persistence.save_user(persisted) {
+        // logging-allow(label): the error is I/O, it does not carry the password
+        tracing::error!(
+            "auth.users_change_password: failed to persist password change: {}",
+            e
+        );
+    }
+    Response::ok(
         id,
-        "auth.users_change_password is REST-only in v1 (RpcState does not carry \
-         AuthHandlerState); use PUT /auth/users/{username}/password",
+        json_to_value(serde_json::json!({ "success": true, "username": username })),
     )
 }
 
@@ -5260,125 +6145,281 @@ fn handle_cluster_rebalance_status(id: u32) -> Response {
     }
 }
 
-/// The names of the v1 RPC capabilities the handshake reports back to
-/// the client. Kept local to this module so the wire surface is
-/// reviewable in one place.
+/// The file-upload limits this server enforces, mirroring
+/// `GET /files/config`. A client needs these before chunking a file, and the
+/// upload itself stays REST-only (multipart streaming; RPC v1 has no streaming).
+fn handle_files_config_get(id: u32) -> Response {
+    let config = crate::server::files::upload::load_file_upload_config();
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "max_file_size": config.max_file_size,
+            "max_file_size_mb": config.max_file_size / (1024 * 1024),
+            "allowed_extensions": config.allowed_extensions,
+            "reject_binary": config.reject_binary,
+            "default_chunk_size": config.default_chunk_size,
+            "default_chunk_overlap": config.default_chunk_overlap,
+        })),
+    )
+}
+
+/// Serialize one cluster node the way `GET /api/v1/cluster/nodes` does.
+fn cluster_node_json(node: &vectorizer::cluster::ClusterNode) -> serde_json::Value {
+    serde_json::json!({
+        "id": node.id.as_str(),
+        "address": node.address,
+        "grpc_port": node.grpc_port,
+        "status": format!("{:?}", node.status).to_lowercase(),
+        "shard_count": node.shard_count(),
+        "metadata": {
+            "version": node.metadata.version,
+            "capabilities": node.metadata.capabilities,
+            "vector_count": node.metadata.vector_count,
+            "memory_usage": node.metadata.memory_usage,
+            "cpu_usage": node.metadata.cpu_usage,
+        },
+    })
+}
+
+fn handle_cluster_nodes_list(state: &Arc<RpcState>, id: u32) -> Response {
+    let Some(manager) = &state.cluster_manager else {
+        return Response::err(id, "cluster.nodes_list: cluster mode not enabled");
+    };
+    let nodes: Vec<serde_json::Value> = manager.get_nodes().iter().map(cluster_node_json).collect();
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({ "count": nodes.len(), "nodes": nodes })),
+    )
+}
+
+fn handle_cluster_node_get(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]) -> Response {
+    let Some(manager) = &state.cluster_manager else {
+        return Response::err(id, "cluster.node_get: cluster mode not enabled");
+    };
+    let node_id = match args.first().and_then(|v| v.as_str()) {
+        Some(n) => n,
+        None => return Response::err(id, "cluster.node_get expects [Str(node_id)]"),
+    };
+    match manager.get_node(&vectorizer::cluster::NodeId::new(node_id.to_string())) {
+        Some(node) => Response::ok(id, json_to_value(cluster_node_json(&node))),
+        None => Response::err(
+            id,
+            format!("cluster.node_get: node '{}' not found", node_id),
+        ),
+    }
+}
+
+fn handle_cluster_node_remove(
+    state: &Arc<RpcState>,
+    id: u32,
+    args: &[VectorizerValue],
+    auth: &ConnectionAuth,
+) -> Response {
+    if let Some(r) = require_admin(auth, id) {
+        return r;
+    }
+    let Some(manager) = &state.cluster_manager else {
+        return Response::err(id, "cluster.node_remove: cluster mode not enabled");
+    };
+    let node_id = match args.first().and_then(|v| v.as_str()) {
+        Some(n) => n,
+        None => return Response::err(id, "cluster.node_remove expects [Str(node_id)]"),
+    };
+    match manager.remove_node(&vectorizer::cluster::NodeId::new(node_id.to_string())) {
+        Some(_) => Response::ok(
+            id,
+            json_to_value(serde_json::json!({ "success": true, "node_id": node_id })),
+        ),
+        None => Response::err(
+            id,
+            format!("cluster.node_remove: node '{}' not found", node_id),
+        ),
+    }
+}
+
+/// Current Raft leader, mirroring `GET /api/v1/cluster/leader`.
+///
+/// Leader identity lives on `LeaderRouter`, which is owned by the HA manager.
+/// Neither this state nor `ClusterApiState` carries it, so both transports
+/// report the same standalone shape — a client can rely on the shape without
+/// probing first. When the HA manager becomes reachable from either state,
+/// both handlers gain the real `LeaderInfo` together.
+fn handle_cluster_leader(id: u32) -> Response {
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "mode": "standalone",
+            "message": "Raft HA not enabled. Enable cluster.raft.enabled in config.",
+        })),
+    )
+}
+
+/// This node's cluster role. Like `cluster.leader`, answers rather than errors
+/// on a standalone deployment.
+fn handle_cluster_role(state: &Arc<RpcState>, id: u32) -> Response {
+    let role = if state.master_node.is_some() {
+        "master"
+    } else if state.replica_node.is_some() {
+        "replica"
+    } else {
+        "standalone"
+    };
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "role": role,
+            "node_id": serde_json::Value::Null,
+            "leader_id": serde_json::Value::Null,
+            "leader_url": serde_json::Value::Null,
+        })),
+    )
+}
+
+/// Every command the dispatch table serves, in one reviewable list.
+///
+/// This is the wire surface: `HELLO` reports it as `capabilities`, and
+/// [`crate::server::capabilities::assert_inventory_invariants`] checks the
+/// capability registry against it at boot, so a registry entry with no RPC
+/// command fails the server rather than being discovered by a client.
+///
+/// `HELLO` itself is absent on purpose — it is the handshake that carries this
+/// list, not a capability a client can choose to use.
+pub const RPC_COMMANDS: &[&str] = &[
+    // Handshake
+    "PING",
+    // Collections
+    "collections.list",
+    "collections.get_info",
+    "collections.create",
+    "collections.delete",
+    "collections.list_empty",
+    "collections.cleanup_empty",
+    "collections.force_save",
+    "collections.get_stats",
+    "collections.set_ttl",
+    "collections.get_ttl",
+    // Stats / providers
+    "embedding.list_providers",
+    "stats.database",
+    // Vectors
+    "vectors.get",
+    "vectors.insert",
+    "vectors.insert_text",
+    "vectors.update",
+    "vectors.delete",
+    "vectors.list",
+    "vectors.embed",
+    "vectors.batch_insert",
+    "vectors.batch_insert_texts",
+    "vectors.batch_search",
+    "vectors.batch_update",
+    "vectors.batch_delete",
+    "vectors.move",
+    "vectors.copy",
+    "vectors.delete_by_filter",
+    "vectors.bulk_update_metadata",
+    "vectors.set_expiry",
+    // Search
+    "search.basic",
+    "search.intelligent",
+    "search.by_text",
+    "search.by_file",
+    "search.hybrid",
+    "search.semantic",
+    "search.contextual",
+    "search.multi_collection",
+    "search.explain",
+    "search.extra",
+    // Discovery
+    "discovery.discover",
+    "discovery.filter_collections",
+    "discovery.score_collections",
+    "discovery.expand_queries",
+    "discovery.broad_discovery",
+    "discovery.semantic_focus",
+    "discovery.promote_readme",
+    "discovery.compress_evidence",
+    "discovery.build_answer_plan",
+    "discovery.render_llm_prompt",
+    // File ops
+    "file.content",
+    "file.list",
+    "file.summary",
+    "file.chunks",
+    "file.outline",
+    "file.related",
+    "file.search_by_type",
+    "files.config_get",
+    // Graph
+    "graph.enable",
+    "graph.status",
+    "graph.list_nodes",
+    "graph.neighbors",
+    "graph.find_related",
+    "graph.find_path",
+    "graph.create_edge",
+    "graph.delete_edge",
+    "graph.list_edges",
+    "graph.discover_edges",
+    "graph.discover_edges_for_node",
+    "graph.discovery_status",
+    // Admin / observability
+    "admin.stats",
+    "admin.status",
+    "admin.logs",
+    "admin.indexing_progress",
+    "admin.config_get",
+    "admin.config_update",
+    "admin.backups_list",
+    "admin.backups_create",
+    "admin.backups_restore",
+    "admin.workspaces_list",
+    "admin.workspace_get",
+    "admin.workspace_add",
+    "admin.workspace_remove",
+    "admin.restart",
+    "admin.slow_queries_list",
+    "admin.slow_queries_config",
+    // Auth / RBAC
+    "auth.me",
+    "auth.logout",
+    "auth.refresh_token",
+    "auth.validate_password",
+    "auth.api_keys_create",
+    "auth.api_keys_list",
+    "auth.api_keys_revoke",
+    "auth.api_keys_rotate",
+    "auth.api_keys_create_scoped",
+    "auth.users_create",
+    "auth.users_list",
+    "auth.users_delete",
+    "auth.users_change_password",
+    "auth.introspect",
+    "auth.audit",
+    // Replication
+    "replication.status",
+    "replication.configure",
+    "replication.stats",
+    "replication.replicas_list",
+    // Cluster
+    "cluster.failover",
+    "cluster.replica_resync",
+    "cluster.peer_add",
+    "cluster.rebalance",
+    "cluster.rebalance_status",
+    "cluster.nodes_list",
+    "cluster.node_get",
+    "cluster.node_remove",
+    "cluster.leader",
+    "cluster.role",
+];
+
+/// The capability list `HELLO` reports, as wire values.
 fn rpc_capability_names() -> Vec<VectorizerValue> {
-    [
-        // Handshake
-        "PING",
-        // Collections
-        "collections.list",
-        "collections.get_info",
-        "collections.create",
-        "collections.delete",
-        "collections.list_empty",
-        "collections.cleanup_empty",
-        "collections.force_save",
-        // Vectors
-        "vectors.get",
-        "vectors.insert",
-        "vectors.insert_text",
-        "vectors.update",
-        "vectors.delete",
-        "vectors.list",
-        "vectors.embed",
-        "vectors.batch_insert",
-        "vectors.batch_insert_texts",
-        "vectors.batch_search",
-        "vectors.batch_update",
-        "vectors.batch_delete",
-        "vectors.move",
-        "vectors.copy",
-        "vectors.delete_by_filter",
-        "vectors.bulk_update_metadata",
-        "vectors.set_expiry",
-        // Search
-        "search.basic",
-        "search.intelligent",
-        "search.by_text",
-        "search.by_file",
-        "search.hybrid",
-        "search.semantic",
-        "search.contextual",
-        "search.multi_collection",
-        "search.explain",
-        // Discovery
-        "discovery.discover",
-        "discovery.filter_collections",
-        "discovery.score_collections",
-        "discovery.expand_queries",
-        "discovery.broad_discovery",
-        "discovery.semantic_focus",
-        "discovery.promote_readme",
-        "discovery.compress_evidence",
-        "discovery.build_answer_plan",
-        "discovery.render_llm_prompt",
-        // File ops
-        "file.content",
-        "file.list",
-        "file.summary",
-        "file.chunks",
-        "file.outline",
-        "file.related",
-        "file.search_by_type",
-        // Graph
-        "graph.list_nodes",
-        "graph.neighbors",
-        "graph.find_related",
-        "graph.find_path",
-        "graph.create_edge",
-        "graph.delete_edge",
-        "graph.list_edges",
-        "graph.discover_edges",
-        "graph.discover_edges_for_node",
-        "graph.discovery_status",
-        // Admin / observability
-        "admin.stats",
-        "admin.status",
-        "admin.logs",
-        "admin.indexing_progress",
-        "admin.config_get",
-        "admin.config_update",
-        "admin.backups_list",
-        "admin.backups_create",
-        "admin.backups_restore",
-        "admin.workspaces_list",
-        "admin.workspace_get",
-        "admin.workspace_add",
-        "admin.workspace_remove",
-        "admin.restart",
-        "admin.slow_queries_list",
-        "admin.slow_queries_config",
-        // Auth / RBAC
-        "auth.me",
-        "auth.logout",
-        "auth.refresh_token",
-        "auth.validate_password",
-        "auth.api_keys_create",
-        "auth.api_keys_list",
-        "auth.api_keys_revoke",
-        "auth.api_keys_rotate",
-        "auth.api_keys_create_scoped",
-        // auth.users_* and auth.audit require AuthHandlerState on RpcState;
-        // wired in a follow-up phase. Advertise only what is fully wired.
-        "auth.introspect",
-        "auth.audit",
-        // Replication
-        "replication.status",
-        "replication.configure",
-        "replication.stats",
-        "replication.replicas_list",
-        // Cluster
-        "cluster.failover",
-        "cluster.replica_resync",
-        "cluster.peer_add",
-        "cluster.rebalance",
-        "cluster.rebalance_status",
-    ]
-    .iter()
-    .map(|s| VectorizerValue::Str((*s).to_string()))
-    .collect()
+    RPC_COMMANDS
+        .iter()
+        .map(|s| VectorizerValue::Str((*s).to_string()))
+        .collect()
 }
 
 #[cfg(test)]
@@ -5397,6 +6438,7 @@ mod tests {
             slow_query_ring: vectorizer::cache::SlowQueryRing::new(
                 vectorizer::cache::slow_query::SlowQueryConfig::default(),
             ),
+            auto_save_manager: None,
         })
     }
 
@@ -5490,5 +6532,631 @@ mod tests {
             err.contains("unknown command 'no.such.command'"),
             "got: {err}"
         );
+    }
+
+    /// A session that has completed HELLO as the implicit local admin, which
+    /// is what auth-disabled deployments produce.
+    fn fake_auth_admin() -> Arc<RwLock<ConnectionAuth>> {
+        Arc::new(RwLock::new(ConnectionAuth {
+            authenticated: true,
+            admin: true,
+            principal: Some("test-admin".to_string()),
+        }))
+    }
+
+    async fn call(state: &Arc<RpcState>, command: &str, args: Vec<VectorizerValue>) -> Response {
+        dispatch(
+            state,
+            &fake_auth_admin(),
+            Request {
+                id: 1,
+                command: command.into(),
+                args,
+            },
+        )
+        .await
+    }
+
+    fn map(pairs: &[(&str, VectorizerValue)]) -> VectorizerValue {
+        VectorizerValue::Map(
+            pairs
+                .iter()
+                .map(|(k, v)| (VectorizerValue::Str((*k).into()), v.clone()))
+                .collect(),
+        )
+    }
+
+    fn field<'a>(value: &'a VectorizerValue, name: &str) -> Option<&'a VectorizerValue> {
+        value.map_get(name)
+    }
+
+    // ── Durability ───────────────────────────────────────────────────────
+
+    #[test]
+    fn every_write_command_is_classified_as_mutating() {
+        // A write that is not in `command_mutates` never marks the auto-save
+        // manager, so the periodic compaction loop skips it and the data is
+        // lost on a hard kill. Keep this list in step with the dispatch table.
+        for command in [
+            "collections.create",
+            "collections.delete",
+            "collections.cleanup_empty",
+            "vectors.insert",
+            "vectors.insert_text",
+            "vectors.update",
+            "vectors.delete",
+            "vectors.batch_insert",
+            "vectors.batch_insert_texts",
+            "vectors.batch_update",
+            "vectors.batch_delete",
+            "vectors.move",
+            "vectors.copy",
+            "vectors.delete_by_filter",
+            "vectors.bulk_update_metadata",
+            "vectors.set_expiry",
+            "graph.enable",
+            "graph.create_edge",
+            "graph.delete_edge",
+            "admin.backups_restore",
+        ] {
+            assert!(
+                command_mutates(command),
+                "'{command}' writes but is not marked as mutating"
+            );
+        }
+    }
+
+    #[test]
+    fn read_commands_are_not_classified_as_mutating() {
+        for command in [
+            "PING",
+            "collections.list",
+            "collections.get_info",
+            "collections.get_stats",
+            "collections.get_ttl",
+            "vectors.get",
+            "vectors.list",
+            "search.basic",
+            "graph.status",
+            "stats.database",
+            "embedding.list_providers",
+            "files.config_get",
+            "cluster.role",
+        ] {
+            assert!(
+                !command_mutates(command),
+                "'{command}' only reads but is marked as mutating"
+            );
+        }
+    }
+
+    #[test]
+    fn stored_ids_reads_single_and_batch_replies() {
+        let single = map(&[("id", VectorizerValue::Str("v1".into()))]);
+        assert_eq!(stored_ids(&single), vec!["v1".to_string()]);
+
+        // A batch reply lists per-item status; only the rows that landed may
+        // replicate, otherwise a failed item becomes a phantom vector.
+        let batch = map(&[(
+            "results",
+            VectorizerValue::Array(vec![
+                map(&[
+                    ("id", VectorizerValue::Str("ok1".into())),
+                    ("status", VectorizerValue::Str("ok".into())),
+                ]),
+                map(&[
+                    ("id", VectorizerValue::Str("bad".into())),
+                    ("status", VectorizerValue::Str("error".into())),
+                ]),
+                map(&[
+                    ("id", VectorizerValue::Str("ok2".into())),
+                    ("status", VectorizerValue::Str("ok".into())),
+                ]),
+            ]),
+        )]);
+        assert_eq!(
+            stored_ids(&batch),
+            vec!["ok1".to_string(), "ok2".to_string()]
+        );
+
+        // Nothing to replicate is not an error.
+        assert!(stored_ids(&VectorizerValue::Null).is_empty());
+    }
+
+    #[tokio::test]
+    async fn force_save_reports_missing_persistence_instead_of_faking_success() {
+        // The bug this guards: the old handler answered `success: true`
+        // without writing anything at all.
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("fs_probe".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+        let resp = call(
+            &state,
+            "collections.force_save",
+            vec![VectorizerValue::Str("fs_probe".into())],
+        )
+        .await;
+        let err = resp
+            .result
+            .expect_err("force_save must not claim success without persistence");
+        assert!(err.contains("persistence is not configured"), "got: {err}");
+    }
+
+    // ── New commands ─────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn graph_status_answers_for_a_collection_without_a_graph() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("g_probe".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+        let resp = call(
+            &state,
+            "graph.status",
+            vec![VectorizerValue::Str("g_probe".into())],
+        )
+        .await;
+        let result = resp.result.expect("graph.status must answer, not error");
+        assert_eq!(
+            field(&result, "enabled").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+        assert_eq!(
+            field(&result, "node_count").and_then(|v| v.as_int()),
+            Some(0)
+        );
+    }
+
+    #[tokio::test]
+    async fn graph_enable_makes_the_graph_family_reachable() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("g_enable".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+        // Before: the family refuses.
+        let before = call(
+            &state,
+            "graph.list_nodes",
+            vec![VectorizerValue::Str("g_enable".into())],
+        )
+        .await;
+        assert!(before.result.is_err());
+
+        let enabled = call(
+            &state,
+            "graph.enable",
+            vec![VectorizerValue::Str("g_enable".into())],
+        )
+        .await;
+        assert!(
+            enabled.result.is_ok(),
+            "graph.enable failed: {:?}",
+            enabled.result
+        );
+
+        // After: it answers.
+        let after = call(
+            &state,
+            "graph.list_nodes",
+            vec![VectorizerValue::Str("g_enable".into())],
+        )
+        .await;
+        assert!(
+            after.result.is_ok(),
+            "graph.list_nodes still refuses after enable: {:?}",
+            after.result
+        );
+    }
+
+    #[tokio::test]
+    async fn create_honours_the_graph_config() {
+        let state = fake_state();
+        let resp = call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("g_cfg".into()),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    ("graph", map(&[("enabled", VectorizerValue::Bool(true))])),
+                ]),
+            ],
+        )
+        .await;
+        let result = resp.result.expect("create with graph config must succeed");
+        assert_eq!(
+            field(&result, "graph").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        // The graph family must work without a separate enable call.
+        let nodes = call(
+            &state,
+            "graph.list_nodes",
+            vec![VectorizerValue::Str("g_cfg".into())],
+        )
+        .await;
+        assert!(
+            nodes.result.is_ok(),
+            "graph config did not attach a graph: {:?}",
+            nodes.result
+        );
+    }
+
+    #[tokio::test]
+    async fn create_rejects_an_unknown_embedding_provider() {
+        let state = fake_state();
+        let resp = call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("bad_provider".into()),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    (
+                        "embedding_provider",
+                        VectorizerValue::Str("not_a_provider".into()),
+                    ),
+                ]),
+            ],
+        )
+        .await;
+        let err = resp
+            .result
+            .expect_err("an unknown provider must be refused, not silently swapped");
+        assert!(err.contains("not_a_provider"), "got: {err}");
+    }
+
+    #[tokio::test]
+    async fn collections_get_stats_counts_vectors() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("stats_probe".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+        let empty = call(
+            &state,
+            "collections.get_stats",
+            vec![VectorizerValue::Str("stats_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_stats must answer");
+        assert_eq!(
+            field(&empty, "is_empty").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+
+        call(
+            &state,
+            "vectors.insert",
+            vec![
+                VectorizerValue::Str("stats_probe".into()),
+                VectorizerValue::Str("v1".into()),
+                VectorizerValue::Array(vec![
+                    VectorizerValue::Float(0.1),
+                    VectorizerValue::Float(0.2),
+                    VectorizerValue::Float(0.3),
+                    VectorizerValue::Float(0.4),
+                ]),
+            ],
+        )
+        .await;
+        let filled = call(
+            &state,
+            "collections.get_stats",
+            vec![VectorizerValue::Str("stats_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_stats must answer");
+        assert_eq!(
+            field(&filled, "vector_count").and_then(|v| v.as_int()),
+            Some(1)
+        );
+        assert_eq!(
+            field(&filled, "is_empty").and_then(|v| v.as_bool()),
+            Some(false)
+        );
+    }
+
+    #[tokio::test]
+    async fn set_ttl_round_trips_and_reaches_inserted_vectors() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("ttl_probe".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+
+        let cleared = call(
+            &state,
+            "collections.get_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_ttl must answer");
+        assert!(matches!(
+            field(&cleared, "ttl_secs"),
+            Some(VectorizerValue::Null)
+        ));
+
+        call(
+            &state,
+            "collections.set_ttl",
+            vec![
+                VectorizerValue::Str("ttl_probe".into()),
+                VectorizerValue::Int(600),
+            ],
+        )
+        .await
+        .result
+        .expect("set_ttl must answer");
+
+        let configured = call(
+            &state,
+            "collections.get_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_ttl must answer");
+        assert_eq!(
+            field(&configured, "ttl_secs").and_then(|v| v.as_int()),
+            Some(600)
+        );
+
+        // The configured rule must reach vectors written through RPC.
+        call(
+            &state,
+            "vectors.insert",
+            vec![
+                VectorizerValue::Str("ttl_probe".into()),
+                VectorizerValue::Str("v1".into()),
+                VectorizerValue::Array(vec![
+                    VectorizerValue::Float(0.1),
+                    VectorizerValue::Float(0.2),
+                    VectorizerValue::Float(0.3),
+                    VectorizerValue::Float(0.4),
+                ]),
+            ],
+        )
+        .await
+        .result
+        .expect("insert must succeed");
+        assert!(
+            state
+                .store
+                .get_collection("ttl_probe")
+                .expect("collection")
+                .get_all_vectors()
+                .into_iter()
+                .find(|v| v.id == "v1")
+                .expect("vector stored")
+                .payload
+                .and_then(|p| p.expires_at())
+                .is_some(),
+            "collections.set_ttl must make later inserts expire"
+        );
+
+        // Clearing takes the second argument away.
+        call(
+            &state,
+            "collections.set_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("set_ttl clear must answer");
+        let after_clear = call(
+            &state,
+            "collections.get_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_ttl must answer");
+        assert!(matches!(
+            field(&after_clear, "ttl_secs"),
+            Some(VectorizerValue::Null)
+        ));
+    }
+
+    #[tokio::test]
+    async fn set_ttl_rejects_zero_and_unknown_collections() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("ttl_reject".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+
+        let zero = call(
+            &state,
+            "collections.set_ttl",
+            vec![
+                VectorizerValue::Str("ttl_reject".into()),
+                VectorizerValue::Int(0),
+            ],
+        )
+        .await;
+        assert!(
+            zero.result.is_err(),
+            "a zero TTL would expire every insert on arrival"
+        );
+
+        let missing = call(
+            &state,
+            "collections.set_ttl",
+            vec![
+                VectorizerValue::Str("ttl_absent".into()),
+                VectorizerValue::Int(60),
+            ],
+        )
+        .await;
+        assert!(
+            missing.result.is_err(),
+            "setting a TTL on a collection that does not exist must fail"
+        );
+    }
+
+    #[tokio::test]
+    async fn stats_database_and_providers_answer() {
+        let state = fake_state();
+        let db = call(&state, "stats.database", vec![])
+            .await
+            .result
+            .expect("stats.database must answer");
+        assert!(field(&db, "collections").is_some());
+        assert!(field(&db, "providers").is_some());
+        assert!(field(&db, "version").is_some());
+
+        let providers = call(&state, "embedding.list_providers", vec![])
+            .await
+            .result
+            .expect("embedding.list_providers must answer");
+        assert!(field(&providers, "providers").is_some());
+    }
+
+    #[tokio::test]
+    async fn files_config_get_reports_upload_limits() {
+        let result = call(&fake_state(), "files.config_get", vec![])
+            .await
+            .result
+            .expect("files.config_get must answer");
+        assert!(field(&result, "max_file_size").is_some());
+        assert!(field(&result, "allowed_extensions").is_some());
+    }
+
+    #[tokio::test]
+    async fn cluster_role_answers_standalone_instead_of_erroring() {
+        let result = call(&fake_state(), "cluster.role", vec![])
+            .await
+            .result
+            .expect("cluster.role must answer on a standalone node");
+        assert_eq!(
+            field(&result, "role").and_then(|v| v.as_str()),
+            Some("standalone")
+        );
+    }
+
+    #[tokio::test]
+    async fn cluster_node_commands_say_cluster_is_off() {
+        for command in ["cluster.nodes_list", "cluster.node_get"] {
+            let resp = call(
+                &fake_state(),
+                command,
+                vec![VectorizerValue::Str("node-1".into())],
+            )
+            .await;
+            let err = resp.result.expect_err("cluster mode is off in this state");
+            assert!(err.contains("cluster mode not enabled"), "got: {err}");
+        }
+    }
+
+    #[tokio::test]
+    async fn search_extra_requires_query_and_collection() {
+        let state = fake_state();
+        let err = call(
+            &state,
+            "search.extra",
+            vec![map(&[("collection", VectorizerValue::Str("c".into()))])],
+        )
+        .await
+        .result
+        .expect_err("missing query must be reported");
+        assert!(err.contains("missing 'query'"), "got: {err}");
+    }
+
+    #[tokio::test]
+    async fn user_management_is_gated_on_admin() {
+        // Auth is disabled in `fake_state`, so the handlers report that rather
+        // than pretending to manage users. The admin gate itself is checked by
+        // driving a non-admin session at the dispatch level.
+        let non_admin = Arc::new(RwLock::new(ConnectionAuth {
+            authenticated: true,
+            admin: false,
+            principal: Some("plain-user".to_string()),
+        }));
+        let resp = dispatch(
+            &fake_state(),
+            &non_admin,
+            Request {
+                id: 2,
+                command: "auth.users_list".into(),
+                args: vec![],
+            },
+        )
+        .await;
+        let err = resp.result.expect_err("a non-admin must not list users");
+        assert!(err.contains("admin role required"), "got: {err}");
+    }
+
+    #[tokio::test]
+    async fn user_management_reports_auth_disabled_rather_than_rest_only() {
+        // The pre-parity handlers answered "REST-only in v1" even on a
+        // deployment that had the user store available. That answer is gone.
+        let resp = call(&fake_state(), "auth.users_list", vec![]).await;
+        let err = resp.result.expect_err("auth is disabled in this state");
+        assert!(err.contains("auth is not enabled"), "got: {err}");
+        assert!(!err.contains("REST-only"), "stale REST-only answer: {err}");
+    }
+
+    // ── Advertisement ────────────────────────────────────────────────────
+
+    #[test]
+    fn advertised_commands_are_all_routed() {
+        // Advertising a command the dispatch table does not serve makes
+        // capability negotiation lie. HELLO is excluded on purpose: it is the
+        // handshake that carries the list.
+        for command in RPC_COMMANDS {
+            assert_ne!(
+                *command, "HELLO",
+                "HELLO is the handshake, not an advertised capability"
+            );
+        }
+        for command in [
+            "graph.enable",
+            "graph.status",
+            "search.extra",
+            "stats.database",
+        ] {
+            assert!(
+                RPC_COMMANDS.contains(&command),
+                "'{command}' is routed but not advertised"
+            );
+        }
     }
 }

@@ -1,21 +1,21 @@
 /**
  * End-to-end integration tests for `RpcClient`.
  *
- * Spins up an in-test server on `127.0.0.1:0` that speaks the
- * VectorizerRPC wire format using the SDK's own codec + types
- * (because the production server isn't available as a TS dependency)
- * and drives it from {@link RpcClient} to prove:
+ * Spins up an in-test server on `127.0.0.1:0` that speaks the wire through
+ * Thunder's own codec — the same one the client and the production server
+ * use — and drives it from {@link RpcClient} to prove:
  *
- * - HELLO handshake produces the expected {@link HelloResponse} shape.
+ * - HELLO produces the expected {@link HelloResponse} shape.
  * - `PING` works pre-HELLO (auth-exempt per wire spec § 4).
- * - A data-plane command before HELLO returns
- *   {@link RpcNotAuthenticated} from the local gate.
- * - Concurrent calls on the same connection are demultiplexed by
- *   `Request.id` correctly.
- * - Typed wrappers (`listCollections`, `getCollectionInfo`,
- *   `searchBasic`) round-trip through the codec.
- * - `connectUrl` accepts the canonical `vectorizer://` form and
- *   rejects REST URLs with a clear error.
+ * - A data-plane command on an un-credentialed session against an
+ *   auth-enabled server throws {@link RpcNotAuthenticated}.
+ * - A credential-carrying HELLO authenticates the session via `AUTH`, so
+ *   later commands pass the gate.
+ * - Concurrent calls on the same connection are demultiplexed by frame id.
+ * - Typed wrappers (`listCollections`, `getCollectionInfo`, `searchBasic`)
+ *   round-trip over the wire.
+ * - `connectUrl` accepts the canonical `vectorizer://` form and rejects
+ *   REST URLs with a clear error.
  */
 
 import * as net from 'node:net';
@@ -27,25 +27,25 @@ import {
   RpcServerError,
 } from '../../src/rpc/client';
 import '../../src/rpc/commands'; // attach typed wrappers
-import { encodeFrame, FrameReader } from '../../src/rpc/codec';
 import {
-  Request,
-  Response,
-  Value,
-  VectorizerValue,
-  asStr,
-  responseErr,
-  responseOk,
-  responseToMsgpack,
-  valueFromMsgpack,
-} from '../../src/rpc/types';
+  FrameReader,
+  decodeRequestBody,
+  encodeResponse,
+} from '@hivehub/thunder';
+import { Request, Response, Value, asStr } from '../../src/rpc/types';
 
 // ─────────────────────────────────────────────────────────────────────
 // In-test fake-server fixture
 // ─────────────────────────────────────────────────────────────────────
 
+/** The one credential the fake server accepts. */
+const GOOD_TOKEN = 'good-token';
+
+/** Commands the server answers before the session authenticates. */
+const PRE_AUTH = new Set(['PING', 'HELLO', 'AUTH', 'QUIT']);
+
 function buildHelloResponse(rid: number): Response {
-  return responseOk(
+  return Response.ok(
     rid,
     Value.map([
       [Value.str('server_version'), Value.str('test-fixture/0.0.0')],
@@ -67,7 +67,7 @@ function buildHelloResponse(rid: number): Response {
 }
 
 function buildCollectionInfoResponse(rid: number, name: string): Response {
-  return responseOk(
+  return Response.ok(
     rid,
     Value.map([
       [Value.str('name'), Value.str(name)],
@@ -82,7 +82,7 @@ function buildCollectionInfoResponse(rid: number, name: string): Response {
 }
 
 function buildSearchBasicResponse(rid: number): Response {
-  return responseOk(
+  return Response.ok(
     rid,
     Value.array([
       Value.map([
@@ -98,21 +98,38 @@ function buildSearchBasicResponse(rid: number): Response {
   );
 }
 
-function dispatch(req: Request, state: { authenticated: boolean }): Response {
+interface SessionState {
+  authenticated: boolean;
+}
+
+/**
+ * The server side of the `auth_command` handshake plus Vectorizer's command
+ * catalog, reduced to what these tests exercise. `authRequired` mirrors the
+ * deployment posture: `false` opens the listener (single-user mode), `true`
+ * refuses un-credentialed sessions with `NOAUTH`, which the client
+ * classifies as an auth error.
+ */
+function dispatch(
+  req: Request,
+  state: SessionState,
+  authRequired: boolean,
+): Response {
   const cmd = req.command;
-  if (cmd === 'HELLO') {
+  if (cmd === 'AUTH') {
+    const secret = req.args[0] !== undefined ? asStr(req.args[0]) : null;
+    if (secret !== GOOD_TOKEN) {
+      return Response.err(req.id, 'WRONGPASS invalid credentials');
+    }
     state.authenticated = true;
-    return buildHelloResponse(req.id);
+    return Response.ok(req.id, Value.str('OK'));
   }
-  if (cmd === 'PING') return responseOk(req.id, Value.str('PONG'));
-  if (!state.authenticated) {
-    return responseErr(
-      req.id,
-      `authentication required: send HELLO first (${cmd})`,
-    );
+  if (authRequired && !state.authenticated && !PRE_AUTH.has(cmd)) {
+    return Response.err(req.id, 'NOAUTH authentication required');
   }
+  if (cmd === 'HELLO') return buildHelloResponse(req.id);
+  if (cmd === 'PING') return Response.ok(req.id, Value.str('PONG'));
   if (cmd === 'collections.list') {
-    return responseOk(
+    return Response.ok(
       req.id,
       Value.array([Value.str('alpha-docs'), Value.str('beta-source')]),
     );
@@ -128,7 +145,7 @@ function dispatch(req: Request, state: { authenticated: boolean }): Response {
   if (cmd === 'search.basic') {
     return buildSearchBasicResponse(req.id);
   }
-  return responseErr(req.id, `unknown command '${cmd}'`);
+  return Response.err(req.id, `unknown command '${cmd}'`);
 }
 
 interface FakeServer {
@@ -136,29 +153,24 @@ interface FakeServer {
   close(): Promise<void>;
 }
 
-function spawnFakeServer(): Promise<FakeServer> {
+function spawnFakeServer(authRequired = false): Promise<FakeServer> {
   return new Promise((resolve) => {
     const server = net.createServer((socket) => {
       const reader = new FrameReader();
-      const state = { authenticated: false };
-      socket.on('data', (chunk) => {
+      const state: SessionState = { authenticated: false };
+      socket.on('data', (chunk: Buffer) => {
         reader.push(chunk);
-        let frames: unknown[];
-        try {
-          frames = reader.drain();
-        } catch {
-          socket.destroy();
-          return;
-        }
-        for (const raw of frames) {
-          if (!Array.isArray(raw) || raw.length !== 3) continue;
-          const req: Request = {
-            id: Number(raw[0]),
-            command: String(raw[1]),
-            args: (raw[2] as unknown[]).map(valueFromMsgpack),
-          };
-          const resp = dispatch(req, state);
-          socket.write(encodeFrame(responseToMsgpack(resp)));
+        for (;;) {
+          let body: Uint8Array | null;
+          try {
+            body = reader.nextBody();
+          } catch {
+            socket.destroy();
+            return;
+          }
+          if (body === null) break;
+          const req = decodeRequestBody(body);
+          socket.write(encodeResponse(dispatch(req, state, authRequired)));
         }
       });
       socket.on('error', () => {});
@@ -230,15 +242,7 @@ describe('RpcClient — integration with fake server', () => {
     expect(hits[1]!.id).toBe('vec-1');
     expect(hits[1]!.payload).toBeNull();
 
-    client.close();
-  });
-
-  test('data-plane call before HELLO is rejected locally', async () => {
-    const client = await RpcClient.connect(address);
-    await expect(client.listCollections()).rejects.toBeInstanceOf(
-      RpcNotAuthenticated,
-    );
-    client.close();
+    await client.close();
   });
 
   test('concurrent calls on one connection are demultiplexed by id', async () => {
@@ -253,13 +257,13 @@ describe('RpcClient — integration with fake server', () => {
     for (const cols of results) {
       expect(cols).toEqual(['alpha-docs', 'beta-source']);
     }
-    client.close();
+    await client.close();
   });
 
   test('connectUrl accepts the vectorizer:// scheme', async () => {
     const client = await RpcClient.connectUrl(`vectorizer://${address}`);
     expect(await client.ping()).toBe('PONG');
-    client.close();
+    await client.close();
   });
 
   test('connectUrl rejects http:// schemes with a clear error', async () => {
@@ -273,5 +277,50 @@ describe('RpcClient — integration with fake server', () => {
       expect(msg).toContain('REST URL');
       expect(msg).toContain('HTTP client');
     }
+  });
+});
+
+describe('RpcClient — auth-enabled server', () => {
+  let server: FakeServer;
+  let address: string;
+
+  beforeEach(async () => {
+    server = await spawnFakeServer(true);
+    address = `127.0.0.1:${server.port}`;
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  test('data-plane call without credentials is rejected', async () => {
+    const client = await RpcClient.connect(address);
+    expect(client.isAuthenticated()).toBe(false);
+    await expect(client.listCollections()).rejects.toBeInstanceOf(
+      RpcNotAuthenticated,
+    );
+    await client.close();
+  });
+
+  test('hello with a token authenticates the session', async () => {
+    const client = await RpcClient.connect(address);
+    const hello = await client.hello({
+      clientName: 'rpc-integration-test',
+      token: GOOD_TOKEN,
+    });
+    expect(hello.authenticated).toBe(true);
+    expect(client.isAuthenticated()).toBe(true);
+
+    const cols = await client.listCollections();
+    expect(cols).toHaveLength(2);
+    await client.close();
+  });
+
+  test('bad credentials fail the handshake', async () => {
+    const client = await RpcClient.connect(address);
+    await expect(
+      client.hello({ token: 'wrong-token' }),
+    ).rejects.toBeInstanceOf(RpcNotAuthenticated);
+    await client.close();
   });
 });

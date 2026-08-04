@@ -1,0 +1,19 @@
+{
+  "id": "multi-arch-docker-build-via-per-arch-native-runners-manifest-stitching",
+  "type": "pattern",
+  "title": "Multi-arch Docker build via per-arch native runners + manifest stitching",
+  "category": "build",
+  "description": "Build each arch on its native GitHub Actions runner (ubuntu-latest for amd64, ubuntu-24.04-arm for arm64), push by digest only, then stitch the digests into a multi-arch manifest list with `docker buildx imagetools create`. Eliminates QEMU emulation for arm64 (2-3x speedup) without losing per-arch attestations.",
+  "example": "strategy:\n  matrix:\n    include:\n      - {arch: amd64, runner: ubuntu-latest, platform: linux/amd64}\n      - {arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64}\nruns-on: ${{ matrix.runner }}\nsteps:\n  - uses: docker/build-push-action@v6\n    with:\n      platforms: ${{ matrix.platform }}\n      outputs: type=image,name=ghcr.io/...,push-by-digest=true,name-canonical=true,push=true\n  - run: echo \"${{ steps.build.outputs.digest }}\" > /tmp/digests/...\n  - uses: actions/upload-artifact@v4\n\n# Manifest job downloads digest artifacts and runs:\ndocker buildx imagetools create -t ghcr.io/x:tag $(printf 'ghcr.io/x@sha256:%s ' *)",
+  "whenToUse": "Multi-arch Docker images with significant Rust/C++ compile cost where QEMU arm64 emulation dominates wall time",
+  "whenNotToUse": "Cheap dockerfiles (only COPY/ENV) — single-runner buildx with QEMU is simpler and fast enough",
+  "createdAt": "2026-05-02T01:13:25.822Z",
+  "tags": [
+    "docker",
+    "ci",
+    "multi-arch",
+    "qemu",
+    "phase10"
+  ],
+  "source": "manual"
+}

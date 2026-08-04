@@ -32,7 +32,7 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Scalar Quantization** + cache hit ratio metrics.
 
 ### High Availability & Scaling
-- **Raft consensus** via openraft (pinned `=0.10.0-alpha.17`) — automatic leader election in 1-5s, write-redirect via HTTP 307, WAL-backed durable replication, DNS discovery for Kubernetes headless services.
+- **Raft consensus** via openraft (pinned `=0.10.0-alpha.30`) — automatic leader election in 1-5s, write-redirect via HTTP 307, WAL-backed durable replication, DNS discovery for Kubernetes headless services.
 - **Master-Replica** — TCP streaming replication with full/partial sync, exponential reconnect backoff (5s→60s).
 - **Distributed sharding** — horizontal scaling with automatic routing; distributed hybrid search via `RemoteHybridSearch` RPC with dense-only fallback for mixed-version clusters.
 - **HiveHub cluster mode** — multi-tenant with quotas, usage tracking, tenant isolation, mandatory MMap storage, 1GB cache cap.
@@ -477,11 +477,11 @@ See [HiveHub Integration](./docs/features/HUB_INTEGRATION.md) and [Cluster Memor
 ```
 crates/
 ├── vectorizer-core/       # Foundation: error, codec, quantization, simd, compression, paths
-├── vectorizer-protocol/   # RPC wire types + tonic-generated gRPC
+├── vectorizer-grpc/       # tonic-generated gRPC types (first-party, cluster, Qdrant-compatible)
 ├── vectorizer/            # Engine (umbrella): db, embedding, models, cache, persistence, search, ...
 ├── vectorizer-server/     # Transport: HTTP / gRPC / MCP / RPC + binary
 └── vectorizer-cli/        # CLI binaries
-sdks/rust/                 # Rust SDK — re-exports vectorizer-protocol wire types
+sdks/rust/                 # Rust SDK — RPC transport via the shared `thunder-rpc` crate
 ```
 
 Runtime directories resolve to platform-standard locations (`~/.local/share/vectorizer/` on Linux, `~/Library/Application Support/vectorizer/` on macOS, `%APPDATA%\vectorizer\` on Windows), overridable via `VECTORIZER_DATA_DIR` / `VECTORIZER_LOGS_DIR`.

@@ -7,6 +7,53 @@ Two NuGet packages share this changelog:
 - `Vectorizer.Sdk.Rpc` — RPC-first client (recommended).
 - `Vectorizer.Sdk` — legacy REST-only client.
 
+## [3.6.0] - TBD
+
+### Changed
+
+- **`Vectorizer.Sdk.Rpc`'s transport now runs on `HiveLLM.Thunder`** (0.2.2),
+  the HiveLLM family's shared binary RPC client whose Rust twin
+  `vectorizer-server` runs. `RpcClient` wraps `ThunderClient` instead of a
+  hand-rolled `TcpClient` + reader loop: framing, response demultiplexing by
+  frame id, bounded in-flight, connect and per-call timeouts and lazy re-dial
+  are Thunder's. The on-wire format is unchanged (v1, frozen: 4-byte
+  little-endian length prefix + MessagePack body), and every typed command
+  wrapper keeps its signature.
+- `VectorizerValue` keeps its variants, factories and `TryAsX` accessors
+  unchanged; only the encoding moved, through the new `ToThunder()` /
+  `FromThunder()` seam.
+- `RpcClient.HelloAsync` re-dials when its payload carries a `Token` or
+  `ApiKey`: Thunder authenticates in the connection handshake (`AUTH`), so
+  credentials must reach the session the later commands run under. Call sites
+  are unchanged.
+- `RpcClient.IsAuthenticated` reports the *session* handshake state, so it is
+  `false` against an open single-user server — which authenticates nobody
+  because it gates nothing.
+- `RpcNotAuthenticatedException` is now raised from the server's `NOAUTH` /
+  `WRONGPASS` / `NOPERM` reply instead of a local pre-flight guess, and
+  carries the server's message.
+- A call cancelled through its `CancellationToken` now surfaces the
+  cancellation exception Thunder propagates (an `OperationCanceledException`),
+  not necessarily `TaskCanceledException`.
+
+### Added
+
+- `RpcClient.ProtocolConfig()` — the client half of the server's wire config,
+  exposed so tooling that builds its own Thunder client dials with the same
+  shape — and `RpcClient.MaxFrameBytes` (512 MiB, matching the listener).
+- `RpcRequest.ToThunder()` / `FromThunder()` and `RpcResponse.ToThunder()` /
+  `FromThunder()` for tools that read or write frames directly.
+
+### Removed
+
+- The `FrameCodec` type (`EncodeFrame`, `ReadFrameAsync`, `MaxBodySize`,
+  `FrameTooLargeException`, `FrameDecodeException`) and the msgpack
+  object-graph helpers `VectorizerValue.ToWire()` / `FromWire(object?)`,
+  `RpcRequest.ToWire()`, `RpcResponse.ToWire()` / `FromWire(object?)`.
+  Framing is Thunder's: use `HiveLLM.Thunder.FrameCodec` with the
+  `ToThunder()` / `FromThunder()` converters.
+- The direct `MessagePack` package reference (Thunder carries it).
+
 ## [3.5.0] - TBD
 
 Version alignment with the Vectorizer 3.5.0 server release. No SDK API

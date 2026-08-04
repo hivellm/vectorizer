@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-sdk"
-version = "3.5.0"
+version = "3.6.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "Rust SDK for Vectorizer — RPC-first (vectorizer://) with HTTP fallback"
@@ -45,9 +45,8 @@ anyhow = { version = "1.0", features = ["backtrace"] }
 tracing = "0.1"
 
 # RPC transport: length-prefixed MessagePack over raw TCP. The wire
-# spec is `docs/specs/VECTORIZER_RPC.md` in the parent crate; the
-# codec is byte-for-byte the same as `vectorizer::protocol::rpc::codec`.
-rmp-serde = "1"
+# spec is `docs/specs/VECTORIZER_RPC.md` in the parent crate; framing,
+# multiplexing and the value model all come from `thunder-rpc` below.
 parking_lot = "0.12"
 thiserror = "2"
 
@@ -64,16 +63,20 @@ async-trait = "0.1"
 # UMICP protocol support
 umicp-core = { version = "0.2", optional = true }
 
-# Wire-protocol seam (phase4_split-vectorizer-workspace, sub-phase 6).
-# The SDK's RPC `Request` / `Response` / `VectorizerValue` and the
-# length-prefixed MessagePack codec used to be hand-ported byte-for-
-# byte from the server. Now they re-export from the standalone
-# vectorizer-protocol crate so the wire format cannot drift between
-# server and client — they're literally the same types.
-vectorizer-protocol = { path = "../../crates/vectorizer-protocol", version = "3.5.0" }
+# Wire-protocol seam: `thunder-rpc` (lib `thunder`) is the HiveLLM family's
+# shared binary RPC stack and the source of the SDK's `Request` /
+# `Response` / value model, the frame codec, and the multiplexed client.
+# The server (`vectorizer-server`) runs the same crate's `server` half, so
+# the two ends cannot drift. A registry dependency, not a path one: the SDK
+# publishes to crates.io, and dragging the server crate along is exactly
+# what Thunder dissolved.
+thunder-rpc = { version = "0.2.2", default-features = false, features = ["client"] }
 
 [dev-dependencies]
 tokio-test = "0.4"
+# The integration suite stands up a Thunder listener as the fake server, so
+# the tests drive a real client/server pair rather than a synthetic peer.
+thunder-rpc = { version = "0.2.2", default-features = false, features = ["client", "server"] }
 
 [features]
 # RPC is the recommended primary transport per

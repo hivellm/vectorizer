@@ -2,8 +2,9 @@
 //!
 //! High-performance Rust client for the Hive Vectorizer vector
 //! database. v3.x ships with **VectorizerRPC** as the default transport
-//! (binary MessagePack over raw TCP, see [`rpc`]); HTTP stays available
-//! as the legacy fallback under the `http` Cargo feature.
+//! (binary MessagePack over raw TCP, carried by `thunder-rpc` — the same
+//! crate the server runs; see [`rpc`]); HTTP stays available as the legacy
+//! fallback under the `http` Cargo feature.
 //!
 //! Suppresses the long tail of legacy clippy warnings (cast_lossless,
 //! uninlined_format_args, etc.) that the workspace lint policy

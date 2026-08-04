@@ -19,15 +19,24 @@
  * model.
  */
 
+// Framing belongs to Thunder (`@hivehub/thunder`), the shared binary RPC
+// package the server also runs. Re-exported here so tooling that needs to
+// build or read frames directly (test servers, proxies) uses the same codec
+// as the client instead of a second implementation.
 export {
-  HEADER_SIZE,
-  MAX_BODY_SIZE,
-  FrameDecodeError,
+  DEFAULT_MAX_FRAME_BYTES,
+  DecodeError,
   FrameReader,
   FrameTooLargeError,
-  decodeBody,
-  encodeFrame,
-} from './codec';
+  PUSH_ID,
+  WIRE_VERSION,
+  decodeRequest,
+  decodeRequestBody,
+  decodeResponse,
+  decodeResponseBody,
+  encodeRequest,
+  encodeResponse,
+} from '@hivehub/thunder';
 
 // Importing commands has the side effect of attaching typed wrappers
 // as methods on RpcClient. Must come AFTER client export.
@@ -81,7 +90,10 @@ export {
   RpcClientError,
   RpcConnectionClosed,
   RpcNotAuthenticated,
+  RpcProtocolError,
   RpcServerError,
+  RpcTimeout,
+  protocolConfig,
 } from './client';
 
 export {
@@ -94,13 +106,9 @@ export {
 
 export { PooledClient, RpcPool, RpcPoolConfig } from './pool';
 
-export type {
-  Request,
-  Response,
-  ResponseResult,
-  VectorizerValue,
-} from './types';
+export type { Request, ResponseResult, VectorizerValue } from './types';
 export {
+  Response,
   Value,
   asArray,
   asBool,
@@ -109,11 +117,4 @@ export {
   asMap,
   asStr,
   mapGet,
-  requestToMsgpack,
-  responseErr,
-  responseFromMsgpack,
-  responseOk,
-  responseToMsgpack,
-  valueFromMsgpack,
-  valueToMsgpack,
 } from './types';

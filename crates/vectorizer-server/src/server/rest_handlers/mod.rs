@@ -51,9 +51,9 @@ pub use admin::{
 pub use backups::{create_backup, get_backup_directory, list_backups, restore_backup};
 pub use collections::{
     cleanup_empty_collections, create_collection, create_native_snapshot, delete_collection,
-    force_save_collection, get_collection, list_collections, list_empty_collections,
-    list_native_snapshots, reencode_collection, reindex_collection, rename_collection,
-    restore_native_snapshot, set_collection_ttl,
+    force_save_collection, get_collection, get_collection_ttl, list_collections,
+    list_empty_collections, list_native_snapshots, reencode_collection, reindex_collection,
+    rename_collection, restore_native_snapshot, set_collection_ttl,
 };
 pub(crate) use common::collection_metrics_uuid;
 pub use discovery::{
@@ -80,8 +80,8 @@ pub use search::{
 pub use slow_queries::{list_slow_queries, set_slow_query_config};
 pub use vectors::{
     batch_insert_texts, bulk_update_metadata, copy_vectors, delete_by_filter, delete_vector,
-    delete_vector_generic, embed_text, get_vector, insert_texts, list_vectors, move_vectors,
-    set_vector_expiry, update_vector,
+    delete_vector_generic, embed_text, get_vector, get_vector_by_body, insert_texts, list_vectors,
+    move_vectors, set_vector_expiry, update_vector,
 };
 
 #[cfg(test)]

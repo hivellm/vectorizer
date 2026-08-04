@@ -383,6 +383,19 @@ impl VectorStore {
 
         self.collections.insert(new_name.to_string(), collection);
 
+        // Carry the collection TTL rule over to the new key. It is stored
+        // under `ttl:{collection}`, so a rename that ignored it would drop the
+        // policy from the renamed collection and leave it waiting to be
+        // inherited by the next collection created under the old name.
+        //
+        // Order matters: this runs BEFORE the old name is registered as an
+        // alias below. Afterwards `ttl:{old}` would resolve to the new name
+        // and the move would read an empty key and clear the one it just set.
+        if let Some(ttl_secs) = self.collection_ttl(canonical_old.as_str()) {
+            self.set_collection_ttl(canonical_old.as_str(), None);
+            self.set_collection_ttl(new_name, Some(ttl_secs));
+        }
+
         // Register old canonical name as a grace-window alias → new name.
         // Any existing aliases that pointed to canonical_old are re-targeted.
         self.aliases
@@ -450,6 +463,11 @@ impl VectorStore {
 
         // Remove any aliases pointing to this collection
         self.remove_aliases_for_collection(canonical.as_str());
+
+        // Drop the collection TTL rule with the collection. Leaving it behind
+        // would silently apply the old expiry policy to whatever collection is
+        // next created under this name.
+        self.set_collection_ttl(canonical.as_str(), None);
 
         info!(
             "Collection '{}' (canonical '{}') deleted successfully",

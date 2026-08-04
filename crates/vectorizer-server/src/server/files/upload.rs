@@ -66,7 +66,10 @@ pub struct FileUploadResponse {
 
 /// Load file upload config from config.yml
 /// Tries multiple paths to find config.yml
-fn load_file_upload_config() -> FileUploadConfig {
+///
+/// Shared with the RPC `files.config_get` command so both transports report
+/// the same limits from the same loader.
+pub(crate) fn load_file_upload_config() -> FileUploadConfig {
     let possible_paths = vec!["./config.yml", "config.yml", "../config.yml"];
 
     for path in &possible_paths {

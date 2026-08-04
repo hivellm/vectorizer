@@ -95,7 +95,15 @@ impl HubManager {
 
         let client = Arc::new(HubClient::new(client_config)?);
         let auth = Arc::new(HubAuth::new(client.clone(), &config.cache));
-        let quota = Arc::new(QuotaManager::new(client.clone(), &config.cache));
+        // Same gap the query cache had: `QuotaManager::new` injects a
+        // NoopMetricsSink, which leaves hub_quota_checks_total,
+        // hub_quota_exceeded_total, hub_quota_usage and the check-latency
+        // histogram permanently empty on a scrape.
+        let quota = Arc::new(QuotaManager::new_with_metrics(
+            client.clone(),
+            &config.cache,
+            Arc::new(crate::monitoring::PrometheusMetricsSink::new()),
+        ));
         let usage = Arc::new(UsageReporter::new(
             client.clone(),
             config.usage_report_interval,

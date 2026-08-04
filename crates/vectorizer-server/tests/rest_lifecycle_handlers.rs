@@ -10,6 +10,7 @@
 //! - `POST /collections/{name}/vectors/delete_by_filter` — `delete_by_filter`
 //! - `POST /collections/{name}/vectors/bulk_update_metadata` — `bulk_update_metadata`
 //! - `POST /collections/{name}/ttl` — `set_collection_ttl`
+//! - `GET  /collections/{name}/ttl` — `get_collection_ttl`
 //! - `POST /collections/{name}/rename` — `rename_collection`
 //! - `POST /collections/{name}/reindex` — `reindex_collection`
 //! - `POST /collections/{name}/reencode` — `reencode_collection`
@@ -413,6 +414,165 @@ async fn set_collection_ttl_happy_path_sets_and_clears() {
         .await;
     assert!(status.is_success(), "clear ttl status {status}: {resp}");
     assert!(resp["ttl_secs"].is_null());
+}
+
+#[tokio::test]
+async fn get_collection_ttl_reflects_what_was_set() {
+    let app = new_app().await;
+    let name = "lifecycle_ttl_get";
+    create_collection(&app, name).await;
+
+    let (status, resp) = app.get(&format!("/collections/{name}/ttl")).await;
+    assert!(status.is_success(), "get ttl status {status}: {resp}");
+    assert!(resp["ttl_secs"].is_null(), "no TTL configured yet: {resp}");
+
+    let (status, _) = app
+        .post_json(
+            &format!("/collections/{name}/ttl"),
+            json!({"ttl_secs": 900}),
+        )
+        .await;
+    assert!(status.is_success());
+
+    let (_, resp) = app.get(&format!("/collections/{name}/ttl")).await;
+    assert_eq!(resp["ttl_secs"].as_u64(), Some(900));
+
+    let (status, _) = app
+        .post_json(
+            &format!("/collections/{name}/ttl"),
+            json!({"ttl_secs": null}),
+        )
+        .await;
+    assert!(status.is_success());
+
+    let (_, resp) = app.get(&format!("/collections/{name}/ttl")).await;
+    assert!(resp["ttl_secs"].is_null(), "TTL must read back cleared");
+}
+
+/// The whole point of the endpoint: a configured TTL must actually reach
+/// the vectors that arrive afterwards.
+#[tokio::test]
+async fn collection_ttl_stamps_expiry_on_vectors_inserted_afterwards() {
+    let app = new_app().await;
+    let name = "lifecycle_ttl_applied";
+    create_collection(&app, name).await;
+
+    let (status, resp) = app
+        .post_json(
+            &format!("/collections/{name}/ttl"),
+            json!({"ttl_secs": 600}),
+        )
+        .await;
+    assert!(status.is_success(), "set ttl status {status}: {resp}");
+
+    let before = chrono::Utc::now().timestamp_millis();
+    let (status, resp) = app
+        .post_json(
+            "/batch_insert",
+            json!({
+                "collection": name,
+                "texts": [{"text": "ttl probe doc", "metadata": {"tag": "a"}}],
+            }),
+        )
+        .await;
+    assert!(status.is_success(), "batch_insert status {status}: {resp}");
+    let after = chrono::Utc::now().timestamp_millis();
+
+    let vectors = list_all_vectors(&app, name).await;
+    assert_eq!(vectors.len(), 1, "one vector inserted: {vectors:?}");
+    let expires_at = vectors[0]["payload"]["__expires_at"]
+        .as_i64()
+        .unwrap_or_else(|| panic!("collection TTL must stamp __expires_at: {}", vectors[0]));
+    assert!(
+        expires_at >= before + 600_000 && expires_at <= after + 600_000,
+        "expiry {expires_at} must be ~600s after insertion (window {}..={})",
+        before + 600_000,
+        after + 600_000
+    );
+    assert_eq!(
+        vectors[0]["payload"]["tag"].as_str(),
+        Some("a"),
+        "stamping must not clobber the caller's metadata"
+    );
+}
+
+/// Vectors that predate the TTL keep no expiry — the endpoint documents
+/// that it is not retroactive, so it must not be.
+#[tokio::test]
+async fn collection_ttl_does_not_touch_pre_existing_vectors() {
+    let app = new_app().await;
+    let name = "lifecycle_ttl_not_retroactive";
+    seed_with_tags(&app, name, &["a"]).await;
+
+    let (status, _) = app
+        .post_json(
+            &format!("/collections/{name}/ttl"),
+            json!({"ttl_secs": 600}),
+        )
+        .await;
+    assert!(status.is_success());
+
+    let vectors = list_all_vectors(&app, name).await;
+    assert_eq!(vectors.len(), 1);
+    assert!(
+        vectors[0]["payload"]["__expires_at"].is_null(),
+        "TTL must not be applied retroactively: {}",
+        vectors[0]
+    );
+}
+
+/// Clearing a per-vector expiry cannot opt a vector out of the collection
+/// rule, and the response must say so rather than echoing `null`.
+#[tokio::test]
+async fn clearing_vector_expiry_under_a_collection_ttl_reports_the_restamp() {
+    let app = new_app().await;
+    let name = "lifecycle_ttl_clear_conflict";
+    let ids = seed_with_tags(&app, name, &["a"]).await;
+    let id = &ids[0];
+
+    let (status, _) = app
+        .post_json(
+            &format!("/collections/{name}/ttl"),
+            json!({"ttl_secs": 600}),
+        )
+        .await;
+    assert!(status.is_success());
+
+    let (status, resp) = app
+        .patch_json(
+            &format!("/collections/{name}/vectors/{id}/expiry"),
+            json!({"expires_at": null}),
+        )
+        .await;
+    assert!(status.is_success(), "clear expiry status {status}: {resp}");
+    assert!(
+        resp["expires_at"].as_i64().is_some(),
+        "the collection TTL re-stamps the expiry, so the response must \
+         report the stored value, not null: {resp}"
+    );
+}
+
+#[tokio::test]
+async fn set_collection_ttl_rejects_zero_seconds() {
+    let app = new_app().await;
+    let name = "lifecycle_ttl_zero";
+    create_collection(&app, name).await;
+
+    let (status, body) = app
+        .post_json(&format!("/collections/{name}/ttl"), json!({"ttl_secs": 0}))
+        .await;
+    assert_eq!(
+        status.as_u16(),
+        400,
+        "a zero TTL would expire every insert on arrival: {body}"
+    );
+    assert_eq!(body["error_type"].as_str(), Some("validation_error"));
+
+    let (_, resp) = app.get(&format!("/collections/{name}/ttl")).await;
+    assert!(
+        resp["ttl_secs"].is_null(),
+        "rejected TTL must not be stored"
+    );
 }
 
 #[tokio::test]

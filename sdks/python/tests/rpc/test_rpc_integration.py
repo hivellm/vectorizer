@@ -1,18 +1,18 @@
 """End-to-end integration tests for ``RpcClient`` / ``AsyncRpcClient``.
 
-Spins up an in-test server on ``127.0.0.1:0`` that speaks the
-VectorizerRPC wire format using the SDK's own codec + types (because
-the production server isn't available as a Python dependency), and
-drives it from both the sync and async clients to prove:
+Spins up an in-test server on ``127.0.0.1:0`` that speaks the wire through
+Thunder's own codec — the same one the clients and the production server use
+— and drives it from both the sync and async clients to prove:
 
-- HELLO handshake produces the expected :class:`HelloResponse` shape.
+- HELLO produces the expected :class:`HelloResponse` shape.
 - ``PING`` works pre-HELLO (auth-exempt per wire spec § 4).
-- A data-plane command before HELLO returns
-  :class:`RpcNotAuthenticated` from the local gate.
-- Concurrent calls on the same connection are demultiplexed by
-  ``Request.id`` correctly.
+- A data-plane command on an un-credentialed session against an auth-enabled
+  server raises :class:`RpcNotAuthenticated`.
+- A credential-carrying HELLO authenticates the session via ``AUTH``, so
+  later commands pass the gate.
+- Concurrent calls on the same connection are demultiplexed by frame id.
 - Typed wrappers (``list_collections``, ``get_collection_info``,
-  ``search_basic``) round-trip through the codec.
+  ``search_basic``) round-trip over the wire.
 - ``connect_url`` accepts the canonical ``vectorizer://`` form and
   rejects REST URLs with a clear error.
 """
@@ -40,8 +40,26 @@ from rpc import (  # noqa: E402
     RpcNotAuthenticated,
     RpcServerError,
 )
-from rpc._codec import encode_frame, read_frame_async, read_frame_sync  # noqa: E402
+from thunder_rpc.wire import decode_request_body, encode_frame, try_split_frame  # noqa: E402
+
 from rpc.types import Request, Response, VectorizerValue  # noqa: E402
+
+#: The one credential the fake server accepts.
+GOOD_TOKEN = "good-token"
+
+#: Commands the server answers before the session authenticates.
+_PRE_AUTH = frozenset({"PING", "HELLO", "AUTH", "QUIT"})
+
+
+def _ok(rid: int, value: VectorizerValue) -> Response:
+    """A success frame. Thunder's ``Response`` is a plain frozen dataclass
+    with exactly one of ``ok`` / ``err`` set."""
+    return Response(id=rid, ok=value)
+
+
+def _err(rid: int, message: str) -> Response:
+    """An error frame carrying the message verbatim."""
+    return Response(id=rid, err=message)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +68,7 @@ from rpc.types import Request, Response, VectorizerValue  # noqa: E402
 
 
 def _build_hello_response(rid: int) -> Response:
-    return Response.ok(
+    return _ok(
         rid,
         VectorizerValue.map(
             [
@@ -78,7 +96,7 @@ def _build_hello_response(rid: int) -> Response:
 
 
 def _build_collection_info_response(rid: int, name: str) -> Response:
-    return Response.ok(
+    return _ok(
         rid,
         VectorizerValue.map(
             [
@@ -97,7 +115,7 @@ def _build_collection_info_response(rid: int, name: str) -> Response:
 
 
 def _build_search_basic_response(rid: int) -> Response:
-    return Response.ok(
+    return _ok(
         rid,
         VectorizerValue.array(
             [
@@ -120,25 +138,33 @@ def _build_search_basic_response(rid: int) -> Response:
     )
 
 
-def _dispatch(req: Request, authenticated: List[bool]) -> Response:
-    """Handle one request the way the production dispatcher would.
+def _dispatch(
+    req: Request, authenticated: List[bool], auth_required: bool
+) -> Response:
+    """Handle one request the way the production listener would: the server
+    side of the ``AUTH`` handshake, then Vectorizer's command catalog.
 
-    ``authenticated`` is a one-element list used as a mutable cell
-    (so the closure-style state survives across calls without a class
-    wrapper).
+    ``authenticated`` is a one-element list used as a mutable cell (so the
+    closure-style state survives across calls without a class wrapper).
+    ``auth_required`` mirrors the deployment posture: ``False`` opens the
+    listener (single-user mode), ``True`` refuses un-credentialed sessions
+    with ``NOAUTH``, which the client classifies as an auth error.
     """
     cmd = req.command
-    if cmd == "HELLO":
+    if cmd == "AUTH":
+        secret = req.args[0].as_str() if req.args else None
+        if secret != GOOD_TOKEN:
+            return _err(req.id, "WRONGPASS invalid credentials")
         authenticated[0] = True
+        return _ok(req.id, VectorizerValue.str_("OK"))
+    if auth_required and not authenticated[0] and cmd not in _PRE_AUTH:
+        return _err(req.id, "NOAUTH authentication required")
+    if cmd == "HELLO":
         return _build_hello_response(req.id)
     if cmd == "PING":
-        return Response.ok(req.id, VectorizerValue.str_("PONG"))
-    if not authenticated[0]:
-        return Response.err(
-            req.id, f"authentication required: send HELLO first ({cmd})"
-        )
+        return _ok(req.id, VectorizerValue.str_("PONG"))
     if cmd == "collections.list":
-        return Response.ok(
+        return _ok(
             req.id,
             VectorizerValue.array(
                 [
@@ -156,23 +182,27 @@ def _dispatch(req: Request, authenticated: List[bool]) -> Response:
         return _build_collection_info_response(req.id, name)
     if cmd == "search.basic":
         return _build_search_basic_response(req.id)
-    return Response.err(req.id, f"unknown command '{cmd}'")
+    return _err(req.id, f"unknown command '{cmd}'")
 
 
-def _serve_sync_connection(sock: socket.socket) -> None:
+def _serve_sync_connection(sock: socket.socket, auth_required: bool) -> None:
+    """Read frames off ``sock`` with Thunder's codec and answer each one."""
     authenticated = [False]
+    buffer = b""
     try:
         while True:
-            raw = read_frame_sync(sock)
-            req_body = raw  # raw is the decoded msgpack body — a list
-            assert isinstance(req_body, list)
-            req = Request(
-                id=int(req_body[0]),
-                command=str(req_body[1]),
-                args=[VectorizerValue.from_msgpack(a) for a in req_body[2]],
-            )
-            resp = _dispatch(req, authenticated)
-            sock.sendall(encode_frame(resp.to_msgpack()))
+            split = try_split_frame(buffer)
+            if split is None:
+                chunk = sock.recv(65536)
+                if not chunk:
+                    break
+                buffer += chunk
+                continue
+            body, consumed = split
+            buffer = buffer[consumed:]
+            req = decode_request_body(body)
+            resp = _dispatch(req, authenticated, auth_required)
+            sock.sendall(encode_frame(resp))
     except (ConnectionError, OSError, ValueError):
         pass
     finally:
@@ -182,7 +212,7 @@ def _serve_sync_connection(sock: socket.socket) -> None:
             pass
 
 
-def _spawn_fake_server() -> tuple[str, threading.Event]:
+def _spawn_fake_server(auth_required: bool = False) -> tuple[str, threading.Event]:
     """Start a fake server on an ephemeral port and return its address.
 
     Returns ``(host_port, stop_event)``. The caller can ``stop_event.set()``
@@ -205,7 +235,9 @@ def _spawn_fake_server() -> tuple[str, threading.Event]:
             except (socket.timeout, OSError):
                 continue
             t = threading.Thread(
-                target=_serve_sync_connection, args=(conn,), daemon=True
+                target=_serve_sync_connection,
+                args=(conn, auth_required),
+                daemon=True,
             )
             t.start()
         try:
@@ -221,7 +253,15 @@ def _spawn_fake_server() -> tuple[str, threading.Event]:
 
 @pytest.fixture
 def fake_server() -> str:
+    """An open (single-user) deployment: no credentials required."""
     address, _stop = _spawn_fake_server()
+    return address
+
+
+@pytest.fixture
+def auth_server() -> str:
+    """An auth-enforcing deployment: commands need a successful ``AUTH``."""
+    address, _stop = _spawn_fake_server(auth_required=True)
     return address
 
 
@@ -260,12 +300,29 @@ class TestSyncRpcClient:
             assert hits[1].id == "vec-1"
             assert hits[1].payload is None
 
-    def test_data_plane_call_before_hello_is_rejected_locally(
-        self, fake_server: str
+    def test_data_plane_call_without_credentials_is_rejected(
+        self, auth_server: str
     ) -> None:
-        with RpcClient.connect(fake_server) as client:
+        with RpcClient.connect(auth_server) as client:
+            assert client.is_authenticated() is False
             with pytest.raises(RpcNotAuthenticated):
                 client.list_collections()
+
+    def test_hello_with_token_authenticates_the_session(
+        self, auth_server: str
+    ) -> None:
+        with RpcClient.connect(auth_server) as client:
+            hello = client.hello(
+                HelloPayload(client_name="rpc-integration-test").with_token(GOOD_TOKEN)
+            )
+            assert hello.authenticated is True
+            assert client.is_authenticated() is True
+            assert len(client.list_collections()) == 2
+
+    def test_bad_credentials_fail_the_handshake(self, auth_server: str) -> None:
+        with RpcClient.connect(auth_server) as client:
+            with pytest.raises(RpcNotAuthenticated):
+                client.hello(HelloPayload().with_token("wrong-token"))
 
     def test_concurrent_calls_on_one_connection_are_demultiplexed_by_id(
         self, fake_server: str
@@ -346,12 +403,27 @@ class TestAsyncRpcClient:
             assert hits[0].id == "vec-0"
 
     @pytest.mark.asyncio
-    async def test_data_plane_call_before_hello_is_rejected_locally(
-        self, fake_server: str
+    async def test_data_plane_call_without_credentials_is_rejected(
+        self, auth_server: str
     ) -> None:
-        async with await AsyncRpcClient.connect(fake_server) as client:
+        async with await AsyncRpcClient.connect(auth_server) as client:
+            assert client.is_authenticated() is False
             with pytest.raises(RpcNotAuthenticated):
                 await client.list_collections()
+
+    @pytest.mark.asyncio
+    async def test_hello_with_token_authenticates_the_session(
+        self, auth_server: str
+    ) -> None:
+        async with await AsyncRpcClient.connect(auth_server) as client:
+            hello = await client.hello(
+                HelloPayload(client_name="async-rpc-integration-test").with_token(
+                    GOOD_TOKEN
+                )
+            )
+            assert hello.authenticated is True
+            assert client.is_authenticated() is True
+            assert len(await client.list_collections()) == 2
 
     @pytest.mark.asyncio
     async def test_concurrent_calls_demultiplexed_by_id(self, fake_server: str) -> None:

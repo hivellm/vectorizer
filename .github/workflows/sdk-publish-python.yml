@@ -1,0 +1,71 @@
+name: Publish Python SDK (PyPI)
+
+# OIDC Trusted Publishing — no stored PyPI token. Registry-side setup is a
+# one-time maintainer step: add a PyPI Trusted Publisher for repo
+# hivellm/vectorizer, workflow `sdk-publish-python.yml`. See
+# docs/development/sdk-publishing.md.
+#
+# release:published  -> publish vectorizer_sdk to PyPI at the tag version
+# workflow_dispatch  -> dry_run to TestPyPI (default) to prove OIDC end-to-end
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Publish to TestPyPI instead of PyPI
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # mint the short-lived OIDC token PyPI exchanges for upload
+      contents: read
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Verify pyproject version matches the release tag
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          PKG=$(python -c "import tomllib,sys;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "tag=$TAG pkg=$PKG"
+          [ "$TAG" = "$PKG" ] || { echo "::error::release tag $TAG != pyproject version $PKG"; exit 1; }
+
+      - name: Run SDK unit tests (gate)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+          SKIP_INTEGRATION_TESTS=1 python -m pytest tests/ -q \
+            --ignore=tests/test_file_upload.py --ignore=tests/test_routing.py
+
+      - name: Build sdist + wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+
+      - name: Publish to PyPI (OIDC)
+        if: ${{ github.event_name == 'release' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdks/python/dist
+
+      - name: Publish to TestPyPI (OIDC dry-run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdks/python/dist
+          repository-url: https://test.pypi.org/legacy/

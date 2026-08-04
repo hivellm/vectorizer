@@ -166,11 +166,26 @@ fn concurrent_readers_and_writers_are_consistent() {
     assert_eq!(cache.get(&shared_key).as_deref(), Some("final"));
 }
 
+/// The cache a Prometheus scrape actually sees, built the way bootstrap builds
+/// it. `QueryCache::new` injects a `NoopMetricsSink`, so a cache from the
+/// plain `cache()` helper above records nothing globally by design — asserting
+/// the global counter against it would only ever prove the Noop sink works.
+fn cache_with_prometheus_sink() -> QueryCache<String> {
+    QueryCache::new_with_metrics(
+        QueryCacheConfig {
+            max_size: 64,
+            ttl_seconds: 60,
+            warmup_enabled: false,
+        },
+        Arc::new(vectorizer::monitoring::PrometheusMetricsSink::new()),
+    )
+}
+
 #[test]
 fn prometheus_counter_increments_on_every_cache_get() {
     use vectorizer::monitoring::metrics::METRICS;
 
-    let cache = cache();
+    let cache = cache_with_prometheus_sink();
     let key = QueryKey::new("col".into(), "metric-test".into(), 10, None);
 
     let baseline_hit = METRICS

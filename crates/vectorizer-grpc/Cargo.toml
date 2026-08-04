@@ -1,0 +1,32 @@
+[package]
+name = "vectorizer-grpc"
+version = "3.6.0"
+edition = "2024"
+authors = ["HiveLLM Contributors"]
+description = "tonic/prost-generated gRPC types for Vectorizer: first-party, cluster, and Qdrant-compatible schemas, with the proto trees and build script that generate them."
+license = "Apache-2.0"
+repository = "https://github.com/hivellm/vectorizer"
+keywords = ["vector-database", "grpc", "tonic", "qdrant"]
+categories = ["database", "encoding"]
+# Internal-only crate: consumed by the server crates (vectorizer,
+# vectorizer-server), which are not published to crates.io. The published
+# Rust SDK does NOT depend on this (it uses the RPC-wire path -> thunder-rpc),
+# so this never needs a crates.io release.
+publish = false
+
+[dependencies]
+# gRPC runtime types (used by the server impls in vectorizer/vectorizer-server
+# and the gRPC clients in tests + the cluster raft transport).
+tonic = { version = "0.14", features = [] }
+tonic-prost = "0.14"
+prost = "0.14"
+prost-types = "0.14"
+
+[build-dependencies]
+tonic-build = "0.14"
+tonic-prost-build = "0.14"
+# Vendored protoc for cross-compilation (e.g. aarch64-unknown-linux-musl in CI where the container has no protoc)
+protoc-bin-vendored = "3.2"
+
+[lints]
+workspace = true

@@ -1,0 +1,16 @@
+{
+  "id": "a-default-constructor-that-injects-a-noop-sink-makes-instrumentation-silently-dead",
+  "type": "anti-pattern",
+  "title": "A default constructor that injects a Noop sink makes instrumentation silently dead",
+  "category": "observability",
+  "description": "`QueryCache::new(config)` and `QuotaManager::new(client, cache)` inject `NoopMetricsSink`; the real sink only arrives via the `*_with_metrics` variants. Bootstrap and the HiveHub manager used the plain constructors, so `QueryCache::get` dutifully called `metrics.cache_request(\"query\", hit)` on every read and the value went nowhere. `vectorizer_cache_requests_total` and the four `hub_quota_*` families sat at zero in every real deployment.\n\nWhy it survived review and a test suite:\n- The emission call is present at the call site, so grepping for the metric name looks correct.\n- The unit test built its own cache and asserted the global counter — with the Noop sink it was asserting that nothing happens, and it failed for the right reason while everyone read it as flaky.\n- `docs/architecture/caching.md` claimed the counter had already been fixed by an earlier pass that added the emission call but not the wiring.\n- The Rust Prometheus client emits a labelled family only after its first observation, so a scrape of a healthy server shows no `# HELP` line either — absence looks like \"no traffic yet\", not \"broken\".\n\nRules to apply here:\n- A default constructor that silently disables observability is a trap. Prefer making the sink a required parameter, or name the constructor for what it does (`new_without_metrics`).\n- When a metric is reported dead, check the wiring site before the emission site. The call is usually already there.\n- A test asserting a Prometheus counter must build its subject the way the production wiring site does, otherwise it proves nothing about what ships.\n- Prove it on a running server, with the previous build as a negative control: two identical `POST /collections/{name}/search/text` calls must move `miss` then `hit`; the pre-fix image leaves both at zero.\n\nStill on the Noop sink and worth knowing: `TtlReaper::spawn`, which turned out never to be called at all.",
+  "whenNotToUse": "The in-process server test harness intentionally keeps the Noop sink — a harness writing into the global registry couples every test that reads a counter to every other test's traffic.",
+  "createdAt": "2026-08-04T15:50:08.261Z",
+  "tags": [
+    "observability",
+    "prometheus",
+    "dependency-injection",
+    "anti-pattern"
+  ],
+  "source": "manual"
+}

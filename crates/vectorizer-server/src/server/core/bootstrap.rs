@@ -930,14 +930,35 @@ impl VectorizerServer {
         let system_collector_handle = system_collector.start();
         info!("✅ System metrics collector started");
 
+        // Start the TTL reaper. Without it `__expires_at` is write-only: the
+        // expiry is recorded and nothing ever removes the vector, so it keeps
+        // consuming memory and keeps being returned by search (no read path
+        // filters on expiry).
+        info!("⏳ Starting TTL reaper...");
+        let ttl_reaper = vectorizer::db::TtlReaper::spawn_with_metrics(
+            store_arc.clone(),
+            vectorizer::db::DEFAULT_REAPER_INTERVAL_SECS,
+            Arc::new(vectorizer::monitoring::PrometheusMetricsSink::new()),
+        );
+        info!(
+            "✅ TTL reaper started (sweep every {}s)",
+            vectorizer::db::DEFAULT_REAPER_INTERVAL_SECS
+        );
+
         // Initialize query cache
         info!("💾 Initializing query cache...");
         let cache_config = vectorizer::cache::query_cache::QueryCacheConfig::default();
         let max_size = cache_config.max_size;
         let ttl_seconds = cache_config.ttl_seconds;
-        let query_cache = Arc::new(vectorizer::cache::query_cache::QueryCache::new(
-            cache_config,
-        ));
+        // Inject the real sink: `QueryCache::new` wires a NoopMetricsSink, so
+        // building the cache that way leaves `cache_requests_total{cache="query"}`
+        // permanently at zero and the hit rate invisible to a Prometheus scrape.
+        let query_cache = Arc::new(
+            vectorizer::cache::query_cache::QueryCache::new_with_metrics(
+                cache_config,
+                Arc::new(vectorizer::monitoring::PrometheusMetricsSink::new()),
+            ),
+        );
         info!(
             "✅ Query cache initialized (max_size: {}, ttl: {}s)",
             max_size, ttl_seconds
@@ -1723,6 +1744,7 @@ impl VectorizerServer {
                         slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
                             vectorizer::cache::slow_query::SlowQueryConfig::default(),
                         ),
+                        auto_save_manager: Some(auto_save_manager.clone()),
                     };
                     if let Err(e) = crate::protocol::rpc::spawn_rpc_listener(rpc_state, addr).await
                     {
@@ -1764,6 +1786,7 @@ impl VectorizerServer {
             file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(Some(file_watcher_cancel_tx))),
             grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
             auto_save_task: Arc::new(tokio::sync::Mutex::new(Some(auto_save_handle))),
+            ttl_reaper: Some(Arc::new(ttl_reaper)),
             cluster_manager,
             cluster_client_pool,
             max_request_size_mb,
@@ -1855,6 +1878,10 @@ impl VectorizerServer {
             auto_save_manager: None,
             master_node: None,
             replica_node: None,
+            // Deliberately the Noop sink here, unlike the production path
+            // above: a harness that wrote into the global Prometheus registry
+            // would couple every test that reads a counter to every other
+            // test's cache traffic.
             query_cache: Arc::new(vectorizer::cache::query_cache::QueryCache::new(
                 vectorizer::cache::query_cache::QueryCacheConfig::default(),
             )),
@@ -1867,6 +1894,9 @@ impl VectorizerServer {
             file_watcher_cancel: Arc::new(tokio::sync::Mutex::new(None)),
             grpc_task: Arc::new(tokio::sync::Mutex::new(None)),
             auto_save_task: Arc::new(tokio::sync::Mutex::new(None)),
+            // No reaper in the harness: a background sweep deleting vectors
+            // mid-test would make every expiry assertion timing-dependent.
+            ttl_reaper: None,
             cluster_manager: None,
             cluster_client_pool: None,
             max_request_size_mb: 100,

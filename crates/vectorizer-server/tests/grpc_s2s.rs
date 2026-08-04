@@ -21,10 +21,10 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tonic::transport::Channel;
 use tracing::info;
-use vectorizer_protocol::grpc_gen::vectorizer::vectorizer_service_client::VectorizerServiceClient;
-use vectorizer_protocol::grpc_gen::vectorizer::*;
+use vectorizer_grpc::grpc_gen::vectorizer::vectorizer_service_client::VectorizerServiceClient;
+use vectorizer_grpc::grpc_gen::vectorizer::*;
 // Import protobuf types
-use vectorizer_protocol::grpc_gen::vectorizer::{
+use vectorizer_grpc::grpc_gen::vectorizer::{
     CollectionConfig as ProtoCollectionConfig, DistanceMetric as ProtoDistanceMetric,
     HnswConfig as ProtoHnswConfig, StorageType as ProtoStorageType,
 };

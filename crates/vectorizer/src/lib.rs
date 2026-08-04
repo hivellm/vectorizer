@@ -45,8 +45,8 @@ pub mod file_watcher;
 #[cfg(feature = "hive-gpu")]
 pub mod gpu_adapter;
 // `grpc` moved into `vectorizer-server` under sub-phase 4
-// (server-side gRPC handlers; the generated proto modules already
-// live in `vectorizer-protocol` from sub-phase 2).
+// (server-side gRPC handlers; the generated proto modules live in
+// `vectorizer-grpc`).
 //
 // `grpc_conversions` stays in the umbrella because the
 // `impl From<proto::*> for models::*` blocks need both types local

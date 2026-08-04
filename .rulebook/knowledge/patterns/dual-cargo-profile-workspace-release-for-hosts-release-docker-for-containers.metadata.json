@@ -1,0 +1,19 @@
+{
+  "id": "dual-cargo-profile-workspace-release-for-hosts-release-docker-for-containers",
+  "type": "pattern",
+  "title": "Dual Cargo profile: workspace `release` for hosts, `release-docker` for containers",
+  "category": "build",
+  "description": "Define a sibling Cargo profile that inherits `release` but disables LTO and bumps codegen-units. Container builds select it via Dockerfile ARG; host `cargo build --release` is unaffected. Trades ~10-15% runtime throughput for ~30% faster compile and ~50% lower peak rustc memory inside BuildKit, where the binary is throwaway anyway.",
+  "example": "[profile.release-docker]\ninherits = \"release\"\nlto = false\ncodegen-units = 16\nincremental = false\n\n# Dockerfile:\nARG PROFILE=release-docker\nRUN xx-cargo build --profile $PROFILE ...",
+  "whenToUse": "When workspace `release` profile uses LTO (thin or fat) and Docker builds OOM or take too long inside BuildKit",
+  "whenNotToUse": "When the shipped binary needs peak runtime perf for hot loops the user calls (e.g. SIMD vector kernels). Document the trade in dockerhub README so consumers know.",
+  "createdAt": "2026-05-02T01:13:34.418Z",
+  "tags": [
+    "rust",
+    "cargo",
+    "docker",
+    "lto",
+    "phase10"
+  ],
+  "source": "manual"
+}
