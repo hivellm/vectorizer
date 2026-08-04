@@ -62,21 +62,25 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/collections.rs",
-        1010,
+        1030,
         "7 handlers incl. list/create + phase13 reencode_collection / \
-         set_collection_ttl + phase14 rename / reindex / native snapshot \
-         CRUD (snapshot_native, list_collection_snapshots_native, \
+         set_collection_ttl + get_collection_ttl + phase14 rename / \
+         reindex / native snapshot CRUD (snapshot_native, \
+         list_collection_snapshots_native, \
          restore_collection_snapshot_native) + phase33 §2 \
          embedding_provider validation on create_collection (issue \
          #306 — resolves the requested provider against the registry \
          and rejects with 400 unsupported_provider / \
          provider_dimension_mismatch instead of silent BM25 coercion). \
+         +20 in phase1_collection-ttl-is-never-applied: the TTL pair \
+         now routes through VectorStore::set_collection_ttl, rejects \
+         ttl_secs=0, and documents the process-scoped lifetime. \
          Re-tighten when the schema-evolution endpoints split out \
          (follow-up task).",
     ),
     (
         "src/server/rest_handlers/vectors.rs",
-        1060,
+        1105,
         "8 handlers + batch_insert_texts / insert_texts REST aliases + \
          do_batch_insert_texts engine (phase6 + phase8) + phase13 \
          delete_by_filter / bulk_update_metadata / copy_vectors / \
@@ -84,8 +88,13 @@ const BUDGETS: &[(&str, usize, &str)] = &[
          model param resolution on /embed (issue #306 — honours the \
          requested model or returns 400 unsupported_model instead of \
          silently routing every embed through the default provider). \
-         Re-tighten when the tier-control handlers split out \
-         (follow-up task).",
+         +25 in phase1_ttl-reaper-never-spawned: get_vector reads the \
+         store instead of fabricating `vec![0.1; 512]`, plus the \
+         body-based get_vector_by_body for POST /vector. +14 in \
+         phase1_collection-ttl-is-never-applied: set_vector_expiry \
+         reports the stored expiry, since a collection TTL re-stamps a \
+         cleared one. Re-tighten when the tier-control handlers split \
+         out (follow-up task).",
     ),
     (
         "src/server/rest_handlers/insert.rs",

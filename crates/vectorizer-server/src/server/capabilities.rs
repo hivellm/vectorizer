@@ -100,6 +100,8 @@ pub fn rpc_command_for(id: &str) -> Option<&'static str> {
         "collection.delete" => "collections.delete",
         "collection.list_empty" => "collections.list_empty",
         "collection.cleanup_empty" => "collections.cleanup_empty",
+        "collection.set_ttl" => "collections.set_ttl",
+        "collection.get_ttl" => "collections.get_ttl",
         // Vectors
         "vector.insert_text" => "vectors.insert_text",
         "vector.get" => "vectors.get",
@@ -535,6 +537,24 @@ pub fn inventory() -> Vec<Capability> {
             rest: Some(("DELETE", "/collections/cleanup")),
             auth: AuthBucket::Admin,
             transport: Transport::Both,
+        },
+        Capability {
+            id: "collection.set_ttl",
+            summary: "Set or clear the collection-level TTL in seconds. Vectors inserted or updated afterwards expire that many seconds after they arrive; pass null to clear. Process-scoped — re-apply after a restart.",
+            mcp_tool_name: None,
+            mcp_input_schema: None,
+            rest: Some(("POST", "/collections/{name}/ttl")),
+            auth: AuthBucket::User,
+            transport: Transport::RestOnly,
+        },
+        Capability {
+            id: "collection.get_ttl",
+            summary: "Read the collection-level TTL in seconds, or null when no TTL is configured.",
+            mcp_tool_name: None,
+            mcp_input_schema: None,
+            rest: Some(("GET", "/collections/{name}/ttl")),
+            auth: AuthBucket::User,
+            transport: Transport::RestOnly,
         },
         Capability {
             id: "collection.get_stats",

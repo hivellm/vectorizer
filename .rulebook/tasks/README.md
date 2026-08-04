@@ -8,7 +8,7 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
-| ⬚ | phase1_collection-ttl-is-never-applied | 0/6 | collection ttl is never applied |
+| ⬚ | phase1_persist-collection-ttl-config | 0/7 | persist collection ttl config |
 
 ## phase2
 

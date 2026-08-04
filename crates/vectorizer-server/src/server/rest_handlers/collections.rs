@@ -9,6 +9,7 @@
 //! - `cleanup_empty_collections` — DELETE /collections/cleanup      (GUI)
 //! - `reencode_collection`       — POST   /collections/{name}/reencode
 //! - `set_collection_ttl`        — POST   /collections/{name}/ttl
+//! - `get_collection_ttl`        — GET    /collections/{name}/ttl
 //! - `rename_collection`         — POST   /collections/{name}/rename
 //! - `reindex_collection`        — POST   /collections/{name}/reindex
 //! - `create_native_snapshot`    — POST   /collections/{name}/snapshot
@@ -720,17 +721,19 @@ pub async fn reencode_collection(
 
 /// POST /collections/{name}/ttl — set or clear per-collection TTL.
 ///
-/// Body: `{"ttl_secs": 3600}` — vectors inserted after this call will
-/// expire `ttl_secs` seconds after insertion. Pass `null` (or omit the
-/// field) to clear the collection-level TTL.
+/// Body: `{"ttl_secs": 3600}` — vectors inserted (or updated) after this
+/// call get `__expires_at = now + ttl_secs` stamped on their payload by
+/// `VectorStore::insert`, and the TTL reaper deletes them once that
+/// timestamp passes. Pass `null` (or omit the field) to clear the TTL.
 ///
-/// The TTL is stored as collection metadata and applied by the per-
-/// collection TTL reaper. Existing vectors are NOT retroactively expired;
-/// only subsequent insertions that carry `__expires_at` in their payload
-/// are affected.
+/// Existing vectors are NOT retroactively expired, and a vector that
+/// already carries its own `__expires_at` keeps it — a per-vector expiry
+/// (`PATCH /collections/{name}/vectors/{id}/expiry`) is more specific
+/// than the collection rule.
 ///
-/// To set a per-vector expiry directly use
-/// `PATCH /collections/{name}/vectors/{id}/expiry`.
+/// The TTL rule is process-scoped: it lives in the store metadata map,
+/// which is not persisted, so it must be re-applied after a restart. The
+/// stamps it produced are durable (they are part of the payload).
 pub async fn set_collection_ttl(
     State(state): State<VectorizerServer>,
     Path(collection_name): Path<String>,
@@ -745,36 +748,58 @@ pub async fn set_collection_ttl(
     let ttl_secs: Option<u64> = match payload.get("ttl_secs") {
         None | Some(serde_json::Value::Null) => None,
         Some(v) => match v.as_u64() {
+            // A TTL of zero would expire every insert on arrival. That is
+            // never what a caller means — `null` is how you clear a TTL.
+            Some(0) => {
+                return Err(crate::server::error_middleware::create_validation_error(
+                    "ttl_secs",
+                    "ttl_secs must be at least 1 second; pass null to clear the TTL",
+                ));
+            }
             Some(s) => Some(s),
             None => {
                 return Err(crate::server::error_middleware::create_validation_error(
                     "ttl_secs",
-                    "ttl_secs must be a non-negative integer or null",
+                    "ttl_secs must be a positive integer or null",
                 ));
             }
         },
     };
 
-    // Persist TTL configuration as store metadata with a namespaced key.
-    let meta_key = format!("ttl:{}", collection_name);
+    state.store.set_collection_ttl(&collection_name, ttl_secs);
     match ttl_secs {
-        Some(secs) => {
-            state.store.set_metadata(&meta_key, secs.to_string());
-            info!(
-                "set_collection_ttl '{}': ttl_secs={}",
-                collection_name, secs
-            );
-        }
-        None => {
-            state.store.remove_metadata(&meta_key);
-            info!("set_collection_ttl '{}': TTL cleared", collection_name);
-        }
+        Some(secs) => info!(
+            "set_collection_ttl '{}': ttl_secs={}",
+            collection_name, secs
+        ),
+        None => info!("set_collection_ttl '{}': TTL cleared", collection_name),
     }
 
     Ok(Json(json!({
         "collection": collection_name,
         "ttl_secs": ttl_secs,
         "status": "ok",
+    })))
+}
+
+/// GET /collections/{name}/ttl — read the configured per-collection TTL.
+///
+/// Returns `{"collection", "ttl_secs"}` with `ttl_secs: null` when no TTL
+/// is configured. Exists so a caller can verify that a `POST …/ttl` took
+/// effect, and so the process-scoped nature of the setting is observable
+/// after a restart.
+pub async fn get_collection_ttl(
+    State(state): State<VectorizerServer>,
+    Path(collection_name): Path<String>,
+) -> Result<Json<Value>, ErrorResponse> {
+    state
+        .store
+        .get_collection(&collection_name)
+        .map_err(ErrorResponse::from)?;
+
+    Ok(Json(json!({
+        "collection": collection_name,
+        "ttl_secs": state.store.collection_ttl(&collection_name),
     })))
 }
 

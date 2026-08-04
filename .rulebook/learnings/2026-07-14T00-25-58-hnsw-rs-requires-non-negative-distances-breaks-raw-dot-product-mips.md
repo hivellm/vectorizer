@@ -1,0 +1,10 @@
+# hnsw_rs requires non-negative distances (breaks raw dot-product MIPS)
+**Source**: manual
+**Date**: 2026-07-14
+**Related Task**: phase1_fix-hnsw-hardcoded-cosine-metric
+**Tags**: hnsw, distance-metric, dot-product, mips, correctness
+When making OptimizedHnswIndex metric-aware (was hardcoded to DistCosine), a runtime-dispatching `MetricDistance` impl of `hnsw_rs::Distance<f32>` works for Cosine (DistCosine) and Euclidean (DistL2). But hnsw_rs 0.3.4 ASSERTS every distance is non-negative at insert time: `assertion failed: f.dist_to_ref >= 0.` (hnsw.rs:965). So a raw inner-product distance of `-dot` panics for any positive dot product.
+
+Fix for DotProduct: map the inner product to a strictly-decreasing, non-negative distance `sigmoid(-dot) = 1.0 / (1.0 + dot.exp())`. Larger dot -> smaller distance, so hnsw's ascending-distance ordering ranks the highest inner product first. It is numerically safe (dot.exp() overflowing to +inf yields distance 0, never NaN/panic) and monotonic, so top-k ordering is exact; it only saturates for very large magnitudes, harmless for ranking. Score recovery: similarity = 1 - distance = sigmoid(dot), monotonic in the inner product.
+
+Note: normalization lives in collection/data.rs and is applied ONLY for Cosine (both stored vectors and query), so Euclidean/Dot see raw vectors — which is exactly what the metric-correct distance needs. reindex_with_params already passed self.config.metric; the bug was purely the hardcoded type param in optimized_hnsw.rs. Discriminating test cases (where cosine and the target metric disagree on top-1) are essential — a wrong-metric parity test scored 0.566 and only well-clustered cosine data exceeded 0.99, nearly masking the bug.

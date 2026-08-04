@@ -157,6 +157,14 @@ The reaper sweeps every collection once per interval
 payload field is in the past. All three families carry the collection name, so
 a sweep of N collections emits N samples per tick.
 
+`__expires_at` reaches a vector two ways: a per-vector expiry
+(`PATCH /collections/{n}/vectors/{id}/expiry`), or a collection TTL
+(`POST /collections/{n}/ttl`), which `VectorStore::insert` stamps onto every
+vector that arrives afterwards. Both feed the same reaper, so
+`vectors_expired_total` moving on a collection whose vectors were never given
+an individual expiry is the expected signature of a configured TTL — not a
+stray deletion.
+
 | Metric                             | Type           | Labels       | Unit    | Source |
 | ---------------------------------- | -------------- | ------------ | ------- | ------ |
 | `vectorizer_ttl_reaper_scans_total`| Counter vector | `collection` | 1       | `db/ttl_reaper.rs`; one increment per collection per completed sweep |

@@ -576,7 +576,7 @@ impl VectorizerServer {
             )
             .route(
                 "/collections/{name}/ttl",
-                post(rest_handlers::set_collection_ttl),
+                post(rest_handlers::set_collection_ttl).get(rest_handlers::get_collection_ttl),
             )
             // phase14: schema evolution + observability
             .route(

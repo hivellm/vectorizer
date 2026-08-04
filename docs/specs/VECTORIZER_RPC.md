@@ -268,6 +268,8 @@ command fails the server rather than surprising a client.
 | `collections.list_empty` | User | `[]` | `Array<Str>` |
 | `collections.cleanup_empty` | Admin | `[Map { dry_run }]` | `Map { removed, dry_run }` |
 | `collections.force_save` | User | `[Str(name)]` | `Map { success, name, scope }` |
+| `collections.set_ttl` | User | `[Str(name), Int(ttl_secs)?]` | `Map { collection, ttl_secs, status }` |
+| `collections.get_ttl` | User | `[Str(name)]` | `Map { collection, ttl_secs }` |
 
 `collections.create` rejects an `embedding_provider` the server does not
 have, and a `dimension` that disagrees with that provider's native size —
@@ -275,6 +277,22 @@ the same two guards REST applies. `graph: { enabled: true }` attaches a
 graph immediately, which is what makes the `graph.*` family reachable
 without a second transport. `dry_run` on `cleanup_empty` must be a Map
 field; a bare `Bool` is not read and the default is a real deletion.
+
+`collections.set_ttl` configures the rule "vectors inserted or updated on
+this collection expire `ttl_secs` seconds after they arrive". Omit the
+second argument (or pass `Null`) to clear it; `0` is rejected, since it
+would expire every insert on arrival. `VectorStore::insert` stamps
+`__expires_at = now + ttl_secs` on each vector before the WAL record is
+written, so a replay restores the original expiry, and a replica receives
+the stamp as part of the vector rather than needing the rule. A vector
+that already carries its own `__expires_at` keeps it — a per-vector expiry
+is more specific than the collection rule. A payload whose JSON root is
+not an object cannot hold the field and is rejected rather than stored
+without an expiry.
+
+The rule itself lives in the process-scoped store metadata map (key
+`ttl:<collection>`), so it must be re-applied after a restart; the stamps
+it produced are durable, because they are part of the payload.
 
 ### Vectors
 

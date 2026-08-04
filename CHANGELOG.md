@@ -4,7 +4,50 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`GET /collections/{name}/ttl` and the `collections.set_ttl` /
+  `collections.get_ttl` RPC commands.** The collection TTL could be written but
+  not read back, and existed on REST only. All five SDKs gain
+  `get_collection_ttl` (`getCollectionTtl` / `GetCollectionTTL` /
+  `GetCollectionTtlAsync`), and both commands are registered in the capability
+  inventory.
+
 ### Fixed
+
+- **A collection-level TTL now actually expires vectors.**
+  `POST /collections/{name}/ttl` validated `ttl_secs`, wrote it to the store
+  metadata key `ttl:{collection}`, answered `{"status":"ok"}` — and nothing ever
+  read that key, so a caller could configure a TTL, get a success response, and
+  have it apply to nothing.
+  - `VectorStore::insert` now stamps `__expires_at = now + ttl_secs` on the
+    payload of every vector arriving in a collection that carries a TTL, which
+    hands the rest of the work to the reaper and the read filter. Doing it at
+    that single choke point covers REST, RPC, MCP, gRPC, GraphQL, batch and
+    file-upload writes, all of which route through it — the same
+    many-call-sites problem the reaper had.
+  - Stamping happens **before** the WAL record is written, so a replay restores
+    the original expiry instead of computing a fresh one from the replay time,
+    and a replica receives the expiry as part of the vector rather than needing
+    the rule.
+  - `VectorStore::update` stamps too. An update replaces the payload wholesale,
+    so without it the caller's new payload would drop the stamp and the vector
+    would outlive the TTL.
+  - A vector that already carries `__expires_at` keeps it — a per-vector expiry
+    is more specific than the collection rule. The corollary: clearing a
+    per-vector expiry on a TTL collection re-stamps it, so
+    `PATCH …/vectors/{id}/expiry` now reports the expiry that is **stored**
+    rather than echoing the request, which would have answered `null` for a
+    value that is not null.
+  - `ttl_secs: 0` is now rejected (`400`): it would expire every insert on
+    arrival, and `null` is how a TTL is cleared.
+  - A payload whose JSON root is not an object has nowhere to hold
+    `__expires_at`, so such an insert is rejected while a TTL is configured
+    instead of being stored without an expiry.
+  - **Known limitation:** the rule lives in the process-scoped store metadata
+    map (like `replication_role`) and is not persisted, so it must be
+    re-applied after a restart. The stamps it already produced are durable.
+    Tracked in `phase1_persist-collection-ttl-config`.
 
 - **An expired vector stops being served immediately.** Reads did not consult
   `__expires_at` at all, so removal was entirely up to the TTL reaper's sweep —
@@ -58,12 +101,9 @@ All notable changes to this project will be documented in this file.
     holds it for its lifetime. The in-process test harness deliberately runs
     without a reaper, so a background sweep cannot make expiry assertions
     timing-dependent.
-  - An expired vector can still be served for up to one sweep interval (60 s by
-    default), because reads do not filter on expiry. Tracked in
-    `phase1_filter-expired-vectors-on-read`.
-  - Collection-level TTL (`POST /collections/{name}/ttl`) remains inert — it
-    writes a `ttl:{collection}` metadata key nothing reads. Tracked in
-    `phase1_collection-ttl-is-never-applied`.
+  - At the time this landed an expired vector could still be served for up to
+    one sweep interval, because no read path filtered on expiry, and the
+    collection-level TTL was inert. Both are fixed by the two entries above.
 
 - **Cache and HiveHub quota metrics reach Prometheus again.** `QueryCache::new`
   and `QuotaManager::new` inject a `NoopMetricsSink` by design — the real sink

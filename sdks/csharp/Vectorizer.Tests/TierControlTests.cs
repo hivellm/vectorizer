@@ -170,6 +170,27 @@ public class TierControlTests
     }
 
     [Fact]
+    public async Task GetCollectionTtlAsync_ConfiguredTtl_GetsFromCorrectEndpoint()
+    {
+        var (client, handler) = CreateClient(_ => JsonOk(new { collection = "my-col", ttl_secs = 900 }));
+
+        var ttl = await client.GetCollectionTtlAsync("my-col");
+
+        var req = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Get, req.Method);
+        Assert.Equal("/collections/my-col/ttl", req.RequestUri!.AbsolutePath);
+        Assert.Equal(900L, ttl);
+    }
+
+    [Fact]
+    public async Task GetCollectionTtlAsync_NoTtlConfigured_ReturnsNull()
+    {
+        var (client, _) = CreateClient(_ => JsonOk(new { collection = "my-col", ttl_secs = (long?)null }));
+
+        Assert.Null(await client.GetCollectionTtlAsync("my-col"));
+    }
+
+    [Fact]
     public async Task SetVectorExpiryAsync_ValidExpiry_PatchesToCorrectEndpoint()
     {
         var (client, handler) = CreateClient(_ => NoContent());

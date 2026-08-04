@@ -1019,7 +1019,12 @@ pub async fn copy_vectors(
 /// Body: `{"expires_at": <unix_ms>}` — pass `null` to clear expiry.
 ///
 /// The `expires_at` value is stored as `__expires_at` inside the vector's
-/// JSON payload and is read by the per-collection TTL reaper.
+/// JSON payload and is read by the TTL reaper.
+///
+/// Clearing the expiry on a collection that has a TTL configured does not
+/// make the vector immortal: the write goes through `VectorStore::update`,
+/// which re-stamps the collection TTL. The response reports the expiry
+/// that is actually stored, which in that case is `now + ttl_secs`.
 pub async fn set_vector_expiry(
     State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
@@ -1071,15 +1076,24 @@ pub async fn set_vector_expiry(
         auto_save.mark_changed();
     }
 
+    // Read back rather than echoing the request: a collection TTL re-stamps
+    // an expiry the caller just cleared.
+    let stored_expires_at = state
+        .store
+        .get_vector(&collection_name, &vector_id)
+        .ok()
+        .and_then(|v| v.payload)
+        .and_then(|p| p.expires_at());
+
     info!(
-        "set_vector_expiry '{}' in '{}': expires_at={:?}",
-        vector_id, collection_name, expires_at_opt
+        "set_vector_expiry '{}' in '{}': requested={:?} stored={:?}",
+        vector_id, collection_name, expires_at_opt, stored_expires_at
     );
 
     Ok(Json(json!({
         "id": vector_id,
         "collection": collection_name,
-        "expires_at": expires_at_opt,
+        "expires_at": stored_expires_at,
         "status": "ok",
     })))
 }

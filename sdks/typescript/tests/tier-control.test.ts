@@ -284,4 +284,21 @@ describe('CollectionsClient — tier control (phase13)', () => {
       );
     });
   });
+
+  describe('getCollectionTtl', () => {
+    it('reads ttl_secs from /collections/{c}/ttl', async () => {
+      mockTransport.get.mockResolvedValue({ collection: 'my-col', ttl_secs: 900 });
+
+      const ttl = await client.getCollectionTtl('my-col');
+
+      expect(mockTransport.get).toHaveBeenCalledWith('/collections/my-col/ttl');
+      expect(ttl).toBe(900);
+    });
+
+    it('returns null when no TTL is configured', async () => {
+      mockTransport.get.mockResolvedValue({ collection: 'my-col', ttl_secs: null });
+
+      expect(await client.getCollectionTtl('my-col')).toBeNull();
+    });
+  });
 });

@@ -132,12 +132,19 @@ export class CollectionsClient extends BaseClient {
    * Set or clear a per-collection TTL (phase13).
    *
    * Calls `POST /collections/{name}/ttl` with `{"ttl_secs": <secs>}`.
-   * Pass `null` to clear the collection-level TTL. Existing vectors are NOT
-   * retroactively expired; only subsequent insertions that carry `__expires_at`
-   * in their payload are affected.
+   * Pass `null` to clear the collection-level TTL; a value below 1 is
+   * rejected by the server.
+   *
+   * Vectors inserted or updated after the call carry
+   * `__expires_at = now + ttl_secs` and are deleted by the server's TTL
+   * reaper once that timestamp passes. Existing vectors are NOT
+   * retroactively expired, and a vector that already carries its own
+   * `__expires_at` keeps it.
+   *
+   * The rule is process-scoped on the server: re-apply it after a restart.
+   * The stamps it produced are durable.
    *
    * For per-vector expiry use `setVectorExpiry` on the vectors surface.
-   * Returns `void` (server responds with 204 No Content).
    */
   public async setCollectionTtl(
     collectionName: string,
@@ -149,6 +156,24 @@ export class CollectionsClient extends BaseClient {
       this.logger.info('Collection TTL set', { collectionName, ttlSecs });
     } catch (error) {
       this.logger.error('Failed to set collection TTL', { collectionName, ttlSecs, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Read the per-collection TTL in seconds, or `null` when none is set.
+   *
+   * Calls `GET /collections/{name}/ttl`.
+   */
+  public async getCollectionTtl(collectionName: string): Promise<number | null> {
+    try {
+      const transport = this.getReadTransport();
+      const response = await transport.get<{ collection: string; ttl_secs: number | null }>(
+        `/collections/${collectionName}/ttl`,
+      );
+      return response.ttl_secs ?? null;
+    } catch (error) {
+      this.logger.error('Failed to read collection TTL', { collectionName, error });
       throw error;
     }
   }

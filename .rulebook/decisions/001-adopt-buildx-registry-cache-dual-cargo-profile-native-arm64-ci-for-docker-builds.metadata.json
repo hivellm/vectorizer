@@ -1,0 +1,11 @@
+{
+  "id": 1,
+  "slug": "adopt-buildx-registry-cache-dual-cargo-profile-native-arm64-ci-for-docker-builds",
+  "title": "Adopt buildx registry cache + dual Cargo profile + native arm64 CI for Docker builds",
+  "status": "proposed",
+  "date": "2026-05-02",
+  "relatedTasks": [
+    "phase10_optimize-docker-build-time"
+  ],
+  "supersededBy": null
+}

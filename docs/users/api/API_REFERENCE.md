@@ -2055,7 +2055,32 @@ contract and JSON examples.
 | `POST /collections/{src}/vectors/copy` | `copy_vectors` | `copyVectors` | `copy_vectors` | `CopyVectors` | `CopyVectorsAsync` |
 | `POST /collections/{n}/reencode` | `reencode_collection` | `reencodeCollection` | `reencode_collection` | `ReencodeCollection` | `ReencodeCollectionAsync` |
 | `POST /collections/{n}/ttl` | `set_collection_ttl` | `setCollectionTtl` | `set_collection_ttl` | `SetCollectionTTL` | `SetCollectionTtlAsync` |
+| `GET /collections/{n}/ttl` | `get_collection_ttl` | `getCollectionTtl` | `get_collection_ttl` | `GetCollectionTTL` | `GetCollectionTtlAsync` |
 | `PATCH /collections/{n}/vectors/{id}/expiry` | `set_vector_expiry` | `setVectorExpiry` | `set_vector_expiry` | `SetVectorExpiry` | `SetVectorExpiryAsync` |
+
+#### Collection TTL semantics
+
+`POST /collections/{n}/ttl` configures the rule "vectors inserted or updated
+on this collection expire `ttl_secs` seconds after they arrive". The server
+applies it in `VectorStore::insert` / `VectorStore::update`, stamping
+`__expires_at = now + ttl_secs` on the vector payload before the WAL record
+is written; the TTL reaper deletes the vector once that timestamp passes, and
+reads (`GET`/`search`/list) stop returning it as soon as it is due, even
+before the sweep.
+
+- `ttl_secs: null` clears the TTL; `0` is rejected with `400
+  validation_error`, since it would expire every insert on arrival.
+- Existing vectors are **not** retroactively expired.
+- A vector that already carries `__expires_at` keeps it — a per-vector expiry
+  (`PATCH …/expiry`) is more specific than the collection rule. Conversely,
+  clearing a per-vector expiry on a collection that has a TTL re-stamps it;
+  the `PATCH` response reports the expiry that is actually stored.
+- A payload whose JSON root is not an object cannot hold the field, so the
+  insert is rejected rather than stored without an expiry.
+- The rule itself is **process-scoped** (store metadata key
+  `ttl:<collection>`, not persisted): re-apply it after a restart. The stamps
+  it produced are durable, because they live in the payload — which is also
+  why replicas expire the same vectors without needing the rule.
 
 ### Filter shape
 

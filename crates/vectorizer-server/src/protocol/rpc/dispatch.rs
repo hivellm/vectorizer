@@ -335,7 +335,11 @@ fn replicate_vectors(
 ///
 /// Auth and workspace mutations are deliberately excluded: they persist
 /// through their own stores (`AuthPersistence`, `workspace.yml`), not through
-/// the vector-store compaction path this flag drives.
+/// the vector-store compaction path this flag drives. `collections.set_ttl`
+/// is excluded for the same reason: it writes the process-scoped store
+/// metadata map, which compaction does not read. The `__expires_at` stamps
+/// it causes ride along with the vectors, which are covered by the insert
+/// commands below.
 fn command_mutates(command: &str) -> bool {
     matches!(
         command,
@@ -392,6 +396,8 @@ async fn dispatch_authenticated(
         }
         "collections.force_save" => handle_collections_force_save(state, id, &args).await,
         "collections.get_stats" => handle_collections_get_stats(state, id, &args),
+        "collections.set_ttl" => handle_collections_set_ttl(state, id, &args),
+        "collections.get_ttl" => handle_collections_get_ttl(state, id, &args),
         // ── Stats / providers ────────────────────────────────────
         "embedding.list_providers" => handle_embedding_list_providers(state, id),
         "stats.database" => handle_stats_database(state, id),
@@ -4705,6 +4711,81 @@ fn handle_collections_get_stats(
     )
 }
 
+/// Set (or clear) the collection-level TTL. Mirrors
+/// `POST /collections/{name}/ttl`.
+///
+/// Args: `[Str(collection), Int(ttl_secs)]` — omit the second argument, or
+/// pass `Null`, to clear the TTL. From then on every insert / update on the
+/// collection carries `__expires_at = now + ttl_secs` and the TTL reaper
+/// deletes it once that timestamp passes.
+fn handle_collections_set_ttl(
+    state: &Arc<RpcState>,
+    id: u32,
+    args: &[VectorizerValue],
+) -> Response {
+    let name = match args.first().and_then(|v| v.as_str()) {
+        Some(n) => n,
+        None => {
+            return Response::err(
+                id,
+                "collections.set_ttl expects [Str(name), Int(ttl_secs)] \
+                 (omit ttl_secs or pass Null to clear)",
+            );
+        }
+    };
+    if let Err(e) = state.store.get_collection(name) {
+        return vectorizer_err_ctx(id, "collections.set_ttl", &e);
+    }
+
+    let ttl_secs: Option<u64> = match args.get(1) {
+        None | Some(VectorizerValue::Null) => None,
+        Some(VectorizerValue::Int(secs)) if *secs >= 1 => Some(*secs as u64),
+        Some(VectorizerValue::Int(_)) => {
+            return Response::err(
+                id,
+                "collections.set_ttl: ttl_secs must be at least 1 second; \
+                 omit it or pass Null to clear the TTL",
+            );
+        }
+        Some(_) => {
+            return Response::err(id, "collections.set_ttl: ttl_secs must be Int or Null");
+        }
+    };
+
+    state.store.set_collection_ttl(name, ttl_secs);
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "collection": name,
+            "ttl_secs": ttl_secs,
+            "status": "ok",
+        })),
+    )
+}
+
+/// Read the collection-level TTL. Mirrors `GET /collections/{name}/ttl`.
+/// `ttl_secs` is `null` when no TTL is configured.
+fn handle_collections_get_ttl(
+    state: &Arc<RpcState>,
+    id: u32,
+    args: &[VectorizerValue],
+) -> Response {
+    let name = match args.first().and_then(|v| v.as_str()) {
+        Some(n) => n,
+        None => return Response::err(id, "collections.get_ttl expects [Str(name)]"),
+    };
+    if let Err(e) = state.store.get_collection(name) {
+        return vectorizer_err_ctx(id, "collections.get_ttl", &e);
+    }
+    Response::ok(
+        id,
+        json_to_value(serde_json::json!({
+            "collection": name,
+            "ttl_secs": state.store.collection_ttl(name),
+        })),
+    )
+}
+
 /// Store-wide counters plus the provider inventory. Mirrors the MCP
 /// `get_database_stats` tool, which reports more than `admin.stats` does.
 fn handle_stats_database(state: &Arc<RpcState>, id: u32) -> Response {
@@ -6212,6 +6293,8 @@ pub const RPC_COMMANDS: &[&str] = &[
     "collections.cleanup_empty",
     "collections.force_save",
     "collections.get_stats",
+    "collections.set_ttl",
+    "collections.get_ttl",
     // Stats / providers
     "embedding.list_providers",
     "stats.database",
@@ -6527,6 +6610,7 @@ mod tests {
             "collections.list",
             "collections.get_info",
             "collections.get_stats",
+            "collections.get_ttl",
             "vectors.get",
             "vectors.list",
             "search.basic",
@@ -6793,6 +6877,155 @@ mod tests {
         assert_eq!(
             field(&filled, "is_empty").and_then(|v| v.as_bool()),
             Some(false)
+        );
+    }
+
+    #[tokio::test]
+    async fn set_ttl_round_trips_and_reaches_inserted_vectors() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("ttl_probe".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+
+        let cleared = call(
+            &state,
+            "collections.get_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_ttl must answer");
+        assert!(matches!(
+            field(&cleared, "ttl_secs"),
+            Some(VectorizerValue::Null)
+        ));
+
+        call(
+            &state,
+            "collections.set_ttl",
+            vec![
+                VectorizerValue::Str("ttl_probe".into()),
+                VectorizerValue::Int(600),
+            ],
+        )
+        .await
+        .result
+        .expect("set_ttl must answer");
+
+        let configured = call(
+            &state,
+            "collections.get_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_ttl must answer");
+        assert_eq!(
+            field(&configured, "ttl_secs").and_then(|v| v.as_int()),
+            Some(600)
+        );
+
+        // The configured rule must reach vectors written through RPC.
+        call(
+            &state,
+            "vectors.insert",
+            vec![
+                VectorizerValue::Str("ttl_probe".into()),
+                VectorizerValue::Str("v1".into()),
+                VectorizerValue::Array(vec![
+                    VectorizerValue::Float(0.1),
+                    VectorizerValue::Float(0.2),
+                    VectorizerValue::Float(0.3),
+                    VectorizerValue::Float(0.4),
+                ]),
+            ],
+        )
+        .await
+        .result
+        .expect("insert must succeed");
+        assert!(
+            state
+                .store
+                .get_collection("ttl_probe")
+                .expect("collection")
+                .get_all_vectors()
+                .into_iter()
+                .find(|v| v.id == "v1")
+                .expect("vector stored")
+                .payload
+                .and_then(|p| p.expires_at())
+                .is_some(),
+            "collections.set_ttl must make later inserts expire"
+        );
+
+        // Clearing takes the second argument away.
+        call(
+            &state,
+            "collections.set_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("set_ttl clear must answer");
+        let after_clear = call(
+            &state,
+            "collections.get_ttl",
+            vec![VectorizerValue::Str("ttl_probe".into())],
+        )
+        .await
+        .result
+        .expect("get_ttl must answer");
+        assert!(matches!(
+            field(&after_clear, "ttl_secs"),
+            Some(VectorizerValue::Null)
+        ));
+    }
+
+    #[tokio::test]
+    async fn set_ttl_rejects_zero_and_unknown_collections() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("ttl_reject".into()),
+                map(&[("dimension", VectorizerValue::Int(4))]),
+            ],
+        )
+        .await;
+
+        let zero = call(
+            &state,
+            "collections.set_ttl",
+            vec![
+                VectorizerValue::Str("ttl_reject".into()),
+                VectorizerValue::Int(0),
+            ],
+        )
+        .await;
+        assert!(
+            zero.result.is_err(),
+            "a zero TTL would expire every insert on arrival"
+        );
+
+        let missing = call(
+            &state,
+            "collections.set_ttl",
+            vec![
+                VectorizerValue::Str("ttl_absent".into()),
+                VectorizerValue::Int(60),
+            ],
+        )
+        .await;
+        assert!(
+            missing.result.is_err(),
+            "setting a TTL on a collection that does not exist must fail"
         );
     }
 
