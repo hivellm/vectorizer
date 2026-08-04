@@ -35,8 +35,8 @@
     "react": "^19.2.5",
     "react-aria-components": "^1.17.0",
     "react-dom": "^19.2.5",
-    "react-router": "^7.15.0",
-    "react-router-dom": "^7.15.0",
+    "react-router": "^7.18.0",
+    "react-router-dom": "^7.18.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "14.0.0",
@@ -96,15 +96,18 @@
       "picomatch@>=4.0.0 <4.0.4": "4.0.4",
       "vite@>=7.0.0 <7.3.2": "7.3.2",
       "vite@>=8.0.0 <8.0.16": "8.0.16",
-      "dompurify@<3.4.11": ">=3.4.11",
+      "dompurify@<3.4.12": ">=3.4.12",
       "uuid": "14.0.0",
-      "react-router@<7.15.0": ">=7.15.0",
-      "react-router-dom@<7.15.0": ">=7.15.0",
+      "react-router@<7.18.0": ">=7.18.0",
+      "react-router-dom@<7.18.0": ">=7.18.0",
       "undici@>=7.0.0 <7.28.0": ">=7.28.0",
       "@babel/core@<=7.29.0": ">=7.29.6",
       "js-yaml@<=4.1.1": ">=4.2.0 <5",
       "esbuild@>=0.27.3 <0.28.1": ">=0.28.1",
-      "ws@>=8.0.0 <8.21.0": ">=8.21.0"
+      "ws@>=8.0.0 <8.21.0": ">=8.21.0",
+      "postcss@<8.5.18": ">=8.5.18",
+      "brace-expansion@<1.1.16": "1.1.16",
+      "brace-expansion@>=5.0.0 <5.0.7": ">=5.0.7"
     },
     "peerDependencyRules": {
       "allowedVersions": {

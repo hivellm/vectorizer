@@ -286,9 +286,17 @@ class CollectionsClient(_ApiBase):
         """Set or clear a per-collection TTL (phase13).
 
         Calls ``POST /collections/{name}/ttl`` with ``{"ttl_secs": <secs>}``.
-        Pass ``None`` to clear the collection-level TTL. Existing vectors are
-        NOT retroactively expired; only subsequent insertions that carry
-        ``__expires_at`` in their payload are affected.
+        Pass ``None`` to clear the collection-level TTL; a value below 1 is
+        rejected by the server.
+
+        Vectors inserted or updated after the call carry
+        ``__expires_at = now + ttl_secs`` and are deleted by the server's TTL
+        reaper once that timestamp passes. Existing vectors are NOT
+        retroactively expired, and a vector that already carries its own
+        ``__expires_at`` keeps it.
+
+        The rule is durable: the server stores it with the collection and
+        restores it on load, so it still applies after a restart.
 
         For per-vector expiry use ``set_vector_expiry`` on the vectors surface.
 
@@ -297,7 +305,7 @@ class CollectionsClient(_ApiBase):
             ttl_secs: TTL in seconds, or ``None`` to clear.
 
         Returns:
-            ``None`` (server responds with 204 No Content).
+            ``None``.
 
         Raises:
             CollectionNotFoundError: If the collection does not exist.
@@ -308,6 +316,28 @@ class CollectionsClient(_ApiBase):
         await self._transport.post(
             f"/collections/{collection}/ttl", data=payload
         )
+
+    async def get_collection_ttl(self, collection: str) -> Optional[int]:
+        """Read the per-collection TTL in seconds.
+
+        Calls ``GET /collections/{name}/ttl``.
+
+        Args:
+            collection: Collection name.
+
+        Returns:
+            The TTL in seconds, or ``None`` when no TTL is configured.
+
+        Raises:
+            CollectionNotFoundError: If the collection does not exist.
+            NetworkError: If the transport fails.
+            ServerError: If the server returns a non-2xx status.
+        """
+        data = await self._transport.get(f"/collections/{collection}/ttl")
+        if not isinstance(data, dict):
+            return None
+        ttl_secs = data.get("ttl_secs")
+        return int(ttl_secs) if ttl_secs is not None else None
 
     # ── Phase-14: schema-evolution methods ────────────────────────────────────
 

@@ -111,10 +111,10 @@ export class RpcPool {
    * callers) close on their own `release()` path or when the caller
    * drops the reference.
    */
-  close(): void {
+  async close(): Promise<void> {
     while (this.idle.length > 0) {
       const c = this.idle.pop();
-      c?.close();
+      if (c !== undefined) await c.close();
     }
   }
 

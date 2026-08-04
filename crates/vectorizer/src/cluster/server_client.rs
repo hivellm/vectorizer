@@ -5,9 +5,8 @@ use std::time::Duration;
 use cluster_proto::cluster_service_client::ClusterServiceClient;
 use tonic::transport::Channel;
 use tracing::{debug, error, info, warn};
-// Cluster proto types live in the `vectorizer-protocol` crate after
-// phase4_split-vectorizer-workspace sub-phase 2.
-use vectorizer_protocol::grpc_gen::cluster as cluster_proto;
+// Cluster proto types live in the `vectorizer-grpc` crate.
+use vectorizer_grpc::grpc_gen::cluster as cluster_proto;
 
 use super::node::NodeId;
 use crate::error::{Result, VectorizerError};

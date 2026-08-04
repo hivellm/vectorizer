@@ -4,6 +4,308 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`GET /collections/{name}/ttl` and the `collections.set_ttl` /
+  `collections.get_ttl` RPC commands.** The collection TTL could be written but
+  not read back, and existed on REST only. All five SDKs gain
+  `get_collection_ttl` (`getCollectionTtl` / `GetCollectionTTL` /
+  `GetCollectionTtlAsync`), and both commands are registered in the capability
+  inventory.
+
+### Fixed
+
+- **A collection-level TTL now actually expires vectors.**
+  `POST /collections/{name}/ttl` validated `ttl_secs`, wrote it to the store
+  metadata key `ttl:{collection}`, answered `{"status":"ok"}` — and nothing ever
+  read that key, so a caller could configure a TTL, get a success response, and
+  have it apply to nothing.
+  - `VectorStore::insert` now stamps `__expires_at = now + ttl_secs` on the
+    payload of every vector arriving in a collection that carries a TTL, which
+    hands the rest of the work to the reaper and the read filter. Doing it at
+    that single choke point covers REST, RPC, MCP, gRPC, GraphQL, batch and
+    file-upload writes, all of which route through it — the same
+    many-call-sites problem the reaper had.
+  - Stamping happens **before** the WAL record is written, so a replay restores
+    the original expiry instead of computing a fresh one from the replay time,
+    and a replica receives the expiry as part of the vector rather than needing
+    the rule.
+  - `VectorStore::update` stamps too. An update replaces the payload wholesale,
+    so without it the caller's new payload would drop the stamp and the vector
+    would outlive the TTL.
+  - A vector that already carries `__expires_at` keeps it — a per-vector expiry
+    is more specific than the collection rule. The corollary: clearing a
+    per-vector expiry on a TTL collection re-stamps it, so
+    `PATCH …/vectors/{id}/expiry` now reports the expiry that is **stored**
+    rather than echoing the request, which would have answered `null` for a
+    value that is not null.
+  - `ttl_secs: 0` is now rejected (`400`): it would expire every insert on
+    arrival, and `null` is how a TTL is cleared.
+  - A payload whose JSON root is not an object has nowhere to hold
+    `__expires_at`, so such an insert is rejected while a TTL is configured
+    instead of being stored without an expiry.
+
+- **A collection TTL survives a restart.** The rule was applied to every insert
+  but lived only in the process, in the store metadata map (like
+  `replication_role`), which nothing writes to disk. So after a restart new
+  inserts silently stopped expiring while `GET …/ttl` honestly reported `null` —
+  a collection that was expiring vectors yesterday quietly accumulated immortal
+  ones today.
+  - The rule now travels with the collection as
+    `PersistedCollection::ttl_secs`: `.vecdb` compaction writes it, the boot
+    loader restores it, and a native snapshot carries it too. The field is
+    `#[serde(default)]`, so archives written before it existed load as "no TTL",
+    which is the behaviour they were saved with.
+  - `POST …/ttl` and `collections.set_ttl` mark the store changed, so the rule
+    reaches disk on the next compaction — the same flush that persists vectors.
+    `collections.set_ttl` therefore joins `command_mutates`.
+  - Restoring must not extend a vector's life: the load path writes into the
+    collection directly rather than through `VectorStore::insert`, so restored
+    vectors keep the expiry they were saved with instead of being re-stamped
+    from the load time. The test asserts the exact timestamp, not just its
+    presence.
+  - Fixed three lifecycle holes found while wiring this up: `DELETE
+    /collections/{n}` left `ttl:{name}` behind for the next collection created
+    under that name to inherit; `POST …/rename` left it under the old key, so
+    the renamed collection stopped expiring; and writes addressed to an alias —
+    including the grace-window alias a rename leaves behind — looked up
+    `ttl:{alias}`, a key nobody sets. The rule is now keyed canonically and
+    resolved through the alias table.
+  - The rule itself is still not replicated. Replicas expire the same vectors
+    because the `__expires_at` stamps arrive as vector data, but a replica
+    promoted to master should have the rule re-applied or be restarted from the
+    master's archive. Documented in the API reference.
+
+- **An expired vector stops being served immediately.** Reads did not consult
+  `__expires_at` at all, so removal was entirely up to the TTL reaper's sweep —
+  a vector stayed readable and kept appearing in search results for up to one
+  interval after its expiry lapsed. `get_vector` now reports an expired vector
+  as absent, `search` and `search_explained` drop expired hits, and the
+  paginated listings filter before counting so `total` and the page agree.
+  - Filtering, not deleting: `search` holds the index read lock while building
+    results and a delete needs the write lock, so reclaiming on read would
+    risk a deadlock. The reaper still does the removal, and the filter is one
+    payload-field comparison per hit, applied after the ANN search returns
+    candidates.
+  - The filter sits on `CollectionType::get_vector`, so the CPU, GPU and
+    sharded backends cannot drift apart.
+  - `get_all_vectors` stays raw on purpose — the reaper needs to see expired
+    vectors to delete them, and a save must not silently drop one. The
+    reaper's own tests now assert against that raw accessor, since asserting
+    through `get_vector` would have passed whether or not the sweep deleted
+    anything.
+
+- **Fetching a vector by id over REST returns the vector.**
+  `GET /collections/{name}/vectors/{id}` never read the store: it checked the
+  collection existed and answered `200 OK` with `vec![0.1; 512]` for any id, in
+  any collection, whether or not the vector existed — a fabricated body
+  indistinguishable from real data. It now returns the stored embedding and
+  payload, and 404 when the vector is absent.
+  - `POST /vector`, the route the capability registry declares for
+    `vector.get`, shared that handler and could never work: its
+    `Path<(String, String)>` extractor cannot be satisfied on a route with no
+    path parameters. It now has a body-based handler taking
+    `{collection, vector_id}` — the shape the MCP `get_vector` tool uses — and
+    accepts `id` as well, since that is what every reply calls the field.
+
+- **Vector expiry actually expires.** `TtlReaper` was implemented, exported and
+  instrumented, but nothing ever spawned it — `grep 'TtlReaper::spawn'` outside
+  its own module returned nothing. So `vectors.set_expiry` (and
+  `PATCH /collections/{name}/vectors/{id}/expiry`) recorded an `__expires_at`
+  that nobody acted on: the vector kept its memory and kept being returned by
+  search, since no read path consults expiry either.
+  - The reaper now starts from bootstrap with the real `PrometheusMetricsSink`,
+    so `ttl_reaper_scans_total`, `ttl_reaper_lag_secs` and
+    `ttl_vectors_expired_total` report for the first time, and it stops on the
+    shutdown path before the final save.
+  - It became **store-wide** instead of per-collection: it enumerates
+    collections on every tick. A reaper-per-collection spawned at boot would
+    silently skip every collection created afterwards, and collections are
+    created at runtime over REST, RPC, MCP and disk load with no single choke
+    point to hook a spawn into. `TtlReaper::spawn*` therefore no longer takes a
+    collection name, and the handle no longer carries one.
+  - Keep the handle alive: `TtlReaper::drop` signals shutdown, so the server
+    holds it for its lifetime. The in-process test harness deliberately runs
+    without a reaper, so a background sweep cannot make expiry assertions
+    timing-dependent.
+  - At the time this landed an expired vector could still be served for up to
+    one sweep interval, because no read path filtered on expiry, and the
+    collection-level TTL was inert. Both are fixed by the two entries above.
+
+- **Cache and HiveHub quota metrics reach Prometheus again.** `QueryCache::new`
+  and `QuotaManager::new` inject a `NoopMetricsSink` by design — the real sink
+  is supposed to come from the wiring site — but bootstrap and the HiveHub
+  manager both used the plain constructors. The consequence:
+  `vectorizer_cache_requests_total{cache_type="query"}` sat at zero forever, so
+  cache hit rate was invisible on a scrape and on the dashboard, and the four
+  `hub_quota_*` metrics were equally dead. Both sites now inject
+  `PrometheusMetricsSink`. The server test harness deliberately stays on the
+  Noop sink, so a test that reads a counter is not coupled to every other
+  test's cache traffic.
+  - This is what `prometheus_counter_increments_on_every_cache_get` had been
+    reporting: the test was correct and the wiring was not. It now builds its
+    cache the way bootstrap does, so it exercises the path that actually ships.
+
+### Changed
+
+- **openraft 0.10.0-alpha.22 → 0.10.0-alpha.30** (Dependabot #382), consensus
+  layer. Both `openraft` and `openraft-memstore` stay pinned with `=` so the
+  consensus layer cannot drift between alphas; the sibling crates
+  (`openraft-macros`, `openraft-rt`, `openraft-rt-tokio`) are pinned to
+  alpha.30 in `Cargo.lock` as well, because upstream declares them with a
+  caret and Cargo had resolved them to alpha.32 — a combination upstream does
+  not ship together.
+  - The bump carries consensus fixes worth having: stale replication acks
+    after a log reversion are now rejected, a hung follower no longer freezes
+    the `RaftCore` loop, a dropped responder errors instead of hanging,
+    snapshot install resets purged membership, a follower behind a fully
+    purged log gets a snapshot, and the election timeout is resampled per
+    campaign.
+  - **API change adapted:** alpha.29 moved `SnapshotData` off
+    `RaftTypeConfig` and onto the components that produce and consume
+    snapshot bytes. `RaftStateMachine`, `RaftSnapshotBuilder` and
+    `RaftNetworkV2` each declare `type SnapshotData` now, and the aliases
+    take two parameters (`SnapshotOf<C, SD>`, `SnapshotDataOf<C, SM>`). A
+    single `ClusterSnapshotData` alias in `cluster::raft_node` keeps the three
+    impls in step.
+  - **HA re-validated on a live cluster**, which the pin's own rationale
+    requires. The existing suite only drove one Raft node or bootstrapped
+    against addresses that never answer, so a new test stands up three nodes
+    with real gRPC servers on loopback and asserts the full path: a leader is
+    elected, a command replicates to both followers over the wire, the leader
+    is then killed, the surviving majority elects a new leader, and both the
+    pre- and post-failover writes are present. It passed five consecutive
+    runs.
+
+### Added
+
+- **VectorizerRPC now covers the whole data plane.** RPC is the default
+  protocol and is meant to be the primary data source, so every capability in
+  the registry (`crates/vectorizer-server/src/server/capabilities.rs`) is
+  reachable over it. Twelve commands close the gaps a full sweep of the
+  dispatch table found:
+  - `graph.enable`, `graph.status` — the `graph.*` family was previously
+    unreachable for any collection created over RPC, because
+    `collections.create` pinned `graph: None` and only `POST
+    /graph/enable/{collection}` could turn one on.
+  - `embedding.list_providers`, `collections.get_stats`, `stats.database` —
+    the registry capabilities behind the MCP `list_providers`,
+    `get_collection_stats` and `get_database_stats` tools.
+  - `search.extra` — the multi-strategy search behind MCP `search_extra`.
+  - `files.config_get` — the upload limits from `GET /files/config`.
+  - `cluster.nodes_list`, `cluster.node_get`, `cluster.node_remove`,
+    `cluster.leader`, `cluster.role` — the cluster inspection routes under
+    `/api/v1/cluster`.
+- **User management over RPC.** `auth.users_create`, `auth.users_list`,
+  `auth.users_delete` and `auth.users_change_password` are implemented against
+  the same user store, validation and persistence the REST handlers use;
+  previously all four answered "REST-only in v1". They keep the REST guards:
+  admin-gated, no deleting your own account or the last admin, and
+  `current_password` required unless the caller is an admin.
+- **Machine-checked RPC parity.** `capabilities::rpc_command_for` maps every
+  registry id to its RPC command (the two catalogs name things differently —
+  singular `collection.list` vs plural `collections.list`), and
+  `assert_inventory_invariants` now fails boot when a capability has no RPC
+  command or maps to one the dispatch table does not advertise. Parity is a
+  startup invariant instead of something rediscovered by hand.
+
+### Fixed
+
+- **Writes made over RPC are now durable.** No RPC command marked the auto-save
+  manager, and the periodic compaction loop only runs when changes are pending,
+  so data written exclusively over RPC was never persisted by it — a graceful
+  shutdown force-saved and hid the problem, but a hard kill (SIGKILL, container
+  OOM, crash) lost every RPC-only write since boot. Mutations are now marked
+  centrally in `dispatch`, so a newly added command cannot forget.
+- **`collections.force_save` actually saves.** It used to verify the collection
+  existed and answer `success: true` without writing anything, leaving a client
+  no way to force durability over RPC. It now drives an immediate store-wide
+  compaction and reports its `scope`.
+- **RPC mutations replicate.** Collection creates and vector writes are
+  forwarded to replicas when the node runs as master, matching the REST
+  handlers; previously only REST writes reached a replica.
+- **`collections.create` no longer accepts a collection that cannot work.** It
+  now rejects an unknown `embedding_provider` and a `dimension` that disagrees
+  with that provider's native size — the two guards REST has applied since
+  phase33 — honours `graph: { enabled: true }`, and picks MMap storage in
+  cluster mode like REST does.
+
+### Changed
+
+- **The binary RPC transport now runs on Thunder (`thunder-rpc` 0.2.2) across
+  the server and all five SDKs.** Vectorizer no longer ships a wire codec:
+  framing, response demultiplexing by frame id, bounded in-flight, connect and
+  per-call timeouts, lazy reconnect and typed errors come from the HiveLLM
+  family's shared RPC stack — the packaged form of the SynapRPC layer
+  `vectorizer-protocol::rpc_wire` was a hand-copy of. The on-wire format is
+  unchanged (v1, frozen: 4-byte little-endian length prefix + MessagePack
+  body) and the ~75-command catalog is untouched.
+  - Server: `vectorizer-server` implements `thunder::server::Dispatch` and
+    starts its listener via `spawn_listener`; the dispatch table's ~75 arms are
+    unchanged. The frame cap rises from 64 MiB to the family's 512 MiB, and it
+    is now validated against the length prefix before the body is allocated.
+  - **Auth moved to the `AUTH` handshake.** Credentials used to travel inside
+    `HELLO`; the session is now authenticated by Thunder's `AUTH` command, and
+    un-authenticated sessions are refused with `NOAUTH` / `WRONGPASS` prefixes
+    instead of `"authentication required: send HELLO first"`. `HELLO` remains a
+    command and still reports capabilities and auth flags. First-party SDKs
+    re-dial transparently when a `HELLO` payload carries credentials, so call
+    sites are unchanged; server and SDKs ship in lockstep at 3.6.x, and REST
+    remains the compatibility fallback.
+  - SDKs: Rust `thunder-rpc`, Python `hivellm-thunder`, TypeScript
+    `@hivehub/thunder`, Go `github.com/hivellm/thunder-go`, C#
+    `HiveLLM.Thunder` — each drops its hand-rolled socket client and codec and
+    its direct MessagePack dependency. Per-SDK API details, including the
+    breaking bits, are in each SDK's own CHANGELOG. The Go SDK's minimum Go
+    version rises to 1.25.
+  - `docs/specs/VECTORIZER_RPC.md` is updated for the new frame cap, the `AUTH`
+    handshake, and the per-language client packages.
+
+### Removed
+
+- **The `vectorizer-protocol` crate.** Its RPC wire is Thunder's now and its
+  tonic/prost gRPC generation moved to `crates/vectorizer-grpc` (proto trees,
+  `build.rs` and generated modules, unchanged — the Qdrant-compatible surface
+  stays gRPC for external Qdrant clients). `vectorizer-sdk` is consequently the
+  only crate this repo publishes: the Rust publish workflow no longer releases
+  a first-party wire crate ahead of the SDK.
+
+### Dependencies
+
+- **3.6.0 dependency refresh.** Cargo: thiserror 2.0.19, tokio 1.53.0,
+  async-trait 0.1.91, anyhow 1.0.104, uuid 1.24.0, futures 0.3.33, serde
+  1.0.229, fastembed 5.17.3, and lz4_flex 0.13 -> 0.14 (compression roundtrip
+  verified). SDKs: C# System.Text.Json 10.0.10 + Microsoft.SourceLink.GitHub
+  10.0.301; TypeScript @types/node 26.1.2, eslint 10.8.0, typescript-eslint
+  8.65.0; Python websockets >=16.1.1. CI: actions/setup-node v7, setup-dotnet
+  v6, setup-python v7, setup-go v7. Held back: openraft alpha.30 (=-pinned,
+  needs an HA retest) and js-yaml 5.x (pnpm `<5` security override).
+
+### CI
+
+- **SDK publishing moves to release-triggered OIDC Trusted Publishing.** Five
+  new workflows (`sdk-publish-{python,typescript,csharp,rust,go}.yml`) publish
+  each SDK on `release: published`, version-gated to the tag and gated on the
+  SDK's tests. No long-lived registry tokens: PyPI + npm use OIDC Trusted
+  Publishing (npm adds provenance), NuGet exchanges OIDC for a short-lived key
+  via `NuGet/login`, crates.io uses `crates-io-auth-action` (the SDK crate only,
+  and Go warms the module proxy for the `vectorizer-sdk-go` submodule tag. Each
+  workflow has a `workflow_dispatch` dry-run path (TestPyPI / `--dry-run` /
+  pack-only). Registry-side setup and the release flow are documented in
+  `docs/development/sdk-publishing.md`.
+
+### Security
+
+- **Cleared the open Dependabot advisories on the web assets (npm).** Bumped
+  or override-floored the vulnerable transitive/direct deps across three
+  lockfiles — dashboard, gui, and the TypeScript SDK: postcss >=8.5.18,
+  brace-expansion (1.1.16 + >=5.0.7), dompurify >=3.4.12, react-router 7.18.x
+  (dashboard); axios >=1.18.0, app-builder-lib >=26.15.0 (electron-builder
+  26.15.x) + builder-util-runtime >=9.7.0, fast-uri >=3.1.4, shell-quote
+  >=1.9.0, tar >=7.5.18 (gui); postcss >=8.5.18 (TypeScript SDK). js-yaml stays
+  on the patched 4.x line (the pnpm `<5` override stands). Builds verified after
+  each refresh.
+
 ### Dashboard
 
 - **Console reaches functional parity with the legacy Electron/Vue GUI and

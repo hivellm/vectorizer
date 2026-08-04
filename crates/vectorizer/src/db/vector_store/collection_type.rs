@@ -273,9 +273,14 @@ impl CollectionType {
         }
     }
 
-    /// Get a vector by ID
+    /// Get a vector by ID.
+    ///
+    /// An expired vector reads as absent on every backend: the filter lives
+    /// here rather than in each collection type so the CPU, GPU and sharded
+    /// paths cannot drift apart. Deletion stays the TTL reaper's job — a read
+    /// must not take the write locks a delete needs.
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
-        match self {
+        let vector = match self {
             CollectionType::Cpu(c) => c.get_vector(vector_id),
             #[cfg(feature = "hive-gpu")]
             CollectionType::HiveGpu(c) => c.get_vector_by_id(vector_id),
@@ -285,7 +290,11 @@ impl CollectionType {
                  collections; use the async cluster router"
                     .to_string(),
             )),
+        }?;
+        if vector.is_expired(Vector::now_ms()) {
+            return Err(VectorizerError::VectorNotFound(vector_id.to_string()));
         }
+        Ok(vector)
     }
 
     /// Get the number of vectors in the collection

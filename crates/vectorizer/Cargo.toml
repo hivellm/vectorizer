@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer"
-version = "3.5.0"
+version = "3.6.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "High-performance, in-memory vector database written in Rust"
@@ -10,14 +10,14 @@ keywords = ["vector-database", "semantic-search", "embeddings", "hnsw", "similar
 categories = ["database", "science"]
 
 [dependencies]
-# Upstream `openraft` has not shipped a 0.10 stable release as of 2026-04-18
-# (latest on crates.io is still 0.10.0-alpha.17). We pin to the exact alpha
-# with a `=` prefix so `cargo update` cannot silently drift the consensus
-# layer to a newer alpha whose behavior we haven't vetted. When a stable
-# 0.10 or 0.11 ships, bump both pins together and retest the HA path
+# Upstream `openraft` has not shipped a 0.10 stable release as of 2026-08-04
+# (crates.io is on 0.10.0-alpha.32). We pin to the exact alpha with a `=`
+# prefix so `cargo update` cannot silently drift the consensus layer to a
+# newer alpha whose behavior we haven't vetted. When a stable 0.10 or 0.11
+# ships, bump both pins together and retest the HA path
 # (tests/integration/cluster_ha.rs). Risk note published in CHANGELOG.
-openraft = { version = "=0.10.0-alpha.22", features = ["serde", "type-alias"] }
-openraft-memstore = "=0.10.0-alpha.22"
+openraft = { version = "=0.10.0-alpha.30", features = ["serde", "type-alias"] }
+openraft-memstore = "=0.10.0-alpha.30"
 futures = "0.3"
 ctrlc = { version = "3.5", optional = true }
 dirs = "6.0"
@@ -97,7 +97,7 @@ rust-embed = { version = "8.5", features = ["compression", "mime-guess"] }
 mime_guess = "2.0"
 
 # Compression and caching
-lz4_flex = "0.13"
+lz4_flex = "0.14"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh3"] }
 zstd = "0.13"
@@ -191,10 +191,15 @@ prost-types = "0.14"
 # Transmutation - Document conversion engine (optional)
 transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf-to-image"] }
 
-# Wire-protocol seam (phase4_split-vectorizer-workspace, sub-phase 2):
-# RPC + gRPC types live in the standalone `vectorizer-protocol` crate
-# so the Rust SDK can depend on the same shapes the server emits.
-vectorizer-protocol = { path = "../vectorizer-protocol" }
+# Wire-protocol seam: the RPC request/response/value model is Thunder's
+# (`thunder-rpc`, lib `thunder`) — the HiveLLM family's shared wire, which our
+# retired `vectorizer-protocol::rpc_wire` was a hand-copy of. Wire layer only
+# (`default-features = false`): the umbrella crate re-exports the types through
+# `vectorizer::protocol::rpc`; the listener lives in `vectorizer-server`.
+thunder-rpc = { version = "0.2.2", default-features = false }
+# tonic/prost gRPC types: first-party + cluster + Qdrant-compat schemas, with
+# the proto trees and build.rs that generate them.
+vectorizer-grpc = { path = "../vectorizer-grpc" }
 # Core primitives seam (phase4_split-vectorizer-workspace, sub-phase 3):
 # error type, binary codec, quantization, simd, parallel + compression
 # helpers live in `vectorizer-core`. Re-exported through the umbrella
@@ -203,9 +208,8 @@ vectorizer-protocol = { path = "../vectorizer-protocol" }
 vectorizer-core = { path = "../vectorizer-core" }
 
 [build-dependencies]
-# Only the Windows icon-embed step remains here — proto compilation
-# moved to the `vectorizer-protocol` crate under
-# phase4_split-vectorizer-workspace sub-phase 2.
+# Only the Windows icon-embed step remains here — proto compilation lives
+# in the `vectorizer-grpc` crate's own build script.
 winres = "0.1"
 
 [dev-dependencies]
@@ -218,6 +222,9 @@ proptest = "1.9"
 # sub-phase 4. Cargo allows dev-dep cycles because they don't
 # affect the main build graph.
 vectorizer-server = { path = "../vectorizer-server" }
+# The RPC integration tests drive the production listener through Thunder's
+# client instead of a hand-rolled socket client.
+thunder-rpc = { version = "0.2.2", default-features = false, features = ["client"] }
 tempfile = "3.8"
 reqwest = { version = "0.13", features = ["json", "multipart", "rustls", "blocking"], default-features = false }
 

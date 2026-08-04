@@ -110,6 +110,10 @@ pub struct VectorizerServer {
         Arc<tokio::sync::Mutex<Option<tokio::sync::watch::Sender<bool>>>>,
     pub(super) grpc_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
     pub(super) auto_save_task: Arc<tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>>,
+    /// TTL reaper handle. Held for the server's lifetime on purpose:
+    /// `TtlReaper::drop` signals shutdown, so letting this fall out of scope
+    /// would stop the sweep. `None` in the test harness.
+    pub(super) ttl_reaper: Option<Arc<vectorizer::db::TtlReaper>>,
     /// Cluster manager (optional, only if cluster is enabled)
     pub cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
     /// Cluster client pool (optional, only if cluster is enabled)

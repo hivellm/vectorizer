@@ -4,202 +4,159 @@
 
 //! End-to-end integration test for the SDK's RPC client.
 //!
-//! Spins up an in-test server on `127.0.0.1:0` that speaks the
-//! VectorizerRPC wire format using the SDK's own codec + types
-//! (because the server crate isn't a dev-dependency of this SDK), and
-//! drives it from `RpcClient` to prove:
+//! Stands up an in-test Thunder listener on `127.0.0.1:0` — the same server
+//! half `vectorizer-server` runs, with a fake dispatch table standing in for
+//! the engine — and drives it from `RpcClient` to prove:
 //!
-//! - HELLO handshake produces the expected `HelloResponse` shape.
+//! - HELLO produces the expected `HelloResponse` shape.
 //! - `PING` works pre-HELLO (auth-exempt per wire spec § 4).
-//! - A data-plane command (`collections.list`) before HELLO returns
-//!   `RpcClientError::NotAuthenticated`.
+//! - A data-plane command on an un-credentialed session against an
+//!   auth-enabled server returns `RpcClientError::NotAuthenticated`.
+//! - `hello` with a token authenticates the session, so later commands pass
+//!   the gate.
 //! - Two concurrent calls on the same connection get correctly
-//!   demultiplexed by `Request.id`.
+//!   demultiplexed by frame id.
 //! - The typed wrappers (`list_collections`, `get_collection_info`,
-//!   `search_basic`) round-trip through the codec.
+//!   `search_basic`) round-trip over the wire.
 //! - `RpcClient::connect_url` accepts every documented URL form and
 //!   rejects REST URLs with a clear error.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::sync::Arc;
-use std::time::Duration;
 
-use tokio::io::BufReader;
-use tokio::net::TcpListener;
-use vectorizer_sdk::rpc::codec::{read_request, write_response};
-use vectorizer_sdk::rpc::types::{Request, Response, VectorizerValue};
-use vectorizer_sdk::rpc::{HelloPayload, RpcClient, RpcClientError};
+use thunder::Value;
+use thunder::server::{
+    AuthError, Credentials, Dispatch, ListenerConfig, ListenerHandle, Principal, ServerInfo,
+    Session, spawn_listener,
+};
+use vectorizer_sdk::rpc::{HelloPayload, RpcClient, RpcClientError, protocol_config};
 
-/// In-test server that mimics the production dispatcher closely
+/// The one credential the fake server accepts.
+const GOOD_TOKEN: &str = "good-token";
+
+/// In-test dispatch table that mimics the production server closely
 /// enough to exercise the SDK's wire layer end-to-end.
-async fn spawn_fake_server() -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        loop {
-            let (stream, _peer) = match listener.accept().await {
-                Ok(x) => x,
-                Err(_) => break,
-            };
-            tokio::spawn(handle_connection(stream));
+struct FakeVectorizer;
+
+impl Dispatch for FakeVectorizer {
+    type Identity = ();
+
+    async fn dispatch(
+        &self,
+        _session: &Session<()>,
+        command: &str,
+        args: Vec<Value>,
+    ) -> Result<Value, String> {
+        match command {
+            // `HelloStyle::NotUsed`: HELLO is Vectorizer's own command, so it
+            // reaches the product dispatch exactly as on the real server.
+            "HELLO" => Ok(Value::Map(vec![
+                (
+                    Value::Str("server_version".into()),
+                    Value::Str("test-fixture/0.0.0".into()),
+                ),
+                (Value::Str("protocol_version".into()), Value::Int(1)),
+                (Value::Str("authenticated".into()), Value::Bool(true)),
+                (Value::Str("admin".into()), Value::Bool(true)),
+                (
+                    Value::Str("capabilities".into()),
+                    Value::Array(vec![
+                        Value::Str("PING".into()),
+                        Value::Str("collections.list".into()),
+                        Value::Str("collections.get_info".into()),
+                        Value::Str("vectors.get".into()),
+                        Value::Str("search.basic".into()),
+                    ]),
+                ),
+            ])),
+            "PING" => Ok(Value::Str("PONG".into())),
+            "collections.list" => Ok(Value::Array(vec![
+                Value::Str("alpha-docs".into()),
+                Value::Str("beta-source".into()),
+            ])),
+            "collections.get_info" => {
+                let name = args.first().and_then(|v| v.as_str()).unwrap_or("unknown");
+                Ok(Value::Map(vec![
+                    (Value::Str("name".into()), Value::Str(name.to_owned())),
+                    (Value::Str("vector_count".into()), Value::Int(42)),
+                    (Value::Str("document_count".into()), Value::Int(10)),
+                    (Value::Str("dimension".into()), Value::Int(384)),
+                    (Value::Str("metric".into()), Value::Str("Cosine".into())),
+                    (
+                        Value::Str("created_at".into()),
+                        Value::Str("2026-04-19T00:00:00Z".into()),
+                    ),
+                    (
+                        Value::Str("updated_at".into()),
+                        Value::Str("2026-04-19T00:00:00Z".into()),
+                    ),
+                ]))
+            }
+            "search.basic" => Ok(Value::Array(vec![
+                Value::Map(vec![
+                    (Value::Str("id".into()), Value::Str("vec-0".into())),
+                    (Value::Str("score".into()), Value::Float(0.95)),
+                    (
+                        Value::Str("payload".into()),
+                        Value::Str(r#"{"title":"hit one"}"#.into()),
+                    ),
+                ]),
+                Value::Map(vec![
+                    (Value::Str("id".into()), Value::Str("vec-1".into())),
+                    (Value::Str("score".into()), Value::Float(0.81)),
+                ]),
+            ])),
+            other => Err(format!("unknown command '{other}'")),
         }
-    });
-    // Give the listener a moment to start.
-    tokio::time::sleep(Duration::from_millis(20)).await;
-    addr
-}
+    }
 
-async fn handle_connection(stream: tokio::net::TcpStream) {
-    let (read_half, mut write_half) = stream.into_split();
-    let mut reader = BufReader::new(read_half);
-    let authenticated = Arc::new(parking_lot::RwLock::new(false));
-
-    loop {
-        let req: Request = match read_request(&mut reader).await {
-            Ok(r) => r,
-            Err(_) => break,
+    async fn authenticate(&self, creds: Credentials) -> Result<Principal<()>, AuthError> {
+        let secret = match creds {
+            Credentials::Token(t) | Credentials::ApiKey(t) => t,
+            Credentials::UserPass(_, pass) => pass,
+            Credentials::None => return Err(AuthError::InvalidCredentials),
         };
-        let resp = dispatch(&req, &authenticated).await;
-        if write_response(&mut write_half, &resp).await.is_err() {
-            break;
+        if secret == GOOD_TOKEN {
+            Ok(Principal::new("fake-admin"))
+        } else {
+            Err(AuthError::InvalidCredentials)
         }
     }
 }
 
-async fn dispatch(req: &Request, authenticated: &Arc<parking_lot::RwLock<bool>>) -> Response {
-    match req.command.as_str() {
-        "HELLO" => {
-            *authenticated.write() = true;
-            Response::ok(
-                req.id,
-                VectorizerValue::Map(vec![
-                    (
-                        VectorizerValue::Str("server_version".into()),
-                        VectorizerValue::Str("test-fixture/0.0.0".into()),
-                    ),
-                    (
-                        VectorizerValue::Str("protocol_version".into()),
-                        VectorizerValue::Int(1),
-                    ),
-                    (
-                        VectorizerValue::Str("authenticated".into()),
-                        VectorizerValue::Bool(true),
-                    ),
-                    (
-                        VectorizerValue::Str("admin".into()),
-                        VectorizerValue::Bool(true),
-                    ),
-                    (
-                        VectorizerValue::Str("capabilities".into()),
-                        VectorizerValue::Array(vec![
-                            VectorizerValue::Str("PING".into()),
-                            VectorizerValue::Str("collections.list".into()),
-                            VectorizerValue::Str("collections.get_info".into()),
-                            VectorizerValue::Str("vectors.get".into()),
-                            VectorizerValue::Str("search.basic".into()),
-                        ]),
-                    ),
-                ]),
-            )
-        }
-        "PING" => Response::ok(req.id, VectorizerValue::Str("PONG".into())),
-        // Auth gate for data-plane commands — mirrors the production
-        // server's behaviour described in wire spec § 4.
-        cmd if !*authenticated.read() => Response::err(
-            req.id,
-            format!("authentication required: send HELLO first ({cmd})"),
-        ),
-        "collections.list" => Response::ok(
-            req.id,
-            VectorizerValue::Array(vec![
-                VectorizerValue::Str("alpha-docs".into()),
-                VectorizerValue::Str("beta-source".into()),
-            ]),
-        ),
-        "collections.get_info" => {
-            let name = req
-                .args
-                .first()
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-            Response::ok(
-                req.id,
-                VectorizerValue::Map(vec![
-                    (
-                        VectorizerValue::Str("name".into()),
-                        VectorizerValue::Str(name.to_owned()),
-                    ),
-                    (
-                        VectorizerValue::Str("vector_count".into()),
-                        VectorizerValue::Int(42),
-                    ),
-                    (
-                        VectorizerValue::Str("document_count".into()),
-                        VectorizerValue::Int(10),
-                    ),
-                    (
-                        VectorizerValue::Str("dimension".into()),
-                        VectorizerValue::Int(384),
-                    ),
-                    (
-                        VectorizerValue::Str("metric".into()),
-                        VectorizerValue::Str("Cosine".into()),
-                    ),
-                    (
-                        VectorizerValue::Str("created_at".into()),
-                        VectorizerValue::Str("2026-04-19T00:00:00Z".into()),
-                    ),
-                    (
-                        VectorizerValue::Str("updated_at".into()),
-                        VectorizerValue::Str("2026-04-19T00:00:00Z".into()),
-                    ),
-                ]),
-            )
-        }
-        "search.basic" => Response::ok(
-            req.id,
-            VectorizerValue::Array(vec![
-                VectorizerValue::Map(vec![
-                    (
-                        VectorizerValue::Str("id".into()),
-                        VectorizerValue::Str("vec-0".into()),
-                    ),
-                    (
-                        VectorizerValue::Str("score".into()),
-                        VectorizerValue::Float(0.95),
-                    ),
-                    (
-                        VectorizerValue::Str("payload".into()),
-                        VectorizerValue::Str(r#"{"title":"hit one"}"#.into()),
-                    ),
-                ]),
-                VectorizerValue::Map(vec![
-                    (
-                        VectorizerValue::Str("id".into()),
-                        VectorizerValue::Str("vec-1".into()),
-                    ),
-                    (
-                        VectorizerValue::Str("score".into()),
-                        VectorizerValue::Float(0.81),
-                    ),
-                ]),
-            ]),
-        ),
-        other => Response::err(req.id, format!("unknown command '{other}'")),
+/// Boot the fake server. `auth_required` mirrors the deployment posture:
+/// `false` opens the listener (single-user mode), `true` makes Thunder refuse
+/// un-credentialed sessions.
+///
+/// The returned handle must stay alive for the test — dropping it stops the
+/// accept loop.
+async fn spawn_fake_server(auth_required: bool) -> (ListenerHandle, String) {
+    let mut config = ListenerConfig::new("127.0.0.1:0".parse().unwrap());
+    if !auth_required {
+        config = config.open();
     }
+    let info = ServerInfo {
+        name: "vectorizer-test-fixture".to_owned(),
+        version: "0.0.0".to_owned(),
+    };
+    let handle = spawn_listener(Arc::new(FakeVectorizer), protocol_config(), info, config)
+        .await
+        .unwrap();
+    let endpoint = format!("vectorizer://{}", handle.local_addr());
+    (handle, endpoint)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn hello_then_ping_then_typed_commands() {
-    let addr = spawn_fake_server().await;
-    let client = RpcClient::connect(addr.to_string()).await.unwrap();
+    let (_handle, endpoint) = spawn_fake_server(false).await;
+    let client = RpcClient::connect(&endpoint).await.unwrap();
 
     // PING is auth-exempt per wire spec § 4.
     let pong = client.ping().await.unwrap();
     assert_eq!(pong, "PONG");
 
-    // HELLO completes the handshake.
+    // HELLO reports the server's capabilities and auth flags.
     let hello = client
         .hello(HelloPayload::new("rpc-integration-test"))
         .await
@@ -236,23 +193,57 @@ async fn hello_then_ping_then_typed_commands() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn data_plane_call_before_hello_is_rejected_locally() {
-    let addr = spawn_fake_server().await;
-    let client = RpcClient::connect(addr.to_string()).await.unwrap();
+async fn data_plane_call_without_credentials_is_rejected() {
+    let (_handle, endpoint) = spawn_fake_server(true).await;
+    let client = RpcClient::connect(&endpoint).await.unwrap();
+    assert!(!client.is_authenticated());
 
-    // The SDK's local auth gate fails fast before even sending the
-    // request — saves an unnecessary round-trip.
+    // The session sent no `AUTH`, so the server gates the command before it
+    // reaches the dispatch table.
     let err = client.list_collections().await.unwrap_err();
     match err {
-        RpcClientError::NotAuthenticated => {}
+        RpcClientError::NotAuthenticated(_) => {}
+        other => panic!("expected NotAuthenticated, got {other:?}"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn hello_with_token_authenticates_the_session() {
+    let (_handle, endpoint) = spawn_fake_server(true).await;
+    let client = RpcClient::connect(&endpoint).await.unwrap();
+
+    // A credential-carrying HELLO re-dials so the token travels in Thunder's
+    // `AUTH` handshake; the session is authenticated from there on.
+    let hello = client
+        .hello(HelloPayload::new("rpc-integration-test").with_token(GOOD_TOKEN))
+        .await
+        .unwrap();
+    assert!(hello.authenticated);
+    assert!(client.is_authenticated());
+
+    let cols = client.list_collections().await.unwrap();
+    assert_eq!(cols.len(), 2);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn bad_credentials_fail_the_handshake() {
+    let (_handle, endpoint) = spawn_fake_server(true).await;
+    let client = RpcClient::connect(&endpoint).await.unwrap();
+
+    let err = client
+        .hello(HelloPayload::new("rpc-integration-test").with_token("wrong-token"))
+        .await
+        .unwrap_err();
+    match err {
+        RpcClientError::NotAuthenticated(_) => {}
         other => panic!("expected NotAuthenticated, got {other:?}"),
     }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn concurrent_calls_on_one_connection_are_demultiplexed_by_id() {
-    let addr = spawn_fake_server().await;
-    let client = Arc::new(RpcClient::connect(addr.to_string()).await.unwrap());
+    let (_handle, endpoint) = spawn_fake_server(false).await;
+    let client = Arc::new(RpcClient::connect(&endpoint).await.unwrap());
     client
         .hello(HelloPayload::new("concurrent-test"))
         .await
@@ -275,9 +266,8 @@ async fn concurrent_calls_on_one_connection_are_demultiplexed_by_id() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn connect_url_accepts_canonical_vectorizer_scheme() {
-    let addr = spawn_fake_server().await;
-    let url = format!("vectorizer://{}", addr);
-    let client = RpcClient::connect_url(&url).await.unwrap();
+    let (_handle, endpoint) = spawn_fake_server(false).await;
+    let client = RpcClient::connect_url(&endpoint).await.unwrap();
     let pong = client.ping().await.unwrap();
     assert_eq!(pong, "PONG");
 }

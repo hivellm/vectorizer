@@ -149,9 +149,17 @@ impl VectorizerClient {
     /// Set or clear a per-collection TTL (phase13).
     ///
     /// Calls `POST /collections/{name}/ttl` with `{"ttl_secs": <secs>}`.
-    /// Pass `None` to clear the collection-level TTL. Existing vectors are
-    /// NOT retroactively expired; only subsequent insertions that carry
-    /// `__expires_at` in their payload are affected.
+    /// Pass `None` to clear the collection-level TTL; a value below 1 is
+    /// rejected by the server.
+    ///
+    /// Vectors inserted or updated after the call carry
+    /// `__expires_at = now + ttl_secs` and are deleted by the server's TTL
+    /// reaper once that timestamp passes. Existing vectors are NOT
+    /// retroactively expired, and a vector that already carries its own
+    /// `__expires_at` keeps it.
+    ///
+    /// The rule is durable: the server stores it with the collection and
+    /// restores it on load, so it still applies after a restart.
     ///
     /// For per-vector expiry use `set_vector_expiry` on the vectors surface.
     pub async fn set_collection_ttl(&self, collection: &str, ttl_secs: Option<u64>) -> Result<()> {
@@ -163,6 +171,20 @@ impl VectorizerClient {
         )
         .await?;
         Ok(())
+    }
+
+    /// Read the per-collection TTL in seconds, or `None` when no TTL is
+    /// configured.
+    ///
+    /// Calls `GET /collections/{name}/ttl`.
+    pub async fn get_collection_ttl(&self, collection: &str) -> Result<Option<u64>> {
+        let response = self
+            .make_request("GET", &format!("/collections/{collection}/ttl"), None)
+            .await?;
+        let parsed: serde_json::Value = serde_json::from_str(&response).map_err(|e| {
+            VectorizerError::server(format!("Failed to parse get_collection_ttl response: {e}"))
+        })?;
+        Ok(parsed.get("ttl_secs").and_then(serde_json::Value::as_u64))
     }
 
     // ── Phase-14: schema-evolution methods ────────────────────────────────────
@@ -323,6 +345,24 @@ mod tests {
 
         let clear_ttl = json!({ "ttl_secs": serde_json::Value::Null });
         assert!(clear_ttl["ttl_secs"].is_null());
+    }
+
+    #[test]
+    fn get_collection_ttl_reads_both_wire_shapes() {
+        // Mirror of `GET /collections/{name}/ttl` for configured and cleared.
+        let configured = json!({"collection": "myc", "ttl_secs": 900u64});
+        assert_eq!(
+            configured
+                .get("ttl_secs")
+                .and_then(serde_json::Value::as_u64),
+            Some(900)
+        );
+
+        let cleared = json!({"collection": "myc", "ttl_secs": serde_json::Value::Null});
+        assert_eq!(
+            cleared.get("ttl_secs").and_then(serde_json::Value::as_u64),
+            None
+        );
     }
 
     // ── Phase-14 round-trip tests ─────────────────────────────────────────────

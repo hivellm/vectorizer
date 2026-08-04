@@ -2,6 +2,7 @@
 //!
 //! - `list_vectors`        — GET  /collections/{name}/vectors
 //! - `get_vector`          — GET  /collections/{name}/vectors/{id}
+//! - `get_vector_by_body`  — POST /vector
 //! - `delete_vector`       — DELETE /collections/{name}/vectors/{id}
 //! - `update_vector`       — PUT  /vectors
 //! - `delete_vector_generic` — DELETE /vectors
@@ -63,8 +64,15 @@ pub async fn list_vectors(
         .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
 
-    // Get actual vectors from the local collection
-    let all_vectors = collection.get_all_vectors();
+    // `get_all_vectors` is the raw accessor — it has to include expired
+    // vectors so the TTL reaper can find them. A listing is a read, so drop
+    // them before counting, so `total` and the page contents agree.
+    let now_ms = vectorizer::models::Vector::now_ms();
+    let all_vectors: Vec<_> = collection
+        .get_all_vectors()
+        .into_iter()
+        .filter(|v| !v.is_expired(now_ms))
+        .collect();
     let total_count = all_vectors.len();
 
     // Filter vectors by minimum score (scoring based on payload content richness)
@@ -131,22 +139,58 @@ pub async fn list_vectors(
 }
 
 /// GET /collections/{name}/vectors/{id} — fetch a single vector
+///
+/// Shapes its body like `list_vectors` (`id` / `vector` / `payload`) so a
+/// caller can read one vector or a page of them without reshaping.
 pub async fn get_vector(
     State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
 ) -> Result<Json<Value>, ErrorResponse> {
-    let _collection = state
+    let vector = state
         .store
-        .get_collection(&collection_name)
-        .map_err(|e| ErrorResponse::from(e))?;
+        .get_vector(&collection_name, &vector_id)
+        .map_err(ErrorResponse::from)?;
 
-    // Returns mock data — real retrieval by ID is tracked in a separate task
     Ok(Json(json!({
-        "id": vector_id,
-        "vector": vec![0.1; 512],
-        "metadata": {
-            "collection": collection_name
-        }
+        "id": vector.id,
+        "vector": vector.data,
+        "payload": vector.payload.map(|p| p.data),
+        "collection": collection_name,
+    })))
+}
+
+/// POST /vector — fetch a single vector by request body
+///
+/// The route the capability registry declares for `vector.get`, and the shape
+/// the MCP `get_vector` tool takes (`{collection, vector_id}`). It exists
+/// alongside the path-based `GET /collections/{name}/vectors/{id}` because an
+/// id can contain characters that are awkward in a path segment.
+pub async fn get_vector_by_body(
+    State(state): State<VectorizerServer>,
+    Json(payload): Json<Value>,
+) -> Result<Json<Value>, ErrorResponse> {
+    let collection_name = payload
+        .get("collection")
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| create_validation_error("collection", "missing or invalid collection"))?;
+    // `vector_id` is the registry/MCP field name; `id` is accepted because the
+    // path-based handler and the RPC reply both call it that.
+    let vector_id = payload
+        .get("vector_id")
+        .or_else(|| payload.get("id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| create_validation_error("vector_id", "missing or invalid vector_id"))?;
+
+    let vector = state
+        .store
+        .get_vector(collection_name, vector_id)
+        .map_err(ErrorResponse::from)?;
+
+    Ok(Json(json!({
+        "id": vector.id,
+        "vector": vector.data,
+        "payload": vector.payload.map(|p| p.data),
+        "collection": collection_name,
     })))
 }
 
@@ -975,7 +1019,12 @@ pub async fn copy_vectors(
 /// Body: `{"expires_at": <unix_ms>}` — pass `null` to clear expiry.
 ///
 /// The `expires_at` value is stored as `__expires_at` inside the vector's
-/// JSON payload and is read by the per-collection TTL reaper.
+/// JSON payload and is read by the TTL reaper.
+///
+/// Clearing the expiry on a collection that has a TTL configured does not
+/// make the vector immortal: the write goes through `VectorStore::update`,
+/// which re-stamps the collection TTL. The response reports the expiry
+/// that is actually stored, which in that case is `now + ttl_secs`.
 pub async fn set_vector_expiry(
     State(state): State<VectorizerServer>,
     Path((collection_name, vector_id)): Path<(String, String)>,
@@ -1027,15 +1076,24 @@ pub async fn set_vector_expiry(
         auto_save.mark_changed();
     }
 
+    // Read back rather than echoing the request: a collection TTL re-stamps
+    // an expiry the caller just cleared.
+    let stored_expires_at = state
+        .store
+        .get_vector(&collection_name, &vector_id)
+        .ok()
+        .and_then(|v| v.payload)
+        .and_then(|p| p.expires_at());
+
     info!(
-        "set_vector_expiry '{}' in '{}': expires_at={:?}",
-        vector_id, collection_name, expires_at_opt
+        "set_vector_expiry '{}' in '{}': requested={:?} stored={:?}",
+        vector_id, collection_name, expires_at_opt, stored_expires_at
     );
 
     Ok(Json(json!({
         "id": vector_id,
         "collection": collection_name,
-        "expires_at": expires_at_opt,
+        "expires_at": stored_expires_at,
         "status": "ok",
     })))
 }

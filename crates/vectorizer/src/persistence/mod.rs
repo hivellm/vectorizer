@@ -55,6 +55,14 @@ pub struct PersistedCollection {
     pub vectors: Vec<PersistedVector>,
     /// HNSW index dump basename (if available)
     pub hnsw_dump_basename: Option<String>,
+    /// Collection-level TTL in seconds, when one is configured.
+    ///
+    /// The rule "vectors inserted here expire N seconds after they arrive"
+    /// travels with the collection so it survives a restart. Absent in
+    /// archives written before the field existed, which deserialise as
+    /// `None` (no TTL) — the behaviour those archives were saved with.
+    #[serde(default)]
+    pub ttl_secs: Option<u64>,
 }
 
 /// Persisted representation of a vector with payload serialized as JSON string
@@ -195,6 +203,7 @@ impl VectorStore {
             let hnsw_dump_basename = None;
 
             collections.push(PersistedCollection {
+                ttl_secs: self.collection_ttl(&collection_name),
                 name: collection_name,
                 config: Some(metadata.config),
                 vectors,
@@ -290,6 +299,13 @@ impl VectorStore {
             config.quantization = crate::models::QuantizationConfig::SQ { bits: 8 };
 
             store.create_collection_with_quantization(&collection.name, config)?;
+
+            // Restore the collection TTL rule. Safe to do before the vectors
+            // land: `load_collection_from_cache` writes into the collection
+            // directly rather than through `VectorStore::insert`, so restored
+            // vectors keep the expiry they were saved with instead of being
+            // re-stamped from the load time.
+            store.set_collection_ttl(&collection.name, collection.ttl_secs);
 
             if !collection.vectors.is_empty() {
                 // Load vectors from cache (HNSW dump not implemented yet)

@@ -1,9 +1,9 @@
-//! VectorizerRPC server-side glue: TCP listener + dispatch.
+//! VectorizerRPC server-side glue: Thunder `Dispatch` binding + dispatch table.
 //!
-//! Wire spec § 1, 4, 5: `docs/specs/VECTORIZER_RPC.md`. The wire
-//! types + codec live in `vectorizer-protocol::rpc_wire` (extracted
-//! under sub-phase 2); the dispatch table + accept loop live here
-//! because they consume `vectorizer::db::VectorStore`,
+//! Wire spec § 1, 4, 5: `docs/specs/VECTORIZER_RPC.md`. The wire types +
+//! transport are Thunder's (`thunder-rpc`); the `Dispatch` impl + listener
+//! bootstrap (`server`) and the per-command dispatch table (`dispatch`) live
+//! here because they consume `vectorizer::db::VectorStore`,
 //! `vectorizer::embedding::EmbeddingManager`, and the server's
 //! `AuthHandlerState`.
 

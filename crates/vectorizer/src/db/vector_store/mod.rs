@@ -50,7 +50,7 @@ mod vectors;
 mod wal;
 
 pub use collection_type::CollectionType;
-pub use metadata::VectorStoreStats;
+pub use metadata::{COLLECTION_TTL_PREFIX, VectorStoreStats};
 
 /// Callback that persists the embedding vocabulary for a collection to
 /// a tokenizer JSON file. Injected by the server bootstrap (which owns

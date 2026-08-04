@@ -181,9 +181,15 @@ public partial class VectorizerClient
     /// <summary>
     /// Sets or clears a per-collection TTL.
     /// Calls POST /collections/{name}/ttl with body {"ttl_secs": ttlSecs}.
-    /// Pass null to clear the collection-level TTL. Existing vectors are not
-    /// retroactively expired; only subsequent insertions that carry __expires_at
-    /// in their payload are affected.
+    /// Pass null to clear the collection-level TTL; a value below 1 is
+    /// rejected by the server.
+    /// Vectors inserted or updated after the call carry
+    /// __expires_at = now + ttl_secs and are deleted by the server's TTL
+    /// reaper once that timestamp passes. Existing vectors are not
+    /// retroactively expired, and a vector that already carries its own
+    /// __expires_at keeps it.
+    /// The rule is durable: the server stores it with the collection and
+    /// restores it on load, so it still applies after a restart.
     /// For per-vector expiry use <see cref="SetVectorExpiryAsync"/>.
     /// </summary>
     /// <param name="name">Collection name.</param>
@@ -197,6 +203,22 @@ public partial class VectorizerClient
         var body = new Dictionary<string, object?> { ["ttl_secs"] = ttlSecs };
         var path = $"/collections/{Uri.EscapeDataString(name)}/ttl";
         await RequestAsync<object>("POST", path, body, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reads the per-collection TTL in seconds, or null when no TTL is
+    /// configured. Calls GET /collections/{name}/ttl.
+    /// </summary>
+    /// <param name="name">Collection name.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The TTL in seconds, or null when none is configured.</returns>
+    public async Task<long?> GetCollectionTtlAsync(
+        string name,
+        CancellationToken cancellationToken = default)
+    {
+        var path = $"/collections/{Uri.EscapeDataString(name)}/ttl";
+        var response = await RequestAsync<TtlConfig>("GET", path, null, cancellationToken);
+        return response?.TtlSecs;
     }
 
     /// <summary>

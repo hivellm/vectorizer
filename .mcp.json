@@ -4,8 +4,8 @@
       "command": "npx",
       "args": [
         "-y",
-        "@hivehub/rulebook@latest",
-        "mcp-server"
+        "--package=@hivehub/rulebook@latest",
+        "rulebook-mcp"
       ]
     },
     "vectorizer": {

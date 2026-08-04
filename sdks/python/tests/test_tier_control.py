@@ -402,5 +402,24 @@ class TestSetCollectionTtlWire(unittest.TestCase):
         self.assertIsNone(result)
 
 
+# ---------------------------------------------------------------------------
+# get_collection_ttl wire shape
+# ---------------------------------------------------------------------------
+
+
+class TestGetCollectionTtlWire(unittest.TestCase):
+    def test_reads_configured_ttl(self) -> None:
+        client, transport = _make_collections_client()
+        transport.get.return_value = {"collection": "col", "ttl_secs": 900}
+        ttl = asyncio.run(client.get_collection_ttl("col"))
+        transport.get.assert_awaited_once_with("/collections/col/ttl")
+        self.assertEqual(ttl, 900)
+
+    def test_reads_cleared_ttl_as_none(self) -> None:
+        client, transport = _make_collections_client()
+        transport.get.return_value = {"collection": "col", "ttl_secs": None}
+        self.assertIsNone(asyncio.run(client.get_collection_ttl("col")))
+
+
 if __name__ == "__main__":
     unittest.main()

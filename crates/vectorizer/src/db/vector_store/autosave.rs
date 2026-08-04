@@ -135,6 +135,7 @@ impl VectorStore {
             config: Some(metadata.config.clone()),
             vectors,
             hnsw_dump_basename: None,
+            ttl_secs: self.collection_ttl(collection_name),
         };
 
         // Save vectors to binary file (following workspace pattern)
@@ -232,11 +233,19 @@ impl VectorStore {
         );
 
         // Create persisted collection for vector store
+        //
+        // `ttl_secs: None` because this static variant holds only a
+        // `&CollectionType` and the TTL rule lives on the `VectorStore`. The
+        // path is legacy-only (it returns early under the compact format, and
+        // the function itself is currently unreferenced), so the reachable
+        // save paths — `.vecdb` compaction and the `&self` variant above —
+        // are the ones that must carry the TTL.
         let persisted_collection_for_store = PersistedCollection {
             name: collection_name.to_string(),
             config: Some(metadata.config.clone()),
             vectors: vectors.clone(),
             hnsw_dump_basename: None,
+            ttl_secs: None,
         };
 
         // Create persisted vector store with version
@@ -251,12 +260,14 @@ impl VectorStore {
         Self::save_collection_vectors_binary_static(&persisted_vector_store, &vector_store_path)?;
         info!("💾 Vectors saved successfully");
 
-        // Create persisted collection for metadata
+        // Create persisted collection for metadata (same `ttl_secs: None`
+        // rationale as the store record above).
         let persisted_collection_for_metadata = PersistedCollection {
             name: collection_name.to_string(),
             config: Some(metadata.config.clone()),
             vectors,
             hnsw_dump_basename: None,
+            ttl_secs: None,
         };
 
         // Save metadata to JSON file

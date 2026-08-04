@@ -1,22 +1,28 @@
-//! End-to-end handshake + PING round-trip over a real TCP socket.
+//! End-to-end RPC round-trips over Thunder's transport, driven by
+//! Thunder's own client — the same client the Rust SDK ships, so these
+//! tests exercise the real client/server pair rather than a synthetic
+//! socket peer.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::sync::Arc;
-use std::time::Duration;
 
-use tokio::io::BufReader;
-use tokio::net::TcpStream;
+use thunder::client::{Client, ClientConfig, ClientError};
+use vectorizer::auth::roles::Role;
+use vectorizer::auth::{AuthConfig, AuthManager, Secret};
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
-use vectorizer::protocol::rpc::codec::{read_response, write_request};
-use vectorizer::protocol::rpc::types::{Request, VectorizerValue};
-use vectorizer_server::protocol::rpc::server::{RpcState, spawn_rpc_listener};
+use vectorizer::protocol::rpc::Value;
+use vectorizer_server::protocol::rpc::server::{RpcState, spawn_rpc_listener, vectorizer_config};
+use vectorizer_server::server::AuthHandlerState;
 
-/// Bind the listener on `127.0.0.1:0` so the OS picks a free port,
-/// then return the bound address. The listener task lives for the
-/// duration of the test process.
-async fn boot_listener() -> std::net::SocketAddr {
+/// Bind the listener on an ephemeral port and return the endpoint URL the
+/// Thunder client dials. `auth` decides the deployment posture: `None`
+/// opens the listener (single-user mode, every caller is the implicit
+/// local admin), `Some` makes Thunder refuse un-credentialed sessions.
+///
+/// The listener task lives for the duration of the test process.
+async fn boot_listener(auth: Option<AuthHandlerState>) -> String {
     // Pick a free ephemeral port by binding once, reading the port,
     // dropping the bind, then handing the port to the listener. There
     // is a small race window here — acceptable for a single-test
@@ -28,114 +34,121 @@ async fn boot_listener() -> std::net::SocketAddr {
     let state = RpcState {
         store: Arc::new(VectorStore::new()),
         embedding_manager: Arc::new(EmbeddingManager::new()),
-        // `auth: None` puts the dispatch in single-user mode — every
-        // HELLO succeeds and the principal is the implicit local
-        // admin. Adequate for the handshake smoke test; a real
-        // auth-enforcement test would build an `AuthHandlerState`.
-        auth: None,
+        auth,
         master_node: None,
         replica_node: None,
         cluster_manager: None,
         slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
             vectorizer::cache::slow_query::SlowQueryConfig::default(),
         ),
+        auto_save_manager: None,
     };
+    // `spawn_rpc_listener` returns once the socket is bound, so a client
+    // may dial immediately.
     spawn_rpc_listener(state, addr).await.unwrap();
-    // Give the listener a moment to actually start accepting.
-    tokio::time::sleep(Duration::from_millis(50)).await;
-    addr
+    format!("vectorizer://{addr}")
+}
+
+/// An auth-enabled handler state plus an admin JWT that validates
+/// against it. No user record is seeded: JWT validation is signature +
+/// claims only, and the admin bit comes from the claims' roles.
+fn auth_state_with_admin_jwt() -> (AuthHandlerState, String) {
+    let config = AuthConfig {
+        jwt_secret: Secret::new("t".repeat(64)),
+        enabled: true,
+        ..AuthConfig::default()
+    };
+    let manager = Arc::new(AuthManager::new(config).expect("valid auth config"));
+    let jwt = manager
+        .generate_jwt("rpc-admin", "rpc-admin", vec![Role::Admin])
+        .expect("generate admin JWT");
+    (AuthHandlerState::new(manager), jwt)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn hello_then_ping_roundtrip() {
-    let addr = boot_listener().await;
-    let stream = TcpStream::connect(addr).await.unwrap();
-    let (read_half, mut write_half) = stream.into_split();
-    let mut reader = BufReader::new(read_half);
+async fn ping_then_dispatch_roundtrip() {
+    let endpoint = boot_listener(None).await;
+    let client = Client::connect(&endpoint, vectorizer_config())
+        .await
+        .unwrap();
 
-    // 1. HELLO with the v1 protocol version. No token because the
-    //    listener is in single-user mode.
-    write_request(
-        &mut write_half,
-        &Request {
-            id: 1,
-            command: "HELLO".into(),
-            args: vec![VectorizerValue::Map(vec![(
-                VectorizerValue::Str("version".into()),
-                VectorizerValue::Int(1),
+    // PING is answered by our dispatch table (Thunder only intercepts it
+    // pre-auth), so a PONG proves the Dispatch binding is wired up.
+    let pong = client.call("PING", vec![]).await.unwrap();
+    assert_eq!(pong.as_str(), Some("PONG"));
+
+    // collections.list on an empty store returns an empty array (not an
+    // error) — the dispatch reaches the registry-backed handler.
+    let listing = client.call("collections.list", vec![]).await.unwrap();
+    assert_eq!(listing.as_array().map(|s| s.len()), Some(0));
+
+    // HELLO stays in the command catalog for pre-Thunder clients that
+    // still lead with it. In single-user mode it reports the implicit
+    // local admin and the v1 protocol version.
+    let hello = client
+        .call(
+            "HELLO",
+            vec![Value::Map(vec![(
+                Value::Str("version".into()),
+                Value::Int(1),
             )])],
-        },
-    )
-    .await
-    .unwrap();
-    let resp = read_response(&mut reader).await.unwrap();
-    assert_eq!(resp.id, 1);
-    let payload = resp.result.expect("HELLO must succeed in single-user mode");
-    let auth_flag = payload.map_get("authenticated").and_then(|v| v.as_bool());
-    assert_eq!(auth_flag, Some(true));
-    let admin_flag = payload.map_get("admin").and_then(|v| v.as_bool());
-    assert_eq!(admin_flag, Some(true));
-    let proto_version = payload.map_get("protocol_version").and_then(|v| v.as_int());
-    assert_eq!(proto_version, Some(1));
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        hello.map_get("authenticated").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert_eq!(hello.map_get("admin").and_then(|v| v.as_bool()), Some(true));
+    assert_eq!(
+        hello.map_get("protocol_version").and_then(|v| v.as_int()),
+        Some(1)
+    );
 
-    // 2. PING — confirms a post-HELLO command goes through.
-    write_request(
-        &mut write_half,
-        &Request {
-            id: 2,
-            command: "PING".into(),
-            args: vec![],
-        },
-    )
-    .await
-    .unwrap();
-    let pong = read_response(&mut reader).await.unwrap();
-    assert_eq!(pong.id, 2);
-    assert_eq!(pong.result.as_ref().unwrap().as_str(), Some("PONG"));
-
-    // 3. collections.list on an empty store returns an empty array
-    //    (not an error). Confirms the auth state persisted across
-    //    requests and the dispatch reaches the registry-backed handler.
-    write_request(
-        &mut write_half,
-        &Request {
-            id: 3,
-            command: "collections.list".into(),
-            args: vec![],
-        },
-    )
-    .await
-    .unwrap();
-    let listing = read_response(&mut reader).await.unwrap();
-    assert_eq!(listing.id, 3);
-    let arr = listing.result.unwrap();
-    assert_eq!(arr.as_array().map(|s| s.len()), Some(0));
+    client.close().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unauthenticated_command_is_rejected() {
-    let addr = boot_listener().await;
-    let stream = TcpStream::connect(addr).await.unwrap();
-    let (read_half, mut write_half) = stream.into_split();
-    let mut reader = BufReader::new(read_half);
+    let (auth_state, _jwt) = auth_state_with_admin_jwt();
+    let endpoint = boot_listener(Some(auth_state)).await;
 
-    // Skip HELLO and go straight to a data-plane command. The dispatch
-    // must reject with a clear error rather than crash or hang.
-    write_request(
-        &mut write_half,
-        &Request {
-            id: 1,
-            command: "collections.list".into(),
-            args: vec![],
-        },
+    // No credentials on the client config: under `Handshake::AuthCommand`
+    // that means no `AUTH` frame, so the session stays gated. The dial
+    // still succeeds — the refusal happens per command.
+    let client = Client::connect(&endpoint, vectorizer_config())
+        .await
+        .unwrap();
+    assert!(!client.is_authenticated());
+
+    let err = client.call("collections.list", vec![]).await.unwrap_err();
+    assert!(
+        matches!(err, ClientError::Auth { .. }),
+        "expected an auth-class error, got: {err:?}"
+    );
+
+    client.close().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn admin_jwt_authenticates_the_session() {
+    let (auth_state, jwt) = auth_state_with_admin_jwt();
+    let endpoint = boot_listener(Some(auth_state)).await;
+
+    // `Dispatch::authenticate` validates the secret as a JWT and lifts
+    // the admin bit out of its claims, so the session is authenticated
+    // before the first command and passes the admin ACL.
+    let client = Client::connect_with(
+        &endpoint,
+        vectorizer_config(),
+        ClientConfig::new().token(jwt),
     )
     .await
     .unwrap();
-    let resp = read_response(&mut reader).await.unwrap();
-    assert_eq!(resp.id, 1);
-    let err = resp.result.unwrap_err();
-    assert!(
-        err.contains("authentication required"),
-        "expected auth-required error, got: {err}"
-    );
+    assert!(client.is_authenticated());
+
+    let listing = client.call("collections.list", vec![]).await.unwrap();
+    assert_eq!(listing.as_array().map(|s| s.len()), Some(0));
+
+    client.close().await;
 }

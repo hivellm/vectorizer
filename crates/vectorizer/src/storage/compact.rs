@@ -129,6 +129,9 @@ impl StorageCompactor {
                         config: Some(config),
                         vectors: persisted_vectors,
                         hnsw_dump_basename: None,
+                        // The collection TTL rule travels with the archive so
+                        // it still applies after a restart.
+                        ttl_secs: store.collection_ttl(name),
                     };
 
                     persisted_collections.push(persisted);

@@ -1,40 +1,81 @@
 """Synchronous ``RpcClient`` over a single TCP connection.
 
-Mirrors ``sdks/rust/src/rpc/client.rs`` but blocking, stdlib-only
-(``socket`` + ``threading``). One background reader thread demultiplexes
-responses by ``Request.id`` into per-call ``queue.Queue`` mailboxes so
-concurrent calls from caller threads on the same client don't block
-each other.
+The transport is Thunder's (:class:`thunder_rpc.Client`): one connection per
+client, responses demultiplexed by frame id, bounded in-flight, connect and
+per-call timeouts, lazy re-dial and typed errors. What lives here is
+Vectorizer's shape on top of it — the ``vectorizer://`` protocol config, the
+HELLO payload/response types, and the exception hierarchy the typed wrappers
+in :mod:`rpc.commands` raise.
 
-Auth is sticky per-connection (wire spec § 4): every connection MUST
-issue ``HELLO`` before any data-plane command. The local ``call``
-method enforces this client-side so callers see a clear typed error
-instead of a server-side string.
+Auth is sticky per-connection (wire spec § 4), and Thunder carries credentials
+in the connection handshake (``AUTH``) rather than in a command.
+:meth:`RpcClient.hello` therefore re-dials when its payload carries a token or
+an API key, so the credentials reach the session later commands run under; the
+HELLO command itself still runs, because the server answers it with the
+capability list and auth flags this client surfaces.
+
+Thread-safe: multiple caller threads may call methods concurrently.
 """
 
 from __future__ import annotations
 
-import queue
-import socket
-import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import List, Optional, Sequence
 
-from rpc._codec import encode_frame, read_frame_sync
-from rpc.endpoint import Endpoint, parse_endpoint
-from rpc.types import Request, Response, VectorizerValue
+from thunder_rpc import (
+    AuthError,
+    Client,
+    ClientConfig,
+    Config,
+    Credentials,
+    ErrorConvention,
+    Handshake,
+    HelloStyle,
+    PushPolicy,
+    ServerError,
+    ThunderError,
+)
 
-# Sentinel returned by the reader queue when the reader thread exits.
-# A separate object so it can never collide with a real Response.
-_READER_DEAD = object()
+# Thunder's `ConnectionError` and `TimeoutError` shadow the builtins of the
+# same name; alias them so `isinstance` checks below cannot silently test the
+# wrong class.
+from thunder_rpc import ConnectionError as ThunderConnectionError
+from thunder_rpc import TimeoutError as ThunderTimeoutError
+
+from rpc.endpoint import DEFAULT_RPC_PORT, Endpoint, parse_endpoint
+from rpc.types import VectorizerValue
+
+#: Frame-body cap, matching the server's listener so neither end rejects a
+#: frame the other is willing to send.
+MAX_FRAME_BYTES = 512 * 1024 * 1024
+
+
+def protocol_config() -> Config:
+    """How Vectorizer uses the Thunder wire.
+
+    The client half of the server's ``vectorizer_config()``: the
+    ``vectorizer`` scheme, an ``AUTH``-command handshake, no HELLO
+    negotiation (the ``HELLO`` *command* is Vectorizer's own), no server
+    push, and RESP3-style error prefixes. Declared here rather than imported
+    so the SDK depends only on published packages.
+    """
+    return Config(
+        scheme="vectorizer",
+        default_port=DEFAULT_RPC_PORT,
+        handshake=Handshake.AUTH_COMMAND,
+        hello_style=HelloStyle.NOT_USED,
+        push=PushPolicy.RESERVED,
+        error_codes=ErrorConvention.RESP3_PREFIXES,
+        max_frame_bytes=MAX_FRAME_BYTES,
+    )
 
 
 class RpcClientError(Exception):
     """Base exception for ``RpcClient`` failures.
 
-    Subclassed for the four error conditions the protocol can produce.
-    Use ``isinstance`` to discriminate; the string form is also stable
-    for logging.
+    Subclassed for the error conditions the protocol can produce. Use
+    ``isinstance`` to discriminate; the string form is also stable for
+    logging.
     """
 
 
@@ -43,31 +84,56 @@ class RpcServerError(RpcClientError):
 
 
 class RpcConnectionClosed(RpcClientError):
-    """The reader thread exited before the response arrived.
+    """The connection failed: the dial was refused, the write failed, or the
+    peer went away while the call was pending.
 
-    Either the peer closed cleanly (``EOF``) or an I/O error tore down
-    the socket. Either way, the client's connection is unusable; build
-    a new one.
+    Thunder re-dials lazily on the next call; a dial that cannot be
+    re-established keeps raising this.
     """
 
 
 class RpcNotAuthenticated(RpcClientError):
-    """A data-plane command was issued before HELLO succeeded.
+    """The server refused the session's credentials.
 
-    The server would also reject this; the client surfaces it locally
-    so the offending caller sees a clear error without burning a
-    network round-trip.
+    Raised for ``NOAUTH`` (no ``AUTH`` sent, or HELLO issued without
+    credentials against an auth-enabled server), ``WRONGPASS``, and
+    ``NOPERM`` on an admin-only command.
     """
+
+
+class RpcTimeout(RpcClientError):
+    """The connect or per-call timeout elapsed."""
+
+
+class RpcProtocolError(RpcClientError):
+    """The peer sent a malformed or oversized frame; the connection is
+    poisoned and the next call re-dials."""
+
+
+def _to_rpc_error(exc: ThunderError) -> RpcClientError:
+    """Map a typed Thunder error onto this SDK's exception hierarchy."""
+    if isinstance(exc, AuthError):
+        return RpcNotAuthenticated(str(exc))
+    if isinstance(exc, ServerError):
+        return RpcServerError(str(exc))
+    if isinstance(exc, ThunderTimeoutError):
+        return RpcTimeout(str(exc))
+    if isinstance(exc, ThunderConnectionError):
+        return RpcConnectionClosed(str(exc))
+    return RpcProtocolError(str(exc))
 
 
 @dataclass
 class HelloPayload:
-    """HELLO request payload — sent as the FIRST frame on a connection.
+    """HELLO request payload.
 
-    At least one of ``token`` / ``api_key`` should be populated when
-    the server has auth enabled. When the server runs in single-user
-    mode (``auth.enabled: false``), credentials are accepted-but-ignored
-    and the connection runs as the implicit local admin.
+    At least one of ``token`` / ``api_key`` should be populated when the
+    server has auth enabled: those credentials travel in the connection
+    handshake, so passing them to :meth:`RpcClient.hello` is what
+    authenticates the session. When the server runs in single-user mode
+    (``auth.enabled: false``) the listener is open, credentials are
+    accepted-but-ignored, and the connection runs as the implicit local
+    admin.
     """
 
     client_name: Optional[str] = None
@@ -94,6 +160,14 @@ class HelloPayload:
             api_key=api_key,
             version=self.version,
         )
+
+    def credentials(self) -> Optional[Credentials]:
+        """The handshake credentials this payload carries, if any."""
+        if self.token is not None:
+            return Credentials.token(self.token)
+        if self.api_key is not None:
+            return Credentials.api_key(self.api_key)
+        return None
 
     def to_value(self) -> VectorizerValue:
         pairs: List = [
@@ -140,59 +214,40 @@ class HelloResponse:
         )
 
 
-# Auth-exempt commands per wire spec § 4.
-_AUTH_EXEMPT = frozenset({"HELLO", "PING"})
-
-
 class RpcClient:
     """One synchronous connection to a Vectorizer RPC server.
 
     Construct with :meth:`connect` (raw ``host:port``) or
-    :meth:`connect_url` (``vectorizer://`` URL). Always issue
-    :meth:`hello` before any data-plane call.
-
-    Thread-safe: multiple caller threads may call methods concurrently;
-    requests serialize on a writer lock and responses are demultiplexed
-    by ``id`` into per-call queues.
+    :meth:`connect_url` (``vectorizer://`` URL). Issue :meth:`hello` with
+    credentials when the server enforces auth.
     """
 
-    def __init__(self, sock: socket.socket) -> None:
-        self._sock = sock
-        # The writer lock guarantees frames don't interleave on the
-        # wire when multiple threads call concurrently.
-        self._writer_lock = threading.Lock()
-        # Map from request id → mailbox queue (size 1) for the response.
-        self._pending: Dict[int, "queue.Queue[object]"] = {}
-        self._pending_lock = threading.Lock()
-        self._next_id = 1
-        self._id_lock = threading.Lock()
-        self._authenticated = False
-        self._auth_lock = threading.Lock()
+    def __init__(self, client: Client, endpoint: str, client_config: ClientConfig) -> None:
+        self._client = client
+        self._endpoint = endpoint
+        self._client_config = client_config
         self._closed = False
-        self._reader = threading.Thread(
-            target=self._read_loop, name="vectorizer-rpc-reader", daemon=True
-        )
-        self._reader.start()
 
     # ── construction ─────────────────────────────────────────────────
     @classmethod
     def connect(cls, address: str, timeout: Optional[float] = None) -> "RpcClient":
-        """Open a TCP connection to ``address`` (``host:port``).
+        """Dial ``address`` — ``host:port``, or any form
+        :func:`thunder_rpc.parse_endpoint` accepts.
 
-        Does NOT send HELLO — callers MUST call :meth:`hello` before
-        any data-plane command, or the server will reject it.
+        Does NOT authenticate: pass credentials to :meth:`hello`, which
+        re-dials with them in the handshake.
 
-        ``timeout`` (seconds) controls only the connect step. Once the
-        socket is established it switches to blocking mode so the
-        reader thread blocks on ``recv`` indefinitely.
+        ``timeout`` (seconds) sets both the connect and the per-call
+        timeout; ``None`` keeps Thunder's defaults (10 s / 30 s).
         """
-        host, port = _split_host_port(address)
-        sock = socket.create_connection((host, port), timeout=timeout)
-        # Disable Nagle: every RPC frame is a complete request, latency
-        # matters more than packing several into one segment.
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        sock.settimeout(None)
-        return cls(sock)
+        client_config = ClientConfig(client_name="vectorizer-python-sdk")
+        if timeout is not None:
+            client_config = ClientConfig(
+                connect_timeout=timeout,
+                call_timeout=timeout,
+                client_name="vectorizer-python-sdk",
+            )
+        return cls(cls._dial(address, client_config), address, client_config)
 
     @classmethod
     def connect_url(cls, url: str, timeout: Optional[float] = None) -> "RpcClient":
@@ -213,22 +268,42 @@ class RpcClient:
             )
         raise RpcServerError(f"unrecognised endpoint shape: {ep!r}")
 
+    @staticmethod
+    def _dial(endpoint: str, client_config: ClientConfig) -> Client:
+        try:
+            return Client.connect(endpoint, protocol_config(), client_config)
+        except ThunderError as exc:
+            raise _to_rpc_error(exc) from exc
+
     # ── handshake + health ───────────────────────────────────────────
     def hello(self, payload: HelloPayload) -> HelloResponse:
-        """Issue the HELLO handshake. Must be the first call on a
-        fresh connection. Returns the server's capability list and
-        auth flags."""
-        result = self._raw_call("HELLO", [payload.to_value()])
-        parsed = HelloResponse.parse(result)
-        if parsed.authenticated:
-            with self._auth_lock:
-                self._authenticated = True
-        return parsed
+        """Issue the HELLO handshake and return the server's capability
+        list and auth flags.
+
+        When ``payload`` carries a token or an API key, the connection is
+        re-dialed so those credentials travel in Thunder's ``AUTH``
+        handshake — that is what authenticates the session every later
+        command runs under. A credential-free payload reuses the existing
+        connection.
+        """
+        credentials = payload.credentials()
+        if credentials is not None:
+            client_config = ClientConfig(
+                connect_timeout=self._client_config.connect_timeout,
+                call_timeout=self._client_config.call_timeout,
+                credentials=credentials,
+                client_name=payload.client_name or self._client_config.client_name,
+            )
+            fresh = self._dial(self._endpoint, client_config)
+            previous = self._client
+            self._client = fresh
+            self._client_config = client_config
+            previous.close()
+        return HelloResponse.parse(self.call("HELLO", [payload.to_value()]))
 
     def ping(self) -> str:
         """Health check. Auth-exempt per wire spec § 4 — works pre-HELLO."""
-        result = self._raw_call("PING", [])
-        s = result.as_str()
+        s = self.call("PING", []).as_str()
         if s is None:
             raise RpcServerError("PING returned non-string payload")
         return s
@@ -240,40 +315,29 @@ class RpcClient:
         """Dispatch a generic command. Most callers should reach for a
         typed wrapper from :mod:`rpc.commands` instead.
 
-        Enforces the local auth gate: data-plane commands raise
-        :class:`RpcNotAuthenticated` before sending if HELLO hasn't
-        succeeded.
+        The server gates un-authenticated sessions, so a data-plane command
+        on a session that never authenticated raises
+        :class:`RpcNotAuthenticated`.
         """
-        if command not in _AUTH_EXEMPT:
-            with self._auth_lock:
-                if not self._authenticated:
-                    raise RpcNotAuthenticated(
-                        "HELLO must succeed before any data-plane command can be issued"
-                    )
-        return self._raw_call(command, list(args or []))
+        try:
+            return self._client.call(command, list(args or []))
+        except ThunderError as exc:
+            raise _to_rpc_error(exc) from exc
 
     def is_authenticated(self) -> bool:
-        with self._auth_lock:
-            return self._authenticated
+        """``True`` once the connection's handshake authenticated. Always
+        ``False`` against an open (single-user) server, which authenticates
+        nobody because it gates nothing."""
+        return self._client.is_authenticated()
 
     # ── shutdown ─────────────────────────────────────────────────────
     def close(self) -> None:
-        """Close the underlying socket. In-flight calls receive
+        """Close the connection. In-flight calls receive
         :class:`RpcConnectionClosed`."""
         if self._closed:
             return
         self._closed = True
-        try:
-            # Half-shutdown so the reader thread sees EOF cleanly.
-            self._sock.shutdown(socket.SHUT_RDWR)
-        except OSError:
-            pass
-        try:
-            self._sock.close()
-        except OSError:
-            pass
-        # Wake any stuck callers.
-        self._fail_all_pending()
+        self._client.close()
 
     def __enter__(self) -> "RpcClient":
         return self
@@ -287,96 +351,17 @@ class RpcClient:
         except Exception:
             pass
 
-    # ── internals ────────────────────────────────────────────────────
-    def _alloc_id(self) -> int:
-        # u32 wrap (matches the Rust SDK; collisions on a long-lived
-        # connection are vanishingly rare because in-flight is bounded
-        # by application backpressure).
-        with self._id_lock:
-            rid = self._next_id
-            self._next_id = (self._next_id + 1) & 0xFFFFFFFF
-            if self._next_id == 0:
-                self._next_id = 1
-        return rid
 
-    def _raw_call(self, command: str, args: List[VectorizerValue]) -> VectorizerValue:
-        rid = self._alloc_id()
-        mailbox: "queue.Queue[object]" = queue.Queue(maxsize=1)
-        with self._pending_lock:
-            self._pending[rid] = mailbox
-
-        req = Request(id=rid, command=command, args=args)
-        frame = encode_frame(req.to_msgpack())
-
-        try:
-            with self._writer_lock:
-                self._sock.sendall(frame)
-        except OSError as e:
-            with self._pending_lock:
-                self._pending.pop(rid, None)
-            raise RpcConnectionClosed(f"send failed: {e}") from e
-
-        # Block on the mailbox. The reader thread either pushes a
-        # Response or pushes _READER_DEAD on shutdown.
-        item = mailbox.get()
-        if item is _READER_DEAD:
-            raise RpcConnectionClosed("connection closed before response")
-        assert isinstance(item, Response)
-        tag, payload = item.result
-        if tag == "Ok":
-            assert isinstance(payload, VectorizerValue)
-            return payload
-        raise RpcServerError(str(payload))
-
-    def _read_loop(self) -> None:
-        try:
-            while True:
-                raw = read_frame_sync(self._sock)
-                resp = Response.from_msgpack(raw)
-                with self._pending_lock:
-                    mailbox = self._pending.pop(resp.id, None)
-                if mailbox is not None:
-                    try:
-                        mailbox.put_nowait(resp)
-                    except queue.Full:  # pragma: no cover — mailbox is size 1, only one writer
-                        pass
-                # else: response with no pending caller — drop silently.
-        except (ConnectionError, OSError, ValueError, EOFError):
-            # Includes msgpack decode errors (ValueError) and clean EOF
-            # (asyncio.IncompleteReadError analog: ConnectionError from
-            # _read_exact_sync).
-            pass
-        finally:
-            self._fail_all_pending()
-
-    def _fail_all_pending(self) -> None:
-        with self._pending_lock:
-            mailboxes = list(self._pending.values())
-            self._pending.clear()
-        for mb in mailboxes:
-            try:
-                mb.put_nowait(_READER_DEAD)
-            except queue.Full:  # pragma: no cover
-                pass
-
-
-def _split_host_port(address: str) -> tuple[str, int]:
-    """Split a ``host:port`` string. IPv6 literals (``[::1]:1234``) are
-    handled specially so the colons inside the brackets aren't treated
-    as port separators."""
-    if address.startswith("["):
-        close = address.find("]")
-        if close < 0:
-            raise ValueError(f"unterminated IPv6 literal in address: {address!r}")
-        host = address[1:close]
-        rest = address[close + 1 :]
-        if not rest.startswith(":"):
-            raise ValueError(
-                f"expected ':<port>' after IPv6 literal in address: {address!r}"
-            )
-        port = int(rest[1:])
-        return host, port
-    if ":" not in address:
-        raise ValueError(f"address must include ':<port>', got {address!r}")
-    host, _, port_str = address.rpartition(":")
-    return host, int(port_str)
+__all__ = [
+    "MAX_FRAME_BYTES",
+    "HelloPayload",
+    "HelloResponse",
+    "RpcClient",
+    "RpcClientError",
+    "RpcConnectionClosed",
+    "RpcNotAuthenticated",
+    "RpcProtocolError",
+    "RpcServerError",
+    "RpcTimeout",
+    "protocol_config",
+]

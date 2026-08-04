@@ -1,36 +1,50 @@
-//! VectorizerRPC TCP listener + connection loop.
+//! VectorizerRPC on Thunder's transport.
 //!
-//! Wire spec § 1, 4, 5: `docs/specs/VECTORIZER_RPC.md`. Ported from
-//! `../Synap/synap-server/src/protocol/synap_rpc/server.rs`. Compared to
-//! the Synap reference this version omits the `SUBSCRIBE` / pub-sub
-//! plumbing (Vectorizer has no pub-sub use case in v1) and adapts the
-//! state type from Synap's `AppState` to a minimal [`RpcState`]
-//! carrying only what the dispatch table needs.
+//! Vectorizer's command catalog runs on `thunder-rpc` (lib `thunder`), the
+//! HiveLLM family's shared binary RPC stack — the same wire (length-prefixed
+//! MessagePack) Vectorizer already spoke, now maintained once for every
+//! language. The accept loop, per-connection writer task, frame codec, session
+//! state machine, handshake gating and graceful drain all belong to
+//! [`thunder::server`]. What lives here is the [`Dispatch`] implementation that
+//! binds Vectorizer's engine to it: command routing (delegated to
+//! [`super::dispatch::dispatch`]) and credential validation.
 //!
-//! Each accepted connection runs a reader loop that decodes
-//! length-prefixed MessagePack [`Request`] frames, spawns a
-//! `tokio::task` per request for dispatch concurrency, and forwards
-//! [`Response`]s through an `mpsc::channel` to a single writer task.
-//! The writer-task pattern keeps frames serialised on the wire even
-//! though dispatch is concurrent — multiplexed responses come back
-//! via the `Request.id` echo.
+//! Auth: Thunder's `AuthCommand` handshake carries credentials in `AUTH`, which
+//! Thunder routes to [`Dispatch::authenticate`]; it flips the session's auth
+//! flag on success, so the per-command handlers never re-check "authenticated".
+//! When the deployment disables auth (`RpcState.auth == None`) the listener is
+//! opened with [`ListenerConfig::open`] and every caller is the implicit local
+//! admin. The per-command admin ACL (`require_admin`) is preserved: the admin
+//! bit resolved at `AUTH` rides the session and is rebuilt into the
+//! [`ConnectionAuth`] snapshot each dispatch reads.
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Instant;
 
-use tokio::io::BufReader;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc;
-use tracing::{debug, error, info, info_span, warn};
+use parking_lot::RwLock;
+use thunder::server::{
+    AuthError, Credentials, Dispatch, ListenerConfig, Principal, ServerInfo, Session,
+    spawn_listener,
+};
+use thunder::wire::config::{ErrorConvention, Handshake, HelloStyle, PushPolicy};
+use thunder::{Config, Request, Value};
+use tracing::info;
 use vectorizer::cache::SlowQueryRing;
 use vectorizer::db::VectorStore;
 use vectorizer::embedding::EmbeddingManager;
-use vectorizer_protocol::rpc_wire::codec::{read_request, write_response};
-use vectorizer_protocol::rpc_wire::types::{Request, Response};
 
-use super::dispatch::{ConnectionAuth, dispatch};
+use super::dispatch::{ConnectionAuth, dispatch, validate_credentials};
 use crate::server::AuthHandlerState;
+
+/// Vectorizer's slot in the 15500-range binary-transport convention shared with
+/// Synap; the default the SDKs assume when a `vectorizer://host` URL omits the
+/// port (`docs/specs/VECTORIZER_RPC.md` § 12).
+const DEFAULT_RPC_PORT: u16 = 15503;
+
+/// Frame-body cap. Matches the family default (Synap's 512 MiB) so large batch
+/// inserts and raw-LE-f32 embedding payloads are not rejected; well above the
+/// pre-Thunder codec's 64 MiB body cap.
+const MAX_FRAME_BYTES: usize = 512 * 1024 * 1024;
 
 /// Shared state passed into every RPC connection handler.
 #[derive(Clone)]
@@ -41,8 +55,8 @@ pub struct RpcState {
     /// queries into dense vectors.
     pub embedding_manager: Arc<EmbeddingManager>,
     /// Auth handler state. `None` when auth is globally disabled
-    /// (single-user mode); the dispatch table treats every caller as
-    /// the implicit local admin in that case.
+    /// (single-user mode); the listener is opened and the dispatch table
+    /// treats every caller as the implicit local admin in that case.
     pub auth: Option<AuthHandlerState>,
     /// Master replication node, present only when this instance runs as master.
     pub master_node: Option<Arc<vectorizer::replication::MasterNode>>,
@@ -52,112 +66,150 @@ pub struct RpcState {
     pub cluster_manager: Option<Arc<vectorizer::cluster::ClusterManager>>,
     /// Slow-query ring buffer for `admin.slow_queries_*`.
     pub slow_query_ring: SlowQueryRing,
+    /// Auto-save manager. Every mutating command marks it dirty, which is
+    /// what lets the periodic compaction loop persist the write — that loop
+    /// only runs when `changes_detected` is set, so an unmarked write is
+    /// invisible to it and is lost on a hard kill. `collections.force_save`
+    /// drives an immediate compaction through the same handle. `None` only
+    /// in the test-harness constructor, where nothing is persisted.
+    pub auto_save_manager: Option<Arc<vectorizer::db::AutoSaveManager>>,
 }
 
-/// Spawn the RPC TCP listener on `addr`. Returns immediately; the
-/// listener and its per-connection workers run as detached background
-/// tasks. The returned handle keeps the bind alive for the caller's
-/// lifetime — drop it to stop accepting new connections.
-pub async fn spawn_rpc_listener(state: RpcState, addr: SocketAddr) -> std::io::Result<()> {
-    let listener = TcpListener::bind(addr).await?;
-    info!("VectorizerRPC server listening on {addr}");
-
-    tokio::spawn(async move {
-        loop {
-            match listener.accept().await {
-                Ok((stream, peer)) => {
-                    debug!(peer = %peer, "VectorizerRPC connection accepted");
-                    let state = state.clone();
-                    tokio::spawn(async move {
-                        let span = info_span!("rpc.conn", peer = %peer);
-                        let _guard = span.enter();
-                        if let Err(e) = handle_connection(stream, state).await {
-                            debug!(peer = %peer, error = %e, "VectorizerRPC connection error");
-                        }
-                        debug!(peer = %peer, "VectorizerRPC connection closed");
-                    });
-                }
-                Err(e) => {
-                    error!(error = %e, "VectorizerRPC accept error");
-                }
-            }
+impl RpcState {
+    /// Record that a mutation happened, so the periodic auto-save loop
+    /// picks it up. Call from every command that writes.
+    pub fn mark_changed(&self) {
+        if let Some(manager) = &self.auto_save_manager {
+            manager.mark_changed();
         }
-    });
-
-    Ok(())
+    }
 }
 
-async fn handle_connection(stream: TcpStream, state: RpcState) -> std::io::Result<()> {
-    let peer = stream.peer_addr()?;
-    let (read_half, write_half) = stream.into_split();
-    let mut reader = BufReader::new(read_half);
+/// Product identity carried on the Thunder session (SRV-012): resolved once at
+/// `AUTH`, stable for the connection. Vectorizer only needs the admin bit for
+/// the per-command ACL; the principal's display name lives on
+/// [`Principal::name`].
+#[derive(Debug, Clone)]
+pub struct RpcIdentity {
+    /// `true` when the authenticated principal carries `Role::Admin`.
+    pub admin: bool,
+}
 
-    // Writer channel: dispatch tasks send responses here; a single
-    // writer task drains them to the socket so frames stay coherent.
-    let (tx, mut rx) = mpsc::channel::<(Response, String, f64)>(64);
-    let mut writer = write_half;
+/// How Vectorizer uses the Thunder wire. Mirrors Synap's `synap_config` with
+/// two divergences: the `vectorizer` scheme, and `PushPolicy::Reserved`
+/// (Vectorizer ships no push-producing command). Both halves of the product —
+/// this listener and the SDK clients — read the same shape, so the wire cannot
+/// drift between them.
+pub fn vectorizer_config() -> Config {
+    Config::standard()
+        .scheme("vectorizer")
+        .port(DEFAULT_RPC_PORT)
+        .handshake(Handshake::AuthCommand)
+        .hello_style(HelloStyle::NotUsed)
+        .push(PushPolicy::Reserved)
+        .error_codes(ErrorConvention::Resp3Prefixes)
+        .max_frame_bytes(MAX_FRAME_BYTES)
+}
 
-    let write_task = tokio::spawn(async move {
-        while let Some((response, command, elapsed)) = rx.recv().await {
-            if let Err(e) = write_response(&mut writer, &response).await {
-                debug!(error = %e, "VectorizerRPC write error");
-                break;
-            }
-            if elapsed > 0.001 {
-                warn!(
-                    cmd = %command,
-                    elapsed_ms = elapsed * 1_000.0,
-                    "VectorizerRPC slow command"
-                );
-            } else {
-                debug!(
-                    cmd = %command,
-                    elapsed_us = elapsed * 1_000_000.0,
-                    ok = response.result.is_ok(),
-                    "VectorizerRPC command"
-                );
-            }
-        }
-    });
+/// Vectorizer's integration with Thunder: command dispatch + credential
+/// validation over the shared [`RpcState`].
+struct VectorizerDispatch {
+    state: Arc<RpcState>,
+}
 
-    // Per-connection auth state. `HELLO` flips `authenticated` once
-    // valid credentials arrive; subsequent requests inherit it. Wrapped
-    // in `Arc<RwLock<>>` so concurrent dispatch tasks can read it
-    // without serialising on a `Mutex` — the only writer is the HELLO
-    // handler which runs at most once per connection.
-    let auth = Arc::new(parking_lot::RwLock::new(ConnectionAuth::default()));
+impl Dispatch for VectorizerDispatch {
+    type Identity = RpcIdentity;
 
-    let state = Arc::new(state);
-
-    loop {
-        let req: Request = match read_request(&mut reader).await {
-            Ok(r) => r,
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
-            Err(e) => {
-                debug!(peer = %peer, error = %e, "VectorizerRPC read error");
-                break;
-            }
-        };
-
-        let command = req.command.clone();
-        let state = Arc::clone(&state);
-        let tx = tx.clone();
-        let auth = Arc::clone(&auth);
-
-        tokio::spawn(async move {
-            let start = Instant::now();
-            let span = tracing::debug_span!("rpc.req", id = req.id, cmd = %req.command);
-            let response = {
-                let _g = span.enter();
-                dispatch(&state, &auth, req).await
-            };
-            let elapsed = start.elapsed().as_secs_f64();
-            let _ = tx.send((response, command, elapsed)).await;
+    async fn dispatch(
+        &self,
+        session: &Session<RpcIdentity>,
+        command: &str,
+        args: Vec<Value>,
+    ) -> Result<Value, String> {
+        // Rebuild the per-request auth snapshot the command handlers expect
+        // from the identity captured at `AUTH`. Thunder has already gated
+        // un-authenticated sessions (or the listener is `.open()` and there is
+        // no principal — the implicit local admin), so `authenticated` is
+        // always true by the time a command reaches here.
+        let (admin, principal) = session.with_principal(|p| match p {
+            Some(p) => (p.identity.admin, Some(p.name.clone())),
+            None => (true, None),
         });
+        let auth = Arc::new(RwLock::new(ConnectionAuth {
+            authenticated: true,
+            admin,
+            principal,
+        }));
+
+        // Thunder owns the request id (it echoes it on the wire); the handlers
+        // still take a `Request`, so pass a fixed id and return only the
+        // result payload.
+        let req = Request {
+            id: 0,
+            command: command.to_string(),
+            args,
+        };
+        dispatch(&self.state, &auth, req).await.result
     }
 
-    drop(tx);
-    let _ = write_task.await;
+    async fn authenticate(&self, creds: Credentials) -> Result<Principal<RpcIdentity>, AuthError> {
+        let Some(handler) = self.state.auth.as_ref() else {
+            // Auth disabled globally. With `.open()` this hook is not reached,
+            // but if a client sends `AUTH` anyway, accept it as the local admin.
+            return Ok(Principal::with_identity(
+                "local",
+                RpcIdentity { admin: true },
+            ));
+        };
+
+        // Vectorizer authenticates with a single secret — a JWT or an API key.
+        // Thunder tags a single-arg `AUTH <secret>` as `ApiKey`, so the secret
+        // is validated as a JWT first and as an API key second, regardless of
+        // which credential variant carried it.
+        let secret = match creds {
+            Credentials::Token(t) | Credentials::ApiKey(t) => t,
+            Credentials::UserPass(_user, pass) => pass,
+            Credentials::None => return Err(AuthError::InvalidCredentials),
+        };
+
+        match validate_credentials(handler, Some(&secret), None).await {
+            Ok((name, admin)) => Ok(Principal::with_identity(name, RpcIdentity { admin })),
+            Err(_) => match validate_credentials(handler, None, Some(&secret)).await {
+                Ok((name, admin)) => Ok(Principal::with_identity(name, RpcIdentity { admin })),
+                Err(msg) => Err(AuthError::Message(msg)),
+            },
+        }
+    }
+}
+
+/// Spawn the VectorizerRPC listener on `addr`. Returns once the listener is
+/// bound; the accept loop, per-connection tasks and graceful drain run inside
+/// Thunder. The listener lives for the process: its [`ListenerHandle`] is
+/// intentionally retained via [`std::mem::forget`] rather than threaded up to
+/// the bootstrap caller — the pre-Thunder listener was likewise a detached,
+/// process-lifetime accept loop with no stop handle.
+pub async fn spawn_rpc_listener(state: RpcState, addr: SocketAddr) -> std::io::Result<()> {
+    let auth_enabled = state.auth.is_some();
+    let dispatch = Arc::new(VectorizerDispatch {
+        state: Arc::new(state),
+    });
+
+    let mut listener_config = ListenerConfig::new(addr);
+    if !auth_enabled {
+        listener_config = listener_config.open();
+    }
+
+    let info = ServerInfo {
+        name: "vectorizer".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    };
+
+    let handle = spawn_listener(dispatch, vectorizer_config(), info, listener_config).await?;
+    info!("VectorizerRPC server listening on {}", handle.local_addr());
+
+    // The listener runs for the process lifetime; keep it alive by leaking the
+    // handle (dropping it would stop accepting connections).
+    std::mem::forget(handle);
 
     Ok(())
 }

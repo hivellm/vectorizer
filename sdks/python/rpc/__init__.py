@@ -45,7 +45,10 @@ from rpc.sync_client import (
     RpcClientError,
     RpcConnectionClosed,
     RpcNotAuthenticated,
+    RpcProtocolError,
     RpcServerError,
+    RpcTimeout,
+    protocol_config,
 )
 from rpc.types import Request, Response, VectorizerValue
 
@@ -143,7 +146,9 @@ __all__ = [
     "RpcNotAuthenticated",
     "RpcPool",
     "RpcPoolConfig",
+    "RpcProtocolError",
     "RpcServerError",
+    "RpcTimeout",
     "RotatedApiKey",
     "ScoredCollection",
     "SearchExplainResult",
@@ -156,4 +161,5 @@ __all__ = [
     "VectorWriteResult",
     "VectorizerValue",
     "parse_endpoint",
+    "protocol_config",
 ]

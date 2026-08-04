@@ -50,6 +50,18 @@ openraft::declare_raft_types!(
         LeaderId = leader_id_mode::LeaderId<Self::Term, Self::NodeId>,
 );
 
+/// Snapshot payload type for cluster consensus: the whole state machine
+/// serialized as JSON, carried in an in-memory cursor.
+///
+/// openraft 0.10.0-alpha.29 moved `SnapshotData` off `RaftTypeConfig` and onto
+/// the components that produce and consume snapshot bytes, so the state
+/// machine, its snapshot builder and the network all name this type
+/// independently. Keeping one alias here means they cannot drift apart —
+/// `RaftStateMachine::SnapshotBuilder` is bound to
+/// `RaftSnapshotBuilder<C, SnapshotData = Self::SnapshotData>`, so a mismatch
+/// would be a compile error anyway.
+pub type ClusterSnapshotData = Cursor<Vec<u8>>;
+
 // ---------------------------------------------------------------------------
 // Application data types
 // ---------------------------------------------------------------------------
@@ -163,7 +175,11 @@ impl ClusterStateMachine {
 }
 
 impl RaftSnapshotBuilder<TypeConfig> for Arc<ClusterStateMachine> {
-    async fn build_snapshot(&mut self) -> Result<SnapshotOf<TypeConfig>, io::Error> {
+    type SnapshotData = ClusterSnapshotData;
+
+    async fn build_snapshot(
+        &mut self,
+    ) -> Result<SnapshotOf<TypeConfig, ClusterSnapshotData>, io::Error> {
         let sm = self.sm.read().await;
         let data = serde_json::to_vec(&*sm)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
@@ -200,7 +216,7 @@ impl RaftSnapshotBuilder<TypeConfig> for Arc<ClusterStateMachine> {
 
         info!(snapshot_size = data.len(), "Raft snapshot built");
 
-        Ok(SnapshotOf::<TypeConfig> {
+        Ok(SnapshotOf::<TypeConfig, ClusterSnapshotData> {
             meta,
             snapshot: Cursor::new(data),
         })
@@ -208,6 +224,7 @@ impl RaftSnapshotBuilder<TypeConfig> for Arc<ClusterStateMachine> {
 }
 
 impl RaftStateMachine<TypeConfig> for Arc<ClusterStateMachine> {
+    type SnapshotData = ClusterSnapshotData;
     type SnapshotBuilder = Self;
 
     async fn applied_state(
@@ -321,14 +338,14 @@ impl RaftStateMachine<TypeConfig> for Arc<ClusterStateMachine> {
         self.clone()
     }
 
-    async fn begin_receiving_snapshot(&mut self) -> Result<SnapshotDataOf<TypeConfig>, io::Error> {
+    async fn begin_receiving_snapshot(&mut self) -> Result<Self::SnapshotData, io::Error> {
         Ok(Cursor::new(Vec::new()))
     }
 
     async fn install_snapshot(
         &mut self,
         meta: &SnapshotMetaOf<TypeConfig>,
-        snapshot: SnapshotDataOf<TypeConfig>,
+        snapshot: Self::SnapshotData,
     ) -> Result<(), io::Error> {
         let new_sm: StateMachineData = serde_json::from_slice(snapshot.get_ref())
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
@@ -345,9 +362,11 @@ impl RaftStateMachine<TypeConfig> for Arc<ClusterStateMachine> {
         Ok(())
     }
 
-    async fn get_current_snapshot(&mut self) -> Result<Option<SnapshotOf<TypeConfig>>, io::Error> {
+    async fn get_current_snapshot(
+        &mut self,
+    ) -> Result<Option<SnapshotOf<TypeConfig, Self::SnapshotData>>, io::Error> {
         match &*self.current_snapshot.read().await {
-            Some(snap) => Ok(Some(SnapshotOf::<TypeConfig> {
+            Some(snap) => Ok(Some(SnapshotOf::<TypeConfig, ClusterSnapshotData> {
                 meta: snap.meta.clone(),
                 snapshot: Cursor::new(snap.data.clone()),
             })),
@@ -520,6 +539,11 @@ impl openraft::network::RaftNetworkFactory<TypeConfig> for ClusterRaftNetwork {
 }
 
 impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection {
+    /// Snapshot payload this connection transfers. Must agree with the state
+    /// machine's `SnapshotData`, which is where `Raft` enforces
+    /// snapshot-type compatibility since alpha.29.
+    type SnapshotData = ClusterSnapshotData;
+
     /// Send a vote request to the remote node via gRPC.
     async fn vote(
         &mut self,
@@ -544,11 +568,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_grpc::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(
+                channel,
+            );
 
         let response = client
             .raft_vote(tonic::Request::new(
-                vectorizer_protocol::grpc_gen::cluster::RaftVoteRequest { data },
+                vectorizer_grpc::grpc_gen::cluster::RaftVoteRequest { data },
             ))
             .await
             .map_err(|e| {
@@ -589,11 +615,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_grpc::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(
+                channel,
+            );
 
         let response = client
             .raft_append_entries(tonic::Request::new(
-                vectorizer_protocol::grpc_gen::cluster::RaftAppendEntriesRequest { data },
+                vectorizer_grpc::grpc_gen::cluster::RaftAppendEntriesRequest { data },
             ))
             .await
             .map_err(|e| {
@@ -616,7 +644,7 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
     async fn full_snapshot(
         &mut self,
         vote: Vote<leader_id_mode::LeaderId<u64, u64>>,
-        snapshot: SnapshotOf<TypeConfig>,
+        snapshot: SnapshotOf<TypeConfig, Self::SnapshotData>,
         _cancel: impl futures::Future<Output = openraft::error::ReplicationClosed>
         + OptionalSend
         + 'static,
@@ -648,11 +676,13 @@ impl openraft::network::v2::RaftNetworkV2<TypeConfig> for ClusterRaftConnection 
             })?;
 
         let mut client =
-            vectorizer_protocol::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(channel);
+            vectorizer_grpc::grpc_gen::cluster::cluster_service_client::ClusterServiceClient::new(
+                channel,
+            );
 
         let response = client
             .raft_snapshot(tonic::Request::new(
-                vectorizer_protocol::grpc_gen::cluster::RaftSnapshotRequest {
+                vectorizer_grpc::grpc_gen::cluster::RaftSnapshotRequest {
                     vote_data,
                     snapshot_meta,
                     snapshot_data,

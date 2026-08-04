@@ -12,7 +12,7 @@
     <NoWarn>$(NoWarn);1591;CA1848;CA2007</NoWarn>
 
     <PackageId>Vectorizer.Sdk.Rpc</PackageId>
-    <Version>3.5.0</Version>
+    <Version>3.6.0</Version>
     <Authors>HiveHub Contributors</Authors>
     <Company>HiveHub</Company>
     <Product>Vectorizer.Sdk.Rpc</Product>
@@ -28,7 +28,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MessagePack" Version="2.5.302" />
+    <!-- Thunder is the HiveLLM family's shared binary RPC client: the wire
+         codec, the value model and the multiplexed client this SDK's RPC
+         transport is built on. vectorizer-server runs the same protocol's
+         server half, so the two ends cannot drift. It carries the MessagePack
+         dependency this project used to declare directly. -->
+    <PackageReference Include="HiveLLM.Thunder" Version="0.2.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
   </ItemGroup>

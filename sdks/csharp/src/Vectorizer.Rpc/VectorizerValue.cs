@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
+// Aliased rather than imported: HiveLLM.Thunder also declares `Value`,
+// `ValueKind` and `MapPair`-shaped types, and this file defines its own.
+using Thunder = HiveLLM.Thunder;
+
 namespace Vectorizer.Rpc;
 
 /// <summary>
@@ -218,63 +222,50 @@ public sealed class VectorizerValue : IEquatable<VectorizerValue>
         throw new InvalidOperationException($"VectorizerValue is {Kind}, not Map");
     }
 
-    // ── Wire mapping ────────────────────────────────────────────────────
-    // rmp-serde encodes an externally-tagged enum as:
-    //   unit variant  → bare string  "Null"
-    //   newtype variant → map { "<Tag>": payload }
-    // We round-trip through plain object graphs so MessagePackSerializer
-    // (with ContractlessStandardResolver) produces the same bytes.
-
-    internal const string TagNull = "Null";
-    internal const string TagBool = "Bool";
-    internal const string TagInt = "Int";
-    internal const string TagFloat = "Float";
-    internal const string TagBytes = "Bytes";
-    internal const string TagStr = "Str";
-    internal const string TagArray = "Array";
-    internal const string TagMap = "Map";
-    internal const string ResultOk = "Ok";
-    internal const string ResultErr = "Err";
+    // ── Thunder wire conversion ──────────────────────────────────
+    // The bytes on the wire are Thunder's (HiveLLM.Thunder), the shared binary
+    // RPC package whose Rust twin vectorizer-server runs, so encoding is not
+    // implemented here. These two methods are the only seam between the two
+    // value models, and the mapping is total: every variant has an exact
+    // counterpart, so nothing is lost in either direction.
 
     /// <summary>
-    /// Converts this value into a tree of plain objects
-    /// (<see cref="Dictionary{TKey, TValue}"/>, <see cref="Array"/>, primitives)
-    /// ready for <see cref="MessagePack.MessagePackSerializer"/>.
+    /// Converts this value into Thunder's value model for transmission.
     /// </summary>
-    public object ToWire()
+    public Thunder.Value ToThunder()
     {
         switch (Kind)
         {
             case ValueKind.Null:
-                return TagNull;
+                return Thunder.Value.Null;
             case ValueKind.Bool:
-                return new Dictionary<string, object?> { [TagBool] = _bool };
+                return Thunder.Value.Bool(_bool);
             case ValueKind.Int:
-                return new Dictionary<string, object?> { [TagInt] = _int };
+                return Thunder.Value.Int(_int);
             case ValueKind.Float:
-                return new Dictionary<string, object?> { [TagFloat] = _float };
+                return Thunder.Value.Float(_float);
             case ValueKind.Bytes:
-                return new Dictionary<string, object?> { [TagBytes] = _bytes! };
+                return Thunder.Value.Bytes(_bytes!);
             case ValueKind.Str:
-                return new Dictionary<string, object?> { [TagStr] = _str! };
+                return Thunder.Value.Str(_str!);
             case ValueKind.Array:
             {
-                var arr = new object?[_array!.Count];
-                for (var i = 0; i < arr.Length; i++)
+                var items = new Thunder.Value[_array!.Count];
+                for (var i = 0; i < items.Length; i++)
                 {
-                    arr[i] = _array[i].ToWire();
+                    items[i] = _array[i].ToThunder();
                 }
-                return new Dictionary<string, object?> { [TagArray] = arr };
+                return Thunder.Value.Array(items);
             }
             case ValueKind.Map:
             {
-                var pairs = new object?[_map!.Count];
+                var pairs = new (Thunder.Value, Thunder.Value)[_map!.Count];
                 for (var i = 0; i < pairs.Length; i++)
                 {
                     var (k, v) = _map[i];
-                    pairs[i] = new object?[] { k.ToWire(), v.ToWire() };
+                    pairs[i] = (k.ToThunder(), v.ToThunder());
                 }
-                return new Dictionary<string, object?> { [TagMap] = pairs };
+                return Thunder.Value.Map(pairs);
             }
             default:
                 throw new InvalidOperationException($"unsupported VectorizerValue kind: {Kind}");
@@ -282,153 +273,49 @@ public sealed class VectorizerValue : IEquatable<VectorizerValue>
     }
 
     /// <summary>
-    /// Decodes a tree of plain objects (as produced by
-    /// <see cref="MessagePack.MessagePackSerializer"/> on the wire body)
-    /// back into a typed <see cref="VectorizerValue"/>.
+    /// Converts a Thunder value back into a typed <see cref="VectorizerValue"/>.
     /// </summary>
-    public static VectorizerValue FromWire(object? raw)
+    public static VectorizerValue FromThunder(Thunder.Value value)
     {
-        if (raw is string s)
+        switch (value.Kind)
         {
-            if (s == TagNull) return Null;
-            throw new InvalidOperationException(
-                $"unknown VectorizerValue unit-variant tag: '{s}'");
-        }
-
-        if (raw is not IDictionary<object, object?> objMap)
-        {
-            if (raw is IDictionary<string, object?> strMap)
+            case Thunder.ValueKind.Null:
+                return Null;
+            case Thunder.ValueKind.Bool:
+                return OfBool(value.AsBool() ?? false);
+            case Thunder.ValueKind.Int:
+                return OfInt(value.AsInt() ?? 0L);
+            case Thunder.ValueKind.Float:
+                return OfFloat(value.AsFloat() ?? 0d);
+            case Thunder.ValueKind.Bytes:
+                return OfBytes(value.AsBytes() ?? System.Array.Empty<byte>());
+            case Thunder.ValueKind.Str:
+                return OfStr(value.AsStr() ?? string.Empty);
+            case Thunder.ValueKind.Array:
             {
-                objMap = ToObjectKeyMap(strMap);
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    $"expected externally-tagged map or 'Null', got {raw?.GetType().FullName ?? "null"}");
-            }
-        }
-
-        if (objMap.Count != 1)
-        {
-            throw new InvalidOperationException(
-                $"externally-tagged value must have exactly one key, got {objMap.Count}");
-        }
-
-        foreach (var kvp in objMap)
-        {
-            var tag = kvp.Key as string
-                ?? throw new InvalidOperationException(
-                    $"externally-tagged key must be string, got {kvp.Key?.GetType().FullName ?? "null"}");
-            var payload = kvp.Value;
-            return DecodeTagged(tag, payload);
-        }
-
-        throw new InvalidOperationException("unreachable");
-    }
-
-    private static VectorizerValue DecodeTagged(string tag, object? payload)
-    {
-        switch (tag)
-        {
-            case TagBool:
-                return OfBool(CoerceBool(payload, tag));
-            case TagInt:
-                return OfInt(CoerceInt(payload, tag));
-            case TagFloat:
-                return OfFloat(CoerceFloat(payload, tag));
-            case TagBytes:
-                return OfBytes(CoerceBytes(payload, tag));
-            case TagStr:
-                return OfStr(CoerceStr(payload, tag));
-            case TagArray:
-            {
-                var arr = CoerceArray(payload, tag);
-                var items = new VectorizerValue[arr.Length];
-                for (var i = 0; i < arr.Length; i++) items[i] = FromWire(arr[i]);
+                var src = value.AsArray() ?? (IReadOnlyList<Thunder.Value>)System.Array.Empty<Thunder.Value>();
+                var items = new VectorizerValue[src.Count];
+                for (var i = 0; i < items.Length; i++)
+                {
+                    items[i] = FromThunder(src[i]);
+                }
                 return OfArray(items);
             }
-            case TagMap:
+            case Thunder.ValueKind.Map:
             {
-                var arr = CoerceArray(payload, tag);
-                var pairs = new MapPair[arr.Length];
-                for (var i = 0; i < arr.Length; i++)
+                var src = value.AsMap()
+                    ?? (IReadOnlyList<KeyValuePair<Thunder.Value, Thunder.Value>>)
+                        System.Array.Empty<KeyValuePair<Thunder.Value, Thunder.Value>>();
+                var pairs = new MapPair[src.Count];
+                for (var i = 0; i < pairs.Length; i++)
                 {
-                    if (arr[i] is not object?[] entry || entry.Length != 2)
-                    {
-                        throw new InvalidOperationException(
-                            $"Map[{i}] must be a 2-element array");
-                    }
-                    pairs[i] = new MapPair(FromWire(entry[0]), FromWire(entry[1]));
+                    pairs[i] = new MapPair(FromThunder(src[i].Key), FromThunder(src[i].Value));
                 }
                 return OfMap(pairs);
             }
             default:
-                throw new InvalidOperationException($"unknown VectorizerValue tag: '{tag}'");
+                throw new InvalidOperationException($"unsupported Thunder value kind: {value.Kind}");
         }
-    }
-
-    private static IDictionary<object, object?> ToObjectKeyMap(IDictionary<string, object?> src)
-    {
-        var dst = new Dictionary<object, object?>(src.Count);
-        foreach (var kvp in src) dst[kvp.Key] = kvp.Value;
-        return dst;
-    }
-
-    internal static bool CoerceBool(object? p, string ctx) =>
-        p is bool b
-            ? b
-            : throw new InvalidOperationException($"{ctx} payload must be bool, got {p?.GetType().FullName ?? "null"}");
-
-    internal static long CoerceInt(object? p, string ctx) => p switch
-    {
-        sbyte x => x,
-        short x => x,
-        int x => x,
-        long x => x,
-        byte x => x,
-        ushort x => x,
-        uint x => x,
-        ulong x => checked((long)x),
-        _ => throw new InvalidOperationException(
-            $"{ctx} payload must be integer, got {p?.GetType().FullName ?? "null"}"),
-    };
-
-    internal static double CoerceFloat(object? p, string ctx) => p switch
-    {
-        float x => x,
-        double x => x,
-        _ => throw new InvalidOperationException(
-            $"{ctx} payload must be float, got {p?.GetType().FullName ?? "null"}"),
-    };
-
-    internal static byte[] CoerceBytes(object? p, string ctx) => p switch
-    {
-        byte[] b => b,
-        ReadOnlyMemory<byte> rom => rom.ToArray(),
-        _ => throw new InvalidOperationException(
-            $"{ctx} payload must be byte[], got {p?.GetType().FullName ?? "null"}"),
-    };
-
-    internal static string CoerceStr(object? p, string ctx) => p switch
-    {
-        string s => s,
-        _ => throw new InvalidOperationException(
-            $"{ctx} payload must be string, got {p?.GetType().FullName ?? "null"}"),
-    };
-
-    internal static object?[] CoerceArray(object? p, string ctx) => p switch
-    {
-        object?[] a => a,
-        System.Collections.IList list => ToObjectArray(list),
-        _ => throw new InvalidOperationException(
-            $"{ctx} payload must be array, got {p?.GetType().FullName ?? "null"}"),
-    };
-
-    private static object?[] ToObjectArray(System.Collections.IList list)
-    {
-        var arr = new object?[list.Count];
-        for (var i = 0; i < list.Count; i++) arr[i] = list[i];
-        return arr;
     }
 
     // ── Equality / formatting ──────────────────────────────────────────

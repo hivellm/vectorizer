@@ -1,0 +1,82 @@
+name: Publish C# SDK (NuGet)
+
+# NuGet.org Trusted Publishing — no stored NUGET_API_KEY. The NuGet/login
+# action exchanges the GitHub OIDC token for a short-lived API key. Registry-
+# side setup is a one-time maintainer step: on nuget.org create a Trusted
+# Publishing policy for packages Vectorizer.Sdk and Vectorizer.Sdk.Rpc bound to
+# repo hivellm/vectorizer + workflow `sdk-publish-csharp.yml`, and set the repo
+# variable NUGET_USER to the owning nuget.org account. See
+# docs/development/sdk-publishing.md.
+#
+# release:published  -> pack + push both packages at the tag version
+# workflow_dispatch  -> dry_run packs only (no push), to validate the pipeline
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Pack only, do not push
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  MAIN_CSPROJ: sdks/csharp/Vectorizer.csproj
+  RPC_CSPROJ: sdks/csharp/src/Vectorizer.Rpc/Vectorizer.Rpc.csproj
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # NuGet Trusted Publishing OIDC exchange
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Verify csproj versions match the release tag
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          for f in "$MAIN_CSPROJ" "$RPC_CSPROJ"; do
+            V=$(grep -oPm1 '(?<=<Version>)[^<]+' "$f")
+            echo "$f version=$V tag=$TAG"
+            [ "$TAG" = "$V" ] || { echo "::error::$f <Version> $V != release tag $TAG"; exit 1; }
+          done
+
+      - name: Test (gate)
+        run: dotnet test sdks/csharp/Vectorizer.Tests/Vectorizer.Tests.csproj -c Release
+
+      - name: Pack
+        run: |
+          dotnet pack "$MAIN_CSPROJ" -c Release -o out
+          dotnet pack "$RPC_CSPROJ" -c Release -o out
+          ls -la out
+
+      - name: NuGet Trusted Publishing login (OIDC -> short-lived key)
+        if: ${{ github.event_name == 'release' }}
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push to NuGet.org
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          dotnet nuget push "out/*.nupkg" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Dry-run (packed artifacts only)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          echo "Dry-run: packed the following nupkgs (no push):"
+          ls -la out

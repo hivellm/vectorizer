@@ -1,0 +1,12 @@
+# Decoupling recipe: move types down + re-export shims + string-id seams (phase41)
+
+**Category**: architecture
+**Tags**: architecture, decoupling, phase41, analysis:2026-07-11-improvement-analysis
+
+## Description
+
+Phase41 eliminated 8 of the 9 upward back-references from the 2026-07-11 analysis with three repeatable moves: (1) global singleton → trait defined below the consumers (MetricsSink in vectorizer-core, Noop default, production impl in monitoring/) injected via constructor variants; (2) type ownership inversion via MOVE + re-export shim — struct definitions move to the lower layer (config/sections/, models/tenant.rs) and the old module does `pub use` at the old path so zero call sites change; inherent impls that need service/SDK deps (TenantPermission::from_sdk_permission) stay in the service module — Rust allows inherent impls in any module of the defining crate; (3) trait seams with primitive ids — ShardTopology uses String node ids so db never imports the NodeId newtype; the concrete transport (ClusterClientPool) stays concrete because abstracting the gRPC client = abstracting the wire, documented as the residual edge with a get_client_by_id(&str) bridge. Verification: grep for the exact old import paths must return empty, plus a stub-impl unit test proving the consumer constructs without any concrete service type.
+
+## When to Use
+
+When breaking module back-references or continuing the workspace split (the remaining edge is db → ClusterClientPool).

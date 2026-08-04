@@ -814,6 +814,24 @@ impl Default for Vector {
 }
 
 impl Vector {
+    /// Returns `true` when this vector's payload carries an `__expires_at`
+    /// that has already passed.
+    ///
+    /// Read paths use this to hide a vector the moment its expiry lapses
+    /// rather than waiting for the TTL reaper's next sweep. Removal stays the
+    /// reaper's job: a read must not take the write locks a delete needs.
+    #[must_use]
+    pub fn is_expired(&self, now_ms: i64) -> bool {
+        self.payload.as_ref().is_some_and(|p| p.is_expired(now_ms))
+    }
+
+    /// Current wall-clock in Unix milliseconds, for the `is_expired` checks on
+    /// a read path that filters a batch of vectors in one pass.
+    #[must_use]
+    pub fn now_ms() -> i64 {
+        chrono::Utc::now().timestamp_millis()
+    }
+
     /// Create a new vector
     pub fn new(id: String, data: Vec<f32>) -> Self {
         Self {

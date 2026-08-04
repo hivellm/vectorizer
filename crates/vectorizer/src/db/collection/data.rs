@@ -391,8 +391,27 @@ impl Collection {
         Ok(())
     }
 
-    /// Get a vector by ID
+    /// Get a vector by ID.
+    ///
+    /// An expired vector reads as absent: the TTL reaper removes it within one
+    /// sweep, and until then serving it would hand back data the caller has
+    /// already retired. Filtering here rather than deleting keeps the read
+    /// path read-only — a delete needs the index write lock this method's
+    /// callers may already hold a read lock on.
     pub fn get_vector(&self, vector_id: &str) -> Result<Vector> {
+        let vector = self.get_vector_including_expired(vector_id)?;
+        if vector.is_expired(Vector::now_ms()) {
+            return Err(VectorizerError::VectorNotFound(vector_id.to_string()));
+        }
+        Ok(vector)
+    }
+
+    /// Get a vector by ID, expired or not.
+    ///
+    /// The raw accessor behind [`Collection::get_vector`]. Persistence and the
+    /// TTL reaper need to see an expired vector — the reaper to delete it, a
+    /// save to avoid silently dropping it before the sweep runs.
+    pub fn get_vector_including_expired(&self, vector_id: &str) -> Result<Vector> {
         // If quantization is enabled, get from quantized storage
         if matches!(
             self.config.quantization,
@@ -461,6 +480,10 @@ impl Collection {
                 | crate::models::QuantizationConfig::Binary
         );
 
+        // One timestamp for the whole result set, so two hits cannot disagree
+        // about whether the same instant had passed.
+        let now_ms = Vector::now_ms();
+
         for (id, score) in neighbors {
             let vector = if use_quantization {
                 // Get from quantized storage and dequantize on-demand
@@ -477,6 +500,12 @@ impl Collection {
                     continue; // Vector not found
                 }
             };
+
+            // An expired vector is still in the HNSW index until the reaper
+            // deletes it; drop it here so it is not served as a hit.
+            if vector.is_expired(now_ms) {
+                continue;
+            }
 
             // Normalize payload content (fix line endings from legacy data)
             let normalized_payload = vector.payload.as_ref().map(|p| p.normalized());
@@ -540,6 +569,7 @@ impl Collection {
 
         let mut results = Vec::with_capacity(neighbors.len());
         let mut quantization_score_ms: f64 = 0.0;
+        let now_ms = Vector::now_ms();
 
         for (id, score) in neighbors {
             let tq = Instant::now();
@@ -557,6 +587,12 @@ impl Collection {
                 }
             };
             quantization_score_ms += tq.elapsed().as_secs_f64() * 1_000.0;
+
+            // Same expiry filter as `search`, so an explain trace reports the
+            // hits the plain search would have returned.
+            if vector.is_expired(now_ms) {
+                continue;
+            }
 
             let normalized_payload = vector.payload.as_ref().map(|p| p.normalized());
             results.push(crate::models::SearchResult {

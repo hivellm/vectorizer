@@ -1,0 +1,58 @@
+name: Publish Go SDK (tag / GOPROXY)
+
+# Go modules have no registry-token model and no "trusted publisher" concept:
+# a module version is published by pushing a git tag, and pkg.go.dev indexes it
+# on the first proxy request. Since sdks/go is a submodule of
+# github.com/hivellm/vectorizer-go (module path
+# github.com/hivellm/vectorizer-sdk-go), the authoritative Go release is a
+# matching tag on THAT repo. This workflow validates the pinned submodule
+# version against the release tag and warms the module proxy so pkg.go.dev
+# indexes the new version. See docs/development/sdk-publishing.md.
+#
+# release:published  -> validate + ping GOPROXY for the module at the tag version
+# workflow_dispatch  -> validate only
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GO_MODULE: github.com/hivellm/vectorizer-sdk-go
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v7
+        with:
+          # thunder-go (the RPC transport) requires go 1.25, so the SDK's
+          # go.mod declares it too.
+          go-version: "1.25"
+
+      - name: Verify submodule version.go matches the release tag
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          V=$(grep -oP 'const Version = "\K[^"]+' sdks/go/version.go)
+          echo "tag=$TAG version.go=$V"
+          [ "$TAG" = "$V" ] || { echo "::error::release tag $TAG != sdks/go version.go $V"; exit 1; }
+
+      - name: Warm the module proxy so pkg.go.dev indexes the new version
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # Requires the corresponding v$TAG tag to already exist on the
+          # vectorizer-go repo; this only triggers indexing, it does not create
+          # the release. A 410/404 here means the tag is not yet pushed there.
+          GOPROXY=https://proxy.golang.org GOFLAGS=-mod=mod \
+            go list -m "${GO_MODULE}@v${TAG}" || {
+              echo "::warning::proxy has not indexed ${GO_MODULE}@v${TAG} yet — confirm the tag exists on hivellm/vectorizer-go"
+            }

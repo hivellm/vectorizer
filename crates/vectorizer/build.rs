@@ -1,7 +1,6 @@
 // Build scripts cannot use tracing — keep `println!` only.
 //
-// gRPC proto compilation moved into the `vectorizer-protocol` crate
-// under phase4_split-vectorizer-workspace sub-phase 2. This build
+// gRPC proto compilation lives in the `vectorizer-grpc` crate. This build
 // script now only embeds the Windows icon resource for the binary.
 
 fn main() {

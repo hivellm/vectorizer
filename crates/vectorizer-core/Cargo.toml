@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-core"
-version = "3.5.0"
+version = "3.6.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "Core primitives for Vectorizer: error type, binary codec, quantization, parallel + compression helpers."
@@ -24,7 +24,7 @@ umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
 bincode = { version = "2.0", features = ["serde"] }
 
 # compression/, quantization/storage.rs — lz4 + zstd wrappers
-lz4_flex = "0.13"
+lz4_flex = "0.14"
 zstd = "0.13"
 
 # paths/ — OS user-data directory resolution (XDG on Linux, Application

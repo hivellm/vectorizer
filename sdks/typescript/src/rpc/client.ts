@@ -1,35 +1,60 @@
 /**
  * `RpcClient`: connect, hello, call, ping, close.
  *
- * The client owns one TCP connection to the server. It uses Node's
- * `net.Socket` for the transport and demultiplexes responses by
- * `Request.id` into per-call promise mailboxes so concurrent
- * in-flight calls on the same connection don't block each other.
+ * The transport is Thunder's (`@hivehub/thunder`): one TCP connection per
+ * client, responses demultiplexed by frame id into per-call promises,
+ * bounded in-flight, per-call timeouts, lazy re-dial and typed errors. What
+ * lives here is Vectorizer's shape on top of it — the `vectorizer://`
+ * protocol config, the HELLO payload/response types, and the error classes
+ * the typed wrappers in {@link ./commands} throw.
  *
- * Auth is **per-connection sticky** per wire spec § 4: the first
- * frame on a connection MUST be `HELLO`; every subsequent call
- * inherits the auth state. The local `call` method enforces this so
- * callers see a clear typed error instead of a server-side string.
+ * Auth is **per-connection sticky** per wire spec § 4, and Thunder carries
+ * credentials in the connection handshake (`AUTH`) rather than in a command.
+ * {@link RpcClient.hello} therefore re-dials when its payload carries a
+ * token or an API key, so the credentials reach the session later commands
+ * run under; the HELLO command itself still runs, because the server answers
+ * it with the capability list and auth flags this client surfaces.
  */
 
-import * as net from 'node:net';
-
-import { encodeFrame, FrameReader } from './codec';
-import { Endpoint, parseEndpoint } from './endpoint';
 import {
-  Request,
-  Response,
-  ResponseResult,
-  Value,
-  VectorizerValue,
-  asArray,
-  asBool,
-  asInt,
-  asStr,
-  mapGet,
-  requestToMsgpack,
-  responseFromMsgpack,
-} from './types';
+  AuthError,
+  Client,
+  Config,
+  ConnectionError,
+  DecodeError,
+  FrameTooLargeError,
+  ServerError,
+  ThunderError,
+  TimeoutError,
+  type ClientOptions,
+  type Credentials,
+} from '@hivehub/thunder';
+
+import { DEFAULT_RPC_PORT, Endpoint, parseEndpoint } from './endpoint';
+import { Value, VectorizerValue, asArray, asBool, asInt, asStr, mapGet } from './types';
+
+/**
+ * Frame-body cap, matching the server's listener so neither end rejects a
+ * frame the other is willing to send.
+ */
+const MAX_FRAME_BYTES = 512 * 1024 * 1024;
+
+/**
+ * How Vectorizer uses the Thunder wire — the client half of the server's
+ * `vectorizer_config()`: `vectorizer` scheme, `AUTH`-command handshake, no
+ * HELLO negotiation (the `HELLO` *command* is Vectorizer's own), RESP3-style
+ * error prefixes.
+ */
+export function protocolConfig(): Config {
+  return Config.standard()
+    .withScheme('vectorizer')
+    .withPort(DEFAULT_RPC_PORT)
+    .withHandshake('auth_command')
+    .withHelloStyle('not_used')
+    .withPush('reserved')
+    .withErrorCodes('resp3_prefixes')
+    .withMaxFrameBytes(MAX_FRAME_BYTES);
+}
 
 /** Base error for all RPC client failures. */
 export class RpcClientError extends Error {
@@ -48,9 +73,9 @@ export class RpcServerError extends RpcClientError {
 }
 
 /**
- * The reader closed before the response arrived. Either the peer
- * closed cleanly (EOF) or an I/O error tore down the socket. The
- * client's connection is unusable; build a new one.
+ * The connection failed: the dial was refused, the write failed, or the
+ * peer went away while the call was pending. The client re-dials lazily on
+ * the next call; a dial that cannot be re-established keeps throwing this.
  */
 export class RpcConnectionClosed extends RpcClientError {
   constructor(message = 'connection closed before response') {
@@ -60,25 +85,60 @@ export class RpcConnectionClosed extends RpcClientError {
 }
 
 /**
- * A data-plane command was issued before HELLO succeeded. The server
- * would also reject this; the client surfaces it locally so the
- * offending caller sees a clear error without burning a network
- * round-trip.
+ * The server refused the session's credentials — `NOAUTH` (no `AUTH` sent,
+ * or HELLO issued without credentials against an auth-enabled server),
+ * `WRONGPASS`, or `NOPERM` for an admin-only command.
  */
 export class RpcNotAuthenticated extends RpcClientError {
-  constructor() {
-    super('HELLO must succeed before any data-plane command can be issued');
+  constructor(
+    message = 'HELLO must succeed before any data-plane command can be issued',
+  ) {
+    super(message);
     this.name = 'RpcNotAuthenticated';
   }
 }
 
+/** The connect or per-call timeout elapsed. */
+export class RpcTimeout extends RpcClientError {
+  constructor(message = 'call timed out') {
+    super(message);
+    this.name = 'RpcTimeout';
+  }
+}
+
 /**
- * HELLO request payload — sent as the FIRST frame on a connection.
+ * The peer sent a malformed or oversized frame; the connection is poisoned
+ * and the next call re-dials.
+ */
+export class RpcProtocolError extends RpcClientError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RpcProtocolError';
+  }
+}
+
+/** Map a typed Thunder error onto this SDK's error classes. */
+function mapThunderError(err: unknown): Error {
+  if (err instanceof AuthError) return new RpcNotAuthenticated(err.message);
+  if (err instanceof ServerError) return new RpcServerError(err.message);
+  if (err instanceof ConnectionError) return new RpcConnectionClosed(err.message);
+  if (err instanceof TimeoutError) return new RpcTimeout(err.message);
+  if (err instanceof FrameTooLargeError || err instanceof DecodeError) {
+    return new RpcProtocolError(err.message);
+  }
+  if (err instanceof ThunderError) return new RpcClientError(err.message);
+  return err instanceof Error ? err : new RpcClientError(String(err));
+}
+
+/**
+ * HELLO request payload.
  *
- * At least one of `token` / `apiKey` should be populated when the
- * server has auth enabled. When the server runs in single-user mode
- * (`auth.enabled: false`), credentials are accepted-but-ignored and
- * the connection runs as the implicit local admin.
+ * At least one of `token` / `apiKey` should be populated when the server has
+ * auth enabled: those credentials travel in the connection handshake, so
+ * passing them to {@link RpcClient.hello} is what authenticates the session.
+ * When the server runs in single-user mode (`auth.enabled: false`) the
+ * listener is open, credentials are accepted-but-ignored, and the connection
+ * runs as the implicit local admin.
  */
 export interface HelloPayload {
   clientName?: string;
@@ -97,78 +157,53 @@ export interface HelloResponse {
   capabilities: string[];
 }
 
-/** Auth-exempt commands per wire spec § 4. */
-const AUTH_EXEMPT = new Set(['HELLO', 'PING']);
-
 /** Options for {@link RpcClient.connect}. */
 export interface ConnectOptions {
   /** Connect timeout in ms. Defaults to 10_000. */
   timeoutMs?: number;
-}
-
-interface PendingCall {
-  resolve: (value: VectorizerValue) => void;
-  reject: (err: Error) => void;
+  /** Per-call timeout in ms. Defaults to 30_000. */
+  callTimeoutMs?: number;
 }
 
 /**
  * One TCP connection to a Vectorizer RPC server.
  *
  * Construct via {@link RpcClient.connect} (raw `host:port`) or
- * {@link RpcClient.connectUrl} (`vectorizer://` URL). Always issue
- * {@link hello} before any data-plane call.
+ * {@link RpcClient.connectUrl} (`vectorizer://` URL). Issue {@link hello}
+ * with credentials when the server enforces auth.
  *
- * Coroutine-safe: multiple concurrent `await client.X()` calls
- * serialize on a writer queue and demultiplex by `Request.id` into
- * per-call promises.
+ * Concurrency-safe: multiple concurrent `await client.X()` calls multiplex
+ * over the one connection and complete in server order.
  */
 export class RpcClient {
-  private socket: net.Socket;
-  private reader = new FrameReader();
-  private pending = new Map<number, PendingCall>();
-  private nextId = 1;
-  private authenticated = false;
-  private closed = false;
-  private writeQueue: Promise<void> = Promise.resolve();
+  private client: Client;
+  private readonly endpoint: string;
+  private options: ClientOptions;
 
-  private constructor(socket: net.Socket) {
-    this.socket = socket;
-    this.socket.setNoDelay(true);
-    // @types/node 25 typed the `data` callback as `string | Buffer`
-    // because streams can be in either binary or text mode. Our
-    // TCP socket never calls `setEncoding`, so every chunk is a
-    // `Buffer` at runtime — assert the narrower type.
-    this.socket.on('data', (chunk: Buffer) => this.onData(chunk));
-    this.socket.on('error', (err) => this.onError(err));
-    this.socket.on('close', () => this.onClose());
+  private constructor(client: Client, endpoint: string, options: ClientOptions) {
+    this.client = client;
+    this.endpoint = endpoint;
+    this.options = options;
   }
 
   /**
-   * Open a TCP connection to `address` (`host:port`).
+   * Dial `address` — `host:port`, or any form
+   * {@link parseEndpoint} accepts.
    *
-   * Does NOT send HELLO — callers MUST `await client.hello(...)`
-   * before any data-plane command, or the server will reject it.
+   * Does NOT authenticate: pass credentials to {@link hello}, which
+   * re-dials with them in the handshake.
    */
-  static connect(address: string, options: ConnectOptions = {}): Promise<RpcClient> {
-    const [host, port] = splitHostPort(address);
-    const timeoutMs = options.timeoutMs ?? 10_000;
-    return new Promise((resolve, reject) => {
-      const socket = net.createConnection({ host, port });
-      const onError = (err: Error): void => {
-        socket.removeAllListeners();
-        socket.destroy();
-        reject(new RpcConnectionClosed(`connect failed: ${err.message}`));
-      };
-      const timer = setTimeout(() => {
-        onError(new Error(`connection timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-      socket.once('connect', () => {
-        clearTimeout(timer);
-        socket.removeListener('error', onError);
-        resolve(new RpcClient(socket));
-      });
-      socket.once('error', onError);
-    });
+  static async connect(
+    address: string,
+    options: ConnectOptions = {},
+  ): Promise<RpcClient> {
+    const clientOptions: ClientOptions = {
+      connectTimeoutMs: options.timeoutMs ?? 10_000,
+      callTimeoutMs: options.callTimeoutMs ?? 30_000,
+      clientName: 'vectorizer-sdk-typescript',
+    };
+    const client = await RpcClient.dial(address, clientOptions);
+    return new RpcClient(client, address, clientOptions);
   }
 
   /**
@@ -189,24 +224,42 @@ export class RpcClient {
     );
   }
 
+  private static async dial(endpoint: string, options: ClientOptions): Promise<Client> {
+    try {
+      return await Client.connect(endpoint, protocolConfig(), options);
+    } catch (err) {
+      throw mapThunderError(err);
+    }
+  }
+
   /**
-   * Issue the HELLO handshake. Must be the first call on a fresh
-   * connection. Returns the server's capability list and auth flags.
+   * Issue the HELLO handshake and return the server's capability list and
+   * auth flags.
+   *
+   * When `payload` carries a token or an API key, the connection is
+   * re-dialed so those credentials travel in Thunder's `AUTH` handshake —
+   * that is what authenticates the session every later command runs under.
+   * A credential-free payload reuses the existing connection.
    */
   async hello(payload: HelloPayload = {}): Promise<HelloResponse> {
-    const value = helloPayloadToValue(payload);
-    const result = await this.rawCall('HELLO', [value]);
-    const parsed = parseHelloResponse(result);
-    if (parsed.authenticated) {
-      this.authenticated = true;
+    const credentials = helloCredentials(payload);
+    if (credentials !== undefined) {
+      const options: ClientOptions = { ...this.options, credentials };
+      if (payload.clientName !== undefined) {
+        options.clientName = payload.clientName;
+      }
+      const fresh = await RpcClient.dial(this.endpoint, options);
+      const previous = this.client;
+      this.client = fresh;
+      this.options = options;
+      await previous.close();
     }
-    return parsed;
+    return parseHelloResponse(await this.call('HELLO', [helloPayloadToValue(payload)]));
   }
 
   /** Health check. Auth-exempt per wire spec § 4 — works pre-HELLO. */
   async ping(): Promise<string> {
-    const result = await this.rawCall('PING', []);
-    const s = asStr(result);
+    const s = asStr(await this.call('PING', []));
     if (s === null) {
       throw new RpcServerError('PING returned non-string payload');
     }
@@ -214,138 +267,50 @@ export class RpcClient {
   }
 
   /**
-   * Dispatch a generic command. Most callers should reach for a
-   * typed wrapper from {@link ./commands} instead.
+   * Dispatch a generic command. Most callers should reach for a typed
+   * wrapper from {@link ./commands} instead.
    *
-   * Enforces the local auth gate: data-plane commands throw
-   * {@link RpcNotAuthenticated} before sending if HELLO hasn't
-   * succeeded.
+   * The server gates un-authenticated sessions, so a data-plane command on
+   * a session that never authenticated throws {@link RpcNotAuthenticated}.
    */
   async call(command: string, args: VectorizerValue[] = []): Promise<VectorizerValue> {
-    if (!AUTH_EXEMPT.has(command) && !this.authenticated) {
-      throw new RpcNotAuthenticated();
+    try {
+      return await this.client.call(command, args);
+    } catch (err) {
+      throw mapThunderError(err);
     }
-    return this.rawCall(command, args);
   }
 
-  /** Returns `true` once HELLO has succeeded on this connection. */
+  /**
+   * Returns `true` once the connection's handshake authenticated. Always
+   * `false` against an open (single-user) server, which authenticates
+   * nobody because it gates nothing.
+   */
   isAuthenticated(): boolean {
-    return this.authenticated;
+    return this.client.isAuthenticated;
   }
 
   /**
    * Close the connection. In-flight calls receive
    * {@link RpcConnectionClosed}.
    */
-  close(): void {
-    if (this.closed) return;
-    this.closed = true;
-    try {
-      this.socket.end();
-    } catch {
-      // ignore
-    }
-    this.socket.destroy();
-    this.failAllPending(new RpcConnectionClosed('client closed'));
-  }
-
-  // ── internals ────────────────────────────────────────────────────
-  private allocId(): number {
-    const rid = this.nextId;
-    this.nextId = (this.nextId + 1) & 0xffffffff;
-    if (this.nextId === 0) this.nextId = 1;
-    return rid;
-  }
-
-  private async rawCall(
-    command: string,
-    args: VectorizerValue[],
-  ): Promise<VectorizerValue> {
-    if (this.closed) {
-      throw new RpcConnectionClosed('client closed');
-    }
-    const id = this.allocId();
-    const req: Request = { id, command, args };
-    const frame = encodeFrame(requestToMsgpack(req));
-
-    const responsePromise = new Promise<VectorizerValue>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
-    });
-
-    // Serialise writes — concurrent calls must not interleave bytes.
-    this.writeQueue = this.writeQueue.then(
-      () =>
-        new Promise<void>((resolve, reject) => {
-          if (!this.socket.write(frame, (err) => (err ? reject(err) : resolve()))) {
-            // Backpressure — flushed callback above still fires.
-          }
-        }),
-    );
-    try {
-      await this.writeQueue;
-    } catch (err) {
-      this.pending.delete(id);
-      throw new RpcConnectionClosed(
-        `send failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-
-    return responsePromise;
-  }
-
-  private onData(chunk: Buffer): void {
-    this.reader.push(chunk);
-    let frames: unknown[];
-    try {
-      frames = this.reader.drain();
-    } catch (err) {
-      this.failAllPending(
-        new RpcClientError(
-          `frame reader error: ${err instanceof Error ? err.message : String(err)}`,
-        ),
-      );
-      this.socket.destroy();
-      return;
-    }
-    for (const raw of frames) {
-      let resp: Response;
-      try {
-        resp = responseFromMsgpack(raw);
-      } catch (_err) {
-        // Skip malformed frames — log via stderr would be too noisy.
-        // The pending caller will eventually time out or get
-        // ConnectionClosed when the socket dies.
-        continue;
-      }
-      const pending = this.pending.get(resp.id);
-      if (pending === undefined) continue;
-      this.pending.delete(resp.id);
-      const r: ResponseResult = resp.result;
-      if (r.kind === 'Ok') {
-        pending.resolve(r.value);
-      } else {
-        pending.reject(new RpcServerError(r.message));
-      }
-    }
-  }
-
-  private onError(_err: Error): void {
-    // The 'close' handler will run too — failure is centralised there.
-  }
-
-  private onClose(): void {
-    this.closed = true;
-    this.failAllPending(new RpcConnectionClosed());
-  }
-
-  private failAllPending(err: Error): void {
-    const pending = Array.from(this.pending.values());
-    this.pending.clear();
-    for (const p of pending) p.reject(err);
+  async close(): Promise<void> {
+    await this.client.close();
   }
 }
 
 // ── helpers ────────────────────────────────────────────────────────
+
+/** The handshake credentials a HELLO payload carries, if any. */
+function helloCredentials(payload: HelloPayload): Credentials | undefined {
+  if (payload.token !== undefined) {
+    return { type: 'token', token: payload.token };
+  }
+  if (payload.apiKey !== undefined) {
+    return { type: 'apiKey', apiKey: payload.apiKey };
+  }
+  return undefined;
+}
 
 function helloPayloadToValue(payload: HelloPayload): VectorizerValue {
   const pairs: Array<[VectorizerValue, VectorizerValue]> = [
@@ -384,29 +349,4 @@ function parseHelloResponse(value: VectorizerValue): HelloResponse {
     admin: (ad !== null && asBool(ad)) || false,
     capabilities: capsArr,
   };
-}
-
-/**
- * Split a `host:port` string. IPv6 literals (`[::1]:1234`) are
- * handled specially so the colons inside the brackets aren't
- * treated as port separators.
- */
-function splitHostPort(address: string): [string, number] {
-  if (address.startsWith('[')) {
-    const close = address.indexOf(']');
-    if (close < 0) {
-      throw new Error(`unterminated IPv6 literal in address: ${address}`);
-    }
-    const host = address.slice(1, close);
-    const rest = address.slice(close + 1);
-    if (!rest.startsWith(':')) {
-      throw new Error(`expected ':<port>' after IPv6 literal in address: ${address}`);
-    }
-    return [host, Number(rest.slice(1))];
-  }
-  const colon = address.lastIndexOf(':');
-  if (colon < 0) {
-    throw new Error(`address must include ':<port>', got ${address}`);
-  }
-  return [address.slice(0, colon), Number(address.slice(colon + 1))];
 }

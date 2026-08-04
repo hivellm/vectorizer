@@ -1,0 +1,16 @@
+{
+  "id": "decide-durability-and-replication-once-in-the-dispatch-wrapper-not-per-handler",
+  "type": "pattern",
+  "title": "Decide durability and replication once in the dispatch wrapper, not per handler",
+  "category": "rpc",
+  "description": "The RPC dispatch table had 102 arms and none of them marked the auto-save manager, so writes made over RPC were skipped by the periodic compaction loop (it only runs when changes are pending) and lost on a hard kill. The REST handlers call mark_changed() in 15 separate places, which is exactly why RPC's omission went unnoticed: the obligation lives in each handler, so a new handler silently opts out.\n\nThe fix wraps the command table instead of editing every arm: dispatch() calls dispatch_authenticated(), then consults a single command_mutates(&str) classifier and, on a successful reply, marks auto-save and replicates. Adding a command means adding one row to that classifier, and two unit tests assert the classifier covers every write and excludes every read.\n\nTwo details that made the wrapper work without cost:\n- Replication needs the target collection after args are consumed, but cloning args would copy multi-megabyte payload frames. Copy only the two leading string arguments (every mutating command carries the collection there), and take vector ids from the handler's reply instead of the request — which also fixes server-generated ids and partly-failed batches, since a batch reply marks each row's status.\n- The wrapper reads response.result.is_ok(), so a refused command never marks anything dirty.",
+  "whenToUse": "Adding a cross-cutting obligation (durability, replication, audit, metrics) to a large command/route table where per-handler calls would be forgettable.",
+  "createdAt": "2026-08-04T14:25:38.869Z",
+  "tags": [
+    "rpc",
+    "durability",
+    "replication",
+    "dispatch"
+  ],
+  "source": "manual"
+}

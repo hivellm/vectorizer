@@ -94,6 +94,7 @@ impl Persistence {
             config: Some(meta.config.clone()),
             vectors: persisted_vectors,
             hnsw_dump_basename: None,
+            ttl_secs: store.collection_ttl(collection_name),
         };
 
         let file = File::create(&temp_path).map_err(|e| crate::error::VectorizerError::Io(e))?;

@@ -1,12 +1,17 @@
 using System;
 using System.Collections.Generic;
 
+// Aliased rather than imported: HiveLLM.Thunder declares its own `Request`
+// and `Response` frame types, which these convert to and from.
+using Thunder = HiveLLM.Thunder;
+
 namespace Vectorizer.Rpc;
 
 /// <summary>
-/// One frame from client to server. Wire spec § 2.
-/// Serialises as a 3-element MessagePack array <c>[id, command, args]</c>
-/// to match <c>rmp-serde</c>'s default struct representation.
+/// One frame from client to server. Wire spec § 2. The bytes are Thunder's
+/// (a 3-element MessagePack array <c>[id, command, args]</c>, matching
+/// <c>rmp-serde</c>'s default struct representation); this type is the SDK's
+/// shape for them.
 /// </summary>
 public sealed class RpcRequest
 {
@@ -21,18 +26,29 @@ public sealed class RpcRequest
         Id = id;
     }
 
-    /// <summary>Returns the wire-shaped value (a 3-element object[]).</summary>
-    public object?[] ToWire()
+    /// <summary>Converts to a Thunder request frame, ready for
+    /// <c>FrameCodec.EncodeRequest</c>.</summary>
+    public Thunder.Request ToThunder()
     {
-        var args = new object?[Args.Count];
-        for (var i = 0; i < Args.Count; i++)
+        var args = new Thunder.Value[Args.Count];
+        for (var i = 0; i < args.Length; i++)
         {
-            args[i] = Args[i].ToWire();
+            args[i] = Args[i].ToThunder();
         }
-        // Wire spec § 2 packs id as the smallest unsigned representation.
-        // FrameCodec.EncodeFrame dispatches uint through
-        // MessagePackWriter.Write(uint), which picks the compact form.
-        return new object?[] { Id, Command, args };
+        return new Thunder.Request(Id, Command, args);
+    }
+
+    /// <summary>Converts a decoded Thunder request frame. Used by test servers
+    /// and proxies that read requests off the wire.</summary>
+    public static RpcRequest FromThunder(Thunder.Request request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var args = new VectorizerValue[request.Args.Count];
+        for (var i = 0; i < args.Length; i++)
+        {
+            args[i] = VectorizerValue.FromThunder(request.Args[i]);
+        }
+        return new RpcRequest(request.Id, request.Command, args);
     }
 }
 
@@ -71,85 +87,19 @@ public sealed class RpcResponse
         Result = result;
     }
 
-    /// <summary>Returns the wire-shaped value (a 2-element object[]).</summary>
-    public object?[] ToWire()
+    /// <summary>Converts to a Thunder response frame, ready for
+    /// <c>FrameCodec.EncodeResponse</c>.</summary>
+    public Thunder.Response ToThunder() =>
+        Result.IsOk
+            ? Thunder.Response.Ok(Id, Result.Value.ToThunder())
+            : Thunder.Response.Err(Id, Result.ErrorMessage ?? "unknown server error");
+
+    /// <summary>Converts a decoded Thunder response frame.</summary>
+    public static RpcResponse FromThunder(Thunder.Response response)
     {
-        // See RpcRequest.ToWire for why Id is a uint (FrameCodec emits compact form).
-        if (Result.IsOk)
-        {
-            return new object?[]
-            {
-                Id,
-                new Dictionary<string, object?> { [VectorizerValue.ResultOk] = Result.Value.ToWire() },
-            };
-        }
-        return new object?[]
-        {
-            Id,
-            new Dictionary<string, object?> { [VectorizerValue.ResultErr] = Result.ErrorMessage },
-        };
+        ArgumentNullException.ThrowIfNull(response);
+        return response.IsOk
+            ? new RpcResponse(response.Id, RpcResult.Ok(VectorizerValue.FromThunder(response.Value!)))
+            : new RpcResponse(response.Id, RpcResult.Err(response.Error ?? "unknown server error"));
     }
-
-    /// <summary>Decodes a <see cref="RpcResponse"/> from an on-wire payload.</summary>
-    public static RpcResponse FromWire(object? raw)
-    {
-        if (raw is not object?[] arr || arr.Length != 2)
-        {
-            throw new InvalidOperationException(
-                $"Response frame must be a 2-element array, got {DescribeType(raw)}");
-        }
-
-        var id = (uint)VectorizerValue.CoerceInt(arr[0], "Response.id");
-
-        var resultObj = arr[1];
-        if (resultObj is null)
-        {
-            throw new InvalidOperationException("Response.result is null");
-        }
-
-        IDictionary<object, object?> resultMap;
-        if (resultObj is IDictionary<object, object?> objMap)
-        {
-            resultMap = objMap;
-        }
-        else if (resultObj is IDictionary<string, object?> strMap)
-        {
-            resultMap = new Dictionary<object, object?>(strMap.Count);
-            foreach (var kvp in strMap) resultMap[kvp.Key] = kvp.Value;
-        }
-        else
-        {
-            throw new InvalidOperationException(
-                $"Response.result must be a single-key map, got {DescribeType(resultObj)}");
-        }
-
-        if (resultMap.Count != 1)
-        {
-            throw new InvalidOperationException(
-                $"Response.result must be a single-key map, got {resultMap.Count} keys");
-        }
-
-        foreach (var kvp in resultMap)
-        {
-            var tag = kvp.Key as string
-                ?? throw new InvalidOperationException(
-                    $"Response.result key must be string, got {DescribeType(kvp.Key)}");
-            switch (tag)
-            {
-                case VectorizerValue.ResultOk:
-                    return new RpcResponse(id, RpcResult.Ok(VectorizerValue.FromWire(kvp.Value)));
-                case VectorizerValue.ResultErr:
-                    return new RpcResponse(id, RpcResult.Err(
-                        kvp.Value as string
-                            ?? throw new InvalidOperationException(
-                                $"Err payload must be string, got {DescribeType(kvp.Value)}")));
-                default:
-                    throw new InvalidOperationException($"unknown Result tag: '{tag}'");
-            }
-        }
-
-        throw new InvalidOperationException("unreachable");
-    }
-
-    private static string DescribeType(object? v) => v?.GetType().FullName ?? "null";
 }

@@ -61,10 +61,12 @@ impl VectorStore {
         let persisted = crate::persistence::PersistedVectorStore {
             version: 1,
             collections: vec![crate::persistence::PersistedCollection {
-                name: canonical.clone(),
                 config: Some(metadata.config),
                 vectors,
                 hnsw_dump_basename: None,
+                // A snapshot restores the collection as it was, TTL included.
+                ttl_secs: self.collection_ttl(canonical.as_str()),
+                name: canonical.clone(),
             }],
         };
 
@@ -177,6 +179,10 @@ impl VectorStore {
 
         let config = pc.config.unwrap_or_default();
         self.create_collection_with_quantization(&canonical, config)?;
+        // The `delete_collection` above cleared the TTL rule; put back the one
+        // the snapshot carries (`None` for snapshots taken before the field
+        // existed, which is what those snapshots were taken with).
+        self.set_collection_ttl(&canonical, pc.ttl_secs);
         if !pc.vectors.is_empty() {
             self.load_collection_from_cache(&canonical, pc.vectors)?;
         }

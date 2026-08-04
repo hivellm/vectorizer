@@ -1,5 +1,4 @@
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -8,6 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Vectorizer.Rpc;
 using Xunit;
+
+// Aliased: HiveLLM.Thunder declares its own Request/Response/Value types.
+using Thunder = HiveLLM.Thunder;
 
 namespace Vectorizer.Rpc.Tests;
 
@@ -50,15 +52,57 @@ public class RpcClientTests
     }
 
     [Fact]
-    public async Task Call_BeforeHello_ThrowsNotAuthenticated()
+    public async Task Call_WithoutCredentials_ThrowsNotAuthenticated()
     {
+        // The server gates un-authenticated sessions with NOAUTH, which the
+        // config's RESP3 error convention classifies as an auth failure.
         await using var server = await MockRpcServer.StartAsync((_, id) =>
-            new RpcResponse(id, RpcResult.Err("should not reach server")));
+            new RpcResponse(id, RpcResult.Err("NOAUTH authentication required")));
+
+        await using var client = await RpcClient.ConnectAsync("127.0.0.1", server.Port);
+        Assert.False(client.IsAuthenticated);
+
+        await Assert.ThrowsAsync<RpcNotAuthenticatedException>(() =>
+            client.CallAsync("collections.list", Array.Empty<VectorizerValue>()));
+    }
+
+    [Fact]
+    public async Task HelloWithToken_AuthenticatesTheSession()
+    {
+        const string goodToken = "good-token";
+        await using var server = await MockRpcServer.StartAsync((req, id) => req.Command switch
+        {
+            "AUTH" => req.Args.Count > 0 && req.Args[0].TryAsStr(out var secret) && secret == goodToken
+                ? new RpcResponse(id, RpcResult.Ok(VectorizerValue.OfStr("OK")))
+                : new RpcResponse(id, RpcResult.Err("WRONGPASS invalid credentials")),
+            "HELLO" => new RpcResponse(id, RpcResult.Ok(HelloResponseMap(authenticated: true))),
+            "collections.list" => new RpcResponse(
+                id, RpcResult.Ok(VectorizerValue.OfArray(new[] { VectorizerValue.OfStr("alpha") }))),
+            _ => new RpcResponse(id, RpcResult.Err("NOAUTH authentication required")),
+        });
+
+        await using var client = await RpcClient.ConnectAsync("127.0.0.1", server.Port);
+
+        // A credential-carrying HELLO re-dials so the token travels in AUTH.
+        var hello = await client.HelloAsync(new HelloPayload { Token = goodToken });
+        Assert.True(hello.Authenticated);
+        Assert.True(client.IsAuthenticated);
+
+        var cols = await client.CallAsync("collections.list", Array.Empty<VectorizerValue>());
+        Assert.Single(cols.AsArray());
+    }
+
+    [Fact]
+    public async Task HelloWithBadToken_FailsTheHandshake()
+    {
+        await using var server = await MockRpcServer.StartAsync((req, id) => req.Command == "AUTH"
+            ? new RpcResponse(id, RpcResult.Err("WRONGPASS invalid credentials"))
+            : new RpcResponse(id, RpcResult.Ok(HelloResponseMap(authenticated: true))));
 
         await using var client = await RpcClient.ConnectAsync("127.0.0.1", server.Port);
 
         await Assert.ThrowsAsync<RpcNotAuthenticatedException>(() =>
-            client.CallAsync("collections.list", Array.Empty<VectorizerValue>()));
+            client.HelloAsync(new HelloPayload { Token = "wrong-token" }));
     }
 
     [Fact]
@@ -90,7 +134,7 @@ public class RpcClientTests
 
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
-        await Assert.ThrowsAsync<TaskCanceledException>(() =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             client.CallAsync("never.replies", Array.Empty<VectorizerValue>(), cts.Token));
     }
 
@@ -182,38 +226,39 @@ internal sealed class MockRpcServer : IAsyncDisposable
         using (client)
         await using (var stream = client.GetStream())
         {
+            var buffer = Array.Empty<byte>();
+            var chunk = new byte[64 * 1024];
             try
             {
                 while (!_cts.IsCancellationRequested)
                 {
-                    var raw = await FrameCodec.ReadFrameAsync(stream, _cts.Token);
-                    var request = DecodeRequest(raw);
-                    var response = _handler(request, request.Id);
-                    if (response is null) continue;
+                    // Thunder's codec owns framing on both ends of these tests.
+                    while (Thunder.FrameCodec.TryDecodeRequest(
+                        buffer, RpcClient.MaxFrameBytes, out var decoded, out var consumed))
+                    {
+                        buffer = buffer[consumed..];
+                        if (decoded is null) continue;
+                        var request = RpcRequest.FromThunder(decoded);
+                        var response = _handler(request, request.Id);
+                        if (response is null) continue; // dropped → client waits
 
-                    var frame = FrameCodec.EncodeFrame(response.ToWire());
-                    await stream.WriteAsync(frame, _cts.Token);
-                    await stream.FlushAsync(_cts.Token);
+                        var frame = Thunder.FrameCodec.EncodeResponse(response.ToThunder());
+                        await stream.WriteAsync(frame, _cts.Token);
+                        await stream.FlushAsync(_cts.Token);
+                    }
+
+                    var read = await stream.ReadAsync(chunk, _cts.Token);
+                    if (read == 0) return;
+                    var grown = new byte[buffer.Length + read];
+                    buffer.CopyTo(grown, 0);
+                    chunk.AsSpan(0, read).CopyTo(grown.AsSpan(buffer.Length));
+                    buffer = grown;
                 }
             }
             catch (OperationCanceledException) { }
             catch (EndOfStreamException) { }
             catch (IOException) { }
         }
-    }
-
-    private static RpcRequest DecodeRequest(object? raw)
-    {
-        if (raw is not object?[] arr || arr.Length != 3)
-        {
-            throw new InvalidDataException("invalid request frame shape");
-        }
-        var id = (uint)VectorizerValue.CoerceInt(arr[0], "Request.id");
-        var command = VectorizerValue.CoerceStr(arr[1], "Request.command");
-        var argsRaw = VectorizerValue.CoerceArray(arr[2], "Request.args");
-        var args = new VectorizerValue[argsRaw.Length];
-        for (var i = 0; i < argsRaw.Length; i++) args[i] = VectorizerValue.FromWire(argsRaw[i]);
-        return new RpcRequest(id, command, args);
     }
 
     public async ValueTask DisposeAsync()
