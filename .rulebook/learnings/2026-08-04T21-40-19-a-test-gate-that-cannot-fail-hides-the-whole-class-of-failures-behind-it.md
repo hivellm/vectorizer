@@ -1,0 +1,16 @@
+# A test gate that cannot fail hides the whole class of failures behind it
+**Source**: manual
+**Date**: 2026-08-04
+**Related Task**: phase1_python-sdk-return-type-contract
+**Tags**: ci, false-green, python-sdk, pytest
+`sdk-python-test.yml` ran `pytest ... || pytest ... || pytest ... || echo "Some tests may have failed"`. That step could not fail, so 43 broken tests stayed green for months and the first honest run was the release publish gate — which meant a *release* was the thing that surfaced them.
+
+What the 43 turned out to be, none of it what the workflow name suggested ("integration tests that require server"):
+
+1. **25** — one file used `asyncio.get_event_loop().run_until_complete(...)`. On Python 3.12+ that auto-creates a loop only on the first call in the main thread and otherwise raises `RuntimeError: There is no current event loop`. Eight sibling modules use `asyncio.run`, which closes its loop and leaves none current, so the file passed alone and failed in suite order. `pytest <file>` passing is not evidence when other modules run first — reproduce with `pytest <polluter> <target>`.
+2. **8** — `patch.object(client, '_session')` patched a dead attribute after the aiohttp session moved into the transport. The patch silently replaced nothing and every test dialled the network (43s of connection timeouts). Signals of the same trap: the mock target still *exists* (so `patch.object` does not raise) but nothing reads it.
+3. **10** — the SDK returning raw dicts from methods annotated as returning parsed types.
+
+Two mocking details specific to this transport, worth reusing: `_ensure_session` recreates the session when `session.closed` is truthy and a bare `MagicMock` is truthy, so a mocked session must set `closed = False` or it gets discarded; and the transport funnels every verb through `session.request(...)`, so per-verb `side_effect` queues have to collapse into one ordered `request` queue.
+
+Rule of thumb this leaves: when a suite is suspiciously green, grep CI for `|| echo`, `|| true` and `continue-on-error` on *test* steps, and make the pull-request workflow run the exact command the release gate runs. Divergence between the two is what let a green PR fail at publish time.

@@ -4,6 +4,58 @@ All notable changes to the Hive Vectorizer Python SDK will be documented in this
 
 ## [3.6.0] - TBD
 
+### Changed — BREAKING: three methods now return what they always claimed to
+
+`search_vectors`, `get_vector` and `embed_text` were annotated as returning
+parsed types and returned the transport's raw response dict instead. Callers
+who trusted the annotations were broken (`results[0].id` raised `KeyError: 0`);
+callers who read the dict worked by accident. They now match their signatures:
+
+| Method | Was returned (≤3.5.0) | Now |
+|---|---|---|
+| `search_vectors` | `{"results": [{...}]}` | `List[SearchResult]` |
+| `get_vector` | `{"id", "vector", "payload", ...}` | `Vector` |
+| `embed_text` | `{"embedding", "text", "dimension", "model"}` | `List[float]` |
+
+Migration — unwrap at the call site instead of on the response:
+
+```python
+# 3.5.0
+data = await client.search_vectors("docs", query="q", limit=5)
+for hit in data["results"]:
+    print(hit["id"], hit["score"])
+emb = (await client.embed_text("hello"))["embedding"]
+vec = await client.get_vector("docs", "doc1")
+print(vec["vector"])
+
+# 3.6.0
+for hit in await client.search_vectors("docs", query="q", limit=5):
+    print(hit.id, hit.score)
+emb = await client.embed_text("hello")
+vec = await client.get_vector("docs", "doc1")
+print(vec.data)
+```
+
+`get_vector` accepts both response shapes (`{vector, payload}` from the REST
+handler and `{data, metadata}` from Qdrant-compatible/older servers), so it
+works against 3.x and older deployments alike.
+
+`delete_vectors` already returned `DeleteReport` (since 3.3, issue #265) and is
+unchanged — only its test still assumed the pre-3.3 `bool`.
+
+### Fixed
+
+- A 404 or 403 no longer discards the server's explanation. `_handle_error`
+  replaced the body with a bare `"Resource not found"` / `"Access forbidden"`,
+  so the one piece of information that said *what* was missing never reached
+  the caller. Both now carry `HTTP <status>: <server message>`. The 404 stays a
+  generic `ServerError`, matching the Rust SDK — a status code cannot tell a
+  missing collection from a missing vector, and only the caller knows which it
+  asked for.
+- `embed_text` and `get_vector` now fail with a clear `ServerError` when the
+  response lacks the expected array, instead of handing back a dict that blows
+  up later at the call site.
+
 ### Changed
 
 - **RPC transport now runs on `hivellm-thunder`** (imported as `thunder_rpc`,

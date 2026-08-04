@@ -99,7 +99,17 @@ class VectorsClient(_ApiBase):
 
         payload = {"text": text}
 
-        return await self._transport.post("/embed", data=payload)
+        # `POST /embed` answers {embedding, text, dimension, model}; the
+        # signature promises the vector itself, so unwrap it. Returning the
+        # whole envelope made `len(result)` the number of response keys (4)
+        # instead of the embedding dimension.
+        data = await self._transport.post("/embed", data=payload)
+        if isinstance(data, dict):
+            embedding = data.get("embedding")
+            if isinstance(embedding, list):
+                return embedding
+            raise ServerError(f"/embed response has no embedding array: {data!r}")
+        raise ServerError(f"unexpected /embed response type: {type(data).__name__}")
     async def insert_texts(
         self,
         collection: str,
@@ -140,14 +150,9 @@ class VectorsClient(_ApiBase):
         """
         Get a specific vector by ID.
 
-        .. warning::
-           **Server caveat (observed on ``hivehub/vectorizer:3.0.x``):**
-           this endpoint currently returns HTTP 200 with a synthetic
-           uniform-vector payload (``[0.1, 0.1, ...]``) even for ids
-           that don't exist. Callers that need real miss detection
-           should probe via :meth:`list_vectors` or search and not
-           trust a successful response as proof of existence until
-           the server fix ships.
+        The server answers ``{id, vector, payload, collection}``; the ``vector``
+        array becomes :attr:`Vector.data` and ``payload`` becomes
+        :attr:`Vector.metadata`.
 
         Args:
             collection: Collection name
@@ -157,11 +162,27 @@ class VectorsClient(_ApiBase):
             Vector data
 
         Raises:
-            CollectionNotFoundError: If collection doesn't exist
+            CollectionNotFoundError: If the collection or vector doesn't exist
             NetworkError: If unable to connect to service
             ServerError: If service returns error
         """
-        return await self._transport.get(f"/collections/{collection}/vectors/{vector_id}")
+        data = await self._transport.get(f"/collections/{collection}/vectors/{vector_id}")
+        if not isinstance(data, dict):
+            raise ServerError(f"unexpected get_vector response type: {type(data).__name__}")
+
+        # Two shapes exist in the wild: the REST handler answers
+        # `{vector, payload}` while Qdrant-compatible and pre-3.x responses use
+        # `{data, metadata}`. Accept either rather than making the caller care.
+        raw = data.get("vector", data.get("data"))
+        if not isinstance(raw, list):
+            raise ServerError(f"get_vector response has no vector array: {data!r}")
+
+        payload = data.get("payload", data.get("metadata"))
+        return Vector(
+            id=str(data.get("id", vector_id)),
+            data=[float(v) for v in raw],
+            metadata=payload if isinstance(payload, dict) else None,
+        )
 
     async def insert_text_batch(
         self,

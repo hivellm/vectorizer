@@ -13,6 +13,7 @@ try:
         ServerError,
         AuthenticationError,
         RateLimitError,
+        CollectionNotFoundError,
     )
 except ImportError:
     from exceptions import (
@@ -20,6 +21,7 @@ except ImportError:
         ServerError,
         AuthenticationError,
         RateLimitError,
+        CollectionNotFoundError,
     )
 
 # Issue #263: cap Retry-After respect at this many seconds so a
@@ -184,9 +186,18 @@ class HTTPClient:
         if status == 401:
             return AuthenticationError(message)
         elif status == 403:
-            return AuthenticationError("Access forbidden")
+            # Keep the server's reason: "Access forbidden" on its own tells the
+            # caller nothing about which scope or role was missing.
+            return AuthenticationError(f"Access forbidden: {error_text}")
         elif status == 404:
-            return ServerError("Resource not found")
+            # Stays a generic ServerError, matching the Rust SDK
+            # (`404 => VectorizerError::server(...)` in sdks/rust/src/error.rs)
+            # so the family agrees: a status code alone cannot tell a missing
+            # collection from a missing vector, and only the caller knows which
+            # it asked for. What did change is that the server's own message now
+            # travels with it — `ServerError("Resource not found")` discarded
+            # the one piece of information that says *what* was missing.
+            return ServerError(message)
         elif status == 429:
             # 429 is handled in `request()` via Retry-After; reaching
             # here means the caller bypassed retry handling, so

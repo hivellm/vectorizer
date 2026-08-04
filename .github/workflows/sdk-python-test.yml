@@ -61,11 +61,18 @@ jobs:
       - name: Run tests (skip integration tests that require server)
         working-directory: ./sdks/python
         shell: bash
+        # Same invocation as the release gate in `sdk-publish-python.yml`, so a
+        # suite that is green here cannot fail at publish time — which is
+        # exactly what happened for v3.6.0.
+        #
+        # The previous command was a `||` chain ending in
+        # `|| echo "Some tests may have failed"`, which made this step incapable
+        # of failing: 43 broken tests sat green behind it until the release gate
+        # ran the suite honestly.
         run: |
-          # Run unit tests only, skip integration tests
-          pytest tests/ -v -m "not integration" --tb=short || \
-          pytest tests/ -v -k "not integration" --tb=short || \
-          pytest tests/ -v --tb=short -x || echo "Some tests may have failed"
+          pytest tests/ -q --tb=short \
+            --ignore=tests/test_file_upload.py \
+            --ignore=tests/test_routing.py
         env:
           # Skip server-to-server tests
           SKIP_INTEGRATION_TESTS: true

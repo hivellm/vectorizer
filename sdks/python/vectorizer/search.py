@@ -62,6 +62,36 @@ from ._base import _ApiBase
 logger = logging.getLogger(__name__)
 
 
+def _parse_search_results(data: Any) -> List[SearchResult]:
+    """Turn a search response into the ``List[SearchResult]`` callers are
+    promised.
+
+    The server answers ``{"results": [{id, score, content?, metadata?}, ...]}``.
+    Until this existed, `search_vectors` returned that envelope verbatim while
+    declaring `-> List[SearchResult]`, so `results[0].id` raised `KeyError: 0`
+    and `len(results)` counted dict keys. Unknown fields are ignored rather
+    than passed to the dataclass, so a server that grows the payload does not
+    break the client with an unexpected-keyword TypeError.
+    """
+    raw = data.get("results", []) if isinstance(data, dict) else data
+    if not isinstance(raw, list):
+        return []
+
+    parsed: List[SearchResult] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        parsed.append(
+            SearchResult(
+                id=str(item.get("id", "")),
+                score=float(item.get("score", 0.0)),
+                content=item.get("content"),
+                metadata=item.get("metadata"),
+            )
+        )
+    return parsed
+
+
 class SearchClient(_ApiBase):
     """All search flavors: dense, sparse, hybrid, intelligent, Qdrant-compat."""
 
@@ -105,7 +135,9 @@ class SearchClient(_ApiBase):
         if filter:
             payload["filter"] = filter
 
-        return await self._transport.post(f"/collections/{collection}/search", data=payload)
+        data = await self._transport.post(f"/collections/{collection}/search", data=payload)
+        return _parse_search_results(data)
+
     async def intelligent_search(self, request: IntelligentSearchRequest) -> IntelligentSearchResponse:
         """Advanced intelligent search with multi-query expansion and semantic reranking."""
         try:

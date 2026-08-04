@@ -208,12 +208,15 @@ async def main():
             "metadata": {"source": "example"}
         }])
 
-        # Search for similar vectors
+        # Search for similar vectors — a list of SearchResult, not a
+        # {"results": [...]} envelope (changed in 3.6.0; see CHANGELOG)
         results = await client.search_vectors(
             collection="my_collection",
             query="greeting",
             limit=5
         )
+        for hit in results:
+            print(hit.id, hit.score)
 
         # Intelligent search with multi-query expansion
         from models import IntelligentSearchRequest
@@ -684,9 +687,9 @@ for row in mv.results:
         print(f"move failed id={row.id!r} status={row.status} err={row.error!r}")
 
 # Reads automatically go to replicas (load balanced)
-results = await client.search_vectors("documents", query="sample", limit=10)
+results = await client.search_vectors("documents", query="sample", limit=10)  # List[SearchResult]
 collections = await client.list_collections()
-vector = await client.get_vector("documents", "doc1")
+vector = await client.get_vector("documents", "doc1")  # Vector — vector.data, vector.metadata
 ```
 
 ## Control surface (3.4)

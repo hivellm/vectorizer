@@ -6,6 +6,8 @@ incluindo tests unitários, de integração e de validação.
 """
 
 import unittest
+
+import aiohttp
 import asyncio
 import json
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
@@ -360,7 +362,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         """Test health check com falha."""
         mock_response = Mock()
         mock_response.headers = {'Content-Type': 'application/json'}
-        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.text = AsyncMock(return_value='Health check failed: store unavailable')
         mock_response.json = AsyncMock(return_value={})
         mock_response.status = 500
         
@@ -371,7 +373,11 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ServerError) as context:
                 await self.client.health_check()
             
+            # The transport formats "HTTP {status}: {body}" — the assertion is
+            # that the server's own words survive the trip, not that the SDK
+            # invents a per-method sentence.
             self.assertIn("Health check failed", str(context.exception))
+            self.assertIn("500", str(context.exception))
     
     async def test_list_collections_success(self):
         """Test listagem de coleções bem-sucedida."""
@@ -545,7 +551,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         """Test busca de vectores com collection não encontrada."""
         mock_response = Mock()
         mock_response.headers = {'Content-Type': 'application/json'}
-        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.text = AsyncMock(return_value="Collection 'nonexistent' not found")
         mock_response.json = AsyncMock(return_value={})
         mock_response.status = 404
         
@@ -553,7 +559,8 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             mock_session.closed = False
             mock_session.request.return_value.__aenter__.return_value = mock_response
             
-            with self.assertRaises(CollectionNotFoundError) as context:
+            # See test_get_vector_not_found: generic type, specific message.
+            with self.assertRaises(ServerError) as context:
                 await self.client.search_vectors(
                     collection="nonexistent",
                     query="test query"
@@ -676,7 +683,7 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         """Test obtenção de vector não encontrado."""
         mock_response = Mock()
         mock_response.headers = {'Content-Type': 'application/json'}
-        mock_response.text = AsyncMock(return_value='error body')
+        mock_response.text = AsyncMock(return_value="Vector 'nonexistent' not found")
         mock_response.json = AsyncMock(return_value={})
         mock_response.status = 404
         
@@ -684,36 +691,142 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
             mock_session.closed = False
             mock_session.request.return_value.__aenter__.return_value = mock_response
             
-            with self.assertRaises(CollectionNotFoundError) as context:
+            # A status code cannot say whether the collection or the vector was
+            # missing, so the transport raises a generic ServerError — same
+            # mapping as the Rust SDK. What must hold is that the server's
+            # reason reaches the caller instead of being replaced by a bare
+            # "Resource not found".
+            with self.assertRaises(ServerError) as context:
                 await self.client.get_vector("test_collection", "nonexistent")
             
             self.assertIn("Vector 'nonexistent' not found", str(context.exception))
+            self.assertIn("404", str(context.exception))
     
     async def test_delete_vectors_success(self):
         """Test exclusão de vectores bem-sucedida."""
         mock_response = Mock()
         mock_response.headers = {'Content-Type': 'application/json'}
         mock_response.text = AsyncMock(return_value='error body')
-        mock_response.json = AsyncMock(return_value={})
+        # `POST /batch_delete` contract: {collection, count, deleted, failed,
+        # results}. Issue #265 replaced the old bool return with DeleteReport so
+        # callers can audit per-id outcomes; asserting `assertTrue(result)` kept
+        # passing a truthy object without checking any of it.
+        mock_response.json = AsyncMock(return_value={
+            "collection": "test_collection",
+            "count": 2,
+            "deleted": 2,
+            "failed": 0,
+            "results": [
+                {"status": "ok", "id": "vector1"},
+                {"status": "ok", "id": "vector2"},
+            ],
+        })
         mock_response.status = 200
         
         with patch.object(self.client._transport, '_session') as mock_session:
             mock_session.closed = False
             mock_session.request.return_value.__aenter__.return_value = mock_response
             
-            result = await self.client.delete_vectors(
+            report = await self.client.delete_vectors(
                 "test_collection", 
                 ["vector1", "vector2"]
             )
             
-            self.assertTrue(result)
+            self.assertEqual(report.collection, "test_collection")
+            self.assertEqual(report.deleted, 2)
+            self.assertEqual(report.failed, 0)
+            self.assertEqual([r.id for r in report.results], ["vector1", "vector2"])
     
     async def test_delete_vectors_validation_error(self):
         """Test exclusão de vectores com lista vazia."""
         with self.assertRaises(ValidationError) as context:
             await self.client.delete_vectors("test_collection", [])
-        
+
         self.assertIn("Vector IDs list cannot be empty", str(context.exception))
+
+    # ── Return-type contract (phase1_python-sdk-return-type-contract) ───────
+    #
+    # The tests above pin the parsed returns against the response shape the
+    # older mocks used (`{data, metadata}`). These cover what the live REST
+    # handler actually sends and the failure paths introduced with the parsing.
+
+    def _respond(self, mock_session, payload, status=200):
+        """Wire `mock_session` to answer one request with `payload`."""
+        response = Mock()
+        response.headers = {'Content-Type': 'application/json'}
+        response.text = AsyncMock(return_value='error body')
+        response.json = AsyncMock(return_value=payload)
+        response.status = status
+        mock_session.closed = False
+        mock_session.request.return_value.__aenter__.return_value = response
+
+    async def test_get_vector_parses_the_live_server_shape(self):
+        """`GET /collections/{c}/vectors/{id}` answers {id, vector, payload}."""
+        with patch.object(self.client._transport, '_session') as mock_session:
+            self._respond(mock_session, {
+                "id": "doc1",
+                "vector": [0.25, 0.5],
+                "payload": {"text": "hello"},
+                "collection": "docs",
+            })
+
+            vector = await self.client.get_vector("docs", "doc1")
+
+            self.assertEqual(vector.id, "doc1")
+            self.assertEqual(vector.data, [0.25, 0.5])
+            self.assertEqual(vector.metadata, {"text": "hello"})
+
+    async def test_get_vector_rejects_a_response_without_a_vector(self):
+        """Better a named ServerError than a dict that breaks at the call site."""
+        with patch.object(self.client._transport, '_session') as mock_session:
+            self._respond(mock_session, {"id": "doc1", "collection": "docs"})
+
+            with self.assertRaises(ServerError) as context:
+                await self.client.get_vector("docs", "doc1")
+
+            self.assertIn("no vector array", str(context.exception))
+
+    async def test_embed_text_rejects_a_response_without_an_embedding(self):
+        with patch.object(self.client._transport, '_session') as mock_session:
+            self._respond(mock_session, {"text": "hello", "dimension": 0})
+
+            with self.assertRaises(ServerError) as context:
+                await self.client.embed_text("hello")
+
+            self.assertIn("no embedding array", str(context.exception))
+
+    async def test_search_vectors_returns_an_empty_list_when_there_are_no_hits(self):
+        """An empty result set is `[]`, not `{"results": []}` and not None."""
+        with patch.object(self.client._transport, '_session') as mock_session:
+            self._respond(mock_session, {"results": []})
+
+            results = await self.client.search_vectors(
+                collection="docs", query="nothing matches", limit=5
+            )
+
+            self.assertEqual(results, [])
+
+    async def test_search_vectors_ignores_unknown_result_fields(self):
+        """A server that grows the payload must not break the client with an
+        unexpected-keyword TypeError."""
+        with patch.object(self.client._transport, '_session') as mock_session:
+            self._respond(mock_session, {"results": [{
+                "id": "doc1",
+                "score": 0.5,
+                "content": "body",
+                "metadata": {"k": "v"},
+                "future_field_the_client_has_never_heard_of": 42,
+            }]})
+
+            results = await self.client.search_vectors(
+                collection="docs", query="q", limit=5
+            )
+
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0].id, "doc1")
+            self.assertEqual(results[0].score, 0.5)
+            self.assertEqual(results[0].content, "body")
+            self.assertEqual(results[0].metadata, {"k": "v"})
     
     async def test_get_indexing_progress_success(self):
         """Test obtenção de progresso de indexação bem-sucedida."""
@@ -742,13 +855,17 @@ class TestVectorizerClientAsync(unittest.IsolatedAsyncioTestCase):
         """Test tratamento de erro de rede."""
         with patch.object(self.client._transport, '_session') as mock_session:
             mock_session.closed = False
-            mock_session.request.side_effect = Exception("Network error")
+            mock_session.request.side_effect = aiohttp.ClientConnectionError(
+                "Cannot connect to host localhost:15002"
+            )
             
             try:
                 await self.client.health_check()
                 self.fail("Expected NetworkError to be raised")
             except NetworkError as e:
-                self.assertIn("Failed to connect to service", str(e))
+                # Documented transport contract for a connection failure.
+                self.assertIn("HTTP request failed", str(e))
+                self.assertIn("Cannot connect to host", str(e))
             except Exception as e:
                 # Se não for NetworkError, verificar se é aiohttp.ClientError
                 if "Network error" in str(e):

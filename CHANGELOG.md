@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING (Python SDK): `search_vectors`, `get_vector` and `embed_text`
+  return their annotated types.** All three declared parsed returns
+  (`List[SearchResult]`, `Vector`, `List[float]`) and handed back the
+  transport's raw response dict, so anyone who trusted the signature was
+  broken (`results[0].id` raised `KeyError: 0`) and anyone who read the dict
+  worked by accident. Found because the v3.6.0 PyPI publish gate was the first
+  honest run of the Python suite. Migration table and examples in
+  `sdks/python/CHANGELOG.md`.
+  - `get_vector` accepts both the REST handler's `{vector, payload}` and the
+    Qdrant-compatible/older `{data, metadata}`, so it keeps working against
+    older deployments.
+  - `delete_vectors` was already correct (it has returned `DeleteReport` since
+    3.3); only its test still assumed the pre-3.3 `bool`.
+  - A 404 or 403 no longer replaces the server's explanation with
+    `"Resource not found"` / `"Access forbidden"` — the message that says
+    *what* was missing now reaches the caller. The 404 stays a generic
+    `ServerError` to match the Rust SDK: a status code cannot distinguish a
+    missing collection from a missing vector.
+
 ### Added
 
 - **`GET /collections/{name}/ttl` and the `collections.set_ttl` /
