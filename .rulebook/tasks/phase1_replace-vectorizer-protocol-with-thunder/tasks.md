@@ -13,7 +13,7 @@
 - [ ] 4.2 TS / Python / Go / C# SDK transports migrated to thunder's wire (per the spec)
 
 ## 5. Delete the crate
-- [ ] 5.1 Remove crates/vectorizer-protocol from the workspace once unreferenced; cargo check + clippy clean
+- [x] 5.1 Remove crates/vectorizer-protocol from the workspace once unreferenced; cargo check + clippy clean
 
 ## 6. Tail (docs + tests — check or waive with tailWaiver)
 - [ ] 6.1 Update or create documentation covering the implementation

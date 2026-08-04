@@ -218,11 +218,10 @@ impl From<proto::HybridScoringAlgorithm> for HybridScoringAlgorithm {
 /// Convert a hybrid-search proto request into the
 /// `(dense_query, sparse_query, config)` triple the engine expects.
 ///
-/// This was a `TryFrom` impl before phase4_split-vectorizer-workspace
-/// sub-phase 2 moved `HybridSearchRequest` into `vectorizer-protocol` —
-/// the orphan rule then rejected the impl because every non-tuple
-/// component was foreign to this crate. A free function carries the
-/// same conversion without invoking the orphan rule.
+/// This was a `TryFrom` impl until the generated protos moved into their
+/// own crate (`vectorizer-grpc`) — the orphan rule then rejected the impl
+/// because every non-tuple component was foreign to this crate. A free
+/// function carries the same conversion without invoking the orphan rule.
 pub fn hybrid_search_request_to_engine_args(
     req: &proto::HybridSearchRequest,
 ) -> Result<(Vec<f32>, Option<SparseVector>, HybridSearchConfig)> {

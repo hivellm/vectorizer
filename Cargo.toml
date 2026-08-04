@@ -1,11 +1,11 @@
 # Vectorizer Cargo workspace.
 #
-# Sub-phase 1 of phase4_split-vectorizer-workspace ships the
-# skeleton: the existing monolithic crate moved under
-# `crates/vectorizer/` with no module-boundary refactor. Sub-phases
-# 2-5 extract `vectorizer-protocol`, `vectorizer-core`,
-# `vectorizer-server`, and `vectorizer-cli` from there. Sub-phase 6
-# wires `sdks/rust` as a workspace member.
+# `crates/vectorizer` is the engine umbrella; `vectorizer-core` holds the
+# foundation primitives, `vectorizer-grpc` the generated gRPC types,
+# `vectorizer-server` the transports, and `vectorizer-cli` the binaries.
+# `sdks/rust` is a member too, so the published SDK builds and lints with
+# the rest of the tree. The RPC wire itself is no longer a first-party
+# crate: it is the shared `thunder-rpc` dependency.
 
 [workspace]
 resolver = "2"

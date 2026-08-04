@@ -9549,17 +9549,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vectorizer-protocol"
-version = "3.6.0"
-dependencies = [
- "rmp-serde",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
- "tokio",
-]
-
-[[package]]
 name = "vectorizer-sdk"
 version = "3.6.0"
 dependencies = [

@@ -6,8 +6,7 @@ use std::time::Duration;
 use parking_lot::RwLock;
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
-// Cluster proto types live in the `vectorizer-grpc` crate (relocated out of
-// vectorizer-protocol so the RPC-wire crate can move to thunder-rpc).
+// Cluster proto types live in the `vectorizer-grpc` crate.
 use vectorizer_grpc::grpc_gen::cluster as cluster_proto;
 
 use super::collection_sync::CollectionSynchronizer;

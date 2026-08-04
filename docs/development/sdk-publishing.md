@@ -10,7 +10,7 @@ workflow-scoped credential, and (npm, PyPI) attaches provenance.
 | Python | `vectorizer_sdk` | PyPI | `sdk-publish-python.yml` | OIDC Trusted Publisher |
 | TypeScript | `@hivehub/vectorizer-sdk` | npm | `sdk-publish-typescript.yml` | OIDC Trusted Publishing + provenance |
 | C# | `Vectorizer.Sdk`, `Vectorizer.Sdk.Rpc` | NuGet.org | `sdk-publish-csharp.yml` | OIDC login → short-lived key |
-| Rust | `vectorizer-protocol`, `vectorizer-sdk` | crates.io | `sdk-publish-rust.yml` | OIDC Trusted Publisher |
+| Rust | `vectorizer-sdk` | crates.io | `sdk-publish-rust.yml` | OIDC Trusted Publisher |
 | Go | `github.com/hivellm/vectorizer-sdk-go` | proxy.golang.org | `sdk-publish-go.yml` | git tag (no token model) |
 
 The workflows are version-gated: on a `vX.Y.Z` release each verifies the SDK's
@@ -49,12 +49,13 @@ cannot be automated from CI.
    `NuGet/login` action needs it.
 
 ### crates.io (Rust)
-1. On <https://crates.io> → each crate (`vectorizer-protocol`, `vectorizer-sdk`)
-   → *Settings* → *Trusted Publishing*.
+1. On <https://crates.io> → crate `vectorizer-sdk` → *Settings* →
+   *Trusted Publishing*.
 2. Add a GitHub publisher: repo `hivellm/vectorizer`, workflow
    `sdk-publish-rust.yml`.
-3. `vectorizer-sdk` depends on `vectorizer-protocol`; the workflow publishes
-   protocol first. Both crates must have their own Trusted Publisher entry.
+3. `vectorizer-sdk` is the only crate this repo publishes — its RPC transport
+   is the already-published `thunder-rpc`, so nothing has to be released
+   ahead of it.
 
 ### Go (module proxy)
 Go has no token model — publishing is a git tag. The Go SDK lives in its own

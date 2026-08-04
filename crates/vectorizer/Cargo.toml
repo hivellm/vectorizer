@@ -197,8 +197,8 @@ transmutation = { version = "0.3.1", optional = true, features = ["office", "pdf
 # (`default-features = false`): the umbrella crate re-exports the types through
 # `vectorizer::protocol::rpc`; the listener lives in `vectorizer-server`.
 thunder-rpc = { version = "0.2.2", default-features = false }
-# tonic/prost gRPC types (first-party + cluster + Qdrant-compat), relocated out
-# of vectorizer-protocol so the RPC-wire crate can move to thunder-rpc.
+# tonic/prost gRPC types: first-party + cluster + Qdrant-compat schemas, with
+# the proto trees and build.rs that generate them.
 vectorizer-grpc = { path = "../vectorizer-grpc" }
 # Core primitives seam (phase4_split-vectorizer-workspace, sub-phase 3):
 # error type, binary codec, quantization, simd, parallel + compression
@@ -208,9 +208,8 @@ vectorizer-grpc = { path = "../vectorizer-grpc" }
 vectorizer-core = { path = "../vectorizer-core" }
 
 [build-dependencies]
-# Only the Windows icon-embed step remains here — proto compilation
-# moved to the `vectorizer-protocol` crate under
-# phase4_split-vectorizer-workspace sub-phase 2.
+# Only the Windows icon-embed step remains here — proto compilation lives
+# in the `vectorizer-grpc` crate's own build script.
 winres = "0.1"
 
 [dev-dependencies]

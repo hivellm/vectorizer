@@ -9,10 +9,9 @@
 // for the orphan rule.
 pub mod server;
 
-// Generated proto modules live in the `vectorizer-grpc` crate (relocated out
-// of vectorizer-protocol so the RPC-wire crate can move to thunder-rpc).
-// Re-exported here so existing consumers (`use vectorizer::grpc::vectorizer::*`
-// etc.) keep working without code changes.
+// Generated proto modules live in the `vectorizer-grpc` crate. Re-exported
+// here so existing consumers (`use vectorizer::grpc::vectorizer::*` etc.)
+// keep working without code changes.
 pub use vectorizer_grpc::grpc_gen::{cluster, qdrant_proto, vectorizer};
 
 // Qdrant gRPC service implementations (server-side, depend on the
