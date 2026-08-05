@@ -116,6 +116,33 @@ Append `-NoCache` to either script:
 Use this when measuring the baseline (e.g., to validate that the
 cache is actually delivering the expected speedup).
 
+## Docker Hub description
+
+`deploy/docker/dockerhub-readme.md` is the image's front page on Docker Hub.
+Nothing publishes it: the docs used to say it shipped on every release, but
+that was the CI job removed with the rest of the Docker pipeline. Push it by
+hand when cutting a release:
+
+```powershell
+$c = "https://index.docker.io/v1/" | docker-credential-desktop get | ConvertFrom-Json
+$tok = (Invoke-RestMethod -Method Post -Uri "https://hub.docker.com/v2/users/login" `
+  -ContentType "application/json" `
+  -Body (@{username=$c.Username; password=$c.Secret} | ConvertTo-Json)).token
+Invoke-RestMethod -Method Patch -Uri "https://hub.docker.com/v2/repositories/hivehub/vectorizer/" `
+  -Headers @{Authorization="JWT $tok"} -ContentType "application/json" `
+  -Body (@{full_description = (Get-Content deploy/docker/dockerhub-readme.md -Raw)} | ConvertTo-Json -Depth 3)
+```
+
+**The description is capped at 25,000 bytes** and the API rejects the whole
+update past it — atomically, so a too-long payload leaves the previous
+description in place rather than truncating. The 3.6.1 cut hit this at 25,768
+bytes. Keep the current release's highlights and compress older ones into a
+single summary line instead of appending a new block each time; check with
+`[IO.File]::ReadAllBytes(...).Length` before pushing.
+
+Remember it is a **public, user-facing page**: maintainer notes belong here,
+not in that file.
+
 ## Cache lifecycle
 
 The `hivehub/vectorizer-cache` repository on Docker Hub is dedicated

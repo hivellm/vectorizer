@@ -41,8 +41,8 @@ importers:
   .:
     dependencies:
       '@hivehub/vectorizer-sdk':
-        specifier: ^3.6.0
-        version: 3.6.0
+        specifier: ^3.6.1
+        version: 3.6.1
       '@monaco-editor/loader':
         specifier: ^1.7.0
         version: 1.7.0
@@ -401,8 +401,8 @@ packages:
     resolution: {integrity: sha512-m1LjM0j3OBr9b61xS2tdhrGvys86OvstU4eQA/R6X/0a2LPwFxGFRd3X2xSt/rauoZNXeMqUb9IMMGMfwuFstA==}
     engines: {node: '>=18'}
 
-  '@hivehub/vectorizer-sdk@3.6.0':
-    resolution: {integrity: sha512-dHqr1x7lsLuxSUUlnn9oabsKRtFLuTQHDcMk054dxhukHL6BxyIwtyMzdQPV+2A83aIoI4O1UHy9nPRhmbzahQ==}
+  '@hivehub/vectorizer-sdk@3.6.1':
+    resolution: {integrity: sha512-zQADE0Xioyv+/AtIF0VRtDM7RBkianf9BAMn4myM36MaUGB7tNgVW0gTD0E/FHMNVyUq3D5C0zpxFJ1xOjGQng==}
     engines: {node: '>=16.0.0'}
 
   '@isaacs/fs-minipass@4.0.1':
@@ -2561,7 +2561,7 @@ snapshots:
     dependencies:
       '@msgpack/msgpack': 3.1.3
 
-  '@hivehub/vectorizer-sdk@3.6.0':
+  '@hivehub/vectorizer-sdk@3.6.1':
     dependencies:
       '@hivehub/thunder': 0.2.2
 

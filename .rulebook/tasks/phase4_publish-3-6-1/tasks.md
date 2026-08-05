@@ -3,7 +3,8 @@
 Strictly ordered: nothing below 1.1 can start until the commits are on
 GitHub, and 1.5 cannot start until the registries actually serve 3.6.1.
 
-- [ ] 1.1 **Push `main`.** Blocked on the user — this shell has no SSH key,
+- [x] 1.1 **Push `main`.** Done by the user; remote and local both at
+      `f42aaa9f`. Blocked on the user — this shell has no SSH key,
       and the HTTPS + `gh auth git-credential` route hung on a non-interactive
       credential prompt. As of the phase3 handoff the remote sits at
       `ead8c55b` and everything from `33fd22be` onward is local.
@@ -14,10 +15,12 @@ GitHub, and 1.5 cannot start until the registries actually serve 3.6.1.
       3.6.1 version bump. Until this lands, CI still cannot add
       `submodules: true` to checkout without failing outright.
       **Done when:** the submodule's remote HEAD matches its local HEAD.
-- [ ] 1.3 **Tag `v3.6.1` on the superproject and push the tag.** This is what
+- [x] 1.3 **Tag `v3.6.1` on the superproject and push the tag.** This is what
       drives the SDK publish workflows.
       **Done when:** the tag exists on the remote and
       `release-artifacts.yml` has started.
+      Tag points at `f42aaa9f`; the GitHub release is published (not a draft),
+      which also covers 1.7.
 - [ ] 1.4 **Tag `v3.6.1` in the `sdks/go` repository too.** Go resolves a
       module version from a tag in that repo; the superproject's tag does
       nothing for it. The `Version` constant bumped in phase3 has to agree
@@ -31,25 +34,40 @@ GitHub, and 1.5 cannot start until the registries actually serve 3.6.1.
       because the jobs had been deleted and there was nothing left to fail.
       **Done when:** each registry serves 3.6.1, checked by query rather than
       by reading CI.
-- [ ] 1.6 **Point the GUI at the published SDK** (`gui/package.json`:
+      **Four of five confirmed by query:** crates.io 3.6.1, PyPI 3.6.1, NuGet
+      3.6.1, npm `dist-tags.latest` 3.6.1. The Go module proxy returns nothing
+      for `github.com/hivellm/vectorizer-go` — consistent with 1.2/1.4 still
+      being open, and exactly why this is checked by query: all six release
+      workflows report success, and the Go SDK is not among them.
+- [x] 1.6 **Point the GUI at the published SDK** (`gui/package.json`:
       `@hivehub/vectorizer-sdk` → `^3.6.1`), then `pnpm install` to refresh
       the lockfile. Must come after 1.5 — a `package.json` whose lockfile
       disagrees breaks `pnpm install --frozen-lockfile` in CI.
       **Done when:** `pnpm install` resolves and `pnpm type-check` passes.
-- [ ] 1.7 **Publish the GitHub release notes** for `v3.6.1` from the
+      Resolved to 3.6.1, `pnpm type-check` exit 0.
+- [x] 1.7 **Publish the GitHub release notes** for `v3.6.1` from the
       CHANGELOG's 3.6.1 section.
       **Done when:** the release is visible and not a draft.
+      Published 2026-08-05T18:22:32Z, not a draft.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
 - [ ] 2.1 Update or create documentation covering the implementation.
       Candidate for a waiver: phase3 already moved every install snippet and
       the Docker Hub readme to 3.6.x. Re-check only if a registry ends up
       serving something other than 3.6.1.
-      **Worth doing instead of waiving:** `deploy/docker/dockerhub-readme.md`
-      is documented as shipping to Docker Hub on every release, and nothing
-      does that any more — the job went with the deleted Docker CI. Either
-      push the description by hand while publishing, or record that the file
-      is now decorative.
+      **Done.** The published description was still the 3.5.0 one — nothing
+      ships it since the Docker CI was deleted. Pushed by hand via the Hub API;
+      the page now leads with the 3.6.1 highlights and its pull commands say
+      3.6.1.
+      Two things learned doing it, both now in
+      `docs/development/docker-builds.md` with the exact command:
+      - **The description is capped at 25,000 bytes** and the API rejects the
+        whole update past it, atomically — the first attempt failed at 25,768
+        and left the 3.5.0 text in place. Older highlight blocks have to be
+        compressed rather than appended.
+      - I first put that warning *in* the readme, and it published — a
+        maintainer note on a public page. Removed and republished; the
+        constraint belongs in the runbook.
 - [ ] 2.2 Write tests covering the new behavior — waive; this task performs a
       publish and changes no behaviour. The guard that matters already exists:
       `crates/vectorizer/tests/version_carriers_agree.rs` fails if any carrier
