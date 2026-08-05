@@ -81,5 +81,15 @@ loader publishes before any handler reads it. Build after each item.
       that `/health` keeps answering 200 during warm-up, and `/ready` added to
       the anonymous-route list in `rest_auth_enforcement.rs`, which is what
       actually exercises the three middleware allow-lists.
-- [ ] 2.3 Run tests and confirm they pass (`cargo nextest run --workspace
+- [x] 2.3 Run tests and confirm they pass (`cargo nextest run --workspace
       --lib --bins --tests`, plus clippy and fmt).
+      **2029 passed, 0 failed, 9 skipped**; clippy exit 0; `fmt --check` clean.
+      Two gate findings worth keeping:
+      - `file_size_budget` failed on `meta.rs` (468/430) and
+        `collections.rs` (1052/1035) *after* per-file checks and per-test runs
+        were all green. It is a separate test binary, so a `--lib` or
+        `--test <name>` run never builds it. Budgets raised to 475 / 1060 with
+        the growth recorded, per the table's own rule.
+      - `expect_used` is denied crate-wide including tests, so the concurrency
+        test needed the `#[allow(clippy::unwrap_used, clippy::expect_used)]`
+        the crate's other test modules carry.

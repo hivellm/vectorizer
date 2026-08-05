@@ -1,0 +1,22 @@
+# A partial answer whose own total agrees with it reads as data loss
+
+**Category**: correctness
+**Tags**: correctness, api-design, startup, readiness, anti-pattern
+
+## Description
+
+`GET /collections` answered from whatever the background loader had inserted so far, and set `total_collections = collections.len()`. So a store holding 181 collections answered "11 collections, total 11" twenty seconds after boot — internally consistent, confidently wrong. During a 3.5→3.6 upgrade this was read as catastrophic data loss and triggered rollback procedures for ordinary warm-up (issue #391).
+
+The lesson is about failure *shape*, not about the loader. An endpoint that errors or hangs makes an operator wait; a self-consistent partial answer makes them act. Any read served while asynchronous state is still filling needs a field saying so, and a denominator to say how far along it is. Without the denominator "loading: true" only tells them to retry blindly.
+
+Three implementation rules this produced:
+
+1. **Add fields, never redefine one.** `total_collections` kept meaning "items in this response" because published SDKs read it; `loading` / `loaded_collections` / `expected_collections` / `load_state` carry the new story. Same tactic as the `total`/`data` search-envelope mirror — changing a field's meaning breaks clients in production with no signal.
+2. **Settle the flag on every exit path.** The bootstrap loader has four: success, loader error, auto-load disabled, and cancelled-before-start (a bare `return` that is easy to miss). Any path leaving the handle at `Pending` strands the server reporting "still loading" for the life of the process — worse than the bug being fixed. Grep the whole spawned task for `return` before believing you have them all.
+3. **Failed ≠ ready, but also ≠ loading.** A load that stopped early is settled — nothing more is coming — yet it never delivered the catalog, so readiness must stay negative and carry the reason. That distinction is what separates "wait" from "investigate" for whoever is holding the pager.
+
+Testing note: the warm-up window is seconds long on a real store and cannot be raced reliably. Expose the progress handle from the test harness and drive it directly (`begin` / `record_loaded` / `finish` / `fail`) so every state is observable on demand.
+
+## When to Use
+
+Any endpoint that can serve a read while asynchronous state (startup load, migration, reindex, cache warm) is still filling — or when deciding how to expose progress of a background job.
