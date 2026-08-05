@@ -77,7 +77,13 @@ impl Default for SigningConfig {
             secret_key: std::env::var("HIVEHUB_SIGNING_SECRET").ok(),
             max_clock_skew_secs: MAX_CLOCK_SKEW_SECS,
             required_paths: vec![],
-            exempt_paths: vec!["/health".to_string(), "/metrics".to_string()],
+            // Probes carry no signature: an orchestrator hits these before
+            // any credential or shared secret is in play.
+            exempt_paths: vec![
+                "/health".to_string(),
+                "/ready".to_string(),
+                "/metrics".to_string(),
+            ],
         }
     }
 }

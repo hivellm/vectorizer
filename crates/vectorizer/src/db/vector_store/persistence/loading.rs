@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use tracing::{debug, error, info, warn};
 
 use super::super::{CollectionType, VectorStore};
+use crate::db::CollectionLoadProgress;
 use crate::error::{Result, VectorizerError};
 
 impl VectorStore {
@@ -96,8 +97,29 @@ impl VectorStore {
         Ok(())
     }
 
-    /// Load all persisted collections from the data directory
+    /// Load all persisted collections from the data directory.
+    ///
+    /// Reports nothing about its progress. Callers that expose the store
+    /// while this runs — the server does, from a background task — should
+    /// use [`Self::load_all_persisted_collections_tracked`] instead, so a
+    /// reader can tell a partially-loaded store from a complete one.
     pub fn load_all_persisted_collections(&self) -> Result<usize> {
+        self.load_all_persisted_collections_tracked(&CollectionLoadProgress::new())
+    }
+
+    /// Load all persisted collections, publishing progress as they land.
+    ///
+    /// `progress` receives the catalog size before the first collection is
+    /// inserted and one increment per collection thereafter, so a concurrent
+    /// reader always has a real denominator (issue #391).
+    ///
+    /// Settling the final state is the **caller's** job: this method does not
+    /// call `finish` or `fail`, because the caller usually has more startup
+    /// work to do and is the only one who knows whether the store is ready.
+    pub fn load_all_persisted_collections_tracked(
+        &self,
+        progress: &CollectionLoadProgress,
+    ) -> Result<usize> {
         let data_dir = Self::get_data_dir();
         if !data_dir.exists() {
             debug!("Data directory does not exist: {:?}", data_dir);
@@ -112,18 +134,18 @@ impl VectorStore {
         match format {
             crate::storage::StorageFormat::Compact => {
                 info!("📦 Found vectorizer.vecdb - loading from compressed archive");
-                self.load_from_vecdb()
+                self.load_from_vecdb(progress)
             }
             crate::storage::StorageFormat::Legacy => {
                 info!("📁 Using legacy format - loading from raw files");
-                self.load_from_raw_files()
+                self.load_from_raw_files(progress)
             }
         }
     }
 
     /// Load collections from vectorizer.vecdb (compressed archive)
     /// NEVER falls back to raw files — .vecdb is the ONLY source of truth
-    fn load_from_vecdb(&self) -> Result<usize> {
+    fn load_from_vecdb(&self, progress: &CollectionLoadProgress) -> Result<usize> {
         use crate::storage::StorageReader;
 
         let data_dir = Self::get_data_dir();
@@ -163,6 +185,11 @@ impl VectorStore {
             "📦 Loading {} collections from archive...",
             persisted_collections.len()
         );
+
+        // Publish the denominator before the first insertion: from here on the
+        // store is observably incomplete, and a reader needs to know against
+        // what (issue #391).
+        progress.begin(persisted_collections.len());
 
         let mut collections_loaded = 0;
 
@@ -216,6 +243,7 @@ impl VectorStore {
                     if persisted_collection.vectors.is_empty() {
                         // Empty collection — just count it as loaded (metadata preserved)
                         collections_loaded += 1;
+                        progress.record_loaded();
                         info!(
                             "✅ Restored empty collection '{}' (metadata only) ({}/{})",
                             collection_name,
@@ -256,6 +284,7 @@ impl VectorStore {
                             }
 
                             collections_loaded += 1;
+                            progress.record_loaded();
                             info!(
                                 "✅ Successfully loaded collection '{}' with {} vectors ({}/{})",
                                 collection_name,
@@ -296,7 +325,9 @@ impl VectorStore {
             );
             error!("   All collections failed to deserialize — likely format mismatch");
             warn!("🔄 Attempting fallback to raw files...");
-            return self.load_from_raw_files();
+            // `begin` resets the counters, so the fallback republishes its own
+            // denominator rather than reporting against the archive's.
+            return self.load_from_raw_files(progress);
         }
 
         // Clean up any legacy raw files after successful load from .vecdb
@@ -360,7 +391,7 @@ impl VectorStore {
     }
 
     /// Load collections from raw files (legacy format)
-    fn load_from_raw_files(&self) -> Result<usize> {
+    fn load_from_raw_files(&self, progress: &CollectionLoadProgress) -> Result<usize> {
         let data_dir = Self::get_data_dir();
 
         // Collect all collection files first
@@ -387,6 +418,10 @@ impl VectorStore {
             collection_files.len()
         );
 
+        // Same contract as the .vecdb path: denominator first, then one
+        // increment per collection (issue #391).
+        progress.begin(collection_files.len());
+
         // Load collections sequentially but with better progress reporting
         let mut collections_loaded = 0;
         for (i, (path, collection_name)) in collection_files.iter().enumerate() {
@@ -410,6 +445,7 @@ impl VectorStore {
                     }
 
                     collections_loaded += 1;
+                    progress.record_loaded();
                     info!(
                         "✅ Successfully loaded collection '{}' from persistence ({}/{})",
                         collection_name,

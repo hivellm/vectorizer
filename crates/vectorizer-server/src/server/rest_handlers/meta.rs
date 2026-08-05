@@ -1,6 +1,7 @@
 //! Meta / status REST handlers.
 //!
 //! - `health_check` — GET /health
+//! - `readiness_check` — GET /ready
 //! - `get_stats`    — GET /stats
 //! - `get_indexing_progress` — GET /indexing/progress
 //! - `get_status`   — GET /status  (GUI)
@@ -10,8 +11,8 @@
 use std::collections::HashMap;
 
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
-use axum::response::Json;
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::response::{IntoResponse, Json};
 use serde_json::{Value, json};
 use tracing::error;
 
@@ -54,7 +55,61 @@ pub async fn health_check(State(state): State<VectorizerServer>) -> Json<Value> 
         });
     }
 
+    // Catalog-load readiness (issue #391), reported *alongside* liveness
+    // rather than folded into `status`.
+    //
+    // The Dockerfile HEALTHCHECK probes this endpoint with
+    // `--start-period=40s --interval=30s --retries=3`. Failing it while the
+    // catalog loads would mark a container unhealthy after roughly two
+    // minutes — and the stores where loading takes that long are precisely
+    // the large ones this issue is about, so the orchestrator would kill and
+    // restart them in a loop. `status` stays a liveness answer; `/ready` is
+    // the endpoint to gate traffic on.
+    let load = state.collection_load.snapshot();
+    response["readiness"] = json!({
+        "ready": load.is_complete(),
+        "loading": load.is_loading(),
+        "loaded_collections": load.loaded,
+        "expected_collections": load.expected,
+        "load_state": load.status,
+    });
+
     Json(response)
+}
+
+/// GET /ready — readiness probe for the startup catalog load (issue #391).
+///
+/// `200` once every persisted collection is in the store; `503` with
+/// `Retry-After` until then. This is the endpoint an orchestrator should gate
+/// traffic on — unlike `/health`, which answers liveness and must keep
+/// succeeding during warm-up so the container is not restarted mid-load.
+///
+/// A *failed* load also answers `503`: the catalog was never delivered, so
+/// the server is not ready even though nothing more is coming. `load_state`
+/// carries the reason, which is the difference between "wait" and
+/// "investigate".
+pub async fn readiness_check(State(state): State<VectorizerServer>) -> impl IntoResponse {
+    let load = state.collection_load.snapshot();
+
+    let body = json!({
+        "ready": load.is_complete(),
+        "loading": load.is_loading(),
+        "loaded_collections": load.loaded,
+        "expected_collections": load.expected,
+        "load_state": load.status,
+    });
+
+    let mut headers = HeaderMap::new();
+    let status = if load.is_complete() {
+        StatusCode::OK
+    } else {
+        // Five seconds: long enough not to hammer a server that is busy
+        // loading, short enough that a probe loop notices readiness promptly.
+        headers.insert(header::RETRY_AFTER, HeaderValue::from_static("5"));
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+
+    (status, headers, Json(body))
 }
 
 /// GET /stats — aggregate collection and vector counts.

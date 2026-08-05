@@ -28,6 +28,7 @@ pub mod async_indexing;
 pub mod auto_save;
 pub mod backpressure;
 mod collection;
+pub mod collection_load_progress;
 pub mod collection_normalization;
 pub mod graph;
 pub mod graph_relationship_discovery;
@@ -57,6 +58,9 @@ pub use async_indexing::{AsyncIndexManager, IndexBuildProgress, IndexBuildStatus
 pub use auto_save::AutoSaveManager;
 pub use backpressure::{BackpressureGuard, BackpressurePermit};
 pub use collection::{Collection, VectorCountSample};
+pub use collection_load_progress::{
+    CollectionLoadProgress, CollectionLoadSnapshot, CollectionLoadStatus,
+};
 pub use collection_normalization::CollectionNormalizationHelper;
 pub use distributed_sharded_collection::DistributedShardedCollection;
 #[cfg(feature = "hive-gpu")]

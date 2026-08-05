@@ -493,6 +493,12 @@ impl VectorizerServer {
                 })
                 .map(|cfg| vectorizer::db::BackpressureGuard::from_config(&cfg.backpressure));
 
+        // Progress handle for the catalog load (issue #391). Built before the
+        // task spawns so the loader and the server state share one set of
+        // counters: the handlers read exactly what the loader writes.
+        let collection_load = Arc::new(vectorizer::db::CollectionLoadProgress::new());
+        let collection_load_for_background = Arc::clone(&collection_load);
+
         // Start background collection loading and workspace indexing
         let store_for_loading = store_arc.clone();
         let embedding_manager_for_loading = Arc::new(embedding_manager);
@@ -506,6 +512,11 @@ impl VectorizerServer {
             // Check for cancellation before starting
             if *cancel_rx.borrow() {
                 info!("Background task cancelled before start");
+                // The fourth exit path, and the easiest to miss: returning
+                // here without settling would leave the handle `Pending` for
+                // the process's whole life, so `/ready` would never answer.
+                collection_load_for_background
+                    .fail("startup cancelled before the catalog load began");
                 return;
             }
 
@@ -538,8 +549,18 @@ impl VectorizerServer {
                 info!(
                     "🔍 COLLECTION_LOAD_STEP_1: Auto-load ENABLED - loading all persisted collections..."
                 );
-                match store_for_loading.load_all_persisted_collections() {
+                match store_for_loading
+                    .load_all_persisted_collections_tracked(&collection_load_for_background)
+                {
                     Ok(count) => {
+                        // Settle here, not after the file-watcher work below:
+                        // the catalog is complete the moment the loader
+                        // returns, and everything that follows adds no
+                        // collections. Readers gate on this, so delaying it
+                        // would report "still loading" for a store that is
+                        // already whole (issue #391).
+                        collection_load_for_background.finish();
+
                         if count > 0 {
                             info!(
                                 "✅ COLLECTION_LOAD_STEP_2: Background loading completed - {} collections loaded",
@@ -708,6 +729,11 @@ impl VectorizerServer {
                             "⚠️  Failed to load persisted collections in background: {}",
                             e
                         );
+                        // Settle as failed. A load that ended early still has
+                        // to stop reporting "loading" — a server stuck at
+                        // `loading: true` forever would be a worse bug than
+                        // the partial-list one this task fixes.
+                        collection_load_for_background.fail(e.to_string());
                         0
                     }
                 }
@@ -715,6 +741,10 @@ impl VectorizerServer {
                 info!(
                     "⏭️  Auto-load DISABLED - collections will be loaded on first access (lazy loading)"
                 );
+                // Nothing to load means nothing to wait for: settle
+                // immediately, or a server configured this way would never
+                // report ready.
+                collection_load_for_background.finish();
                 0
             };
 
@@ -1777,6 +1807,7 @@ impl VectorizerServer {
             slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
                 vectorizer::cache::slow_query::SlowQueryConfig::default(),
             ),
+            collection_load,
             background_task: Arc::new(tokio::sync::Mutex::new(Some((
                 background_handle,
                 cancel_tx,
@@ -1888,6 +1919,10 @@ impl VectorizerServer {
             slow_query_ring: vectorizer::cache::slow_query::SlowQueryRing::new(
                 vectorizer::cache::slow_query::SlowQueryConfig::default(),
             ),
+            // The harness loads no catalog, so it is ready from the start.
+            // Booting it `Pending` would make every handler in every test
+            // report a store that is still filling up.
+            collection_load: Arc::new(vectorizer::db::CollectionLoadProgress::already_complete()),
             background_task: Arc::new(tokio::sync::Mutex::new(None)),
             system_collector_task: Arc::new(tokio::sync::Mutex::new(None)),
             file_watcher_task: Arc::new(tokio::sync::Mutex::new(None)),

@@ -71,6 +71,7 @@ pub use intelligent_search::{
 };
 pub use meta::{
     get_indexing_progress, get_logs, get_prometheus_metrics, get_stats, get_status, health_check,
+    readiness_check,
 };
 pub use search::{
     batch_delete_vectors, batch_search_vectors, batch_update_vectors, explain_search,

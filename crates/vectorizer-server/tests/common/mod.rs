@@ -66,7 +66,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
-use axum::http::{Request, StatusCode, header};
+use axum::http::{HeaderMap, Request, StatusCode, header};
 use serde_json::Value;
 use tower::ServiceExt;
 use vectorizer::VectorStore;
@@ -169,6 +169,33 @@ impl TestApp {
             router,
             temp_dir: data_dir,
         }
+    }
+
+    /// Build a [`TestApp`] and hand back the server's catalog-load progress
+    /// handle (issue #391).
+    ///
+    /// The harness loads no catalog, so it starts already-complete. A test
+    /// that needs to observe the warm-up window — where the store is
+    /// deliberately still filling and `GET /collections` must say so — drives
+    /// this handle directly instead of racing a real background load.
+    #[allow(dead_code)]
+    pub async fn new_with_load_progress() -> (Self, Arc<vectorizer::db::CollectionLoadProgress>) {
+        let data_dir = point_data_dir_at_temp_dir();
+
+        let store = Arc::new(VectorStore::new_cpu_only());
+        let embedding_manager = build_embedding_manager();
+
+        let server = VectorizerServer::new_for_test_harness(store, embedding_manager);
+        let progress = Arc::clone(&server.collection_load);
+        let router = server.build_router(false).await;
+
+        (
+            Self {
+                router,
+                temp_dir: data_dir,
+            },
+            progress,
+        )
     }
 
     /// Build a [`TestApp`] with authentication ENABLED, mirroring how
@@ -319,6 +346,40 @@ impl TestApp {
             .body(Body::empty())
             .expect("build GET request");
         self.dispatch(req).await
+    }
+
+    /// Dispatch `GET <path>` and keep the response headers.
+    ///
+    /// [`TestApp::get`] throws them away, which is fine for handlers whose
+    /// whole contract is in the body. Readiness is not one of those: `/ready`
+    /// answers `503` with `Retry-After`, and a probe loop that ignores the
+    /// header hammers a server that is busy loading.
+    #[allow(dead_code)]
+    pub async fn get_with_headers(&self, path: &str) -> (StatusCode, HeaderMap, Value) {
+        let req = Request::builder()
+            .method("GET")
+            .uri(path)
+            .body(Body::empty())
+            .expect("build GET request");
+
+        let response = self
+            .router
+            .clone()
+            .oneshot(req)
+            .await
+            .expect("router dispatch must complete");
+        let status = response.status();
+        let headers = response.headers().clone();
+        let bytes = to_bytes(response.into_body(), 16 * 1024 * 1024)
+            .await
+            .expect("collect response body");
+        let json = if bytes.is_empty() {
+            Value::Null
+        } else {
+            serde_json::from_slice(&bytes).unwrap_or(Value::Null)
+        };
+
+        (status, headers, json)
     }
 
     /// Dispatch `GET <path>` carrying `Authorization: Bearer <token>`

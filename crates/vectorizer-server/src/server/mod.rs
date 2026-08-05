@@ -96,6 +96,14 @@ pub struct VectorizerServer {
     pub query_cache: Arc<vectorizer::cache::query_cache::QueryCache<serde_json::Value>>,
     /// In-memory slow-query ring buffer (phase-14).
     pub slow_query_ring: SlowQueryRing,
+    /// Progress of the startup catalog load (issue #391).
+    ///
+    /// The background task fills the store one collection at a time, so every
+    /// read taken before it settles is partial. Handlers consult this to say
+    /// so instead of presenting a partial catalog as the whole thing — which
+    /// is indistinguishable from data loss and was acted on as such during a
+    /// 3.5→3.6 upgrade.
+    pub collection_load: Arc<vectorizer::db::CollectionLoadProgress>,
     pub(super) background_task: Arc<
         tokio::sync::Mutex<
             Option<(

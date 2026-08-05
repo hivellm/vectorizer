@@ -391,6 +391,9 @@ impl VectorizerServer {
         // anonymous HTTP before they can present credentials.
         let public_routes = Router::new()
             .route("/health", get(rest_handlers::health_check))
+            // Readiness (issue #391) is public for the same reason liveness
+            // is: an orchestrator probes it before anyone has credentials.
+            .route("/ready", get(rest_handlers::readiness_check))
             .route(
                 "/prometheus/metrics",
                 get(rest_handlers::get_prometheus_metrics),
@@ -1213,6 +1216,7 @@ impl VectorizerServer {
                     // Public routes - no auth required
                     // NOTE: /mcp added to bypass auth for MCP access
                     if path == "/health"
+                        || path == "/ready"
                         || path == "/prometheus/metrics"
                         || path == "/auth/login"
                         || path == "/auth/validate-password"
@@ -1323,6 +1327,12 @@ impl VectorizerServer {
                     // Search uses POST but is a read operation — serve locally.
                     let path = req.uri().path();
                     if path.starts_with("/health")
+                        // Readiness must never be redirected to the leader: a
+                        // probe asks whether *this* node finished loading its
+                        // catalog. Proxying it would let a follower still
+                        // filling its store answer with the leader's "ready"
+                        // and take traffic it cannot serve (issue #391).
+                        || path.starts_with("/ready")
                         || path.starts_with("/prometheus")
                         || path.starts_with("/auth")
                         || path.starts_with("/api/v1/cluster")

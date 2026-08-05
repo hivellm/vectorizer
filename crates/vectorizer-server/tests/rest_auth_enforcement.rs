@@ -48,6 +48,11 @@ async fn public_routes_stay_anonymous_with_auth_enabled() {
 
     for path in [
         "/health",
+        // Readiness is probed by orchestrators that hold no credentials, so
+        // it has to clear the auth middleware, the HiveHub middleware and the
+        // request-signing exemption list — three separate allow-lists that a
+        // route added only to `public_routes` would still fail (issue #391).
+        "/ready",
         "/prometheus/metrics",
         "/umicp/discover",
         "/dashboard/",

@@ -160,9 +160,29 @@ pub async fn list_collections(
         }
     }).collect();
 
+    // Say whether this list is the whole story (issue #391).
+    //
+    // The startup loader fills the store one collection at a time, so a call
+    // that arrives during warm-up gets a truthful-looking partial list. On a
+    // 181-collection store that surfaced as 11 collections next to a
+    // `total_collections: 11` that agreed with them — indistinguishable from
+    // catastrophic data loss, and acted on as such during a 3.5→3.6 upgrade.
+    //
+    // `total_collections` keeps its meaning — the number of items in *this*
+    // response — because SDKs already read it. The new fields describe the
+    // catalog load itself and are therefore store-wide: on a tenant-filtered
+    // listing they still answer "is the server done loading?", which is what
+    // makes a short list interpretable, but they do not count this tenant's
+    // collections.
+    let load = state.collection_load.snapshot();
+
     Json(json!({
         "collections": collection_infos,
-        "total_collections": collections.len()
+        "total_collections": collections.len(),
+        "loading": load.is_loading(),
+        "loaded_collections": load.loaded,
+        "expected_collections": load.expected,
+        "load_state": load.status
     }))
 }
 

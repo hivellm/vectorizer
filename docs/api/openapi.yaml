@@ -23,7 +23,12 @@ paths:
   /health:
     get:
       summary: Health Check
-      description: Check if the Vectorizer service is running
+      description: >-
+        Liveness check: is the process up and serving? This keeps answering
+        200 while the server loads its collection catalog at startup, so a
+        container is not restarted mid-warm-up. To gate traffic on the server
+        being *usable*, probe `/ready` instead. The `readiness` block here
+        carries the same information for callers that read one endpoint.
       operationId: healthCheck
       tags:
         - System
@@ -34,6 +39,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+
+  /ready:
+    get:
+      summary: Readiness Check
+      description: >-
+        Readiness probe for the startup catalog load. Answers 200 once every
+        persisted collection is in the store, and 503 with `Retry-After` until
+        then. A *failed* load also answers 503 — the catalog was never
+        delivered, so the node cannot serve — with the reason in `load_state`.
+
+        Never redirected to the leader in HA mode: the answer describes THIS
+        node, and proxying it would let a follower that is still loading take
+        traffic it cannot serve.
+      operationId: readinessCheck
+      tags:
+        - System
+      responses:
+        "200":
+          description: The catalog is fully loaded; the node can serve traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: Still loading, or the load failed. Retry per `Retry-After`.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before probing again.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
 
   /stats:
     get:
@@ -1704,11 +1743,84 @@ components:
       type: object
       required:
         - collections
+        - total_collections
+        - loading
+        - loaded_collections
+        - expected_collections
       properties:
         collections:
           type: array
           items:
             $ref: "#/components/schemas/CollectionInfo"
+        total_collections:
+          type: integer
+          description: >-
+            Number of collections in THIS response. During startup the server
+            is still loading its catalog, so this can be smaller than the
+            store's eventual size — check `loading` before concluding anything
+            from it.
+        loading:
+          type: boolean
+          description: >-
+            True while the startup catalog load is still running, i.e. this
+            list is provisional and more collections are on the way. A partial
+            list is otherwise indistinguishable from data loss.
+        loaded_collections:
+          type: integer
+          description: >-
+            Collections loaded into the store so far. Store-wide: on a
+            tenant-filtered listing it still describes the whole catalog load,
+            not this tenant's share.
+        expected_collections:
+          type: integer
+          description: >-
+            Collections the startup load expects to deliver, read from the
+            persisted catalog before loading begins. Zero before the load
+            starts.
+        load_state:
+          $ref: "#/components/schemas/CollectionLoadState"
+
+    CollectionLoadState:
+      type: object
+      description: State of the startup catalog load.
+      required:
+        - state
+      properties:
+        state:
+          type: string
+          enum: [pending, loading, complete, failed]
+          description: >-
+            `pending` before the load starts, `loading` while it runs,
+            `complete` once every collection is in, `failed` if it stopped
+            early.
+        error:
+          type: string
+          description: Why the load stopped. Present only when `state` is `failed`.
+
+    ReadinessResponse:
+      type: object
+      required:
+        - ready
+        - loading
+        - loaded_collections
+        - expected_collections
+      properties:
+        ready:
+          type: boolean
+          description: >-
+            Whether the catalog is fully loaded. False both while loading and
+            after a failed load — a failed load is finished but not ready.
+        loading:
+          type: boolean
+          description: Whether the load is still in progress.
+        loaded_collections:
+          type: integer
+          description: Collections loaded so far.
+        expected_collections:
+          type: integer
+          description: Collections the load expects to deliver.
+        load_state:
+          $ref: "#/components/schemas/CollectionLoadState"
 
     DistanceMetric:
       type: string

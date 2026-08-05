@@ -52,17 +52,26 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/meta.rs",
-        430,
+        475,
         "6 small handlers + phase25 §5 quantization aggregation \
          helpers (quantization_label / compression_ratio + 4 unit \
          tests pinning their behaviour) + phase33 §4 provider \
          discovery block on GET /stats (issue #306 — lists every \
          registered embedding provider with its dimension + default \
-         flag so callers can avoid the silent BM25 coercion trap).",
+         flag so callers can avoid the silent BM25 coercion trap). \
+         +45 in phase1_collections-list-hides-lazy-load-progress \
+         (issue #391): the readiness_check handler for GET /ready \
+         plus the readiness block on GET /health. Not extractable — \
+         readiness is the sibling of liveness and reads the same \
+         state, and the comment weight is deliberate: it records why \
+         /health must keep answering 200 during warm-up (the \
+         Dockerfile HEALTHCHECK would otherwise restart large \
+         instances in a loop), which is the one thing a future \
+         editor must not undo.",
     ),
     (
         "src/server/rest_handlers/collections.rs",
-        1035,
+        1060,
         "7 handlers incl. list/create + phase13 reencode_collection / \
          set_collection_ttl + get_collection_ttl + phase14 rename / \
          reindex / native snapshot CRUD (snapshot_native, \
@@ -76,6 +85,12 @@ const BUDGETS: &[(&str, usize, &str)] = &[
          now routes through VectorStore::set_collection_ttl, rejects \
          ttl_secs=0, and marks the store for the compaction that \
          persists the rule (phase1_persist-collection-ttl-config). \
+         +17 in phase1_collections-list-hides-lazy-load-progress \
+         (issue #391): list_collections reports loading / \
+         loaded_collections / expected_collections / load_state so a \
+         warm-up listing stops passing for a complete one. Four \
+         fields and the note explaining why total_collections keeps \
+         its old meaning — SDKs read it. \
          Re-tighten when the schema-evolution endpoints split out \
          (follow-up task).",
     ),

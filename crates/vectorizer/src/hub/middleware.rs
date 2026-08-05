@@ -153,6 +153,7 @@ pub async fn hub_auth_middleware(
     let path = req.uri().path();
     if path.starts_with("/dashboard")
         || path.starts_with("/health")
+        || path.starts_with("/ready")
         || path.starts_with("/auth")
         || path.starts_with("/collections")
         || path.starts_with("/vectors")
