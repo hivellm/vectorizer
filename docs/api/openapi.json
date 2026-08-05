@@ -3,7 +3,7 @@
   "info": {
     "title": "Vectorizer API",
     "description": "High-performance vector database engine with semantic search capabilities.\nSupports multiple embedding providers (TF-IDF, BM25, BERT, MiniLM) and\nprovides real-time indexing with HNSW optimization.\n",
-    "version": "1.6.0",
+    "version": "2.1.0",
     "contact": {
       "name": "Vectorizer Team",
       "url": "https://github.com/hivellm/vectorizer"
@@ -27,7 +27,7 @@
     "/health": {
       "get": {
         "summary": "Health Check",
-        "description": "Check if the Vectorizer service is running",
+        "description": "Liveness check: is the process up and serving? This keeps answering 200 while the server loads its collection catalog at startup, so a container is not restarted mid-warm-up. To gate traffic on the server being *usable*, probe `/ready` instead. The `readiness` block here carries the same information for callers that read one endpoint.",
         "operationId": "healthCheck",
         "tags": [
           "System"
@@ -39,6 +39,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "summary": "Readiness Check",
+        "description": "Readiness probe for the startup catalog load. Answers 200 once every persisted collection is in the store, and 503 with `Retry-After` until then. A *failed* load also answers 503 — the catalog was never delivered, so the node cannot serve — with the reason in `load_state`.\nNever redirected to the leader in HA mode: the answer describes THIS node, and proxying it would let a follower that is still loading take traffic it cannot serve.",
+        "operationId": "readinessCheck",
+        "tags": [
+          "System"
+        ],
+        "responses": {
+          "200": {
+            "description": "The catalog is fully loaded; the node can serve traffic.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Still loading, or the load failed. Retry per `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds to wait before probing again."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
                 }
               }
             }
@@ -1710,6 +1750,126 @@
         }
       }
     },
+    "/files/upload": {
+      "post": {
+        "summary": "Upload File",
+        "description": "Upload a file for automatic text extraction, chunking, and indexing into a vector collection.\nSupports various text-based file formats including code files, markdown, text, and configuration files.\nFiles are automatically chunked and embedded using the BM25 provider.\n",
+        "operationId": "uploadFile",
+        "tags": [
+          "File Upload"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "collection_name"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The file to upload"
+                  },
+                  "collection_name": {
+                    "type": "string",
+                    "description": "Target collection name to store the file chunks"
+                  },
+                  "chunk_size": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 10000,
+                    "description": "Chunk size in characters (uses server default if not specified)"
+                  },
+                  "chunk_overlap": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000,
+                    "description": "Chunk overlap in characters (uses server default if not specified)"
+                  },
+                  "metadata": {
+                    "type": "string",
+                    "description": "JSON-encoded metadata to attach to all chunks"
+                  },
+                  "public_key": {
+                    "type": "string",
+                    "description": "Optional ECC public key for payload encryption (PEM/hex/base64 format). When provided, all chunk payloads will be encrypted using ECC-P256 + AES-256-GCM before storage. Supports PEM, base64, hexadecimal, and 0x-prefixed hex formats.",
+                    "example": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded and indexed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (invalid file, unsupported format, file too large, or binary file)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/config": {
+      "get": {
+        "summary": "Get Upload Configuration",
+        "description": "Retrieve the server's file upload configuration including maximum file size,\nallowed extensions, and default chunking parameters.\n",
+        "operationId": "getUploadConfig",
+        "tags": [
+          "File Upload"
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUploadConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/graph/nodes/{collection}": {
       "get": {
         "summary": "List Graph Nodes",
@@ -2421,7 +2581,11 @@
       "ListCollectionsResponse": {
         "type": "object",
         "required": [
-          "collections"
+          "collections",
+          "total_collections",
+          "loading",
+          "loaded_collections",
+          "expected_collections"
         ],
         "properties": {
           "collections": {
@@ -2429,6 +2593,78 @@
             "items": {
               "$ref": "#/components/schemas/CollectionInfo"
             }
+          },
+          "total_collections": {
+            "type": "integer",
+            "description": "Number of collections in THIS response. During startup the server is still loading its catalog, so this can be smaller than the store's eventual size — check `loading` before concluding anything from it."
+          },
+          "loading": {
+            "type": "boolean",
+            "description": "True while the startup catalog load is still running, i.e. this list is provisional and more collections are on the way. A partial list is otherwise indistinguishable from data loss."
+          },
+          "loaded_collections": {
+            "type": "integer",
+            "description": "Collections loaded into the store so far. Store-wide: on a tenant-filtered listing it still describes the whole catalog load, not this tenant's share."
+          },
+          "expected_collections": {
+            "type": "integer",
+            "description": "Collections the startup load expects to deliver, read from the persisted catalog before loading begins. Zero before the load starts."
+          },
+          "load_state": {
+            "$ref": "#/components/schemas/CollectionLoadState"
+          }
+        }
+      },
+      "CollectionLoadState": {
+        "type": "object",
+        "description": "State of the startup catalog load.",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "loading",
+              "complete",
+              "failed"
+            ],
+            "description": "`pending` before the load starts, `loading` while it runs, `complete` once every collection is in, `failed` if it stopped early."
+          },
+          "error": {
+            "type": "string",
+            "description": "Why the load stopped. Present only when `state` is `failed`."
+          }
+        }
+      },
+      "ReadinessResponse": {
+        "type": "object",
+        "required": [
+          "ready",
+          "loading",
+          "loaded_collections",
+          "expected_collections"
+        ],
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "description": "Whether the catalog is fully loaded. False both while loading and after a failed load — a failed load is finished but not ready."
+          },
+          "loading": {
+            "type": "boolean",
+            "description": "Whether the load is still in progress."
+          },
+          "loaded_collections": {
+            "type": "integer",
+            "description": "Collections loaded so far."
+          },
+          "expected_collections": {
+            "type": "integer",
+            "description": "Collections the load expects to deliver."
+          },
+          "load_state": {
+            "$ref": "#/components/schemas/CollectionLoadState"
           }
         }
       },
@@ -2522,6 +2758,11 @@
               "$ref": "#/components/schemas/TextData"
             },
             "description": "Array of texts to insert"
+          },
+          "public_key": {
+            "type": "string",
+            "description": "Optional ECC public key for payload encryption (PEM/hex/base64 format). Enables zero-knowledge encryption where payloads are encrypted client-side before storage.",
+            "example": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE...\n-----END PUBLIC KEY-----"
           }
         }
       },
@@ -4188,6 +4429,93 @@
           }
         }
       },
+      "FileUploadResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "filename",
+          "collection_name",
+          "chunks_created",
+          "vectors_created",
+          "file_size",
+          "language",
+          "processing_time_ms"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the upload was successful"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Original filename"
+          },
+          "collection_name": {
+            "type": "string",
+            "description": "Target collection where chunks were stored"
+          },
+          "chunks_created": {
+            "type": "integer",
+            "description": "Number of chunks created from the file"
+          },
+          "vectors_created": {
+            "type": "integer",
+            "description": "Number of vectors created and stored"
+          },
+          "file_size": {
+            "type": "integer",
+            "description": "File size in bytes"
+          },
+          "language": {
+            "type": "string",
+            "description": "Detected language/file type"
+          },
+          "processing_time_ms": {
+            "type": "integer",
+            "description": "Processing time in milliseconds"
+          }
+        }
+      },
+      "FileUploadConfig": {
+        "type": "object",
+        "required": [
+          "max_file_size",
+          "max_file_size_mb",
+          "allowed_extensions",
+          "reject_binary",
+          "default_chunk_size",
+          "default_chunk_overlap"
+        ],
+        "properties": {
+          "max_file_size": {
+            "type": "integer",
+            "description": "Maximum file size in bytes"
+          },
+          "max_file_size_mb": {
+            "type": "number",
+            "description": "Maximum file size in megabytes"
+          },
+          "allowed_extensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of allowed file extensions"
+          },
+          "reject_binary": {
+            "type": "boolean",
+            "description": "Whether binary files are rejected"
+          },
+          "default_chunk_size": {
+            "type": "integer",
+            "description": "Default chunk size in characters"
+          },
+          "default_chunk_overlap": {
+            "type": "integer",
+            "description": "Default chunk overlap in characters"
+          }
+        }
+      },
       "GraphNode": {
         "type": "object",
         "required": [
@@ -4690,12 +5018,16 @@
       "description": "File content retrieval and analysis operations"
     },
     {
+      "name": "File Upload",
+      "description": "File upload and indexing operations for automatic text extraction, chunking, and embedding"
+    },
+    {
       "name": "Graph Operations",
       "description": "Graph relationship operations (nodes, edges, paths, discovery)"
     },
     {
       "name": "Qdrant Compatibility",
-      "description": "Graph relationship discovery and querying operations"
+      "description": "Qdrant 1.14.x compatible API endpoints for seamless migration. Includes Snapshots API, Sharding API, Cluster Management, Query API, Search Groups/Matrix, Named Vectors, and Quantization configuration. All endpoints are available under `/qdrant/*` prefix."
     }
   ],
   "externalDocs": {
