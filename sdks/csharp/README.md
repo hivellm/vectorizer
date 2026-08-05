@@ -219,7 +219,7 @@ dotnet add package Vectorizer.Sdk
 Install-Package Vectorizer.Sdk
 
 # Or specific version
-dotnet add package Vectorizer.Sdk --version 2.2.0
+dotnet add package Vectorizer.Sdk --version 3.6.1
 ```
 
 ## Quick Start

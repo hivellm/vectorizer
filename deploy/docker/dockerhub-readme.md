@@ -8,6 +8,14 @@
 
 A high-performance vector database and search engine built in Rust, designed for semantic search, document indexing, and AI-powered applications. The v3.x line ships a binary RPC transport (MessagePack over TCP, port `15503`) as the recommended primary channel alongside REST + MCP on `15002`.
 
+**v3.6.1 highlights**:
+
+- **Fixed — the `arm64` `-fastembed` image now starts.** `hivehub/vectorizer:3.5.0-fastembed` and `3.4.0-fastembed` exit 127 on `linux/arm64` with `error while loading shared libraries: libstdc++.so.6`: the runtime stage copied an **amd64** library into the arm64 image, and cross-linking succeeded because the linker reads a different path than the runtime does. The slim default image was never affected — it does not load that library. If you run the dense variant on arm64, 3.6.1 is the first working release.
+- **Fixed — a collection listing during startup no longer looks like data loss.** The server loads collections in the background, so `GET /collections` could answer with a partial list whose `total_collections` agreed with it — a 181-collection store reporting "11 collections, total 11" seconds after boot. The response now carries `loading`, `loaded_collections` and `expected_collections`, and a new **`GET /ready`** answers `503` + `Retry-After` until the catalog is in. Gate your orchestrator on `/ready`; `/health` stays a liveness check and keeps answering `200` during warm-up on purpose.
+- **Fixed — the Rust SDK's REST client rejects a `vectorizer://` URL up front** instead of failing later inside reqwest, and points you at `RpcClient::connect_url`.
+
+Full 3.6.0 and 3.6.1 notes are in the changelog linked below.
+
 **v3.5.0 highlights**:
 
 - **Fixed — text search returned nothing after a restart.** Auto-save wrote a stub tokenizer (`vocab_size: 0`) and the BM25 vocabulary was never reloaded, so a restarted server embedded queries in a hash-fallback space disjoint from the stored vectors — text search silently returned zero hits until a full re-index. 3.5.0 persists the real vocabulary and restores the newest snapshot (from raw files or from inside `vectorizer.vecdb`) at boot; collections without a usable snapshot are flagged `degraded_vocabulary:{name}` instead of degrading silently.
@@ -30,7 +38,7 @@ docker run -d \
   -p 15002:15002 \
   -p 15503:15503 \
   --restart unless-stopped \
-  hivehub/vectorizer:3.5.0
+  hivehub/vectorizer:3.6.1
 ```
 
 First boot creates an admin user and writes credentials to `/data/.root_credentials` inside the container (read with `docker exec` + `cat` or `docker cp` — the image is distroless so there's no shell). Rotate via the dashboard or `/auth` API as soon as you've copied them.
@@ -44,7 +52,7 @@ docker run -d \
   -p 15503:15503 \
   -v vec-data:/data \
   --restart unless-stopped \
-  hivehub/vectorizer:3.5.0
+  hivehub/vectorizer:3.6.1
 ```
 
 The image defaults `VECTORIZER_DATA_DIR=/data`, so a single `-v vec-data:/data` mount captures the entire persistent state (`.vecdb` store, auth keys, JWT secret, snapshots, fastembed cache when enabled). `docker compose up -d --force-recreate vectorizer` is now safe — collections survive the recreate.
@@ -56,7 +64,7 @@ The image defaults `VECTORIZER_DATA_DIR=/data`, so a single `-v vec-data:/data` 
 ```yaml
 services:
   vectorizer:
-    image: hivehub/vectorizer:3.5.0
+    image: hivehub/vectorizer:3.6.1
     container_name: vectorizer
     # Distroless nonroot (UID 65532) refuses host-UID bind mounts on
     # Docker Desktop for Windows / macOS; flip to `user: root` if your
@@ -108,14 +116,17 @@ volumes:
 
 | Tag | Points to | Notes |
 |---|---|---|
-| `3.5.0` | v3.5.0 release | **Current stable.** BM25-restart + WAL-durability fixes; search unblocked during batch insert; MCP↔REST parity; first-boot-with-defaults works; 0 CRITICAL/0 HIGH CVEs with an attached OpenVEX attestation. BM25-only (~91 MB). |
-| `3.5.0-fastembed` | v3.5.0 release | Same server, with FastEmbed compiled in and `all-MiniLM-L6-v2` (384-dim dense) pre-fetched. Set `embedding.model: fastembed:all-MiniLM-L6-v2` in `config.yml` to make it the default provider. |
+| `3.6.1` | v3.6.1 release | **Current stable.** Startup-warm-up readiness (`GET /ready`, `loading` on `/collections`); SDK-validator-compatible search envelopes; collection TTL read-back. BM25-only (~91 MB). |
+| `3.6.1-fastembed` | v3.6.1 release | Same server with FastEmbed compiled in and `all-MiniLM-L6-v2` (384-dim dense) pre-fetched. **First release where this variant runs on `linux/arm64`** — 3.4.0 and 3.5.0 shipped an amd64 `libstdc++` inside the arm64 image and exited 127 on start. |
+| `3.6.0` | v3.6.0 release | Collection TTL, RPC parity, Thunder transport. ⚠️ `3.6.0-fastembed` is broken on arm64; the amd64 image is fine. |
+| `3.5.0` | v3.5.0 release | BM25-restart + WAL-durability fixes; search unblocked during batch insert; MCP↔REST parity; first-boot-with-defaults works; 0 CRITICAL/0 HIGH CVEs with an attached OpenVEX attestation. |
+| `3.5.0-fastembed` | v3.5.0 release | Same server with FastEmbed pre-fetched. ⚠️ **does not start on `linux/arm64`** (`libstdc++.so.6` not found) — use `3.6.1-fastembed`. |
 | `3.4.0` | v3.4.0 release | `/data` canonical volume mount (#300); `embedding_provider` / `model` honoured contracts (#306). ⚠️ ships 31 base-image CVEs (4 HIGH) fixed in 3.5.0 — upgrade. |
 | `3.3.0` | v3.3.0 release | Hardened dashboard cookies + CSRF; API key usage metrics. ⚠️ has the persistence trap fixed in 3.4.0. |
 | `3.2.0` | v3.2.0 release | Bulk-upsert backpressure, `Retry-After` SDKs, new Prometheus metrics. |
 | `3.1.0` | v3.1.0 release | `/insert_vectors`, stable client-id upserts, flat chunked-payload layout. |
 | `3.0.2` | v3.0.2 release | Docker Hardened Image base (`dhi.io/debian-base:trixie`); ~88 MB compressed; Scout-compliant. |
-| `latest` | same as `3.5.0` | Updated on every stable tag. Pin to a specific version in production. |
+| `latest` | same as `3.6.1` | Updated on every stable tag, and always the slim default variant — never the `-fastembed` one. Pin to a specific version in production. |
 
 Older `1.x` / `2.x` tags remain on Docker Hub for rollback but are no longer receiving updates.
 
@@ -266,7 +277,7 @@ docker run -d \
   -v $(pwd)/workspace.yml:/vectorizer/workspace.yml \
   -v $(pwd):/workspace:ro \
   --restart unless-stopped \
-  hivehub/vectorizer:3.5.0
+  hivehub/vectorizer:3.6.1
 ```
 
 ### Fastembed Variant (dense semantic search out of the box)
@@ -279,7 +290,7 @@ docker run -d \
   -p 15002:15002 -p 15503:15503 \
   -v vec-data:/data \
   -v $(pwd)/fastembed-config.yml:/vectorizer/config.yml:ro \
-  hivehub/vectorizer:3.5.0-fastembed
+  hivehub/vectorizer:3.6.1-fastembed
 ```
 
 Where `fastembed-config.yml` carries (use the **bare** model id — `Xenova/all-MiniLM-L6-v2` is rejected):
@@ -299,7 +310,7 @@ docker run -d \
   -p 15002:15002 \
   -e RUST_LOG="vectorizer=debug,vectorizer::replication=trace,hyper=info" \
   -e RUST_BACKTRACE=1 \
-  hivehub/vectorizer:3.5.0
+  hivehub/vectorizer:3.6.1
 ```
 
 ### Pinning by Digest (Production)
@@ -323,10 +334,12 @@ Apache-2.0 License — see [LICENSE](https://github.com/hivellm/vectorizer/blob/
 
 **📦 Pull:**
 ```bash
-docker pull hivehub/vectorizer:3.5.0
-docker pull hivehub/vectorizer:3.5.0-fastembed   # dense embeddings pre-baked
+docker pull hivehub/vectorizer:3.6.1
+docker pull hivehub/vectorizer:3.6.1-fastembed   # dense embeddings pre-baked
 docker pull hivehub/vectorizer:latest
 # Or pin earlier v3.x stable points:
+docker pull hivehub/vectorizer:3.6.0
+docker pull hivehub/vectorizer:3.5.0
 docker pull hivehub/vectorizer:3.4.0
 docker pull hivehub/vectorizer:3.3.0
 docker pull hivehub/vectorizer:3.2.0

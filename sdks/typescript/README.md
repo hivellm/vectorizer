@@ -126,7 +126,7 @@ JavaScript projects.
 npm install @hivehub/vectorizer-sdk
 
 # Or specific version
-npm install @hivehub/vectorizer-sdk@2.2.0
+npm install @hivehub/vectorizer-sdk@3.6.1
 ```
 
 ## Quick Start

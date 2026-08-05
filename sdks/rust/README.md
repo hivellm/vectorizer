@@ -90,7 +90,7 @@ are passed through untouched.
 
 ```toml
 [dependencies]
-vectorizer-sdk = "3.5"
+vectorizer-sdk = "3.6"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -205,7 +205,7 @@ To opt into a slim build with RPC only:
 
 ```toml
 [dependencies]
-vectorizer-sdk = { version = "3.0", default-features = false, features = ["rpc"] }
+vectorizer-sdk = { version = "3.6", default-features = false, features = ["rpc"] }
 ```
 
 To use the HTTP client:
@@ -408,7 +408,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-vectorizer-sdk = "2.2.0"
+vectorizer-sdk = "3.6"
 tokio = { version = "1.35", features = ["full"] }
 serde_json = "1.0"
 ```

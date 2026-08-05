@@ -129,7 +129,7 @@ for a runnable end-to-end example.
 pip install vectorizer-sdk
 
 # Or specific version
-pip install vectorizer-sdk==3.5.0
+pip install vectorizer-sdk==3.6.1
 ```
 
 ## Package Layout (v3.x)

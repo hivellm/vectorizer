@@ -4,8 +4,44 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.6.1] - 2026-08-05
+
 ### Fixed
 
+- **A collection listing taken during startup says it is partial**
+  ([#391](https://github.com/hivellm/vectorizer/issues/391)). The server loads
+  persisted collections on a background task, so `GET /collections` answered
+  from a store that was still filling — and `total_collections` was the length
+  of that partial list, so it *agreed* with it. A 181-collection store answered
+  "11 collections, total 11" twenty seconds after boot: internally consistent,
+  confidently wrong, and read during a 3.5→3.6 upgrade as catastrophic data
+  loss. The response now carries `loading`, `loaded_collections`,
+  `expected_collections` and `load_state`. `total_collections` keeps its
+  meaning — items in this response — because published SDKs read it.
+  - **`GET /ready`** is new: `200` once the catalog is in, `503` with
+    `Retry-After` until then, and `503` after a failed load, which is settled
+    but never delivered the catalog. Gate traffic on this, not on `/health`.
+  - `GET /health` gains a `readiness` block but stays a *liveness* answer: the
+    Dockerfile HEALTHCHECK probes it, and failing during warm-up would restart
+    large instances in a loop.
+- **The arm64 `-fastembed` image starts.** `COPY` cannot interpolate the
+  architecture triple, so the runtime stage hardcoded
+  `/usr/lib/x86_64-linux-gnu/libstdc++.so.6` and placed an *amd64* library
+  inside the arm64 image. `hivehub/vectorizer:3.5.0-fastembed` on
+  `linux/arm64` exited 127 with `error while loading shared libraries:
+  libstdc++.so.6`; the slim default image survived only because it never loads
+  the library. Cross-linking succeeded too — the linker takes `-lstdc++` from
+  the toolchain sysroot, a path the runtime never reads — so the broken image
+  shipped for two releases. The `3.6.0` images published on 2026-08-05 already
+  carry this fix; the source-tagged `v3.6.0` does not.
+- **The REST client rejects an RPC URL at construction**
+  ([#392](https://github.com/hivellm/vectorizer/issues/392)). A
+  `vectorizer://` base URL passed to `VectorizerClient` built a client fine and
+  failed at the first request with reqwest's `builder error for url (...)`,
+  naming neither the scheme nor the client that would have worked. It now fails
+  immediately with a message pointing at `RpcClient::connect_url`, mirroring
+  what the RPC client already answered in the other direction. Scheme-less base
+  URLs (`localhost:15002`) keep working.
 - **Search responses satisfy the published SDK validators.** The TypeScript SDK
   validates every search envelope and every hit, and rejected both: it requires
   `total` where the server sent only `total_results`, and a non-empty `data`
@@ -37,6 +73,13 @@ All notable changes to this project will be documented in this file.
     *what* was missing now reaches the caller. The 404 stays a generic
     `ServerError` to match the Rust SDK: a status code cannot distinguish a
     missing collection from a missing vector.
+
+## [3.6.0] - 2026-08-04
+
+> Backfilled. 3.6.0 was tagged and published to crates.io, npm, PyPI and
+> NuGet on 2026-08-04 without moving its entries out of `[Unreleased]`, so
+> everything below shipped in 3.6.0 and was mislabelled as unreleased until
+> the 3.6.1 cut. The boundary is the `v3.6.0` tag commit (`4ca7724e`).
 
 ### Added
 
