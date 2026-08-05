@@ -1,0 +1,18 @@
+{
+  "id": "release-facts-that-live-in-a-checklist-rot-derive-them-from-the-tree",
+  "type": "anti-pattern",
+  "title": "Release facts that live in a checklist rot; derive them from the tree",
+  "category": "release",
+  "description": "Cutting 3.6.1 hit four traps, and every one was the same shape: a fact recorded in one place while the truth lived somewhere else.\n\n**1. The version-carrier list was wrong.** The task plan named six carriers and stated that the Go SDK published by tag with no manifest. There are twelve, and `sdks/go/version.go` holds a `const Version` the client reports at runtime — following the plan would have shipped a Go SDK announcing the previous version. Derive the list with `grep -rn \"<old-version>\"` over the tree every time, and separate real carriers from lookalikes: `tailwind-merge: ^3.6.0` in `dashboard/package.json` shares the number by coincidence, and workflow comments describing a past release must not be bumped. Now enforced by `crates/vectorizer/tests/version_carriers_agree.rs`.\n\n**2. `git add -A` does not stage a submodule whose change is in its working tree.** `sdks/go` showed as ` m` and the bump silently stayed out of the release commit. It needs a commit inside the submodule plus a pointer commit in the superproject — and, at publish time, its own tag in its own remote, because Go resolves module versions from the tag in that repository, not the superproject's.\n\n**3. A duplicated condition in a script drifts.** `build-push.ps1` decided `latest` tagging in the buildx args and announced it again in the final summary, each with its own copy of `$Tag -ne \"latest\"`. Adding a `-Fastembed` guard to the first left the second announcing a `latest` move that never happened. Harmless-looking, except the false log invites someone to \"fix\" it by re-pushing the dense image over `latest` — the exact accident the guard exists to prevent. Verify a tag move by digest (`imagetools inspect --raw`), never by reading the build log.\n\n**4. The previous release had no changelog section at all.** 3.6.0 reached crates.io, npm, PyPI and NuGet with its notes still under `[Unreleased]`, so the obvious move — rename `[Unreleased]` to the new version — would have stamped the old release's content as the new one. Find the real boundary instead of guessing: the release tag's commit (`gh api repos/<repo>/git/ref/tags/<tag>`) plus `git diff <sha>..HEAD -- CHANGELOG.md` shows exactly what was added after it.\n\nInstall snippets rot the same way and nobody notices, because no test reads them: the C# and TypeScript READMEs still told users to install 2.2.0, four minor versions later. Prefer a caret (`\"3.6\"`) where the package manager allows it, so a patch release does not invalidate the docs again.",
+  "whenToUse": "Cutting any release in this repo, or reviewing a release checklist that enumerates files to touch.",
+  "createdAt": "2026-08-05T18:19:24.654Z",
+  "tags": [
+    "release",
+    "versioning",
+    "submodules",
+    "changelog",
+    "docker",
+    "anti-pattern"
+  ],
+  "source": "manual"
+}

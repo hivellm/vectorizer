@@ -136,8 +136,14 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "✅ Build and push completed successfully!" -ForegroundColor Green
 Write-Host "   Image available at: docker.io/${FullTag}" -ForegroundColor Cyan
-if ($Tag -ne "latest") {
+# Mirror the tagging condition above exactly. These were separate copies of
+# `$Tag -ne "latest"` until the -Fastembed switch landed, and the summary kept
+# announcing a `latest` move the build had (correctly) skipped — a log that
+# invites someone to "fix" a problem that does not exist.
+if ($Tag -ne "latest" -and -not $Fastembed) {
     Write-Host "   Also tagged as: docker.io/${Organization}/${Repository}:latest" -ForegroundColor Cyan
+} elseif ($Fastembed) {
+    Write-Host "   `latest` left pointing at the default variant (by design)." -ForegroundColor Cyan
 }
 Write-Host ""
 Write-Host "📊 Check Docker Scout score:" -ForegroundColor Yellow

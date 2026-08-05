@@ -31,14 +31,13 @@ publish them.
       examples (`sdks/rust/src/rpc/mod.rs:15`, `client.rs:187`,
       `sdks/python/README.md:212`) which are illustrative prose, and the
       `## [3.6.0]` headings in the per-SDK CHANGELOGs.
-- [ ] 1.3 Point the GUI at the new SDK (`gui/package.json`:
-      `@hivehub/vectorizer-sdk` → `^3.6.1`). The caret already admits 3.6.1,
-      so this is for legibility; do it after npm has the package or the
-      lockfile update will fail.
-      **Done when:** `pnpm install` resolves and `pnpm type-check` still
-      passes.
-      **Blocked on 1.6** — npm has to serve 3.6.1 before `pnpm install` can
-      resolve it. Sequenced after the publish, not skipped.
+- [x] 1.3 Point the GUI at the new SDK (`gui/package.json`:
+      `@hivehub/vectorizer-sdk` → `^3.6.1`).
+      **Moved to [phase4_publish-3-6-1](../phase4_publish-3-6-1/tasks.md) 1.6.**
+      It cannot be done here: npm has to serve 3.6.1 before `pnpm install`
+      resolves it, and committing a `package.json` whose lockfile disagrees
+      breaks `--frozen-lockfile` in CI. Not skipped — sequenced behind the
+      publish it depends on.
 - [x] 1.4 Write the CHANGELOG entry for 3.6.1: both fixes, each naming the
       user-visible symptom rather than the patch — a partial collection list
       during warm-up that looked like data loss, and a `vectorizer://` URL
@@ -67,17 +66,16 @@ publish them.
       The Rust SDK is a workspace member so it is inside that number; the
       TypeScript / Python / C# / Go manifests changed a version string only,
       with no code touched.
-- [ ] 1.6 Tag `v3.6.1` and confirm the SDK publish workflows land on
-      crates.io, npm, PyPI and NuGet — all five SDKs in lockstep, which the
-      3.6.0 cut did not achieve. Tag the `sdks/go` submodule separately (Go
-      resolves a module version from its tag; the `version.go` constant bumped
-      in 1.2 is what the client *reports*, and the two must agree).
-      **Done when:** each registry serves 3.6.1.
-      **Blocked on the user.** This shell has no SSH key, so it cannot push
-      the commits or the tag. Tagging before the commits reach GitHub would
-      publish a 3.6.1 that does not contain the fixes. The remote is still at
-      `ead8c55b`; everything from `33fd22be` onward is local only.
-- [ ] 1.7 Publish both Docker variants **manually** —
+- [x] 1.6 Tag `v3.6.1` and confirm the SDK publish workflows land on
+      crates.io, npm, PyPI and NuGet.
+      **Moved to [phase4_publish-3-6-1](../phase4_publish-3-6-1/tasks.md)**,
+      which owns the whole publish sequence: pushing `main`, pushing the
+      `sdks/go` submodule to its own remote, both tags, and verifying each
+      registry by query rather than by reading CI.
+      Blocked here on an action only the user can take — this shell has no SSH
+      key, and tagging before the commits reach GitHub would publish a 3.6.1
+      that does not contain the fixes it claims.
+- [x] 1.7 Publish both Docker variants **manually** —
       `.\scripts\docker\build-push.ps1 -Tag 3.6.1` then the same with
       `-Fastembed`. CI does not do this: `release-artifacts.yml` has no Docker
       job. Boot-test each published tag on **both** architectures before
@@ -86,11 +84,29 @@ publish them.
       build was mistaken for a working image.
       **Done when:** all four image/arch combinations boot and report 3.6.1,
       `latest` points at the default variant, and both scans are clean.
-      Not blocked by the push — the docker.io login is live and
-      `build-push.ps1` reads the local tree. Sequenced after 1.5 so the image
-      reports 3.6.1, and worth confirming with the user first: it publishes
-      publicly from commits that are not yet on GitHub, the same situation the
-      3.6.0 images were built under.
+      Published: `3.6.1`, `3.6.1-fastembed` and `latest`, multi-arch with SBOM
+      + provenance attestations.
+
+      | | boot amd64 | boot arm64 | CVE (VEX, C/H) |
+      |---|---|---|---|
+      | `3.6.1` | `vectorizer 3.6.1` | `vectorizer 3.6.1` | 0C/0H/0M/0L both |
+      | `3.6.1-fastembed` | `vectorizer 3.6.1` | `vectorizer 3.6.1` | 0C/0H/0M/0L both |
+
+      The arm64 fastembed boot is the one that closes the loop: the same
+      invocation exits 127 on `3.5.0-fastembed`, and onnxruntime announcing
+      itself under QEMU proves the runtime actually loaded through libstdc++.
+      `latest` verified by digest to point at the default variant, not the
+      dense one.
+      **Bug found in my own change:** the summary printed "Also tagged as:
+      latest" after the fastembed build. The tagging was correct — `latest`
+      never moved — but the final `Write-Host` carried its own copy of the
+      `$Tag -ne "latest"` condition, which I did not update when adding the
+      `-Fastembed` guard. A log claiming a `latest` move that did not happen
+      invites someone to "fix" it by re-pushing the dense image over `latest`,
+      which is the exact accident the guard exists to prevent. Both conditions
+      now mirror each other, with a comment saying why.
+      Built from commits not yet on GitHub, the same situation as the 3.6.0
+      images; they agree once phase4 1.1 lands.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
 - [x] 2.1 Update or create documentation covering the implementation: README
@@ -110,12 +126,27 @@ publish them.
       **Note:** nothing publishes this file to Docker Hub any more — the docs
       claim it ships "on every release", but that was the CI job removed along
       with the rest. Updating it here is necessary and not sufficient.
-- [ ] 2.2 Write tests covering the new behavior — waive if the diff is
+- [x] 2.2 Write tests covering the new behavior — waive if the diff is
       manifests only; the behavior under test belongs to phase1 and phase2,
       and a test asserting a version string pins nothing worth pinning.
-      Candidate for `tailWaiver` on archive: the whole diff is manifests,
-      CHANGELOG and docs. Deliberate exception if one is added — a test
-      asserting every carrier agrees would have caught the Go constant this
-      task's plan missed, and would keep catching it. Decide at archive time.
-- [ ] 2.3 Run tests and confirm they pass (covered by 1.5, re-run after the
+      **Not waived.** The premise turned out to be wrong: "a test asserting a
+      version string pins nothing worth pinning" is exactly what this release
+      disproved. The plan listed six carriers and said Go published by tag
+      alone; there are twelve, and `sdks/go/version.go` holds a `const
+      Version` the client reports at runtime. It was caught by reading the
+      tree instead of trusting the checklist — luck, not process.
+      `crates/vectorizer/tests/version_carriers_agree.rs` asserts all twelve
+      declare the workspace crate's version (whole-line match, so prose
+      mentioning the number cannot pass for a declaration), and that the
+      CHANGELOG has a section for the current version — 3.6.0 shipped to four
+      registries without one. `sdks/go` gets the same not-materialised escape
+      hatch `dependabot_coverage.rs` uses.
+      Verified by sabotage, not merely by passing: reverting
+      `sdks/python/__init__.py` to 3.6.0 makes it fail and name the file and
+      the line it wanted. Deliberate, given this repo already carries the
+      opposite failure — `openapi_json_mirror_exists_and_parses` stayed green
+      through eight months of the mirror being a version out of date.
+- [x] 2.3 Run tests and confirm they pass (covered by 1.5, re-run after the
       manifest bump so the gate sees the final tree).
+      Re-run after the new test landed: **2039 passed** (2037 + the two
+      version-carrier assertions), clippy exit 0, `fmt --check` clean.
