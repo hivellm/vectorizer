@@ -144,6 +144,12 @@ impl VectorizerClient {
     }
 
     /// Create a new client with the given configuration.
+    ///
+    /// `config.base_url` is an **`http(s)://`** URL — this client speaks REST
+    /// over HTTP. A `vectorizer://` URL belongs to the RPC transport; pass it
+    /// to [`crate::rpc::RpcClient::connect_url`] instead. Handing one to this
+    /// constructor is rejected here rather than at the first request, which is
+    /// where it used to surface as an opaque reqwest builder error (#392).
     pub fn new(config: ClientConfig) -> Result<Self> {
         let timeout_secs = config.timeout_secs.unwrap_or(30);
 

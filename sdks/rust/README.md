@@ -62,6 +62,30 @@ the URL scheme you have:
 | `host:15503` (no scheme) | `RpcClient::connect_url(url)` or `RpcClient::connect("host:port")` | RPC |
 | `http://host:15002` | `VectorizerClient` (HTTP path below) | REST (legacy) |
 
+**Crossing the two fails at construction, in both directions.** Each client
+rejects the other's scheme with a message naming the one you want, rather than
+letting the mistake surface later as a transport-internals error:
+
+```rust
+// vectorizer:// handed to the REST client
+VectorizerClient::new(ClientConfig {
+    base_url: Some("vectorizer://127.0.0.1:15503".into()),
+    ..Default::default()
+})?;
+// Err: VectorizerClient cannot dial RPC URL '...'; `vectorizer://` is the
+//      RPC transport — use `vectorizer_sdk::rpc::RpcClient::connect_url`
+//      instead, or pass an `http(s)://` URL
+
+// http:// handed to the RPC client
+RpcClient::connect_url("http://127.0.0.1:15002").await?;
+// Err: RpcClient cannot dial REST URL '...'; use the HTTP client
+//      (`vectorizer_sdk::VectorizerClient`) instead, or pass a
+//      `vectorizer://` URL
+```
+
+Scheme-less base URLs (`localhost:15002`) remain valid for the HTTP client and
+are passed through untouched.
+
 ## Quick Start (RPC, recommended)
 
 ```toml

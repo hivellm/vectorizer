@@ -41,6 +41,8 @@ impl HttpTransport {
     /// unchanged while routing each credential down the path the server
     /// actually accepts.
     pub fn new(base_url: &str, api_key: Option<&str>, timeout_secs: u64) -> Result<Self> {
+        validate_base_url_scheme(base_url)?;
+
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
@@ -71,6 +73,53 @@ impl HttpTransport {
             base_url: base_url.to_string(),
         })
     }
+}
+
+/// Reject a base URL this transport cannot dial, at construction.
+///
+/// Without this, a `vectorizer://` URL builds a client fine and fails at the
+/// first request, deep inside reqwest:
+///
+/// ```text
+/// Network error: HTTP request failed:
+/// builder error for url (vectorizer://127.0.0.1:15503/auth/login)
+/// ```
+///
+/// which names neither the scheme nor the client that would have worked. The
+/// RPC side already handles the mirror-image mistake well — `connect_url` on
+/// an `http://` URL points the caller at `VectorizerClient` — so this closes
+/// the asymmetry (issue #392).
+///
+/// Deliberately hand-rolled rather than delegating to
+/// `rpc::endpoint::parse_endpoint`: that parser maps a scheme-less
+/// `host:port` to *RPC*, and this transport accepts scheme-less base URLs and
+/// hands them to reqwest. Routing them through it would reject `localhost:15002`,
+/// a form that works today. The only question here is whether reqwest can
+/// dial the scheme.
+fn validate_base_url_scheme(base_url: &str) -> Result<()> {
+    // No `://` means no scheme — `localhost:15002` and bare hosts are
+    // accepted, unchanged.
+    let Some((scheme, _)) = base_url.split_once("://") else {
+        return Ok(());
+    };
+
+    if scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https") {
+        return Ok(());
+    }
+
+    if scheme.eq_ignore_ascii_case("vectorizer") {
+        return Err(VectorizerError::configuration(format!(
+            "VectorizerClient cannot dial RPC URL '{base_url}'; \
+             `vectorizer://` is the RPC transport — use \
+             `vectorizer_sdk::rpc::RpcClient::connect_url` instead, \
+             or pass an `http(s)://` URL"
+        )));
+    }
+
+    Err(VectorizerError::configuration(format!(
+        "unsupported base URL scheme `{scheme}://` in '{base_url}'; \
+         VectorizerClient speaks HTTP — pass an `http(s)://` URL"
+    )))
 }
 
 /// Cheap JWT shape sniff. A JWT is three base64url-encoded segments
@@ -265,5 +314,81 @@ impl HttpTransport {
             .text()
             .await
             .map_err(|e| VectorizerError::network(format!("Failed to read response: {e}")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a transport the way `VectorizerClient` does, and report the
+    /// error message on failure.
+    fn try_new(base_url: &str) -> std::result::Result<(), String> {
+        HttpTransport::new(base_url, None, 30)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    #[test]
+    fn rpc_scheme_is_rejected_and_names_the_right_client() {
+        let err = try_new("vectorizer://127.0.0.1:15503")
+            .expect_err("the REST transport must not accept an RPC URL");
+
+        // The whole point of the fix: the message has to name the scheme AND
+        // the client that would have worked. The old failure was reqwest's
+        // "builder error for url (...)", which named neither.
+        assert!(
+            err.contains("RpcClient"),
+            "the error must point at the RPC client: {err}"
+        );
+        assert!(
+            err.contains("vectorizer://"),
+            "the error must name the offending scheme: {err}"
+        );
+        assert!(
+            err.contains("127.0.0.1:15503"),
+            "the error must quote the URL passed in: {err}"
+        );
+    }
+
+    #[test]
+    fn rpc_scheme_is_rejected_case_insensitively() {
+        // Schemes are case-insensitive per RFC 3986; a caller shouting the
+        // scheme deserves the same guidance.
+        let err = try_new("VECTORIZER://host:15503").expect_err("uppercase scheme must be caught");
+        assert!(err.contains("RpcClient"), "{err}");
+    }
+
+    #[test]
+    fn other_schemes_are_rejected_generically() {
+        let err = try_new("umicp://host:15004").expect_err("only http(s) is dialable here");
+        assert!(
+            err.contains("umicp"),
+            "the message must name what was passed: {err}"
+        );
+        assert!(
+            !err.contains("RpcClient"),
+            "an unrelated scheme must not be misrouted to the RPC client: {err}"
+        );
+        assert!(
+            err.contains("http"),
+            "the message must say what is wanted: {err}"
+        );
+    }
+
+    #[test]
+    fn http_and_https_are_accepted() {
+        try_new("http://localhost:15002").expect("http is the normal case");
+        try_new("https://vectorizer.example.com").expect("https is the normal case");
+        try_new("HTTPS://vectorizer.example.com").expect("scheme case must not matter");
+    }
+
+    #[test]
+    fn scheme_less_base_urls_keep_working() {
+        // Callers pass these today and reqwest handles them. This is also why
+        // the guard does not delegate to `rpc::endpoint::parse_endpoint`,
+        // which would classify them as RPC endpoints and reject them.
+        try_new("localhost:15002").expect("scheme-less host:port must still build");
+        try_new("localhost").expect("bare host must still build");
     }
 }

@@ -54,8 +54,19 @@ to use instead. `vectorizer://` gets the specific redirect to
 form callers pass today.
 
 Deliberately self-contained: it does **not** reuse
-`rpc::endpoint::parse_endpoint`, because `http_transport` compiles without the
-`rpc` module and must not gain that dependency.
+`rpc::endpoint::parse_endpoint`.
+
+(An earlier draft justified this by saying `http_transport` compiles without
+the `rpc` module. That is backwards — `pub mod rpc` is unconditional in
+`lib.rs`, and `http_transport` is the one gated, behind `feature = "http"`.)
+
+The real reason is behavioural: `parse_endpoint` maps a scheme-less
+`host:port` to **RPC**, which is precisely wrong here. The HTTP transport
+accepts scheme-less base URLs today and hands them to reqwest; routing them
+through the RPC parser would classify `localhost:15002` as an RPC endpoint and
+reject a form that currently works. The guard needs to answer one narrow
+question — "is this scheme something reqwest can dial?" — and that is not the
+question `parse_endpoint` was built to answer.
 
 ## Impact
 
