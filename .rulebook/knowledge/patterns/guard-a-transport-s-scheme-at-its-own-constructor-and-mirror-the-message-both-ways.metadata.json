@@ -1,0 +1,17 @@
+{
+  "id": "guard-a-transport-s-scheme-at-its-own-constructor-and-mirror-the-message-both-ways",
+  "type": "pattern",
+  "title": "Guard a transport's scheme at its own constructor, and mirror the message both ways",
+  "category": "sdk",
+  "description": "When an SDK ships two transports with two URL schemes (`http(s)://` REST and `vectorizer://` RPC), each client must reject the other's scheme *at construction*, with a message naming the client that would have worked. The RPC side did this; the REST side did not, so a `vectorizer://` base URL built a client fine and died at the first request with reqwest's `builder error for url (...)` — naming neither the scheme nor the fix, and arriving far from the line that caused it (#392).\n\nThree placement decisions that generalize:\n\n1. **Guard the transport constructor, not the facade.** `VectorizerClient::new` looks like the natural place and is wrong: `client/mod.rs` builds an `HttpTransport` at four sites, including both replication paths, which take the same kind of value from a different config field. `HttpTransport::new` is the single choke point every path funnels through.\n\n2. **Do not validate the config field wholesale.** `ClientConfig.base_url` is not always HTTP — the UMICP path legitimately stores `umicp://host:port` there. A blanket check on the field rejects a working configuration. Validate where the value is about to be *used* by a specific transport.\n\n3. **Do not reuse the sibling transport's URL parser.** `rpc::endpoint::parse_endpoint` looks reusable and is not: it maps a scheme-less `host:port` to **RPC**, while the HTTP transport accepts scheme-less base URLs and hands them to reqwest. Delegating would reject `localhost:15002`, a form that works today. The guard's question is narrow — \"can reqwest dial this scheme?\" — and that is not the question the other parser answers.\n\nDetails worth copying: compare schemes case-insensitively (RFC 3986); give the sibling scheme a *specific* redirect and everything else a generic \"expected `http(s)://`\" that quotes what was passed; and assert in a test that unrelated schemes are **not** misrouted to the sibling client — wrong advice is worse than none.\n\nTest at both layers. Unit tests beside the guard cover the parsing; a separate integration test driving the public constructors is what actually pins the reported behaviour, because the guard sits one layer below the API the user calls — a refactor that stopped routing construction through the transport constructor would keep the unit tests green while regressing the bug.",
+  "whenToUse": "Adding or reviewing a client whose SDK exposes more than one transport/scheme, or diagnosing an error that surfaces inside an HTTP library instead of at configuration time.",
+  "createdAt": "2026-08-05T17:46:38.238Z",
+  "tags": [
+    "sdk",
+    "rust",
+    "transport",
+    "error-messages",
+    "validation"
+  ],
+  "source": "manual"
+}

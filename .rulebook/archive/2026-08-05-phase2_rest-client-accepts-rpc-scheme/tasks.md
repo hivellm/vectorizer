@@ -47,5 +47,11 @@
       public API: a refactor that stopped routing construction through
       `HttpTransport::new` would keep the unit tests green while regressing
       the behaviour #392 reported.
-- [ ] 2.3 Run tests and confirm they pass (`cargo nextest run` for the SDK
+- [x] 2.3 Run tests and confirm they pass (`cargo nextest run` for the SDK
       package, plus clippy and fmt).
+      `sdks/rust` is a workspace member (`members = ["crates/*", "sdks/rust"]`),
+      so the workspace gate covers it: **2037 passed, 0 failed, 9 skipped**
+      (2029 before this task — the 8 new tests), clippy exit 0, `fmt --check`
+      clean. Also checked `--all-features` and
+      `--no-default-features --features rpc`, since `http_transport` is gated
+      behind `feature = "http"` and the guard must not break an rpc-only build.
