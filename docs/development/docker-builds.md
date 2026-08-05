@@ -11,9 +11,15 @@ phase10 (`.rulebook/tasks/phase10_optimize-docker-build-time/`).
 | Audience | Command |
 |----------|---------|
 | Maintainer cutting a release | `.\scripts\docker\build-push.ps1 -Tag 3.x.y` |
+| Same release, dense variant | `.\scripts\docker\build-push.ps1 -Tag 3.x.y -Fastembed` |
 | Local-only build (no push) | `.\scripts\docker\build.ps1 -Tag dev` |
 | Re-push an already-built tag | `.\scripts\docker\push.ps1 -Tag 3.x.y` |
-| CI release publish | tag `vX.Y.Z` triggers `.github/workflows/release-artifacts.yml` |
+| CI release publish | **removed** — see § "CI release publish flow" |
+
+Publishing the image is a **manual, local step**. The Docker jobs are no
+longer in `release-artifacts.yml`, so cutting a `vX.Y.Z` tag leaves Docker
+Hub untouched; v3.6.0 shipped to crates.io, npm, PyPI and NuGet while the
+Hub stayed on 3.5.0 for exactly this reason.
 
 All three local scripts default to the `hivehub/vectorizer-cache:buildx`
 registry cache. Pass `-NoCache` to force a cold build.
@@ -156,6 +162,16 @@ The host-side `cargo build --release` flow is unchanged — the
 
 ## CI release publish flow
 
+> **Removed — do not rely on this.** `release-artifacts.yml` no longer
+> contains a single occurrence of "docker": `publish-docker` and
+> `publish-docker-manifest` were dropped along with the other workflows
+> deleted in the "remove CIs" commit, and `docker-cve-gate.yml` went with
+> them. A release tag now publishes every language SDK and **no image**, and
+> the run still reports success because there is nothing left to fail. Until
+> the jobs are restored, publish both variants by hand with `build-push.ps1`
+> after the release run finishes, and scan locally per § "CVE posture". The
+> description below is retained as the record of what to restore.
+
 `.github/workflows/release-artifacts.yml::publish-docker` is a matrix
 job that builds each arch on a native runner:
 
@@ -280,6 +296,37 @@ the host `OPENSSL_DIR` env var into Linux RUN steps.
 Fix: every affected `RUN` already prefixes with
 `unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC`.
 If you add new `RUN xx-cargo` lines, copy the same `unset` prefix.
+
+### `libstdc++.so.6: cannot open shared object file` on arm64
+
+Symptom: the container exits 127 the moment it starts —
+`/vectorizer/vectorizer: error while loading shared libraries:
+libstdc++.so.6` — on `linux/arm64` only, and only for a build that enables the
+`fastembed` feature. Reproduced against the published 3.5.0 artifacts:
+
+```powershell
+# exit 127
+docker run --rm --platform linux/arm64 --entrypoint /vectorizer/vectorizer hivehub/vectorizer:3.5.0-fastembed --version
+# vectorizer 3.5.0
+docker run --rm --platform linux/arm64 --entrypoint /vectorizer/vectorizer hivehub/vectorizer:3.5.0 --version
+```
+
+Root cause: `COPY` cannot interpolate the architecture triple, so the runtime
+stage hardcoded `/usr/lib/x86_64-linux-gnu/libstdc++.so.6` on both sides and
+placed an **amd64** library inside the arm64 image. The slim default image
+survived because a BM25-only build never loads the lib. Cross-*linking*
+succeeded as well — the linker resolves `-lstdc++` from the cross toolchain's
+own sysroot copy under `/usr/<triple>/lib/`, a path the runtime never reads —
+so no build ever failed and the broken image shipped.
+
+Fix (in tree): the builder stages the target-arch library into
+`/staging/usr/lib/$(xx-info triple)/` and the runtime lands it with a single
+static `COPY /staging/usr/ /usr/`. The `xx-apt-get install libstdc++6` in that
+step is load-bearing: for a cross target the multiarch directory is **empty**
+until it runs (only `/usr/<triple>/lib/` is populated, by the toolchain).
+
+Lesson: boot-test the non-native arch before pushing a variant. A green
+multi-arch build proves nothing about whether the arm64 image starts.
 
 ### Cache hit rate looks wrong
 

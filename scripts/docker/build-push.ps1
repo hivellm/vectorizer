@@ -22,10 +22,20 @@ param(
     [string]$CacheTag = "buildx",
 
     [Parameter(Mandatory=$false)]
-    [switch]$NoCache
+    [switch]$NoCache,
+
+    # Build the optional dense variant (phase33 §5.2 / issue #306) instead of
+    # the slim default: default Cargo features off plus `fastembed`, with the
+    # MiniLM model pre-fetched into the image. Published as
+    # `<Tag>-fastembed`, mirroring the 3.4.0 / 3.5.0 releases.
+    [Parameter(Mandatory=$false)]
+    [switch]$Fastembed
 )
 
 $ImageName = "vectorizer"
+if ($Fastembed) {
+    $Tag = "${Tag}-fastembed"
+}
 $FullTag = "${Organization}/${Repository}:${Tag}"
 $CacheRef = "${CacheRepo}:${CacheTag}"
 
@@ -41,6 +51,11 @@ Write-Host "🔨 Building Docker image with attestations for push..." -Foregroun
 Write-Host "   Organization: $Organization" -ForegroundColor Yellow
 Write-Host "   Repository: $Repository" -ForegroundColor Yellow
 Write-Host "   Tag: $Tag" -ForegroundColor Yellow
+if ($Fastembed) {
+    Write-Host "   Variant: fastembed (dense, MiniLM baked in, no default features)" -ForegroundColor Yellow
+} else {
+    Write-Host "   Variant: default (slim, BM25-only)" -ForegroundColor Yellow
+}
 Write-Host "   Git Commit: $GitCommitId" -ForegroundColor Yellow
 Write-Host "   Build Date: $BuildDate" -ForegroundColor Yellow
 Write-Host ""
@@ -73,6 +88,20 @@ $buildArgs = @(
     "--push"
 )
 
+# Dense-variant build args (runbook § "Optional FastEmbed model pre-fetch").
+# `NO_DEFAULT_FEATURES=0` reads like "false", but the Dockerfile expands it as
+# `${NO_DEFAULT_FEATURES:+--no-default-features}`, which fires on any non-empty
+# value — so 0 *does* disable default features, and the variant compiles as
+# `--no-default-features --features fastembed`. Leave the 0 alone: emptying it
+# would silently pull hive-gpu and transmutation back into the image.
+if ($Fastembed) {
+    $buildArgs += @(
+        "--build-arg", "ENABLE_FASTEMBED=1",
+        "--build-arg", "NO_DEFAULT_FEATURES=0",
+        "--build-arg", "FEATURES=fastembed"
+    )
+}
+
 # Buildx registry cache: read previous layers, write new ones with
 # `mode=max` so every intermediate layer is cached (not just the final
 # image). Skipped when -NoCache is passed.
@@ -86,8 +115,10 @@ if (-not $NoCache) {
     Write-Host "   Cache: disabled (-NoCache)" -ForegroundColor Yellow
 }
 
-# If tag is not "latest", also tag as latest
-if ($Tag -ne "latest") {
+# If tag is not "latest", also tag as latest. The `-fastembed` variant is
+# excluded on purpose: it is a side-channel image, and moving `latest` onto it
+# would hand every plain `docker pull hivehub/vectorizer` the dense build.
+if ($Tag -ne "latest" -and -not $Fastembed) {
     $latestTag = "${Organization}/${Repository}:latest"
     $buildArgs += "--tag"
     $buildArgs += $latestTag

@@ -266,6 +266,32 @@ RUN unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
     && PROFILE_DIR=$(if [ "$PROFILE" = dev ]; then echo debug; else echo $PROFILE; fi) \
     && mv target/$(xx-cargo --print-target-triple)/$PROFILE_DIR/vectorizer /vectorizer/vectorizer
 
+# Stage the **target-arch** libstdc++ for the runtime stage to copy.
+#
+# `COPY` cannot interpolate the architecture triple, so the runtime used to
+# hardcode `/usr/lib/x86_64-linux-gnu/libstdc++.so.6` — which put an *amd64*
+# library inside the arm64 image. Verified against the published artifact:
+# `docker run --platform linux/arm64 hivehub/vectorizer:3.5.0-fastembed` dies
+# with `error while loading shared libraries: libstdc++.so.6` (exit 127),
+# while the same arm64 tag of the BM25-only default image boots fine because
+# it never loads the lib. Cross-linking still succeeded, which is why nobody
+# caught it: the linker resolves `-lstdc++` from the cross toolchain's own
+# sysroot copy at `/usr/<triple>/lib/`, a path the runtime never reads.
+#
+# `xx-apt-get install libstdc++6` materializes the library at the canonical
+# multiarch path for the target (a no-op for a native amd64 target, where the
+# host package already provides it). Staging it under the destination layout
+# lets a single static `COPY /staging/usr/ /usr/` land it at the right
+# multiarch path on every architecture.
+#
+# This RUN is deliberately *after* the cargo build: the library is not needed
+# to compile or link, and keeping it out of the pre-build layers preserves the
+# expensive `cargo chef cook` + workspace-compile cache entries.
+RUN xx-apt-get install -y libstdc++6 \
+    && mkdir -p "/staging/usr/lib/$(xx-info triple)" \
+    && cp -aL "/usr/lib/$(xx-info triple)/libstdc++.so.6" \
+              "/staging/usr/lib/$(xx-info triple)/libstdc++.so.6"
+
 # SBOM is provided by BuildKit's `--sbom=true` syft attestation
 # (attached per-arch to the manifest list). The previous in-image
 # `cargo sbom > vectorizer.spdx.json` step recompiled `cargo-sbom`
@@ -387,7 +413,12 @@ COPY --from=fastembed-models --chown=65532:65532 /models/fastembed /data/fastemb
 # costs ~2 MB on the image — cheaper than gating the COPY on an
 # ARG and risking the conditional drifting out of sync with the
 # Cargo features.
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libstdc++.so.6 /usr/lib/x86_64-linux-gnu/libstdc++.so.6
+#
+# Sourced from `/staging` (see the builder stage) so each architecture gets
+# its own library at its own multiarch path. The earlier form hardcoded
+# `x86_64-linux-gnu` on both sides and shipped an amd64 library inside the
+# arm64 image, leaving `:3.5.0-fastembed` on linux/arm64 unable to start.
+COPY --from=builder /staging/usr/ /usr/
 COPY --from=builder --chown=65532:65532 /vectorizer/vectorizer /vectorizer/vectorizer
 COPY --from=dashboard-builder --chown=65532:65532 /dashboard/dist /vectorizer/dashboard/dist
 COPY --from=builder --chown=65532:65532 /vectorizer/config/config.example.yml /vectorizer/config/config.yml
