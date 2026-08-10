@@ -40,7 +40,7 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "14.0.1",
-    "vis-data": "^8.0.4",
+    "vis-data": "^8.0.5",
     "vis-network": "^10.1.0",
     "zustand": "^5.0.14"
   },
