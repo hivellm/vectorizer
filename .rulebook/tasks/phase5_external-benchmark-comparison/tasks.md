@@ -13,6 +13,11 @@ anything is measured.
       stale fork.
       **Done when:** the runner produces a working tree where
       `python run.py --engines vectorizer --help` resolves the engine.
+      `setup.py` clones at `91e39da0`, overlays 8 files and patches the three
+      registries; `--check` reports pinned + registered, and the patched
+      `client_factory.py` plus every client module compiles. Our files live in
+      `overlay/` (committed); `.work/` is the materialised clone and is
+      gitignored — a build directory, never edited by hand.
 - [ ] 1.2 The `vectorizer` engine client — `config.py`, `configure.py`,
       `upload.py`, `search.py`, `parser.py`, `__init__.py` — against the SDK
       or plain REST.
@@ -24,13 +29,42 @@ anything is measured.
       speed — the signature of the report this task retracts.
       **Done when:** a 1k-vector smoke run reports precision > 0.9 against a
       dataset with ground truth.
-- [ ] 1.3 Recall gate in the runner: refuse to emit a latency comparison when
+      **Written, not yet proven** — the smoke run needs the framework's deps
+      installed and a live server, which is 1.4. Code is in
+      `overlay/engine/clients/vectorizer/`; all modules compile. Leaving this
+      unchecked on purpose: the point of the item is the measured precision,
+      and claiming it from a clean compile is the mistake this task is about.
+      Three traps closed with errors rather than silence while writing it:
+      - `/insert_vectors` answers 200 with a per-row failure count, so a
+        partial upload is a successful HTTP call. Fewer vectors than the
+        dataset lowers recall on every later query, and the run would report
+        that as search quality. Now raises.
+      - The server clamps search `limit` to `MAX_SEARCH_LIMIT = 100`
+        **silently**. A top-1000 dataset would be scored against 100 results
+        and report ~10% recall — a truncation misread as a finding. The
+        searcher refuses above the cap.
+      - `parser.py` raises instead of returning an empty filter, so a
+        filtered dataset cannot run unfiltered and be scored against filtered
+        ground truth, which would look excellent.
+      Transport is `http.client` with the socket held open per worker, not
+      per-request `urllib`: pgvector compares via pooled `psycopg` with
+      prepared statements and Qdrant via its own pooled client, so a
+      connection per request would measure handshakes and blame the engine.
+- [x] 1.3 Recall gate in the runner: refuse to emit a latency comparison when
       `mean_precisions` falls below a floor (default 0.9), naming the engine
       and the value. A latency number next to zero recall is not a slower or
       faster engine, it is a broken measurement, and the existing report is
       what happens without this.
       **Done when:** a deliberately broken client (ids not mapped) fails the
       gate instead of publishing a 5x win.
+      `report.py` + `tests/test_report_gate.py`, 7 tests passing. The first
+      reproduces the retracted report exactly — 0% recall at 6285 rps against
+      Qdrant's 100% at 1183 — and asserts not merely a non-zero exit but that
+      **no table is printed**: a caveat printed next to a number is how the
+      original got quoted. Also refuses a result file that omits
+      `mean_precisions`, or the gate would be bypassed by leaving the field
+      out, and labels a single-engine run a baseline so it cannot be read as
+      a comparison.
 - [ ] 1.4 Compose file bringing up Vectorizer, Qdrant, Weaviate and pgvector
       with comparable resource limits, plus the dataset fetch step. Unequal
       memory or thread caps between engines invalidates the comparison before

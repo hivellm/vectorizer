@@ -1,0 +1,24 @@
+[
+  {
+    "name": "vectorizer-default",
+    "engine": "vectorizer",
+    "connection_params": {},
+    "collection_params": {},
+    "search_params": [
+      { "parallel": 1 },
+      { "parallel": 8 },
+      { "parallel": 16 }
+    ],
+    "upload_params": { "parallel": 8, "batch_size": 256 }
+  },
+  {
+    "name": "vectorizer-rps",
+    "engine": "vectorizer",
+    "connection_params": {},
+    "collection_params": {},
+    "search_params": [
+      { "parallel": 100 }
+    ],
+    "upload_params": { "parallel": 16, "batch_size": 256 }
+  }
+]
