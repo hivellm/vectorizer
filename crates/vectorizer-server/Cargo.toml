@@ -136,7 +136,7 @@ tantivy = "0.26"
 
 # Openraft (replication) — pinned with `=`; see the rationale on the same
 # pins in crates/vectorizer/Cargo.toml. Bump both crates together.
-openraft = { version = "=0.10.0-alpha.30", features = ["serde", "type-alias"] }
+openraft = { version = "=0.10.0-alpha.33", features = ["serde", "type-alias"] }
 openraft-memstore = "=0.10.0-alpha.30"
 
 # Prometheus / OTel
