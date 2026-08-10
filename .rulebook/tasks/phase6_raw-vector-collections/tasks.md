@@ -29,11 +29,24 @@ it, and so no text path can reach a provider-less collection unguarded.
       hole open on two surfaces, and the capability registry asserts parity.
       **Done when:** the RPC/MCP create paths accept the sentinel and their
       text paths reject it with the same code.
-- [ ] 1.5 `GET /stats` provider discovery: report sentinel collections as
-      having no provider instead of listing them under `bm25`. The block
-      exists (phase33 §4) precisely so callers can see which provider a
-      collection uses; showing `bm25` for a collection that has none
-      reintroduces the confusion it was added to remove.
+- [ ] 1.5 Make the sentinel **discoverable**, not just accepted. Verified on a
+      running 3.6.1: `GET /stats` answers
+      `{"providers": [{"name": "bm25", "dimension": 512, "default": true}],
+      "default_provider": "bm25"}` — one provider, and the RPC doc comment on
+      `handle_embedding_list_providers` tells clients to use exactly this list
+      to "pick a valid `embedding_provider` (and matching dimension)". A
+      client that follows that instruction can never learn `"none"` exists, so
+      accepting it silently would ship a feature nobody can find.
+      Advertise it in all three inventories — `GET /stats`, the RPC
+      `embedding.list_providers`, the MCP `list_providers` — as an entry that
+      names itself as taking any dimension and carrying no text support.
+      **Done when:** each inventory lists it, and the doc comment above stops
+      implying the dimension must match a registered provider.
+- [ ] 1.6 Report sentinel collections as having no provider rather than
+      listing them under `bm25`. The phase33 §4 block exists precisely so
+      callers can see which provider a collection uses; showing `bm25` for a
+      collection that has none reintroduces the confusion it was added to
+      remove.
       **Done when:** a sentinel collection appears with no provider and is
       excluded from the per-provider counts.
 

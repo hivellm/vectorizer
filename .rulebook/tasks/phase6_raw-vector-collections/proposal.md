@@ -43,6 +43,32 @@ documented-as-compatibility surface is the only way to reach a first-class
 native feature. phase5's benchmark client uses it and says why in a comment;
 that comment should become obsolete.
 
+**Verified against a running 3.6.1 rather than inferred**, because "there is a
+function that creates collections, doesn't that already solve it?" is the
+obvious objection and deserves a real answer:
+
+- `store.create_collection` does accept any dimension — it is what the
+  Qdrant-compat route calls, and it created a 4-wide collection in testing.
+  But it is the internal store API. The native surface wraps it in validation
+  with no opt-out.
+- All three native transports validate, not just REST: `collections.rs`,
+  `protocol/rpc/dispatch.rs` (813-881, with its own
+  `create_rejects_an_unknown_embedding_provider` test) and
+  `server/mcp/handlers.rs`.
+- `GET /stats` on the shipped image reports exactly one provider:
+  `{"name": "bm25", "dimension": 512, "default": true}`. So
+  `embedding_provider` can only ever be `"bm25"` — there is no value a caller
+  can pass today to create a 384-wide collection natively.
+- The intent is explicit in the RPC doc comment: clients are told to consult
+  `list_providers` to "pick a valid `embedding_provider` (and matching
+  dimension)". The model has no concept of a collection without a provider,
+  which is why this needs a design decision rather than a bug fix.
+
+So the capability exists in the store and is unreachable from outside. This
+task is about the surface, and the core of it is one branch in
+`create_collection`; the rest keeps the text paths from reaching a
+provider-less collection and undoing phase33.
+
 ## What Changes
 
 Reserve `"none"` as an embedding-provider name meaning *this collection stores
