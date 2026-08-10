@@ -8,6 +8,10 @@ happened to run in.
 import os
 
 VECTORIZER_PORT = int(os.getenv("VECTORIZER_PORT", 15002))
+
+# The server refuses to bind 0.0.0.0 without authentication, so a benchmark
+# deployment always has auth on and this is required rather than optional.
+# Either a JWT from `POST /auth/login` or an API key from `POST /auth/keys`.
 VECTORIZER_API_KEY = os.getenv("VECTORIZER_API_KEY")
 
 # The server clamps search `limit` to this, silently
