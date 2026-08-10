@@ -34,7 +34,7 @@
     "uuid": "^14.0.1",
     "vis-data": "^8.0.4",
     "vis-network": "^10.1.0",
-    "vue": "^3.5.40",
+    "vue": "^3.5.41",
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
