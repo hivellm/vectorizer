@@ -10,35 +10,51 @@ GitHub, and 1.5 cannot start until the registries actually serve 3.6.1.
       `ead8c55b` and everything from `33fd22be` onward is local.
       **Done when:** `gh api repos/hivellm/vectorizer/commits/main --jq .sha`
       matches local `HEAD`.
-- [ ] 1.2 **Push the `sdks/go` submodule.** It is a separate repository with
+- [x] 1.2 **Push the `sdks/go` submodule.** It is a separate repository with
       its own remote and carries five unpushed commits, the newest being the
       3.6.1 version bump. Until this lands, CI still cannot add
       `submodules: true` to checkout without failing outright.
       **Done when:** the submodule's remote HEAD matches its local HEAD.
+      Remote and local both at `68611632`; superproject pointer recorded in
+      `276ef96b`.
 - [x] 1.3 **Tag `v3.6.1` on the superproject and push the tag.** This is what
       drives the SDK publish workflows.
       **Done when:** the tag exists on the remote and
       `release-artifacts.yml` has started.
       Tag points at `f42aaa9f`; the GitHub release is published (not a draft),
       which also covers 1.7.
-- [ ] 1.4 **Tag `v3.6.1` in the `sdks/go` repository too.** Go resolves a
+- [x] 1.4 **Tag `v3.6.1` in the `sdks/go` repository too.** Go resolves a
       module version from a tag in that repo; the superproject's tag does
       nothing for it. The `Version` constant bumped in phase3 has to agree
       with this tag, or `go get` and the client's self-reported version
       disagree.
       **Done when:** `go list -m github.com/hivellm/vectorizer-go@v3.6.1`
       resolves.
-- [ ] 1.5 **Verify all five SDKs actually landed** — crates.io, npm, PyPI,
+      **The first tag did not resolve, and could not have.** Two independent
+      defects, both older than this release: `go.mod` declared
+      `github.com/hivellm/vectorizer-sdk-go`, a repository that does not exist
+      (the code is in `vectorizer-go`), and Go requires a `/vN` suffix on the
+      module path for any major at or above 2, which a v3 tag on a
+      suffix-less path cannot satisfy. The module has therefore never been
+      installable — not a regression here.
+      Fixed to `github.com/hivellm/vectorizer-go/v3` (`6861163`, `go build`
+      and `go vet` clean), the tag moved onto it, and the proxy now answers
+      `v3.6.1` for `github.com/hivellm/vectorizer-go/v3`. Consumers import
+      with the `/v3` suffix.
+- [x] 1.5 **Verify all five SDKs actually landed** — crates.io, npm, PyPI,
       NuGet, and the Go module proxy. Do not infer from a green workflow: the
       v3.6.0 run reported success while publishing no Docker image at all,
       because the jobs had been deleted and there was nothing left to fail.
       **Done when:** each registry serves 3.6.1, checked by query rather than
       by reading CI.
-      **Four of five confirmed by query:** crates.io 3.6.1, PyPI 3.6.1, NuGet
-      3.6.1, npm `dist-tags.latest` 3.6.1. The Go module proxy returns nothing
-      for `github.com/hivellm/vectorizer-go` — consistent with 1.2/1.4 still
-      being open, and exactly why this is checked by query: all six release
-      workflows report success, and the Go SDK is not among them.
+      **All five confirmed by query:** crates.io 3.6.1, PyPI 3.6.1, NuGet
+      3.6.1, npm `dist-tags.latest` 3.6.1, and the Go proxy answering `v3.6.1`
+      for `github.com/hivellm/vectorizer-go/v3`.
+      Checking by query rather than by reading CI is what earned its keep
+      here: all six release workflows reported success while the Go module was
+      unresolvable, because no workflow publishes Go. A green pipeline said
+      nothing about the fifth SDK — the same shape as the v3.6.0 run, which
+      reported success while publishing no Docker image at all.
 - [x] 1.6 **Point the GUI at the published SDK** (`gui/package.json`:
       `@hivehub/vectorizer-sdk` → `^3.6.1`), then `pnpm install` to refresh
       the lockfile. Must come after 1.5 — a `package.json` whose lockfile
@@ -51,7 +67,7 @@ GitHub, and 1.5 cannot start until the registries actually serve 3.6.1.
       Published 2026-08-05T18:22:32Z, not a draft.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
-- [ ] 2.1 Update or create documentation covering the implementation.
+- [x] 2.1 Update or create documentation covering the implementation.
       Candidate for a waiver: phase3 already moved every install snippet and
       the Docker Hub readme to 3.6.x. Re-check only if a registry ends up
       serving something other than 3.6.1.
@@ -68,11 +84,18 @@ GitHub, and 1.5 cannot start until the registries actually serve 3.6.1.
       - I first put that warning *in* the readme, and it published — a
         maintainer note on a public page. Removed and republished; the
         constraint belongs in the runbook.
-- [ ] 2.2 Write tests covering the new behavior — waive; this task performs a
+- [x] 2.2 Write tests covering the new behavior — waive; this task performs a
       publish and changes no behaviour. The guard that matters already exists:
       `crates/vectorizer/tests/version_carriers_agree.rs` fails if any carrier
       drifts, and it was verified by sabotage rather than by passing.
-- [ ] 2.3 Run tests and confirm they pass — after 1.6 only, since that is the
+      **Waived, with one gap named.** That guard covers the twelve in-tree
+      carriers. It cannot see that a *published* module resolves — which is
+      the failure 1.4 hit, where every carrier read 3.6.1 correctly and the Go
+      module was still unfetchable because its declared path pointed at a
+      repository that does not exist. Closing that would mean a check that
+      resolves each registry after a release; out of scope here, worth its own
+      task.
+- [x] 2.3 Run tests and confirm they pass — after 1.6 only, since that is the
       one step here that touches the tree (`pnpm type-check` in `gui/`).
 
 ## Already done, listed so the verification lives in one place
