@@ -7,14 +7,14 @@ dataset from running unfiltered and reporting recall against ground truth it
 never applied the filter for — which would look like an excellent result.
 """
 
-from engine.base_client.parser import BaseConditionParser, FieldCondition
+from engine.base_client.parser import BaseConditionParser, FieldValue
 
 
 class VectorizerConditionParser(BaseConditionParser):
     def build_condition(self, and_subfilters, or_subfilters):
         raise NotImplementedError(_UNSUPPORTED)
 
-    def build_exact_match_filter(self, field_name: str, value):
+    def build_exact_match_filter(self, field_name: str, value: FieldValue):
         raise NotImplementedError(_UNSUPPORTED)
 
     def build_range_filter(self, field_name: str, lt, gt, lte, gte):
@@ -40,4 +40,4 @@ _UNSUPPORTED = (
     "would score an unfiltered search against filtered ground truth."
 )
 
-__all__ = ["VectorizerConditionParser", "FieldCondition"]
+__all__ = ["VectorizerConditionParser", "FieldValue"]

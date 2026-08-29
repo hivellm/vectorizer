@@ -162,8 +162,9 @@ def locked_requirements() -> list[str]:
     upstream commit exists to prevent. The lock records the commit the harness
     was actually developed against, so this reads that instead.
 
-    The dev group is skipped: it carries pre-commit and pytest, neither of
-    which the benchmark run touches.
+    The dev group is skipped except for pytest, which `tests/` needs: the id
+    round-trip tests import the engine client, and that import only resolves
+    once upstream's own dependencies are present. pre-commit is left out.
     """
     lock = tomllib.loads((WORK / "poetry.lock").read_text(encoding="utf-8"))
     requirements: list[str] = []
@@ -193,6 +194,15 @@ def locked_requirements() -> list[str]:
         if marker:
             requirement = f"{requirement} ; {marker}"
         requirements.append(requirement)
+
+    # From the dev group, and only this: tests/test_id_roundtrip.py imports the
+    # engine client, which pulls upstream's runtime deps, so it has to run in
+    # this venv rather than the ambient interpreter.
+    for package in lock["package"]:
+        if package["name"] == "pytest" and "dev" in package.get("groups", []):
+            requirements.append(f"pytest=={package['version']}")
+            break
+
     return requirements
 
 

@@ -26,7 +26,13 @@ x-bench-resources: &bench-resources
 
 services:
   vectorizer:
-    image: hivehub/vectorizer:3.6.1
+    # Built locally from this branch: the benchmark client creates its
+    # collection with `embedding_provider: "none"`, which 3.6.1 rejects —
+    # the sentinel landed in phase6_raw-vector-collections. Build with
+    # scripts/docker/build.ps1 -Tag phase6-local
+    # Pin this back to a published tag once phase6 ships in a release,
+    # so a rerun does not depend on a local build.
+    image: hivehub/vectorizer:phase6-local
     <<: *bench-resources
     ports:
       - "15002:15002"
@@ -59,7 +65,12 @@ services:
       retries: 60
 
   qdrant:
-    image: qdrant/qdrant:v1.19.0
+    # v1.17.1, not the newest release: the pinned harness ships
+    # qdrant-client 1.16.3, and that client refuses a server more than one
+    # minor ahead of it. Against v1.19.0 it aborts the run. Pinning the
+    # harness means pinning the pair it was built against — bumping only
+    # the server is how a comparison starts measuring a version mismatch.
+    image: qdrant/qdrant:v1.17.1
     <<: *bench-resources
     ports:
       - "6333:6333"
