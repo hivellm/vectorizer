@@ -187,7 +187,7 @@ batch — which is exactly how this one arrived unannounced.
       upstream" by `cargo update -p <child> --dry-run`, and that was true — the
       child could not move. Updating the *parent* was never blocked. The
       dry-run answers a narrower question than it appears to.
-- [ ] 1.7 Drain the 26 open Dependabot PRs. 25 report every check green; they
+- [x] 1.7 Drain the 26 open Dependabot PRs. 25 report every check green; they
       can go in as a batch behind the full workspace gate. Four must be read
       individually:
       - **#401 `openraft` alpha.30 → alpha.33 — FAILURE ×4.** The only red PR,
@@ -202,6 +202,45 @@ batch — which is exactly how this one arrived unannounced.
         7.0.2** — both cross a major boundary.
       **Done when:** every PR is merged or closed with a stated reason, and
       the workspace gate is green afterwards.
+      **Applied locally rather than merged, so the PRs become redundant
+      instead of needing 26 merge commits and 26 CI runs.** Closing them on
+      GitHub is a remote write and is the maintainer's to do; Dependabot
+      auto-closes a bump whose version is already in the base branch, so most
+      should close themselves once this lands.
+      Routine Rust bumps taken: `blake3` 1.8.5 → 1.8.7, `xxhash-rust` 0.8.16 →
+      0.8.18, `fastrand` 2.4.1 → 2.5.0, `serde_json` 1.0.150 → 1.0.151,
+      `rustls` 0.23.42 → 0.23.43, `bcrypt` 0.19.2 → 0.19.3, `hyper` 1.10.1 →
+      1.11.1.
+      `fastembed` 5.17.3 → 5.17.4 needed `--precise`: a plain
+      `cargo update -p fastembed` reported `Locking 0 packages` because the
+      move also requires `ort` rc.12 → rc.13, and cargo will not advance a
+      pre-release on its own. The ONNX runtime bindings changing is the real
+      content of that bump, not fastembed's own patch number.
+      **`base64` 0.22 → 0.23 (#393), the major, was taken and verified rather
+      than waved through.** It is used in `hub/request_signing.rs` and
+      `security/payload_encryption.rs` — both security paths — so "it compiles"
+      would not have been evidence. 17 signing/encryption tests ran and passed
+      inside the full suite.
+      **#401 `openraft` is closed by policy, not fixed forward.** The pins are
+      `=0.10.0-alpha.30` in both crates, and the comment above them states the
+      condition for lifting: *a stable 0.10 or 0.11*, both bumped together,
+      with `tests/integration/cluster_ha.rs` retested. Upstream is still on
+      alphas (latest alpha.34), so the condition is unmet and this PR proposes
+      exactly the silent drift the pin exists to prevent.
+      Its CI failure is a second, independent reason: Dependabot bumped
+      `openraft` and left `openraft-memstore` at alpha.30, which implements
+      `RaftStateMachine` against the older trait shape —
+      `begin_receiving_snapshot` removed, `SnapshotMeta::snapshot_id` gone.
+      The two only move in lockstep.
+      Both crates are now in `.github/dependabot.yml`'s cargo ignore list so
+      the PR does not return weekly. Ignored wholesale rather than by
+      update-type, because every 0.10 release is a pre-release and a "patch"
+      bump here is still the drift the pin forbids.
+      **#412 `typescript` 6.0.3 → 7.0.2** in `/gui` is left for the
+      maintainer: it is a dev-tooling major with no security content, and it
+      belongs with a `vue-tsc` compatibility check rather than in a security
+      branch.
+      Gate after all of the above: **2057 passed, 9 skipped**, clippy clean.
 - [ ] 1.8 The two direct dependencies that are unmaintained. Not
       vulnerabilities, but this is how a dependency becomes one with nobody
       watching, and unlike the transitive ones these are ours to decide.
