@@ -163,7 +163,7 @@ pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
         .embedding_manager
         .get_default_provider_name()
         .map(|s| s.to_string());
-    let providers: Vec<Value> = state
+    let mut providers: Vec<Value> = state
         .embedding_manager
         .list_providers()
         .into_iter()
@@ -177,9 +177,14 @@ pub async fn get_stats(State(state): State<VectorizerServer>) -> Json<Value> {
                 "name": name,
                 "dimension": dimension,
                 "default": is_default,
+                "supports_text": true,
             })
         })
         .collect();
+    // phase6: the raw-vector sentinel is not in the registry — it is the
+    // absence of a provider — so it has to be appended by hand. Listed last so
+    // a client scanning for a real provider keeps finding one first.
+    providers.push(vectorizer::models::raw_vector_provider_entry());
 
     Json(json!({
         "collections": collections.len(),

@@ -82,6 +82,27 @@ pub enum VectorizerError {
         requested_dimension: usize,
     },
 
+    /// A text operation was attempted on a collection that stores
+    /// pre-computed vectors and therefore has no embedding provider
+    /// (`embedding_provider: "none"`, phase6_raw-vector-collections).
+    ///
+    /// Deliberately an error rather than a fallback to the default provider.
+    /// Embedding the text with BM25 would write vectors from a different
+    /// space than the ones the caller uploaded, producing a collection that
+    /// searches badly for reasons nothing reports — the silent coercion
+    /// phase33 (issue #306) removed. The message names the endpoints that do
+    /// work, because the caller's intent is legitimate and only the route is
+    /// wrong.
+    #[error(
+        "Collection '{collection}' stores pre-computed vectors and has no embedding provider, so '{operation}' cannot run on it. Insert with POST /insert_vectors and search with POST /collections/{collection}/search."
+    )]
+    CollectionHasNoEmbeddingProvider {
+        /// Collection the caller addressed.
+        collection: String,
+        /// Text operation that was refused, e.g. `insert_text`.
+        operation: String,
+    },
+
     /// Collection not found
     #[error("Collection not found: {0}")]
     CollectionNotFound(String),

@@ -194,6 +194,27 @@ pub async fn dispatch(
             if !auth.read().authenticated {
                 return Response::err(id, "authentication required: send HELLO first");
             }
+            // Refuse text commands against a collection that has no embedding
+            // provider, once, before the handler runs (phase6). Decided here
+            // for the same reason durability is: eight handlers call
+            // `embed`, and an obligation repeated eight times is one the
+            // ninth forgets. The collection is the leading string argument,
+            // the same convention replication relies on below.
+            if command_embeds_text(other)
+                && let Some(collection) = args.first().and_then(|v| v.as_str())
+                && let Ok(handle) = state.store.get_collection(collection)
+                && handle.config().is_raw_vector()
+            {
+                return vectorizer_err_ctx(
+                    id,
+                    other,
+                    &vectorizer::VectorizerError::CollectionHasNoEmbeddingProvider {
+                        collection: collection.to_string(),
+                        operation: other.to_string(),
+                    },
+                );
+            }
+
             let mutates = command_mutates(other);
             // Replication needs the target collection after the handler has
             // consumed `args`. Copy only the two leading string arguments —
@@ -364,6 +385,47 @@ fn command_mutates(command: &str) -> bool {
             | "graph.discover_edges"
             | "graph.discover_edges_for_node"
             | "admin.backups_restore"
+    )
+}
+
+/// `true` for commands that turn caller-supplied text into a vector using the
+/// server's embedding provider.
+///
+/// Checked once in [`dispatch`] rather than inside each of the eight handlers
+/// that call `embedding_manager.embed`, for the same reason durability is
+/// decided there: a per-handler obligation is one a new handler can silently
+/// skip. A collection created with `embedding_provider: "none"` has no
+/// provider, so these commands must refuse rather than fall back to the
+/// default and write vectors from a space the stored ones do not share
+/// (phase6_raw-vector-collections).
+///
+/// Commands taking a pre-computed vector are absent — they are exactly what a
+/// raw-vector collection is for.
+///
+/// The list is derived from the handlers that actually call
+/// `embedding_manager.embed`, not from the command names that read like text
+/// operations: `search.basic` and `search.extra` embed despite their names,
+/// and a guessed `search.batch_by_text` does not exist at all. Re-derive it
+/// the same way when adding a command rather than reasoning from the name.
+///
+/// Two deliberate exclusions:
+/// - `vectors.embed` embeds text but targets no collection — it is "vectorize
+///   this string with the server's provider", so there is no collection whose
+///   provider could be absent.
+/// - `search.semantic` / `search.contextual` / `search.intelligent` /
+///   `search.multi_collection` embed inside `vectorizer::intelligent_search`
+///   and span several collections, so a single-collection guard would be
+///   wrong for them. They still need covering; tracked in this task's 1.4.
+fn command_embeds_text(command: &str) -> bool {
+    matches!(
+        command,
+        "vectors.insert_text"
+            | "vectors.batch_insert_texts"
+            | "vectors.batch_search"
+            | "search.basic"
+            | "search.by_text"
+            | "search.hybrid"
+            | "search.extra"
     )
 }
 
@@ -814,6 +876,11 @@ fn handle_collections_create(
         .and_then(|v| v.as_str())
         .map(str::to_owned);
     let embedding_provider = match requested_provider {
+        // phase6: matched before the registry, so a provider registered under
+        // this name cannot capture the collection. Mirrors REST exactly —
+        // divergence between the two would mean the same request creates
+        // different collections depending on the transport.
+        Some(requested) if requested == vectorizer::models::RAW_VECTOR_PROVIDER => requested,
         Some(requested) => {
             if !state.embedding_manager.has_provider(&requested) {
                 return vectorizer_err_ctx(
@@ -836,9 +903,13 @@ fn handle_collections_create(
     // Refuse a dimension that disagrees with the provider's native size. REST
     // has rejected this since phase33; accepting it here is what let an RPC
     // client create a collection whose text inserts could never index.
-    if let Ok(provider_dimension) = state
-        .embedding_manager
-        .get_provider_dimension(&embedding_provider)
+    //
+    // Skipped for raw-vector collections (phase6): the caller supplies the
+    // embeddings, so there is no provider for the width to disagree with.
+    if !vectorizer::models::is_raw_vector_provider(&embedding_provider)
+        && let Ok(provider_dimension) = state
+            .embedding_manager
+            .get_provider_dimension(&embedding_provider)
     {
         if provider_dimension != dimension {
             return vectorizer_err_ctx(
@@ -4646,8 +4717,14 @@ fn handle_graph_discovery_status(
 
 /// The embedding providers this server can vectorize with, and which one it
 /// defaults to. Mirrors the MCP `list_providers` tool; a client needs this to
-/// pick a valid `embedding_provider` (and matching dimension) for
-/// `collections.create`, which now rejects a provider it does not know.
+/// pick a valid `embedding_provider` for `collections.create`, which rejects a
+/// provider it does not know.
+///
+/// The dimension must match the chosen provider's *except* for the
+/// `supports_text: false` entry (`none`, the raw-vector sentinel), which
+/// reports `dimension: null` and accepts any width — the caller's own vectors
+/// set it. Saying "matching dimension" unconditionally, as this comment did
+/// before phase6, told clients the pre-vectorized workflow was impossible.
 fn handle_embedding_list_providers(state: &Arc<RpcState>, id: u32) -> Response {
     Response::ok(
         id,
@@ -4658,14 +4735,15 @@ fn handle_embedding_list_providers(state: &Arc<RpcState>, id: u32) -> Response {
     )
 }
 
-/// Name / dimension / default triple for every registered provider. Shared by
+/// Name / dimension / default / supports_text tuple for every registered
+/// provider, plus the raw-vector sentinel. Shared by
 /// `embedding.list_providers` and `stats.database`, which both report it.
 fn provider_inventory(state: &Arc<RpcState>) -> Vec<serde_json::Value> {
     let default = state
         .embedding_manager
         .get_default_provider_name()
         .map(str::to_owned);
-    state
+    let mut providers: Vec<serde_json::Value> = state
         .embedding_manager
         .list_providers()
         .into_iter()
@@ -4679,9 +4757,15 @@ fn provider_inventory(state: &Arc<RpcState>) -> Vec<serde_json::Value> {
                 "name": name,
                 "dimension": dimension,
                 "default": is_default,
+                "supports_text": true,
             })
         })
-        .collect()
+        .collect();
+    // phase6: not in the registry — it is the absence of a provider — so it
+    // has to be appended by hand. Last, so a client scanning for a real
+    // provider keeps finding one first.
+    providers.push(vectorizer::models::raw_vector_provider_entry());
+    providers
 }
 
 /// Per-collection counters. Mirrors the MCP `get_collection_stats` tool.
@@ -6430,7 +6514,7 @@ mod tests {
     fn fake_state() -> Arc<RpcState> {
         Arc::new(RpcState {
             store: Arc::new(vectorizer::db::VectorStore::new()),
-            embedding_manager: Arc::new(vectorizer::embedding::EmbeddingManager::new()),
+            embedding_manager: bm25_manager(),
             auth: None,
             master_node: None,
             replica_node: None,
@@ -6440,6 +6524,32 @@ mod tests {
             ),
             auto_save_manager: None,
         })
+    }
+
+    /// A BM25 provider registered as the default, matching what a real server
+    /// boots with and what the REST harness builds.
+    ///
+    /// [`fake_state`] used to hand out an empty `EmbeddingManager`. That made
+    /// the phase33 dimension guard in `collections.create` — an
+    /// `if let Ok(..)` on `get_provider_dimension` — unable to fire in any RPC
+    /// unit test, so it had no coverage here at all despite being enforced in
+    /// production. Worse, every text command under test could only ever take
+    /// its "no provider" error path, so those tests were exercising a
+    /// configuration no deployment runs.
+    fn bm25_manager() -> Arc<vectorizer::embedding::EmbeddingManager> {
+        use vectorizer::embedding::Bm25Embedding;
+
+        let mut bm25 = Bm25Embedding::new(512);
+        bm25.build_vocabulary(&[
+            "the quick brown fox jumps over the lazy dog".to_string(),
+            "vectorizer rpc dispatch embedding provider corpus".to_string(),
+        ]);
+        let mut manager = vectorizer::embedding::EmbeddingManager::new();
+        manager.register_provider("bm25".to_string(), Box::new(bm25));
+        manager
+            .set_default_provider("bm25")
+            .expect("bm25 was just registered");
+        Arc::new(manager)
     }
 
     fn fake_auth_unauthenticated() -> Arc<RwLock<ConnectionAuth>> {
@@ -6673,7 +6783,13 @@ mod tests {
             "collections.create",
             vec![
                 VectorizerValue::Str("fs_probe".into()),
-                map(&[("dimension", VectorizerValue::Int(4))]),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    // Raw-vector collection: these tests insert pre-computed
+                    // vectors and never embed text, and 4 disagrees with the
+                    // registered bm25 provider's 512 (phase6).
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
             ],
         )
         .await;
@@ -6699,7 +6815,13 @@ mod tests {
             "collections.create",
             vec![
                 VectorizerValue::Str("g_probe".into()),
-                map(&[("dimension", VectorizerValue::Int(4))]),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    // Raw-vector collection: these tests insert pre-computed
+                    // vectors and never embed text, and 4 disagrees with the
+                    // registered bm25 provider's 512 (phase6).
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
             ],
         )
         .await;
@@ -6728,7 +6850,13 @@ mod tests {
             "collections.create",
             vec![
                 VectorizerValue::Str("g_enable".into()),
-                map(&[("dimension", VectorizerValue::Int(4))]),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    // Raw-vector collection: these tests insert pre-computed
+                    // vectors and never embed text, and 4 disagrees with the
+                    // registered bm25 provider's 512 (phase6).
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
             ],
         )
         .await;
@@ -6777,6 +6905,10 @@ mod tests {
                 VectorizerValue::Str("g_cfg".into()),
                 map(&[
                     ("dimension", VectorizerValue::Int(4)),
+                    // Raw-vector: this test is about the graph config being
+                    // honoured, not about embedding, and 4 disagrees with the
+                    // registered bm25 provider's 512 (phase6).
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
                     ("graph", map(&[("enabled", VectorizerValue::Bool(true))])),
                 ]),
             ],
@@ -6825,6 +6957,186 @@ mod tests {
         assert!(err.contains("not_a_provider"), "got: {err}");
     }
 
+    /// phase6: RPC must accept the raw-vector sentinel at any width, exactly
+    /// as REST does. Divergence would mean the same request builds different
+    /// collections depending on the transport a client happened to pick.
+    #[tokio::test]
+    async fn create_accepts_the_raw_vector_sentinel_at_any_width() {
+        let state = fake_state();
+        for (i, width) in [100_i64, 384, 768, 1536].into_iter().enumerate() {
+            let resp = call(
+                &state,
+                "collections.create",
+                vec![
+                    VectorizerValue::Str(format!("raw_rpc_{i}").into()),
+                    map(&[
+                        ("dimension", VectorizerValue::Int(width)),
+                        ("embedding_provider", VectorizerValue::Str("none".into())),
+                    ]),
+                ],
+            )
+            .await;
+            assert!(
+                resp.result.is_ok(),
+                "width {width} must be allowed for a raw-vector collection: {:?}",
+                resp.result
+            );
+        }
+    }
+
+    /// The dimension guard must stay in force for ordinary collections — the
+    /// sentinel is an opt-out, not a removal.
+    ///
+    /// Needs a state with a provider registered: on the empty
+    /// `EmbeddingManager` the guard cannot fire at all, so asserting against
+    /// `fake_state` would pass or fail for reasons unrelated to this change.
+    #[tokio::test]
+    async fn create_still_rejects_a_mismatched_width_without_the_sentinel() {
+        let state = fake_state();
+        let resp = call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("guarded_rpc".into()),
+                map(&[("dimension", VectorizerValue::Int(384))]),
+            ],
+        )
+        .await;
+        let err = resp
+            .result
+            .expect_err("384 disagrees with bm25's 512 and must still be refused");
+        assert!(err.contains("512") || err.contains("384"), "got: {err}");
+    }
+
+    /// And the sentinel opts out of exactly that guard, with the provider
+    /// present — the combination the previous test cannot exercise.
+    #[tokio::test]
+    async fn the_sentinel_opts_out_of_the_dimension_guard_with_a_provider_present() {
+        let state = fake_state();
+        let resp = call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("raw_with_provider".into()),
+                map(&[
+                    ("dimension", VectorizerValue::Int(384)),
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
+            ],
+        )
+        .await;
+        assert!(
+            resp.result.is_ok(),
+            "the sentinel must bypass the dimension guard even when a provider \
+             is registered: {:?}",
+            resp.result
+        );
+    }
+
+    /// The guard lives in the dispatch wrapper, so every text command is
+    /// covered by construction. Driving several of them here is what proves
+    /// that placement rather than one handler's own check.
+    #[tokio::test]
+    async fn text_commands_are_refused_on_a_raw_vector_collection() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("raw_rpc_text".into()),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
+            ],
+        )
+        .await
+        .result
+        .expect("create must succeed");
+
+        for command in [
+            "vectors.insert_text",
+            "vectors.batch_insert_texts",
+            "search.by_text",
+            "search.hybrid",
+            "search.basic",
+        ] {
+            let resp = call(
+                &state,
+                command,
+                vec![
+                    VectorizerValue::Str("raw_rpc_text".into()),
+                    VectorizerValue::Str("some text".into()),
+                ],
+            )
+            .await;
+            let err = resp.result.expect_err(&format!(
+                "{command} must be refused on a provider-less collection rather \
+                 than embedded with the default"
+            ));
+            assert!(
+                err.contains("no embedding provider"),
+                "{command} got: {err}"
+            );
+        }
+    }
+
+    /// Vector commands are the ones such a collection exists to serve, so the
+    /// guard must not catch them.
+    #[tokio::test]
+    async fn vector_commands_still_work_on_a_raw_vector_collection() {
+        let state = fake_state();
+        call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("raw_rpc_vec".into()),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
+            ],
+        )
+        .await
+        .result
+        .expect("create must succeed");
+
+        // Inserting a pre-computed vector is the operation this collection
+        // exists for, so it must pass straight through the guard.
+        let resp = call(
+            &state,
+            "vectors.insert",
+            vec![
+                VectorizerValue::Str("raw_rpc_vec".into()),
+                VectorizerValue::Str("v1".into()),
+                VectorizerValue::Array(vec![
+                    VectorizerValue::Float(1.0),
+                    VectorizerValue::Float(0.0),
+                    VectorizerValue::Float(0.0),
+                    VectorizerValue::Float(0.0),
+                ]),
+            ],
+        )
+        .await;
+        assert!(
+            resp.result.is_ok(),
+            "inserting a pre-computed vector must not trip the text guard: {:?}",
+            resp.result
+        );
+
+        let resp = call(
+            &state,
+            "collections.get_info",
+            vec![VectorizerValue::Str("raw_rpc_vec".into())],
+        )
+        .await;
+        assert!(
+            resp.result.is_ok(),
+            "reading a raw-vector collection must not trip the text guard: {:?}",
+            resp.result
+        );
+    }
+
     #[tokio::test]
     async fn collections_get_stats_counts_vectors() {
         let state = fake_state();
@@ -6833,7 +7145,13 @@ mod tests {
             "collections.create",
             vec![
                 VectorizerValue::Str("stats_probe".into()),
-                map(&[("dimension", VectorizerValue::Int(4))]),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    // Raw-vector collection: these tests insert pre-computed
+                    // vectors and never embed text, and 4 disagrees with the
+                    // registered bm25 provider's 512 (phase6).
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
             ],
         )
         .await;
@@ -6891,7 +7209,13 @@ mod tests {
             "collections.create",
             vec![
                 VectorizerValue::Str("ttl_probe".into()),
-                map(&[("dimension", VectorizerValue::Int(4))]),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    // Raw-vector collection: these tests insert pre-computed
+                    // vectors and never embed text, and 4 disagrees with the
+                    // registered bm25 provider's 512 (phase6).
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
             ],
         )
         .await;
@@ -6998,7 +7322,13 @@ mod tests {
             "collections.create",
             vec![
                 VectorizerValue::Str("ttl_reject".into()),
-                map(&[("dimension", VectorizerValue::Int(4))]),
+                map(&[
+                    ("dimension", VectorizerValue::Int(4)),
+                    // Raw-vector collection: these tests insert pre-computed
+                    // vectors and never embed text, and 4 disagrees with the
+                    // registered bm25 provider's 512 (phase6).
+                    ("embedding_provider", VectorizerValue::Str("none".into())),
+                ]),
             ],
         )
         .await;
@@ -7048,6 +7378,44 @@ mod tests {
             .result
             .expect("embedding.list_providers must answer");
         assert!(field(&providers, "providers").is_some());
+    }
+
+    #[tokio::test]
+    async fn the_raw_vector_sentinel_is_listed_in_both_inventories() {
+        // The doc comment on this command tells clients to pick
+        // `embedding_provider` from this list. `none` is not in the registry —
+        // it is the absence of a provider — so it has to be appended by hand,
+        // in both commands that report the inventory. Accepting a value no
+        // inventory mentions ships a feature nobody can find (phase6).
+        let state = fake_state();
+
+        for command in ["embedding.list_providers", "stats.database"] {
+            let result = call(&state, command, vec![])
+                .await
+                .result
+                .unwrap_or_else(|e| panic!("{command} must answer: {e:?}"));
+            let providers = field(&result, "providers")
+                .and_then(|v| v.as_array())
+                .unwrap_or_else(|| panic!("{command} must carry a providers array"));
+
+            let sentinel = providers
+                .iter()
+                .find(|p| p.map_get("name").and_then(|n| n.as_str()) == Some("none"))
+                .unwrap_or_else(|| panic!("{command} must list the raw-vector sentinel"));
+
+            assert!(
+                matches!(
+                    sentinel.map_get("dimension"),
+                    None | Some(VectorizerValue::Null)
+                ),
+                "{command}: any width is allowed, so no fixed dimension is reported"
+            );
+            assert_eq!(
+                sentinel.map_get("supports_text").and_then(|v| v.as_bool()),
+                Some(false),
+                "{command}: the sentinel refuses text operations"
+            );
+        }
     }
 
     #[tokio::test]

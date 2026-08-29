@@ -25,6 +25,7 @@ use tracing::{debug, error, info, warn};
 use vectorizer::auth::middleware::AuthState;
 use vectorizer::auth::roles::Role;
 use vectorizer::hub::middleware::RequestTenantContext;
+use vectorizer::models::collection_provider;
 
 use super::common::{collection_metrics_uuid, extract_tenant_id, publish_collections_snapshot};
 use crate::server::VectorizerServer;
@@ -99,7 +100,7 @@ pub async fn list_collections(
                     "document_count": metadata.document_count,
                     "dimension": config.dimension,
                     "metric": format!("{:?}", config.metric),
-                    "embedding_provider": provider_name.clone(),
+                    "embedding_provider": collection_provider(config),
                     "size": {
                         "total": total_size,
                         "total_bytes": total_bytes,
@@ -219,6 +220,12 @@ pub async fn create_collection(
         .and_then(|p| p.as_str())
         .map(|s| s.to_string());
     let resolved_provider = match requested_provider.clone() {
+        // phase6: the raw-vector sentinel is matched *before* the registry is
+        // consulted, which is what makes it unshadowable — a provider someone
+        // registered under this name can never capture the collection,
+        // because no lookup happens. The dimension check below is skipped for
+        // the same reason it exists: there is no provider to disagree with.
+        Some(name) if name == vectorizer::models::RAW_VECTOR_PROVIDER => name,
         Some(name) => {
             if !state.embedding_manager.has_provider(&name) {
                 return Err(ErrorResponse::from(
@@ -239,9 +246,16 @@ pub async fn create_collection(
     // Reject dimension mismatch against the provider's native dimension
     // before persisting the collection — silent quantization to a
     // different size is what caused the BM25-512 coercion downstream.
-    if let Ok(provider_dim) = state
-        .embedding_manager
-        .get_provider_dimension(&resolved_provider)
+    //
+    // Skipped for raw-vector collections: the caller supplies the embeddings,
+    // so the width is theirs to choose. Without this branch the only provider
+    // a stock server registers is BM25 at 512, which rejects every real
+    // embedding width (384, 768, 1536, …) and made `/insert_vectors`
+    // unreachable through the native API.
+    if !vectorizer::models::is_raw_vector_provider(&resolved_provider)
+        && let Ok(provider_dim) = state
+            .embedding_manager
+            .get_provider_dimension(&resolved_provider)
     {
         if provider_dim != dimension {
             return Err(ErrorResponse::from(
@@ -447,18 +461,13 @@ pub async fn get_collection(
         })
     };
 
-    let provider_name = state
-        .embedding_manager
-        .get_default_provider_name()
-        .unwrap_or("unknown");
-
     Ok(Json(json!({
         "name": name,
         "vector_count": collection.vector_count(),
         "document_count": metadata.document_count,
         "dimension": config.dimension,
         "metric": format!("{:?}", config.metric),
-        "embedding_provider": provider_name,
+        "embedding_provider": collection_provider(config),
         "created_at": metadata.created_at.to_rfc3339(),
         "updated_at": metadata.updated_at.to_rfc3339(),
         "size": {

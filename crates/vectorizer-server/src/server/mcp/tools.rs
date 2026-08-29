@@ -69,12 +69,16 @@ pub fn get_mcp_tools() -> Vec<Tool> {
             "list_providers",
             "List Embedding Providers",
             "List every embedding provider registered in the running \
-             server (name, dimension, default flag). Use this before \
-             posting `embedding_provider` on create_collection or \
-             `model` on embed_text — if the desired provider is not \
-             in this list, the deployment was built without the \
-             matching Cargo feature and posting it would return \
-             `400 unsupported_provider`.",
+             server (name, dimension, default flag, supports_text). Use \
+             this before posting `embedding_provider` on \
+             create_collection or `model` on embed_text — if the desired \
+             provider is not in this list, the deployment was built \
+             without the matching Cargo feature and posting it would \
+             return `400 unsupported_provider`. The list also includes \
+             `none` (`supports_text: false`, `dimension: null`), for \
+             collections of pre-computed vectors: it accepts any \
+             dimension, takes writes through insert_vectors, and refuses \
+             text operations instead of embedding them with the default.",
             json!({
                 "type": "object",
                 "properties": {},
