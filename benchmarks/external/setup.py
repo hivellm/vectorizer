@@ -219,8 +219,26 @@ def build_venv() -> None:
     # `--clear` so a rerun is a rebuild, not an error. This is a build
     # directory; a half-installed venv left over from a failed run is exactly
     # what a rerun is trying to escape.
+    #
+    # But `--clear` deletes before it recreates, and on Windows the delete
+    # fails partway through if anything is running out of this venv — leaving
+    # it *worse* than before. That happened once mid-benchmark: the run's
+    # upload had finished, the delete stripped `certifi` out from under it, and
+    # the search workers then spawned, died on import, and hung the run with
+    # every engine sitting idle and no error anywhere. Say what happened rather
+    # than surfacing a bare "Access denied".
     print(f"creating venv at {VENV} (python {PYTHON_VERSION})")
-    run("uv", "venv", "--clear", "--python", PYTHON_VERSION, str(VENV))
+    try:
+        run("uv", "venv", "--clear", "--python", PYTHON_VERSION, str(VENV))
+    except SystemExit as exc:
+        raise SystemExit(
+            f"{exc}\n\n"
+            "The venv could not be replaced, most likely because a benchmark "
+            "run is still using it. It may now be PARTIALLY DELETED and unable "
+            "to import its dependencies — a run started against it will fail in "
+            "spawned workers and appear to hang.\n"
+            "Stop every process using it, then run `setup.py --venv` again."
+        ) from exc
 
     requirements = locked_requirements()
     requirements_file = WORK / ".locked-requirements.txt"

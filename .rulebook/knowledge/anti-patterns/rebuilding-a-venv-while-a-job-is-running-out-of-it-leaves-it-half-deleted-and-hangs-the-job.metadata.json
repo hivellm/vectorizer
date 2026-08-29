@@ -1,0 +1,16 @@
+{
+  "id": "rebuilding-a-venv-while-a-job-is-running-out-of-it-leaves-it-half-deleted-and-hangs-the-job",
+  "type": "anti-pattern",
+  "title": "Rebuilding a venv while a job is running out of it leaves it half-deleted and hangs the job",
+  "category": "tooling",
+  "description": "`uv venv --clear` (and `python -m venv --clear`) DELETES before it recreates. On Windows the delete fails partway through when any process has files open in it, so the venv is left MISSING SOME PACKAGES rather than intact or absent.\n\nWhat that looks like: a multi-process job whose parent already imported everything keeps running, but every newly spawned worker dies on `ModuleNotFoundError` for something innocuous (`certifi`). With `multiprocessing` spawn the failure is swallowed — the job hangs with every service idle, no error printed, no result file, and CPU near zero on both sides. It reads like a slow benchmark, not a broken environment.\n\nThis cost a full 1.18M-vector benchmark run: the upload phase had completed, the rebuild stripped the venv mid-run, and the eight search workers spawned into an unimportable environment.\n\nDiagnosis: when a job goes idle with no output, run one of its own operations by hand in the same interpreter. `./.venv/Scripts/python.exe -c \"import qdrant_client; ...\"` surfaced the ModuleNotFoundError immediately, where reading logs and CPU graphs had suggested a slow index.\n\nRules:\n- Never rebuild a venv while anything is running out of it. Stop the processes first.\n- A builder that wraps `--clear` must catch the failure and say the venv may now be partially deleted — a bare \"Access denied\" reads as \"nothing happened\", which is the opposite of the truth.\n- Pipe long background runs to a FILE, not to `| tail`. `tail` buffers everything until the process exits, so a hung run shows an empty log and there is no way to see how far it got.",
+  "createdAt": "2026-08-29T16:03:41.388Z",
+  "tags": [
+    "python",
+    "venv",
+    "windows",
+    "benchmarks",
+    "debugging"
+  ],
+  "source": "manual"
+}
