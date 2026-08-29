@@ -1,0 +1,144 @@
+# The four engines under comparison, on one host, with identical resource
+# limits.
+#
+# The limits are the load-bearing part. An engine given more memory or more
+# cores than the others is not being compared, it is being flattered — and
+# nothing downstream would reveal it, because every number would still look
+# internally consistent. Change `BENCH_CPUS` / `BENCH_MEMORY` for all four
+# together or not at all, and record the values with the results.
+#
+# Images are pinned to exact versions for the same reason the upstream harness
+# is pinned to a commit: "latest" silently changes what a rerun means.
+#
+#   docker compose -f benchmarks/external/docker-compose.yml up -d
+#   docker compose -f benchmarks/external/docker-compose.yml down -v
+#
+# Ports match what each framework client expects by default, so a single
+# `--host localhost` reaches all four:
+#   vectorizer 15002 · qdrant 6333 · weaviate 8090 · pgvector 5432
+
+x-bench-resources: &bench-resources
+  deploy:
+    resources:
+      limits:
+        cpus: "${BENCH_CPUS:-4}"
+        memory: "${BENCH_MEMORY:-8g}"
+
+services:
+  vectorizer:
+    # Built locally from this branch: the benchmark client creates its
+    # collection with `embedding_provider: "none"`, which 3.6.1 rejects —
+    # the sentinel landed in phase6_raw-vector-collections. Build with
+    # scripts/docker/build.ps1 -Tag phase6-local
+    # Pin this back to a published tag once phase6 ships in a release,
+    # so a rerun does not depend on a local build.
+    image: hivehub/vectorizer:phase6-local
+    <<: *bench-resources
+    ports:
+      - "15002:15002"
+    environment:
+      - VECTORIZER_HOST=0.0.0.0
+      - VECTORIZER_PORT=15002
+      # Auth stays ON. It is not optional: the server refuses to bind 0.0.0.0
+      # without it ("SECURITY ERROR: Cannot bind to 0.0.0.0 without
+      # authentication enabled"), which is also why the published image
+      # generates root credentials on first boot. Benchmarking with the guard
+      # disabled would measure a configuration users cannot deploy.
+      #
+      # A fixed secret so the credentials survive a container restart and the
+      # run stays reproducible. Value is irrelevant — nothing here is exposed
+      # beyond the compose network.
+      - VECTORIZER_JWT_SECRET=benchmark-only-not-a-secret-000000
+      - VECTORIZER_ADMIN_USERNAME=bench
+      - VECTORIZER_ADMIN_PASSWORD=benchmark-only-not-a-secret
+    volumes:
+      - vectorizer-data:/data
+    healthcheck:
+      # /ready, not /health: /health answers 200 while the collection catalog
+      # is still loading (issue #391), so gating on it would start the
+      # benchmark against a half-warm server.
+      # The image is distroless — busybox is the only probe binary in it, and
+      # there is no shell, so this has to be exec form.
+      test: ["CMD", "/busybox", "wget", "-q", "--spider", "http://127.0.0.1:15002/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+
+  qdrant:
+    # v1.17.1, not the newest release: the pinned harness ships
+    # qdrant-client 1.16.3, and that client refuses a server more than one
+    # minor ahead of it. Against v1.19.0 it aborts the run. Pinning the
+    # harness means pinning the pair it was built against — bumping only
+    # the server is how a comparison starts measuring a version mismatch.
+    image: qdrant/qdrant:v1.17.1
+    <<: *bench-resources
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      # Auth on here too, so the per-request credential check is not a cost
+      # only Vectorizer pays. Vectorizer cannot be run without it (see above),
+      # so leaving Qdrant anonymous would hand it a head start in exactly the
+      # measurement being published. The framework's Qdrant client already
+      # reads QDRANT_API_KEY.
+      - QDRANT__SERVICE__API_KEY=benchmark-only-not-a-secret
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+
+  weaviate:
+    image: semitechnologies/weaviate:1.38.9
+    <<: *bench-resources
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8090"
+      - --scheme
+      - http
+    ports:
+      - "8090:8090"
+      - "50051:50051"
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=none
+      - CLUSTER_HOSTNAME=node1
+    volumes:
+      - weaviate-data:/var/lib/weaviate
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8090/v1/.well-known/ready || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+
+  pgvector:
+    image: pgvector/pgvector:0.8.6-pg17-trixie
+    <<: *bench-resources
+    ports:
+      - "5432:5432"
+    environment:
+      # Must match engine/clients/pgvector/config.py, which reads
+      # PGVECTOR_USER/PASSWORD/DB with these defaults.
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=passwd
+      - POSTGRES_DB=postgres
+    volumes:
+      - pgvector-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  vectorizer-data:
+  qdrant-data:
+  weaviate-data:
+  pgvector-data:

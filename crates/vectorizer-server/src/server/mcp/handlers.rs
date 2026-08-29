@@ -321,19 +321,56 @@ async fn handle_list_collections(store: Arc<VectorStore>) -> Result<CallToolResu
     )]))
 }
 
+/// Refuse a text operation on a collection that stores pre-computed vectors
+/// (phase6_raw-vector-collections).
+///
+/// Such a collection was created with `embedding_provider: "none"` and has no
+/// provider, so there is nothing to vectorize the text with. Falling back to
+/// the default would write vectors from a space the stored ones do not share
+/// — the silent coercion phase33 removed — so this refuses instead, carrying
+/// the same `code` the REST and RPC surfaces return.
+fn reject_text_on_raw_vector_collection(
+    store: &Arc<VectorStore>,
+    collection_name: &str,
+) -> Result<(), ErrorData> {
+    let is_raw = store
+        .get_collection(collection_name)
+        .map(|c| c.config().is_raw_vector())
+        .unwrap_or(false);
+
+    if is_raw {
+        return Err(ErrorData::invalid_params(
+            format!(
+                "Collection '{collection_name}' stores pre-computed vectors and has no \
+                 embedding provider. Insert with insert_vectors and search by vector instead."
+            ),
+            Some(json!({
+                "code": "collection_has_no_embedding_provider",
+                "collection": collection_name,
+            })),
+        ));
+    }
+    Ok(())
+}
+
 /// phase33 (#306): mirrors the `providers` array from
 /// `GET /stats` so MCP callers can discover what's registered
 /// before posting `embedding_provider` on `create_collection` /
 /// `model` on `embed_text`. Without this tool the only way to
 /// notice an unregistered provider was to watch the call return
 /// `400 unsupported_provider`.
+///
+/// phase6 appends the raw-vector sentinel. It is not registered — a
+/// collection carrying it has no provider at all — but it is a legal value of
+/// `embedding_provider`, and a client told to pick from this list would
+/// otherwise never learn it exists.
 async fn handle_list_providers(
     embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
     let default = embedding_manager
         .get_default_provider_name()
         .map(|s| s.to_string());
-    let providers: Vec<serde_json::Value> = embedding_manager
+    let mut providers: Vec<serde_json::Value> = embedding_manager
         .list_providers()
         .into_iter()
         .map(|name| {
@@ -343,9 +380,14 @@ async fn handle_list_providers(
                 "name": name,
                 "dimension": dimension,
                 "default": is_default,
+                "supports_text": true,
             })
         })
         .collect();
+    // phase6: the raw-vector sentinel is not in the registry — it is the
+    // absence of a provider — so it has to be appended by hand. Last, so a
+    // client scanning for a real provider keeps finding one first.
+    providers.push(vectorizer::models::raw_vector_provider_entry());
     let response = json!({
         "providers": providers,
         "default_provider": default,
@@ -544,6 +586,8 @@ async fn handle_insert_text(
     let metadata = args.get("metadata").cloned();
     let public_key = args.get("public_key").and_then(|v| v.as_str());
 
+    reject_text_on_raw_vector_collection(&store, collection_name)?;
+
     // Generate embedding
     let embedding = embedding_manager.embed(text).map_err(to_mcp_error)?;
 
@@ -684,6 +728,9 @@ async fn handle_update_vector(
     let public_key = args.get("public_key").and_then(|v| v.as_str());
 
     if let Some(text) = text {
+        // Only the text branch embeds; updating payload alone stays valid on
+        // a raw-vector collection (phase6).
+        reject_text_on_raw_vector_collection(&store, collection)?;
         let embedding = embedding_manager.embed(text).map_err(to_mcp_error)?;
 
         let payload_json = if let Some(meta) = metadata {
@@ -1593,7 +1640,7 @@ async fn handle_get_database_stats(
     let default_provider = embedding_manager
         .get_default_provider_name()
         .map(|s| s.to_string());
-    let providers: Vec<serde_json::Value> = embedding_manager
+    let mut providers: Vec<serde_json::Value> = embedding_manager
         .list_providers()
         .into_iter()
         .map(|name| {
@@ -1603,9 +1650,15 @@ async fn handle_get_database_stats(
                 "name": name,
                 "dimension": dimension,
                 "default": is_default,
+                "supports_text": true,
             })
         })
         .collect();
+    // phase6: this is the MCP mirror of `GET /stats` and the RPC
+    // `stats.database`, and it built its own copy of the array. The sentinel
+    // has to be appended here too or the surfaces disagree about what
+    // `embedding_provider` accepts.
+    providers.push(vectorizer::models::raw_vector_provider_entry());
 
     let response = json!({
         "collections": collections.len(),
@@ -1686,6 +1739,11 @@ async fn handle_batch_insert_texts(
     let mut inserted: usize = 0;
     let mut failed: usize = 0;
     let mut results: Vec<serde_json::Value> = Vec::with_capacity(texts.len());
+
+    // Checked once before the loop rather than per row: the answer cannot
+    // change between entries, and a batch that can embed nothing should say
+    // so instead of reporting N identical per-row failures (phase6).
+    reject_text_on_raw_vector_collection(&store, collection_name)?;
 
     for (idx, entry) in texts.iter().enumerate() {
         let Some(text) = entry.get("text").and_then(|t| t.as_str()) else {
@@ -1849,6 +1907,18 @@ async fn handle_batch_search(
             }
             query_vector
         } else if let Some(query) = entry.get("query").and_then(|q| q.as_str()) {
+            // Per-entry, unlike batch_insert_texts: a batch_search may legally
+            // mix `vector` and `query` entries, so only the text ones are
+            // refused and the vector ones still run (phase6).
+            if let Err(err) = reject_text_on_raw_vector_collection(&store, collection_name) {
+                failed += 1;
+                results.push(json!({
+                    "index": idx,
+                    "status": "error",
+                    "error": err.message,
+                }));
+                continue;
+            }
             match embedding_manager.embed(query) {
                 Ok(e) => e,
                 Err(e) => {

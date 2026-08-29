@@ -44,11 +44,17 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/common.rs",
-        160,
+        185,
         "3 small helpers + admit_upsert (issue #263 phase9 §3 — \
          centralizes the per-collection upsert admission + 429 \
          translation reused by insert_text, insert_vectors, and \
-         do_batch_insert_texts)",
+         do_batch_insert_texts). +55 in phase6_raw-vector-collections: \
+         the reject_text_on_raw_vector_{config,collection} pair, the \
+         same shape as admit_upsert — a cross-handler admission check \
+         reused by insert.rs and search.rs. It grew this file on \
+         purpose: parked in either caller, the other would have to \
+         reach across a module boundary for it, which is how the \
+         search.rs -> insert.rs import that preceded this move read.",
     ),
     (
         "src/server/rest_handlers/meta.rs",
@@ -71,7 +77,7 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/collections.rs",
-        1060,
+        1070,
         "7 handlers incl. list/create + phase13 reencode_collection / \
          set_collection_ttl + get_collection_ttl + phase14 rename / \
          reindex / native snapshot CRUD (snapshot_native, \
@@ -91,6 +97,11 @@ const BUDGETS: &[(&str, usize, &str)] = &[
          warm-up listing stops passing for a complete one. Four \
          fields and the note explaining why total_collections keeps \
          its old meaning — SDKs read it. \
+         +14 in phase6_raw-vector-collections: create_collection matches \
+         the `none` sentinel before the registry is consulted (which is \
+         what makes it unshadowable) and skips the phase33 dimension \
+         check, since a collection whose vectors the caller supplies has \
+         no provider to disagree with. \
          Re-tighten when the schema-evolution endpoints split out \
          (follow-up task).",
     ),
@@ -128,7 +139,7 @@ const BUDGETS: &[(&str, usize, &str)] = &[
     ),
     (
         "src/server/rest_handlers/search.rs",
-        1085,
+        1100,
         "7 search-family handlers + hybrid search (dense + sparse + \
          rank-fusion + per-axis weights) + batch_search_vectors + \
          search_by_file + search_by_collection variants + Qdrant-shape \
@@ -140,6 +151,12 @@ const BUDGETS: &[(&str, usize, &str)] = &[
          `total`, and the search_by_file stub answers both counts — the \
          published SDK validators reject a hit or an envelope without \
          those field names and threw on every successful search. \
+         +11 in phase6_raw-vector-collections: the three text-embedding \
+         entry points (search/text, hybrid_search, and the `query` arm of \
+         batch_search) refuse a collection that has no provider instead \
+         of embedding with the default. batch_search checks per entry, \
+         not once up front — a batch may legally mix `vector` and \
+         `query` entries, and only the text ones are refusable. \
          Split across concern axes is blocked until the hybrid-search \
          task lands (phase7_hybrid-search-extraction); re-tighten this \
          budget there.",

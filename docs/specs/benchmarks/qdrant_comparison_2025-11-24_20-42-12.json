@@ -1,4 +1,11 @@
 {
+  "RETRACTED": {
+    "status": "VOID — do not cite any number in this file",
+    "why": "The run reports a 5.31x search win for Vectorizer at 0.00% Recall@10 against Qdrant's 100.00%. Zero recall means the returned ids never matched the expected ones, so the latency recorded is the cost of returning wrong results quickly, not a speed comparison.",
+    "producer": "benches/comparison/qdrant_comparison_benchmark.rs — never registered as a [[bench]] target, so nothing ever compiled or ran it in CI. Deleted in phase5_external-benchmark-comparison §1.7.",
+    "replacement": "benchmarks/external/ — upstream qdrant/vector-db-benchmark at a pinned commit across Vectorizer, Qdrant, Weaviate and pgvector under identical resource limits. Its reporter refuses to print a latency table when mean precision falls below 0.9.",
+    "retracted_by": "phase5_external-benchmark-comparison"
+  },
   "qdrant": {
     "insertion": {
       "avg_latency_ms": 0.13019839999999927,

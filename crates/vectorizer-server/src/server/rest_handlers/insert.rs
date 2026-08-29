@@ -21,7 +21,7 @@ use vectorizer::file_loader::config::LoaderConfig;
 use vectorizer::hub::middleware::RequestTenantContext;
 use vectorizer_core::error::VectorizerError;
 
-use super::common::collection_metrics_uuid;
+use super::common::{collection_metrics_uuid, reject_text_on_raw_vector_collection};
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{ErrorResponse, create_bad_request_error};
 
@@ -401,6 +401,7 @@ pub(super) async fn insert_one_text(
     );
 
     ensure_collection_exists(state, collection_name)?;
+    reject_text_on_raw_vector_collection(state, collection_name, "insert_text")?;
 
     let upload_config = FileUploadConfig::default();
     let chunk_size_val = chunk_size.unwrap_or(upload_config.default_chunk_size);

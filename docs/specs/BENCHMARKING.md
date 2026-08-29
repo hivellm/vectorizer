@@ -4,6 +4,18 @@
 
 Vectorizer includes comprehensive performance benchmarks to ensure consistent performance and detect regressions. We have **18 active benchmarks** covering all critical paths.
 
+This guide covers the **internal** Criterion suite — per-function timing of
+our own code, run with `cargo bench`. It says nothing about how Vectorizer
+compares to other engines.
+
+For that, see **[External benchmarks](../development/external-benchmarks.md)**:
+Vectorizer against Qdrant, Weaviate and pgvector, run through the upstream
+[qdrant/vector-db-benchmark](https://github.com/qdrant/vector-db-benchmark)
+harness at a pinned commit, under identical resource limits, with a recall
+gate that refuses to print a latency comparison below the floor. Cross-engine
+comparisons belong there and nowhere else — the last home-grown one published
+a 5.31x search win at 0.00% recall.
+
 ## Quick Start
 
 ### Running All Benchmarks

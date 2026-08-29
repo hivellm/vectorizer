@@ -380,6 +380,85 @@ fn default_embedding_provider() -> String {
     "bm25".to_string()
 }
 
+/// Reserved value of [`CollectionConfig::embedding_provider`] meaning *this
+/// collection stores pre-computed vectors and has no embedding provider*.
+///
+/// `POST /insert_vectors` exists for callers who bring their own embeddings,
+/// but `create_collection` resolves a provider for every collection and
+/// rejects any dimension that disagrees with it — and the only provider a
+/// stock server registers is BM25 at 512. Every real embedding model is some
+/// other width, so the pre-vectorized workflow was unreachable through the
+/// native API until this sentinel existed (phase6_raw-vector-collections).
+///
+/// **Checked before the provider registry, never after.** That ordering is
+/// what makes the value unshadowable: registering a provider literally named
+/// `none` cannot capture a collection, because no lookup happens for a
+/// sentinel collection in the first place.
+///
+/// A collection carrying this value rejects text operations rather than
+/// falling back to BM25. Silent coercion to a mismatched provider is the bug
+/// phase33 (issue #306) removed, and it must not return through this door.
+pub const RAW_VECTOR_PROVIDER: &str = "none";
+
+/// Whether a provider name is the raw-vector sentinel.
+///
+/// For call sites that hold the name rather than a [`CollectionConfig`] —
+/// chiefly `create_collection`, which decides before any collection exists.
+/// Exists so the comparison lives in one place instead of the literal being
+/// re-typed at each transport.
+#[must_use]
+pub fn is_raw_vector_provider(name: &str) -> bool {
+    name == RAW_VECTOR_PROVIDER
+}
+
+/// The provider-inventory entry for [`RAW_VECTOR_PROVIDER`], in the shape the
+/// three discovery surfaces already use (`GET /stats`, the RPC
+/// `embedding.list_providers`, the MCP `list_providers`).
+///
+/// The sentinel is not in the [`EmbeddingManager`](crate::embedding::EmbeddingManager)
+/// registry — it is the *absence* of a provider — so every inventory has to
+/// append it explicitly. Built here rather than three times so the three
+/// surfaces cannot drift, and so a client that reads any one of them learns
+/// the same two facts:
+///
+/// * `dimension: null` — the caller's vectors set the width, so there is no
+///   fixed one. Distinct from `0`, which is what the real entries report when
+///   a provider's dimension cannot be read.
+/// * `supports_text: false` — text operations are refused rather than
+///   embedded with the default. The real entries carry `supports_text: true`
+///   so a client can branch on one field instead of special-casing this name.
+#[must_use]
+pub fn raw_vector_provider_entry() -> serde_json::Value {
+    serde_json::json!({
+        "name": RAW_VECTOR_PROVIDER,
+        "dimension": serde_json::Value::Null,
+        "default": false,
+        "supports_text": false,
+        "description":
+            "Collections that store pre-computed vectors. Any dimension; \
+             insert with /insert_vectors and search with a query vector. \
+             Text operations return collection_has_no_embedding_provider.",
+    })
+}
+
+/// How a collection reports its embedding provider to a client.
+///
+/// `null` for a raw-vector collection — it has none — and the configured name
+/// otherwise. Before phase6 both `GET /collections` and
+/// `GET /collections/{name}` reported the *server's default* provider for
+/// every collection, which was already wrong for any collection created with
+/// a non-default provider and would have shown `bm25` for one that has no
+/// provider at all. That is exactly the confusion the phase33 (issue #306)
+/// discovery work was added to remove.
+#[must_use]
+pub fn collection_provider(config: &CollectionConfig) -> serde_json::Value {
+    if config.is_raw_vector() {
+        serde_json::Value::Null
+    } else {
+        serde_json::Value::String(config.embedding_provider.clone())
+    }
+}
+
 /// Encryption configuration for a collection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptionConfig {
@@ -470,6 +549,21 @@ impl Default for HnswConfig {
             ef_search: 100,
             seed: None,
         }
+    }
+}
+
+impl CollectionConfig {
+    /// Whether this collection stores pre-computed vectors and has no
+    /// embedding provider (see [`RAW_VECTOR_PROVIDER`]).
+    ///
+    /// Every caller goes through this rather than comparing the string
+    /// itself, so the sentinel has one definition and one comparison site to
+    /// audit. Text-facing operations must consult it *before* resolving a
+    /// provider — falling through to the default would re-create the silent
+    /// BM25 coercion phase33 removed.
+    #[must_use]
+    pub fn is_raw_vector(&self) -> bool {
+        self.embedding_provider == RAW_VECTOR_PROVIDER
     }
 }
 

@@ -1684,6 +1684,23 @@ components:
           description: Vector dimension
         metric:
           $ref: "#/components/schemas/DistanceMetric"
+        embedding_provider:
+          type: string
+          description: >-
+            Provider used to vectorize text inserts on this collection.
+            Defaults to the server's default provider. Must name a provider
+            the deployment actually registered — see the `providers` array on
+            `GET /stats` — or the request fails with 400
+            `unsupported_provider`, and `dimension` must equal that provider's
+            native width or 400 `provider_dimension_mismatch`.
+
+            The reserved value `none` opts out entirely: the collection stores
+            pre-computed vectors, accepts any `dimension`, and takes writes
+            through `POST /insert_vectors`. Text operations on such a
+            collection return 400 `collection_has_no_embedding_provider`
+            rather than embedding with a fallback provider whose vectors the
+            collection does not contain.
+          default: bm25
         hnsw_config:
           $ref: "#/components/schemas/HnswConfig"
 
@@ -1723,7 +1740,11 @@ components:
           $ref: "#/components/schemas/DistanceMetric"
         embedding_provider:
           type: string
-          description: Embedding provider used
+          nullable: true
+          description: >-
+            Provider this collection vectorizes text with. `null` for a
+            collection created with `embedding_provider: "none"`, which stores
+            pre-computed vectors and has none.
         vector_count:
           type: integer
           description: Number of vectors

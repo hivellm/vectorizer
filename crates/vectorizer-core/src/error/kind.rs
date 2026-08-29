@@ -69,6 +69,10 @@ impl VectorizerError {
             | VectorizerError::UnsupportedProvider { .. }
             | VectorizerError::UnsupportedModel { .. }
             | VectorizerError::ProviderDimensionMismatch { .. }
+            // The request is malformed rather than the collection missing: the
+            // collection exists, it simply cannot embed text. A 404 would send
+            // the caller looking for a collection that is right there.
+            | VectorizerError::CollectionHasNoEmbeddingProvider { .. }
             | VectorizerError::InvalidConfiguration { .. }
             | VectorizerError::ConfigurationError(_)
             | VectorizerError::Configuration(_)
@@ -113,6 +117,9 @@ impl VectorizerError {
             VectorizerError::UnsupportedProvider { .. } => "unsupported_provider",
             VectorizerError::UnsupportedModel { .. } => "unsupported_model",
             VectorizerError::ProviderDimensionMismatch { .. } => "provider_dimension_mismatch",
+            VectorizerError::CollectionHasNoEmbeddingProvider { .. } => {
+                "collection_has_no_embedding_provider"
+            }
             VectorizerError::PersistenceError(_) => "persistence_error",
             VectorizerError::IndexError(_) => "index_error",
             VectorizerError::ConfigurationError(_) | VectorizerError::Configuration(_) => {

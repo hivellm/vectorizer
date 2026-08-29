@@ -91,6 +91,8 @@ swagger-cli bundle vectorizer/docs/api/openapi.yaml -o vectorizer/docs/api/opena
 - `DELETE /collections/{name}` - Delete collection
 
 ### 🔍 Vectors
+- `POST /insert` - Insert text (server embeds it)
+- `POST /insert_vectors` - Insert pre-computed vectors (see [Pre-computed Vectors](#-pre-computed-vectors-bring-your-own-embeddings))
 - `POST /collections/{name}/vectors` - Insert texts
 - `GET /collections/{name}/vectors` - List vectors
 - `GET /collections/{name}/vectors/{id}` - Get specific vector
@@ -99,6 +101,54 @@ swagger-cli bundle vectorizer/docs/api/openapi.yaml -o vectorizer/docs/api/opena
 ### 🔎 Search
 - `POST /collections/{name}/search` - Search vectors
 - `POST /collections/{name}/search/text` - Search by text
+
+### 🧮 Pre-computed Vectors (Bring Your Own Embeddings)
+
+Vectorizer normally embeds text for you: a collection resolves an embedding
+provider, and every text insert is vectorized through it. If you already have
+embeddings — from your own model, a hosted API, or an ANN benchmark dataset —
+create the collection with the reserved provider `"none"` instead.
+
+```bash
+# 1. Create a collection with no embedding provider.
+#    Any dimension is allowed, because your vectors set the width.
+curl -X POST http://localhost:15002/collections \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "my_vectors", "dimension": 768, "metric": "cosine",
+       "embedding_provider": "none"}'
+
+# 2. Insert your own vectors. Ids and payloads are yours to choose.
+curl -X POST http://localhost:15002/insert_vectors \
+  -H 'Content-Type: application/json' \
+  -d '{"collection": "my_vectors",
+       "vectors": [{"id": "doc-1", "embedding": [0.01, 0.02, "..."],
+                    "payload": {"title": "First document"}}]}'
+
+# 3. Search with a query vector you embedded the same way.
+curl -X POST http://localhost:15002/collections/my_vectors/search \
+  -H 'Content-Type: application/json' \
+  -d '{"vector": [0.01, 0.02, "..."], "limit": 10}'
+```
+
+**Why the opt-out exists.** Without it, `POST /collections` resolves a provider
+for every collection and rejects any dimension that disagrees with it. A stock
+server registers only BM25 at 512, so 384, 768 and 1536 — every real embedding
+width — were refused, and `/insert_vectors` had no collection to write into.
+
+**Text operations are refused, not silently redirected.** `POST /insert`,
+the batch text inserts, `POST /collections/{name}/search/text` and
+`POST /collections/{name}/hybrid_search` return `400` with
+`error_type: collection_has_no_embedding_provider` on such a collection. The
+alternative — falling back to the server default — would embed your text with a
+provider your stored vectors did not come from, leaving a collection that
+searches badly with nothing reporting why. The batch endpoints report this
+per row and still answer `200`, as they do for every other row-level failure.
+
+**Discovery.** `GET /stats` lists `none` alongside the registered providers,
+with `dimension: null` and `supports_text: false`; every real provider carries
+`supports_text: true`, so a client can branch on that field rather than on the
+name. A collection created this way reports `embedding_provider: null` from
+`GET /collections` and `GET /collections/{name}`.
 
 ### 🧠 Intelligent Search (New in v0.3.1)
 - `POST /intelligent_search` - Advanced intelligent search with multi-query generation

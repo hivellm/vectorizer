@@ -2,6 +2,8 @@
 
 use uuid::Uuid;
 use vectorizer::db::{AdmissionError, AdmissionStatus, UpsertQueue, UpsertTicket};
+use vectorizer::models::CollectionConfig;
+use vectorizer_core::error::VectorizerError;
 
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{ErrorResponse, create_queue_full_error};
@@ -83,6 +85,59 @@ pub(super) fn admit_upsert(
                 retry_after_seconds,
             ))
         }
+    }
+}
+
+/// Refuse a text operation on a collection that stores pre-computed vectors
+/// (phase6_raw-vector-collections).
+///
+/// Such a collection has no embedding provider, so there is nothing to
+/// vectorize the text with. Falling back to the server default would embed it
+/// with BM25 — writing vectors from a different space than the ones the
+/// caller uploaded, giving a collection that searches badly with nothing
+/// reporting why. That silent coercion is what phase33 (issue #306) removed;
+/// this keeps it from returning through the raw-vector door.
+///
+/// `operation` names the refused call in the error, so a caller who reached
+/// the wrong endpoint learns which one to use instead.
+///
+/// This config-based form is preferred wherever the collection is already in
+/// hand: taking a second DashMap `Ref` on the same shard while one is alive is
+/// the shape behind this repo's phase39 production deadlock, and reading the
+/// config we already hold costs nothing.
+pub(super) fn reject_text_on_raw_vector_config(
+    config: &CollectionConfig,
+    collection_name: &str,
+    operation: &str,
+) -> Result<(), ErrorResponse> {
+    if config.is_raw_vector() {
+        return Err(ErrorResponse::from(
+            VectorizerError::CollectionHasNoEmbeddingProvider {
+                collection: collection_name.to_string(),
+                operation: operation.to_string(),
+            },
+        ));
+    }
+    Ok(())
+}
+
+/// Name-based form of [`reject_text_on_raw_vector_config`], for callers that
+/// do not hold the collection yet.
+///
+/// A missing collection is *not* rejected here — the caller's own existence
+/// check owns that error, and answering "no embedding provider" for a
+/// collection that does not exist would send the caller down the wrong path
+/// entirely.
+pub(super) fn reject_text_on_raw_vector_collection(
+    state: &VectorizerServer,
+    collection_name: &str,
+    operation: &str,
+) -> Result<(), ErrorResponse> {
+    match state.store.get_collection(collection_name) {
+        Ok(collection) => {
+            reject_text_on_raw_vector_config(collection.config(), collection_name, operation)
+        }
+        Err(_) => Ok(()),
     }
 }
 

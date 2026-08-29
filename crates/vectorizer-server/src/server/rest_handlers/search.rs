@@ -29,7 +29,9 @@ use vectorizer::db::{HybridScoringAlgorithm, HybridSearchConfig};
 use vectorizer::hub::middleware::RequestTenantContext;
 use vectorizer::models::SparseVector;
 
-use super::common::extract_tenant_id;
+use super::common::{
+    extract_tenant_id, reject_text_on_raw_vector_collection, reject_text_on_raw_vector_config,
+};
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{
     ErrorResponse, create_bad_request_error, create_validation_error,
@@ -102,6 +104,12 @@ pub async fn search_vectors_by_text(
         .store
         .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
+
+    // A raw-vector collection has no provider to embed with; refuse rather
+    // than falling back to the default and searching a different space than
+    // the stored vectors (phase6). Checked through the config already in hand
+    // rather than a second store lookup.
+    reject_text_on_raw_vector_config(collection.config(), &collection_name, "search/text")?;
 
     // Generate embedding for the query
     let query_embedding = state
@@ -284,6 +292,10 @@ pub async fn hybrid_search_vectors(
         .store
         .get_collection_with_owner(&collection_name, tenant_id.as_ref())
         .map_err(|e| ErrorResponse::from(e))?;
+
+    // Same guard as search/text: no provider means nothing to build the dense
+    // half of the hybrid query from (phase6).
+    reject_text_on_raw_vector_config(collection.config(), &collection_name, "hybrid_search")?;
 
     // Generate dense embedding for the query
     let query_dense = state
@@ -656,7 +668,18 @@ pub async fn batch_search_vectors(
                 .await
             }
         } else if let Some(query) = entry.get("query").and_then(|q| q.as_str()) {
-            match state.embedding_manager.embed(query) {
+            // Name-based form here: this loop does not hold the collection,
+            // it passes the name down to `do_vector_search`. A batch mixing
+            // `vector` and `query` entries stays valid — only the text ones
+            // are refused, and each entry reports its own status (phase6).
+            let embedded =
+                reject_text_on_raw_vector_collection(&state, &collection_name, "batch_search")
+                    .and_then(|()| {
+                        state.embedding_manager.embed(query).map_err(|e| {
+                            create_bad_request_error(&format!("Failed to embed query: {}", e))
+                        })
+                    });
+            match embedded {
                 Ok(embedding) => {
                     do_vector_search(
                         &state,
@@ -668,10 +691,7 @@ pub async fn batch_search_vectors(
                     )
                     .await
                 }
-                Err(e) => Err(create_bad_request_error(&format!(
-                    "Failed to embed query: {}",
-                    e
-                ))),
+                Err(err) => Err(err),
             }
         } else {
             Err(create_validation_error(

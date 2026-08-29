@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/qdrant/vector-db-benchmark.git",
+  "commit": "91e39da0a2c265d5849f4dc840782fab54a279b9",
+  "why_pinned": "An unpinned upstream changes what the numbers mean between runs without anything in this repository changing. Bump this deliberately, re-run the baseline, and say so in the results.",
+  "pinned_on": "2026-08-10"
+}

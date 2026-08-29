@@ -8,5 +8,5 @@
 
 | Status | Task | Progress | Description |
 |--------|------|----------|-------------|
-| ⬚ | phase5_external-benchmark-comparison | - | external benchmark comparison |
+| 🚫 | phase5_external-benchmark-comparison | 9/10 | external benchmark comparison |
 

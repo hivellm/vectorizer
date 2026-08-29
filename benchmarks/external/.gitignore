@@ -1,0 +1,7 @@
+# Upstream checkout, materialised by setup.py. Never committed: it is a clone
+# of qdrant/vector-db-benchmark at the commit pinned in upstream.json, plus our
+# overlay. Everything we author lives in `overlay/`.
+.work/
+
+# Datasets are large and fetched by the harness.
+datasets/
