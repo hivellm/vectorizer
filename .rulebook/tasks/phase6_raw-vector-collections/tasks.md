@@ -68,24 +68,49 @@ it, and so no text path can reach a provider-less collection unguarded.
       report `config.embedding_provider`, `null` for the sentinel.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
-- [ ] 2.1 Document the pre-vectorized workflow end to end — create with
+- [x] 2.1 Document the pre-vectorized workflow end to end — create with
       `embedding_provider: "none"`, insert with `/insert_vectors`, search with
       `POST /collections/{name}/search` — in the REST reference and
       `openapi.yaml`, including what text operations do on such a collection.
       Update `benchmarks/external/overlay/engine/clients/vectorizer/configure.py`
       to use the native endpoint and delete the comment explaining the
       Qdrant-compat detour; that comment existing is the bug report.
-      **Landed so far:** `openapi.yaml` and `openapi.json` both document
-      `embedding_provider` on the create request (it was undocumented on the
-      request schema in both) and mark it nullable on `CollectionInfo`, which
-      the sentinel now makes reachable. **Still open:** the REST reference
-      prose walkthrough and the `configure.py` switch — the latter lives on
-      the `bench/external-comparison` branch, so it lands with phase5.
+      **Done.** `openapi.yaml` and `openapi.json` both document
+      `embedding_provider` on the create request — it was undocumented on the
+      request schema in *both*, so the field phase33 made load-bearing was
+      invisible to anyone reading the spec — and both mark it nullable on
+      `CollectionInfo`, which the sentinel now makes reachable. The REST
+      reference gained a "Pre-computed Vectors" walkthrough (create → insert →
+      search, with the refusal contract and the discovery fields), and
+      `/insert` and `/insert_vectors` were added to its endpoint index; both
+      were missing. `configure.py` now creates through `POST /collections`
+      with the sentinel, and the comment explaining the Qdrant-compat detour
+      is gone — which was the point: that comment was the bug report.
 - [x] 2.2 Tests: creation at several widths with and without the sentinel;
       each text entry point rejecting with the typed error; the round trip
       through `.vecdb` (a restarted collection must still be provider-less, or
       the legacy `#[serde(default)]` quietly turns it back into `bm25` — the
       exact shape of the persistence bugs this repo has had before); and the
       reserved-name registration failing.
-- [ ] 2.3 Full gate: `cargo nextest run --workspace --lib --bins --tests`,
+      **Correction on the last clause.** Reserved-name registration does not
+      fail — 1.1 replaced that design with match-before-lookup, so there is no
+      rejection to test. The property that took its place is tested instead:
+      `a_provider_named_none_cannot_capture_a_raw_vector_collection` registers
+      a provider literally named `none` at 512 and creates a 384-wide
+      collection through it. The two branch orderings give opposite answers,
+      so the test is sharp — verified by sabotage: consulting the registry
+      first makes it fail with `provider_dimension_mismatch`.
+      The `.vecdb` round trip found a trap worth recording: `get_collection`
+      returns a DashMap `Ref` whose read lock lives to the end of the *block*,
+      not the last use. Holding one across `restore_native_snapshot` — which
+      deletes the collection and so wants the shard's write lock — hangs the
+      test forever. Same re-entrancy as the phase39 production deadlock.
+- [x] 2.3 Full gate: `cargo nextest run --workspace --lib --bins --tests`,
       clippy, fmt.
+      **Green:** 2057 tests run, 2057 passed, 9 skipped; clippy clean across
+      the workspace; fmt applied. The pre-push hook caught one regression this
+      work introduced that the pre-commit hook does not run:
+      `stats_advertises_providers_block` asserted every `providers` row has a
+      numeric `dimension`, which was exactly right while every row was a
+      registered provider. Both copies now branch on `supports_text` and pin
+      both shapes rather than relaxing the original invariant.

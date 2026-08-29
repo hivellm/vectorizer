@@ -42,37 +42,21 @@ class VectorizerConfigurator(BaseConfigurator):
         if distance is None:
             raise IncompatibleDistance(dataset.config.distance)
 
-        # Created through the Qdrant-compatible endpoint, not the native
-        # `POST /collections`, and the reason is a real limitation rather than
-        # a preference:
-        #
-        # Native `create_collection` always resolves an embedding provider
-        # (defaulting to `bm25`) and rejects any dimension that differs from
-        # that provider's — 512 for BM25. Every ANN benchmark dataset is some
-        # other width (glove 100, 384, 768, 1536), so the native endpoint
-        # refuses all of them with `provider_dimension_mismatch`, even though
-        # `/insert_vectors` exists precisely for callers bringing their own
-        # embeddings and needs no provider at all.
-        #
-        # The Qdrant-compatible route goes straight to `store.create_collection`
-        # with no provider resolution, so it accepts the dataset's width.
-        #
-        # This is setup, not measurement: upload and search below both run on
-        # the native API, which is what the benchmark reports on.
-        qdrant_distance = {
-            "cosine": "Cosine",
-            "euclidean": "Euclid",
-            "dot_product": "Dot",
-        }[distance]
-
+        # `embedding_provider: "none"` is what makes the native endpoint
+        # usable here. Every ANN benchmark dataset arrives pre-vectorized at
+        # some width the server has no provider for (glove 100, 384, 768,
+        # 1536); an ordinary collection resolves a provider and rejects any
+        # dimension that disagrees with it, so it refuses all of them. A
+        # provider-less collection takes the caller's own vectors through
+        # `/insert_vectors`, which is the path `upload.py` uses.
         self.client.request(
-            "PUT",
-            f"/qdrant/collections/{COLLECTION_NAME}",
+            "POST",
+            "/collections",
             {
-                "vectors": {
-                    "size": dataset.config.vector_size,
-                    "distance": qdrant_distance,
-                },
+                "name": COLLECTION_NAME,
+                "dimension": dataset.config.vector_size,
+                "metric": distance,
+                "embedding_provider": "none",
                 **collection_params,
             },
         )

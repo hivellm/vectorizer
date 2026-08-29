@@ -6984,6 +6984,81 @@ mod tests {
         }
     }
 
+    /// The sentinel cannot be shadowed by a provider registered under its
+    /// name.
+    ///
+    /// This is the property that replaced making `register_provider` fallible
+    /// (80 call sites across 36 files for one guard). Instead the sentinel is
+    /// matched *before* the registry is consulted at every use site, so no
+    /// lookup happens for a raw-vector collection and nothing can capture it.
+    ///
+    /// The test is sharp because the two orderings give opposite answers: a
+    /// `none` provider is registered here at 512, so if the registry were
+    /// consulted first the phase33 dimension guard would refuse this 384-wide
+    /// collection. Reorder the branches and this fails.
+    #[tokio::test]
+    async fn a_provider_named_none_cannot_capture_a_raw_vector_collection() {
+        use vectorizer::embedding::Bm25Embedding;
+
+        let mut impostor = Bm25Embedding::new(512);
+        impostor.build_vocabulary(&["shadowing the raw vector sentinel".to_string()]);
+        let mut manager = vectorizer::embedding::EmbeddingManager::new();
+        manager.register_provider(
+            vectorizer::models::RAW_VECTOR_PROVIDER.to_string(),
+            Box::new(impostor),
+        );
+
+        let state = Arc::new(RpcState {
+            store: Arc::new(vectorizer::db::VectorStore::new()),
+            embedding_manager: Arc::new(manager),
+            auth: None,
+            master_node: None,
+            replica_node: None,
+            cluster_manager: None,
+            slow_query_ring: vectorizer::cache::SlowQueryRing::new(
+                vectorizer::cache::slow_query::SlowQueryConfig::default(),
+            ),
+            auto_save_manager: None,
+        });
+
+        let resp = call(
+            &state,
+            "collections.create",
+            vec![
+                VectorizerValue::Str("shadowed".into()),
+                map(&[
+                    ("dimension", VectorizerValue::Int(384)),
+                    (
+                        "embedding_provider",
+                        VectorizerValue::Str(vectorizer::models::RAW_VECTOR_PROVIDER.into()),
+                    ),
+                ]),
+            ],
+        )
+        .await;
+        assert!(
+            resp.result.is_ok(),
+            "a provider registered as `none` must not capture the collection \
+             — the sentinel branch wins because no lookup happens: {:?}",
+            resp.result
+        );
+
+        let config = state
+            .store
+            .get_collection("shadowed")
+            .expect("collection created")
+            .config()
+            .clone();
+        assert!(
+            config.is_raw_vector(),
+            "the collection must have taken the raw-vector path"
+        );
+        assert_eq!(
+            config.dimension, 384,
+            "and kept the caller's width, not the impostor's 512"
+        );
+    }
+
     /// The dimension guard must stay in force for ordinary collections — the
     /// sentinel is an opt-out, not a removal.
     ///
