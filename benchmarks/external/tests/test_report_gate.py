@@ -32,7 +32,14 @@ def write_result(
     parallel: int = 1,
     dataset: str = "glove-100-angular",
 ) -> Path:
-    path = directory / f"{engine}-{dataset}-search-0-2026-08-10-00-00-00.json"
+    # `parallel` is part of the name because a single engine legitimately
+    # produces one result per concurrency level. Keying only on engine+dataset
+    # made a second write silently overwrite the first, so a test that set up
+    # three runs would quietly assert against two.
+    path = (
+        directory
+        / f"{engine}-{dataset}-search-p{parallel}-2026-08-10-00-00-00.json"
+    )
     path.write_text(
         json.dumps(
             {
@@ -145,3 +152,49 @@ def test_no_results_directory_is_an_error_not_an_empty_table(tmp_path: Path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_engines_at_different_concurrency_are_not_ranked_against_each_other(
+    tmp_path: Path,
+):
+    """The other way to publish a true-but-fictional comparison.
+
+    Throughput scales with concurrency, so a single list ordered by rps puts
+    whichever engine was measured at the highest parallelism on top — and the
+    top row reads as the winner. Every number in it is real; the comparison is
+    not. Grouping by parallelism is what keeps the reader from making it.
+    """
+    write_result(tmp_path, engine="vectorizer", recall=0.95, rps=9000.0, parallel=16)
+    write_result(tmp_path, engine="qdrant", recall=0.99, rps=4000.0, parallel=8)
+
+    result = run_report(tmp_path)
+    assert result.returncode == 0, result.stderr
+
+    # Each concurrency level gets its own table, so the fast-at-16 row is never
+    # printed directly above the slower-at-8 one as though they were rivals.
+    assert "@ parallel=16" in result.stdout
+    assert "@ parallel=8" in result.stdout
+
+    lines = [ln for ln in result.stdout.splitlines() if ln.startswith("| vectorizer") or ln.startswith("| qdrant")]
+    assert len(lines) == 2
+    vector_at, qdrant_at = (result.stdout.index(ln) for ln in lines)
+    between = result.stdout[min(vector_at, qdrant_at) : max(vector_at, qdrant_at)]
+    assert "parallel=" in between, (
+        "the two engines were printed in one uninterrupted ranking; a reader "
+        "comparing adjacent rows would be comparing different concurrencies"
+    )
+
+
+def test_an_incomplete_concurrency_group_says_so(tmp_path: Path):
+    """A level only one engine ran at is a partial field, not a comparison."""
+    write_result(tmp_path, engine="vectorizer", recall=0.95, rps=9000.0, parallel=16)
+    write_result(tmp_path, engine="vectorizer", recall=0.95, rps=5000.0, parallel=8)
+    write_result(tmp_path, engine="qdrant", recall=0.99, rps=4000.0, parallel=8)
+
+    result = run_report(tmp_path)
+    assert result.returncode == 0, result.stderr
+    assert "incomplete" in result.stdout, (
+        "parallel=16 has no qdrant run; presenting it as a comparison table "
+        "without saying so is how a solo number gets quoted as a win"
+    )
+    assert "no run for: qdrant" in result.stdout

@@ -110,15 +110,40 @@ def check_recall(runs: Iterable[Run], floor: float) -> list[Run]:
 
 
 def format_table(runs: list[Run]) -> str:
+    """One table per (dataset, parallel) — never one list sorted by rps alone.
+
+    Throughput is a function of concurrency, so a single ranked list invites a
+    reader to compare an engine measured at parallel=16 against one measured at
+    parallel=8, and whichever lands on top reads as the winner. That is the
+    same shape of error as quoting latency without recall: every number in the
+    row is real, and the comparison it suggests is still fiction.
+
+    Grouping makes concurrency a property of the table rather than a column the
+    eye slides past, and a group that is missing an engine says so instead of
+    presenting a partial field as the whole one.
+    """
     header = f"| {'engine':<12} | {'config':<34} | {'recall':>7} | {'rps':>10} | {'mean ms':>8} | {'p95 ms':>8} | {'p99 ms':>8} |"
     sep = f"|{'-' * 14}|{'-' * 36}|{'-' * 9}|{'-' * 12}|{'-' * 10}|{'-' * 10}|{'-' * 10}|"
-    lines = [header, sep]
-    for run in sorted(runs, key=lambda r: (r.dataset, -r.rps)):
-        lines.append(
+
+    all_engines = {run.engine for run in runs}
+    groups: dict[tuple[str, int], list[Run]] = {}
+    for run in runs:
+        groups.setdefault((run.dataset, run.parallel), []).append(run)
+
+    blocks = []
+    for (dataset, parallel), group in sorted(groups.items()):
+        missing = sorted(all_engines - {run.engine for run in group})
+        title = f"### {dataset} @ parallel={parallel}"
+        if missing:
+            title += f"  (incomplete — no run for: {', '.join(missing)})"
+        rows = [
             f"| {run.engine:<12} | {run.label:<34} | {run.recall:>6.2%} | "
             f"{run.rps:>10.1f} | {run.mean_ms:>8.3f} | {run.p95_ms:>8.3f} | {run.p99_ms:>8.3f} |"
-        )
-    return "\n".join(lines)
+            for run in sorted(group, key=lambda r: -r.rps)
+        ]
+        blocks.append("\n".join([title, "", header, sep, *rows]))
+
+    return "\n\n".join(blocks)
 
 
 def main() -> int:
