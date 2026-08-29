@@ -1,0 +1,124 @@
+name: Dependency audit
+
+# phase7_dependency-security-audit §1.1.
+#
+# Before this workflow existed, 17 workflows covered build, lint, docs, SIMD
+# matrices and every SDK's tests and publication — and none audited
+# dependencies. `audit.toml` sat at the repository root carrying a real policy
+# decision that nothing read. The result: the Dependabot page showed 2 open
+# alerts while the local tools found 6 npm advisories and 19 Rust findings.
+#
+# A rule nothing enforces is not a rule. This runs the tools that would have
+# surfaced all of it on the day it landed.
+#
+# Both jobs are deliberately cheap — neither compiles the workspace. `cargo
+# audit` reads `Cargo.lock` and `pnpm audit` reads the pnpm lockfiles, so this
+# finishes in under a minute and has no excuse to be skipped.
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: ["**"]
+  schedule:
+    # An advisory can land against an unchanged lockfile, so pushes alone
+    # would never surface it. Monday 08:00 UTC, an hour before Dependabot's
+    # own weekly window, so a fresh advisory and its bump PR arrive together.
+    - cron: "0 8 * * 1"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  cargo-audit:
+    name: cargo audit (RustSec)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Verify the policy is present, in the right place, and parses
+        # Same caveat the lint workflow's layering and parking_lot gates guard
+        # against: a check whose input is missing exits in a way that reads as
+        # "nothing wrong".
+        #
+        # Existence is not enough here, and §1.2 is why. This policy lived at
+        # the repository root for months, where cargo-audit never reads it, so
+        # its invalid `[advisories.unmaintained]` section never surfaced. Moved
+        # to the location that IS read, cargo-audit rejects the file outright —
+        # and exits 1, which is indistinguishable from "vulnerabilities found"
+        # to a step that only greps the exit code. A broken policy would have
+        # been misread as a failing audit for as long as anyone cared to look.
+        #
+        # `--no-fetch` skips the advisory download, so this asks one question
+        # only: does the configuration load?
+        run: |
+          for required in Cargo.lock .cargo/audit.toml; do
+            if [[ ! -f "$required" ]]; then
+              echo "::error::$required not found — this gate would not be auditing what it claims to"
+              exit 1
+            fi
+          done
+          if cargo audit --no-fetch 2>&1 | grep -q "fatal error: parse error"; then
+            echo "::error::.cargo/audit.toml does not parse — cargo-audit exits 1 on this, which looks exactly like a failing audit"
+            cargo audit --no-fetch 2>&1 | tail -8
+            exit 1
+          fi
+
+      - name: cargo audit
+        # Fails on vulnerabilities. Warnings (unmaintained, unsound, yanked)
+        # are reported but do not fail: they are not exploits, and a gate that
+        # goes red because an upstream crate lost its maintainer gets disabled
+        # within a week. They are tracked as their own task items instead.
+        #
+        # Exceptions live in `audit.toml`, each with the reasoning that
+        # justifies it. An advisory silenced without a stated reason is how
+        # this backlog accumulated in the first place.
+        run: cargo audit
+
+  npm-audit:
+    name: pnpm audit (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [gui, dashboard, sdks/typescript]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm@10   # pinned to match the other workflows
+
+      - name: Verify the lockfile is there
+        run: |
+          if [[ ! -f "${{ matrix.project }}/pnpm-lock.yaml" ]]; then
+            echo "::error::${{ matrix.project }}/pnpm-lock.yaml not found — nothing would be audited"
+            exit 1
+          fi
+
+      - name: Audit production dependencies
+        # `--prod` is the threshold, chosen by measurement rather than taste.
+        # Every npm advisory in this repository at the time of writing reaches
+        # only build or test tooling — vite, vitest, eslint, postcss. A gate
+        # that failed on those would be red constantly over packages that
+        # cannot reach a user of the published SDK or a served page, and it
+        # would be switched off.
+        #
+        # Scoping to production dependencies makes a red build mean something:
+        # a package that actually ships.
+        working-directory: ${{ matrix.project }}
+        run: pnpm audit --prod
+
+      - name: Report dev-scoped advisories (informational)
+        # Not a failure, but not invisible either. Dev advisories are still
+        # worth bumping on their own schedule, and a run that printed nothing
+        # about them would suggest there was nothing to see.
+        working-directory: ${{ matrix.project }}
+        if: always()
+        run: pnpm audit || echo "::notice::dev-scoped advisories above are informational — see docs/analysis/dependency-security-2026-08/03-npm-advisories.md"

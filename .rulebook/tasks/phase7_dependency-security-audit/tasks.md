@@ -6,7 +6,7 @@ Ordered so the thing that let this accumulate is fixed before the backlog it
 produced. Draining advisories first would leave nothing watching for the next
 batch — which is exactly how this one arrived unannounced.
 
-- [ ] 1.1 Wire dependency auditing into CI. There are 17 workflows covering
+- [x] 1.1 Wire dependency auditing into CI. There are 17 workflows covering
       build, lint, docs, SIMD matrices and every SDK's tests and publication.
       **None audits dependencies.** `audit.toml` exists at the repo root and
       carries a real policy decision (`ignore = ["RUSTSEC-2024-0436"]`), and
@@ -18,7 +18,20 @@ batch — which is exactly how this one arrived unannounced.
       **Done when:** a workflow runs `cargo audit` (or `cargo deny`) on push
       and PR, fails on unignored vulnerabilities, and its first run reproduces
       the counts in `02-rust-advisories.md`.
-- [ ] 1.2 Confirm `audit.toml` is actually effective. It carries
+      `.github/workflows/dependency-audit.yml`. Two jobs, neither compiles the
+      workspace — `cargo audit` reads `Cargo.lock` and `pnpm audit` reads the
+      pnpm lockfiles, so it finishes in under a minute and has no excuse to be
+      skipped. Also runs weekly on a schedule: an advisory can land against an
+      unchanged lockfile, so pushes alone would never surface it.
+      The npm threshold is `--prod`, chosen by measurement rather than taste.
+      Measured: `--prod` yields 1 finding in `gui` and **0** in `dashboard` and
+      `sdks/typescript`, against 6 unscoped. Every unscoped one reaches only
+      vite / vitest / eslint / postcss, so a gate failing on those would be red
+      constantly over packages that cannot reach a user — and would be switched
+      off within a week. Dev advisories are still printed, just not fatal.
+      Warnings (unmaintained, unsound, yanked) likewise report without failing;
+      they are tracked as 1.8 instead.
+- [x] 1.2 Confirm `audit.toml` is actually effective. It carries
       `[advisories.unmaintained] warn = false`, yet the local run reported
       `10 allowed warnings` while still listing 6 unmaintained crates.
       Whether that section is honoured under cargo-audit 0.22's schema is
@@ -26,7 +39,26 @@ batch — which is exactly how this one arrived unannounced.
       **Done when:** the file's behaviour is demonstrated rather than assumed;
       any inert section is corrected or removed, so it stops reading as a
       decision that was never in force.
-- [ ] 1.3 Fix the two Rust advisories that are fixable today. Everything else
+      **It was worse than inert — it was doubly broken.** Demonstrated by
+      running `cargo audit` with the file and with it deleted: byte-identical
+      output, 9 vulnerabilities and 10 warnings either way, with
+      `RUSTSEC-2024-0436` listed both times despite being in `ignore`.
+      Cause: cargo-audit reads `.cargo/audit.toml`, never a file at the
+      repository root. Moved there, it turned out the schema was invalid too —
+      `[advisories.unmaintained]` is not a field cargo-audit accepts, and it
+      rejects the file *fatally*. Being unread had hidden that for as long as
+      the file existed.
+      The nasty part: a parse error makes `cargo audit` exit **1**, which is
+      indistinguishable from "vulnerabilities found" to a CI step that only
+      reads the exit code. A broken policy would have been misread as a
+      failing audit. The workflow therefore checks that the config *parses*,
+      not merely that it exists — verified by sabotage, appending a bogus
+      section makes the gate fire.
+      Now honoured, proven by a measurable difference: warnings dropped 10 to
+      9 as the `paste` ignore finally took effect. The `[advisories.unmaintained]`
+      suppression was deliberately not carried over — hiding unmaintained
+      crates contradicts 1.8, where two of ours are direct dependencies.
+- [x] 1.3 Fix the two Rust advisories that are fixable today. Everything else
       in `cargo audit` is pinned by a parent or has no patch — see 1.5, 1.6.
       - `h2` 0.4.15 → ≥ 0.4.16 (RUSTSEC-2026-0258, *unbounded empty DATA
         frames*). `cargo update -p h2` reaches 0.4.19. This is the one with
@@ -39,6 +71,15 @@ batch — which is exactly how this one arrived unannounced.
         the fix.
       **Done when:** `cargo audit` no longer reports either, verified by
       re-running it, and the full workspace gate is green.
+      `h2` 0.4.15 → **0.4.19**, `lru` 0.18.1 → **0.18.3**, lockfile only.
+      Vulnerabilities 9 → 8; `h2` is gone outright.
+      **The `lru` check was worth making.** After the bump `lru` still appeared
+      in the report, which reads like the fix failing. It is a different copy:
+      **0.16.4, via `tantivy`**, which belongs to the blocked-upstream set in
+      1.6. Our direct 0.18.x is clear, and the remaining row moved from
+      *vulnerability* to *unsound warning*, so it no longer fails the gate.
+      Taking "still listed" at face value would have reverted a working fix.
+      Full workspace gate after both: **2057 passed, 9 skipped.**
 - [ ] 1.4 Clear the npm advisories. All six are dev- or build-scoped, so none
       reaches a published SDK consumer or a served page — but three open PRs
       already carry the fixes and merging them is cheaper than new commits.

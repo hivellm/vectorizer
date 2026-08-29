@@ -1,0 +1,33 @@
+# cargo-audit policy.
+#
+# Location matters: cargo-audit reads `.cargo/audit.toml`, not a file at the
+# repository root. This lived at the root until
+# phase7_dependency-security-audit §1.2, where it turned out to be doubly
+# broken — never read, and carrying a `[advisories.unmaintained]` section that
+# cargo-audit rejects outright. Moving it here surfaced the schema error that
+# being unread had hidden. Identical output with and without the file was the
+# tell.
+#
+# Valid fields are exactly: `ignore`, `informational_warnings`,
+# `severity_threshold`.
+
+[advisories]
+# Every entry here silences a real finding, so every entry states what was
+# checked. An advisory quietened without a reason is how the backlog this task
+# exists to clear accumulated in the first place.
+ignore = [
+    # `paste` is unmaintained (RUSTSEC-2024-0436). It is a transitive
+    # proc-macro dependency with no runtime surface — it expands at compile
+    # time and ships nothing. Pre-existing decision, kept.
+    "RUSTSEC-2024-0436",
+]
+
+# Report every informational class rather than hiding any. The previous config
+# tried to suppress `unmaintained` warnings; that intent is deliberately not
+# carried over. Unmaintained crates are how a dependency becomes a
+# vulnerability with nobody watching, and two of ours are direct dependencies
+# (`rustls-pemfile`, `bincode`) — they need a decision, not silence.
+#
+# The CI workflow does not fail on warnings, so keeping them visible costs
+# nothing and keeps the list honest.
+informational_warnings = ["unmaintained", "unsound", "notice", "yanked"]
