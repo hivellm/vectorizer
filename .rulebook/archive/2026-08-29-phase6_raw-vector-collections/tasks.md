@@ -68,7 +68,8 @@ it, and so no text path can reach a provider-less collection unguarded.
       report `config.embedding_provider`, `null` for the sentinel.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
-- [x] 2.1 Document the pre-vectorized workflow end to end — create with
+- [x] 2.1 Update or create documentation covering the implementation.
+      Document the pre-vectorized workflow end to end — create with
       `embedding_provider: "none"`, insert with `/insert_vectors`, search with
       `POST /collections/{name}/search` — in the REST reference and
       `openapi.yaml`, including what text operations do on such a collection.
@@ -86,7 +87,8 @@ it, and so no text path can reach a provider-less collection unguarded.
       were missing. `configure.py` now creates through `POST /collections`
       with the sentinel, and the comment explaining the Qdrant-compat detour
       is gone — which was the point: that comment was the bug report.
-- [x] 2.2 Tests: creation at several widths with and without the sentinel;
+- [x] 2.2 Write tests covering the new behavior:
+      creation at several widths with and without the sentinel;
       each text entry point rejecting with the typed error; the round trip
       through `.vecdb` (a restarted collection must still be provider-less, or
       the legacy `#[serde(default)]` quietly turns it back into `bm25` — the
@@ -105,8 +107,8 @@ it, and so no text path can reach a provider-less collection unguarded.
       not the last use. Holding one across `restore_native_snapshot` — which
       deletes the collection and so wants the shard's write lock — hangs the
       test forever. Same re-entrancy as the phase39 production deadlock.
-- [x] 2.3 Full gate: `cargo nextest run --workspace --lib --bins --tests`,
-      clippy, fmt.
+- [x] 2.3 Run tests and confirm they pass — the full gate:
+      `cargo nextest run --workspace --lib --bins --tests`, clippy, fmt.
       **Green:** 2057 tests run, 2057 passed, 9 skipped; clippy clean across
       the workspace; fmt applied. The pre-push hook caught one regression this
       work introduced that the pre-commit hook does not run:

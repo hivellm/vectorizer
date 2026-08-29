@@ -1,0 +1,15 @@
+{
+  "id": "holding-a-dashmap-ref-from-get-collection-across-a-store-mutating-call-deadlocks",
+  "type": "anti-pattern",
+  "title": "Holding a DashMap Ref from get_collection across a store-mutating call deadlocks",
+  "category": "concurrency",
+  "description": "`VectorStore::get_collection` returns a DashMap `Ref`, which holds a READ LOCK on its shard. A `Ref` binding has a `Drop` impl, so it lives to the end of its BLOCK — not to its last use. NLL does not shorten it.\n\nAny store call that mutates the same collection then wants the shard's WRITE lock and blocks forever against the reader you are still holding. `restore_native_snapshot` is a live example: it begins with `delete_collection`.\n\nThis hung a test for 3.8 hours with no panic and no output, and it is the same re-entrancy as the phase39 production deadlock (never hold a `Ref` while taking another).\n\nBAD — `restored` is alive until the closing brace:\n\n    let restored = store.get_collection(name).unwrap();\n    assert!(restored.config().is_raw_vector());\n    store.restore_native_snapshot(name, &id).unwrap();  // hangs\n\nGOOD — clone out of a temporary, so the Ref dies at the end of the statement:\n\n    fn config_of(store: &VectorStore, name: &str) -> CollectionConfig {\n        store.get_collection(name).unwrap().config().clone()\n    }\n\nDiagnosis technique that found it: the hang produced no output at all, so bisect with `eprintln!` markers between statements and run under `timeout N cargo test -- --nocapture > file` (piping to `tail` loses the buffer when the timeout kills it). Run a known-good sibling test first as a control — `collection_ttl_persistence` passing in 0.02s proved the environment was fine and the fault was in the new test.",
+  "createdAt": "2026-08-29T15:03:53.171Z",
+  "tags": [
+    "dashmap",
+    "deadlock",
+    "testing",
+    "vector-store"
+  ],
+  "source": "manual"
+}
