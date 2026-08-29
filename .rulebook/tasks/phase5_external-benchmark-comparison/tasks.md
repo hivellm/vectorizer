@@ -3,7 +3,7 @@
 Ordered so the thing most likely to be wrong — id mapping — is proven before
 anything is measured.
 
-- [ ] 1.1 Scaffold `benchmarks/external/`: a runner that clones
+- [x] 1.1 Scaffold `benchmarks/external/`: a runner that clones
       `qdrant/vector-db-benchmark` at a **pinned commit** into a gitignored
       workdir and overlays our engine client. Pinning is not optional — an
       unpinned upstream changes what the numbers mean between runs, silently.
@@ -65,25 +65,51 @@ anything is measured.
       `mean_precisions`, or the gate would be bypassed by leaving the field
       out, and labels a single-engine run a baseline so it cannot be read as
       a comparison.
-- [ ] 1.4 Compose file bringing up Vectorizer, Qdrant, Weaviate and pgvector
+- [x] 1.4 Compose file bringing up Vectorizer, Qdrant, Weaviate and pgvector
       with comparable resource limits, plus the dataset fetch step. Unequal
       memory or thread caps between engines invalidates the comparison before
       it starts.
       **Done when:** all four answer a health probe from one `docker compose
       up`.
+      Verified: `pgvector`, `qdrant`, `vectorizer`, `weaviate` all report
+      `(healthy)` 36s after a single `up -d`. The dataset step works too —
+      the framework's own downloader pulled `glove-100-angular.hdf5` (485 MB)
+      into `.work/datasets/`.
+      `setup.py --venv` was added here rather than left as a README
+      instruction: the harness pins `python = ">=3.10,<3.13"`, and its
+      dependency set is read from `poetry.lock`, not `pyproject.toml`, because
+      the manifest asks for `qdrant-client` from a git *branch* — the same
+      silent drift that pinning the upstream commit exists to prevent. The
+      lock records the commit it was developed against
+      (`286ae82b`).
 - [ ] 1.5 First honest run on a shared dataset, results committed under
       `benchmarks/external/results/` with the engine versions, host specs and
       resource limits recorded alongside. Whatever it says.
       **Done when:** the four engines have comparable recall and the report
       states where Vectorizer loses as plainly as where it wins.
-- [ ] 1.6 Retract `docs/specs/benchmarks/qdrant_comparison_2025-11-24_*` (4
+- [x] 1.6 Retract `docs/specs/benchmarks/qdrant_comparison_2025-11-24_*` (4
       files) with a header on each explaining that the result is void: it
       declares a 5.31x search win at 0.00% recall, and the harness that
       produced it was never a declared bench target. Point at the replacement.
-- [ ] 1.7 Delete `benches/comparison/qdrant_comparison_benchmark.rs`. It is
+      Done: a blockquote header on both `.md` files and a first-key
+      `"RETRACTED"` object in both `.json` files — JSON carries no comments,
+      and a machine reader that never sees the markdown must still meet the
+      notice before a number. Kept rather than deleted because the figures
+      were quoted while they stood, so an old link has to find the correction
+      rather than a 404.
+- [x] 1.7 Delete `benches/comparison/qdrant_comparison_benchmark.rs`. It is
       not in the 17 `[[bench]]` targets, so nothing compiles it, and it is the
       source of the void number. Removing it is what stops someone re-running
       it.
+      Deleted, plus the two live references that claimed it was runnable:
+      `benches/README.md` documented a `cargo run --bin
+      qdrant_comparison_benchmark` that could not have worked (the `[[bin]]`
+      has been commented out since the workspace split), and the Cargo.toml
+      note listed it as pending re-registration. That note now records why it
+      was removed instead — being unregistered was not a temporary state to
+      fix, it is how the file drifted long enough to publish a void number.
+      `docs/patches/v1.7.0-1.7.9.md` still mentions it and stays as-is: it is
+      a historical record of what 1.7.x shipped.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
 - [ ] 2.1 Runbook in `docs/development/`: bringing the four engines up, which

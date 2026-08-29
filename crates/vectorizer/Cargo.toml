@@ -348,12 +348,18 @@ harness = false
 # sub-phase 5. The `vectorizer` server binary moved to
 # `vectorizer-server` under sub-phase 4.
 
-# benchmark_grpc_vs_rest, qdrant_comparison_benchmark, and
-# test_routes used vectorizer::server / vectorizer::api / etc. that
-# moved to the vectorizer-server crate under sub-phase 4. Disabled
-# here pending re-registration in vectorizer-server (where they have
-# access to the moved server stack). The .rs sources still live at
-# benches/{grpc,comparison}/ + scripts/dev/.
+# benchmark_grpc_vs_rest and test_routes used vectorizer::server /
+# vectorizer::api / etc. that moved to the vectorizer-server crate
+# under sub-phase 4. Disabled here pending re-registration in
+# vectorizer-server (where they have access to the moved server
+# stack). The .rs sources still live at benches/grpc/ + scripts/dev/.
+#
+# qdrant_comparison_benchmark was in this list and is now deleted
+# (phase5_external-benchmark-comparison §1.7). Being unregistered was
+# not a temporary state to fix: nothing ever compiled it, so it drifted
+# unnoticed until it published a 5.31x search win at 0.00% recall.
+# Cross-engine comparison lives in benchmarks/external/ instead, which
+# runs the upstream harness against four engines at a pinned commit.
 
 [features]
 default = ["hive-gpu", "fastembed", "transmutation", "simd", "simd-avx2", "simd-neon", "simd-wasm"]

@@ -25,12 +25,19 @@ import json
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 HERE = Path(__file__).parent.resolve()
 WORK = HERE / ".work"
 OVERLAY = HERE / "overlay"
+VENV = WORK / ".venv"
 UPSTREAM = json.loads((HERE / "upstream.json").read_text(encoding="utf-8"))
+
+# Upstream declares `python = ">=3.10,<3.13"`. Honour it rather than forcing a
+# newer interpreter: the harness is what produces the numbers, and running it
+# outside its supported range makes any surprise unattributable.
+PYTHON_VERSION = "3.12"
 
 ENGINE_NAME = "vectorizer"
 
@@ -146,12 +153,100 @@ def register_engine(check_only: bool = False) -> bool:
     return False
 
 
+def locked_requirements() -> list[str]:
+    """Every runtime dependency, at the exact version `poetry.lock` pins.
+
+    Read from the lock rather than `pyproject.toml` on purpose. The manifest
+    asks for `qdrant-client` from a git *branch*, which resolves to whatever
+    that branch points at today — the same silent drift that pinning the
+    upstream commit exists to prevent. The lock records the commit the harness
+    was actually developed against, so this reads that instead.
+
+    The dev group is skipped: it carries pre-commit and pytest, neither of
+    which the benchmark run touches.
+    """
+    lock = tomllib.loads((WORK / "poetry.lock").read_text(encoding="utf-8"))
+    requirements: list[str] = []
+    for package in lock["package"]:
+        if "main" not in package.get("groups", ["main"]):
+            continue
+        source = package.get("source", {})
+        if source.get("type") == "git":
+            requirement = (
+                f"{package['name']} @ git+{source['url']}@{source['resolved_reference']}"
+            )
+        else:
+            requirement = f"{package['name']}=={package['version']}"
+
+        # A package can appear more than once, one row per interpreter range —
+        # numpy is locked at 2.2.6 for 3.10 and 2.4.1 for 3.11+. Dropping the
+        # marker makes those rows contradict each other and the install fails
+        # to resolve, so carry it through.
+        #
+        # `markers` is a bare string for a package that belongs to one group
+        # and a per-group mapping for one that spans several (colorama is in
+        # both main and dev, with a different marker in each). Take the main
+        # group's, since that is the only group installed here.
+        marker = package.get("markers")
+        if isinstance(marker, dict):
+            marker = marker.get("main")
+        if marker:
+            requirement = f"{requirement} ; {marker}"
+        requirements.append(requirement)
+    return requirements
+
+
+def build_venv() -> None:
+    """Create `.work/.venv` and install the locked dependencies into it.
+
+    Lives here rather than in a README instruction because a run that installs
+    a different dependency set is a different benchmark. `uv` is used for
+    speed; `poetry` would work too, but it is not what this repo has.
+    """
+    if not (WORK / "poetry.lock").exists():
+        raise SystemExit(f"missing {WORK / 'poetry.lock'} — materialise the workspace first")
+
+    # `--clear` so a rerun is a rebuild, not an error. This is a build
+    # directory; a half-installed venv left over from a failed run is exactly
+    # what a rerun is trying to escape.
+    print(f"creating venv at {VENV} (python {PYTHON_VERSION})")
+    run("uv", "venv", "--clear", "--python", PYTHON_VERSION, str(VENV))
+
+    requirements = locked_requirements()
+    requirements_file = WORK / ".locked-requirements.txt"
+    requirements_file.write_text("\n".join(requirements) + "\n", encoding="utf-8")
+
+    print(f"installing {len(requirements)} locked package(s)")
+    run(
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        str(venv_python()),
+        "-r",
+        str(requirements_file),
+    )
+    print(f"venv ready: {venv_python()}")
+
+
+def venv_python() -> Path:
+    """The interpreter inside `.work/.venv`, on either platform."""
+    if sys.platform == "win32":
+        return VENV / "Scripts" / "python.exe"
+    return VENV / "bin" / "python"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--check",
         action="store_true",
         help="verify the workspace without cloning or writing",
+    )
+    parser.add_argument(
+        "--venv",
+        action="store_true",
+        help="create .work/.venv and install the locked dependencies into it",
     )
     args = parser.parse_args()
 
@@ -164,7 +259,12 @@ def main() -> int:
         registered = register_engine(check_only=True)
         print(f"upstream commit : {at[:8]} ({'pinned' if pinned else 'DRIFTED'})")
         print(f"engine registered: {'yes' if registered else 'NO'}")
+        print(f"venv            : {'yes' if venv_python().exists() else 'no'}")
         return 0 if (pinned and registered) else 1
+
+    if args.venv:
+        build_venv()
+        return 0
 
     if not OVERLAY.exists():
         raise SystemExit(f"missing {OVERLAY} — nothing to overlay")

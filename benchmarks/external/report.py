@@ -28,6 +28,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+# The report is Markdown and contains em-dashes, so the stream has to be UTF-8
+# regardless of the host's ANSI codepage. Without this, `report.py > out.md` on
+# a cp1252 Windows console writes mojibake into a file people paste into a PR,
+# and a caller capturing stdout as UTF-8 gets a decode error instead of output.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 HERE = Path(__file__).parent.resolve()
 DEFAULT_RESULTS = HERE / ".work" / "results"
 

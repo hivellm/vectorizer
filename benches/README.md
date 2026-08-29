@@ -12,8 +12,15 @@ cargo bench --bench simd_dot_product
 
 # Standalone perf-tool binaries (registered as [[bin]] with required-features = ["benchmarks"])
 cargo run --release --features benchmarks --bin benchmark_grpc_vs_rest
-cargo run --release --features benchmarks --bin qdrant_comparison_benchmark
 ```
+
+Cross-engine comparisons do **not** live here. They run the upstream
+[qdrant/vector-db-benchmark](https://github.com/qdrant/vector-db-benchmark) from
+`benchmarks/external/` — see
+[external-benchmarks.md](../docs/development/external-benchmarks.md). A
+home-grown comparison harness is what produced the retracted
+`docs/specs/benchmarks/qdrant_comparison_2025-11-24_*` report, which declared a
+5.31x search win at 0.00% recall.
 
 The list of currently-active `[[bench]]` and `[[bin]]` entries lives in [`Cargo.toml`](../Cargo.toml). A handful of additional `[[bin]]` entries are present but commented out — they need refactoring against the current API and stay disabled until that work happens.
 
@@ -25,7 +32,6 @@ The list of currently-active `[[bench]]` and `[[bin]]` entries lives in [`Cargo.
 | `filter/filter_benchmark.rs` | Criterion `[[bench]]` | Vector-filter primitive |
 | `simd/{dot_product,euclidean,cosine,l2_norm,manhattan,quantize}.rs` | Criterion `[[bench]]` | SIMD per-op benchmarks. Baselines committed under `simd/baselines/` and compared by [`scripts/simd/check-regression.sh`](../scripts/simd/check-regression.sh). |
 | `grpc/benchmark_grpc_vs_rest.rs` | `[[bin]]` perf tool | End-to-end gRPC vs REST comparison |
-| `comparison/qdrant_comparison_benchmark.rs` | `[[bin]]` perf tool | Vectorizer vs Qdrant on the same workload |
 | `core/`, `embeddings/`, `gpu/`, `performance/`, `quantization/`, `replication/`, `scripts/`, `search/`, `storage/`, `tests/` | `[[bin]]` perf tools (currently disabled) | Topic-grouped perf programs awaiting an API refresh |
 | `reports/` | Markdown + JSON snapshots | Curated runs of past benchmarks (`combined_optimization_<timestamp>.md`, etc.) |
 
