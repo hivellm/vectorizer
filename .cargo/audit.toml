@@ -20,6 +20,41 @@ ignore = [
     # proc-macro dependency with no runtime surface — it expands at compile
     # time and ships nothing. Pre-existing decision, kept.
     "RUSTSEC-2024-0436",
+
+    # `rsa` 0.9.10 — Marvin attack, key recovery through timing side channels.
+    # `patched: []`; there is no fixed version to move to, so this cannot be
+    # bumped away. Reached only through `jsonwebtoken` 10.4.0.
+    #
+    # Checked rather than assumed, because this sits on the auth path:
+    # `jsonwebtoken` has exactly ONE call site in the workspace,
+    # `crates/vectorizer/src/auth/jwt.rs`, and it is symmetric throughout —
+    # `Header::new(Algorithm::HS256)` to sign, `EncodingKey::from_secret` /
+    # `DecodingKey::from_secret` for key material. A workspace-wide search for
+    # `Algorithm::RS*`, `Algorithm::PS*`, `Algorithm::ES*`, `from_rsa_*` and
+    # `RsaPrivateKey` returns nothing. No RSA key is ever constructed, so the
+    # vulnerable code path is compiled but never entered.
+    #
+    # `Validation::new(Algorithm::HS256)` also pins the accepted algorithm on
+    # verification, so an attacker cannot force an RS256 path with a forged
+    # header — the classic algorithm-confusion route into this code is closed
+    # as well.
+    #
+    # Revisit if any asymmetric JWT support is added. That change must remove
+    # this entry, not work around it.
+    "RUSTSEC-2023-0071",
+
+    # `rkyv` 0.7.46 (RUSTSEC-2026-0235) — out-of-bounds reads validating
+    # archives containing Rc/Arc.
+    #
+    # Present in `Cargo.lock` only: `rust_decimal` 1.42.1 is the sole package
+    # listing it, behind an optional feature nothing enables. `cargo tree -i
+    # rkyv`, with and without `--all-features`, prints nothing — the crate is
+    # not in the compiled graph, so no archive of ours is ever validated by
+    # it.
+    #
+    # `cargo audit` reads the lockfile rather than the build graph, which is
+    # why this appears at all.
+    "RUSTSEC-2026-0235",
 ]
 
 # Report every informational class rather than hiding any. The previous config
