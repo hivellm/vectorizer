@@ -67,8 +67,29 @@ fn stats_advertises_providers_block() {
     );
     for p in providers {
         assert!(p.get("name").and_then(|v| v.as_str()).is_some());
-        assert!(p.get("dimension").and_then(|v| v.as_u64()).is_some());
         assert!(p.get("default").and_then(|v| v.as_bool()).is_some());
+
+        // phase6 added the raw-vector sentinel, which is the absence of a
+        // provider and reports a null dimension. This test points at whatever
+        // server is running, which may predate that field — and a server that
+        // has no such entry only ever listed registered providers, so a
+        // missing flag means "embeds text".
+        if p.get("supports_text")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true)
+        {
+            assert!(
+                p.get("dimension").and_then(|v| v.as_u64()).is_some(),
+                "a registered provider vectorizes at a fixed width and must \
+                 report it: {p}"
+            );
+        } else {
+            assert!(
+                p.get("dimension").map(|d| d.is_null()).unwrap_or(false),
+                "a provider-less entry accepts any width, so it must report \
+                 no dimension rather than a misleading number: {p}"
+            );
+        }
     }
 
     let default = body

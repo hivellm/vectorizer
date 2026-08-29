@@ -43,15 +43,42 @@ async fn stats_advertises_providers_block() {
         .get("providers")
         .and_then(|p| p.as_array())
         .expect("stats.providers must be an array");
-    assert!(
-        !providers.is_empty(),
-        "stats.providers is empty — register_all_providers did not run: {body}"
-    );
+    assert!(!providers.is_empty(), "stats.providers is empty: {body}");
+    // phase6 added a second kind of entry to this array: the raw-vector
+    // sentinel, which is the *absence* of a provider and so reports a null
+    // dimension. `supports_text` separates the two, and both shapes are
+    // pinned — the registered-provider invariant this test was written for is
+    // unchanged, it just no longer speaks for every row.
+    let mut registered = 0;
     for p in providers {
         assert!(p.get("name").and_then(|v| v.as_str()).is_some());
-        assert!(p.get("dimension").and_then(|v| v.as_u64()).is_some());
         assert!(p.get("default").and_then(|v| v.as_bool()).is_some());
+
+        let supports_text = p
+            .get("supports_text")
+            .and_then(|v| v.as_bool())
+            .unwrap_or_else(|| panic!("every entry must say whether it embeds text: {p}"));
+
+        if supports_text {
+            registered += 1;
+            assert!(
+                p.get("dimension").and_then(|v| v.as_u64()).is_some(),
+                "a registered provider vectorizes at a fixed width and must \
+                 report it: {p}"
+            );
+        } else {
+            assert!(
+                p.get("dimension").map(|d| d.is_null()).unwrap_or(false),
+                "a provider-less entry accepts any width, so it must report \
+                 no dimension rather than a misleading number: {p}"
+            );
+        }
     }
+    assert!(
+        registered > 0,
+        "no entry claims to embed text — register_all_providers did not run \
+         and only the sentinel is left: {body}"
+    );
 
     let default = body
         .get("default_provider")
