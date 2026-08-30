@@ -95,7 +95,13 @@ $buildArgs = @(
 # `--no-default-features --features fastembed`. Leave the 0 alone: emptying it
 # would silently pull hive-gpu and transmutation back into the image.
 if ($Fastembed) {
+    # RUNTIME_VARIANT=glibc: the ONNX Runtime this variant needs links
+    # libstdc++ dynamically, so the binary cannot be static and cannot run in
+    # `scratch`. It keeps the DHI Debian base — and therefore keeps that
+    # base's OS-package advisories. A known difference between the variants,
+    # not an oversight; `latest` points at the static default.
     $buildArgs += @(
+        "--build-arg", "RUNTIME_VARIANT=glibc",
         "--build-arg", "ENABLE_FASTEMBED=1",
         "--build-arg", "NO_DEFAULT_FEATURES=0",
         "--build-arg", "FEATURES=fastembed"

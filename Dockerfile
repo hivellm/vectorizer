@@ -128,6 +128,15 @@
 #         - RUN_MODE=production
 #       restart: unless-stopped
 
+# Which runtime the build produces. Declared here because it is consumed by a
+# `FROM` at the end of the file, and a global ARG must precede the first FROM.
+#
+#   static (default) — `scratch`. Zero OS packages, so zero OS-package CVEs.
+#   glibc            — DHI Debian base. Required by the `-fastembed` variant,
+#                      whose ONNX Runtime links libstdc++ dynamically and so
+#                      cannot be a static binary.
+ARG RUNTIME_VARIANT=static
+
 # Cross-compiling using Docker multi-platform builds
 FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
 
@@ -356,6 +365,168 @@ RUN if [ "$ENABLE_FASTEMBED" = "1" ]; then \
 FROM busybox:stable-musl AS busybox
 
 # ============================================================================
+# STATIC MUSL BUILDER — for the `scratch` runtime (default variant)
+# ============================================================================
+# The published 3.7.0 image carried 30 CVEs, every one of them in a base-OS
+# package (openssl, glibc, tar) rather than in our code. Bumping the base did
+# not help: the newest `dhi.io/debian-base:trixie` digest ships the identical
+# package versions, and the fix (openssl 3.5.7) had not reached it.
+#
+# A `scratch` runtime has no packages at all, so that entire class of finding
+# disappears rather than being managed. It is what Nexus, Synap and Fluxum
+# already do, and it needs one thing: a statically linked binary.
+#
+# Two prerequisites that were NOT true until recently, recorded because they
+# are what makes this reachable at all:
+#   * OpenSSL had to leave the dependency graph. `umicp-core`'s `http2`
+#     feature pulled reqwest with default features -> native-tls -> OpenSSL,
+#     so the binary dynamically linked libssl.so.3 (verified against the
+#     published artifact). Dropped in phase7.
+#   * The binary had to link statically. Verified: `aws-lc-sys` and
+#     `zstd-sys` both cross the musl boundary, and the result reports
+#     `static-pie linked`.
+#
+# NOT pinned to $BUILDPLATFORM: this stage builds once per target platform,
+# so arm64 runs under emulation. That is slower than the xx cross-compile the
+# glibc builder uses, and it is the same trade Nexus makes — correctness of
+# the artifact over build wall-clock. The `xx` toolchain resolves musl targets
+# to `-linux-gnu` (`xx-info triple`), and pointing clang at Debian's arm64
+# musl sysroot fails on missing `crtend.o`, so cross-compiling this would mean
+# hand-assembling a toolchain rather than using one.
+FROM rust:1.95-slim-trixie AS builder-musl
+WORKDIR /vectorizer
+
+ARG TARGETARCH
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       musl-tools clang lld cmake protobuf-compiler pkg-config file perl make \
+    && rm -rf /var/lib/apt/lists/* \
+    && case "${TARGETARCH:-amd64}" in \
+         amd64) TARGET_TRIPLE=x86_64-unknown-linux-musl ;; \
+         arm64) TARGET_TRIPLE=aarch64-unknown-linux-musl ;; \
+         *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; \
+       esac \
+    && rustup target add "${TARGET_TRIPLE}"
+
+ARG PROFILE=release-docker
+ARG GIT_COMMIT_ID
+
+COPY . .
+# rust-embed reads dashboard/dist at compile time, so it has to exist.
+COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
+
+# `--no-default-features`: the scratch variant is the BM25-only build.
+# fastembed needs the ONNX Runtime, which links libstdc++ dynamically and
+# therefore cannot go in a static binary — that variant keeps the glibc
+# runtime below.
+#
+# The `file` check is a gate, not a diagnostic: a dynamically linked binary
+# would build fine here and then fail to exec in `scratch`, where there is no
+# loader. `ldd` is NOT usable for this — glibc's ldd prints "statically
+# linked" and exits 0 for static-PIE binaries, so it would pass either way.
+ENV CARGO_BUILD_JOBS=2
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) TARGET_TRIPLE=x86_64-unknown-linux-musl ;; \
+      arm64) TARGET_TRIPLE=aarch64-unknown-linux-musl ;; \
+    esac \
+ && cargo build --profile "$PROFILE" --package vectorizer-server --bin vectorizer \
+      --no-default-features --target "$TARGET_TRIPLE" \
+ && PROFILE_DIR=$(if [ "$PROFILE" = dev ]; then echo debug; else echo "$PROFILE"; fi) \
+ && cp "target/${TARGET_TRIPLE}/${PROFILE_DIR}/vectorizer" /vectorizer-static \
+ && file /vectorizer-static | grep -Eq 'static-pie linked|statically linked' \
+ || { echo "::error::binary is not statically linked — it would not exec in scratch"; \
+      file /vectorizer-static; exit 1; }
+
+# ============================================================================
+# USER PREP — throwaway stage, only text files survive into the runtime
+# ============================================================================
+# `scratch` has no `mkdir`, no `chown` and no `/etc/passwd`, so `USER` cannot
+# resolve a name and directories cannot be created in-image. Everything
+# arrives via COPY from here.
+#
+# Pinned to $BUILDPLATFORM: the output is arch-neutral text and empty
+# directories, so there is no reason to run it under emulation.
+FROM --platform=${BUILDPLATFORM:-linux/amd64} dhi.io/debian-base:trixie-dev AS user-prep
+# No `useradd`: the DHI base already ships `nonroot:x:65532:65532` with
+# `/home/nonroot`. Creating it again fails (exit 9, "user already exists"),
+# and taking the base's own entry is better anyway — the UID then matches
+# what the glibc variant runs as, so the two variants agree on file ownership
+# for anyone switching between them on the same volume.
+RUN mkdir -p /vectorizer/data /data /tmp-skel \
+ && chown -R 65532:65532 /vectorizer /data /home/nonroot \
+ && chmod 1777 /tmp-skel
+
+# ============================================================================
+# RUNTIME IMAGE — scratch: zero OS packages, zero OS CVEs (default variant)
+# ============================================================================
+FROM scratch AS vectorizer-static
+
+ARG BUILD_DATE
+ARG GIT_COMMIT_ID
+
+# User database so `USER nonroot` resolves, plus the writable skeleton with
+# ownership already applied.
+COPY --from=user-prep /etc/passwd /etc/passwd
+COPY --from=user-prep /etc/group /etc/group
+COPY --from=user-prep --chown=65532:65532 /vectorizer /vectorizer
+COPY --from=user-prep --chown=65532:65532 /data /data
+COPY --from=user-prep --chown=65532:65532 /home/nonroot /home/nonroot
+COPY --from=user-prep --chown=65532:65532 /tmp-skel /tmp
+
+# CA bundle for outbound TLS. rustls reads the system bundle through
+# rustls-native-certs; without this every HTTPS request the server makes
+# fails to verify, which looks like a network fault rather than a missing
+# file.
+COPY --from=builder-musl /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# The static binary — the only executable in the image.
+COPY --from=builder-musl --chown=65532:65532 --chmod=0755 /vectorizer-static /vectorizer/vectorizer
+
+WORKDIR /vectorizer
+USER nonroot
+
+ENV TZ=Etc/UTC \
+    RUN_MODE=production \
+    VECTORIZER_HOST=0.0.0.0 \
+    VECTORIZER_PORT=15002 \
+    VECTORIZER_ADMIN_USERNAME=admin \
+    VECTORIZER_DATA_DIR=/data
+
+EXPOSE 15503
+EXPOSE 15002
+
+LABEL org.opencontainers.image.title="Vectorizer"
+LABEL org.opencontainers.image.description="Official Vectorizer image - High-Performance Vector Database"
+LABEL org.opencontainers.image.url="https://github.com/hivellm/vectorizer"
+LABEL org.opencontainers.image.documentation="https://github.com/hivellm/vectorizer/docs"
+LABEL org.opencontainers.image.source="https://github.com/hivellm/vectorizer"
+LABEL org.opencontainers.image.vendor="HiveLLM"
+LABEL org.opencontainers.image.version="${GIT_COMMIT_ID:-latest}"
+LABEL org.opencontainers.image.revision="${GIT_COMMIT_ID:-unknown}"
+LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.base.name="scratch"
+
+LABEL security.scan.enabled="true"
+LABEL security.non-root-user="nonroot"
+LABEL security.user-id="65532"
+
+# Probes `/ready`, not `/health`. `/health` answers 200 while the collection
+# catalog is still loading (issue #391), so a probe pointed at it reports a
+# half-warm server as ready and the orchestrator starts routing to an instance
+# still filling its store — tens of seconds on a large one. The previous
+# busybox probe had exactly that bug; the compose file worked around it by
+# probing /ready itself.
+#
+# The binary is its own probe because scratch has no wget and no shell.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD ["/vectorizer/vectorizer", "--healthcheck"]
+
+ENTRYPOINT ["/vectorizer/vectorizer"]
+
+# ============================================================================
 # RUNTIME IMAGE - Docker Hardened Image (DHI) — Debian 13 base
 # ============================================================================
 # `dhi.io/debian-base:trixie` is Docker's hardened minimal Debian 13 runtime:
@@ -382,7 +553,12 @@ FROM busybox:stable-musl AS busybox
 # Bump procedure: docs/development/docker-builds.md § "Base digest bump".
 # Pinned 2026-07-11 — carries openssl 3.5.6-1~deb13u2+dhi0 (fixes
 # CVE-2026-45447, CVE-2026-7383, CVE-2026-9076, CVE-2026-34180).
-FROM dhi.io/debian-base:trixie@sha256:17dc256ec746f1168765cab1fc552418b60d09de8337d03ffa92cc529ed2ea7a AS vectorizer
+# Kept for the `-fastembed` variant only. Its ONNX Runtime links libstdc++
+# dynamically, so that build cannot be static and cannot live in `scratch`.
+# It therefore still carries the base image's OS packages and their
+# advisories — a known, accepted difference between the two variants, not an
+# oversight. `latest` points at the static default.
+FROM dhi.io/debian-base:trixie@sha256:17dc256ec746f1168765cab1fc552418b60d09de8337d03ffa92cc529ed2ea7a AS vectorizer-glibc
 
 # Build metadata for supply chain attestation
 ARG BUILD_DATE
@@ -484,3 +660,14 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 # Direct binary execution (no shell in distroless)
 ENTRYPOINT ["/vectorizer/vectorizer"]
 
+
+# ============================================================================
+# RUNTIME SELECTOR
+# ============================================================================
+# `static` (default) -> scratch, zero OS packages.
+# `glibc`            -> DHI base, required by the fastembed/ONNX variant.
+#
+# BuildKit only builds the stages the selected target depends on, so the
+# musl builder never runs for a glibc build and the xx builder never runs
+# for a static one.
+FROM vectorizer-${RUNTIME_VARIANT} AS vectorizer
