@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-grpc"
-version = "3.6.1"
+version = "3.7.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "tonic/prost-generated gRPC types for Vectorizer: first-party, cluster, and Qdrant-compatible schemas, with the proto trees and build script that generate them."

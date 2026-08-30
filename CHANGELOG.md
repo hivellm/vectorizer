@@ -4,6 +4,94 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-08-30
+
+### Added
+
+- **Collections can hold pre-computed vectors of any width.**
+  `POST /insert_vectors` exists for callers who bring their own embeddings, and
+  until now there was no way to create a collection to put them in: collection
+  creation resolved an embedding provider for every collection and rejected any
+  dimension that disagreed with it, and a stock server registers only BM25 at
+  512 — so 384, 768 and 1536, every real embedding width, were refused.
+
+  `embedding_provider: "none"` is the opt-out. The sentinel is matched *before*
+  the provider registry is consulted at every use site, which is what makes it
+  unshadowable: a provider registered under that name can never capture a
+  collection, because no lookup happens.
+
+  Text operations on such a collection fail loudly instead of falling back to
+  the server default — embedding text with a provider the stored vectors did not
+  come from yields a collection that searches badly with nothing reporting why.
+  New error `collection_has_no_embedding_provider` (400, not 404: the collection
+  exists), enforced on REST, RPC and MCP. `batch_search` checks per entry rather
+  than once up front, since a batch may legally mix `vector` and `query`
+  entries.
+
+- **`supports_text` on every provider-inventory entry.** `GET /stats`, the RPC
+  `embedding.list_providers` and `stats.database`, and the MCP `list_providers`
+  and `get_database_stats` now list the `none` sentinel alongside registered
+  providers, with `dimension: null` and `supports_text: false`. Real providers
+  carry `supports_text: true`, so a client can branch on a field instead of
+  special-casing a name.
+
+- **Cross-engine benchmarking against Qdrant, Weaviate and pgvector**
+  (`benchmarks/external/`), running the upstream
+  [qdrant/vector-db-benchmark](https://github.com/qdrant/vector-db-benchmark)
+  at a pinned commit under identical resource limits, behind a reporter that
+  refuses to print a latency table below a recall floor. See
+  `docs/development/external-benchmarks.md`.
+
+- **Dependency auditing in CI** (`.github/workflows/dependency-audit.yml`).
+  `cargo audit` and `pnpm audit` on push, PR and weekly. The gate proves it can
+  fail before trusting a pass: it asserts the policy parses and that a
+  known-vulnerable lockfile is still rejected.
+
+### Changed
+
+- **`embedding_provider` is nullable on collection responses.** `GET
+  /collections` and `GET /collections/{name}` reported the *server's default*
+  provider for every collection, reading nothing from the collection's own
+  config — already wrong for any collection created with a non-default
+  provider. Both now report what the collection actually carries, and `null`
+  for a raw-vector collection. **Consumers that assumed a string here must
+  handle `null`.**
+
+- `hyper` 1.10.1 → 1.11.1, `rustls` 0.23.42 → 0.23.43, `base64` 0.22 → 0.23,
+  `fastembed` 5.17.3 → 5.17.4 (carrying `ort` rc.12 → rc.13), plus routine
+  bumps to `blake3`, `xxhash-rust`, `fastrand`, `serde_json` and `bcrypt`.
+
+- `transmutation` 0.3.3 → 0.3.5, which moves the document parsers:
+  `lopdf` → 0.42/0.44, `quick-xml` → 0.41.0, `pdf-extract` → 0.12.0,
+  `umya-spreadsheet` → 3.1.0.
+
+### Fixed
+
+- **Every dependency vulnerability: nine to zero.** `cargo audit` now exits 0.
+  The ones that mattered were denial of service on *parsed input* — `lopdf`
+  stack overflow on deeply nested PDF objects (RUSTSEC-2026-0187) and
+  `quick-xml` quadratic time plus unbounded namespace allocation
+  (RUSTSEC-2026-0194, -0195) — all on the file-upload path, with
+  `transmutation` in the default feature set. Also `h2` unbounded empty DATA
+  frames (RUSTSEC-2026-0258), an HTTP/2 denial of service against the server.
+
+- **npm advisories in `gui`, `dashboard` and `sdks/typescript`.** `nanoid`,
+  `brace-expansion` and `js-yaml`, all dev- or build-scoped. `pnpm audit` is
+  clean in all three.
+
+- **`rustls-pemfile` removed** (RUSTSEC-2025-0134, unmaintained) in favour of
+  `rustls-pki-types`, which rustls already re-exports. `vectorizer-server` had
+  also been declaring it without using it.
+
+### Removed
+
+- `benches/comparison/qdrant_comparison_benchmark.rs`. It was never registered
+  as a `[[bench]]` target, so nothing compiled or ran it, and it drifted until
+  it published a 5.31x search win at **0.00% recall**. The four
+  `docs/specs/benchmarks/qdrant_comparison_2025-11-24_*` files carrying that
+  result are retracted in place rather than deleted, since the figures were
+  quoted while they stood.
+
 ## [3.6.1] - 2026-08-05
 
 ### Fixed
