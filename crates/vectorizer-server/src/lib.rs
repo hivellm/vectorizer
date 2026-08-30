@@ -21,6 +21,7 @@
 
 pub mod api;
 pub mod grpc;
+pub mod healthcheck;
 pub mod logging;
 pub mod protocol;
 pub mod server;

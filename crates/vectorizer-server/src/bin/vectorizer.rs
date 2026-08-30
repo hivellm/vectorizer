@@ -53,6 +53,15 @@ struct Cli {
     #[arg(long, env = "VECTORIZER_AUTO_GEN_JWT_SECRET")]
     auto_generate_jwt_secret: bool,
 
+    /// Probe a running server and exit 0 when it is ready, 1 otherwise.
+    ///
+    /// Exists for the container `HEALTHCHECK`. The runtime image is
+    /// `scratch` — no shell, no wget, no busybox — so the only executable
+    /// available to probe with is this binary. Same approach as the other
+    /// HiveLLM services.
+    #[arg(long)]
+    healthcheck: bool,
+
     /// Override the persistent-state directory (collections, auth keys,
     /// JWT secret, snapshots). Equivalent to setting
     /// `VECTORIZER_DATA_DIR` in the environment — the CLI flag wins
@@ -281,6 +290,18 @@ async fn main() -> anyhow::Result<()> {
     }));
 
     let cli = Cli::parse();
+
+    // Probe mode: exits the process, never starts a server. Checked before
+    // logging is initialised so the probe's only output is its exit code —
+    // a HEALTHCHECK that prints on every tick fills the container log.
+    //
+    // The decision lives in `vectorizer_server::healthcheck` so it can be
+    // tested against a real socket; only the exit belongs here.
+    if cli.healthcheck {
+        let addr = vectorizer_server::healthcheck::probe_addr();
+        let ready = vectorizer_server::healthcheck::probe_ready(&addr);
+        std::process::exit(if ready { 0 } else { 1 });
+    }
 
     // Initialize logging with verbose flag (do this early for config loading messages)
     let log_level = if cli.verbose { "debug" } else { "warn" };
