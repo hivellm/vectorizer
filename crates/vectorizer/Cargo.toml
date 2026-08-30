@@ -86,7 +86,7 @@ flate2 = "1.1"
 reqwest = { version = "0.13", features = ["json", "rustls"], default-features = false }
 
 # UMICP protocol integration (v0.2.3 with native JSON types + tool discovery)
-umicp-core = { version = "0.2.3", features = ["http2", "websocket"] }
+umicp-core = { version = "0.2.3", default-features = false }
 
 # System utilities
 whoami = "2"
