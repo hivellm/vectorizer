@@ -1,12 +1,32 @@
-//! Binary codec helpers — thin wrappers around `bincode` v3.
+//! Binary codec helpers — thin wrappers around `bincode` v2.
 //!
 //! Provides `serialize` / `deserialize` functions that match the old `bincode`
-//! v1 API signatures while using the v3 engine underneath with
+//! v1 API signatures while using the v2 engine underneath with
 //! [`bincode::config::legacy()`] for wire-format compatibility.
 //!
 //! All existing call sites can switch from `bincode::serialize` to
 //! `crate::codec::serialize` (and likewise for `deserialize`) with no other
 //! code changes.
+//!
+//! # `bincode` is unmaintained, and we are staying on it — deliberately
+//!
+//! RUSTSEC-2025-0141 marks `bincode` unmaintained. It is a *maintenance*
+//! advisory, not a vulnerability: there is no exploit to be exposed to, and
+//! `cargo audit` reports it as a warning rather than a failure.
+//!
+//! Replacing it is not a library swap. `bincode` is the on-disk format for
+//! `.vecdb` archives (`persistence/`, `storage/reader.rs`) and the on-wire
+//! format for the replication log (`replication/durable_log.rs`). A different
+//! encoder means every existing archive and replication log stops loading, so
+//! the real work is a format version bump plus a reader that accepts both —
+//! a data migration, which does not belong inside a dependency-security pass
+//! (phase7_dependency-security-audit §1.8).
+//!
+//! It is deliberately **not** silenced in `.cargo/audit.toml`: the warning is
+//! the reminder, and hiding it would turn a decision we should revisit into
+//! one nobody sees. This module is the seam that would make the migration
+//! tractable when it happens — every call site already goes through here
+//! rather than calling `bincode` directly.
 
 // Internal data-layout file: public fields are self-documenting; the
 // blanket allow keeps `cargo doc -W missing-docs` clean without padding

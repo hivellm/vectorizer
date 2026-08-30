@@ -8,8 +8,6 @@
 //! - ALPN protocol negotiation (HTTP/1.1, HTTP/2)
 //! - Mutual TLS (mTLS) with client certificate verification
 
-use std::fs::File;
-use std::io::BufReader;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -19,10 +17,14 @@ use rustls::crypto::ring::cipher_suite::{
     TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
     TLS13_AES_128_GCM_SHA256, TLS13_AES_256_GCM_SHA384, TLS13_CHACHA20_POLY1305_SHA256,
 };
+// `PemObject` is what replaced `rustls_pemfile` (RUSTSEC-2025-0134, that crate
+// is unmaintained): upstream folded PEM parsing into `rustls-pki-types`, which
+// rustls already re-exports here. Same code, one fewer dependency, and no
+// File/BufReader plumbing at the call sites.
+use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{CipherSuite, ServerConfig, SupportedCipherSuite};
-use rustls_pemfile::{certs, private_key};
 
 /// Cipher suite preset for easy configuration
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -164,10 +166,8 @@ fn get_alpn_protocols(config: &AlpnConfig) -> Vec<Vec<u8>> {
 
 /// Load certificates from a PEM file
 fn load_certs(path: &str) -> Result<Vec<CertificateDer<'static>>> {
-    let file =
-        File::open(path).with_context(|| format!("Failed to open certificate file: {}", path))?;
-    let mut reader = BufReader::new(file);
-    let certs: Vec<CertificateDer<'static>> = certs(&mut reader)
+    let certs: Vec<CertificateDer<'static>> = CertificateDer::pem_file_iter(path)
+        .with_context(|| format!("Failed to open certificate file: {}", path))?
         .collect::<Result<Vec<_>, _>>()
         .with_context(|| format!("Failed to parse certificates from: {}", path))?;
 
@@ -180,15 +180,13 @@ fn load_certs(path: &str) -> Result<Vec<CertificateDer<'static>>> {
 
 /// Load private key from a PEM file
 fn load_private_key(path: &str) -> Result<PrivateKeyDer<'static>> {
-    let file =
-        File::open(path).with_context(|| format!("Failed to open private key file: {}", path))?;
-    let mut reader = BufReader::new(file);
-
-    let key = private_key(&mut reader)
-        .with_context(|| format!("Failed to parse private key from: {}", path))?
-        .ok_or_else(|| anyhow::anyhow!("No private key found in: {}", path))?;
-
-    Ok(key)
+    // `from_pem_file` folds "file missing", "unparseable" and "no key in the
+    // file" into one error, where `rustls_pemfile::private_key` returned
+    // `Ok(None)` for the last of those. The distinction is not worth
+    // preserving: every one of them means the same thing to an operator —
+    // this path did not yield a usable key — and the message names the path.
+    PrivateKeyDer::from_pem_file(path)
+        .with_context(|| format!("Failed to load a private key from: {}", path))
 }
 
 /// Create rustls ServerConfig from TLS configuration

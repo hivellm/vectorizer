@@ -84,9 +84,10 @@
       "postcss@<8.5.18": ">=8.5.18",
       "brace-expansion@<1.1.18": ">=1.1.18",
       "brace-expansion@>=2.0.0 <2.1.2": ">=2.1.2",
-      "brace-expansion@>=5.0.0 <5.0.7": ">=5.0.7",
       "app-builder-lib@<26.15.0": ">=26.15.0",
-      "builder-util-runtime@<9.7.0": ">=9.7.0"
+      "builder-util-runtime@<9.7.0": ">=9.7.0",
+      "nanoid@<3.3.18": ">=3.3.18 <4",
+      "brace-expansion@>=5.0.0 <5.0.9": ">=5.0.9 <6"
     },
     "onlyBuiltDependencies": [
       "@tailwindcss/oxide",
@@ -99,7 +100,7 @@
   "build": {
     "appId": "io.hivellm.vectorizer-gui",
     "productName": "Vectorizer GUI",
-    "copyright": "Copyright Â© 2025 HiveLLM Contributors",
+    "copyright": "Copyright \u00c2\u00a9 2025 HiveLLM Contributors",
     "directories": {
       "output": "dist-release",
       "buildResources": "build"

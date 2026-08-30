@@ -1,6 +1,6 @@
 [package]
 name = "vectorizer-server"
-version = "3.6.1"
+version = "3.7.0"
 edition = "2024"
 authors = ["HiveLLM Contributors"]
 description = "HTTP / gRPC / MCP server for Vectorizer."
@@ -50,7 +50,7 @@ async-graphql-axum = "7.0"
 # Auth + security primitives
 jsonwebtoken = { version = "10.4", features = ["rust_crypto"] }
 hmac = "0.13"
-base64 = "0.22"
+base64 = "0.23"
 bcrypt = "0.19"
 aes-gcm = "0.11"
 zeroize = { version = "1", features = ["zeroize_derive"] }
@@ -60,7 +60,6 @@ rcgen = "0.14"
 tower_governor = "0.8"
 governor = "0.10.2"
 rustls = "0.23"
-rustls-pemfile = "2.2"
 tokio-rustls = "0.26"
 
 # UMICP transport
