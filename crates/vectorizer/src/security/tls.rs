@@ -180,7 +180,7 @@ fn load_certs(path: &str) -> Result<Vec<CertificateDer<'static>>> {
 
 /// Load private key from a PEM file
 fn load_private_key(path: &str) -> Result<PrivateKeyDer<'static>> {
-    // `from_pem_file` folds "file missing", "unparseable" and "no key in the
+    // `from_pem_file` folds "file missing", "unparsable" and "no key in the
     // file" into one error, where `rustls_pemfile::private_key` returned
     // `Ok(None)` for the last of those. The distinction is not worth
     // preserving: every one of them means the same thing to an operator —
