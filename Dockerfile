@@ -172,8 +172,16 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM node:20-bookworm AS dashboard-builder
 WORKDIR /dashboard
 
-# Install pnpm
-RUN npm install -g pnpm@latest
+# Install pnpm.
+#
+# PINNED, and not to `@latest`. Every workflow already pins `pnpm@10` and
+# `dashboard/package.json` declares `packageManager: pnpm@10.15.1`; this line
+# was the one place still floating, and it broke the moment pnpm's latest
+# started requiring Node >= 22.13 — it imports `node:sqlite`, which does not
+# exist on the node:20 base, so `pnpm install` died with
+# ERR_UNKNOWN_BUILTIN_MODULE. Nothing in this repo changed; the outside world
+# did.
+RUN npm install -g pnpm@10.15.1
 
 # Copy dashboard files
 COPY dashboard/package.json dashboard/pnpm-lock.yaml dashboard/pnpm-workspace.yaml ./
@@ -393,20 +401,52 @@ FROM busybox:stable-musl AS busybox
 # to `-linux-gnu` (`xx-info triple`), and pointing clang at Debian's arm64
 # musl sysroot fails on missing `crtend.o`, so cross-compiling this would mean
 # hand-assembling a toolchain rather than using one.
-FROM rust:1.95-slim-trixie AS builder-musl
+# ----------------------------------------------------------------------------
+# Cross-compilation toolchain — its own stage on purpose
+# ----------------------------------------------------------------------------
+# Split out so a network hiccup while fetching it cannot invalidate the
+# expensive compile layer below, and vice versa. That is not hypothetical: a
+# publish attempt died here when crates.io served 503s from its CDN mid-fetch,
+# and because the toolchain shared a stage with the build, the whole thing had
+# to start over.
+#
+# `cargo-zigbuild` arrives as the project's own prebuilt binary rather than
+# `cargo install --locked`, which compiled it from source on every build —
+# minutes of work, and a crates.io dependency, both on the critical path of
+# something that is just a tool.
+FROM --platform=${BUILDPLATFORM:-linux/amd64} debian:trixie-slim AS zig-toolchain
+ARG ZIG_VERSION=0.13.0
+ARG CARGO_ZIGBUILD_VERSION=0.23.3
+RUN apt-get update     && apt-get install -y --no-install-recommends curl xz-utils ca-certificates     && rm -rf /var/lib/apt/lists/*     && curl -sSL --retry 5 --retry-all-errors         "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz"        | tar -xJ -C /opt     && mv "/opt/zig-linux-x86_64-${ZIG_VERSION}" /opt/zig     && curl -sSL --retry 5 --retry-all-errors -o /tmp/czb.tar.xz         "https://github.com/rust-cross/cargo-zigbuild/releases/download/v${CARGO_ZIGBUILD_VERSION}/cargo-zigbuild-x86_64-unknown-linux-musl.tar.xz"     && tar -xJf /tmp/czb.tar.xz -C /usr/local/bin --strip-components=1 "cargo-zigbuild-x86_64-unknown-linux-musl/cargo-zigbuild"     && rm /tmp/czb.tar.xz     && /opt/zig/zig version     && cargo-zigbuild --version
+
+# ----------------------------------------------------------------------------
+# STATIC MUSL BUILD
+# ----------------------------------------------------------------------------
+# Pinned to $BUILDPLATFORM and cross-compiled, NOT built per-target. That
+# distinction is the whole cost of this stage:
+#
+#   emulated arm64 (no --platform pin) : killed at 6h42m, still compiling
+#   cross-compiled with zig            : 7m05s
+#
+# Measured, after the first form was tried and abandoned. Nexus builds its
+# arm64 under emulation and lives with it; its tree is far smaller than this
+# one, so copying that choice without measuring was the mistake.
+#
+# Why zig rather than clang: Rust links musl targets with rustup's own
+# self-contained CRT, so pure-Rust code cross-compiles unaided — but
+# `aws-lc-sys` and `zstd-sys` are C and need a cross C compiler. `xx-info
+# triple` resolves musl targets to `-linux-gnu`, and clang against Debian's
+# arm64 musl sysroot fails on a missing `crtend.o`. `zig cc` ships a complete
+# cross toolchain for every target it supports, which is exactly the gap.
+FROM --platform=${BUILDPLATFORM:-linux/amd64} rust:1.95-slim-trixie AS builder-musl
 WORKDIR /vectorizer
 
+COPY --from=zig-toolchain /opt/zig /opt/zig
+COPY --from=zig-toolchain /usr/local/bin/cargo-zigbuild /usr/local/bin/cargo-zigbuild
+ENV PATH="/opt/zig:${PATH}"
+
 ARG TARGETARCH
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       musl-tools clang lld cmake protobuf-compiler pkg-config file perl make \
-    && rm -rf /var/lib/apt/lists/* \
-    && case "${TARGETARCH:-amd64}" in \
-         amd64) TARGET_TRIPLE=x86_64-unknown-linux-musl ;; \
-         arm64) TARGET_TRIPLE=aarch64-unknown-linux-musl ;; \
-         *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; \
-       esac \
-    && rustup target add "${TARGET_TRIPLE}"
+RUN apt-get update     && apt-get install -y --no-install-recommends        cmake protobuf-compiler pkg-config file perl make     && rm -rf /var/lib/apt/lists/*     && case "${TARGETARCH:-amd64}" in          amd64) TARGET_TRIPLE=x86_64-unknown-linux-musl ;;          arm64) TARGET_TRIPLE=aarch64-unknown-linux-musl ;;          *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;;        esac     && rustup target add "${TARGET_TRIPLE}"
 
 ARG PROFILE=release-docker
 ARG GIT_COMMIT_ID
@@ -424,20 +464,7 @@ COPY --from=dashboard-builder /dashboard/dist /vectorizer/dashboard/dist
 # would build fine here and then fail to exec in `scratch`, where there is no
 # loader. `ldd` is NOT usable for this — glibc's ldd prints "statically
 # linked" and exits 0 for static-PIE binaries, so it would pass either way.
-ENV CARGO_BUILD_JOBS=2
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC; \
-    case "${TARGETARCH:-amd64}" in \
-      amd64) TARGET_TRIPLE=x86_64-unknown-linux-musl ;; \
-      arm64) TARGET_TRIPLE=aarch64-unknown-linux-musl ;; \
-    esac \
- && cargo build --profile "$PROFILE" --package vectorizer-server --bin vectorizer \
-      --no-default-features --target "$TARGET_TRIPLE" \
- && PROFILE_DIR=$(if [ "$PROFILE" = dev ]; then echo debug; else echo "$PROFILE"; fi) \
- && cp "target/${TARGET_TRIPLE}/${PROFILE_DIR}/vectorizer" /vectorizer-static \
- && file /vectorizer-static | grep -Eq 'static-pie linked|statically linked' \
- || { echo "::error::binary is not statically linked — it would not exec in scratch"; \
-      file /vectorizer-static; exit 1; }
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked     unset OPENSSL_DIR OPENSSL_INCLUDE_DIR OPENSSL_LIB_DIR OPENSSL_STATIC;     case "${TARGETARCH:-amd64}" in       amd64) TARGET_TRIPLE=x86_64-unknown-linux-musl ;;       arm64) TARGET_TRIPLE=aarch64-unknown-linux-musl ;;     esac  && cargo zigbuild --profile "$PROFILE" --package vectorizer-server --bin vectorizer       --no-default-features --target "$TARGET_TRIPLE"  && PROFILE_DIR=$(if [ "$PROFILE" = dev ]; then echo debug; else echo "$PROFILE"; fi)  && cp "target/${TARGET_TRIPLE}/${PROFILE_DIR}/vectorizer" /vectorizer-static  && if ! file /vectorizer-static | grep -Eq 'static-pie linked|statically linked'; then echo "::error::binary is not statically linked — it would not exec in scratch"; file /vectorizer-static; exit 1; fi
 
 # ============================================================================
 # USER PREP — throwaway stage, only text files survive into the runtime
