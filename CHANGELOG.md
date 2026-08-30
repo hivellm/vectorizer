@@ -4,6 +4,57 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.7.1] - 2026-08-30
+
+### Security
+
+- **The published container image goes from 30 CVEs to zero.** All 30 were in
+  base-OS packages — openssl (11), glibc, tar — never in our code; `cargo
+  audit` was already clean. Bumping the base would not have fixed them: the
+  newest `dhi.io/debian-base:trixie` digest ships the identical package
+  versions, and the fix (openssl 3.5.7) had not reached it.
+
+  The default runtime is now `FROM scratch`, matching the other HiveLLM
+  services. No OS packages means no OS-package advisories, rather than an
+  inventory to keep patching. Measured on the built image: **0 packages,
+  0 vulnerabilities**, boots and reports healthy.
+
+  Two things had to land first. `umicp-core`'s `http2` feature was pulling
+  reqwest with default features into the build — `native-tls`, then OpenSSL —
+  so the binary genuinely linked `libssl.so.3`, verified against the published
+  artifact rather than assumed. With that dropped, the binary links
+  statically (`static-pie linked`) and can run in `scratch`.
+
+### Fixed
+
+- **The image healthcheck reported a warming server as healthy.** It probed
+  `/health`, which answers 200 while the collection catalog is still loading
+  (issue #391), so an orchestrator would route traffic to an instance still
+  filling its store. It now probes `/ready` through a new `--healthcheck`
+  flag on the server binary — `scratch` has no shell and no `wget`, so the
+  binary is its own probe. The compose file had been working around this by
+  probing `/ready` itself.
+
+### Changed
+
+- **`hivehub/vectorizer:latest` and `:3.7.1` no longer contain a shell.** The
+  default image is built `FROM scratch` and holds exactly one executable: the
+  server binary. `docker exec <container> sh` will not work — use
+  `docker logs`, the REST API, or the `-fastembed` variant when a shell is
+  needed for debugging.
+
+- `umicp-core` is declared with `default-features = false`. We used only its
+  core types (`Envelope`, `DiscoverableService`, `OperationSchema`,
+  `ServerInfo`, `OperationType`), never the `http2` or `websocket` surfaces.
+
+### Known
+
+- **The `-fastembed` variant keeps the Debian base and its OS advisories.**
+  Its ONNX Runtime links `libstdc++` dynamically, so that build cannot be
+  static and cannot run in `scratch`. A deliberate difference between the two
+  variants, documented at the `RUNTIME_VARIANT` build arg and at the stage
+  itself. `latest` points at the static default.
+
 ## [3.7.0] - 2026-08-30
 
 ### Added
