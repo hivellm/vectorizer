@@ -124,6 +124,87 @@ println!("{:?}", secret);  // prints: Secret(<redacted>)
 let encoding_key = EncodingKey::from_secret(secret.expose_secret().as_bytes());
 ```
 
+## Dependency auditing
+
+Workflow: [`.github/workflows/dependency-audit.yml`](../../.github/workflows/dependency-audit.yml)
+Script: [`scripts/ci/check-audit-gate.sh`](../../scripts/ci/check-audit-gate.sh)
+Policy: [`.cargo/audit.toml`](../../.cargo/audit.toml)
+
+Runs on push, on pull request, and weekly — the schedule matters because an
+advisory can land against an unchanged lockfile, so pushes alone would never
+surface it. Neither job compiles the workspace, so the whole thing finishes in
+under a minute.
+
+Reproduce any CI result locally with the same command:
+
+```bash
+bash scripts/ci/check-audit-gate.sh          # Rust
+cd gui && pnpm audit --prod                  # and dashboard, sdks/typescript
+```
+
+### Dependabot is a floor, not a ceiling
+
+Do not read the Dependabot page as the security surface. When this was
+audited, it showed **2** open alerts while the local tools found **6 npm**
+advisories and **19 Rust** findings — an order of magnitude.
+
+That gap is not a misconfiguration; `dependabot.yml` watches every directory
+with a manifest. Dependabot reads the GitHub Advisory Database while
+`cargo audit` reads RustSec, so no `RUSTSEC-*` finding appeared on it at all —
+and `pnpm audit` surfaced advisories in *watched* directories that Dependabot
+had not raised. Each tool is a partial view.
+
+### What fails the build, and why not more
+
+| Finding | Rust | npm |
+|---|---|---|
+| Vulnerability | **fails** | **fails** if it reaches a production dependency |
+| Unmaintained / unsound / yanked | reports | — |
+| Dev- or build-scoped advisory | — | reports |
+
+The npm threshold is `--prod`, chosen by measurement. Every npm advisory found
+in this repository reached only build or test tooling — vite, vitest, eslint,
+postcss. A gate failing on those would be red constantly over packages that
+cannot reach a user of the published SDK or a served page, and it would be
+switched off. Scoping to production dependencies makes a red build mean
+something.
+
+Rust warnings report without failing for the same reason: a gate that goes red
+because an upstream crate lost its maintainer does not survive contact with a
+release week. Unmaintained direct dependencies are tracked as work items
+instead.
+
+### Exceptions
+
+Every entry in `.cargo/audit.toml` states **what was checked**, not merely that
+it was accepted. An advisory with no fix is a decision, and a decision without
+its reasoning is indistinguishable from an oversight.
+
+Two things that file taught us the hard way:
+
+- **Location matters.** cargo-audit reads `.cargo/audit.toml`. A file at the
+  repository root is silently ignored, and this policy sat there long enough
+  for its recorded exceptions to do nothing at all.
+- **A broken policy looks like a failing audit.** cargo-audit exits `1` on a
+  config parse error — the same code as "vulnerabilities found". The gate
+  script therefore asserts the policy parses *before* trusting any result.
+
+And it proves it can fail before reporting a pass: the script audits a
+hand-written lockfile naming a known-vulnerable crate and requires that to be
+rejected. Without that step, a change that quietly stopped the tool from
+working would leave the build green forever.
+
+### When a crate looks unfixable
+
+`cargo update -p <child> --dry-run` answering `Locking 0 packages` means the
+child cannot move **on its own**. It does not mean the advisory is unfixable —
+the version is pinned by a *parent's* semver requirement, and the parent is
+usually free. Six of nine vulnerabilities here were filed as "blocked upstream"
+on that reading and cleared with a single `cargo update -p <parent>`.
+
+Full findings and reasoning:
+[`docs/analysis/dependency-security-2026-08/`](../analysis/dependency-security-2026-08/).
+
 ## CI gates
 
 Two workflow steps in [`.github/workflows/rust-lint.yml`](../../.github/workflows/rust-lint.yml)

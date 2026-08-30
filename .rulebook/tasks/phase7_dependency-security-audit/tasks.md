@@ -286,7 +286,7 @@ batch — which is exactly how this one arrived unannounced.
       yanked crates). `rustls-pemfile` and `fxhash` are gone outright.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
-- [ ] 2.1 Update or create documentation covering the implementation: record
+- [x] 2.1 Update or create documentation covering the implementation: record
       the audit workflow and the threshold choices in
       `docs/development/security.md`, and cross-link
       `docs/analysis/dependency-security-2026-08/`. State plainly that
@@ -295,11 +295,39 @@ batch — which is exactly how this one arrived unannounced.
       advisories in *watched* directories that Dependabot had not raised.
       Reading only the Dependabot page understated this surface by roughly an
       order of magnitude.
-- [ ] 2.2 Write tests covering the new behavior. The unit under test here is
+      A "Dependency auditing" section in `docs/development/security.md`: how to
+      reproduce any CI result locally, what fails the build and what only
+      reports (with the reason each threshold was set where it was), and how
+      exceptions are written. It carries the two lessons the policy file taught
+      — location matters, and a broken policy is indistinguishable from a
+      failing audit — plus the `cargo update -p <child> --dry-run` correction,
+      which is the single most reusable finding here.
+      `05-gaps-in-the-pipeline.md` gained an Outcome section so the analysis
+      records what actually happened rather than only what was recommended.
+- [x] 2.2 Write tests covering the new behavior. The unit under test here is
       the **gate**, not the dependencies: assert the CI audit step fails on a
       known-vulnerable lockfile and passes on a clean one, so a future change
       that silently disables it is caught. An audit gate that cannot fail is
       the `audit.toml` problem again in a new place.
-- [ ] 2.3 Run tests and confirm they pass: the full workspace gate
+      `scripts/ci/check-audit-gate.sh`, following the repo's existing gate
+      convention. Three assertions in order, each of which has failed for real:
+      the policy is where cargo-audit reads it and parses; cargo-audit still
+      detects a known-vulnerable lockfile; only then is our own lockfile
+      checked.
+      The middle one is what keeps the other two honest — without it, a change
+      that quietly stopped the tool from working would leave the last one
+      passing forever. Its fixture is a hand-written `Cargo.lock` naming
+      `time` 0.1.44 (RUSTSEC-2020-0071); cargo-audit reads a lockfile directly
+      with `-f`, so nothing is resolved or downloaded for it.
+      **Verified by sabotage on both arms**: appending a bogus section to the
+      policy fails it, and adding `RUSTSEC-2020-0071` to `ignore` — simulating
+      an over-broad exception that silences real findings — fails it with the
+      "reported a known-vulnerable lockfile as clean" message. Restored, it
+      exits 0.
+- [x] 2.3 Run tests and confirm they pass: the full workspace gate
       (`cargo nextest run --workspace --lib --bins --tests`, clippy, fmt),
       `cargo audit`, and `pnpm audit` in all three JavaScript projects.
+      **All green.** Rust: 2057 passed, 9 skipped; clippy 0 findings; fmt
+      applied. `scripts/ci/check-audit-gate.sh` exits 0. `pnpm audit --prod`
+      clean in `gui`, `dashboard` and `sdks/typescript` — and clean unscoped
+      too, which is stricter than the gate asks.

@@ -41,44 +41,24 @@ jobs:
         with:
           tool: cargo-audit
 
-      - name: Verify the policy is present, in the right place, and parses
-        # Same caveat the lint workflow's layering and parking_lot gates guard
-        # against: a check whose input is missing exits in a way that reads as
-        # "nothing wrong".
-        #
-        # Existence is not enough here, and §1.2 is why. This policy lived at
-        # the repository root for months, where cargo-audit never reads it, so
-        # its invalid `[advisories.unmaintained]` section never surfaced. Moved
-        # to the location that IS read, cargo-audit rejects the file outright —
-        # and exits 1, which is indistinguishable from "vulnerabilities found"
-        # to a step that only greps the exit code. A broken policy would have
-        # been misread as a failing audit for as long as anyone cared to look.
-        #
-        # `--no-fetch` skips the advisory download, so this asks one question
-        # only: does the configuration load?
-        run: |
-          for required in Cargo.lock .cargo/audit.toml; do
-            if [[ ! -f "$required" ]]; then
-              echo "::error::$required not found — this gate would not be auditing what it claims to"
-              exit 1
-            fi
-          done
-          if cargo audit --no-fetch 2>&1 | grep -q "fatal error: parse error"; then
-            echo "::error::.cargo/audit.toml does not parse — cargo-audit exits 1 on this, which looks exactly like a failing audit"
-            cargo audit --no-fetch 2>&1 | tail -8
-            exit 1
-          fi
-
       - name: cargo audit
-        # Fails on vulnerabilities. Warnings (unmaintained, unsound, yanked)
-        # are reported but do not fail: they are not exploits, and a gate that
-        # goes red because an upstream crate lost its maintainer gets disabled
-        # within a week. They are tracked as their own task items instead.
+        # The script proves the gate can fail before trusting that it passed:
+        # the policy is where cargo-audit reads it and parses, cargo-audit
+        # still detects a known-vulnerable lockfile, and only then is our own
+        # lockfile checked. Each of those has failed for real — see the header
+        # of the script.
         #
-        # Exceptions live in `audit.toml`, each with the reasoning that
-        # justifies it. An advisory silenced without a stated reason is how
-        # this backlog accumulated in the first place.
-        run: cargo audit
+        # Vulnerabilities fail. Warnings (unmaintained, unsound, yanked) report
+        # but do not: they are not exploits, and a gate that goes red because
+        # an upstream crate lost its maintainer gets disabled within a week.
+        # They are tracked as task items instead.
+        #
+        # Exceptions live in `.cargo/audit.toml`, each with the reasoning that
+        # justifies it. An advisory silenced without a stated reason is how the
+        # backlog this workflow exists to prevent accumulated.
+        #
+        # Runnable locally with the same command, which is the point.
+        run: bash scripts/ci/check-audit-gate.sh
 
   npm-audit:
     name: pnpm audit (${{ matrix.project }})

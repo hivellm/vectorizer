@@ -70,3 +70,33 @@ wiring it, or the gate gets disabled the first week.
    quiet for known reasons rather than noisy for unknown ones.
 4. **Drain the PR backlog** with the four exceptions in
    [04-open-pull-requests.md](04-open-pull-requests.md) read individually.
+
+---
+
+## Outcome
+
+All four recommendations were carried out on `fix/modules-and-security`.
+
+**`cargo audit` exits 0 — zero vulnerabilities, from nine.** The five filed
+here as "blocked upstream" were not: `cargo update -p <child> --dry-run`
+answering `Locking 0 packages` means the *child* cannot move, and the parent
+was free the whole time. One `cargo update -p transmutation` (ours, pinned at
+`"0.3.1"` while 0.3.5 was published) carried `lopdf` to 0.42/0.44 and
+`quick-xml` to 0.41.0. That reading of the dry-run is the correction most worth
+keeping from this analysis.
+
+`pnpm audit` is clean in all three projects, dev-scoped included — better than
+the `--prod` gate requires.
+
+The pipeline gap is closed by
+[`.github/workflows/dependency-audit.yml`](../../../.github/workflows/dependency-audit.yml),
+which runs [`scripts/ci/check-audit-gate.sh`](../../../scripts/ci/check-audit-gate.sh)
+on push, PR and weekly.
+
+And `audit.toml` was worse than unverified: it was **doubly broken**. It sat at
+the repository root, where cargo-audit never reads it, so running with and
+without the file produced byte-identical output. Moved to `.cargo/`, its
+`[advisories.unmaintained]` section turned out to be invalid too — and
+cargo-audit rejects a bad config with exit code 1, indistinguishable from
+"vulnerabilities found". The gate now asserts the policy parses, and audits a
+deliberately vulnerable fixture, before trusting a pass.
