@@ -56,14 +56,17 @@ docker compose -f benchmarks/external/docker-compose.yml up -d
 docker compose -f benchmarks/external/docker-compose.yml ps   # wait for four (healthy)
 ```
 
-Vectorizer runs from a **locally built** image
-(`scripts/docker/build.ps1 -Tag phase6-local`) until the raw-vector sentinel
-ships in a release: the benchmark client creates its collection with
-`embedding_provider: "none"`, which older published images reject.
+Vectorizer runs from the published `hivehub/vectorizer:3.7.1` — the first tag
+carrying the raw-vector sentinel (`embedding_provider: "none"`) the benchmark
+client needs to create its collection. No local build is required any more.
+
+That tag is also the first built `FROM scratch`, so **there is no shell in the
+image**: debug with `docker logs`, not `docker exec ... sh`.
 
 Wait for `(healthy)`, not merely `Up`. Vectorizer's probe is `/ready`, not
 `/health` — `/health` answers 200 while the collection catalog is still loading
-(issue #391), so starting on it would benchmark a half-warm server.
+(issue #391), so starting on it would benchmark a half-warm server. The binary
+is its own probe (`--healthcheck`), since a scratch image has no `wget`.
 
 ### 3. Get a token and run
 

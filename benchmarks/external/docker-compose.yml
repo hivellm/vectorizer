@@ -26,13 +26,11 @@ x-bench-resources: &bench-resources
 
 services:
   vectorizer:
-    # Built locally from this branch: the benchmark client creates its
-    # collection with `embedding_provider: "none"`, which 3.6.1 rejects —
-    # the sentinel landed in phase6_raw-vector-collections. Build with
-    # scripts/docker/build.ps1 -Tag phase6-local
-    # Pin this back to a published tag once phase6 ships in a release,
-    # so a rerun does not depend on a local build.
-    image: hivehub/vectorizer:phase6-local
+    # 3.7.1 is the first published tag carrying the raw-vector sentinel
+    # (`embedding_provider: "none"`), which the benchmark client needs to
+    # create its collection. It is also the first built `FROM scratch`, so
+    # there is no shell in it — debug with `docker logs`, not `docker exec`.
+    image: hivehub/vectorizer:3.7.1
     <<: *bench-resources
     ports:
       - "15002:15002"
@@ -57,9 +55,13 @@ services:
       # /ready, not /health: /health answers 200 while the collection catalog
       # is still loading (issue #391), so gating on it would start the
       # benchmark against a half-warm server.
-      # The image is distroless — busybox is the only probe binary in it, and
-      # there is no shell, so this has to be exec form.
-      test: ["CMD", "/busybox", "wget", "-q", "--spider", "http://127.0.0.1:15002/ready"]
+      #
+      # The binary is its own probe as of 3.7.1 — the image is `FROM scratch`,
+      # so there is no busybox and no shell to run one. Exec form, and the
+      # `--healthcheck` flag probes /ready for the reason above. This override
+      # now matches the image's own HEALTHCHECK; kept explicit so a reader sees
+      # what the benchmark waits for.
+      test: ["CMD", "/vectorizer/vectorizer", "--healthcheck"]
       interval: 5s
       timeout: 3s
       retries: 60
