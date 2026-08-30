@@ -60,7 +60,6 @@ rcgen = "0.14"
 tower_governor = "0.8"
 governor = "0.10.2"
 rustls = "0.23"
-rustls-pemfile = "2.2"
 tokio-rustls = "0.26"
 
 # UMICP transport

@@ -241,7 +241,7 @@ batch — which is exactly how this one arrived unannounced.
       belongs with a `vue-tsc` compatibility check rather than in a security
       branch.
       Gate after all of the above: **2057 passed, 9 skipped**, clippy clean.
-- [ ] 1.8 The two direct dependencies that are unmaintained. Not
+- [x] 1.8 The two direct dependencies that are unmaintained. Not
       vulnerabilities, but this is how a dependency becomes one with nobody
       watching, and unlike the transitive ones these are ours to decide.
       - `rustls-pemfile` 2.2.0 (RUSTSEC-2025-0134) — direct in `vectorizer`
@@ -253,6 +253,37 @@ batch — which is exactly how this one arrived unannounced.
         `hnsw_rs`.
       **Done when:** each has a decision — migrate now, or an `audit.toml`
       entry saying why not and what would change that.
+      **`rustls-pemfile`: migrated and removed.** Upstream folded PEM parsing
+      into `rustls-pki-types`, which rustls already re-exports, so the
+      replacement was in the tree the whole time. One call site
+      (`security/tls.rs`), two functions, now `CertificateDer::pem_file_iter`
+      and `PrivateKeyDer::from_pem_file` — which also removed the `File` /
+      `BufReader` plumbing. Gone from `Cargo.lock` entirely; 16 TLS tests pass.
+      A free find along the way: **`vectorizer-server` declared it and never
+      used it.** An unused direct dependency, dropped with the migration.
+      One behaviour note: `from_pem_file` folds "file missing", "unparseable"
+      and "no key in the file" into one error, where `rustls_pemfile::private_key`
+      returned `Ok(None)` for the last. Not worth preserving — all three mean
+      the same thing to an operator, and the message names the path.
+      **`bincode`: kept, deliberately, and NOT silenced.** It is a maintenance
+      advisory, not a vulnerability, and `cargo audit` reports it as a warning
+      that does not fail the gate. Replacing it is not a library swap: it is
+      the on-disk format for `.vecdb` (`persistence/`, `storage/reader.rs`)
+      and the on-wire format for the replication log
+      (`replication/durable_log.rs`), across 9 files and 16 call sites. A
+      different encoder means every existing archive and replication log stops
+      loading, so the real work is a format version bump plus a dual-format
+      reader — a data migration, which does not belong in a dependency pass.
+      Recorded in `vectorizer-core/src/codec.rs`, where anyone touching
+      serialization will meet it, rather than in `audit.toml`: an `ignore`
+      entry would hide the reminder, turning a decision we should revisit into
+      one nobody sees. That module is also the seam that makes the migration
+      tractable — every call site already goes through it.
+      Corrected while there: the codec's doc comment claimed "bincode v3"; the
+      dependency is v2.
+      **Final state: `cargo audit` exits 0.** Warnings 10 → 6, all transitive
+      or deliberate (`bincode` ×2, `ttf-parser`, `lru` 0.16.4 via tantivy, two
+      yanked crates). `rustls-pemfile` and `fxhash` are gone outright.
 
 ## 2. Tail (docs + tests — check or waive with tailWaiver)
 - [ ] 2.1 Update or create documentation covering the implementation: record
