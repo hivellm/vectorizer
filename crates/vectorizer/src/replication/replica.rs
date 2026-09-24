@@ -14,6 +14,7 @@ use parking_lot::RwLock;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -34,6 +35,9 @@ pub struct ReplicaNode {
 
     /// Current replication state
     state: Arc<RwLock<ReplicaState>>,
+
+    /// Ends the reconnect loop started by `start` (see `shutdown`)
+    shutdown: CancellationToken,
 }
 
 #[derive(Debug, Clone)]
@@ -70,11 +74,31 @@ impl ReplicaNode {
             vector_store,
             replica_id: Uuid::new_v4().to_string(),
             state: Arc::new(RwLock::new(ReplicaState::default())),
+            shutdown: CancellationToken::new(),
         }
     }
 
-    /// Start the replica node (connects to master and processes updates)
+    /// Stop the replica: `start` returns and the connection to the master is
+    /// closed. Idempotent.
+    pub fn shutdown(&self) {
+        self.shutdown.cancel();
+    }
+
+    /// Start the replica node (connects to master and processes updates).
+    ///
+    /// Runs until `shutdown` is called.
     pub async fn start(&self) -> ReplicationResult<()> {
+        let result = tokio::select! {
+            _ = self.shutdown.cancelled() => Ok(()),
+            result = self.run() => result,
+        };
+        self.state.write().connected = false;
+        info!("Replica node stopped");
+        result
+    }
+
+    /// Connect to the master and keep reconnecting with backoff, forever.
+    async fn run(&self) -> ReplicationResult<()> {
         // Validate that we have a master address configured (either raw or resolved)
         if self.config.master_address.is_none() && self.config.master_address_raw.is_none() {
             return Err(ReplicationError::Connection(

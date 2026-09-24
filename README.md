@@ -67,74 +67,56 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.5.0
+## 🎉 Latest Release: v3.7.1
 
-Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown. v3.7.1 and v3.7.0 shipped together on 2026-08-30.
 
-**Fixed — Text search survived nothing: BM25 vocabulary was never restored after a restart (phase37)**
-- Auto-save wrote a stub tokenizer (`vocab_size: 0`) and no code path ever reloaded the vocabulary, so a restarted server embedded queries in a hash-fallback space disjoint from the stored vectors — text search returned zero hits until a full re-index.
-- Auto-save now persists the real vocabulary and bootstrap restores the newest snapshot (from raw files or from inside `vectorizer.vecdb`) into the query-time provider. Collections without a usable snapshot are flagged `degraded_vocabulary:{name}` and logged instead of silently degrading. Pinned by an end-to-end save → restart → search test.
+**Security — the published container image goes from 30 CVEs to zero**
+- All 30 were in base-OS packages (openssl, glibc, tar), never in project code — `cargo audit` was already clean. The default runtime is now `FROM scratch`: 0 packages, 0 vulnerabilities. Required dropping `umicp-core`'s `http2` feature, which had been pulling reqwest/native-tls/OpenSSL into the build so the binary genuinely linked `libssl.so.3`; it now links statically.
 
-**Fixed — WAL durability (phase37)**
-- The WAL only `flush()`ed — acknowledged writes died with the OS page cache on power loss. It now fsyncs on every append/checkpoint (`wal.fsync`, default on), frames each record with CRC32 + length (a torn final record no longer aborts recovery of everything after it), and sequence numbers survive restarts and concurrent transactions without duplication.
+**Changed — `hivehub/vectorizer:latest` / `:3.7.1` no longer contain a shell**
+- The `scratch`-based default image holds exactly one executable, the server binary — `docker exec <container> sh` won't work. Use `docker logs`, the REST API, or the `-fastembed` variant (still Debian-based, since its ONNX Runtime links `libstdc++` dynamically and can't run in `scratch`) when a shell is needed.
 
-**Fixed — `bulk_update_metadata` deadlocked on every call (phase39)**
-- The handler held a DashMap shard reference across an operation that takes a write reference on the same shard. The endpoint had zero test coverage, so every production call simply hung forever. Caught by the first-ever run of the new in-process handler coverage; the deadlock *class* was removed in phase41 (`VectorStore::update` no longer takes an unconditional shard write ref).
+**Fixed — the image healthcheck reported a warming server as healthy**
+- `/health` answered 200 while the collection catalog was still loading, so an orchestrator could route traffic to an instance still filling its store. It now probes `/ready` via a new `--healthcheck` flag on the server binary (`scratch` has no shell or `wget`).
 
-**Performance — search no longer blocks behind batch inserts (phase38)**
-- `insert_batch` held the HNSW index write lock for the entire batch, collapsing search p99 under mixed load. Searches now proceed against the internally-synchronized index while writers serialize on a dedicated mutex. Per-vector copies on the insert path cut from 3-4 to 1.
-- Product Quantization and Binary quantization are actually reachable (the integration silently substituted 8-bit scalar for everything before); AVX2 + NEON quantize/dequantize and AVX2 int8 dot-product kernels landed, CI-verified against the scalar oracle on x86_64 and native arm64.
+**Added (v3.7.0) — collections can hold pre-computed vectors of any width**
+- `embedding_provider: "none"` opts a collection out of the embedding-provider registry, so `POST /insert_vectors` callers using 384/768/1536-dim embeddings aren't forced through the server's BM25-512 default. Text operations on such a collection now fail loudly (`collection_has_no_embedding_provider`, 400) instead of silently degrading.
 
-**Security — Docker image CVE posture (phase35)**
-- 3.4.0 shipped with 31 base-image CVEs (4 HIGH in openssl on the TLS hot path). 3.5.0 rebuilds against the patched `dhi.io/debian-base:trixie` pinned **by digest**: 0 CRITICAL / 0 HIGH; the unfixable remainder (no patched version exists in Debian trixie) is documented per-CVE in an OpenVEX attestation attached to the image, so Scout dashboards read clean without hiding real signal. A weekly + on-release CI gate fails on any new fixable CRITICAL/HIGH and tracks base-digest staleness.
+**Changed (v3.7.0) — BREAKING: `embedding_provider` is nullable on collection responses**
+- `GET /collections` and `GET /collections/{name}` now report the provider the collection actually carries — `null` for a raw-vector collection — instead of always echoing the server default. **Consumers that assumed a string here must handle `null`.**
 
-**Changed — API parity + hardening (phase40)**
-- MCP now mirrors REST: `delete_collection`, `embed_text`, `contextual_search`, `get_database_stats`, the 8-op discovery pipeline, and `batch_*` tools; MCP error codes are mapped (not-found is no longer a generic internal error); RPC error frames carry the stable error code.
-- Search `limit` (and hybrid `dense_k`/`sparse_k`/`final_k`) is clamped server-side at 100 — the schema said so, the handlers now enforce it.
-- GraphQL multi-tenancy bug fixed: `upload_file` and `create_collection` disagreed on the tenant prefix, so uploads landed in a different collection than the one created.
-- **First boot with the shipped default config now works**: an empty `jwt_secret` auto-generates a persisted secret (with a prominent warning) instead of failing the bind check. Unknown config keys warn at boot; the config is loaded once through the layered loader so mode overrides actually reach every subsystem.
-
-**Testing (phase39)** — an in-process REST harness runs the real production router with no server process: 98 formerly live-server-only tests plus coverage for ~30 previously untested handlers now run on every PR; a CI gate keeps the `#[ignore]` count from creeping; a weekly job boots the server and runs all four SDK integration suites against it.
-
-**Build — dependency refresh (phase36)** — rmcp 2.1 (MCP 2025-11-25), candle 0.11, aes-gcm 0.11, ~120 compatible bumps, SDK dep refreshes, and dependabot now covers every SDK ecosystem.
-
-Server-side at **v3.5.0**; all five SDKs synced to v3.5.0.
+**Fixed (v3.7.0) — every dependency vulnerability: nine to zero**
+- `cargo audit` now exits 0. The ones that mattered were denial-of-service on parsed input (`lopdf`, `quick-xml`) on the file-upload path, plus an HTTP/2 DoS in `h2`.
 
 ---
 
-### v3.4.0 highlights (previous release)
+### Unreleased
 
-**Fixed — Container deployments lose all collections on restart (phase32, [#300](https://github.com/hivellm/vectorizer/issues/300))**
-- 3.3.0 image wrote persistent state to `/.local/share/vectorizer/` even though the README advertised `/data` as the volume mount. The XDG path lived on the container's writable layer, so `docker compose up -d --force-recreate vectorizer` silently wiped every collection.
-- Image defaults `VECTORIZER_DATA_DIR=/data` and seeds the directory in the `writable-dirs` stage with the nonroot user as owner. A single `--volume vec-data:/data` mount now captures collections, auth keys, JWT secret, and snapshots.
-- `vectorizer --data-dir <path>` is a first-class CLI flag; resolves through `vectorizer_core::paths::data_dir` so every persistence subpath (auth, vector store, snapshots, fastembed cache) picks up the override.
-- Startup emits `WARN data dir at <path> is ephemeral; recommend mounting a volume` when the resolved data dir has no backing mount (Linux only, via `/proc/self/mountinfo`). Surfaces the trap on the first boot without a volume.
-- Migration runbook in `docs/users/configuration/DATA_DIRECTORY.md` for operators who mounted the workaround `/.local/share/vectorizer` second volume.
+- **Fixed** — HA replication could silently stop after a node regained Raft leadership in Kubernetes: the previous term's `MasterNode`/`ReplicaNode` was dropped but never shut down, so followers stayed attached to an orphaned listener and leader writes never reached them. `MasterNode`/`ReplicaNode` now expose `shutdown()`, called by `HaManager` on every role change.
 
-**Added — Honour `embedding_provider` / `model` in REST contracts (phase33, [#306](https://github.com/hivellm/vectorizer/issues/306)) — _contract change_**
-- 3.3.0 silently coerced every `embedding_provider` to BM25-512. Downstream consumers (e.g. hivellm/cortex) saw their hybrid pipeline degrade to keyword-only because the vector lane was returning lexical BM25 vectors regardless of what they posted.
-- `POST /collections` honours `embedding_provider`. Unknown provider → `400 unsupported_provider { requested, available }`. Caller-requested `dimension` that conflicts with the provider's native dimension → `400 provider_dimension_mismatch`.
-- `POST /embed` honours `model`. Unknown model → `400 unsupported_model { requested, available }`. Response echoes the resolved `model` so callers can confirm which provider produced the vector.
-- `GET /stats` lists `providers[]` + `default_provider` so clients can discover the registered embedding surface without trial-and-error. Mirrored as the `list_providers` MCP tool.
-- `CollectionConfig.embedding_provider: String` persists which provider the collection was created with. Legacy `.vecdb` files default to `"bm25"` via serde so reload stays lossless.
-- Bootstrap registers every available provider at boot — without this, `POST /collections {embedding_provider: "bm25"}` would have returned 400 on any fastembed-default deployment.
-- Optional FastEmbed Docker variant: `docker build --build-arg ENABLE_FASTEMBED=1 --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed .` ships an image with `all-MiniLM-L6-v2` (384-dim dense) registered alongside `bm25`. Default published image stays slim (BM25-only).
+### v3.6.x highlights (previous release)
 
-**Fixed — Bumped vulnerable transitive deps**
-- `axios` `<1.16.0` → `1.17.0` (gui pnpm override): closes 6 dependabot alerts (proxy-auth leak via redirects, prototype-pollution MITM via `config.proxy`, `shouldBypassProxy` IPv4-mapped IPv6 NO_PROXY bypass, header injection via merge gadgets, null-prototype patch bypass).
-- `tmp` `<0.2.6` → `0.2.7` (gui pnpm override): closes path-traversal via unsanitized prefix/postfix.
-- `react-router` `7.14.2` → `7.17.0` (dashboard top-level + override): closes DoS via unbounded path expansion in `__manifest`.
-- `tar` `0.4.45` → `0.4.46` (root Cargo.lock): closes PAX header desynchronization.
+**Fixed (3.6.1) — a collection listing taken during startup says it is partial ([#391](https://github.com/hivellm/vectorizer/issues/391))**
+- `GET /collections` could answer from a store still loading collections in the background, with `total_collections` agreeing with the partial count — read during a 3.5→3.6 upgrade as data loss. The response now carries `loading`, `loaded_collections`, `expected_collections`, `load_state`; a new **`GET /ready`** gates traffic (200 once loaded, 503 with `Retry-After` until then).
 
-**Build**
-- Docker builder base bumped from `lukemathwalker/cargo-chef:rust-1.90-bookworm` to `rust:1.95-slim-trixie`. glibc 2.40 matches the runtime `dhi.io/debian-base:trixie`, clearing the `__isoc23_strtol`/`__isoc23_strtoull` link errors that surfaced when fastembed pulled in ORT prebuilt binaries linked against glibc 2.38+ symbols.
-- `libstdc++.so.6` copied from the builder into the runtime stage so the fastembed Docker variant boots without `error while loading shared libraries: libstdc++.so.6`.
+**Fixed (3.6.1) — the arm64 `-fastembed` image starts**
+- The runtime stage hardcoded an amd64 `libstdc++.so.6` path, so `hivehub/vectorizer:3.5.0-fastembed` on `linux/arm64` exited 127. Fixed in the `3.6.0` images published 2026-08-05 (the source-tagged `v3.6.0` does not carry the fix).
 
-Server-side at **v3.4.0**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.4.0 (no breaking server-contract changes beyond the embedding-provider error shapes documented above).
+**Fixed (3.6.1) — search responses satisfy the published TypeScript SDK validators**
+- The TS SDK's response validators rejected successful searches from `search_vectors_by_text`, `hybrid_search_vectors`, and `search_by_file` over `total`/`data` field-name mismatches. Fixed additively; `total_results`/`vector` remain for existing callers.
+
+**Changed (3.6.1) — BREAKING (Python SDK): `search_vectors`, `get_vector`, `embed_text` return their annotated types**
+- All three previously handed back raw transport response dicts instead of the declared `List[SearchResult]` / `Vector` / `List[float]`. Migration table in `sdks/python/CHANGELOG.md`.
+
+**Added/Fixed (3.6.0) — collection TTL is readable, and now actually expires vectors**
+- `GET /collections/{name}/ttl` rounds out `set_ttl`, which previously wrote a TTL that nothing ever read back. Inserts now stamp `__expires_at`, and the rule survives a restart via `.vecdb` persistence.
+
+Server-side at **v3.7.1**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.7.1.
 
 ---
 
-For prior releases (v3.3.0 and earlier) see [CHANGELOG.md](./CHANGELOG.md).
+For prior releases (v3.5.0 and earlier) see [CHANGELOG.md](./CHANGELOG.md).
 
 ## 🚀 Quick Start
 
@@ -397,7 +379,7 @@ Cursor / Claude Desktop config:
 
 ## 📦 Client SDKs
 
-Server-side at **v3.5.0**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.5.0**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
+Server-side at **v3.7.1**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.7.1**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
 
 | SDK | Install |
 |---|---|

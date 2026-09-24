@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- **`cargo audit` and `pnpm audit` pass again.** Both gates had been red on
+  `main` since advisories published after 3.7.1:
+  - `rustls` `0.23.43` → `0.23.45` (RUSTSEC-2026-0285, TLS 1.3 handshake
+    messages accepted across encryption-level boundaries), with
+    `rustls-webpki` `0.103.15` and `aws-lc-rs` `1.18.1` / `aws-lc-sys`
+    `0.45.0` alongside.
+  - `fast-uri` `4.1.2` → `4.2.1` (gui pnpm override): closes four high
+    advisories, including SSRF via repeated hostname percent-decoding and host
+    confusion via percent-encoded scheme normalization.
+  - `@xmldom/xmldom` `0.9.10` → `0.9.12` (gui pnpm override): 0.9.10 is
+    deprecated upstream for critical issues.
+
+### Fixed
+
+- **HA replication silently stopped after a node regained Raft leadership.**
+  In Kubernetes, a pod that lost leadership and won it back without
+  restarting logged `MasterNode failed: Address in use (os error 98)`: the
+  previous term's master was never shut down, only dropped, while its
+  spawned tasks kept the replication port. Followers attached to that
+  orphaned listener, so writes on the leader returned 200 but never reached
+  them (reproduced on a 3-node k3d cluster: leader 5 vectors, followers 2).
+  Followers also leaked one reconnect loop per leader change, still dialling
+  old leaders. `MasterNode` and `ReplicaNode` now have a `shutdown()` that
+  ends every task they spawned, and `HaManager` calls it on each role
+  change — including a leader change while already a follower — before
+  starting the new role.
+
 ## [3.7.1] - 2026-08-30
 
 ### Security

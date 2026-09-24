@@ -613,6 +613,7 @@ can't make sense of.
 | `Cannot bind to 0.0.0.0 without authentication enabled` | `auth.enabled: false` plus a public bind | Set `VECTORIZER_AUTH_ENABLED=true` and provide a JWT secret. |
 | Crashloop with `auth: missing field jwt_secret at line N` | YAML config is missing `auth.jwt_secret` *and* env override is unset | Set `jwt_secret: "anything"` in the ConfigMap or set `VECTORIZER_JWT_SECRET`. |
 | `Address already in use (os error 98)` on port 7001 | Two replicas trying to bind on the same node + hostNetwork | Don't use `hostNetwork: true`. Each pod owns port 7001 inside its own netns. |
+| `MasterNode failed: IO error: Address in use (os error 98)` on the leader, followers stop receiving writes | Pod regained leadership without restarting; the previous term's master still held port 7001 (release ≤ 3.7.1) | Upgrade to a release after 3.7.1. `kubectl rollout restart` only clears it until the next leadership change. |
 | `DNS resolution for '<id>.<svc>...' failed: Name or service not known` | `cluster.servers[].id` doesn't match the real pod hostname | Edit the ConfigMap so the ids are exactly the StatefulSet pod names. |
 | `No leader elected — node entering Candidate state` for >30 s on all pods | All three pods called `initialize_cluster` (release ≤ 3.0.9) | Upgrade to ≥ 3.0.10. If already on ≥ 3.0.10, check the `cluster.servers` ids match hostnames. |
 | Leader rotates every ~10 s on every pod | Forced election retry loop (release ≤ 3.0.10) | Upgrade to ≥ 3.0.11. |
