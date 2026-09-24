@@ -1,0 +1,127 @@
+# Publish the hivehub/vectorizer images for an existing release tag.
+#
+# Manual only (workflow_dispatch): image publishing stays out-of-band from the
+# GitHub release, as decided in 055e64b2. This is the CI equivalent of
+# `scripts/docker/build-push.ps1 -Tag X.Y.Z` followed by `-Fastembed`, so a
+# release no longer depends on one maintainer's machine and Docker logins.
+# See docs/development/docker-builds.md.
+name: Publish Docker images
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build, e.g. v3.7.2
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-publish-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: ${{ matrix.variant }} (${{ inputs.tag }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      # Both variants share the buildx registry cache ref, exactly as the
+      # local script does; build them one after the other.
+      max-parallel: 1
+      fail-fast: true
+      matrix:
+        variant: [default, fastembed]
+    env:
+      IMAGE: hivehub/vectorizer
+      CACHE_REF: hivehub/vectorizer-cache:buildx
+    steps:
+      - name: Validate tag
+        id: tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::tag must look like vX.Y.Z, got '$TAG'"
+            exit 1
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+
+      - name: Check the tag matches the workspace version
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          crate_version=$(sed -n 's/^version = "\(.*\)"/\1/p' crates/vectorizer/Cargo.toml | head -1 | tr -d '\r')
+          if [ "$crate_version" != "$VERSION" ]; then
+            echo "::error::tag $VERSION does not match crates/vectorizer version $crate_version"
+            exit 1
+          fi
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # The runtime bases come from Docker Hardened Images, which authenticates
+      # with the same Docker Hub account.
+      - name: Log in to dhi.io
+        uses: docker/login-action@v3
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          args=(
+            buildx build
+            --platform "linux/amd64,linux/arm64"
+            --build-arg "GIT_COMMIT_ID=$(git rev-parse --short HEAD)"
+            --build-arg "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            --provenance mode=max
+            --sbom true
+            --cache-from "type=registry,ref=$CACHE_REF"
+            --cache-to "type=registry,ref=$CACHE_REF,mode=max"
+            --push
+          )
+          if [ "$VARIANT" = fastembed ]; then
+            # Same build args as build-push.ps1 -Fastembed. NO_DEFAULT_FEATURES=0
+            # is intentional: the Dockerfile only checks that it is non-empty.
+            args+=(
+              --tag "$IMAGE:$VERSION-fastembed"
+              --build-arg RUNTIME_VARIANT=glibc
+              --build-arg ENABLE_FASTEMBED=1
+              --build-arg NO_DEFAULT_FEATURES=0
+              --build-arg FEATURES=fastembed
+            )
+          else
+            # `latest` tracks the static default only, never -fastembed.
+            args+=(--tag "$IMAGE:$VERSION" --tag "$IMAGE:latest")
+          fi
+          docker "${args[@]}" .
+
+      - name: Verify both architectures were published
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          ref="$IMAGE:$VERSION"
+          [ "$VARIANT" = fastembed ] && ref="$ref-fastembed"
+          docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' \
+            | jq -r '.manifests[] | select(.platform.os == "linux") | .platform.architecture' \
+            | sort -u | tee /tmp/arches
+          grep -qx amd64 /tmp/arches && grep -qx arm64 /tmp/arches

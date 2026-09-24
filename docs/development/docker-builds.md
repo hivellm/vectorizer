@@ -14,12 +14,22 @@ phase10 (`.rulebook/tasks/phase10_optimize-docker-build-time/`).
 | Same release, dense variant | `.\scripts\docker\build-push.ps1 -Tag 3.x.y -Fastembed` |
 | Local-only build (no push) | `.\scripts\docker\build.ps1 -Tag dev` |
 | Re-push an already-built tag | `.\scripts\docker\push.ps1 -Tag 3.x.y` |
-| CI release publish | **removed** — see § "CI release publish flow" |
+| Release publish from CI (both variants) | Actions → **Publish Docker images** → Run workflow, `tag: v3.x.y` |
+| CI release publish (automatic, on tag) | **removed** — see § "CI release publish flow" |
 
 Publishing the image is a **manual, local step**. The Docker jobs are no
 longer in `release-artifacts.yml`, so cutting a `vX.Y.Z` tag leaves Docker
 Hub untouched; v3.6.0 shipped to crates.io, npm, PyPI and NuGet while the
 Hub stayed on 3.5.0 for exactly this reason.
+
+Publishing is still a **manual step**, but it no longer has to be local:
+`.github/workflows/docker-publish.yml` is a `workflow_dispatch`-only job that
+runs the same `docker buildx build` as `build-push.ps1` (both platforms,
+SBOM + `mode=max` provenance, the shared registry cache, `latest` on the
+default variant only) for the default and `-fastembed` variants of a release
+tag, logging into Docker Hub and `dhi.io` with the `DOCKERHUB_USERNAME` /
+`DOCKERHUB_TOKEN` repo secrets. Run it after the release workflow finishes;
+it refuses a tag that does not match the workspace crate version.
 
 All three local scripts default to the `hivehub/vectorizer-cache:buildx`
 registry cache. Pass `-NoCache` to force a cold build.
