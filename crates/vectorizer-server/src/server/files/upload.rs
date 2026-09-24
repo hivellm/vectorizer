@@ -476,8 +476,12 @@ pub async fn upload_file(
     let mut vectors_created = 0;
 
     for chunk in &chunks {
-        // Create embedding using the embedding manager
-        let embedding = match state.embedding_manager.embed(&chunk.content) {
+        // Embed with the collection's own provider
+        let embedding = match state.embedding_manager.embed_for_named_collection(
+            &state.store,
+            &collection_name,
+            &chunk.content,
+        ) {
             Ok(emb) => emb,
             Err(e) => {
                 warn!("Failed to embed chunk: {}", e);

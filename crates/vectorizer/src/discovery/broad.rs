@@ -1,6 +1,7 @@
 //! Broad discovery with multi-query search
 
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 
 use super::config::BroadDiscoveryConfig;
@@ -26,14 +27,32 @@ pub async fn broad_discovery(
 
     // Execute all queries across all collections
     for query in queries {
-        // Embed the query
-        let query_embedding = embedding_manager
-            .embed(query)
-            .map_err(|e| DiscoveryError::SearchError(format!("Embedding error: {}", e)))?;
+        // Collections may use different embedding providers (3.8), so the
+        // query is embedded per provider — once per distinct provider, not
+        // once per collection. `None` means the collection could not be
+        // resolved and the default provider is used, as before.
+        let mut by_provider: HashMap<Option<String>, Vec<f32>> = HashMap::new();
 
         for collection in collections {
+            let provider = store.get_collection(&collection.name).ok().and_then(|c| {
+                embedding_manager
+                    .provider_name_for_collection(c.config())
+                    .map(str::to_owned)
+            });
+            let query_embedding: &[f32] = match by_provider.entry(provider) {
+                Entry::Occupied(entry) => entry.into_mut(),
+                Entry::Vacant(entry) => {
+                    let embedded = match entry.key() {
+                        Some(name) => embedding_manager.embed_query_with_provider(name, query),
+                        None => embedding_manager.embed_query(query),
+                    }
+                    .map_err(|e| DiscoveryError::SearchError(format!("Embedding error: {}", e)))?;
+                    entry.insert(embedded)
+                }
+            };
+
             // Search in this collection
-            match store.search(&collection.name, &query_embedding, k_per_query) {
+            match store.search(&collection.name, query_embedding, k_per_query) {
                 Ok(results) => {
                     // Convert search results to ScoredChunks
                     for result in results {

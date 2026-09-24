@@ -26,6 +26,9 @@ use crate::error::{Result, VectorizerError};
 pub struct FastEmbedProvider {
     model: Mutex<TextEmbedding>,
     dimension: usize,
+    /// Whether the model expects the E5 `"query: "` / `"passage: "`
+    /// input prefixes (see [`uses_e5_prefixes`]).
+    e5_prefixes: bool,
     /// Canonical model identifier as the operator wrote it in
     /// `config.embedding.model` (e.g. `fastembed:all-MiniLM-L6-v2`).
     pub name: String,
@@ -80,21 +83,90 @@ impl FastEmbedProvider {
         Ok(Self {
             model: Mutex::new(text_embedding),
             dimension,
+            e5_prefixes: uses_e5_prefixes(&model),
             name: format!("fastembed:{}", model_name(&model)),
         })
     }
+
+    /// Run inference on `texts` after applying the E5 prefix for `kind`
+    /// (a no-op for every model that isn't multilingual E5).
+    fn run(&self, texts: &[&str], kind: InputKind) -> Result<Vec<Vec<f32>>> {
+        if texts.is_empty() {
+            return Ok(Vec::new());
+        }
+        let inputs = prepare_inputs(texts, self.e5_prefixes, kind);
+        let mut guard = self.model.lock();
+        guard
+            .embed(inputs, None)
+            .map_err(|e| VectorizerError::Other(format!("FastEmbed inference failed: {}", e)))
+    }
+}
+
+/// Which side of an asymmetric retrieval pair a text is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputKind {
+    /// A search query.
+    Query,
+    /// A document being indexed.
+    Passage,
+}
+
+/// Prefix the multilingual E5 models were trained with for queries.
+const E5_QUERY_PREFIX: &str = "query: ";
+/// Prefix the multilingual E5 models were trained with for documents.
+const E5_PASSAGE_PREFIX: &str = "passage: ";
+
+/// Whether `model` is one of the multilingual E5 models, which expect
+/// every input to start with `"query: "` or `"passage: "`. fastembed
+/// does not add these itself; without them E5 recall degrades
+/// noticeably.
+fn uses_e5_prefixes(model: &EmbeddingModel) -> bool {
+    matches!(
+        model,
+        EmbeddingModel::MultilingualE5Small
+            | EmbeddingModel::MultilingualE5Base
+            | EmbeddingModel::MultilingualE5Large
+    )
+}
+
+/// Build the owned inference inputs for `texts`. When `e5_prefixes` is
+/// set, each text gets the prefix for `kind` unless it already starts
+/// with either E5 prefix (callers that follow the E5 model card and
+/// prefix their own text are not double-prefixed).
+fn prepare_inputs(texts: &[&str], e5_prefixes: bool, kind: InputKind) -> Vec<String> {
+    let prefix = match kind {
+        InputKind::Query => E5_QUERY_PREFIX,
+        InputKind::Passage => E5_PASSAGE_PREFIX,
+    };
+    texts
+        .iter()
+        .map(|text| {
+            if !e5_prefixes
+                || text.starts_with(E5_QUERY_PREFIX)
+                || text.starts_with(E5_PASSAGE_PREFIX)
+            {
+                (*text).to_string()
+            } else {
+                format!("{prefix}{text}")
+            }
+        })
+        .collect()
 }
 
 impl EmbeddingProvider for FastEmbedProvider {
     fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
-        if texts.is_empty() {
-            return Ok(Vec::new());
-        }
-        let owned: Vec<String> = texts.iter().map(|s| (*s).to_string()).collect();
-        let mut guard = self.model.lock();
-        guard
-            .embed(owned, None)
-            .map_err(|e| VectorizerError::Other(format!("FastEmbed inference failed: {}", e)))
+        self.run(texts, InputKind::Passage)
+    }
+
+    fn embed_query_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        self.run(texts, InputKind::Query)
+    }
+
+    fn embed_query(&self, text: &str) -> Result<Vec<f32>> {
+        self.run(&[text], InputKind::Query)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| VectorizerError::Other("Failed to generate embedding".to_string()))
     }
 
     fn dimension(&self) -> usize {
@@ -141,12 +213,25 @@ pub fn parse_model_id(id: &str) -> Result<EmbeddingModel> {
         "bge-large-en-v1.5-q" | "BGELargeENV15Q" => EmbeddingModel::BGELargeENV15Q,
         "bge-small-en-v1.5" | "BGESmallENV15" => EmbeddingModel::BGESmallENV15,
 
+        // Multilingual (100+ languages, incl. Portuguese).
+        "multilingual-e5-small" | "MultilingualE5Small" => EmbeddingModel::MultilingualE5Small,
+        "multilingual-e5-base" | "MultilingualE5Base" => EmbeddingModel::MultilingualE5Base,
+        "multilingual-e5-large" | "MultilingualE5Large" => EmbeddingModel::MultilingualE5Large,
+        "paraphrase-multilingual-MiniLM-L12-v2" | "ParaphraseMLMiniLML12V2" => {
+            EmbeddingModel::ParaphraseMLMiniLML12V2
+        }
+        "paraphrase-multilingual-MiniLM-L12-v2-q" | "ParaphraseMLMiniLML12V2Q" => {
+            EmbeddingModel::ParaphraseMLMiniLML12V2Q
+        }
+
         other => {
             return Err(VectorizerError::Other(format!(
                 "Unknown fastembed model id '{}'. Supported: all-MiniLM-L6-v2, \
                  all-MiniLM-L12-v2, all-mpnet-base-v2, bge-small-en-v1.5 (default), \
-                 bge-base-en-v1.5, bge-large-en-v1.5 (each also available with '-q' \
-                 suffix for the quantized variant)",
+                 bge-base-en-v1.5, bge-large-en-v1.5, \
+                 paraphrase-multilingual-MiniLM-L12-v2 (each also available with '-q' \
+                 suffix for the quantized variant), multilingual-e5-small, \
+                 multilingual-e5-base, multilingual-e5-large",
                 other
             )));
         }
@@ -168,6 +253,11 @@ fn model_name(model: &EmbeddingModel) -> &'static str {
         EmbeddingModel::BGELargeENV15 => "bge-large-en-v1.5",
         EmbeddingModel::BGELargeENV15Q => "bge-large-en-v1.5-q",
         EmbeddingModel::BGESmallENV15 => "bge-small-en-v1.5",
+        EmbeddingModel::MultilingualE5Small => "multilingual-e5-small",
+        EmbeddingModel::MultilingualE5Base => "multilingual-e5-base",
+        EmbeddingModel::MultilingualE5Large => "multilingual-e5-large",
+        EmbeddingModel::ParaphraseMLMiniLML12V2 => "paraphrase-multilingual-MiniLM-L12-v2",
+        EmbeddingModel::ParaphraseMLMiniLML12V2Q => "paraphrase-multilingual-MiniLM-L12-v2-q",
         _ => "unknown",
     }
 }
@@ -183,6 +273,10 @@ fn model_dimension(model: &EmbeddingModel) -> usize {
         EmbeddingModel::BGEBaseENV15 | EmbeddingModel::BGEBaseENV15Q => 768,
         EmbeddingModel::BGELargeENV15 | EmbeddingModel::BGELargeENV15Q => 1024,
         EmbeddingModel::BGESmallENV15 => 384,
+        EmbeddingModel::MultilingualE5Small => 384,
+        EmbeddingModel::MultilingualE5Base => 768,
+        EmbeddingModel::MultilingualE5Large => 1024,
+        EmbeddingModel::ParaphraseMLMiniLML12V2 | EmbeddingModel::ParaphraseMLMiniLML12V2Q => 384,
         // Safety net for future variants we haven't mapped yet. Boot
         // will still succeed; `dimension()` will report 0 until the
         // first `embed` call, which is obviously wrong — favor
@@ -227,5 +321,106 @@ mod tests {
         assert_eq!(model_dimension(&EmbeddingModel::AllMiniLML6V2), 384);
         assert_eq!(model_dimension(&EmbeddingModel::BGEBaseENV15), 768);
         assert_eq!(model_dimension(&EmbeddingModel::BGELargeENV15), 1024);
+    }
+
+    /// Every multilingual id resolves from both its short alias and its
+    /// enum Debug name, round-trips through `model_name`, and reports
+    /// the dimension fastembed's own model metadata advertises.
+    #[test]
+    fn multilingual_models_parse_name_and_dimension() {
+        let cases = [
+            (
+                "multilingual-e5-small",
+                "MultilingualE5Small",
+                EmbeddingModel::MultilingualE5Small,
+                384,
+            ),
+            (
+                "multilingual-e5-base",
+                "MultilingualE5Base",
+                EmbeddingModel::MultilingualE5Base,
+                768,
+            ),
+            (
+                "multilingual-e5-large",
+                "MultilingualE5Large",
+                EmbeddingModel::MultilingualE5Large,
+                1024,
+            ),
+            (
+                "paraphrase-multilingual-MiniLM-L12-v2",
+                "ParaphraseMLMiniLML12V2",
+                EmbeddingModel::ParaphraseMLMiniLML12V2,
+                384,
+            ),
+            (
+                "paraphrase-multilingual-MiniLM-L12-v2-q",
+                "ParaphraseMLMiniLML12V2Q",
+                EmbeddingModel::ParaphraseMLMiniLML12V2Q,
+                384,
+            ),
+        ];
+        for (alias, debug_name, model, dim) in cases {
+            assert_eq!(parse_model_id(alias).unwrap(), model, "alias {alias}");
+            assert_eq!(parse_model_id(debug_name).unwrap(), model, "{debug_name}");
+            assert_eq!(model_name(&model), alias);
+            assert_eq!(model_dimension(&model), dim, "dimension of {alias}");
+            let info = TextEmbedding::get_model_info(&model).unwrap();
+            assert_eq!(info.dim, dim, "fastembed metadata for {alias}");
+        }
+    }
+
+    #[test]
+    fn unknown_id_error_lists_multilingual_models() {
+        let msg = format!("{}", parse_model_id("e5-nope").unwrap_err());
+        assert!(msg.contains("multilingual-e5-small"), "{msg}");
+        assert!(
+            msg.contains("paraphrase-multilingual-MiniLM-L12-v2"),
+            "{msg}"
+        );
+    }
+
+    #[test]
+    fn only_multilingual_e5_uses_prefixes() {
+        assert!(uses_e5_prefixes(&EmbeddingModel::MultilingualE5Small));
+        assert!(uses_e5_prefixes(&EmbeddingModel::MultilingualE5Base));
+        assert!(uses_e5_prefixes(&EmbeddingModel::MultilingualE5Large));
+        assert!(!uses_e5_prefixes(&EmbeddingModel::ParaphraseMLMiniLML12V2));
+        assert!(!uses_e5_prefixes(&EmbeddingModel::AllMiniLML6V2));
+        assert!(!uses_e5_prefixes(&EmbeddingModel::BGESmallENV15));
+    }
+
+    #[test]
+    fn prepare_inputs_prefixes_queries_and_passages_for_e5() {
+        let texts = ["como cancelar meu pedido", "reembolso"];
+        assert_eq!(
+            prepare_inputs(&texts, true, InputKind::Query),
+            vec!["query: como cancelar meu pedido", "query: reembolso"]
+        );
+        assert_eq!(
+            prepare_inputs(&texts, true, InputKind::Passage),
+            vec!["passage: como cancelar meu pedido", "passage: reembolso"]
+        );
+    }
+
+    #[test]
+    fn prepare_inputs_does_not_double_prefix() {
+        let texts = ["query: já prefixado", "passage: também prefixado"];
+        let expected = vec!["query: já prefixado", "passage: também prefixado"];
+        assert_eq!(prepare_inputs(&texts, true, InputKind::Query), expected);
+        assert_eq!(prepare_inputs(&texts, true, InputKind::Passage), expected);
+    }
+
+    #[test]
+    fn prepare_inputs_leaves_non_e5_text_unchanged() {
+        let texts = ["hello world", "query: literal"];
+        assert_eq!(
+            prepare_inputs(&texts, false, InputKind::Query),
+            vec!["hello world", "query: literal"]
+        );
+        assert_eq!(
+            prepare_inputs(&texts, false, InputKind::Passage),
+            vec!["hello world", "query: literal"]
+        );
     }
 }

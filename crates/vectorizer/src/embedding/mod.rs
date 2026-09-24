@@ -32,6 +32,25 @@ pub trait EmbeddingProvider: Send + Sync {
             .ok_or_else(|| VectorizerError::Other("Failed to generate embedding".to_string()))
     }
 
+    /// Generate embeddings for a batch of search queries.
+    ///
+    /// `embed_batch` / `embed` vectorize *documents* (the text being
+    /// indexed); these `embed_query*` methods vectorize the *query* a
+    /// search is run with. Symmetric providers keep this default, which
+    /// embeds a query exactly like a document. Asymmetric retrieval
+    /// models (multilingual E5) override it, because they are trained
+    /// with distinct query and passage inputs and lose recall when both
+    /// sides are embedded the same way.
+    fn embed_query_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        self.embed_batch(texts)
+    }
+
+    /// Generate the embedding for a single search query (see
+    /// [`Self::embed_query_batch`]).
+    fn embed_query(&self, text: &str) -> Result<Vec<f32>> {
+        self.embed(text)
+    }
+
     /// Get the dimension of embeddings produced by this provider
     fn dimension(&self) -> usize;
 

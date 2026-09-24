@@ -23,9 +23,9 @@ pub async fn semantic_focus(
 
     // Search with all query variations
     for query in queries {
-        // Embed the query
+        // Embed the query with the collection's own provider
         let query_embedding = embedding_manager
-            .embed(query)
+            .embed_query_for_named_collection(store, &collection.name, query)
             .map_err(|e| DiscoveryError::SearchError(format!("Embedding error: {}", e)))?;
 
         // Search in the collection

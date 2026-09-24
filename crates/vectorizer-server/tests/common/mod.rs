@@ -72,7 +72,7 @@ use tower::ServiceExt;
 use vectorizer::VectorStore;
 use vectorizer::auth::roles::Role;
 use vectorizer::auth::{AuthConfig, AuthManager, Secret};
-use vectorizer::embedding::{Bm25Embedding, EmbeddingManager};
+use vectorizer::embedding::{Bm25Embedding, EmbeddingManager, EmbeddingProvider};
 use vectorizer_server::server::{AuthHandlerState, UserRecord, VectorizerServer};
 
 /// Small, generic seed corpus used to fit the BM25 vocabulary so
@@ -92,6 +92,12 @@ const BM25_SEED_CORPUS: &[&str] = &[
 /// every [`TestApp`] constructor so each one wires the exact same
 /// embedding behavior into the production router.
 fn build_embedding_manager() -> Arc<EmbeddingManager> {
+    Arc::new(bm25_embedding_manager())
+}
+
+/// The unwrapped manager behind [`build_embedding_manager`], for
+/// constructors that register more providers before sharing it.
+fn bm25_embedding_manager() -> EmbeddingManager {
     let mut bm25 = Bm25Embedding::new(512);
     bm25.build_vocabulary(
         &BM25_SEED_CORPUS
@@ -104,7 +110,7 @@ fn build_embedding_manager() -> Arc<EmbeddingManager> {
     embedding_manager
         .set_default_provider("bm25")
         .expect("bm25 provider was just registered");
-    Arc::new(embedding_manager)
+    embedding_manager
 }
 
 /// Point `VECTORIZER_DATA_DIR` at a fresh temp directory and return it.
@@ -169,6 +175,35 @@ impl TestApp {
             router,
             temp_dir: data_dir,
         }
+    }
+
+    /// Build a [`TestApp`] whose `EmbeddingManager` registers `extra`
+    /// providers next to the default `bm25` — the shape a server gets from
+    /// `embedding.additional_models` — and hand back the store so a test
+    /// can read what was written.
+    #[allow(dead_code)]
+    pub async fn with_additional_providers(
+        extra: Vec<(String, Box<dyn EmbeddingProvider>)>,
+    ) -> (Self, Arc<VectorStore>) {
+        let data_dir = point_data_dir_at_temp_dir();
+
+        let store = Arc::new(VectorStore::new_cpu_only());
+        let mut embedding_manager = bm25_embedding_manager();
+        for (name, provider) in extra {
+            embedding_manager.register_provider(name, provider);
+        }
+
+        let server =
+            VectorizerServer::new_for_test_harness(Arc::clone(&store), Arc::new(embedding_manager));
+        let router = server.build_router(false).await;
+
+        (
+            Self {
+                router,
+                temp_dir: data_dir,
+            },
+            store,
+        )
     }
 
     /// Build a [`TestApp`] and hand back the server's catalog-load progress

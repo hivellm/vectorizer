@@ -92,9 +92,10 @@ const KNOWN_TOP_LEVEL_KEYS: &[&str] = &[
     "workspace",
     "normalization",
     // Read via raw-value lookup in bootstrap (`embedding.model` selects
-    // the default embedding provider, e.g. "fastembed:all-MiniLM-L6-v2")
-    // rather than a `VectorizerConfig` field — found as a false-positive
-    // warn during the 3.5.0-fastembed release validation.
+    // the default embedding provider, e.g. "fastembed:all-MiniLM-L6-v2";
+    // `embedding.additional_models` lists extra per-collection providers
+    // since 3.8) rather than a `VectorizerConfig` field — found as a
+    // false-positive warn during the 3.5.0-fastembed release validation.
     "embedding",
 ];
 

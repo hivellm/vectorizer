@@ -50,6 +50,75 @@ Vectorizer implements a comprehensive embedding system supporting multiple state
 - Fast inference with good semantic quality
 - Placeholder for real model integration
 
+**FastEmbed (ONNX, production dense models)** — see
+[FastEmbed Model Matrix](#fastembed-model-matrix).
+
+---
+
+## FastEmbed Model Matrix
+
+Compiled in by the `fastembed` Cargo feature (on by default for source
+builds). Configured in the top-level `embedding:` section of
+`config.yml`:
+
+| Key | Meaning |
+|-----|---------|
+| `embedding.model` | Server default provider: `bm25` (default) or `fastembed:<id>`. Used by collections created without `embedding_provider`. |
+| `embedding.additional_models` | List of extra `fastembed:<id>` providers registered next to the default, each loaded once at boot. `bm25` and the default are ignored if listed. |
+
+`bm25` (512 dims) is always registered. Every fastembed provider is
+registered as `fastembed:<id>` with `<id>` exactly as written in the
+config. An unknown id or prefix fails boot. Weights are cached under
+`<data_dir>/fastembed` (Hugging Face cache layout; `HF_HOME` overrides
+it) and downloaded on first use.
+
+| `<id>` | Hugging Face repo loaded by fastembed | Dims | E5 prefixes |
+|--------|---------------------------------------|------|-------------|
+| `all-MiniLM-L6-v2` | `Qdrant/all-MiniLM-L6-v2-onnx` | 384 | no |
+| `all-MiniLM-L6-v2-q` | `Xenova/all-MiniLM-L6-v2` | 384 | no |
+| `all-MiniLM-L12-v2` | `Xenova/all-MiniLM-L12-v2` | 384 | no |
+| `all-MiniLM-L12-v2-q` | `Xenova/all-MiniLM-L12-v2` | 384 | no |
+| `all-mpnet-base-v2` | `Xenova/all-mpnet-base-v2` | 768 | no |
+| `bge-small-en-v1.5` | `Xenova/bge-small-en-v1.5` | 384 | no |
+| `bge-base-en-v1.5` / `-q` | `Xenova/bge-base-en-v1.5` / `Qdrant/bge-base-en-v1.5-onnx-Q` | 768 | no |
+| `bge-large-en-v1.5` / `-q` | `Xenova/bge-large-en-v1.5` / `Qdrant/bge-large-en-v1.5-onnx-Q` | 1024 | no |
+| `multilingual-e5-small` | `intfloat/multilingual-e5-small` | 384 | yes |
+| `multilingual-e5-base` | `intfloat/multilingual-e5-base` | 768 | yes |
+| `multilingual-e5-large` | `Qdrant/multilingual-e5-large-onnx` | 1024 | yes |
+| `paraphrase-multilingual-MiniLM-L12-v2` | `Xenova/paraphrase-multilingual-MiniLM-L12-v2` | 384 | no |
+| `paraphrase-multilingual-MiniLM-L12-v2-q` | `Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q` | 384 | no |
+
+The fastembed enum names (`MultilingualE5Small`, `BGESmallENV15`, …)
+are accepted as aliases of the ids above.
+
+### Per-collection provider resolution
+
+Text inserts and text searches (REST, RPC, MCP, GraphQL upload,
+discovery, intelligent search) embed with the collection's
+`embedding_provider` when it is registered and its dimension equals the
+collection's dimension; otherwise with the server default (the pre-3.8
+behavior for every collection). Collections with the raw-vector
+sentinel `embedding_provider: "none"` reject text operations before any
+provider is resolved. `POST /collections` accepts any registered
+provider name and checks `dimension` against that provider.
+
+### Query vs. passage embedding
+
+`EmbeddingProvider` distinguishes documents (`embed`, `embed_batch`)
+from search queries (`embed_query`, `embed_query_batch`; the default
+implementation is the document path). Insert/index paths use the
+document methods, search paths the query methods. For the
+`multilingual-e5-*` models the fastembed provider prepends
+`"passage: "` to documents and `"query: "` to queries, as the models
+were trained; text already starting with either prefix is not
+re-prefixed. All other models embed text unchanged.
+
+### Changing a collection's model
+
+Stored vectors are never re-embedded. Moving a collection to another
+model means creating a new collection with the new provider and
+dimension and re-inserting the source texts.
+
 ---
 
 ## Hybrid Search Pipeline

@@ -273,7 +273,7 @@ fn command_mutates(command: &str) -> bool {
 /// server's embedding provider.
 ///
 /// Checked once in [`dispatch`] rather than inside each of the eight handlers
-/// that call `embedding_manager.embed`, for the same reason durability is
+/// that embed through `embedding_manager`, for the same reason durability is
 /// decided there: a per-handler obligation is one a new handler can silently
 /// skip. A collection created with `embedding_provider: "none"` has no
 /// provider, so these commands must refuse rather than fall back to the
@@ -283,8 +283,8 @@ fn command_mutates(command: &str) -> bool {
 /// Commands taking a pre-computed vector are absent — they are exactly what a
 /// raw-vector collection is for.
 ///
-/// The list is derived from the handlers that actually call
-/// `embedding_manager.embed`, not from the command names that read like text
+/// The list is derived from the handlers that actually embed through
+/// `embedding_manager`, not from the command names that read like text
 /// operations: `search.basic` and `search.extra` embed despite their names,
 /// and a guessed `search.batch_by_text` does not exist at all. Re-derive it
 /// the same way when adding a command rather than reasoning from the name.
@@ -685,7 +685,11 @@ fn handle_search_basic(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue])
         .map(|n| n.max(1) as usize)
         .unwrap_or(10);
 
-    let embedding = match state.embedding_manager.embed(query) {
+    let embedding = match state.embedding_manager.embed_query_for_named_collection(
+        &state.store,
+        collection,
+        query,
+    ) {
         Ok(e) => e,
         Err(e) => return vectorizer_err_ctx(id, "embedding failed", &e),
     };
@@ -1075,10 +1079,14 @@ async fn handle_vectors_insert_text(
         Some(t) => t,
         None => return Response::err(id, "vectors.insert_text: Str(text) argument missing"),
     };
-    let embedding = match state.embedding_manager.embed(text) {
-        Ok(e) => e,
-        Err(e) => return vectorizer_err_ctx(id, "vectors.insert_text: embed failed", &e),
-    };
+    let embedding =
+        match state
+            .embedding_manager
+            .embed_for_named_collection(&state.store, collection, text)
+        {
+            Ok(e) => e,
+            Err(e) => return vectorizer_err_ctx(id, "vectors.insert_text: embed failed", &e),
+        };
     let payload_json = args.get(3).map(value_to_json);
     let payload = payload_json.map(vectorizer::models::Payload::new);
     let vector_id = client_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
@@ -1458,7 +1466,11 @@ async fn handle_vectors_batch_insert_texts(
             .and_then(|v| v.as_str())
             .map(str::to_owned)
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        let embedding = match state.embedding_manager.embed(&text) {
+        let embedding = match state.embedding_manager.embed_for_named_collection(
+            &state.store,
+            collection,
+            &text,
+        ) {
             Ok(e) => e,
             Err(e) => {
                 failed += 1;
@@ -1600,7 +1612,11 @@ async fn handle_vectors_batch_search(
             .and_then(|v| v.as_int())
             .unwrap_or(10)
             .max(1) as usize;
-        let embedding = match state.embedding_manager.embed(&query) {
+        let embedding = match state.embedding_manager.embed_query_for_named_collection(
+            &state.store,
+            &collection,
+            &query,
+        ) {
             Ok(e) => e,
             Err(e) => {
                 results.push(VectorizerValue::Map(vec![
@@ -2367,7 +2383,11 @@ async fn handle_search_extra(state: &Arc<RpcState>, id: u32, args: &[VectorizerV
     for strategy in &strategies {
         match strategy.as_str() {
             "basic" => {
-                let embedding = match state.embedding_manager.embed(&query) {
+                let embedding = match state.embedding_manager.embed_query_for_named_collection(
+                    &state.store,
+                    &collection,
+                    &query,
+                ) {
                     Ok(e) => e,
                     Err(e) => return vectorizer_err_ctx(id, "search.extra: embed failed", &e),
                 };
@@ -2493,7 +2513,11 @@ fn handle_search_by_text(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue
         None => return Response::err(id, "search.by_text: Str(query) missing"),
     };
     let limit = args.get(2).and_then(|v| v.as_int()).unwrap_or(10).max(1) as usize;
-    let embedding = match state.embedding_manager.embed(query) {
+    let embedding = match state.embedding_manager.embed_query_for_named_collection(
+        &state.store,
+        collection,
+        query,
+    ) {
         Ok(e) => e,
         Err(e) => return Response::err(id, format!("search.by_text: embed failed: {}", e)),
     };
@@ -2599,7 +2623,11 @@ fn handle_search_hybrid(state: &Arc<RpcState>, id: u32, args: &[VectorizerValue]
         "alpha" => HybridScoringAlgorithm::AlphaBlending,
         _ => HybridScoringAlgorithm::ReciprocalRankFusion,
     };
-    let dense = match state.embedding_manager.embed(query) {
+    let dense = match state.embedding_manager.embed_query_for_named_collection(
+        &state.store,
+        collection,
+        query,
+    ) {
         Ok(e) => e,
         Err(e) => return Response::err(id, format!("search.hybrid: embed failed: {}", e)),
     };

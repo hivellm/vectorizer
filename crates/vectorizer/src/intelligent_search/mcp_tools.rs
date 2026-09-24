@@ -222,6 +222,34 @@ impl MCPToolHandler {
         Ok(manager)
     }
 
+    /// Embed a search query for `collection`.
+    ///
+    /// The shared manager is used when it serves the collection's
+    /// configured provider (3.8 per-collection providers — a
+    /// `fastembed:*` collection has to be queried in its own model's
+    /// space). Otherwise the legacy per-collection manager built from the
+    /// collection's embedding type is used, as before.
+    fn embed_query_for_collection(
+        &self,
+        collection: &str,
+        query: &str,
+    ) -> Result<Vec<f32>, String> {
+        let config = self
+            .store
+            .get_collection(collection)
+            .ok()
+            .map(|c| c.config().clone());
+        if let Some(config) = config.filter(|c| self.embedding_manager.serves_collection(c)) {
+            return self
+                .embedding_manager
+                .embed_query_for_collection(&config, query)
+                .map_err(|e| e.to_string());
+        }
+        self.create_embedding_manager_for_collection(collection)?
+            .embed_query(query)
+            .map_err(|e| e.to_string())
+    }
+
     /// Handle intelligent search tool
     pub async fn handle_intelligent_search(
         &self,
@@ -266,21 +294,8 @@ impl MCPToolHandler {
 
         // Search each prioritized collection with each query
         for collection in &collections {
-            // Create embedding manager specific to this collection
-            let collection_embedding_manager =
-                match self.create_embedding_manager_for_collection(collection) {
-                    Ok(manager) => manager,
-                    Err(e) => {
-                        error!(
-                            "Error creating embedding manager for collection {}: {}",
-                            collection, e
-                        );
-                        continue;
-                    }
-                };
-
             for query in &queries {
-                match collection_embedding_manager.embed(query) {
+                match self.embed_query_for_collection(collection, query) {
                     Ok(embedding) => match self.store.search(collection, &embedding, max_results) {
                         Ok(search_results) => {
                             for result in search_results {
@@ -408,7 +423,11 @@ impl MCPToolHandler {
 
         // Search each collection
         for collection in &tool.collections {
-            match self.embedding_manager.embed(&tool.query) {
+            match self.embedding_manager.embed_query_for_named_collection(
+                &self.store,
+                collection,
+                &tool.query,
+            ) {
                 Ok(embedding) => {
                     match self
                         .store
@@ -522,7 +541,11 @@ impl MCPToolHandler {
 
         // Search with multiple queries
         for query in &queries {
-            match self.embedding_manager.embed(query) {
+            match self.embedding_manager.embed_query_for_named_collection(
+                &self.store,
+                &tool.collection,
+                query,
+            ) {
                 Ok(embedding) => {
                     match self.store.search(&tool.collection, &embedding, max_results) {
                         Ok(search_results) => {
@@ -636,7 +659,11 @@ impl MCPToolHandler {
 
         // Search with multiple queries
         for query in &queries {
-            match self.embedding_manager.embed(query) {
+            match self.embedding_manager.embed_query_for_named_collection(
+                &self.store,
+                &tool.collection,
+                query,
+            ) {
                 Ok(embedding) => {
                     match self.store.search(&tool.collection, &embedding, max_results) {
                         Ok(search_results) => {
@@ -758,14 +785,8 @@ impl MCPToolHandler {
 
         // Test each collection with a quick semantic search
         for collection in collections.iter().take(max_collections) {
-            // Create embedding manager for this collection
-            let embedding_manager = match self.create_embedding_manager_for_collection(collection) {
-                Ok(manager) => manager,
-                Err(_) => continue,
-            };
-
             // Convert query text to vector
-            let query_vector = match embedding_manager.embed(query) {
+            let query_vector = match self.embed_query_for_collection(collection, query) {
                 Ok(vec) => vec,
                 Err(_) => continue,
             };

@@ -21,7 +21,7 @@ use vectorizer::file_loader::config::LoaderConfig;
 use vectorizer::hub::middleware::RequestTenantContext;
 use vectorizer_core::error::VectorizerError;
 
-use super::common::{collection_metrics_uuid, reject_text_on_raw_vector_collection};
+use super::common::{collection_metrics_uuid, reject_text_on_raw_vector_config};
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{ErrorResponse, create_bad_request_error};
 
@@ -367,7 +367,16 @@ pub(super) async fn insert_one_text(
     );
 
     ensure_collection_exists(state, collection_name)?;
-    reject_text_on_raw_vector_collection(state, collection_name, "insert_text")?;
+    // Cloned so no DashMap `Ref` is held across the inserts below. The
+    // text is embedded with the collection's own provider (3.8), falling
+    // back to the server default — see `provider_name_for_collection`.
+    let collection_config = state
+        .store
+        .get_collection(collection_name)
+        .map_err(ErrorResponse::from)?
+        .config()
+        .clone();
+    reject_text_on_raw_vector_config(&collection_config, collection_name, "insert_text")?;
 
     let upload_config = FileUploadConfig::default();
     let chunk_size_val = chunk_size.unwrap_or(upload_config.default_chunk_size);
@@ -425,9 +434,12 @@ pub(super) async fn insert_one_text(
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         for chunk in &chunks {
-            let embedding = state.embedding_manager.embed(&chunk.content).map_err(|e| {
-                create_bad_request_error(&format!("Failed to generate embedding: {}", e))
-            })?;
+            let embedding = state
+                .embedding_manager
+                .embed_for_collection(&collection_config, &chunk.content)
+                .map_err(|e| {
+                    create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+                })?;
             last_embedding_len = embedding.len();
 
             // Flat payload shape (phase9): all fields live at the payload
@@ -476,9 +488,12 @@ pub(super) async fn insert_one_text(
             vector_ids.push(vector_id);
         }
     } else {
-        let embedding = state.embedding_manager.embed(text).map_err(|e| {
-            create_bad_request_error(&format!("Failed to generate embedding: {}", e))
-        })?;
+        let embedding = state
+            .embedding_manager
+            .embed_for_collection(&collection_config, text)
+            .map_err(|e| {
+                create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+            })?;
         last_embedding_len = embedding.len();
 
         let payload_json = serde_json::Value::Object(

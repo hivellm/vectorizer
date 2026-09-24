@@ -111,10 +111,10 @@ pub async fn search_vectors_by_text(
     // rather than a second store lookup.
     reject_text_on_raw_vector_config(collection.config(), &collection_name, "search/text")?;
 
-    // Generate embedding for the query
+    // Embed the query with the collection's own provider (3.8)
     let query_embedding = state
         .embedding_manager
-        .embed(query)
+        .embed_query_for_collection(collection.config(), query)
         .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
 
     // Search vectors in the collection
@@ -297,10 +297,10 @@ pub async fn hybrid_search_vectors(
     // half of the hybrid query from (phase6).
     reject_text_on_raw_vector_config(collection.config(), &collection_name, "hybrid_search")?;
 
-    // Generate dense embedding for the query
+    // Generate dense embedding for the query with the collection's provider
     let query_dense = state
         .embedding_manager
-        .embed(query)
+        .embed_query_for_collection(collection.config(), query)
         .map_err(|e| create_bad_request_error(&format!("Failed to generate embedding: {}", e)))?;
 
     // Create hybrid search config
@@ -675,9 +675,12 @@ pub async fn batch_search_vectors(
             let embedded =
                 reject_text_on_raw_vector_collection(&state, &collection_name, "batch_search")
                     .and_then(|()| {
-                        state.embedding_manager.embed(query).map_err(|e| {
-                            create_bad_request_error(&format!("Failed to embed query: {}", e))
-                        })
+                        state
+                            .embedding_manager
+                            .embed_query_for_named_collection(&state.store, &collection_name, query)
+                            .map_err(|e| {
+                                create_bad_request_error(&format!("Failed to embed query: {}", e))
+                            })
                     });
             match embedded {
                 Ok(embedding) => {
