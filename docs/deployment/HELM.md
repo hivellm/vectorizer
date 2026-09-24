@@ -13,7 +13,7 @@ The Vectorizer Helm chart provides a production-ready deployment for Kubernetes 
 - Prometheus ServiceMonitor support
 - Horizontal Pod Autoscaler support
 
-It deploys `ghcr.io/hivellm/vectorizer:3.8.0` by default (public GHCR
+It deploys `ghcr.io/hivellm/vectorizer:3.8.1` by default (public GHCR
 package, no pull secret needed) and probes `/health` (liveness) and `/ready`
 (readiness).
 
@@ -55,7 +55,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/hivellm/vectorizer
-  tag: "3.8.0"            # or "3.8.0-fastembed" for dense/multilingual models
+  tag: "3.8.1"            # -fastembed (dense/multilingual) is not published for 3.8.x yet
 
 resources:
   limits:
@@ -74,7 +74,7 @@ replicaCount: 1           # one standalone server; see the HA runbook for a clus
 
 image:
   repository: ghcr.io/hivellm/vectorizer
-  tag: "3.8.0"            # or "3.8.0-fastembed" for dense/multilingual models
+  tag: "3.8.1"            # -fastembed (dense/multilingual) is not published for 3.8.x yet
 
 resources:
   limits:
@@ -229,7 +229,7 @@ kubectl get pvc -l app.kubernetes.io/name=vectorizer
 
 ## Best Practices
 
-1. **Pin the image tag**: `image.tag: "3.8.0"`, never `latest`
+1. **Pin the image tag**: `image.tag: "3.8.1"`, never `latest`
 2. **Use StatefulSet**: Enable persistence for production
 3. **Set Resource Limits**: Prevent resource exhaustion
 4. **Enable Monitoring**: Use ServiceMonitor for Prometheus

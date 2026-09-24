@@ -117,7 +117,7 @@ All nodes share the same JWT secret. Reads are served by any node; a follower an
 ### Kubernetes HA
 
 Follow the [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md).
-It uses `ghcr.io/hivellm/vectorizer:3.8.0` and the manifests
+It uses `ghcr.io/hivellm/vectorizer:3.8.1` and the manifests
 `deploy/k8s/service-ha.yaml`, `deploy/k8s/configmap-ha.yaml` and
 `deploy/k8s/statefulset-ha.yaml`. The Helm chart does not render the Raft
 cluster configuration.
@@ -391,7 +391,7 @@ version: '3.8'
 
 services:
   vectorizer-node1:
-    image: ghcr.io/hivellm/vectorizer:3.8.0
+    image: ghcr.io/hivellm/vectorizer:3.8.1
     ports:
       - "15002:15002"
       - "15003:15003"
@@ -403,7 +403,7 @@ services:
       - vectorizer-cluster
 
   vectorizer-node2:
-    image: ghcr.io/hivellm/vectorizer:3.8.0
+    image: ghcr.io/hivellm/vectorizer:3.8.1
     ports:
       - "15004:15002"
       - "15005:15003"
@@ -415,7 +415,7 @@ services:
       - vectorizer-cluster
 
   vectorizer-node3:
-    image: ghcr.io/hivellm/vectorizer:3.8.0
+    image: ghcr.io/hivellm/vectorizer:3.8.1
     ports:
       - "15006:15002"
       - "15007:15003"
@@ -444,7 +444,7 @@ docker-compose up -d
 ## Kubernetes Deployment
 
 Use the [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md)
-and its manifests in `deploy/k8s/` (`ghcr.io/hivellm/vectorizer:3.8.0`). A
+and its manifests in `deploy/k8s/` (`ghcr.io/hivellm/vectorizer:3.8.1`). A
 bare StatefulSet is not enough: Raft needs a headless Service with
 `publishNotReadyAddresses: true`, per-pod node ids, shared auth secrets and
 the data directory on the PVC.

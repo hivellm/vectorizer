@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.8.1] - 2026-09-24
+
+Same server code as 3.8.0 — this release exists so the image can be published.
+**Use `ghcr.io/hivellm/vectorizer:3.8.1`**; no 3.8.0 image was ever pushed.
+The 3.8.0 upgrade notes apply unchanged (HA clusters on ≤ 3.7.2 restart all
+pods together once).
+
+### Fixed
+
+- **3.8.0 had no release image.** Building any image first pulled the Docker
+  Hardened Images base from `dhi.io`, which needs a Docker Hub account, and
+  the only token available had expired. The default image only takes
+  `/etc/passwd`, `/etc/group` and empty directories from that build stage —
+  its runtime is `FROM scratch` — so the stage now uses public
+  `debian:trixie-slim` and writes a minimal user database explicitly (`root`
+  and `nonroot` 65532:65532). The shipped image is unchanged: zero packages,
+  same non-root user, same layout.
+
+### Changed
+
+- **Images are published with GitHub credentials only**, to
+  `ghcr.io/hivellm/vectorizer` (public), by the *Publish Docker images*
+  workflow and its own `GITHUB_TOKEN`. The workflow no longer pushes to Docker
+  Hub.
+- **The `-fastembed` variant is not published for 3.8.1.** Its runtime is a
+  Docker Hardened Images base, so it is built only with the workflow's
+  `include_fastembed: true` and valid Docker Hub credentials for `dhi.io`.
+  To use the multilingual models meanwhile, build it from source — see
+  `docs/deployment/HA_KUBERNETES_RUNBOOK.md` §11.
+
 ## [3.8.0] - 2026-09-24
 
 ### Upgrade notes

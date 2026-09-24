@@ -68,9 +68,9 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.8.0
+## 🎉 Latest Release: v3.8.1
 
-Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown and upgrade notes.
+**3.8.1 is the 3.8.0 code with a publishable image** — use `ghcr.io/hivellm/vectorizer:3.8.1`; no 3.8.0 image was ever pushed. Highlights of the 3.8 line — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown and upgrade notes.
 
 **Added — multilingual semantic search, including synonyms**
 - The fastembed provider now serves `multilingual-e5-small` / `-base` / `-large` and `paraphrase-multilingual-MiniLM-L12-v2`, with the E5 `passage:` / `query:` prefixes applied on insert and search. In Portuguese, "automóvel" finds "carro". See [Embeddings](docs/users/guides/EMBEDDINGS.md).
@@ -82,7 +82,7 @@ Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown and upg
 - Every write path replicates (deletes, updates, collection drops and renames, uploads, MCP/GraphQL/gRPC — not just inserts). A full sync waits for the startup load and leaves the follower an exact copy of the leader. Raft state is persisted, so a pod restarted on its own rejoins as a follower. **Upgrading an HA cluster from ≤ 3.7.2: restart all pods together once** — see the [HA runbook](docs/deployment/HA_KUBERNETES_RUNBOOK.md).
 
 **Changed — images on the GitHub Container Registry**
-- `ghcr.io/hivellm/vectorizer:3.8.0` and `:3.8.0-fastembed`, public, no pull secret. Docker Hub `hivehub/vectorizer` is an optional mirror.
+- `ghcr.io/hivellm/vectorizer:3.8.1`, public, no pull secret, published with GitHub credentials only. The `-fastembed` variant (dense/multilingual models) is not published for 3.8.x yet; build it from source ([HA runbook §11](docs/deployment/HA_KUBERNETES_RUNBOOK.md#11-multilingual-embeddings-optional)).
 
 ---
 
@@ -92,7 +92,7 @@ Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown and upg
 - **3.7.1** — the default image is `FROM scratch`: 30 base-OS CVEs to zero, and no shell inside (`docker exec … sh` no longer works); the healthcheck probes `/ready`.
 - **3.7.0** — `embedding_provider: "none"` for pre-computed vectors of any width; **BREAKING**: `embedding_provider` is nullable on collection responses.
 
-Server-side at **v3.8.0**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.8.0.
+Server-side at **v3.8.1**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.8.1.
 
 ---
 
@@ -128,10 +128,10 @@ docker run -d \
   -e VECTORIZER_ADMIN_PASSWORD=your-secure-password \
   -e VECTORIZER_JWT_SECRET=$(openssl rand -hex 64) \
   --restart unless-stopped \
-  ghcr.io/hivellm/vectorizer:3.8.0
+  ghcr.io/hivellm/vectorizer:3.8.1
 ```
 
-`ghcr.io/hivellm/vectorizer:3.8.0` is the default image (`FROM scratch`, BM25 only, no shell); `ghcr.io/hivellm/vectorizer:3.8.0-fastembed` adds ONNX Runtime for dense and multilingual models. Both are public — no registry login needed.
+`ghcr.io/hivellm/vectorizer:3.8.1` is the default image (`FROM scratch`, BM25 only, no shell), public — no registry login needed. The `-fastembed` variant (ONNX Runtime, for dense and multilingual models) is not published for 3.8.x yet; build it from source as described in the [HA runbook §11](docs/deployment/HA_KUBERNETES_RUNBOOK.md#11-multilingual-embeddings-optional).
 
 Starting in `hivehub/vectorizer:3.4.0` the image defaults
 `VECTORIZER_DATA_DIR=/data`, so a **single `--volume vec-data:/data`
@@ -157,7 +157,7 @@ Images: [GHCR](https://github.com/hivellm/vectorizer/pkgs/container/vectorizer) 
 
 ### High Availability on Kubernetes
 
-A 3-pod Raft cluster (automatic leader election, leader-to-follower replication, safe rolling updates) runs from the manifests in [`deploy/k8s/`](deploy/k8s/) with `ghcr.io/hivellm/vectorizer:3.8.0`. Writes go to the leader — followers answer them with HTTP 307 and the leader's address; reads are served by any pod. Follow the [HA on Kubernetes runbook](docs/deployment/HA_KUBERNETES_RUNBOOK.md) for install, validation, failover and upgrades (clusters on ≤ 3.7.2 need one all-pods restart when moving to 3.8.0).
+A 3-pod Raft cluster (automatic leader election, leader-to-follower replication, safe rolling updates) runs from the manifests in [`deploy/k8s/`](deploy/k8s/) with `ghcr.io/hivellm/vectorizer:3.8.1`. Writes go to the leader — followers answer them with HTTP 307 and the leader's address; reads are served by any pod. Follow the [HA on Kubernetes runbook](docs/deployment/HA_KUBERNETES_RUNBOOK.md) for install, validation, failover and upgrades (clusters on ≤ 3.7.2 need one all-pods restart when moving to 3.8.0).
 
 ### Build from Source
 
@@ -365,7 +365,7 @@ Cursor / Claude Desktop config:
 
 ## 📦 Client SDKs
 
-Server-side at **v3.8.0**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.8.0**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
+Server-side at **v3.8.1**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.8.1**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
 
 | SDK | Install |
 |---|---|
