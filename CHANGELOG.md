@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **HA replication silently stopped after a node regained Raft leadership.**
+  In Kubernetes, a pod that lost leadership and won it back without
+  restarting logged `MasterNode failed: Address in use (os error 98)`: the
+  previous term's master was never shut down, only dropped, while its
+  spawned tasks kept the replication port. Followers attached to that
+  orphaned listener, so writes on the leader returned 200 but never reached
+  them (reproduced on a 3-node k3d cluster: leader 5 vectors, followers 2).
+  Followers also leaked one reconnect loop per leader change, still dialling
+  old leaders. `MasterNode` and `ReplicaNode` now have a `shutdown()` that
+  ends every task they spawned, and `HaManager` calls it on each role
+  change — including a leader change while already a follower — before
+  starting the new role.
+
 ## [3.7.1] - 2026-08-30
 
 ### Security

@@ -12,10 +12,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Notify, mpsc};
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -44,6 +46,12 @@ pub struct MasterNode {
 
     /// Notified whenever any ACK arrives so `wait_for_replicas` can wake up
     ack_notify: Arc<Notify>,
+
+    /// Cancels every task this node spawned (see `shutdown`)
+    shutdown: CancellationToken,
+
+    /// Accept loop owning the listener; awaited on shutdown to free the port
+    listener_task: Mutex<Option<JoinHandle<()>>>,
 }
 
 struct ReplicaConnection {
@@ -88,6 +96,8 @@ impl MasterNode {
             replication_tx,
             confirmed_offsets,
             ack_notify,
+            shutdown: CancellationToken::new(),
+            listener_task: Mutex::new(None),
         };
 
         // Start replication task
@@ -121,10 +131,15 @@ impl MasterNode {
         let vector_store = Arc::clone(&self.vector_store);
         let confirmed_offsets = Arc::clone(&self.confirmed_offsets);
         let ack_notify = Arc::clone(&self.ack_notify);
+        let shutdown = self.shutdown.clone();
 
-        tokio::spawn(async move {
+        let listener_task = tokio::spawn(async move {
             loop {
-                match listener.accept().await {
+                let accepted = tokio::select! {
+                    _ = shutdown.cancelled() => break,
+                    accepted = listener.accept() => accepted,
+                };
+                match accepted {
                     Ok((stream, addr)) => {
                         info!("New replica connection from {}", addr);
 
@@ -133,9 +148,13 @@ impl MasterNode {
                         let vector_store = Arc::clone(&vector_store);
                         let confirmed_offsets = Arc::clone(&confirmed_offsets);
                         let ack_notify = Arc::clone(&ack_notify);
+                        let shutdown = shutdown.clone();
 
+                        // Dropping the handler on shutdown closes our write
+                        // half; the replica sees EOF and closes its side,
+                        // which in turn ends the ACK reader.
                         tokio::spawn(async move {
-                            if let Err(e) = Self::handle_replica(
+                            let handler = Self::handle_replica(
                                 stream,
                                 addr,
                                 replicas,
@@ -143,10 +162,16 @@ impl MasterNode {
                                 vector_store,
                                 confirmed_offsets,
                                 ack_notify,
-                            )
-                            .await
-                            {
-                                error!("Replica handler error: {}", e);
+                            );
+                            tokio::select! {
+                                _ = shutdown.cancelled() => {
+                                    debug!("Closing replica connection from {} (master shutdown)", addr);
+                                }
+                                result = handler => {
+                                    if let Err(e) = result {
+                                        error!("Replica handler error: {}", e);
+                                    }
+                                }
                             }
                         });
                     }
@@ -155,7 +180,9 @@ impl MasterNode {
                     }
                 }
             }
+            info!("Master node stopped listening on {}", bind_addr);
         });
+        *self.listener_task.lock() = Some(listener_task);
 
         // Start heartbeat task
         self.start_heartbeat_task();
@@ -275,7 +302,13 @@ impl MasterNode {
         let ack_confirmed_offsets = Arc::clone(&confirmed_offsets);
         let ack_notify_clone = Arc::clone(&ack_notify);
 
-        tokio::spawn(async move {
+        // Stops the ACK reader when this handler returns or is dropped by a
+        // master shutdown, even if the replica never closes its side (e.g. a
+        // network partition, which is also what triggers leader changes).
+        let ack_stop = CancellationToken::new();
+        let _ack_stop_on_exit = ack_stop.clone().drop_guard();
+
+        let ack_reader = async move {
             let mut len_buf = [0u8; 4];
             loop {
                 match read_half.read_exact(&mut len_buf).await {
@@ -325,6 +358,12 @@ impl MasterNode {
                         );
                     }
                 }
+            }
+        };
+        tokio::spawn(async move {
+            tokio::select! {
+                _ = ack_stop.cancelled() => {}
+                _ = ack_reader => {}
             }
         });
 
@@ -569,9 +608,17 @@ impl MasterNode {
     fn start_replication_task(&self, mut rx: mpsc::UnboundedReceiver<ReplicationMessage>) {
         let replicas = Arc::clone(&self.replicas);
         let replication_log = Arc::clone(&self.replication_log);
+        let shutdown = self.shutdown.clone();
 
         tokio::spawn(async move {
-            while let Some(msg) = rx.recv().await {
+            loop {
+                let msg = tokio::select! {
+                    _ = shutdown.cancelled() => break,
+                    msg = rx.recv() => match msg {
+                        Some(msg) => msg,
+                        None => break,
+                    },
+                };
                 match msg {
                     ReplicationMessage::Operation(operation) => {
                         let offset = replication_log.current_offset();
@@ -618,14 +665,36 @@ impl MasterNode {
     fn start_heartbeat_task(&self) {
         let interval = self.config.heartbeat_duration();
         let tx = self.replication_tx.clone();
+        let shutdown = self.shutdown.clone();
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(interval);
             loop {
-                interval.tick().await;
-                let _ = tx.send(ReplicationMessage::Heartbeat);
+                tokio::select! {
+                    _ = shutdown.cancelled() => break,
+                    _ = interval.tick() => {
+                        let _ = tx.send(ReplicationMessage::Heartbeat);
+                    }
+                }
             }
         });
+    }
+
+    /// Stop the master: close the listener, disconnect every replica and end
+    /// the heartbeat and fan-out tasks.
+    ///
+    /// Returns once the listener is closed, so a new `MasterNode` can bind
+    /// the same address right away (Raft Leader → Follower → Leader).
+    pub async fn shutdown(&self) {
+        self.shutdown.cancel();
+        let listener_task = self.listener_task.lock().take();
+        if let Some(task) = listener_task {
+            if let Err(e) = task.await {
+                warn!("Master listener task ended abnormally: {}", e);
+            }
+        }
+        self.replicas.write().clear();
+        self.confirmed_offsets.write().clear();
     }
 
     /// Get replication statistics
@@ -705,6 +774,14 @@ impl MasterNode {
     }
 }
 
+impl Drop for MasterNode {
+    /// The spawned tasks do not hold the node, so without this they would
+    /// outlive it and keep the replication port bound.
+    fn drop(&mut self) {
+        self.shutdown.cancel();
+    }
+}
+
 fn current_timestamp() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -776,6 +853,28 @@ mod tests {
         // Check final stats
         let stats = master.get_stats();
         assert_eq!(stats.master_offset, 10);
+    }
+
+    #[tokio::test]
+    async fn test_shutdown_releases_bind_address() {
+        let addr = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap();
+        let mut config = test_config(1000);
+        config.bind_address = Some(addr);
+
+        let first = MasterNode::new(config.clone(), Arc::new(VectorStore::new())).unwrap();
+        first.start().await.unwrap();
+        first.shutdown().await;
+
+        // A second term on the same process must be able to take the port.
+        let second = MasterNode::new(config, Arc::new(VectorStore::new())).unwrap();
+        second
+            .start()
+            .await
+            .expect("port still held after shutdown");
+        second.shutdown().await;
     }
 
     #[tokio::test]
