@@ -37,17 +37,21 @@ curl -s http://localhost:15002/stats | jq '.providers, .default_provider'
 
 ```json
 [
-  { "name": "bm25",     "dimension": 512, "default": true  },
-  { "name": "fastembed","dimension": 384, "default": false }
+  { "name": "bm25",                            "dimension": 512, "default": true  },
+  { "name": "fastembed:multilingual-e5-small", "dimension": 384, "default": false }
 ]
 "bm25"
 ```
 
-If the provider you intend to post to `POST /collections` is not
-in this list, the deployment was built without the matching Cargo
-feature (`fastembed`, `onnx`, etc.). Posting an unknown provider
-returns `400 unsupported_provider { requested, available }` — the
-3.3.0 silent-coercion-to-bm25 behaviour is gone.
+Provider names are exactly what the server registered: `bm25`, the
+`embedding.model` value (e.g. `fastembed:all-MiniLM-L6-v2`) and every
+`embedding.additional_models` entry (see
+[Enabling FastEmbed](#enabling-fastembed)). If the provider you intend
+to post to `POST /collections` is not in this list, it is not in the
+config or the deployment was built without the matching Cargo feature
+(`fastembed`). Posting an unknown provider returns
+`400 unsupported_provider { requested, available }` — the 3.3.0
+silent-coercion-to-bm25 behaviour is gone.
 
 ## Contract: `POST /collections` and `POST /embed`
 
@@ -66,10 +70,10 @@ curl -X POST http://localhost:15002/collections \
   -d '{
     "name": "denseprobe",
     "dimension": 384,
-    "embedding_provider": "fastembed"
+    "embedding_provider": "fastembed:multilingual-e5-small"
   }'
 # 201 Created
-# GET /collections/denseprobe → { dimension: 384, embedding_provider: "fastembed", ... }
+# GET /collections/denseprobe → { dimension: 384, embedding_provider: "fastembed:multilingual-e5-small", ... }
 ```
 
 **Error — provider is not registered:**
@@ -77,9 +81,9 @@ curl -X POST http://localhost:15002/collections \
 ```json
 {
   "error_type": "unsupported_provider",
-  "message": "Unsupported embedding provider 'fastembed'; available: bm25",
+  "message": "Unsupported embedding provider 'fastembed:multilingual-e5-small'; available: bm25",
   "details": {
-    "requested": "fastembed",
+    "requested": "fastembed:multilingual-e5-small",
     "available": ["bm25"]
   },
   "status_code": 400
@@ -92,9 +96,9 @@ native dimension:**
 ```json
 {
   "error_type": "provider_dimension_mismatch",
-  "message": "Provider 'fastembed' has dimension 384, request asked for 768",
+  "message": "Provider 'fastembed:multilingual-e5-small' has dimension 384, request asked for 768",
   "details": {
-    "provider": "fastembed",
+    "provider": "fastembed:multilingual-e5-small",
     "provider_dimension": 384,
     "requested_dimension": 768
   },
@@ -112,9 +116,9 @@ callers can confirm.
 ```bash
 curl -X POST http://localhost:15002/embed \
   -H 'Content-Type: application/json' \
-  -d '{ "text": "hello", "model": "fastembed" }'
+  -d '{ "text": "hello", "model": "fastembed:multilingual-e5-small" }'
 # 200 OK
-# { "embedding": [...], "text": "hello", "dimension": 384, "model": "fastembed" }
+# { "embedding": [...], "text": "hello", "dimension": 384, "model": "fastembed:multilingual-e5-small" }
 ```
 
 ```bash
@@ -145,44 +149,117 @@ curl -X POST http://localhost:15002/embed \
 
 ### Enabling FastEmbed
 
-Build with the `fastembed` feature (enabled by default):
+The `fastembed` Cargo feature is on by default for source builds
+(`cargo build --release`); the published Docker image is BM25-only
+unless built as the fastembed variant (see the Docker Hub README).
 
-```bash
-cargo build --release --features fastembed
-```
-
-### Supported Models
-
-FastEmbed supports multiple pre-trained models:
-
-| Model | Dimensions | Use Case |
-|-------|------------|----------|
-| `all-MiniLM-L6-v2` | 384 | General purpose, fast |
-| `all-MiniLM-L12-v2` | 384 | General purpose, balanced |
-| `bge-small-en-v1.5` | 384 | English text, high quality |
-| `bge-base-en-v1.5` | 768 | English text, highest quality |
-| `multilingual-e5-small` | 384 | Multilingual support |
-
-### Configuration
+Models are configured in the top-level `embedding:` section of
+`config.yml`:
 
 ```yaml
 embedding:
-  provider: "fastembed"
-  model: "all-MiniLM-L6-v2"
-  cache_embeddings: true
-  batch_size: 32
+  # Server default provider: "bm25" (default) or "fastembed:<model-id>".
+  # Collections created without `embedding_provider` use it.
+  model: "bm25"
+  # Extra providers registered next to the default (3.8+), so individual
+  # collections can opt into them. Each model is loaded once at boot and
+  # downloaded to <data_dir>/fastembed on first use.
+  additional_models:
+    - "fastembed:multilingual-e5-small"
 ```
+
+Every provider is registered under its full `fastembed:<model-id>`
+name, and `bm25` is always registered as well. An unknown id or prefix
+fails boot instead of silently falling back to BM25.
+
+### Supported Models
+
+| Model id (`fastembed:<id>`) | Dimensions | Languages | Use Case |
+|-------|------------|-----------|----------|
+| `all-MiniLM-L6-v2` | 384 | English | General purpose, fast |
+| `all-MiniLM-L12-v2` | 384 | English | General purpose, balanced |
+| `all-mpnet-base-v2` | 768 | English | General purpose, higher quality |
+| `bge-small-en-v1.5` | 384 | English | English text, high quality |
+| `bge-base-en-v1.5` | 768 | English | English text, higher quality |
+| `bge-large-en-v1.5` | 1024 | English | English text, highest quality |
+| `multilingual-e5-small` | 384 | 100+ (incl. Portuguese) | Multilingual semantic search |
+| `multilingual-e5-base` | 768 | 100+ | Multilingual, higher quality |
+| `multilingual-e5-large` | 1024 | 100+ | Multilingual, highest quality |
+| `paraphrase-multilingual-MiniLM-L12-v2` | 384 | 50+ | Multilingual paraphrase / similarity |
+
+The MiniLM, BGE and `paraphrase-multilingual-MiniLM-L12-v2` ids also
+exist with a `-q` suffix (quantized ONNX, same dimension). The enum
+names fastembed uses (e.g. `MultilingualE5Small`) are accepted as
+aliases and normalized to the short id.
+
+### Per-collection models
+
+Since 3.8 a text insert or text search embeds with the
+**collection's** `embedding_provider` when that provider is registered
+on the server and produces vectors of the collection's dimension.
+Otherwise it falls back to the server default, which is what every
+text operation used before 3.8 — e.g. a collection whose provider is
+not configured on this server, or a legacy collection whose provider
+was back-filled as `bm25` although its vectors have another width.
+A collection created without `embedding_provider` stores the default
+provider's name, so it keeps embedding exactly as before. Raw-vector
+collections (`embedding_provider: "none"`) still reject text
+operations.
+
+This lets one server keep its BM25 (512-dim) collections and host
+multilingual ones side by side:
+
+```bash
+curl -X POST http://localhost:15002/collections \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "suporte_pt",
+    "dimension": 384,
+    "embedding_provider": "fastembed:multilingual-e5-small"
+  }'
+
+curl -X POST http://localhost:15002/insert \
+  -H 'Content-Type: application/json' \
+  -d '{ "collection": "suporte_pt", "text": "Como cancelo meu pedido?" }'
+
+curl -X POST http://localhost:15002/collections/suporte_pt/search/text \
+  -H 'Content-Type: application/json' \
+  -d '{ "query": "desistir da compra", "limit": 5 }'
+```
+
+`dimension` must equal the model's dimension (384 for
+`multilingual-e5-small`); a mismatch returns
+`400 provider_dimension_mismatch`.
+
+### Query and passage prefixes (multilingual E5)
+
+The `multilingual-e5-*` models were trained with every input prefixed
+by `"query: "` or `"passage: "`, and fastembed does not add them.
+Vectorizer does, for those three models only: text being inserted is
+embedded as `"passage: <text>"`, and the query of a text search as
+`"query: <text>"`. Text that already starts with either prefix is left
+as is, so clients that follow the model card are not double-prefixed.
+`POST /embed` embeds its input as a passage. Other models embed text
+unchanged.
+
+### Changing a collection's model
+
+Vectors from different models live in different spaces, and a
+collection's `embedding_provider` is fixed at creation. To move a
+collection to another model (e.g. from `bm25` to
+`fastembed:multilingual-e5-small`), create a new collection with the
+new provider and dimension and re-insert the source texts; switching
+the server's `embedding.model` does not re-embed stored vectors.
 
 ### Usage via API
 
 ```bash
-# Generate embeddings
-curl -X POST "http://localhost:15002/api/v1/embed" \
+# Embed text with a specific registered provider
+curl -X POST "http://localhost:15002/embed" \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Your text to embed",
-    "provider": "fastembed",
-    "model": "all-MiniLM-L6-v2"
+    "model": "fastembed:multilingual-e5-small"
   }'
 ```
 
@@ -416,15 +493,17 @@ The `EmbeddingManager` provides a unified interface for all providers:
 ```rust
 use vectorizer::embedding::EmbeddingManager;
 
-let manager = EmbeddingManager::new();
+let mut manager = EmbeddingManager::new();
 
-// Add providers
-manager.add_provider("fastembed", fastembed_provider)?;
-manager.add_provider("bm25", bm25_provider)?;
+// Register providers (the first one registered becomes the default)
+manager.register_provider("bm25".to_string(), Box::new(bm25_provider));
+manager.register_provider("fastembed:multilingual-e5-small".to_string(), fastembed_provider);
 
-// Generate embeddings
-let dense = manager.embed("fastembed", "query text")?;
-let sparse = manager.embed("bm25", "query text")?;
+// Documents vs queries: `embed*` embeds text being indexed, `embed_query*`
+// embeds a search query (E5 models get their "passage: " / "query: " prefix)
+let doc = manager.embed_with_provider("fastembed:multilingual-e5-small", "document text")?;
+let query = manager.embed_query_with_provider("fastembed:multilingual-e5-small", "query text")?;
+let sparse = manager.embed_with_provider("bm25", "query text")?;
 ```
 
 ## Performance Tips
@@ -438,17 +517,7 @@ let texts: Vec<&str> = documents.iter().map(|d| d.as_str()).collect();
 let embeddings = provider.embed_batch(&texts)?;
 ```
 
-### 2. Caching
-
-Enable embedding cache to avoid re-computing:
-
-```yaml
-embedding:
-  cache_embeddings: true
-  cache_size: 10000
-```
-
-### 3. Model Selection
+### 2. Model Selection
 
 Choose models based on your needs:
 
@@ -456,7 +525,7 @@ Choose models based on your needs:
 |----------|-------|-----|
 | Speed | `all-MiniLM-L6-v2` | Fastest, good quality |
 | Quality | `bge-base-en-v1.5` | Best English quality |
-| Multilingual | `multilingual-e5-small` | Multiple languages |
+| Multilingual | `multilingual-e5-small` | 100+ languages incl. Portuguese, 384 dims |
 
 ## Related Documentation
 

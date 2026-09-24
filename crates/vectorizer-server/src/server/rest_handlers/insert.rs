@@ -21,7 +21,7 @@ use vectorizer::file_loader::config::LoaderConfig;
 use vectorizer::hub::middleware::RequestTenantContext;
 use vectorizer_core::error::VectorizerError;
 
-use super::common::{collection_metrics_uuid, reject_text_on_raw_vector_collection};
+use super::common::{collection_metrics_uuid, reject_text_on_raw_vector_config};
 use crate::server::VectorizerServer;
 use crate::server::error_middleware::{ErrorResponse, create_bad_request_error};
 
@@ -307,14 +307,11 @@ pub(super) async fn record_insert_usage(
     }
 }
 
-/// Mark a collection dirty for auto-save, invalidate its query cache, and
-/// forward Raft replication for the given vector ids. Meant to run once
-/// per request after all vectors are committed.
-pub(super) fn mark_collection_dirty(
-    state: &VectorizerServer,
-    collection_name: &str,
-    vector_ids: &[String],
-) {
+/// Mark a collection dirty for auto-save and invalidate its query cache.
+/// Meant to run once per request after all vectors are committed.
+/// Replication is not done here: the store publishes every committed insert
+/// to the master (`vectorizer::replication::publisher`).
+pub(super) fn mark_collection_dirty(state: &VectorizerServer, collection_name: &str) {
     if let Some(ref auto_save) = state.auto_save_manager {
         auto_save.mark_changed();
     }
@@ -324,37 +321,6 @@ pub(super) fn mark_collection_dirty(
         "💾 Cache invalidated for collection '{}' after insert",
         collection_name
     );
-
-    if vector_ids.is_empty() {
-        return;
-    }
-
-    let active_master: Option<std::sync::Arc<vectorizer::replication::MasterNode>> = state
-        .master_node
-        .clone()
-        .or_else(|| state.ha_manager.as_ref().and_then(|ha| ha.master_node()));
-    if let Some(ref master) = active_master {
-        if let Ok(col) = state.store.get_collection(collection_name) {
-            for vid in vector_ids {
-                if let Ok(v) = col.get_vector(vid) {
-                    let payload_bytes = v.payload.as_ref().and_then(|p| serde_json::to_vec(p).ok());
-                    let op = vectorizer::replication::VectorOperation::InsertVector {
-                        collection: collection_name.to_string(),
-                        id: vid.clone(),
-                        vector: v.data.clone(),
-                        payload: payload_bytes,
-                        owner_id: None,
-                    };
-                    master.replicate(op);
-                }
-            }
-            debug!(
-                "Replicated {} vectors for collection '{}'",
-                vector_ids.len(),
-                collection_name
-            );
-        }
-    }
 }
 
 /// Core write path: chunk + embed + insert a single text into the target
@@ -401,7 +367,16 @@ pub(super) async fn insert_one_text(
     );
 
     ensure_collection_exists(state, collection_name)?;
-    reject_text_on_raw_vector_collection(state, collection_name, "insert_text")?;
+    // Cloned so no DashMap `Ref` is held across the inserts below. The
+    // text is embedded with the collection's own provider (3.8), falling
+    // back to the server default — see `provider_name_for_collection`.
+    let collection_config = state
+        .store
+        .get_collection(collection_name)
+        .map_err(ErrorResponse::from)?
+        .config()
+        .clone();
+    reject_text_on_raw_vector_config(&collection_config, collection_name, "insert_text")?;
 
     let upload_config = FileUploadConfig::default();
     let chunk_size_val = chunk_size.unwrap_or(upload_config.default_chunk_size);
@@ -459,9 +434,12 @@ pub(super) async fn insert_one_text(
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         for chunk in &chunks {
-            let embedding = state.embedding_manager.embed(&chunk.content).map_err(|e| {
-                create_bad_request_error(&format!("Failed to generate embedding: {}", e))
-            })?;
+            let embedding = state
+                .embedding_manager
+                .embed_for_collection(&collection_config, &chunk.content)
+                .map_err(|e| {
+                    create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+                })?;
             last_embedding_len = embedding.len();
 
             // Flat payload shape (phase9): all fields live at the payload
@@ -510,9 +488,12 @@ pub(super) async fn insert_one_text(
             vector_ids.push(vector_id);
         }
     } else {
-        let embedding = state.embedding_manager.embed(text).map_err(|e| {
-            create_bad_request_error(&format!("Failed to generate embedding: {}", e))
-        })?;
+        let embedding = state
+            .embedding_manager
+            .embed_for_collection(&collection_config, text)
+            .map_err(|e| {
+                create_bad_request_error(&format!("Failed to generate embedding: {}", e))
+            })?;
         last_embedding_len = embedding.len();
 
         let payload_json = serde_json::Value::Object(
@@ -558,7 +539,7 @@ pub(super) async fn insert_one_text(
     )
     .await;
 
-    mark_collection_dirty(state, collection_name, &vector_ids);
+    mark_collection_dirty(state, collection_name);
 
     info!(
         "Successfully inserted {} vector(s) into collection '{}'",

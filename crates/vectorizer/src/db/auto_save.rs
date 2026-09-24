@@ -344,6 +344,13 @@ impl Drop for AutoSaveManager {
     }
 }
 
+/// Any committed store change is a change to persist.
+impl crate::db::MutationListener for AutoSaveManager {
+    fn on_mutation(&self, _mutation: &crate::db::StoreMutation<'_>) {
+        self.mark_changed();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;

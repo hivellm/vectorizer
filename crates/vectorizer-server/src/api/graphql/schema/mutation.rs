@@ -854,7 +854,11 @@ impl MutationRoot {
         let mut vectors_created = 0i32;
 
         for chunk in &chunks {
-            let embedding = match gql_ctx.embedding_manager.embed(&chunk.content) {
+            let embedding = match gql_ctx.embedding_manager.embed_for_named_collection(
+                &gql_ctx.store,
+                &collection_name,
+                &chunk.content,
+            ) {
                 Ok(emb) => emb,
                 Err(_) => continue,
             };

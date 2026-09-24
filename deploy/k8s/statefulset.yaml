@@ -14,10 +14,17 @@ spec:
       labels:
         app: vectorizer
     spec:
+      # ghcr.io/hivellm/vectorizer is public: no imagePullSecrets needed.
+      securityContext:
+        # The image runs as the non-root user 65532; fsGroup makes the PVC
+        # writable by it.
+        fsGroup: 65532
       containers:
         - name: vectorizer
-          image: vectorizer:latest
-          imagePullPolicy: Always
+          # Pin an exact tag. Use `3.8.0-fastembed` for dense/multilingual
+          # embedding models (see docs/users/guides/EMBEDDINGS.md).
+          image: ghcr.io/hivellm/vectorizer:3.8.0
+          imagePullPolicy: IfNotPresent
           ports:
             # RPC (binary, recommended primary) listed first per
             # phase6_make-rpc-default-transport.
@@ -33,13 +40,35 @@ spec:
           env:
             - name: RUST_LOG
               value: "warn"
-            - name: DATA_DIR
+            # Collections and auth files live on the PVC.
+            - name: VECTORIZER_DATA_DIR
               value: "/data"
+            # Binding 0.0.0.0 requires authentication. Create the Secret
+            # first (see docs/deployment/KUBERNETES.md).
+            - name: VECTORIZER_AUTH_ENABLED
+              value: "true"
+            - name: VECTORIZER_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: vectorizer-credentials
+                  key: VECTORIZER_USERNAME
+            - name: VECTORIZER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: vectorizer-credentials
+                  key: VECTORIZER_PASSWORD
+            - name: VECTORIZER_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: vectorizer-credentials
+                  key: VECTORIZER_API_KEY
           volumeMounts:
             - name: data
               mountPath: /data
+            # The server reads config.yml from its working directory.
             - name: config
-              mountPath: /etc/vectorizer
+              mountPath: /vectorizer/config.yml
+              subPath: config.yml
           resources:
             requests:
               cpu: "2"
@@ -49,7 +78,8 @@ spec:
               memory: "8Gi"
           livenessProbe:
             httpGet:
-              path: /api/status
+              # Anonymous; answers 200 as soon as the HTTP server is up.
+              path: /health
               port: http
             initialDelaySeconds: 30
             periodSeconds: 10
@@ -57,9 +87,10 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /api/status
+              # Anonymous; 503 until the startup collection load completes.
+              path: /ready
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
@@ -76,4 +107,3 @@ spec:
         resources:
           requests:
             storage: 100Gi
-

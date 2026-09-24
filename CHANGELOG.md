@@ -4,6 +4,92 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-09-24
+
+### Upgrade notes
+
+- **HA clusters on ≤ 3.7.2: restart all pods together once.** Followers only
+  become exact copies of the leader through a full sync from a 3.8.0 leader,
+  and a 3.7.x follower restarted on its own never rejoins. Use
+  `updateStrategy: OnDelete` and delete every pod, or scale to 0 and back.
+  From 3.8.0 on, rolling updates are safe. See
+  `docs/deployment/HA_KUBERNETES_RUNBOOK.md`.
+- **Images move to the GitHub Container Registry**:
+  `ghcr.io/hivellm/vectorizer:3.8.0` (and `-fastembed`), public, no pull
+  secret. Point manifests there.
+
+### Added
+
+- **Multilingual semantic search, including synonyms.** The fastembed
+  provider now serves `multilingual-e5-small` / `-base` / `-large` (384 / 768
+  / 1024 dims) and `paraphrase-multilingual-MiniLM-L12-v2`. E5 models get the
+  `passage:` / `query:` prefixes they were trained with, on insert and search
+  respectively. Verified offline with Portuguese: "automóvel" finds "carro",
+  "doce de cacau" finds a chocolate cake recipe.
+- **Collections embed with their own provider.** Text insert and search used
+  the server's default provider whatever the collection's
+  `embedding_provider` said; they now use the collection's provider when it is
+  registered and its dimension matches, and fall back to the default as
+  before. `embedding.additional_models: ["fastembed:multilingual-e5-small"]`
+  registers extra models next to the default, so BM25 and E5 collections live
+  on one server. Changing an existing collection's model means recreating it
+  and re-inserting its texts.
+
+### Changed
+
+- **Release images are published to `ghcr.io/hivellm/vectorizer`** by the
+  manual *Publish Docker images* workflow, with the workflow's own
+  `GITHUB_TOKEN`; Docker Hub (`hivehub/vectorizer`) is an optional mirror. A
+  `dry_run` input builds both variants from a branch without pushing, and the
+  layer cache moved from a Docker Hub repository to the GitHub Actions cache.
+- **The `-fastembed` image ships its model where fastembed looks for it.** The
+  pre-fetch wrote a flat layout fastembed never read, so every container
+  downloaded the model again on first boot. It now writes the Hugging Face
+  cache layout, includes `tokenizer_config.json`, and takes
+  `--build-arg FASTEMBED_MODEL=intfloat/multilingual-e5-small`.
+
+### Fixed
+
+- **HA followers now converge on the leader's data.** Found by upgrading a
+  3-node production cluster from 3.0.13: one follower held every vector of a
+  collection twice (852 entries for 426 ids) and stayed that way across
+  restarts. Three separate bugs combined:
+  - **Every write path replicates.** Only four handler paths used to call
+    `replicate` (REST create collection, REST insert, Qdrant REST upsert, RPC
+    with a static master only). Vector deletes, updates, collection deletes
+    and renames, file uploads, and every MCP, GraphQL and native gRPC write
+    stayed on the leader, and deleted data came back after a failover.
+    `VectorStore` now publishes each committed change to registered
+    listeners, and the leader's `ReplicationPublisher` turns them into
+    replication operations, so the transport a write came through no longer
+    matters.
+  - **Full sync waits for the startup load.** A leader elected while still
+    reading its collections from disk sent replicas a snapshot of an empty
+    store, and each replica kept serving its own stale copy. The leader now
+    holds replica syncs, and a replica holds its first sync, until the
+    startup load settles.
+  - **A full sync makes the replica an exact copy.** Collections the leader
+    does not have are dropped, and loading a persisted collection keeps one
+    copy per id instead of listing duplicates and double-counting them.
+- **A follower restarted on its own rejoins its cluster.** Raft's log and vote
+  lived in memory, so a restarted follower came back with no membership and
+  stayed a learner forever — no replication, no error. They are now persisted
+  under `<data_dir>/raft/`, and a restarted node resumes as a follower. For
+  10 s after resuming it holds its own elections: in Kubernetes a recreated
+  pod's DNS name takes a few seconds to resolve for its peers, and campaigning
+  before the leader can reach it made a healthy leader step down. The
+  bootstrap node also recognises an already-initialised cluster instead of
+  failing on restart.
+- **Replicated state survives a follower restart.** Replicas never marked
+  their store dirty, so what they received was never written to disk and a
+  restart reloaded a stale copy. Auto-save now observes every committed
+  change, including replicated ones.
+- **A bad replicated operation no longer wedges a replica.** Deleting an id
+  that is already gone, or creating a collection that already exists, is
+  treated as applied; any other failure resets the replica's offset so the
+  next connection does a full sync instead of replaying the same operation
+  forever.
+
 ## [3.7.2] - 2026-09-23
 
 ### Security

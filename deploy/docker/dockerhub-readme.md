@@ -93,7 +93,7 @@ volumes:
 - **⚡ VectorizerRPC** — length-prefixed MessagePack over raw TCP on port `15503`, ~10× lower per-frame overhead than REST/JSON. Default binary transport across every SDK (Rust, TypeScript, Go, Python, C#).
 - **🔍 Semantic Search** — Cosine / Euclidean / Dot Product, HNSW indexing, sub-3 ms typical search, hybrid dense + sparse (BM25) with rank fusion.
 - **⚡ SIMD Acceleration** — AVX2 on x86_64, NEON on aarch64, scalar fallback. CPU-feature detection at boot.
-- **🧠 Embeddings** — BM25 (default, 512-dim), TF-IDF, and **FastEmbed ONNX** models: `all-MiniLM-L6-v2` (384-dim), `all-MiniLM-L12-v2`, `all-mpnet-base-v2`, `bge-small-en-v1.5` (384), `bge-base-en-v1.5` (768), `bge-large-en-v1.5` (1024), plus `-q` int8-quantized variants (selected via `embedding.model: fastembed:<id>` in `config.yml` — use the bare id, not the `Xenova/` HF path). The default `hivehub/vectorizer:3.5.0` image is BM25-only (~91 MB); **`hivehub/vectorizer:3.5.0-fastembed` is a published image** with FastEmbed compiled in and `all-MiniLM-L6-v2` pre-fetched — no self-build required.
+- **🧠 Embeddings** — BM25 (default, 512-dim), TF-IDF, and **FastEmbed ONNX** models: `all-MiniLM-L6-v2` (384-dim), `all-MiniLM-L12-v2`, `all-mpnet-base-v2`, `bge-small-en-v1.5` (384), `bge-base-en-v1.5` (768), `bge-large-en-v1.5` (1024), multilingual `multilingual-e5-small` (384) / `-base` (768) / `-large` (1024) and `paraphrase-multilingual-MiniLM-L12-v2` (384), plus `-q` int8-quantized variants (selected via `embedding.model: fastembed:<id>` in `config.yml` — use the bare id, not the `Xenova/` HF path). The default `hivehub/vectorizer:3.5.0` image is BM25-only (~91 MB); **`hivehub/vectorizer:3.5.0-fastembed` is a published image** with FastEmbed compiled in and `all-MiniLM-L6-v2` pre-fetched — no self-build required.
 - **💾 Compact Storage** — unified `.vecdb` format with 20–30% space savings, MMap support for datasets larger than RAM, automatic snapshots.
 - **📦 Quantization** — Scalar + Product Quantization (PQ) for up to 64× memory reduction with minimal accuracy loss.
 - **🔄 Replication & Sharding** — master → replica TCP streaming (BETA), openraft-backed consensus for HA clusters.
@@ -160,7 +160,7 @@ Older `1.x` / `2.x` tags remain on Docker Hub for rollback but are no longer rec
 
 ### Config Files
 
-- Mount `config.yml` to `/vectorizer/config.yml` to override defaults (embedding model, quantization, HNSW params, auth mode, replication topology). Set `embedding.model: fastembed:all-MiniLM-L6-v2` (or any other fastembed id) to register a dense provider as the default — note that the default published image is BM25-only; build with `--build-arg ENABLE_FASTEMBED=1 --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed` to get fastembed compiled in.
+- Mount `config.yml` to `/vectorizer/config.yml` to override defaults (embedding model, quantization, HNSW params, auth mode, replication topology). Set `embedding.model: fastembed:all-MiniLM-L6-v2` (or any other fastembed id) to register a dense provider as the default, and list more under `embedding.additional_models` (3.8+) so individual collections can use them — note that the default published image is BM25-only; build with `--build-arg ENABLE_FASTEMBED=1 --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed` to get fastembed compiled in.
 - Mount `workspace.yml` to `/vectorizer/workspace.yml` + bind the source tree as `/workspace:ro` for monorepo indexing (the file-watcher service re-indexes on change).
 
 ## 📝 Examples
@@ -293,6 +293,32 @@ embedding:
 ```
 
 `GET /stats.providers` then lists both `fastembed:all-MiniLM-L6-v2` (384-dim, default) and `bm25` (512-dim, sparse fallback). Hybrid retrieval works out of the box. To compile fastembed into your own image instead, build with `--build-arg ENABLE_FASTEMBED=1 --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed`.
+
+#### Multilingual (e.g. Portuguese) collections next to BM25 ones
+
+From 3.8, each collection embeds text with its own `embedding_provider`. Keep BM25 as the server default and add the multilingual model as an extra provider:
+
+```yaml
+embedding:
+  model: bm25
+  additional_models:
+    - fastembed:multilingual-e5-small
+```
+
+Then create the collection with that provider and its dimension (384), and insert / search text as usual — existing BM25 (512-dim) collections are unaffected:
+
+```bash
+curl -X POST http://localhost:15002/collections -H 'Content-Type: application/json' \
+  -d '{"name":"docs_pt","dimension":384,"embedding_provider":"fastembed:multilingual-e5-small"}'
+curl -X POST http://localhost:15002/insert -H 'Content-Type: application/json' \
+  -d '{"collection":"docs_pt","text":"Como cancelo meu pedido?"}'
+curl -X POST http://localhost:15002/collections/docs_pt/search/text -H 'Content-Type: application/json' \
+  -d '{"query":"desistir da compra","limit":5}'
+```
+
+Also available: `fastembed:multilingual-e5-base` (768), `fastembed:multilingual-e5-large` (1024) and `fastembed:paraphrase-multilingual-MiniLM-L12-v2` (384, `-q` for quantized). For the `multilingual-e5-*` models the server adds the `"passage: "` prefix to inserted text and `"query: "` to search queries, as those models expect. An existing collection cannot switch models in place: create a new collection with the new provider and re-insert its texts.
+
+From 3.8 the `-fastembed` image pre-fetches `all-MiniLM-L6-v2` into the Hugging Face cache layout fastembed actually reads (earlier tags wrote a layout it ignored, so they downloaded the model on first boot too); other models download to `/data/fastembed` on first boot (keep `/data` on a volume so this happens once). To bake a different model into your own image, add `--build-arg FASTEMBED_MODEL=<Hugging Face repo>` — e.g. `--build-arg FASTEMBED_MODEL=intfloat/multilingual-e5-small` for `fastembed:multilingual-e5-small` (the repo per id is listed in `docs/specs/EMBEDDING.md`). Pre-fetched files are seeded into a new named volume on `/data`; a bind mount on `/data` hides them.
 
 ### Debug Logging
 

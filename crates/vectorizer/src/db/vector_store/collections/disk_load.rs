@@ -287,6 +287,16 @@ impl VectorStore {
         Ok(())
     }
 
+    /// Names of the collections currently loaded in memory — unlike
+    /// [`VectorStore::list_collections`], without legacy on-disk names and
+    /// without triggering lazy loads.
+    pub fn loaded_collection_names(&self) -> Vec<String> {
+        self.collections
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
+    }
+
     /// Check if collection exists in memory only (without lazy loading)
     pub fn has_collection_in_memory(&self, name: &str) -> bool {
         match self.resolve_alias_target(name) {

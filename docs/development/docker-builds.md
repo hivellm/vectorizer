@@ -14,7 +14,8 @@ phase10 (`.rulebook/tasks/phase10_optimize-docker-build-time/`).
 | Same release, dense variant | `.\scripts\docker\build-push.ps1 -Tag 3.x.y -Fastembed` |
 | Local-only build (no push) | `.\scripts\docker\build.ps1 -Tag dev` |
 | Re-push an already-built tag | `.\scripts\docker\push.ps1 -Tag 3.x.y` |
-| Release publish from CI (both variants) | Actions → **Publish Docker images** → Run workflow, `tag: v3.x.y` |
+| Release publish from CI (both variants, GHCR) | Actions → **Publish Docker images** → Run workflow, `tag: v3.x.y` |
+| Prove the image pipeline on a branch | Same workflow, run on the branch with `dry_run: true` (builds, pushes nothing) |
 | CI release publish (automatic, on tag) | **removed** — see § "CI release publish flow" |
 
 Publishing the image is a **manual, local step**. The Docker jobs are no
@@ -25,11 +26,19 @@ Hub stayed on 3.5.0 for exactly this reason.
 Publishing is still a **manual step**, but it no longer has to be local:
 `.github/workflows/docker-publish.yml` is a `workflow_dispatch`-only job that
 runs the same `docker buildx build` as `build-push.ps1` (both platforms,
-SBOM + `mode=max` provenance, the shared registry cache, `latest` on the
-default variant only) for the default and `-fastembed` variants of a release
-tag, logging into Docker Hub and `dhi.io` with the `DOCKERHUB_USERNAME` /
-`DOCKERHUB_TOKEN` repo secrets. Run it after the release workflow finishes;
-it refuses a tag that does not match the workspace crate version.
+SBOM + `mode=max` provenance, `latest` on the default variant only) for the
+default and `-fastembed` variants of a release tag. It pushes to the GitHub
+Container Registry — `ghcr.io/hivellm/vectorizer`, public — with the
+workflow's own `GITHUB_TOKEN`, so no registry secret can expire;
+`mirror_to_dockerhub: true` also pushes `hivehub/vectorizer`. The layer cache
+is the GitHub Actions cache (`type=gha`, one scope per variant). The only
+secret it needs is `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` to *pull* the
+Docker Hardened Images base from `dhi.io` — a read-only token is enough.
+Run it after the release workflow finishes; it refuses a tag that does not
+match the workspace crate version. `dry_run: true` builds from the branch it
+is dispatched on and pushes nothing — use it to prove a release branch before
+tagging. The first push to GHCR from a new repository needs the package's
+*Manage Actions access* to grant this repository write access.
 
 All three local scripts default to the `hivehub/vectorizer-cache:buildx`
 registry cache. Pass `-NoCache` to force a cold build.

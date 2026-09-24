@@ -109,9 +109,140 @@ fn build_default_provider(
     ))
 }
 
+/// Parse `embedding.additional_models` from a parsed `config.yml`: extra
+/// providers registered next to the default (`embedding.model`) so
+/// individual collections can opt into them via `embedding_provider` on
+/// `POST /collections` — e.g. a BM25-default server hosting a
+/// `fastembed:multilingual-e5-small` collection. Missing or `null` means
+/// none; duplicates are dropped. A value that is not a list of non-empty
+/// strings fails boot rather than being silently ignored.
+fn parse_additional_models(config: &serde_yaml::Value) -> anyhow::Result<Vec<String>> {
+    let Some(list) = config
+        .get("embedding")
+        .and_then(|e| e.get("additional_models"))
+        .filter(|v| !v.is_null())
+    else {
+        return Ok(Vec::new());
+    };
+    let entries = list.as_sequence().ok_or_else(|| {
+        anyhow::anyhow!(
+            "embedding.additional_models must be a list of model names, \
+             e.g. [\"fastembed:multilingual-e5-small\"]"
+        )
+    })?;
+    let mut models: Vec<String> = Vec::new();
+    for entry in entries {
+        let name = entry
+            .as_str()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "embedding.additional_models entries must be non-empty strings, got {:?}",
+                    entry
+                )
+            })?;
+        if !models.iter().any(|m| m == name) {
+            models.push(name.to_string());
+        }
+    }
+    Ok(models)
+}
+
+/// Build every `embedding.additional_models` provider once, as shared
+/// instances [`register_all_providers`] adds to each `EmbeddingManager`
+/// bootstrap creates. Entries naming `bm25` or the default model are
+/// skipped — both are registered regardless. Anything other than
+/// `fastembed:<model-id>` fails boot, exactly like an unknown
+/// `embedding.model`.
+fn build_additional_providers(
+    config_path: &str,
+) -> anyhow::Result<Vec<(String, Arc<dyn EmbeddingProvider>)>> {
+    let Some(config) = std::fs::read_to_string(config_path)
+        .ok()
+        .and_then(|content| serde_yaml::from_str::<serde_yaml::Value>(&content).ok())
+    else {
+        return Ok(Vec::new());
+    };
+    let default_name = resolve_embedding_model_name(config_path)?;
+    let mut providers: Vec<(String, Arc<dyn EmbeddingProvider>)> = Vec::new();
+    for model in parse_additional_models(&config)? {
+        if model == "bm25" || model == default_name {
+            info!(
+                "🧠 embedding.additional_models: '{}' is already registered — skipping",
+                model
+            );
+            continue;
+        }
+        let Some(fastembed_id) = model.strip_prefix("fastembed:") else {
+            return Err(anyhow::anyhow!(
+                "Unknown embedding model '{}' in embedding.additional_models. Supported: \
+                 \"fastembed:<model-id>\" (requires the fastembed Cargo feature at \
+                 compile time). See docs/specs/EMBEDDING.md for the full matrix.",
+                model
+            ));
+        };
+        let cache_dir = vectorizer_core::paths::data_dir().join("fastembed");
+        let provider =
+            vectorizer::embedding::providers::try_build_fastembed_provider(fastembed_id, cache_dir)
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+        info!(
+            "🧠 Additional embedding provider: {} (fastembed, dim={})",
+            model,
+            provider.dimension()
+        );
+        providers.push((model, Arc::from(provider)));
+    }
+    Ok(providers)
+}
+
+/// One provider instance registered in several `EmbeddingManager`s.
+///
+/// Bootstrap builds three managers (server, file watcher, background
+/// loader). An additional fastembed model is an ONNX session of up to a
+/// couple of GB, so it is loaded once and shared rather than once per
+/// manager. Every call delegates, including the query-side methods — the
+/// E5 query prefix must survive the indirection.
+struct SharedProvider(Arc<dyn EmbeddingProvider>);
+
+impl EmbeddingProvider for SharedProvider {
+    fn embed_batch(&self, texts: &[&str]) -> vectorizer::error::Result<Vec<Vec<f32>>> {
+        self.0.embed_batch(texts)
+    }
+
+    fn embed(&self, text: &str) -> vectorizer::error::Result<Vec<f32>> {
+        self.0.embed(text)
+    }
+
+    fn embed_query_batch(&self, texts: &[&str]) -> vectorizer::error::Result<Vec<Vec<f32>>> {
+        self.0.embed_query_batch(texts)
+    }
+
+    fn embed_query(&self, text: &str) -> vectorizer::error::Result<Vec<f32>> {
+        self.0.embed_query(text)
+    }
+
+    fn dimension(&self) -> usize {
+        self.0.dimension()
+    }
+
+    fn save_vocabulary_json(&self, path: &std::path::Path) -> vectorizer::error::Result<()> {
+        self.0.save_vocabulary_json(path)
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self.0.as_any()
+    }
+}
+
 /// Register every embedding provider the binary was built with on
 /// `manager`, then set `default_name` as the default. Always registers
-/// `bm25` so the sparse lane is available for hybrid retrieval.
+/// `bm25` so the sparse lane is available for hybrid retrieval, plus the
+/// shared `embedding.additional_models` providers (3.8).
 ///
 /// phase33 / issue #306: before this helper landed, bootstrap only
 /// registered the single provider returned by `build_default_provider`,
@@ -124,8 +255,12 @@ fn register_all_providers(
     manager: &mut EmbeddingManager,
     default_name: String,
     default_provider: Box<dyn EmbeddingProvider>,
+    additional: &[(String, Arc<dyn EmbeddingProvider>)],
 ) -> anyhow::Result<()> {
     manager.register_provider(default_name.clone(), default_provider);
+    for (name, provider) in additional {
+        manager.register_provider(name.clone(), Box::new(SharedProvider(Arc::clone(provider))));
+    }
     // `bm25` is always-on so `POST /collections {embedding_provider:
     // "bm25"}` works on every build, even one configured to default to
     // fastembed. Skip re-registration if the default was already bm25.
@@ -317,13 +452,20 @@ impl VectorizerServer {
         }
 
         info!("🔍 PRE_INIT: Creating embedding manager...");
+        // Loaded once and shared by all three managers below.
+        let additional_providers = build_additional_providers(&config_path)?;
         let mut embedding_manager = EmbeddingManager::new();
         let (provider_name, _provider_dim, provider) = build_default_provider(&config_path)?;
         info!(
             "🔍 PRE_INIT: Registering '{}' provider (dim {}) as default",
             provider_name, _provider_dim
         );
-        register_all_providers(&mut embedding_manager, provider_name.clone(), provider)?;
+        register_all_providers(
+            &mut embedding_manager,
+            provider_name.clone(),
+            provider,
+            &additional_providers,
+        )?;
         info!(
             "✅ PRE_INIT: Embedding manager configured (providers: {:?}, default: {})",
             embedding_manager.list_providers(),
@@ -347,6 +489,7 @@ impl VectorizerServer {
             &mut embedding_manager_for_watcher,
             watcher_provider_name.clone(),
             watcher_provider,
+            &additional_providers,
         )?;
         info!(
             "✅ STEP 2: File watcher embedding manager initialized with default '{}'",
@@ -880,6 +1023,7 @@ impl VectorizerServer {
             &mut final_embedding_manager,
             final_provider_name.clone(),
             final_provider,
+            &additional_providers,
         )?;
 
         // Restore the persisted vocabulary into the query-time provider
@@ -932,6 +1076,9 @@ impl VectorizerServer {
         info!("🔄 Initializing AutoSaveManager...");
         let auto_save_manager =
             Arc::new(vectorizer::db::AutoSaveManager::new(store_arc.clone(), 1));
+        // Every committed change marks the store dirty — including the ones a
+        // replica applies from its master, which no handler sees.
+        store_arc.add_mutation_listener(auto_save_manager.clone());
 
         // Clean up old snapshots on server startup
         info!("🧹 Cleaning up old snapshots on server startup...");
@@ -1098,7 +1245,13 @@ impl VectorizerServer {
                             store_arc.clone(),
                         ) {
                             Ok(master) => {
-                                let master = Arc::new(master);
+                                let master =
+                                    Arc::new(master.with_load_progress(collection_load.clone()));
+                                store_arc.add_mutation_listener(Arc::new(
+                                    vectorizer::replication::ReplicationPublisher::new(
+                                        master.clone(),
+                                    ),
+                                ));
                                 let master_clone = master.clone();
                                 tokio::spawn(async move {
                                     if let Err(e) = master_clone.start().await {
@@ -1116,10 +1269,13 @@ impl VectorizerServer {
                     }
                     vectorizer::replication::NodeRole::Replica => {
                         info!("🔄 Initializing replication as REPLICA...");
-                        let replica = Arc::new(vectorizer::replication::ReplicaNode::new(
-                            repl_config,
-                            store_arc.clone(),
-                        ));
+                        let replica = Arc::new(
+                            vectorizer::replication::ReplicaNode::new(
+                                repl_config,
+                                store_arc.clone(),
+                            )
+                            .with_load_progress(collection_load.clone()),
+                        );
                         let replica_clone = replica.clone();
                         tokio::spawn(async move {
                             if let Err(e) = replica_clone.start().await {
@@ -1185,7 +1341,25 @@ impl VectorizerServer {
                     })
                     .unwrap_or(1);
 
-                match vectorizer::cluster::raft_node::RaftManager::new(node_id).await {
+                // Raft state must survive restarts: a follower restarted on its
+                // own with an empty log never rejoins its cluster.
+                let raft_dir = vectorizer_core::paths::data_dir().join("raft");
+                let raft_manager = match vectorizer::cluster::raft_node::RaftManager::open(
+                    node_id, &raft_dir,
+                )
+                .await
+                {
+                    Ok(mgr) => Ok(mgr),
+                    Err(e) => {
+                        error!(
+                            "Cannot open persisted Raft state in {}: {} — using in-memory Raft state; this node will not rejoin its cluster after a restart",
+                            raft_dir.display(),
+                            e
+                        );
+                        vectorizer::cluster::raft_node::RaftManager::new(node_id).await
+                    }
+                };
+                match raft_manager {
                     Ok(mgr) => {
                         let mgr = Arc::new(mgr);
 
@@ -1432,11 +1606,14 @@ impl VectorizerServer {
                             .unwrap_or_default();
                         let repl_config = repl_yaml.to_replication_config();
 
-                        let ha = Arc::new(vectorizer::cluster::HaManager::new(
-                            node_id,
-                            store_arc.clone(),
-                            repl_config,
-                        ));
+                        let ha = Arc::new(
+                            vectorizer::cluster::HaManager::new(
+                                node_id,
+                                store_arc.clone(),
+                                repl_config,
+                            )
+                            .with_load_progress(collection_load.clone()),
+                        );
 
                         info!(
                             "✅ Raft node ready (node_id={}, members={})",
@@ -1473,11 +1650,14 @@ impl VectorizerServer {
                 if repl_yaml.role == "replica" {
                     let repl_config = repl_yaml.to_replication_config();
                     // Use node_id=999 so set_leader with id=0 marks us as Follower
-                    let ha = Arc::new(vectorizer::cluster::HaManager::new(
-                        999,
-                        store_arc.clone(),
-                        repl_config.clone(),
-                    ));
+                    let ha = Arc::new(
+                        vectorizer::cluster::HaManager::new(
+                            999,
+                            store_arc.clone(),
+                            repl_config.clone(),
+                        )
+                        .with_load_progress(collection_load.clone()),
+                    );
                     // Set leader as remote node (id=0) → this node becomes Follower
                     let leader_url = repl_config
                         .master_address
@@ -1958,6 +2138,158 @@ impl VectorizerServer {
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+
+    fn yaml(text: &str) -> serde_yaml::Value {
+        serde_yaml::from_str(text).unwrap()
+    }
+
+    #[test]
+    fn additional_models_default_to_none() {
+        assert!(
+            parse_additional_models(&yaml("server: {}"))
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            parse_additional_models(&yaml("embedding:\n  model: bm25"))
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            parse_additional_models(&yaml("embedding:\n  additional_models: null"))
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn additional_models_are_trimmed_and_deduplicated() {
+        let parsed = parse_additional_models(&yaml(
+            "embedding:\n  model: bm25\n  additional_models:\n    - \" fastembed:multilingual-e5-small \"\n    - fastembed:multilingual-e5-small\n    - fastembed:bge-small-en-v1.5",
+        ))
+        .unwrap();
+        assert_eq!(
+            parsed,
+            vec![
+                "fastembed:multilingual-e5-small".to_string(),
+                "fastembed:bge-small-en-v1.5".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn additional_models_reject_malformed_values() {
+        let not_a_list =
+            parse_additional_models(&yaml("embedding:\n  additional_models: fastembed:x"))
+                .unwrap_err();
+        assert!(
+            not_a_list.to_string().contains("must be a list"),
+            "{not_a_list}"
+        );
+        let bad_entry =
+            parse_additional_models(&yaml("embedding:\n  additional_models: [\"\", 3]"))
+                .unwrap_err();
+        assert!(
+            bad_entry.to_string().contains("non-empty strings"),
+            "{bad_entry}"
+        );
+    }
+
+    #[test]
+    fn build_additional_providers_rejects_unknown_prefix() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("config.yml");
+        std::fs::write(
+            &path,
+            "embedding:\n  model: bm25\n  additional_models: [\"bm25\", \"openai:text-3\"]\n",
+        )
+        .unwrap();
+        let err = build_additional_providers(path.to_str().unwrap())
+            .err()
+            .expect("unknown prefix must fail boot");
+        assert!(err.to_string().contains("openai:text-3"), "{err}");
+    }
+
+    #[test]
+    fn build_additional_providers_skips_already_registered_models() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("config.yml");
+        std::fs::write(
+            &path,
+            "embedding:\n  model: bm25\n  additional_models: [\"bm25\"]\n",
+        )
+        .unwrap();
+        assert!(
+            build_additional_providers(path.to_str().unwrap())
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    /// Records which entry point served each call so the delegation test
+    /// can tell documents and queries apart.
+    struct SideProvider;
+
+    impl EmbeddingProvider for SideProvider {
+        fn embed_batch(&self, texts: &[&str]) -> vectorizer::error::Result<Vec<Vec<f32>>> {
+            Ok(texts.iter().map(|_| vec![1.0; 3]).collect())
+        }
+        fn embed_query_batch(&self, texts: &[&str]) -> vectorizer::error::Result<Vec<Vec<f32>>> {
+            Ok(texts.iter().map(|_| vec![-1.0; 3]).collect())
+        }
+        fn embed_query(&self, text: &str) -> vectorizer::error::Result<Vec<f32>> {
+            Ok(self.embed_query_batch(&[text])?.remove(0))
+        }
+        fn dimension(&self) -> usize {
+            3
+        }
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
+    #[test]
+    fn register_all_providers_shares_additional_providers() {
+        let shared: Arc<dyn EmbeddingProvider> = Arc::new(SideProvider);
+        let additional = vec![("fastembed:side".to_string(), Arc::clone(&shared))];
+        let mut first = EmbeddingManager::new();
+        let mut second = EmbeddingManager::new();
+        for manager in [&mut first, &mut second] {
+            register_all_providers(
+                manager,
+                "bm25".to_string(),
+                Box::new(vectorizer::embedding::Bm25Embedding::new(512)),
+                &additional,
+            )
+            .unwrap();
+            assert_eq!(manager.get_default_provider_name(), Some("bm25"));
+            assert_eq!(manager.get_provider_dimension("fastembed:side").unwrap(), 3);
+            // Queries and documents keep their own entry points through
+            // the shared wrapper.
+            assert_eq!(
+                manager
+                    .embed_query_with_provider("fastembed:side", "q")
+                    .unwrap(),
+                vec![-1.0; 3]
+            );
+            assert_eq!(
+                manager.embed_with_provider("fastembed:side", "d").unwrap(),
+                vec![1.0; 3]
+            );
+            assert!(
+                manager
+                    .get_provider("fastembed:side")
+                    .unwrap()
+                    .as_any()
+                    .is::<SideProvider>()
+            );
+        }
+        // One instance, held by the two managers plus `shared` + `additional`.
+        assert_eq!(Arc::strong_count(&shared), 4);
+    }
 
     // phase40 §6.3: `resolve_jwt_secret` is the extracted, pure
     // decision point behind "first boot succeeds with the shipped

@@ -46,6 +46,7 @@ pub mod gpu_detection;
 
 pub mod distributed_sharded_collection;
 pub mod multi_tenancy;
+pub mod mutation;
 pub mod optimized_hnsw;
 pub mod raft;
 pub mod shard_topology;
@@ -75,6 +76,7 @@ pub use multi_tenancy::{
     MultiTenancyManager, TenantId, TenantMetadata, TenantOperation, TenantQuotas, TenantUsage,
     TenantUsageUpdate,
 };
+pub use mutation::{MutationListener, MutationListenerId, StoreMutation};
 pub use optimized_hnsw::{OptimizedHnswConfig, OptimizedHnswIndex};
 pub use raft::{
     LogEntry, LogIndex, NodeId, RaftConfig, RaftNode, RaftRole, RaftState, RaftStateMachine, Term,

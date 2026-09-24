@@ -1,0 +1,62 @@
+# Services for the HA StatefulSet (statefulset-ha.yaml).
+# See docs/deployment/HA_KUBERNETES_RUNBOOK.md.
+---
+# Headless Service — required for per-pod DNS
+# (<pod>.vectorizer-headless.vectorizer-ha.svc.cluster.local), which Raft
+# (gRPC, 15003) and replication (TCP, 7001) use to reach each peer.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorizer-headless
+  namespace: vectorizer-ha
+  labels:
+    app: vectorizer
+spec:
+  clusterIP: None
+  # Load-bearing: pods must resolve their peers to elect a leader before
+  # their own readiness probe passes. Without it the cluster deadlocks at
+  # startup.
+  publishNotReadyAddresses: true
+  selector:
+    app: vectorizer
+  ports:
+    - name: rpc
+      port: 15503
+      targetPort: 15503
+      protocol: TCP
+    - name: http
+      port: 15002
+      targetPort: 15002
+      protocol: TCP
+    - name: grpc
+      port: 15003
+      targetPort: 15003
+      protocol: TCP
+    - name: replication
+      port: 7001
+      targetPort: 7001
+      protocol: TCP
+---
+# Client Service — one readiness-gated address for reads. Writes must reach
+# the leader: a follower answers them with HTTP 307 and the leader's
+# in-cluster URL instead of forwarding them.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vectorizer
+  namespace: vectorizer-ha
+  labels:
+    app: vectorizer
+spec:
+  type: ClusterIP
+  selector:
+    app: vectorizer
+  ports:
+    - name: rpc
+      port: 15503
+      targetPort: 15503
+      protocol: TCP
+    - name: http
+      port: 15002
+      targetPort: 15002
+      protocol: TCP

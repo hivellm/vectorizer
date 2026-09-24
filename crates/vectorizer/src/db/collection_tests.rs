@@ -923,3 +923,56 @@ fn vector_count_history_respects_capacity() {
         "oldest sample should have been evicted to make room"
     );
 }
+
+fn vector(id: &str, x: f32) -> Vector {
+    Vector {
+        id: id.to_string(),
+        data: vec![x, 1.0, 0.0],
+        sparse: None,
+        payload: None,
+        document_id: None,
+    }
+}
+
+/// A persisted collection that holds every vector twice (what a replica that
+/// applied operations twice wrote to disk) must load as one copy per id: it
+/// used to list 852 entries for 426 vectors.
+#[test]
+fn fast_load_keeps_one_copy_per_id() {
+    let collection = create_test_collection();
+    let doubled = vec![
+        vector("a", 1.0),
+        vector("b", 2.0),
+        vector("a", 3.0),
+        vector("b", 4.0),
+    ];
+    collection.fast_load_vectors(doubled).unwrap();
+
+    assert_eq!(collection.vector_count(), 2);
+    let mut ids: Vec<String> = collection
+        .get_all_vectors()
+        .into_iter()
+        .map(|v| v.id)
+        .collect();
+    ids.sort();
+    assert_eq!(ids, vec!["a".to_string(), "b".to_string()]);
+    // The last copy in the file wins.
+    assert_eq!(collection.get_vector("a").unwrap().data[0], 3.0);
+}
+
+/// Loading a file after vectors already reached memory must not double them
+/// or overwrite the in-memory (newer) copy.
+#[test]
+fn fast_load_skips_vectors_already_in_memory() {
+    let collection = create_test_collection();
+    collection
+        .fast_load_vectors(vec![vector("a", 1.0)])
+        .unwrap();
+    collection
+        .fast_load_vectors(vec![vector("a", 9.0), vector("c", 5.0)])
+        .unwrap();
+
+    assert_eq!(collection.vector_count(), 2);
+    assert_eq!(collection.get_all_vectors().len(), 2);
+    assert_eq!(collection.get_vector("a").unwrap().data[0], 1.0);
+}

@@ -335,13 +335,27 @@ RUN mkdir -p /vectorizer/data /data && chown -R 65532:65532 /vectorizer /data
 # Optional FastEmbed model pre-fetch (phase33 / issue #306).
 #
 # When the operator builds with `--build-arg ENABLE_FASTEMBED=1`, this
-# stage downloads the bundled dense model (design.md D5:
-# `all-MiniLM-L6-v2`, 384-dim) at image-build time so the first
+# stage downloads one dense model at image-build time so the first
 # container boot does not need a network round-trip to Hugging Face.
-# The files land at `/models/fastembed/<model-id>/` and the runtime
-# stage copies them into `/data/fastembed/` so the existing resolver
-# (`vectorizer_core::paths::data_dir().join("fastembed")`) picks them
-# up without code changes.
+# The runtime stage copies the result into `/data/fastembed/`, the cache
+# dir the server hands fastembed
+# (`vectorizer_core::paths::data_dir().join("fastembed")`).
+#
+# fastembed resolves models through `hf-hub`, whose cache lookup only
+# finds `models--<org>--<name>/refs/main` (holding a commit sha) plus
+# `snapshots/<sha>/<repo-relative path>` — so that is the layout written
+# here. (Before 3.8 this stage wrote a flat `<org>/<name>/` directory,
+# flattened `onnx/model.onnx`, and skipped `tokenizer_config.json`; the
+# resolver never found any of it and every boot downloaded the model.)
+#
+# `FASTEMBED_MODEL` is the Hugging Face repo fastembed loads for the id
+# in `embedding.model` / `embedding.additional_models` (see the id table
+# in docs/specs/EMBEDDING.md), e.g.
+# `--build-arg FASTEMBED_MODEL=intfloat/multilingual-e5-small` for
+# `fastembed:multilingual-e5-small`. The default is the repo behind
+# `fastembed:all-MiniLM-L6-v2`. `FASTEMBED_MODEL_FILES` overrides the
+# ONNX file list (space-separated, repo-relative) for repos the `case`
+# below does not know; everything else defaults to `onnx/model.onnx`.
 #
 # Default builds set `ENABLE_FASTEMBED=0`, leaving the stage as a
 # no-op so the published slim image (BM25-only, ~release-docker
@@ -350,20 +364,39 @@ RUN mkdir -p /vectorizer/data /data && chown -R 65532:65532 /vectorizer /data
 # NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed`.
 FROM debian:bookworm-slim AS fastembed-models
 ARG ENABLE_FASTEMBED=0
-ARG FASTEMBED_MODEL=Xenova/all-MiniLM-L6-v2
-RUN if [ "$ENABLE_FASTEMBED" = "1" ]; then \
-      apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
-      DEST="/models/fastembed/${FASTEMBED_MODEL}" && \
-      mkdir -p "$DEST" && \
-      for f in onnx/model.onnx tokenizer.json config.json special_tokens_map.json; do \
-        curl --fail --silent --show-error --location \
-          -o "${DEST}/$(basename $f)" \
-          "https://huggingface.co/${FASTEMBED_MODEL}/resolve/main/$f"; \
-      done && \
-      chown -R 65532:65532 /models; \
+ARG FASTEMBED_MODEL=Qdrant/all-MiniLM-L6-v2-onnx
+ARG FASTEMBED_MODEL_FILES=
+RUN set -eu; \
+    if [ "$ENABLE_FASTEMBED" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends curl ca-certificates; \
+      FILES="$FASTEMBED_MODEL_FILES"; \
+      if [ -z "$FILES" ]; then \
+        case "$FASTEMBED_MODEL" in \
+          Qdrant/all-MiniLM-L6-v2-onnx) FILES="model.onnx" ;; \
+          Qdrant/multilingual-e5-large-onnx) FILES="model.onnx model.onnx_data" ;; \
+          Qdrant/*-onnx-Q) FILES="model_optimized.onnx" ;; \
+          Xenova/all-MiniLM-L6-v2) FILES="onnx/model_quantized.onnx" ;; \
+          Xenova/all-MiniLM-L12-v2) FILES="onnx/model.onnx onnx/model_quantized.onnx" ;; \
+          *) FILES="onnx/model.onnx" ;; \
+        esac; \
+      fi; \
+      COMMIT="$(curl --fail --silent --show-error \
+        "https://huggingface.co/api/models/${FASTEMBED_MODEL}/revision/main" \
+        | grep -o '"sha":"[0-9a-f]\{40\}"' | head -n 1 | cut -d '"' -f 4)"; \
+      [ -n "$COMMIT" ]; \
+      REPO_DIR="/models/fastembed/models--$(printf '%s' "$FASTEMBED_MODEL" | sed 's#/#--#g')"; \
+      SNAPSHOT="${REPO_DIR}/snapshots/${COMMIT}"; \
+      mkdir -p "${REPO_DIR}/refs"; \
+      printf '%s' "$COMMIT" > "${REPO_DIR}/refs/main"; \
+      for f in $FILES tokenizer.json config.json special_tokens_map.json tokenizer_config.json; do \
+        mkdir -p "$(dirname "${SNAPSHOT}/$f")"; \
+        curl --fail --silent --show-error --location -o "${SNAPSHOT}/$f" \
+          "https://huggingface.co/${FASTEMBED_MODEL}/resolve/${COMMIT}/$f"; \
+      done; \
     else \
-      mkdir -p /models/fastembed && chown -R 65532:65532 /models; \
-    fi
+      mkdir -p /models/fastembed; \
+    fi; \
+    chown -R 65532:65532 /models
 
 # Static busybox — the runtime is distroless (no shell, no curl, no wget), so
 # docker-compose / orchestrator healthchecks against /health need their own

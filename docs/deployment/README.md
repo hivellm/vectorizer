@@ -4,8 +4,9 @@ Complete deployment guides for Vectorizer in various environments.
 
 ## Contents
 
-- [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md) - Step-by-step playbook for a 3-node Raft cluster on Kubernetes (v3.0.11+, validated end-to-end)
-- [Kubernetes Deployment](./KUBERNETES.md) - General Kubernetes deployment guide (single-node and HA reference)
+- [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md) - The guide for installing a 3-pod Raft cluster on Kubernetes (3.8.0): manifests, validation, failover, upgrades, writes to the leader
+- [Kubernetes Deployment](./KUBERNETES.md) - Single-node Kubernetes deployment and general topics
+- [Helm Chart](./HELM.md) - Single-node deployment with the Helm chart
 - [Cluster Deployment Guide](./CLUSTER.md) - Architecture overview for HA + sharding cluster modes
 - [Docker Compose Production](./docker-compose.production.yml) - Production Docker Compose example
 - [Nginx Reverse Proxy](./nginx.conf) - Nginx configuration for reverse proxy
@@ -21,15 +22,21 @@ Complete deployment guides for Vectorizer in various environments.
 
 ### Kubernetes
 
+Images: `ghcr.io/hivellm/vectorizer:3.8.0` (default, BM25) and
+`ghcr.io/hivellm/vectorizer:3.8.0-fastembed` (dense/multilingual models).
+The GHCR package is public — no pull secret needed.
+
 ```bash
-# Deploy to Kubernetes
+# Single node (create the vectorizer-credentials Secret first — see KUBERNETES.md)
 kubectl apply -f deploy/k8s/namespace.yaml
 kubectl apply -f deploy/k8s/configmap.yaml
 kubectl apply -f deploy/k8s/statefulset.yaml
 kubectl apply -f deploy/k8s/service.yaml
 ```
 
-See [Kubernetes Deployment Guide](./KUBERNETES.md) for details.
+See [Kubernetes Deployment Guide](./KUBERNETES.md) for details. For a
+High-Availability cluster follow the
+[HA on Kubernetes runbook](./HA_KUBERNETES_RUNBOOK.md).
 
 ### Docker Compose
 
@@ -52,7 +59,7 @@ trade-offs.
 
 ### Systemd Service
 
-See [Service Management Guide](../../users/operations/SERVICE_MANAGEMENT.md).
+See [Service Management Guide](../users/operations/SERVICE_MANAGEMENT.md).
 
 ## Prerequisites
 
@@ -69,5 +76,5 @@ All deployment options support configuration via:
 - Configuration files
 - Command-line arguments
 
-See [Configuration Guide](../../users/configuration/CONFIGURATION.md) for details.
+See [Configuration Guide](../users/configuration/CONFIGURATION.md) for details.
 

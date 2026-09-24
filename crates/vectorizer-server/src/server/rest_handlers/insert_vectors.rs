@@ -171,7 +171,7 @@ pub async fn insert_vectors(
             inserted_ids.len() as u64,
         )
         .await;
-        mark_collection_dirty(&state, &collection_name, &inserted_ids);
+        mark_collection_dirty(&state, &collection_name);
     }
 
     info!(

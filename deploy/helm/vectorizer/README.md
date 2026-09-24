@@ -8,6 +8,11 @@ Helm chart for deploying Vectorizer vector database on Kubernetes.
 - Helm 3.0+
 - PersistentVolume provisioner
 
+The chart deploys `ghcr.io/hivellm/vectorizer:3.8.0` (public, no pull
+secret). It does not render the Raft cluster configuration: for a
+High-Availability cluster use the manifests and steps in the
+[HA on Kubernetes runbook](../../../docs/deployment/HA_KUBERNETES_RUNBOOK.md).
+
 ## Installation
 
 ### Add Repository
@@ -41,8 +46,8 @@ helm install vectorizer vectorizer/vectorizer \
 replicaCount: 1
 
 image:
-  repository: vectorizer
-  tag: "1.3.0"
+  repository: ghcr.io/hivellm/vectorizer
+  tag: "3.8.0"            # or "3.8.0-fastembed" for dense/multilingual models
 
 resources:
   limits:

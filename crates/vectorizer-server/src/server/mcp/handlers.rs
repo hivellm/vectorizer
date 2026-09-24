@@ -159,6 +159,32 @@ fn create_embedding_manager_for_collection(
     Ok(manager)
 }
 
+/// Embed a search query for `collection`.
+///
+/// The server's manager is used when it serves the collection's configured
+/// provider (3.8 per-collection providers — a `fastembed:*` collection has to
+/// be queried in its own model's space, with the model's query prefix).
+/// Otherwise the legacy per-collection manager built from the collection's
+/// embedding type and dimension is used, as before.
+fn embed_query_for_collection(
+    embedding_manager: &EmbeddingManager,
+    collection: &vectorizer::db::CollectionType,
+    query: &str,
+) -> Result<Vec<f32>, ErrorData> {
+    let config = collection.config();
+    if embedding_manager.serves_collection(config) {
+        return embedding_manager
+            .embed_query_for_collection(config, query)
+            .map_err(to_mcp_error);
+    }
+    create_embedding_manager_for_collection(&collection.get_embedding_type(), config.dimension)
+        .map_err(|e| {
+            ErrorData::internal_error(format!("Failed to create embedding manager: {}", e), None)
+        })?
+        .embed_query(query)
+        .map_err(to_mcp_error)
+}
+
 pub async fn handle_mcp_tool(
     request: CallToolRequestParams,
     store: Arc<VectorStore>,
@@ -253,7 +279,7 @@ pub async fn handle_mcp_tool(
 async fn handle_search_vectors(
     request: CallToolRequestParams,
     store: Arc<VectorStore>,
-    _embedding_manager: Arc<EmbeddingManager>,
+    embedding_manager: Arc<EmbeddingManager>,
 ) -> Result<CallToolResult, ErrorData> {
     let args = request
         .arguments
@@ -272,24 +298,14 @@ async fn handle_search_vectors(
 
     let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
-    // Get the collection to access its embedding type and dimension
-    let collection = store
-        .get_collection(collection_name)
-        .map_err(to_mcp_error)?;
-
-    let embedding_type = collection.get_embedding_type();
-    let dimension = collection.config().dimension;
-
-    // Create embedding manager specific to this collection
-    let collection_embedding_manager =
-        create_embedding_manager_for_collection(&embedding_type, dimension).map_err(|e| {
-            ErrorData::internal_error(format!("Failed to create embedding manager: {}", e), None)
-        })?;
-
-    // Generate embedding using the collection-specific manager
-    let embedding = collection_embedding_manager
-        .embed(query)
-        .map_err(to_mcp_error)?;
+    // Embed the query with the collection's provider. The `Ref` is dropped
+    // before the search below takes its own.
+    let embedding = {
+        let collection = store
+            .get_collection(collection_name)
+            .map_err(to_mcp_error)?;
+        embed_query_for_collection(&embedding_manager, &collection, query)?
+    };
 
     // Search
     let results = store
@@ -588,8 +604,10 @@ async fn handle_insert_text(
 
     reject_text_on_raw_vector_collection(&store, collection_name)?;
 
-    // Generate embedding
-    let embedding = embedding_manager.embed(text).map_err(to_mcp_error)?;
+    // Generate embedding with the collection's own provider
+    let embedding = embedding_manager
+        .embed_for_named_collection(&store, collection_name, text)
+        .map_err(to_mcp_error)?;
 
     let vector_id = uuid::Uuid::new_v4().to_string();
 
@@ -731,7 +749,9 @@ async fn handle_update_vector(
         // Only the text branch embeds; updating payload alone stays valid on
         // a raw-vector collection (phase6).
         reject_text_on_raw_vector_collection(&store, collection)?;
-        let embedding = embedding_manager.embed(text).map_err(to_mcp_error)?;
+        let embedding = embedding_manager
+            .embed_for_named_collection(&store, collection, text)
+            .map_err(to_mcp_error)?;
 
         let payload_json = if let Some(meta) = metadata {
             meta
@@ -990,19 +1010,10 @@ async fn handle_search_extra(
         match strategy.as_str() {
             "basic" => {
                 // Basic search
-                let coll = store.get_collection(collection).map_err(to_mcp_error)?;
-                let embedding_type = coll.get_embedding_type();
-                let dimension = coll.config().dimension;
-                let coll_emb_manager =
-                    create_embedding_manager_for_collection(&embedding_type, dimension).map_err(
-                        |e| {
-                            ErrorData::internal_error(
-                                format!("Failed to create embedding manager: {}", e),
-                                None,
-                            )
-                        },
-                    )?;
-                let embedding = coll_emb_manager.embed(query).map_err(to_mcp_error)?;
+                let embedding = {
+                    let coll = store.get_collection(collection).map_err(to_mcp_error)?;
+                    embed_query_for_collection(&embedding_manager, &coll, query)?
+                };
                 let results = store
                     .search(collection, &embedding, max_results)
                     .map_err(to_mcp_error)?;
@@ -1265,24 +1276,13 @@ async fn handle_hybrid_search(
         .and_then(|v| v.as_str())
         .ok_or_else(|| ErrorData::invalid_params("Missing query", None))?;
 
-    // Get collection to determine embedding type and dimension
+    // Get collection to determine its embedding provider
     let collection = store
         .get_collection(collection_name)
         .map_err(to_mcp_error)?;
 
-    let embedding_type = collection.get_embedding_type();
-    let dimension = collection.config().dimension;
-
-    // Create embedding manager for this collection
-    let collection_embedding_manager =
-        create_embedding_manager_for_collection(&embedding_type, dimension).map_err(|e| {
-            ErrorData::internal_error(format!("Failed to create embedding manager: {}", e), None)
-        })?;
-
-    // Generate dense embedding from query text
-    let query_dense = collection_embedding_manager
-        .embed(query)
-        .map_err(to_mcp_error)?;
+    // Generate dense embedding from query text with the collection's provider
+    let query_dense = embed_query_for_collection(&embedding_manager, &collection, query)?;
 
     // Parse optional sparse query
     let query_sparse = if let Some(sparse_obj) = args.get("query_sparse") {
@@ -1760,20 +1760,21 @@ async fn handle_batch_insert_texts(
         let metadata = entry.get("metadata").cloned();
         let public_key = entry.get("public_key").and_then(|k| k.as_str());
 
-        let embedding = match embedding_manager.embed(text) {
-            Ok(e) => e,
-            Err(e) => {
-                failed += 1;
-                results.push(json!({
-                    "index": idx,
-                    "client_id": client_id,
-                    "status": "error",
-                    "error": e.to_string(),
-                    "error_type": e.code(),
-                }));
-                continue;
-            }
-        };
+        let embedding =
+            match embedding_manager.embed_for_named_collection(&store, collection_name, text) {
+                Ok(e) => e,
+                Err(e) => {
+                    failed += 1;
+                    results.push(json!({
+                        "index": idx,
+                        "client_id": client_id,
+                        "status": "error",
+                        "error": e.to_string(),
+                        "error_type": e.code(),
+                    }));
+                    continue;
+                }
+            };
 
         let vector_id = client_id
             .clone()
@@ -1919,7 +1920,8 @@ async fn handle_batch_search(
                 }));
                 continue;
             }
-            match embedding_manager.embed(query) {
+            match embedding_manager.embed_query_for_named_collection(&store, collection_name, query)
+            {
                 Ok(e) => e,
                 Err(e) => {
                     failed += 1;

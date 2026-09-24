@@ -561,7 +561,7 @@ impl BatchProcessor {
             vec
         } else if let Some(text) = query.query_text {
             let manager = embedding_manager.lock();
-            manager.embed(&text)?
+            manager.embed_query_for_named_collection(vector_store, collection, &text)?
         } else {
             return Err(VectorizerError::Other(
                 "No query vector or text provided".to_string(),

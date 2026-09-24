@@ -32,7 +32,7 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Scalar Quantization** + cache hit ratio metrics.
 
 ### High Availability & Scaling
-- **Raft consensus** via openraft (pinned `=0.10.0-alpha.30`) — automatic leader election in 1-5s, write-redirect via HTTP 307, WAL-backed durable replication, DNS discovery for Kubernetes headless services.
+- **Raft consensus** via openraft (pinned `=0.10.0-alpha.30`) — automatic leader election in 1-5s, write-redirect via HTTP 307, WAL-backed durable replication, DNS discovery for Kubernetes headless services. See the [HA on Kubernetes runbook](docs/deployment/HA_KUBERNETES_RUNBOOK.md).
 - **Master-Replica** — TCP streaming replication with full/partial sync, exponential reconnect backoff (5s→60s).
 - **Distributed sharding** — horizontal scaling with automatic routing; distributed hybrid search via `RemoteHybridSearch` RPC with dense-only fallback for mixed-version clusters.
 - **HiveHub cluster mode** — multi-tenant with quotas, usage tracking, tenant isolation, mandatory MMap storage, 1GB cache cap.
@@ -46,6 +46,7 @@ High-performance vector database and search engine in Rust for semantic search, 
 
 ### Embeddings & Docs
 - **Built-in providers** — TF-IDF, BM25, FastEmbed, BERT, MiniLM, custom models. **`embedding_provider` (on `POST /collections`) and `model` (on `POST /embed`) are honoured contracts as of v3.4.0** ([issue #306](https://github.com/hivellm/vectorizer/issues/306)) — unknown providers / models return `400 unsupported_provider` / `400 unsupported_model` with the available list; no more silent BM25-512 coercion. Discover registered providers via `GET /stats.providers` or the `list_providers` MCP tool. See [`docs/users/guides/EMBEDDINGS.md`](docs/users/guides/EMBEDDINGS.md#contract-post-collections-and-post-embed).
+- **Multilingual & synonym search** — with the `-fastembed` image, `embedding.additional_models: ["fastembed:multilingual-e5-small"]` registers the E5 model next to BM25, and collections created with `"embedding_provider": "fastembed:multilingual-e5-small"` (384 dims) match by meaning across languages ("automóvel" finds "carro"); E5 `query:` / `passage:` prefixes are applied automatically. See [`docs/users/guides/EMBEDDINGS.md`](docs/users/guides/EMBEDDINGS.md#per-collection-models).
 - **Document conversion** — PDF, DOCX, XLSX, PPTX, HTML, XML, images (14 formats).
 - **Qdrant API compatibility** — Snapshots, Sharding, Cluster Management, Query (with prefetch), Search Groups, Matrix, Named Vectors (partial), PQ/Binary quantization config.
 - **Summarization** — extractive, keyword, sentence, abstractive (OpenAI GPT).
@@ -67,41 +68,31 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.7.2
+## 🎉 Latest Release: v3.8.0
 
-Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown and upgrade notes.
 
-**Fixed — HA replication no longer stops after a pod regains Raft leadership**
-- A node that lost and won back leadership without restarting logged `MasterNode failed: Address in use (os error 98)`: the previous term's master was dropped but never shut down, so followers stayed attached to an orphaned listener and writes on the leader never reached them. `MasterNode`/`ReplicaNode` now expose `shutdown()`, and `HaManager` calls it on every role change — including a leader change while already a follower, which used to leak a reconnect loop per change.
+**Added — multilingual semantic search, including synonyms**
+- The fastembed provider now serves `multilingual-e5-small` / `-base` / `-large` and `paraphrase-multilingual-MiniLM-L12-v2`, with the E5 `passage:` / `query:` prefixes applied on insert and search. In Portuguese, "automóvel" finds "carro". See [Embeddings](docs/users/guides/EMBEDDINGS.md).
 
-**Security — `cargo audit` and `pnpm audit` pass again**
-- `rustls` `0.23.45` (RUSTSEC-2026-0285, TLS 1.3 handshake messages accepted across encryption-level boundaries); in the GUI, `fast-uri` `4.2.1` (four high advisories) and `@xmldom/xmldom` `0.9.12` (0.9.10 deprecated upstream for critical issues).
+**Added — collections embed with their own provider**
+- Text insert and search use the collection's `embedding_provider` instead of always the server default. `embedding.additional_models: ["fastembed:multilingual-e5-small"]` hosts E5 collections next to existing BM25 ones on one server.
+
+**Fixed — HA followers converge on the leader and survive restarts**
+- Every write path replicates (deletes, updates, collection drops and renames, uploads, MCP/GraphQL/gRPC — not just inserts). A full sync waits for the startup load and leaves the follower an exact copy of the leader. Raft state is persisted, so a pod restarted on its own rejoins as a follower. **Upgrading an HA cluster from ≤ 3.7.2: restart all pods together once** — see the [HA runbook](docs/deployment/HA_KUBERNETES_RUNBOOK.md).
+
+**Changed — images on the GitHub Container Registry**
+- `ghcr.io/hivellm/vectorizer:3.8.0` and `:3.8.0-fastembed`, public, no pull secret. Docker Hub `hivehub/vectorizer` is an optional mirror.
 
 ---
 
-### v3.7.1 / v3.7.0 highlights (previous release)
+### v3.7.x highlights (previous releases)
 
-Both shipped 2026-08-30.
+- **3.7.2** — HA replication no longer stops after a pod regains Raft leadership (`Address in use` on `:7001`); `rustls` 0.23.45 (RUSTSEC-2026-0285).
+- **3.7.1** — the default image is `FROM scratch`: 30 base-OS CVEs to zero, and no shell inside (`docker exec … sh` no longer works); the healthcheck probes `/ready`.
+- **3.7.0** — `embedding_provider: "none"` for pre-computed vectors of any width; **BREAKING**: `embedding_provider` is nullable on collection responses.
 
-**Security — the published container image goes from 30 CVEs to zero**
-- All 30 were in base-OS packages (openssl, glibc, tar), never in project code — `cargo audit` was already clean. The default runtime is now `FROM scratch`: 0 packages, 0 vulnerabilities. Required dropping `umicp-core`'s `http2` feature, which had been pulling reqwest/native-tls/OpenSSL into the build so the binary genuinely linked `libssl.so.3`; it now links statically.
-
-**Changed — `hivehub/vectorizer:latest` / `:3.7.1` no longer contain a shell**
-- The `scratch`-based default image holds exactly one executable, the server binary — `docker exec <container> sh` won't work. Use `docker logs`, the REST API, or the `-fastembed` variant (still Debian-based, since its ONNX Runtime links `libstdc++` dynamically and can't run in `scratch`) when a shell is needed.
-
-**Fixed — the image healthcheck reported a warming server as healthy**
-- `/health` answered 200 while the collection catalog was still loading, so an orchestrator could route traffic to an instance still filling its store. It now probes `/ready` via a new `--healthcheck` flag on the server binary (`scratch` has no shell or `wget`).
-
-**Added (v3.7.0) — collections can hold pre-computed vectors of any width**
-- `embedding_provider: "none"` opts a collection out of the embedding-provider registry, so `POST /insert_vectors` callers using 384/768/1536-dim embeddings aren't forced through the server's BM25-512 default. Text operations on such a collection now fail loudly (`collection_has_no_embedding_provider`, 400) instead of silently degrading.
-
-**Changed (v3.7.0) — BREAKING: `embedding_provider` is nullable on collection responses**
-- `GET /collections` and `GET /collections/{name}` now report the provider the collection actually carries — `null` for a raw-vector collection — instead of always echoing the server default. **Consumers that assumed a string here must handle `null`.**
-
-**Fixed (v3.7.0) — every dependency vulnerability: nine to zero**
-- `cargo audit` now exits 0. The ones that mattered were denial-of-service on parsed input (`lopdf`, `quick-xml`) on the file-upload path, plus an HTTP/2 DoS in `h2`.
-
-Server-side at **v3.7.2**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.7.2.
+Server-side at **v3.8.0**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.8.0.
 
 ---
 
@@ -137,8 +128,10 @@ docker run -d \
   -e VECTORIZER_ADMIN_PASSWORD=your-secure-password \
   -e VECTORIZER_JWT_SECRET=$(openssl rand -hex 64) \
   --restart unless-stopped \
-  hivehub/vectorizer:latest
+  ghcr.io/hivellm/vectorizer:3.8.0
 ```
+
+`ghcr.io/hivellm/vectorizer:3.8.0` is the default image (`FROM scratch`, BM25 only, no shell); `ghcr.io/hivellm/vectorizer:3.8.0-fastembed` adds ONNX Runtime for dense and multilingual models. Both are public — no registry login needed.
 
 Starting in `hivehub/vectorizer:3.4.0` the image defaults
 `VECTORIZER_DATA_DIR=/data`, so a **single `--volume vec-data:/data`
@@ -160,7 +153,11 @@ docker compose --profile hub up -d              # multi-tenant
 
 Profiles are mutually exclusive on host port `15002`.
 
-Images: [Docker Hub](https://hub.docker.com/r/hivehub/vectorizer) · [GHCR](https://github.com/hivellm/vectorizer/pkgs/container/vectorizer)
+Images: [GHCR](https://github.com/hivellm/vectorizer/pkgs/container/vectorizer) (primary) · [Docker Hub](https://hub.docker.com/r/hivehub/vectorizer) (mirror)
+
+### High Availability on Kubernetes
+
+A 3-pod Raft cluster (automatic leader election, leader-to-follower replication, safe rolling updates) runs from the manifests in [`deploy/k8s/`](deploy/k8s/) with `ghcr.io/hivellm/vectorizer:3.8.0`. Writes go to the leader — followers answer them with HTTP 307 and the leader's address; reads are served by any pod. Follow the [HA on Kubernetes runbook](docs/deployment/HA_KUBERNETES_RUNBOOK.md) for install, validation, failover and upgrades (clusters on ≤ 3.7.2 need one all-pods restart when moving to 3.8.0).
 
 ### Build from Source
 
@@ -368,7 +365,7 @@ Cursor / Claude Desktop config:
 
 ## 📦 Client SDKs
 
-Server-side at **v3.7.2**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.7.2**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
+Server-side at **v3.8.0**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.8.0**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
 
 | SDK | Install |
 |---|---|

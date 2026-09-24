@@ -244,6 +244,29 @@ cluster:
     strict_validation: true
 
 # =============================================================================
+# EMBEDDING PROVIDERS
+# =============================================================================
+# Model ids and dimensions: docs/specs/EMBEDDING.md (FastEmbed Model Matrix).
+embedding:
+  # Server default provider: "bm25" (512 dims) or "fastembed:<model-id>",
+  # e.g. "fastembed:all-MiniLM-L6-v2" (384). Collections created without
+  # `embedding_provider` use it. `bm25` is always registered as well.
+  model: "bm25"
+  # Extra fastembed models registered next to the default (3.8+). A collection
+  # opts in with `embedding_provider` on POST /collections, and its text
+  # inserts / searches then embed with that model, e.g.
+  #   {"name": "docs_pt", "dimension": 384,
+  #    "embedding_provider": "fastembed:multilingual-e5-small"}
+  # Each model is loaded once at boot (downloaded to <data_dir>/fastembed on
+  # first use). Multilingual ids: multilingual-e5-small (384),
+  # multilingual-e5-base (768), multilingual-e5-large (1024),
+  # paraphrase-multilingual-MiniLM-L12-v2 (384). The multilingual-e5-* models
+  # get their "passage: " / "query: " input prefixes automatically.
+  additional_models: []
+  # additional_models:
+  #   - "fastembed:multilingual-e5-small"
+
+# =============================================================================
 # DEFAULT COLLECTION CONFIGURATION
 # =============================================================================
 collections:
@@ -258,7 +281,8 @@ collections:
       sq:
         bits: 8 # SQ bits per dimension
 
-    # Embedding settings
+    # Embedding settings (not the server's embedding provider — that is the
+    # top-level `embedding:` section above)
     embedding:
       model: "bm25" # Default embedding: bm25
       bow:

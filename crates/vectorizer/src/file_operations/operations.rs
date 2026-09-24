@@ -967,10 +967,12 @@ impl FileOperations {
             }
         })?;
 
-        // Generate embedding for query
-        let query_embedding = embedding_manager.embed(query).map_err(|e| {
-            FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
-        })?;
+        // Generate embedding for query with the collection's own provider
+        let query_embedding = embedding_manager
+            .embed_query_for_collection(coll.config(), query)
+            .map_err(|e| {
+                FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
+            })?;
 
         // Search in collection
         let search_results = coll
@@ -1089,10 +1091,12 @@ impl FileOperations {
             }
         })?;
 
-        // Generate embedding
-        let query_embedding = embedding_manager.embed(&query_text).map_err(|e| {
-            FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
-        })?;
+        // Generate embedding with the collection's own provider
+        let query_embedding = embedding_manager
+            .embed_query_for_collection(coll.config(), &query_text)
+            .map_err(|e| {
+                FileOperationError::VectorStoreError(format!("Failed to embed query: {}", e))
+            })?;
 
         // Search for similar chunks
         let search_results = coll

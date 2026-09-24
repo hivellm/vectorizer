@@ -2,6 +2,13 @@
 
 This guide explains how to configure your Docker Hub repository with README and icon.
 
+> **Primary registry:** since 3.8.0, release images are published to the
+> GitHub Container Registry — `ghcr.io/hivellm/vectorizer:<version>` and
+> `:<version>-fastembed`, public, no pull secret — by the manual *Publish
+> Docker images* workflow. Docker Hub (`hivehub/vectorizer`) is an optional
+> mirror of the same tags (the workflow's `mirror_to_dockerhub` input); this
+> guide only matters if you maintain that mirror.
+
 ## 📝 Adding README to Docker Hub
 
 ### Method 1: Manual Upload (Recommended)

@@ -15,6 +15,7 @@
 pub mod config;
 pub mod durable_log;
 pub mod master;
+pub mod publisher;
 pub mod replica;
 pub mod replication_log;
 pub mod state;
@@ -30,6 +31,7 @@ mod stats_tests;
 pub use config::ReplicationConfig;
 pub use durable_log::{DurableReplicationLog, WalSnapshot};
 pub use master::MasterNode;
+pub use publisher::ReplicationPublisher;
 pub use replica::ReplicaNode;
 pub use replication_log::ReplicationLog;
 pub use state::{DEFAULT_MAX_FAILOVER_LAG_SEGMENTS, FailoverReport, ResyncReport};

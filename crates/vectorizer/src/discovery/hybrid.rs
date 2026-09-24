@@ -107,10 +107,10 @@ impl HybridSearcher {
         limit: usize,
         alpha: f32,
     ) -> DiscoveryResult<Vec<ScoredChunk>> {
-        // Embed the query
+        // Embed the query with the collection's own provider
         let query_vector = self
             .embedding_manager
-            .embed(query)
+            .embed_query_for_named_collection(&self.store, collection_name, query)
             .map_err(|e| DiscoveryError::SearchError(format!("Embedding error: {}", e)))?;
 
         self.search(query, query_vector, collection_name, limit, alpha)
