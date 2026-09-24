@@ -145,8 +145,9 @@ pub struct StateMachineData {
     pub nodes: BTreeMap<u64, (String, u16)>,
 }
 
-/// Snapshot stored in memory.
-#[derive(Debug)]
+/// Latest state-machine snapshot. Persisted alongside the log so a restart
+/// does not lose state whose log entries were already purged.
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ClusterSnapshot {
     pub meta: SnapshotMetaOf<TypeConfig>,
     pub data: Vec<u8>,
@@ -157,6 +158,8 @@ pub struct ClusterStateMachine {
     sm: RwLock<StateMachineData>,
     snapshot_idx: parking_lot::Mutex<u64>,
     current_snapshot: RwLock<Option<ClusterSnapshot>>,
+    /// Where the latest snapshot is persisted; `None` keeps it in memory only.
+    snapshot_path: Option<std::path::PathBuf>,
 }
 
 impl ClusterStateMachine {
@@ -165,7 +168,45 @@ impl ClusterStateMachine {
             sm: RwLock::new(StateMachineData::default()),
             snapshot_idx: parking_lot::Mutex::new(0),
             current_snapshot: RwLock::new(None),
+            snapshot_path: None,
         }
+    }
+
+    /// Open a state machine whose snapshots are persisted under `dir`,
+    /// restoring the last one if present. Entries logged after it are
+    /// re-applied by openraft from the persisted log.
+    pub fn open(dir: &std::path::Path) -> io::Result<Self> {
+        std::fs::create_dir_all(dir)?;
+        let snapshot_path = dir.join(RAFT_SNAPSHOT_FILE);
+        let snapshot = match std::fs::read(&snapshot_path) {
+            Ok(bytes) => Some(
+                serde_json::from_slice::<ClusterSnapshot>(&bytes)
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?,
+            ),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => None,
+            Err(e) => return Err(e),
+        };
+        let sm = match &snapshot {
+            Some(snap) => serde_json::from_slice::<StateMachineData>(&snap.data)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?,
+            None => StateMachineData::default(),
+        };
+        Ok(Self {
+            sm: RwLock::new(sm),
+            snapshot_idx: parking_lot::Mutex::new(0),
+            current_snapshot: RwLock::new(snapshot),
+            snapshot_path: Some(snapshot_path),
+        })
+    }
+
+    /// Write `snapshot` to disk. No-op for an in-memory state machine.
+    fn persist_snapshot(&self, snapshot: &ClusterSnapshot) -> io::Result<()> {
+        let Some(path) = &self.snapshot_path else {
+            return Ok(());
+        };
+        let bytes = serde_json::to_vec(snapshot)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
+        write_atomic(path, &bytes)
     }
 
     /// Read current state (for external queries).
@@ -212,6 +253,7 @@ impl RaftSnapshotBuilder<TypeConfig> for Arc<ClusterStateMachine> {
             data: data.clone(),
         };
 
+        self.persist_snapshot(&snapshot)?;
         *self.current_snapshot.write().await = Some(snapshot);
 
         info!(snapshot_size = data.len(), "Raft snapshot built");
@@ -350,12 +392,13 @@ impl RaftStateMachine<TypeConfig> for Arc<ClusterStateMachine> {
         let new_sm: StateMachineData = serde_json::from_slice(snapshot.get_ref())
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
 
-        *self.sm.write().await = new_sm;
-
         let snap = ClusterSnapshot {
             meta: meta.clone(),
             data: snapshot.into_inner(),
         };
+        self.persist_snapshot(&snap)?;
+
+        *self.sm.write().await = new_sm;
         *self.current_snapshot.write().await = Some(snap);
 
         info!("Raft snapshot installed");
@@ -376,14 +419,64 @@ impl RaftStateMachine<TypeConfig> for Arc<ClusterStateMachine> {
 }
 
 // ---------------------------------------------------------------------------
-// Log storage (in-memory, based on openraft-memstore)
+// Log storage (based on openraft-memstore, optionally persisted to disk)
 // ---------------------------------------------------------------------------
 
-/// In-memory Raft log storage.
+type ClusterVote = Vote<leader_id_mode::LeaderId<u64, u64>>;
+
+/// How long a node resuming persisted Raft state holds its own elections —
+/// see [`RaftManager::open_with_rejoin_grace`]. Covers the few seconds a
+/// recreated pod's DNS record takes to resolve for its peers.
+pub const REJOIN_ELECTION_GRACE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// File holding the persisted [`ClusterLogStore`] inside the Raft directory.
+const RAFT_LOG_FILE: &str = "raft-log.json";
+/// File holding the persisted state-machine snapshot inside the Raft directory.
+const RAFT_SNAPSHOT_FILE: &str = "raft-snapshot.json";
+
+/// On-disk image of a [`ClusterLogStore`].
+#[derive(Serialize, Deserialize, Default)]
+struct PersistedLog {
+    vote: Option<ClusterVote>,
+    last_purged_log_id: Option<LogIdOf<TypeConfig>>,
+    log: BTreeMap<u64, String>,
+}
+
+/// Replace `path` with `bytes` atomically: write a sibling temp file, fsync
+/// it, then rename over the target. The Raft metadata log is a handful of
+/// small entries, so this runs synchronously on the storage task.
+fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> io::Result<()> {
+    use std::io::Write;
+
+    let tmp = path.with_extension("json.tmp");
+    {
+        let mut file = std::fs::File::create(&tmp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+    }
+    std::fs::rename(&tmp, path)?;
+    if let Some(dir) = path.parent() {
+        // Persist the rename itself; not every platform can fsync a directory.
+        if let Ok(dir) = std::fs::File::open(dir) {
+            let _ = dir.sync_all();
+        }
+    }
+    Ok(())
+}
+
+/// Raft log storage: vote, log entries and purge marker.
+///
+/// Raft requires these to survive a restart. When they are lost, a follower
+/// restarted on its own comes back with an empty log and no membership: it
+/// stays a Learner forever, because the leader believes it already holds the
+/// log and only heartbeats it. [`ClusterLogStore::open`] persists them; the
+/// in-memory [`ClusterLogStore::new`] is for tests and single-process use.
 pub struct ClusterLogStore {
     last_purged_log_id: RwLock<Option<LogIdOf<TypeConfig>>>,
     log: RwLock<BTreeMap<u64, String>>,
-    vote: RwLock<Option<Vote<leader_id_mode::LeaderId<u64, u64>>>>,
+    vote: RwLock<Option<ClusterVote>>,
+    /// Where the log is persisted; `None` keeps it in memory only.
+    path: Option<std::path::PathBuf>,
 }
 
 impl ClusterLogStore {
@@ -392,7 +485,55 @@ impl ClusterLogStore {
             last_purged_log_id: RwLock::new(None),
             log: RwLock::new(BTreeMap::new()),
             vote: RwLock::new(None),
+            path: None,
         }
+    }
+
+    /// Open (or create) a log store persisted under `dir`.
+    pub fn open(dir: &std::path::Path) -> io::Result<Self> {
+        std::fs::create_dir_all(dir)?;
+        let path = dir.join(RAFT_LOG_FILE);
+        let persisted = match std::fs::read(&path) {
+            Ok(bytes) => serde_json::from_slice::<PersistedLog>(&bytes)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => PersistedLog::default(),
+            Err(e) => return Err(e),
+        };
+        info!(
+            path = %path.display(),
+            entries = persisted.log.len(),
+            has_vote = persisted.vote.is_some(),
+            "Raft log store opened"
+        );
+        Ok(Self {
+            last_purged_log_id: RwLock::new(persisted.last_purged_log_id),
+            log: RwLock::new(persisted.log),
+            vote: RwLock::new(persisted.vote),
+            path: Some(path),
+        })
+    }
+
+    /// Whether this store holds Raft state from an earlier run.
+    async fn holds_state(&self) -> bool {
+        self.vote.read().await.is_some() || !self.log.read().await.is_empty()
+    }
+
+    /// Write the current state to disk. No-op for an in-memory store.
+    ///
+    /// openraft drives storage from a single task, so mutations never race
+    /// with each other; callers release their write lock before persisting.
+    async fn persist(&self) -> io::Result<()> {
+        let Some(path) = &self.path else {
+            return Ok(());
+        };
+        let image = PersistedLog {
+            vote: *self.vote.read().await,
+            last_purged_log_id: *self.last_purged_log_id.read().await,
+            log: self.log.read().await.clone(),
+        };
+        let bytes = serde_json::to_vec(&image)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
+        write_atomic(path, &bytes)
     }
 }
 
@@ -411,9 +552,7 @@ impl RaftLogReader<TypeConfig> for Arc<ClusterLogStore> {
         Ok(entries)
     }
 
-    async fn read_vote(
-        &mut self,
-    ) -> Result<Option<Vote<leader_id_mode::LeaderId<u64, u64>>>, io::Error> {
+    async fn read_vote(&mut self) -> Result<Option<ClusterVote>, io::Error> {
         Ok(*self.vote.read().await)
     }
 }
@@ -447,7 +586,7 @@ impl RaftLogStorage<TypeConfig> for Arc<ClusterLogStore> {
         vote: &Vote<leader_id_mode::LeaderId<u64, u64>>,
     ) -> Result<(), io::Error> {
         *self.vote.write().await = Some(*vote);
-        Ok(())
+        self.persist().await
     }
 
     async fn append<I>(
@@ -458,14 +597,22 @@ impl RaftLogStorage<TypeConfig> for Arc<ClusterLogStore> {
     where
         I: IntoIterator<Item = EntryOf<TypeConfig>> + OptionalSend,
     {
-        let mut log = self.log.write().await;
-        for entry in entries {
-            let s = serde_json::to_string(&entry)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
-            log.insert(entry.index(), s);
+        {
+            let mut log = self.log.write().await;
+            for entry in entries {
+                let s = serde_json::to_string(&entry)
+                    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
+                log.insert(entry.index(), s);
+            }
         }
-        callback.io_completed(Ok(()));
-        Ok(())
+        // Entries count as flushed only once they are on disk.
+        let result = self.persist().await;
+        let flushed = result
+            .as_ref()
+            .map(|_| ())
+            .map_err(|e| io::Error::new(e.kind(), e.to_string()));
+        callback.io_completed(flushed);
+        result
     }
 
     async fn truncate_after(
@@ -476,22 +623,26 @@ impl RaftLogStorage<TypeConfig> for Arc<ClusterLogStore> {
             Some(id) => id.index() + 1,
             None => 0,
         };
-        let mut log = self.log.write().await;
-        let keys: Vec<u64> = log.range(start..).map(|(k, _)| *k).collect();
-        for k in keys {
-            log.remove(&k);
+        {
+            let mut log = self.log.write().await;
+            let keys: Vec<u64> = log.range(start..).map(|(k, _)| *k).collect();
+            for k in keys {
+                log.remove(&k);
+            }
         }
-        Ok(())
+        self.persist().await
     }
 
     async fn purge(&mut self, log_id: LogIdOf<TypeConfig>) -> Result<(), io::Error> {
         *self.last_purged_log_id.write().await = Some(log_id);
-        let mut log = self.log.write().await;
-        let keys: Vec<u64> = log.range(..=log_id.index()).map(|(k, _)| *k).collect();
-        for k in keys {
-            log.remove(&k);
+        {
+            let mut log = self.log.write().await;
+            let keys: Vec<u64> = log.range(..=log_id.index()).map(|(k, _)| *k).collect();
+            for k in keys {
+                log.remove(&k);
+            }
         }
-        Ok(())
+        self.persist().await
     }
 }
 
@@ -742,8 +893,72 @@ pub struct RaftManager {
 }
 
 impl RaftManager {
-    /// Create a new Raft manager. Does NOT start the node — call `initialize()` for bootstrap.
+    /// Create a Raft manager whose log, vote and snapshot live in memory only.
+    /// Does NOT start the node — call `initialize()` for bootstrap.
+    ///
+    /// A restart loses all Raft state; use [`RaftManager::open`] for a node
+    /// that has to rejoin its cluster after restarting.
     pub async fn new(node_id: u64) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        Self::with_storage(
+            node_id,
+            Arc::new(ClusterLogStore::new()),
+            Arc::new(ClusterStateMachine::new()),
+        )
+        .await
+    }
+
+    /// Create a Raft manager that persists its log, vote and snapshot under
+    /// `dir` and resumes from them after a restart. A node reopened this way
+    /// keeps its membership, so it rejoins the cluster as a follower instead
+    /// of staying a learner; `initialize_cluster` becomes a no-op.
+    pub async fn open(
+        node_id: u64,
+        dir: &std::path::Path,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        Self::open_with_rejoin_grace(node_id, dir, REJOIN_ELECTION_GRACE).await
+    }
+
+    /// [`RaftManager::open`] with an explicit rejoin grace period.
+    ///
+    /// A node that resumes from persisted state comes back as a voter. In
+    /// Kubernetes its peers cannot resolve the recreated pod's DNS name for
+    /// a few seconds, so the leader's heartbeats do not reach it; campaigning
+    /// meanwhile makes a healthy leader step down. For `grace` after resuming,
+    /// this node does not start elections — it still votes and follows.
+    pub async fn open_with_rejoin_grace(
+        node_id: u64,
+        dir: &std::path::Path,
+        grace: std::time::Duration,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let log_store = Arc::new(ClusterLogStore::open(dir)?);
+        let resumed = log_store.holds_state().await;
+        let manager = Self::with_storage(
+            node_id,
+            log_store,
+            Arc::new(ClusterStateMachine::open(dir)?),
+        )
+        .await?;
+        if resumed && !grace.is_zero() {
+            manager.raft.runtime_config().elect(false);
+            info!(
+                node_id,
+                grace_secs = grace.as_secs(),
+                "Resumed persisted Raft state; holding elections while peers re-resolve this node"
+            );
+            let raft = manager.raft.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(grace).await;
+                raft.runtime_config().elect(true);
+            });
+        }
+        Ok(manager)
+    }
+
+    async fn with_storage(
+        node_id: u64,
+        log_store: Arc<ClusterLogStore>,
+        state_machine: Arc<ClusterStateMachine>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let config = Arc::new(
             Config {
                 heartbeat_interval: 500,
@@ -754,8 +969,6 @@ impl RaftManager {
             .validate()?,
         );
 
-        let log_store = Arc::new(ClusterLogStore::new());
-        let state_machine = Arc::new(ClusterStateMachine::new());
         let network = ClusterRaftNetwork::new();
 
         let raft = openraft::Raft::new(
@@ -810,19 +1023,22 @@ impl RaftManager {
                 );
                 Ok(())
             }
-            Err(e) => {
-                // "NotAllowed" means already initialized — safe to ignore
-                let err_str = format!("{}", e);
-                if err_str.contains("NotAllowed") || err_str.contains("already initialized") {
-                    debug!(
-                        node_id = self.node_id,
-                        "Raft already initialized, skipping bootstrap"
-                    );
-                    Ok(())
-                } else {
-                    Err(e.into())
-                }
+            // NotAllowed means this node already holds Raft state (it was
+            // reopened from disk) — the cluster exists, nothing to bootstrap.
+            // Matched on the type: the error's Display text does not name it.
+            Err(e)
+                if matches!(
+                    e.api_error(),
+                    Some(openraft::error::InitializeError::NotAllowed(_))
+                ) =>
+            {
+                info!(
+                    node_id = self.node_id,
+                    "Raft already initialized, skipping bootstrap"
+                );
+                Ok(())
             }
+            Err(e) => Err(e.into()),
         }
     }
 
@@ -887,6 +1103,73 @@ mod tests {
         assert_eq!(recovered.leader_id, Some(1));
         assert_eq!(recovered.collections.len(), 1);
         assert_eq!(recovered.nodes.len(), 1);
+    }
+
+    async fn wait_for_leader(mgr: &RaftManager) -> bool {
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+        while tokio::time::Instant::now() < deadline {
+            if mgr.is_leader().await {
+                return true;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        false
+    }
+
+    /// A node reopened from its Raft directory must come back with its
+    /// membership and applied commands. With the in-memory store, a restarted
+    /// follower lost its membership and stayed a learner forever.
+    #[tokio::test]
+    async fn test_persistent_raft_state_survives_restart() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let first = RaftManager::open(7, dir.path()).await.unwrap();
+        first.initialize_single().await.unwrap();
+        assert!(
+            wait_for_leader(&first).await,
+            "first run never elected itself"
+        );
+        first
+            .propose(ClusterCommand::AddNode {
+                node_id: 7,
+                address: "node-7".into(),
+                grpc_port: 15003,
+            })
+            .await
+            .unwrap();
+        first.raft().shutdown().await.unwrap();
+        drop(first);
+
+        let reopened =
+            RaftManager::open_with_rejoin_grace(7, dir.path(), std::time::Duration::ZERO)
+                .await
+                .unwrap();
+        // Bootstrapping again must be refused as already-initialized, not
+        // start a second cluster.
+        reopened
+            .initialize_cluster(BTreeMap::from([(7, RaftNodeInfo::default())]))
+            .await
+            .unwrap();
+        assert!(
+            wait_for_leader(&reopened).await,
+            "reopened node lost its membership"
+        );
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !reopened.state().await.nodes.contains_key(&7) {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "command committed before the restart was not re-applied"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        reopened.raft().shutdown().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_in_memory_log_store_does_not_touch_disk() {
+        let store = ClusterLogStore::new();
+        assert!(store.path.is_none());
+        store.persist().await.unwrap();
     }
 
     #[tokio::test]

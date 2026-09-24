@@ -932,6 +932,9 @@ impl VectorizerServer {
         info!("🔄 Initializing AutoSaveManager...");
         let auto_save_manager =
             Arc::new(vectorizer::db::AutoSaveManager::new(store_arc.clone(), 1));
+        // Every committed change marks the store dirty — including the ones a
+        // replica applies from its master, which no handler sees.
+        store_arc.add_mutation_listener(auto_save_manager.clone());
 
         // Clean up old snapshots on server startup
         info!("🧹 Cleaning up old snapshots on server startup...");
@@ -1098,7 +1101,13 @@ impl VectorizerServer {
                             store_arc.clone(),
                         ) {
                             Ok(master) => {
-                                let master = Arc::new(master);
+                                let master =
+                                    Arc::new(master.with_load_progress(collection_load.clone()));
+                                store_arc.add_mutation_listener(Arc::new(
+                                    vectorizer::replication::ReplicationPublisher::new(
+                                        master.clone(),
+                                    ),
+                                ));
                                 let master_clone = master.clone();
                                 tokio::spawn(async move {
                                     if let Err(e) = master_clone.start().await {
@@ -1116,10 +1125,13 @@ impl VectorizerServer {
                     }
                     vectorizer::replication::NodeRole::Replica => {
                         info!("🔄 Initializing replication as REPLICA...");
-                        let replica = Arc::new(vectorizer::replication::ReplicaNode::new(
-                            repl_config,
-                            store_arc.clone(),
-                        ));
+                        let replica = Arc::new(
+                            vectorizer::replication::ReplicaNode::new(
+                                repl_config,
+                                store_arc.clone(),
+                            )
+                            .with_load_progress(collection_load.clone()),
+                        );
                         let replica_clone = replica.clone();
                         tokio::spawn(async move {
                             if let Err(e) = replica_clone.start().await {
@@ -1185,7 +1197,25 @@ impl VectorizerServer {
                     })
                     .unwrap_or(1);
 
-                match vectorizer::cluster::raft_node::RaftManager::new(node_id).await {
+                // Raft state must survive restarts: a follower restarted on its
+                // own with an empty log never rejoins its cluster.
+                let raft_dir = vectorizer_core::paths::data_dir().join("raft");
+                let raft_manager = match vectorizer::cluster::raft_node::RaftManager::open(
+                    node_id, &raft_dir,
+                )
+                .await
+                {
+                    Ok(mgr) => Ok(mgr),
+                    Err(e) => {
+                        error!(
+                            "Cannot open persisted Raft state in {}: {} — using in-memory Raft state; this node will not rejoin its cluster after a restart",
+                            raft_dir.display(),
+                            e
+                        );
+                        vectorizer::cluster::raft_node::RaftManager::new(node_id).await
+                    }
+                };
+                match raft_manager {
                     Ok(mgr) => {
                         let mgr = Arc::new(mgr);
 
@@ -1432,11 +1462,14 @@ impl VectorizerServer {
                             .unwrap_or_default();
                         let repl_config = repl_yaml.to_replication_config();
 
-                        let ha = Arc::new(vectorizer::cluster::HaManager::new(
-                            node_id,
-                            store_arc.clone(),
-                            repl_config,
-                        ));
+                        let ha = Arc::new(
+                            vectorizer::cluster::HaManager::new(
+                                node_id,
+                                store_arc.clone(),
+                                repl_config,
+                            )
+                            .with_load_progress(collection_load.clone()),
+                        );
 
                         info!(
                             "✅ Raft node ready (node_id={}, members={})",
@@ -1473,11 +1506,14 @@ impl VectorizerServer {
                 if repl_yaml.role == "replica" {
                     let repl_config = repl_yaml.to_replication_config();
                     // Use node_id=999 so set_leader with id=0 marks us as Follower
-                    let ha = Arc::new(vectorizer::cluster::HaManager::new(
-                        999,
-                        store_arc.clone(),
-                        repl_config.clone(),
-                    ));
+                    let ha = Arc::new(
+                        vectorizer::cluster::HaManager::new(
+                            999,
+                            store_arc.clone(),
+                            repl_config.clone(),
+                        )
+                        .with_load_progress(collection_load.clone()),
+                    );
                     // Set leader as remote node (id=0) → this node becomes Follower
                     let leader_url = repl_config
                         .master_address

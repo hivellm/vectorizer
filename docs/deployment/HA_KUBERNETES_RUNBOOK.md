@@ -597,6 +597,25 @@ kubectl delete pvc -n "$NS" -l app=vectorizer
 kubectl apply -f statefulset.yaml      # redeploy
 ```
 
+### Raft state on disk (3.8.0+)
+
+From 3.8.0 each pod keeps its Raft log, vote and snapshot in
+`<data_dir>/raft/` (`/data/data/raft/` with the StatefulSet above), so it
+lives on the PVC. That is what lets a pod restarted on its own rejoin as a
+follower; before 3.8.0 the state was in memory, and such a pod stayed a
+Raft learner — out of replication — until every pod restarted together.
+
+To reset only the consensus state (a poisoned log, or a cluster whose
+membership you changed) without touching collection data, stop all pods,
+delete `raft/` from each PVC, and start them together; the bootstrap pod
+re-initialises the cluster:
+
+```bash
+kubectl scale sts vectorizer -n "$NS" --replicas=0
+# For each PVC: mount it in a throwaway pod and remove <data_dir>/raft/.
+kubectl scale sts vectorizer -n "$NS" --replicas=3
+```
+
 A poisoned-PVC reset is also the right call when migrating *to* HA mode
 from a single-node v3 deployment: the standalone-mode log has no
 membership entry, so adding cluster mode on top of an existing data
@@ -620,7 +639,10 @@ can't make sense of.
 | Followers log `Leader address not found after retries` | `resolve_leader_addr` falling back to the empty state-machine map (release ≤ 3.0.8) | Upgrade to ≥ 3.0.9. |
 | `/health` returns 503 / pod stays NotReady | `cluster.servers` references peers that don't resolve via DNS | Confirm the headless service has `publishNotReadyAddresses: true` and that all pods exist. |
 | `vector_count` lags between pods after writes | Heartbeat interval too low for the cluster size, or replication TCP throttled | Bump `replication.heartbeat_interval_secs` to 10 and check pod CPU limits. |
-| Different `vector_count` on the three pods days after a write | Replica fell behind and the master's WAL window already rolled past it | Restart the lagging follower; a fresh full sync brings it back in line. |
+| Different `vector_count` on the three pods days after a write | Replica fell behind and the master's WAL window already rolled past it | Restart the lagging follower; a fresh full sync brings it back in line. On ≤ 3.7.2 restart all pods together instead — see the next row. |
+| A pod restarted on its own logs `current_state=Learner` forever and stops receiving writes | Raft log and vote were kept in memory (release ≤ 3.7.2), so the restarted pod lost its membership | Upgrade to ≥ 3.8.0. Until then, restart all pods together. |
+| Pods disagree on a collection's contents even right after restarting them together — e.g. one lists every vector twice | Full sync ran before the startup load finished and replicas kept their stale disk copy; loading also duplicated repeated ids (release ≤ 3.7.2) | Upgrade to ≥ 3.8.0 and restart all pods together; each follower becomes a copy of the leader. |
+| A vector or collection deleted through the leader is still on the followers | Only inserts and collection creates were replicated (release ≤ 3.7.2) | Upgrade to ≥ 3.8.0, then restart all pods together to resync. |
 
 When in doubt, the **single most useful diagnostic** is to bump
 `RUST_LOG=info,openraft=debug,vectorizer::cluster=debug` in the env list,

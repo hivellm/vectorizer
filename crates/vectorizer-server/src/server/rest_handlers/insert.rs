@@ -307,14 +307,11 @@ pub(super) async fn record_insert_usage(
     }
 }
 
-/// Mark a collection dirty for auto-save, invalidate its query cache, and
-/// forward Raft replication for the given vector ids. Meant to run once
-/// per request after all vectors are committed.
-pub(super) fn mark_collection_dirty(
-    state: &VectorizerServer,
-    collection_name: &str,
-    vector_ids: &[String],
-) {
+/// Mark a collection dirty for auto-save and invalidate its query cache.
+/// Meant to run once per request after all vectors are committed.
+/// Replication is not done here: the store publishes every committed insert
+/// to the master (`vectorizer::replication::publisher`).
+pub(super) fn mark_collection_dirty(state: &VectorizerServer, collection_name: &str) {
     if let Some(ref auto_save) = state.auto_save_manager {
         auto_save.mark_changed();
     }
@@ -324,37 +321,6 @@ pub(super) fn mark_collection_dirty(
         "💾 Cache invalidated for collection '{}' after insert",
         collection_name
     );
-
-    if vector_ids.is_empty() {
-        return;
-    }
-
-    let active_master: Option<std::sync::Arc<vectorizer::replication::MasterNode>> = state
-        .master_node
-        .clone()
-        .or_else(|| state.ha_manager.as_ref().and_then(|ha| ha.master_node()));
-    if let Some(ref master) = active_master {
-        if let Ok(col) = state.store.get_collection(collection_name) {
-            for vid in vector_ids {
-                if let Ok(v) = col.get_vector(vid) {
-                    let payload_bytes = v.payload.as_ref().and_then(|p| serde_json::to_vec(p).ok());
-                    let op = vectorizer::replication::VectorOperation::InsertVector {
-                        collection: collection_name.to_string(),
-                        id: vid.clone(),
-                        vector: v.data.clone(),
-                        payload: payload_bytes,
-                        owner_id: None,
-                    };
-                    master.replicate(op);
-                }
-            }
-            debug!(
-                "Replicated {} vectors for collection '{}'",
-                vector_ids.len(),
-                collection_name
-            );
-        }
-    }
 }
 
 /// Core write path: chunk + embed + insert a single text into the target
@@ -558,7 +524,7 @@ pub(super) async fn insert_one_text(
     )
     .await;
 
-    mark_collection_dirty(state, collection_name, &vector_ids);
+    mark_collection_dirty(state, collection_name);
 
     info!(
         "Successfully inserted {} vector(s) into collection '{}'",

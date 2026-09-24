@@ -92,6 +92,11 @@ impl VectorStore {
         // Mark collection for auto-save
         self.mark_collection_for_save(collection_name);
 
+        self.publish_mutation(&crate::db::StoreMutation::VectorsUpserted {
+            collection: collection_name,
+            vectors: &vectors,
+        });
+
         Ok(())
     }
 
@@ -111,6 +116,9 @@ impl VectorStore {
 
         // Log to WAL before applying changes
         self.log_wal_update(collection_name, &vector)?;
+
+        // The vector moves into the collection below; listeners need it after.
+        let committed = vector.clone();
 
         // Prefer a shared DashMap shard reference for variants whose inner
         // update uses interior mutability (CPU, Sharded), mirroring the
@@ -152,6 +160,11 @@ impl VectorStore {
 
         // Mark collection for auto-save
         self.mark_collection_for_save(collection_name);
+
+        self.publish_mutation(&crate::db::StoreMutation::VectorsUpserted {
+            collection: collection_name,
+            vectors: std::slice::from_ref(&committed),
+        });
 
         Ok(())
     }
@@ -203,6 +216,11 @@ impl VectorStore {
 
         // Mark collection for auto-save
         self.mark_collection_for_save(collection_name);
+
+        self.publish_mutation(&crate::db::StoreMutation::VectorDeleted {
+            collection: collection_name,
+            id: vector_id,
+        });
 
         Ok(())
     }

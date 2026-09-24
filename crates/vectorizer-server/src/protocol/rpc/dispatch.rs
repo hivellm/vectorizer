@@ -216,138 +216,19 @@ pub async fn dispatch(
             }
 
             let mutates = command_mutates(other);
-            // Replication needs the target collection after the handler has
-            // consumed `args`. Copy only the two leading string arguments —
-            // every mutating command carries the collection there — so a
-            // multi-megabyte payload frame is never cloned.
-            let targets: [Option<String>; 2] = if mutates && state.master_node.is_some() {
-                [
-                    args.first().and_then(|v| v.as_str()).map(str::to_owned),
-                    args.get(1).and_then(|v| v.as_str()).map(str::to_owned),
-                ]
-            } else {
-                [None, None]
-            };
             let response = dispatch_authenticated(state, auth, id, other, args).await;
             // Durability is decided here, once, rather than inside each
             // handler: a write that does not mark the auto-save manager is
             // invisible to the periodic compaction loop (it only runs when
             // `changes_detected` is set) and is lost on a hard kill. Marking
             // centrally means a newly added mutating command cannot forget.
-            if mutates {
-                if let Ok(result) = &response.result {
-                    state.mark_changed();
-                    replicate_command(state, other, &targets, result);
-                }
+            // Replication is not done here: the store publishes every
+            // committed change to the master (`replication::publisher`).
+            if mutates && response.result.is_ok() {
+                state.mark_changed();
             }
             response
         }
-    }
-}
-
-/// Forward a successful RPC mutation to the replicas, matching what the REST
-/// handlers replicate (`CreateCollection` on create, `InsertVector` per vector
-/// on insert). A no-op unless this node runs as master.
-///
-/// Vector ids come from the handler's own reply rather than the request, so a
-/// server-generated id (`vectors.insert_text` without a client id) and a batch
-/// whose items partly failed both replicate exactly what was stored. The
-/// vectors themselves are re-read from the store, so the replica receives the
-/// stored — normalized — data, exactly as `rest_handlers::insert` does.
-fn replicate_command(
-    state: &Arc<RpcState>,
-    command: &str,
-    targets: &[Option<String>; 2],
-    result: &VectorizerValue,
-) {
-    let Some(master) = &state.master_node else {
-        return;
-    };
-    match command {
-        "collections.create" => {
-            let Some(name) = targets[0].as_deref() else {
-                return;
-            };
-            let Ok(metadata) = state.store.get_collection_metadata(name) else {
-                return;
-            };
-            master.replicate(vectorizer::replication::VectorOperation::CreateCollection {
-                name: name.to_string(),
-                config: vectorizer::replication::CollectionConfigData {
-                    dimension: metadata.config.dimension,
-                    metric: format!("{:?}", metadata.config.metric).to_lowercase(),
-                },
-                owner_id: None,
-            });
-        }
-        "vectors.insert"
-        | "vectors.insert_text"
-        | "vectors.update"
-        | "vectors.batch_insert"
-        | "vectors.batch_insert_texts"
-        | "vectors.batch_update" => {
-            let Some(collection) = targets[0].as_deref() else {
-                return;
-            };
-            replicate_vectors(state, master, collection, &stored_ids(result));
-        }
-        // copy/move write into the destination collection, argument index 1.
-        "vectors.copy" | "vectors.move" => {
-            let Some(destination) = targets[1].as_deref() else {
-                return;
-            };
-            replicate_vectors(state, master, destination, &stored_ids(result));
-        }
-        _ => {}
-    }
-}
-
-/// Pull the ids a write actually stored out of its reply: `{id}` for the
-/// single-vector commands, and the `ok` rows of `{results: [{id, status}]}`
-/// for the batch commands. Rows that failed carry `status != "ok"` and are
-/// skipped, so a partly-failed batch does not replicate phantom vectors.
-fn stored_ids(result: &VectorizerValue) -> Vec<String> {
-    if let Some(id) = result.map_get("id").and_then(|v| v.as_str()) {
-        return vec![id.to_owned()];
-    }
-    let Some(rows) = result.map_get("results").and_then(|v| v.as_array()) else {
-        return Vec::new();
-    };
-    rows.iter()
-        .filter(|row| {
-            row.map_get("status")
-                .and_then(|v| v.as_str())
-                .is_some_and(|s| s == "ok")
-        })
-        .filter_map(|row| row.map_get("id").and_then(|v| v.as_str()))
-        .map(str::to_owned)
-        .collect()
-}
-
-/// Replicate the named vectors of `collection` as they currently stand in the
-/// store. Vectors that are absent (a batch item that failed, for instance) are
-/// skipped rather than replicated as empty.
-fn replicate_vectors(
-    state: &Arc<RpcState>,
-    master: &Arc<vectorizer::replication::MasterNode>,
-    collection: &str,
-    ids: &[String],
-) {
-    for id in ids {
-        let Ok(vector) = state.store.get_vector(collection, id) else {
-            continue;
-        };
-        let payload = vector
-            .payload
-            .as_ref()
-            .and_then(|p| serde_json::to_vec(p).ok());
-        master.replicate(vectorizer::replication::VectorOperation::InsertVector {
-            collection: collection.to_string(),
-            id: id.clone(),
-            vector: vector.data,
-            payload,
-            owner_id: None,
-        });
     }
 }
 
@@ -6738,39 +6619,6 @@ mod tests {
                 "'{command}' only reads but is marked as mutating"
             );
         }
-    }
-
-    #[test]
-    fn stored_ids_reads_single_and_batch_replies() {
-        let single = map(&[("id", VectorizerValue::Str("v1".into()))]);
-        assert_eq!(stored_ids(&single), vec!["v1".to_string()]);
-
-        // A batch reply lists per-item status; only the rows that landed may
-        // replicate, otherwise a failed item becomes a phantom vector.
-        let batch = map(&[(
-            "results",
-            VectorizerValue::Array(vec![
-                map(&[
-                    ("id", VectorizerValue::Str("ok1".into())),
-                    ("status", VectorizerValue::Str("ok".into())),
-                ]),
-                map(&[
-                    ("id", VectorizerValue::Str("bad".into())),
-                    ("status", VectorizerValue::Str("error".into())),
-                ]),
-                map(&[
-                    ("id", VectorizerValue::Str("ok2".into())),
-                    ("status", VectorizerValue::Str("ok".into())),
-                ]),
-            ]),
-        )]);
-        assert_eq!(
-            stored_ids(&batch),
-            vec!["ok1".to_string(), "ok2".to_string()]
-        );
-
-        // Nothing to replicate is not an error.
-        assert!(stored_ids(&VectorizerValue::Null).is_empty());
     }
 
     #[tokio::test]

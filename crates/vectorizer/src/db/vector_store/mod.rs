@@ -81,6 +81,8 @@ pub struct VectorStore {
     pub(super) wal: Arc<parking_lot::Mutex<Option<WalIntegration>>>,
     /// Vocabulary persister injected by bootstrap (see [`TokenizerSaver`])
     pub(super) tokenizer_saver: Arc<parking_lot::RwLock<Option<TokenizerSaver>>>,
+    /// Listeners told about every committed change (replication, auto-save)
+    pub(super) mutation_listeners: Arc<crate::db::mutation::MutationListeners>,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -101,6 +103,26 @@ impl VectorStore {
         *self.tokenizer_saver.write() = Some(saver);
     }
 
+    /// Register a listener told about every change this store commits from
+    /// now on — see [`crate::db::mutation`]. Clones of the store share it.
+    pub fn add_mutation_listener(
+        &self,
+        listener: Arc<dyn crate::db::MutationListener>,
+    ) -> crate::db::MutationListenerId {
+        self.mutation_listeners.add(listener)
+    }
+
+    /// Unregister a listener added with [`VectorStore::add_mutation_listener`].
+    /// Returns whether it was registered.
+    pub fn remove_mutation_listener(&self, id: crate::db::MutationListenerId) -> bool {
+        self.mutation_listeners.remove(id)
+    }
+
+    /// Tell listeners about a committed change. Call with no store lock held.
+    pub(crate) fn publish_mutation(&self, mutation: &crate::db::StoreMutation<'_>) {
+        self.mutation_listeners.publish(mutation);
+    }
+
     /// Create a new empty vector store
     pub fn new() -> Self {
         info!("Creating new VectorStore");
@@ -113,6 +135,7 @@ impl VectorStore {
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
             tokenizer_saver: Arc::new(parking_lot::RwLock::new(None)),
+            mutation_listeners: Arc::default(),
             wal: Arc::new(parking_lot::Mutex::new(
                 Some(WalIntegration::new_disabled()),
             )),
@@ -137,6 +160,7 @@ impl VectorStore {
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
             tokenizer_saver: Arc::new(parking_lot::RwLock::new(None)),
+            mutation_listeners: Arc::default(),
             wal: Arc::new(parking_lot::Mutex::new(
                 Some(WalIntegration::new_disabled()),
             )),
@@ -155,6 +179,7 @@ impl VectorStore {
             save_task_handle: Arc::new(parking_lot::Mutex::new(None)),
             metadata: Arc::new(DashMap::new()),
             tokenizer_saver: Arc::new(parking_lot::RwLock::new(None)),
+            mutation_listeners: Arc::default(),
             wal: Arc::new(parking_lot::Mutex::new(
                 Some(WalIntegration::new_disabled()),
             )),

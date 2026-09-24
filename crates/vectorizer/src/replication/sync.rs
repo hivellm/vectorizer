@@ -133,6 +133,26 @@ pub async fn apply_snapshot(store: &VectorStore, snapshot: &[u8]) -> Result<u64,
         metadata.offset
     );
 
+    // A full sync makes this store a copy of the master's: drop what the
+    // master does not have, or collections deleted there (or that only ever
+    // existed here) would live on forever on this replica.
+    let in_snapshot: std::collections::HashSet<&str> = snapshot_data
+        .collections
+        .iter()
+        .map(|collection| collection.name.as_str())
+        .collect();
+    for name in store.loaded_collection_names() {
+        if !in_snapshot.contains(name.as_str()) {
+            store.delete_collection(&name).map_err(|e| {
+                format!(
+                    "Failed to drop collection {} absent from the master: {}",
+                    name, e
+                )
+            })?;
+            info!("Dropped collection '{}': not on the master", name);
+        }
+    }
+
     // Apply each collection
     for collection in snapshot_data.collections {
         // Create collection with appropriate config

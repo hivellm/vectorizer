@@ -88,8 +88,27 @@ impl VectorStore {
         self.create_collection_internal(name, config, false, None)
     }
 
-    /// Internal collection creation with GPU control and owner support
+    /// Internal collection creation with GPU control and owner support.
+    /// Every public create path ends here, so this is where the creation is
+    /// published to mutation listeners.
     fn create_collection_internal(
+        &self,
+        name: &str,
+        config: CollectionConfig,
+        allow_gpu: bool,
+        owner_id: Option<uuid::Uuid>,
+    ) -> Result<()> {
+        let published = config.clone();
+        self.insert_new_collection(name, config, allow_gpu, owner_id)?;
+        self.publish_mutation(&crate::db::StoreMutation::CollectionCreated {
+            name,
+            config: &published,
+            owner_id,
+        });
+        Ok(())
+    }
+
+    fn insert_new_collection(
         &self,
         name: &str,
         config: CollectionConfig,
@@ -440,6 +459,10 @@ impl VectorStore {
             "Collection '{}' renamed to '{}'; '{}' kept as grace-window alias",
             canonical_old, new_name, canonical_old
         );
+        self.publish_mutation(&crate::db::StoreMutation::CollectionRenamed {
+            from: canonical_old.as_str(),
+            to: new_name,
+        });
         Ok(())
     }
 
@@ -473,6 +496,9 @@ impl VectorStore {
             "Collection '{}' (canonical '{}') deleted successfully",
             name, canonical
         );
+        self.publish_mutation(&crate::db::StoreMutation::CollectionDeleted {
+            name: canonical.as_str(),
+        });
         Ok(())
     }
 

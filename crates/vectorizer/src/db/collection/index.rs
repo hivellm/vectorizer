@@ -21,6 +21,7 @@ use crate::models::{HnswConfig, Vector};
 impl Collection {
     /// Fast load vectors with HNSW index building
     pub fn fast_load_vectors(&self, vectors: Vec<Vector>) -> Result<()> {
+        let vectors = self.unique_unloaded_vectors(vectors)?;
         let vectors_len = vectors.len();
         debug!(
             "Fast loading {} vectors into collection '{}' with HNSW index",
@@ -109,6 +110,50 @@ impl Collection {
             self.name
         );
         Ok(())
+    }
+
+    /// Keep one copy of each id — the last — and drop ids already loaded.
+    ///
+    /// A persisted collection can hold an id more than once (a replica that
+    /// applied the same operations twice wrote them out that way), and this
+    /// load can run after vectors already reached memory. Loading either as
+    /// extra entries listed every vector twice, doubled `vector_count` and
+    /// left orphan HNSW nodes. A vector already in memory is never replaced:
+    /// it is newer than the file.
+    fn unique_unloaded_vectors(&self, vectors: Vec<Vector>) -> Result<Vec<Vector>> {
+        let total = vectors.len();
+        let mut position: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::with_capacity(total);
+        let mut unique: Vec<Vector> = Vec::with_capacity(total);
+        for vector in vectors {
+            match position.get(&vector.id) {
+                Some(&index) => unique[index] = vector,
+                None => {
+                    position.insert(vector.id.clone(), unique.len());
+                    unique.push(vector);
+                }
+            }
+        }
+        let duplicates = total - unique.len();
+
+        let quantized = self.quantized_vectors.lock();
+        let mut fresh = Vec::with_capacity(unique.len());
+        for vector in unique {
+            if quantized.contains_key(&vector.id) || self.vectors.contains_key(&vector.id)? {
+                continue;
+            }
+            fresh.push(vector);
+        }
+        drop(quantized);
+
+        let already_loaded = total - duplicates - fresh.len();
+        if duplicates > 0 || already_loaded > 0 {
+            warn!(
+                "Collection '{}': skipped {} duplicate and {} already-loaded vector(s) while loading",
+                self.name, duplicates, already_loaded
+            );
+        }
+        Ok(fresh)
     }
 
     /// Rebuild the HNSW index with new parameters from existing stored vectors.

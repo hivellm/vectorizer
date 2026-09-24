@@ -81,6 +81,8 @@ pub struct CollectionLoadProgress {
     expected: AtomicUsize,
     loaded: AtomicUsize,
     status: RwLock<CollectionLoadStatus>,
+    /// Woken when the load settles (`finish` or `fail`).
+    settled: tokio::sync::Notify,
 }
 
 impl CollectionLoadProgress {
@@ -92,6 +94,7 @@ impl CollectionLoadProgress {
             expected: AtomicUsize::new(0),
             loaded: AtomicUsize::new(0),
             status: RwLock::new(CollectionLoadStatus::Pending),
+            settled: tokio::sync::Notify::new(),
         }
     }
 
@@ -129,14 +132,32 @@ impl CollectionLoadProgress {
     /// observes `Complete` also observes the final `loaded` — the lock's
     /// release/acquire pair orders the two.
     pub fn finish(&self) {
-        let mut status = self.status.write();
-        *status = CollectionLoadStatus::Complete;
+        *self.status.write() = CollectionLoadStatus::Complete;
+        self.settled.notify_waiters();
     }
 
     /// Mark the load as stopped early, recording why.
     pub fn fail(&self, reason: impl Into<String>) {
-        let mut status = self.status.write();
-        *status = CollectionLoadStatus::Failed(reason.into());
+        *self.status.write() = CollectionLoadStatus::Failed(reason.into());
+        self.settled.notify_waiters();
+    }
+
+    /// Wait until the load has settled — completed or failed — and return
+    /// the final snapshot. Returns immediately if it already has.
+    ///
+    /// Replication gates on this: a leader must not snapshot, and a replica
+    /// must not sync, while the store is still filling up from disk.
+    pub async fn wait_settled(&self) -> CollectionLoadSnapshot {
+        loop {
+            // Register before checking, so a `finish` landing between the
+            // check and the await is not missed.
+            let notified = self.settled.notified();
+            let snap = self.snapshot();
+            if !snap.is_loading() {
+                return snap;
+            }
+            notified.await;
+        }
     }
 
     /// Take a consistent read of the current progress.
@@ -240,6 +261,39 @@ mod tests {
         assert!(!snap.is_loading());
         assert_eq!(snap.expected, 0);
         assert_eq!(snap.loaded, 0);
+    }
+
+    #[tokio::test]
+    async fn wait_settled_returns_once_the_load_finishes() {
+        use std::sync::Arc;
+
+        let progress = Arc::new(CollectionLoadProgress::new());
+        progress.begin(3);
+        let waiter = tokio::spawn({
+            let progress = Arc::clone(&progress);
+            async move { progress.wait_settled().await }
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert!(!waiter.is_finished(), "returned before the load settled");
+
+        progress.finish();
+        let snap = tokio::time::timeout(std::time::Duration::from_secs(5), waiter)
+            .await
+            .expect("waiter was not woken by finish")
+            .unwrap();
+        assert!(snap.is_complete());
+    }
+
+    #[tokio::test]
+    async fn wait_settled_returns_immediately_when_settled() {
+        let done = CollectionLoadProgress::already_complete();
+        assert!(done.wait_settled().await.is_complete());
+
+        let failed = CollectionLoadProgress::new();
+        failed.fail("corrupt");
+        let snap = failed.wait_settled().await;
+        assert!(!snap.is_loading());
+        assert!(!snap.is_complete());
     }
 
     #[test]

@@ -52,6 +52,9 @@ pub struct MasterNode {
 
     /// Accept loop owning the listener; awaited on shutdown to free the port
     listener_task: Mutex<Option<JoinHandle<()>>>,
+
+    /// Startup catalog load; replicas are not synced until it settles
+    load_progress: Arc<crate::db::CollectionLoadProgress>,
 }
 
 struct ReplicaConnection {
@@ -98,12 +101,24 @@ impl MasterNode {
             ack_notify,
             shutdown: CancellationToken::new(),
             listener_task: Mutex::new(None),
+            load_progress: Arc::new(crate::db::CollectionLoadProgress::already_complete()),
         };
 
         // Start replication task
         node.start_replication_task(replication_rx);
 
         Ok(node)
+    }
+
+    /// Hold replica syncs until the store's startup load settles.
+    ///
+    /// Without it, a leader elected while still reading its collections from
+    /// disk hands every replica a snapshot of an empty or partial store, and
+    /// each replica keeps serving its own stale copy. Call before `start`.
+    #[must_use]
+    pub fn with_load_progress(mut self, progress: Arc<crate::db::CollectionLoadProgress>) -> Self {
+        self.load_progress = progress;
+        self
     }
 
     /// Start listening for replica connections
@@ -132,6 +147,7 @@ impl MasterNode {
         let confirmed_offsets = Arc::clone(&self.confirmed_offsets);
         let ack_notify = Arc::clone(&self.ack_notify);
         let shutdown = self.shutdown.clone();
+        let load_progress = Arc::clone(&self.load_progress);
 
         let listener_task = tokio::spawn(async move {
             loop {
@@ -149,11 +165,24 @@ impl MasterNode {
                         let confirmed_offsets = Arc::clone(&confirmed_offsets);
                         let ack_notify = Arc::clone(&ack_notify);
                         let shutdown = shutdown.clone();
+                        let load_progress = Arc::clone(&load_progress);
 
                         // Dropping the handler on shutdown closes our write
                         // half; the replica sees EOF and closes its side,
                         // which in turn ends the ACK reader.
                         tokio::spawn(async move {
+                            // The snapshot below must cover the whole store.
+                            let settled = tokio::select! {
+                                _ = shutdown.cancelled() => return,
+                                snap = load_progress.wait_settled() => snap,
+                            };
+                            if !settled.is_complete() {
+                                error!(
+                                    "Refusing to sync replica {}: the startup load did not complete ({:?})",
+                                    addr, settled.status
+                                );
+                                return;
+                            }
                             let handler = Self::handle_replica(
                                 stream,
                                 addr,

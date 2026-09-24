@@ -38,6 +38,9 @@ pub struct ReplicaNode {
 
     /// Ends the reconnect loop started by `start` (see `shutdown`)
     shutdown: CancellationToken,
+
+    /// Startup catalog load; the first sync waits for it to settle
+    load_progress: Arc<crate::db::CollectionLoadProgress>,
 }
 
 #[derive(Debug, Clone)]
@@ -75,7 +78,20 @@ impl ReplicaNode {
             replica_id: Uuid::new_v4().to_string(),
             state: Arc::new(RwLock::new(ReplicaState::default())),
             shutdown: CancellationToken::new(),
+            load_progress: Arc::new(crate::db::CollectionLoadProgress::already_complete()),
         }
+    }
+
+    /// Hold the first sync until this node's own startup load settles.
+    ///
+    /// The loader merges what it reads from disk into whatever is already in
+    /// the store, so a snapshot applied before it finishes gets the stale
+    /// local copy layered on top of it. Waiting makes the leader's snapshot
+    /// the last word.
+    #[must_use]
+    pub fn with_load_progress(mut self, progress: Arc<crate::db::CollectionLoadProgress>) -> Self {
+        self.load_progress = progress;
+        self
     }
 
     /// Stop the replica: `start` returns and the connection to the master is
@@ -99,6 +115,14 @@ impl ReplicaNode {
 
     /// Connect to the master and keep reconnecting with backoff, forever.
     async fn run(&self) -> ReplicationResult<()> {
+        let settled = self.load_progress.wait_settled().await;
+        if !settled.is_complete() {
+            warn!(
+                "Local startup load did not complete ({:?}); syncing from the master anyway",
+                settled.status
+            );
+        }
+
         // Validate that we have a master address configured (either raw or resolved)
         if self.config.master_address.is_none() && self.config.master_address_raw.is_none() {
             return Err(ReplicationError::Connection(
@@ -241,7 +265,7 @@ impl ReplicaNode {
 
                     // Apply operations
                     for op in operations {
-                        self.apply_operation(&op.operation).await?;
+                        self.apply_or_resync(&op.operation).await?;
 
                         // Update state
                         let new_offset = op.offset;
@@ -258,7 +282,7 @@ impl ReplicaNode {
                     debug!("Receiving operation at offset {}", op.offset);
 
                     // Apply operation
-                    self.apply_operation(&op.operation).await?;
+                    self.apply_or_resync(&op.operation).await?;
 
                     // Update state and capture offset for ACK
                     let confirmed_offset = op.offset;
@@ -354,6 +378,21 @@ impl ReplicaNode {
         Ok(cmd)
     }
 
+    /// Apply one replicated operation. On failure, reset the offset so the
+    /// next connection does a full sync: replaying the same operation from
+    /// the log would fail the same way, forever.
+    async fn apply_or_resync(&self, operation: &VectorOperation) -> ReplicationResult<()> {
+        if let Err(e) = self.apply_operation(operation).await {
+            warn!(
+                "Failed to apply replicated operation ({}); forcing a full resync",
+                e
+            );
+            self.state.write().offset = 0;
+            return Err(e);
+        }
+        Ok(())
+    }
+
     /// Apply a vector operation
     ///
     /// For multi-tenant mode (HiveHub integration), the owner_id is preserved
@@ -382,29 +421,29 @@ impl ReplicaNode {
                 // In multi-tenant mode, we use create_collection_with_owner if owner_id is present
                 if let Some(owner) = owner_id {
                     if let Ok(uuid) = uuid::Uuid::parse_str(owner) {
-                        self.vector_store
-                            .create_collection_with_owner(name, collection_config, uuid)
-                            .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                        tolerate_existing(self.vector_store.create_collection_with_owner(
+                            name,
+                            collection_config,
+                            uuid,
+                        ))?;
                         debug!("Created collection: {} with owner: {}", name, owner);
                     } else {
                         // Fallback to regular creation if UUID is invalid
-                        self.vector_store
-                            .create_collection(name, collection_config)
-                            .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                        tolerate_existing(
+                            self.vector_store.create_collection(name, collection_config),
+                        )?;
                         debug!("Created collection: {} (invalid owner_id: {})", name, owner);
                     }
                 } else {
-                    self.vector_store
-                        .create_collection(name, collection_config)
-                        .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                    tolerate_existing(
+                        self.vector_store.create_collection(name, collection_config),
+                    )?;
                     debug!("Created collection: {}", name);
                 }
             }
             VectorOperation::DeleteCollection { name, owner_id: _ } => {
                 // owner_id is used for audit/logging, actual deletion uses collection name
-                self.vector_store
-                    .delete_collection(name)
-                    .map_err(|e| ReplicationError::InvalidOperation(e.to_string()))?;
+                tolerate_missing(self.vector_store.delete_collection(name))?;
 
                 debug!("Deleted collection: {}", name);
             }
@@ -474,9 +513,9 @@ impl ReplicaNode {
                     "Replica applying delete operation: {} from {}",
                     id, collection
                 );
-                self.vector_store.delete(collection, id).map_err(|e| {
+                tolerate_missing(self.vector_store.delete(collection, id)).map_err(|e| {
                     error!("Failed to delete vector {} from {}: {}", id, collection, e);
-                    ReplicationError::InvalidOperation(e.to_string())
+                    e
                 })?;
 
                 info!("Deleted vector {} from collection {}", id, collection);
@@ -521,6 +560,25 @@ impl ReplicaNode {
     /// Get current offset
     pub fn get_offset(&self) -> u64 {
         self.state.read().offset
+    }
+}
+
+/// A create whose target already exists has already been applied — the
+/// operation can arrive twice across a reconnect.
+fn tolerate_existing(result: crate::error::Result<()>) -> ReplicationResult<()> {
+    match result {
+        Ok(()) | Err(crate::error::VectorizerError::CollectionAlreadyExists(_)) => Ok(()),
+        Err(e) => Err(ReplicationError::InvalidOperation(e.to_string())),
+    }
+}
+
+/// A delete whose target is already gone has already been applied.
+fn tolerate_missing(result: crate::error::Result<()>) -> ReplicationResult<()> {
+    match result {
+        Ok(())
+        | Err(crate::error::VectorizerError::VectorNotFound(_))
+        | Err(crate::error::VectorizerError::CollectionNotFound(_)) => Ok(()),
+        Err(e) => Err(ReplicationError::InvalidOperation(e.to_string())),
     }
 }
 

@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **HA followers now converge on the leader's data.** Found by upgrading a
+  3-node production cluster from 3.0.13: one follower held every vector of a
+  collection twice (852 entries for 426 ids) and stayed that way across
+  restarts. Three separate bugs combined:
+  - **Every write path replicates.** Only four handler paths used to call
+    `replicate` (REST create collection, REST insert, Qdrant REST upsert, RPC
+    with a static master only). Vector deletes, updates, collection deletes
+    and renames, file uploads, and every MCP, GraphQL and native gRPC write
+    stayed on the leader, and deleted data came back after a failover.
+    `VectorStore` now publishes each committed change to registered
+    listeners, and the leader's `ReplicationPublisher` turns them into
+    replication operations, so the transport a write came through no longer
+    matters.
+  - **Full sync waits for the startup load.** A leader elected while still
+    reading its collections from disk sent replicas a snapshot of an empty
+    store, and each replica kept serving its own stale copy. The leader now
+    holds replica syncs, and a replica holds its first sync, until the
+    startup load settles.
+  - **A full sync makes the replica an exact copy.** Collections the leader
+    does not have are dropped, and loading a persisted collection keeps one
+    copy per id instead of listing duplicates and double-counting them.
+- **A follower restarted on its own rejoins its cluster.** Raft's log and vote
+  lived in memory, so a restarted follower came back with no membership and
+  stayed a learner forever — no replication, no error. They are now persisted
+  under `<data_dir>/raft/`, and a restarted node resumes as a follower. For
+  10 s after resuming it holds its own elections: in Kubernetes a recreated
+  pod's DNS name takes a few seconds to resolve for its peers, and campaigning
+  before the leader can reach it made a healthy leader step down. The
+  bootstrap node also recognises an already-initialised cluster instead of
+  failing on restart.
+- **Replicated state survives a follower restart.** Replicas never marked
+  their store dirty, so what they received was never written to disk and a
+  restart reloaded a stale copy. Auto-save now observes every committed
+  change, including replicated ones.
+- **A bad replicated operation no longer wedges a replica.** Deleting an id
+  that is already gone, or creating a collection that already exists, is
+  treated as applied; any other failure resets the replica's offset so the
+  next connection does a full sync instead of replaying the same operation
+  forever.
+
 ## [3.7.2] - 2026-09-23
 
 ### Security
