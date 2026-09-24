@@ -508,13 +508,18 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked     unset
 #
 # Pinned to $BUILDPLATFORM: the output is arch-neutral text and empty
 # directories, so there is no reason to run it under emulation.
-FROM --platform=${BUILDPLATFORM:-linux/amd64} dhi.io/debian-base:trixie-dev AS user-prep
-# No `useradd`: the DHI base already ships `nonroot:x:65532:65532` with
-# `/home/nonroot`. Creating it again fails (exit 9, "user already exists"),
-# and taking the base's own entry is better anyway — the UID then matches
-# what the glibc variant runs as, so the two variants agree on file ownership
-# for anyone switching between them on the same volume.
-RUN mkdir -p /vectorizer/data /data /tmp-skel \
+#
+# A public base on purpose: only the text files and empty directories written
+# here reach the scratch runtime, so none of this stage's packages ship, and
+# building the default image needs no registry login (the Docker Hardened
+# Images base at dhi.io requires a Docker Hub account). The user database is
+# written explicitly — root plus `nonroot` 65532:65532, the account the glibc
+# variant runs as — so both variants agree on file ownership for anyone
+# switching between them on the same volume.
+FROM --platform=${BUILDPLATFORM:-linux/amd64} debian:trixie-slim AS user-prep
+RUN printf 'root:x:0:0:root:/root:/sbin/nologin\nnonroot:x:65532:65532:nonroot:/home/nonroot:/sbin/nologin\n' > /etc/passwd \
+ && printf 'root:x:0:\nnonroot:x:65532:\n' > /etc/group \
+ && mkdir -p /vectorizer/data /data /tmp-skel /home/nonroot \
  && chown -R 65532:65532 /vectorizer /data /home/nonroot \
  && chmod 1777 /tmp-skel
 
