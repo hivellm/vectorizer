@@ -30,8 +30,8 @@ Your Application
 ```
 
 - **Leader (master)**: Accepts reads and writes. Replicates data to followers.
-- **Followers (replicas)**: Serve reads locally. Redirect writes to the leader with HTTP 307.
-- **Single URL**: Your application connects to one URL. Reads are served by any node; writes are automatically routed to the leader.
+- **Followers (replicas)**: Serve reads locally. Answer writes with HTTP 307 pointing at the leader — they do not forward them.
+- **Reads anywhere, writes to the leader**: Reads are served by any node. Writes must reach the leader, either directly or by re-sending to the `leader_url` a follower returns (see [Write Routing](#write-routing-http-307)).
 
 ## Quick Start
 
@@ -100,119 +100,15 @@ That's it. One URL for everything.
 
 ### Kubernetes (production)
 
-> **Important (v2.5.4):** You must use `cluster.enabled: true` for automatic failover in Kubernetes.
-> Without it, replica roles are static and there is **no automatic leader promotion** when a pod restarts.
-
-**1. Deploy the ConfigMap with a template:**
-
-All pods share the same config. An init container replaces `__NODE_ID__` with each pod's hostname:
-
-```yaml
-# configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: vectorizer-config
-data:
-  config-template.yml: |
-    server:
-      host: "0.0.0.0"
-      port: 15002
-
-    file_watcher:
-      enabled: false           # MUST be false in cluster mode
-
-    auth:
-      enabled: true
-      jwt_secret: "your-secret-minimum-32-chars"  # or use env var
-
-    cluster:
-      enabled: true            # Enables Raft consensus + automatic failover
-      node_id: "__NODE_ID__"   # Replaced by init container with pod hostname
-      discovery: "dns"
-      dns_name: "vectorizer-headless.default.svc.cluster.local"
-      dns_grpc_port: 15003
-      servers:
-        - id: "vectorizer-0"
-          address: "vectorizer-0.vectorizer-headless.default.svc.cluster.local"
-          grpc_port: 15003
-        - id: "vectorizer-1"
-          address: "vectorizer-1.vectorizer-headless.default.svc.cluster.local"
-          grpc_port: 15003
-        - id: "vectorizer-2"
-          address: "vectorizer-2.vectorizer-headless.default.svc.cluster.local"
-          grpc_port: 15003
-      memory:
-        max_cache_memory_bytes: 1073741824
-        enforce_mmap_storage: true
-        disable_file_watcher: true
-
-    replication:
-      enabled: true
-      bind_address: "0.0.0.0:7001"  # Raft manages the role automatically
-
-    api:
-      grpc:
-        enabled: true
-        port: 15003
-```
-
-**2. StatefulSet with init container:**
-
-```yaml
-initContainers:
-  - name: config-selector
-    image: busybox:1.36
-    command: ["sh", "-c"]
-    args:
-      - sed "s/__NODE_ID__/$HOSTNAME/g" /configs/config-template.yml > /active-config/config.yml
-    volumeMounts:
-      - name: config-templates
-        mountPath: /configs
-      - name: active-config
-        mountPath: /active-config
-```
-
-**3. Required environment variables:**
-
-```yaml
-env:
-  - name: HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.name
-  - name: POD_IP
-    valueFrom:
-      fieldRef:
-        fieldPath: status.podIP
-  - name: VECTORIZER_SERVICE_NAME
-    value: "vectorizer-headless.default.svc.cluster.local"
-```
-
-**4. Required services:**
-
-- **Headless service** (`clusterIP: None`) for pod-to-pod DNS resolution (ports 15002, 7001, 15003)
-- **ClusterIP service** for client access (port 15002)
-
-See `deploy/k8s/configmap-ha.yaml` and `deploy/k8s/statefulset-ha.yaml` for complete production-ready manifests.
-
-**5. Connect your application:**
-
-```
-http://vectorizer-svc.default.svc.cluster.local:15002
-```
-
-The K8s Service distributes requests across all pods. Writes that land on a follower are redirected to the leader automatically.
-
-### Common Kubernetes pitfalls (v2.5.4 fixes)
-
-| Problem | Cause | Fix in v2.5.4 |
-|---|---|---|
-| Replicas stuck on "No route to host" after master restart | DNS was resolved once at startup, cached as IP forever | Replicas now re-resolve DNS on every reconnect attempt |
-| Panic on startup with `cluster.enabled: true` | Cluster router used `:node_id` (Axum 0.6 syntax) | Fixed to `{node_id}` (Axum 0.7+) |
-| No automatic failover when master dies | Using static `role: "master"` without Raft | Use `cluster.enabled: true` for Raft-based automatic failover |
-| `file_watcher is still running` in cluster mode | `file_watcher.enabled: true` in config | Must be set to `false` in cluster mode |
-| Stale nodes accumulating after pod restarts | DNS-discovered nodes were never garbage collected | Nodes unavailable for >5 min are now automatically removed |
+Follow the [HA on Kubernetes — End-to-End Runbook](../../deployment/HA_KUBERNETES_RUNBOOK.md).
+It is the single, validated install guide for 3.8.0: Secret, headless
+Service (`publishNotReadyAddresses: true`), ConfigMap template with
+`__NODE_ID__`, StatefulSet (`ghcr.io/hivellm/vectorizer:3.8.0`,
+`podManagementPolicy: Parallel`, `RUST_LOG=info`, `/ready` readiness),
+validation, failover test, rolling updates, the one-time all-pods restart
+when upgrading from ≤ 3.7.2, and troubleshooting. The matching manifests
+are `deploy/k8s/service-ha.yaml`, `deploy/k8s/configmap-ha.yaml` and
+`deploy/k8s/statefulset-ha.yaml`.
 
 ## How It Works
 
@@ -229,16 +125,21 @@ X-Vectorizer-Role: follower
 {"redirect":"write operations must go to leader","leader_url":"http://leader-address:15002"}
 ```
 
-Most HTTP clients follow 307 redirects automatically:
+The follower never forwards the write itself. `leader_url` is the leader's
+internal address (in Kubernetes an in-cluster DNS name), so only clients on
+the same network can reach it.
 
-| Client | Auto-follows 307? |
-|---|---|
-| `fetch` (JS/Node) | Yes (default) |
-| `axios` | Yes (default) |
-| Python `requests` | Yes (default) |
-| Rust `reqwest` | Yes (default) |
-| Go `net/http` | Yes (default) |
-| `curl` | No (use `-L` flag) |
+Most HTTP clients follow a 307 automatically, but they drop the
+`Authorization` header when the redirect changes host (curl with `-L`,
+Python `requests`, Go `net/http`, `fetch`). With authentication enabled —
+mandatory for HA — the redirected write then fails with 401. Handle the 307
+explicitly: re-send the same request with the same headers and body to
+`leader_url` (curl: `--location-trusted`), or send writes to the leader in
+the first place, e.g. through a leader-routing layer.
+
+Every write path replicates in 3.8.0 (REST, RPC, MCP, GraphQL, native
+gRPC). Qdrant-compatible gRPC points writes are not replicated yet — use
+REST or RPC for writes in HA mode.
 
 ### Replication Flow
 
@@ -318,13 +219,13 @@ cluster:
 
 ### Cluster Status
 
+`GET /api/v1/cluster/leader` and `GET /api/v1/cluster/role` currently return
+a fixed `"standalone"` placeholder even in HA mode, so they cannot identify
+the leader. Use the logs (`This node is now the LEADER` /
+`This node is now FOLLOWER`, visible with `RUST_LOG=info`) or the
+`leader_url` a follower returns with a 307.
+
 ```bash
-# Get leader info
-GET /api/v1/cluster/leader
-
-# Get current node role
-GET /api/v1/cluster/role
-
 # List cluster nodes
 GET /api/v1/cluster/nodes
 
@@ -335,7 +236,8 @@ GET /api/v1/cluster/shard-distribution
 ### Health Check
 
 ```bash
-GET /health
+GET /health   # liveness: 200 as soon as the HTTP server is up
+GET /ready    # readiness: 503 until the startup collection load completes, 200 after
 ```
 
 Returns:
@@ -361,7 +263,7 @@ const loginRes = await fetch(`${VECTORIZER_URL}/auth/login`, {
 });
 const { access_token } = await loginRes.json();
 
-// Create collection (write → routed to leader automatically)
+// Create collection (write → send to the leader; a follower answers 307)
 await fetch(`${VECTORIZER_URL}/collections`, {
   method: 'POST',
   headers: {
@@ -371,7 +273,7 @@ await fetch(`${VECTORIZER_URL}/collections`, {
   body: JSON.stringify({ name: 'products', dimension: 384, metric: 'cosine' })
 });
 
-// Insert vectors (write → routed to leader)
+// Insert vectors (write → leader)
 await fetch(`${VECTORIZER_URL}/qdrant/collections/products/points`, {
   method: 'PUT',
   headers: {
@@ -437,14 +339,14 @@ TOKEN=$(curl -s -X POST http://vectorizer:15002/auth/login \
   -d '{"username":"admin","password":"your-password"}' \
   | jq -r '.access_token')
 
-# Create collection (use -L to follow redirects if hitting a follower)
-curl -L -X POST http://vectorizer:15002/collections \
+# Create collection (--location-trusted re-sends the token if a follower answers 307)
+curl --location-trusted -X POST http://vectorizer:15002/collections \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"name":"my-collection","dimension":128,"metric":"cosine"}'
 
 # Insert vectors
-curl -L -X PUT http://vectorizer:15002/qdrant/collections/my-collection/points \
+curl --location-trusted -X PUT http://vectorizer:15002/qdrant/collections/my-collection/points \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"points":[{"id":"v1","vector":[0.1,0.2,...128 values...],"payload":{"key":"value"}}]}'
@@ -482,7 +384,7 @@ When `cluster.enabled: true`, Raft consensus handles leader election automatical
 4. One follower is elected as the new leader
 5. New leader starts a `MasterNode` (accepts writes on port 7001)
 6. Other followers connect to the new leader as replicas
-7. Writes are automatically redirected to the new leader via HTTP 307
+7. Followers answer writes with HTTP 307 pointing at the new leader
 8. When the old leader recovers, it rejoins as a follower
 
 **This is the recommended mode for Kubernetes deployments.** All pods use the same config; Raft decides roles dynamically.
@@ -509,8 +411,9 @@ This mode is simpler but has **no automatic failover**. Use only for development
 
 ### Writes returning 307 but not reaching the leader
 
-Your HTTP client may not be following redirects. Solutions:
-- `curl`: Add `-L` flag
+Your HTTP client may not be following redirects, or follows them without the
+`Authorization` header (the leader then answers 401). Solutions:
+- `curl`: use `--location-trusted`; other clients: re-send the request to `leader_url` with the same headers
 - Check that the leader URL in the 307 response is reachable from the client
 - In Docker/K8s, the redirect uses internal network addresses
 
@@ -522,9 +425,10 @@ Your HTTP client may not be following redirects. Solutions:
    ```bash
    kubectl get svc <name>-headless -o jsonpath='{.spec.ports[*]}'
    ```
-2. Verify DNS resolution works from the replica pod:
+2. Verify DNS resolution inside the namespace (the default image has no shell, so use a throwaway pod):
    ```bash
-   kubectl exec <replica-pod> -- getent hosts <master-pod>.<headless-svc>.<ns>.svc.cluster.local
+   kubectl run dnscheck -n <ns> --rm -it --restart=Never --image=busybox:1.36 -- \
+     nslookup <master-pod>.<headless-svc>.<ns>.svc.cluster.local
    ```
 3. Check that port 7001 is declared in both the StatefulSet container ports and the headless service.
 
@@ -565,6 +469,7 @@ All nodes must share the same `jwt_secret`. Set it via:
 
 ## Related Documentation
 
+- [HA on Kubernetes — End-to-End Runbook](../../deployment/HA_KUBERNETES_RUNBOOK.md)
 - [Cluster Deployment Guide](../../deployment/CLUSTER.md)
 - [Master-Replica Routing](MASTER_REPLICA_ROUTING.md)
 - [Configuration Reference](../configuration/CLUSTER.md)

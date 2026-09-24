@@ -13,6 +13,16 @@ The Vectorizer Helm chart provides a production-ready deployment for Kubernetes 
 - Prometheus ServiceMonitor support
 - Horizontal Pod Autoscaler support
 
+It deploys `ghcr.io/hivellm/vectorizer:3.8.0` by default (public GHCR
+package, no pull secret needed) and probes `/health` (liveness) and `/ready`
+(readiness).
+
+> **High Availability:** the chart runs standalone servers — it does not
+> render the Raft cluster configuration (node ids, peer list, config
+> template init container, auth secrets). For a 3-pod Raft cluster with
+> automatic failover, use the manifests in `deploy/k8s/` and the
+> [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md).
+
 ## Quick Start
 
 ```bash
@@ -30,6 +40,13 @@ helm install vectorizer ./deploy/helm/vectorizer \
 
 ## Configuration
 
+> **Known limitation (chart 1.6.0):** the chart mounts its rendered
+> `config.yml` under `/etc/vectorizer/`, but the server reads `config.yml`
+> from its working directory (`/vectorizer/config.yml`). Of the `config.*`
+> values, only `config.logging.level` (passed as `RUST_LOG`) and
+> `config.server.data_dir` (the PVC mount path; keep it at `/data`, the
+> image's `VECTORIZER_DATA_DIR`) take effect today.
+
 ### Basic Values
 
 ```yaml
@@ -37,8 +54,8 @@ helm install vectorizer ./deploy/helm/vectorizer \
 replicaCount: 1
 
 image:
-  repository: vectorizer
-  tag: "1.3.0"
+  repository: ghcr.io/hivellm/vectorizer
+  tag: "3.8.0"            # or "3.8.0-fastembed" for dense/multilingual models
 
 resources:
   limits:
@@ -53,11 +70,11 @@ resources:
 
 ```yaml
 # production-values.yaml
-replicaCount: 3
+replicaCount: 1           # one standalone server; see the HA runbook for a cluster
 
 image:
-  repository: vectorizer
-  tag: "1.3.0"
+  repository: ghcr.io/hivellm/vectorizer
+  tag: "3.8.0"            # or "3.8.0-fastembed" for dense/multilingual models
 
 resources:
   limits:
@@ -80,10 +97,6 @@ config:
       max_threads: 8
       memory_pool_size_mb: 4096
 
-replication:
-  enabled: true
-  role: "master"
-
 monitoring:
   enabled: true
   serviceMonitor:
@@ -104,62 +117,6 @@ ingress:
 ```
 
 ## Advanced Configuration
-
-### High Availability with Raft (v2.5.4+, recommended)
-
-With `cluster.enabled: true`, Raft consensus handles leader election automatically. All pods use the same config — no static master/replica roles needed.
-
-```yaml
-# ha-values.yaml
-replicaCount: 3
-
-image:
-  repository: ghcr.io/hivellm/vectorizer
-  tag: "2.5.4"
-
-cluster:
-  enabled: true         # Enables Raft leader election + automatic failover
-  discovery: dns
-  dns_name: "vectorizer-headless.<namespace>.svc.cluster.local"
-
-replication:
-  enabled: true
-  bind_address: "0.0.0.0:7001"
-  # role is managed by Raft — do NOT set it manually
-
-config:
-  file_watcher:
-    enabled: false       # MUST be false in cluster mode
-  auth:
-    enabled: true
-    jwt_secret: "your-secret-minimum-32-chars"  # or use VECTORIZER_JWT_SECRET env var
-```
-
-```bash
-helm install vectorizer ./deploy/helm/vectorizer -f ha-values.yaml -n vectorizer
-```
-
-> **Important:** v2.5.4 is required for production Kubernetes HA. Earlier versions have critical bugs (stale DNS caching, startup panic with cluster enabled).
-
-### Static Master-Replica (legacy, no automatic failover)
-
-```yaml
-# Master
-replicaCount: 1
-replication:
-  enabled: true
-  role: "master"
-  bind_address: "0.0.0.0:7001"
-
-# Replicas (separate release)
-replicaCount: 2
-replication:
-  enabled: true
-  role: "replica"
-  master_address: "vectorizer-master:7001"
-```
-
-> **Warning:** Static roles have no automatic failover. If the master dies, writes fail until an operator manually promotes a replica. Use Raft mode instead for production.
 
 ### Autoscaling
 
@@ -208,22 +165,9 @@ helm install vectorizer-prod ./deploy/helm/vectorizer \
   --create-namespace
 ```
 
-### High Availability (Raft)
-
-```bash
-helm install vectorizer ./deploy/helm/vectorizer \
-  --set replicaCount=3 \
-  --set image.tag=2.5.4 \
-  --set cluster.enabled=true \
-  --set cluster.discovery=dns \
-  --set replication.enabled=true \
-  --set config.file_watcher.enabled=false \
-  -n vectorizer --create-namespace
-```
-
-If the leader pod dies, Raft automatically elects a new leader (~1-3s). Writes are redirected via HTTP 307.
-
 ## Upgrading
+
+Bump the image by setting `image.tag` (e.g. `--set image.tag=3.8.0`).
 
 ```bash
 # Upgrade to new version
@@ -285,18 +229,18 @@ kubectl get pvc -l app.kubernetes.io/name=vectorizer
 
 ## Best Practices
 
-1. **Use Raft for HA**: Set `cluster.enabled: true` for automatic failover (v2.5.4+)
-2. **Disable file watcher**: `config.file_watcher.enabled: false` in cluster mode
-3. **Use StatefulSet**: Enable persistence for production
-4. **Set Resource Limits**: Prevent resource exhaustion
-5. **Enable Monitoring**: Use ServiceMonitor for Prometheus
-6. **Use Ingress**: For external access with TLS
-7. **Set auth.jwt_secret**: Required field — use env var `VECTORIZER_JWT_SECRET` for secrets
-8. **Use Values Files**: Separate dev/staging/prod values
-9. **Version Control**: Track values files in Git
+1. **Pin the image tag**: `image.tag: "3.8.0"`, never `latest`
+2. **Use StatefulSet**: Enable persistence for production
+3. **Set Resource Limits**: Prevent resource exhaustion
+4. **Enable Monitoring**: Use ServiceMonitor for Prometheus
+5. **Use Ingress**: For external access with TLS
+6. **Use Values Files**: Separate dev/staging/prod values
+7. **Version Control**: Track values files in Git
+8. **For HA**: use the [HA runbook](./HA_KUBERNETES_RUNBOOK.md) manifests instead of the chart
 
 ## Related Documentation
 
 - [Kubernetes Deployment Guide](./KUBERNETES.md)
+- [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md)
 - [Production Guide](./PRODUCTION_GUIDE.md)
 - [Helm Chart README](../../deploy/helm/vectorizer/README.md)

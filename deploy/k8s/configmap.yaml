@@ -8,7 +8,14 @@ data:
     server:
       host: "0.0.0.0"
       port: 15002
-      data_dir: "/data"
+      mcp_port: 15002
+
+    # Required when binding 0.0.0.0. jwt_secret is overridden by the
+    # VECTORIZER_JWT_SECRET env var set in statefulset.yaml.
+    auth:
+      enabled: true
+      jwt_secret: "placeholder-overridden-by-env-VECTORIZER_JWT_SECRET"
+      jwt_expiration: 3600
     
     logging:
       level: "warn"

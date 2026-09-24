@@ -2,6 +2,10 @@
 
 Complete guide for deploying Vectorizer on Kubernetes.
 
+> **High Availability?** For a 3-pod Raft cluster with automatic failover,
+> follow the [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md).
+> This page covers the single-node deployment and general Kubernetes topics.
+
 ## Prerequisites
 
 - Kubernetes cluster (1.20+)
@@ -9,11 +13,31 @@ Complete guide for deploying Vectorizer on Kubernetes.
 - PersistentVolume provisioner
 - Ingress controller (optional)
 
+## Image
+
+| Tag | Base | Embeddings |
+|---|---|---|
+| `ghcr.io/hivellm/vectorizer:3.8.0` | `scratch`, no shell, non-root (UID 65532) | BM25 only (default) |
+| `ghcr.io/hivellm/vectorizer:3.8.0-fastembed` | Debian, ONNX Runtime, non-root (UID 65532) | BM25 + fastembed dense/multilingual models |
+
+The GHCR package is public — no `imagePullSecrets` needed. Pin an exact tag
+(never `latest`); tags are unprefixed (`3.8.0`, not `v3.8.0`). The default
+image has no shell, so `kubectl exec ... sh` does not work — use
+`kubectl logs` and the REST API. See the
+[Embedding Providers Guide](../users/guides/EMBEDDINGS.md) for multilingual
+models.
+
 ## Quick Start
 
 ```bash
-# Deploy Vectorizer
+# Namespace and credentials (binding 0.0.0.0 requires authentication)
 kubectl apply -f deploy/k8s/namespace.yaml
+kubectl create secret generic vectorizer-credentials -n vectorizer \
+  --from-literal=VECTORIZER_USERNAME='admin' \
+  --from-literal=VECTORIZER_PASSWORD="$(openssl rand -base64 24 | tr -d '=+/')" \
+  --from-literal=VECTORIZER_API_KEY="$(openssl rand -hex 64)"
+
+# Deploy Vectorizer
 kubectl apply -f deploy/k8s/configmap.yaml
 kubectl apply -f deploy/k8s/statefulset.yaml
 kubectl apply -f deploy/k8s/service.yaml
@@ -49,7 +73,13 @@ data:
     server:
       host: "0.0.0.0"
       port: 15002
-      data_dir: "/data"
+      mcp_port: 15002
+
+    # jwt_secret is overridden by VECTORIZER_JWT_SECRET (from the Secret)
+    auth:
+      enabled: true
+      jwt_secret: "placeholder-overridden-by-env-VECTORIZER_JWT_SECRET"
+      jwt_expiration: 3600
 
     logging:
       level: "warn"
@@ -63,11 +93,20 @@ data:
 
 ### StatefulSet
 
-See [deploy/k8s/statefulset.yaml](./deploy/k8s/statefulset.yaml)
+See [deploy/k8s/statefulset.yaml](../../deploy/k8s/statefulset.yaml). It runs
+`ghcr.io/hivellm/vectorizer:3.8.0`, mounts the ConfigMap at
+`/vectorizer/config.yml` (the server reads `config.yml` from its working
+directory), keeps data on the PVC via `VECTORIZER_DATA_DIR=/data`, reads the
+admin password and JWT secret from the `vectorizer-credentials` Secret, and
+sets `fsGroup: 65532` so the non-root image can write the PVC.
+
+Probes: liveness `GET /health` (200 as soon as the HTTP server is up) and
+readiness `GET /ready` (503 with `Retry-After` until the startup collection
+load completes, 200 after). Both are anonymous.
 
 ### Service
 
-See [deploy/k8s/service.yaml](./deploy/k8s/service.yaml)
+See [deploy/k8s/service.yaml](../../deploy/k8s/service.yaml)
 
 ## Configuration
 
@@ -101,68 +140,35 @@ volumeClaimTemplates:
           storage: 100Gi
 ```
 
-### High Availability with Raft (v2.5.4+)
+### High Availability (Raft)
 
-For automatic failover, enable Raft consensus. All pods use the **same config template** — Raft elects a leader dynamically. No static master/replica roles needed.
+For automatic failover, run three pods with Raft consensus
+(`cluster.enabled: true`). HA needs more than `replicas: 3`: a headless
+Service with `publishNotReadyAddresses: true`, `podManagementPolicy: Parallel`,
+a config template whose `__NODE_ID__` an init container replaces with the pod
+hostname, `cluster.servers[].id` equal to the pod hostnames, the data dir on
+the PVC, shared auth secrets, `RUST_LOG=info`, and ports 15002, 15003, 7001
+and 15503.
 
-```yaml
-# ConfigMap uses __NODE_ID__ placeholder replaced by init container
-cluster:
-  enabled: true                # Enables Raft leader election
-  node_id: "__NODE_ID__"       # Replaced per-pod by init container
-  discovery: "dns"
-  dns_name: "vectorizer-headless.<namespace>.svc.cluster.local"
-  dns_grpc_port: 15003
+Writes must go to the leader: a follower answers a write with HTTP 307 and
+the leader's in-cluster URL instead of forwarding it. Reads are served by any
+pod.
 
-replication:
-  enabled: true
-  bind_address: "0.0.0.0:7001"  # Role managed by Raft, not config
-
-file_watcher:
-  enabled: false                 # MUST be false in cluster mode
-```
-
-The init container injects each pod's hostname as `node_id`:
-```yaml
-initContainers:
-  - name: config-selector
-    image: busybox:1.36
-    command: ["sh", "-c"]
-    args:
-      - sed "s/__NODE_ID__/$HOSTNAME/g" /configs/config-template.yml > /active-config/config.yml
-```
-
-Required environment variables for cluster DNS:
-```yaml
-env:
-  - name: HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.name
-  - name: POD_IP
-    valueFrom:
-      fieldRef:
-        fieldPath: status.podIP
-  - name: VECTORIZER_SERVICE_NAME
-    value: "vectorizer-headless.<namespace>.svc.cluster.local"
-```
-
-Required services:
-- **Headless service** (`clusterIP: None`) with ports 15002, 7001, 15003
-- **ClusterIP service** for external access on port 15002
-
-See `deploy/k8s/configmap-ha.yaml` and `deploy/k8s/statefulset-ha.yaml` for complete production manifests.
-
-See [HA Cluster Guide](../users/guides/HA_CLUSTER.md) for detailed configuration and failover behavior.
+The complete, validated procedure — manifests, validation, failover test,
+rolling updates and the one-time all-pods restart when upgrading from
+≤ 3.7.2 — is the
+[HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md). The
+matching manifests are `deploy/k8s/service-ha.yaml`,
+`deploy/k8s/configmap-ha.yaml` and `deploy/k8s/statefulset-ha.yaml`
+(namespace `vectorizer-ha`).
 
 ## Scaling
 
 ### Horizontal Scaling
 
-```bash
-# Scale StatefulSet
-kubectl scale statefulset vectorizer --replicas=3 -n vectorizer
-```
+The single-node manifests run one standalone server; scaling that
+StatefulSet does not create a replicated cluster. For multiple replicas use
+the [HA runbook](./HA_KUBERNETES_RUNBOOK.md).
 
 ### Vertical Scaling
 
@@ -245,7 +251,9 @@ spec:
 
 ## Helm Chart
 
-See [deploy/helm/vectorizer/](./deploy/helm/vectorizer/) for Helm chart.
+See [deploy/helm/vectorizer/](../../deploy/helm/vectorizer/) and the
+[Helm guide](./HELM.md). The chart covers single-node deployments; it does
+not render the Raft cluster configuration.
 
 ## Troubleshooting
 
@@ -279,36 +287,21 @@ kubectl get pv
 kubectl get svc vectorizer -n vectorizer
 
 # Test connectivity
-kubectl run -it --rm debug --image=busybox --restart=Never -- curl http://vectorizer:15002/api/status
+kubectl run -it --rm debug -n vectorizer --image=busybox:1.36 --restart=Never -- \
+  wget -qO- http://vectorizer:15002/health
 ```
 
 ### Cluster / HA Issues
 
-**Replicas stuck on "No route to host" after pod restart:**
-- **v2.5.4+**: Fixed. Replicas re-resolve DNS on every reconnect attempt.
-- **Older versions**: The master IP was cached at startup. Upgrade to v2.5.4.
-
-**Pods crash with "Path segments must not start with `:`":**
-- **v2.5.4+**: Fixed. Cluster router path syntax was corrected for Axum 0.7.
-
-**No automatic failover when leader dies:**
-- Ensure `cluster.enabled: true` in your ConfigMap. Without Raft, roles are static and no election occurs.
-
-**File watcher warnings in cluster mode:**
-- Set `file_watcher.enabled: false`. It is incompatible with distributed clusters.
-
-See [HA Cluster Guide](../users/guides/HA_CLUSTER.md) for complete troubleshooting.
+See the [HA runbook troubleshooting table](./HA_KUBERNETES_RUNBOOK.md#12-troubleshooting).
 
 ## Best Practices
 
 1. **Use StatefulSet**: For persistent storage and stable pod identity
-2. **Enable Raft** (`cluster.enabled: true`): For automatic failover
-3. **Disable file watcher**: `file_watcher.enabled: false` in cluster mode
-4. **Use headless service**: Required for pod-to-pod DNS discovery
+2. **Pin the image**: `ghcr.io/hivellm/vectorizer:3.8.0`, never `latest`
+3. **Keep data on the PVC**: `VECTORIZER_DATA_DIR` must point inside the volume mount
+4. **Probe `/health` (liveness) and `/ready` (readiness)**
 5. **Set Resource Limits**: Prevent resource exhaustion
-6. **Enable Health Checks**: Liveness and readiness probes
-7. **Use ConfigMap templates**: With `__NODE_ID__` placeholder and init container
-8. **Set `HOSTNAME`, `POD_IP`, `VECTORIZER_SERVICE_NAME`** env vars from K8s downward API
-9. **Expose all 3 ports**: REST (15002), replication (7001), gRPC (15003)
-10. **Enable Monitoring**: Prometheus metrics
-11. **Use Secrets**: For JWT secret and credentials (not in ConfigMap)
+6. **Use Secrets**: For JWT secret and credentials (not in ConfigMap)
+7. **Enable Monitoring**: Prometheus metrics
+8. **For HA**: follow the [HA runbook](./HA_KUBERNETES_RUNBOOK.md) — Raft (`cluster.enabled: true`), headless Service, `file_watcher.enabled: false`, `RUST_LOG=info`

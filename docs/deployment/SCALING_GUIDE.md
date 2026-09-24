@@ -247,7 +247,7 @@ spec:
     spec:
       containers:
       - name: vectorizer
-        image: hivellm/vectorizer:latest
+        image: ghcr.io/hivellm/vectorizer:3.8.0
         resources:
           requests:
             memory: "8Gi"

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: vectorizer-ha-config
-  namespace: ermes
+  namespace: vectorizer-ha
 data:
   config-template.yml: |
     server:
@@ -15,9 +15,11 @@ data:
       enabled: false
 
     logging:
+      # Not applied to the console log filter: set RUST_LOG in the
+      # StatefulSet env (statefulset-ha.yaml sets RUST_LOG=info).
       level: "info"
       format: "json"
-      log_requests: true
+      log_requests: false
       log_responses: false
       log_errors: true
       correlation_id_enabled: true
@@ -27,8 +29,8 @@ data:
       jwt_secret: "placeholder-overridden-by-env-VECTORIZER_JWT_SECRET"
       jwt_expiration: 3600
       api_key_length: 32
-      rate_limit_per_minute: 100
-      rate_limit_per_hour: 1000
+      rate_limit_per_minute: 1000
+      rate_limit_per_hour: 100000
 
     # Cluster mode with Raft consensus for automatic failover
     cluster:
@@ -36,20 +38,22 @@ data:
       # __NODE_ID__ is replaced by the init container with the pod hostname
       node_id: "__NODE_ID__"
       discovery: "dns"
-      dns_name: "ermes-vectorizer-headless.ermes.svc.cluster.local"
+      dns_name: "vectorizer-headless.vectorizer-ha.svc.cluster.local"
       dns_resolve_interval: 30
       dns_grpc_port: 15003
       timeout_ms: 5000
       retry_count: 3
+      # Each id MUST equal a pod hostname (StatefulSet name + ordinal).
+      # See docs/deployment/HA_KUBERNETES_RUNBOOK.md.
       servers:
-        - id: "ermes-vectorizer-0"
-          address: "ermes-vectorizer-0.ermes-vectorizer-headless.ermes.svc.cluster.local"
+        - id: "vectorizer-0"
+          address: "vectorizer-0.vectorizer-headless.vectorizer-ha.svc.cluster.local"
           grpc_port: 15003
-        - id: "ermes-vectorizer-1"
-          address: "ermes-vectorizer-1.ermes-vectorizer-headless.ermes.svc.cluster.local"
+        - id: "vectorizer-1"
+          address: "vectorizer-1.vectorizer-headless.vectorizer-ha.svc.cluster.local"
           grpc_port: 15003
-        - id: "ermes-vectorizer-2"
-          address: "ermes-vectorizer-2.ermes-vectorizer-headless.ermes.svc.cluster.local"
+        - id: "vectorizer-2"
+          address: "vectorizer-2.vectorizer-headless.vectorizer-ha.svc.cluster.local"
           grpc_port: 15003
       memory:
         max_cache_memory_bytes: 1073741824  # 1GB

@@ -4,8 +4,8 @@ Complete guide to deploying Vectorizer in a distributed cluster configuration.
 
 > **Looking for the Kubernetes step-by-step?** This file is the architecture
 > reference (Raft + replication shapes, config schema). For a deploy-from-zero
-> playbook against a real K8s cluster — including the gotchas that bit
-> v3.0.0 → v3.0.10 — use the dedicated
+> playbook against a real K8s cluster — manifests, validation, failover,
+> rolling updates and upgrades — use the dedicated
 > [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md).
 
 ## Overview
@@ -15,10 +15,11 @@ This guide covers deploying Vectorizer across multiple servers for horizontal sc
 ## High Availability (HA) Mode
 
 Vectorizer v2.5.0 introduced a hybrid HA architecture combining Raft consensus
-for metadata and TCP streaming for vector data replication. The Kubernetes
-side of that architecture stabilized in v3.0.11; earlier 3.0.x releases hit
-three Raft initialization bugs documented in the
-[HA Runbook](./HA_KUBERNETES_RUNBOOK.md#what-changed-in-3011).
+for metadata and TCP streaming for vector data replication. Use 3.8.0 or
+later for HA: every write path replicates, a full sync makes a follower an
+exact copy of the leader, and Raft state is persisted so a restarted pod
+rejoins as a follower. Older releases and their failure modes are listed in
+the [HA Runbook troubleshooting table](./HA_KUBERNETES_RUNBOOK.md#12-troubleshooting).
 
 ### Architecture
 
@@ -111,61 +112,41 @@ Connection URL (single entry point):
 http://localhost:15002
 ```
 
-All nodes share the same JWT secret. Writes are automatically routed to the leader via HTTP 307. Reads are served by any node.
+All nodes share the same JWT secret. Reads are served by any node; a follower answers writes with HTTP 307 pointing at the leader (see [Write Routing](#write-routing-http-307)).
 
 ### Kubernetes HA
 
-> **v2.5.4 required** for production Kubernetes deployments. Earlier versions have critical bugs:
-> DNS was cached at startup (replicas connect to stale pod IPs after restart), and the cluster
-> router panics on startup due to Axum path syntax.
-
-Deploy with Helm:
-
-```bash
-helm install vectorizer ./deploy/helm/vectorizer \
-  --set replicaCount=3 \
-  --set cluster.enabled=true \
-  --set cluster.discovery=dns
-```
-
-Or apply the production-ready manifests directly:
-
-```bash
-kubectl apply -f deploy/k8s/configmap-ha.yaml
-kubectl apply -f deploy/k8s/statefulset-ha.yaml
-```
+Follow the [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md).
+It uses `ghcr.io/hivellm/vectorizer:3.8.0` and the manifests
+`deploy/k8s/service-ha.yaml`, `deploy/k8s/configmap-ha.yaml` and
+`deploy/k8s/statefulset-ha.yaml`. The Helm chart does not render the Raft
+cluster configuration.
 
 Key requirements:
 - **`cluster.enabled: true`** — without this, there is no Raft election and no automatic failover
 - **`file_watcher.enabled: false`** — incompatible with cluster mode
-- **Headless service** with ports 15002, 7001, 15003 — required for pod-to-pod DNS resolution
-- **`HOSTNAME`, `POD_IP`, `VECTORIZER_SERVICE_NAME`** env vars — required for leader URL routing
+- **Headless service** with `publishNotReadyAddresses: true` and ports 15002, 15003, 7001, 15503 — required for pod-to-pod DNS resolution
+- **`podManagementPolicy: Parallel`** and `cluster.servers[].id` equal to the pod hostnames
 - **Init container** that replaces `__NODE_ID__` with pod hostname in config template
-
-Your application connects to **one URL**:
-```
-http://vectorizer-svc.default.svc.cluster.local:15002
-```
-
-The K8s Service load-balances across all pods:
-- **Reads** (GET) are served by any pod directly
-- **Writes** (POST/PUT/DELETE) that land on a follower are automatically redirected to the leader via HTTP 307
-- Most HTTP clients (fetch, axios, requests) follow the redirect transparently
-
-See [Kubernetes Deployment Guide](KUBERNETES.md) and [HA Cluster Guide](../users/guides/HA_CLUSTER.md) for full details.
+- **`HOSTNAME`, `POD_IP`, `VECTORIZER_SERVICE_NAME`** env vars, `VECTORIZER_DATA_DIR` on the PVC, and `RUST_LOG=info` to see role changes
 
 ### Write Routing (HTTP 307)
 
-When a write request (POST, PUT, DELETE, PATCH) hits a follower node:
+When a write request (POST, PUT, DELETE, PATCH) hits a follower node, the
+follower does **not** forward it. It answers:
 
-1. Follower detects it is not the leader
-2. Returns HTTP 307 Temporary Redirect with `Location: http://leader:15002/original/path`
-3. Client follows the redirect to the leader
-4. Leader processes the write and replicates to followers
+1. HTTP 307 Temporary Redirect with `Location: <leader_url>/original/path`
+2. Headers `X-Vectorizer-Leader: <leader_url>` and `X-Vectorizer-Role: follower`
+3. Body `{"redirect":"write operations must go to leader","leader_url":"<leader_url>"}`
 
-Most HTTP clients (fetch, axios, requests, reqwest) follow 307 redirects automatically.
+`leader_url` is the leader's internal address (in Kubernetes,
+`http://<pod>.<headless-svc>.<ns>.svc.cluster.local:15002`), so only clients
+on the same network can follow it. Most HTTP clients drop the
+`Authorization` header when a redirect changes host, so re-send the write to
+`leader_url` with the same headers and body (`curl --location-trusted`), or
+put a leader-routing layer in front of the cluster.
 
-Read requests (GET, HEAD) are always served locally on any node.
+Reads (GET, and read-only POSTs such as search) are served locally on any node.
 
 ### Failover Behavior
 
@@ -178,7 +159,7 @@ When the leader node goes down:
 3. One follower wins and becomes the new leader
 4. New leader starts accepting writes on port 7001
 5. Other followers connect to the new leader as replicas
-6. Writes are automatically redirected to the new leader via HTTP 307
+6. Followers answer writes with HTTP 307 pointing at the new leader
 7. When the old leader recovers, it rejoins as a follower
 
 **This is the recommended mode for all production deployments.**
@@ -200,10 +181,10 @@ When the leader node goes down:
 
 When the old leader comes back (Raft mode):
 
-1. Node starts and discovers the current leader via Raft
+1. Node starts, resumes its persisted Raft state (`<data_dir>/raft/`, 3.8.0+) and discovers the current leader
 2. Node joins as a follower and connects to the current leader
-3. Replication resumes from the last known offset
-4. If offset is too old, a full snapshot sync is performed
+3. A full sync makes it an exact copy of the leader's collections and vectors; the sync waits until both nodes finished loading their collections from disk
+4. Afterwards replication is incremental; a follower that falls out of the leader's log window gets another full sync on reconnect
 
 ## Prerequisites
 
@@ -410,41 +391,38 @@ version: '3.8'
 
 services:
   vectorizer-node1:
-    image: ghcr.io/hivellm/vectorizer:latest
+    image: ghcr.io/hivellm/vectorizer:3.8.0
     ports:
       - "15002:15002"
       - "15003:15003"
     volumes:
-      - ./config-node1.yml:/etc/vectorizer/config.yml
-      - node1-data:/var/lib/vectorizer/data
-    environment:
-      - VECTORIZER_CONFIG=/etc/vectorizer/config.yml
+      # The server reads config.yml from its working directory.
+      - ./config-node1.yml:/vectorizer/config.yml:ro
+      - node1-data:/data
     networks:
       - vectorizer-cluster
 
   vectorizer-node2:
-    image: ghcr.io/hivellm/vectorizer:latest
+    image: ghcr.io/hivellm/vectorizer:3.8.0
     ports:
       - "15004:15002"
       - "15005:15003"
     volumes:
-      - ./config-node2.yml:/etc/vectorizer/config.yml
-      - node2-data:/var/lib/vectorizer/data
-    environment:
-      - VECTORIZER_CONFIG=/etc/vectorizer/config.yml
+      # The server reads config.yml from its working directory.
+      - ./config-node2.yml:/vectorizer/config.yml:ro
+      - node2-data:/data
     networks:
       - vectorizer-cluster
 
   vectorizer-node3:
-    image: ghcr.io/hivellm/vectorizer:latest
+    image: ghcr.io/hivellm/vectorizer:3.8.0
     ports:
       - "15006:15002"
       - "15007:15003"
     volumes:
-      - ./config-node3.yml:/etc/vectorizer/config.yml
-      - node3-data:/var/lib/vectorizer/data
-    environment:
-      - VECTORIZER_CONFIG=/etc/vectorizer/config.yml
+      # The server reads config.yml from its working directory.
+      - ./config-node3.yml:/vectorizer/config.yml:ro
+      - node3-data:/data
     networks:
       - vectorizer-cluster
 
@@ -465,70 +443,11 @@ docker-compose up -d
 
 ## Kubernetes Deployment
 
-### Kubernetes Example
-
-**`vectorizer-cluster.yaml`:**
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: vectorizer-cluster
-spec:
-  serviceName: vectorizer
-  replicas: 3
-  selector:
-    matchLabels:
-      app: vectorizer
-  template:
-    metadata:
-      labels:
-        app: vectorizer
-    spec:
-      containers:
-      - name: vectorizer
-        image: ghcr.io/hivellm/vectorizer:latest
-        ports:
-        - containerPort: 15002
-          name: rest
-        - containerPort: 15003
-          name: grpc
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/vectorizer/data
-        - name: config
-          mountPath: /etc/vectorizer/config.yml
-          subPath: config.yml
-        env:
-        - name: VECTORIZER_CONFIG
-          value: /etc/vectorizer/config.yml
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 10Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: vectorizer
-spec:
-  clusterIP: None
-  selector:
-    app: vectorizer
-  ports:
-  - port: 15002
-    name: rest
-  - port: 15003
-    name: grpc
-```
-
-**Deploy:**
-```bash
-kubectl apply -f vectorizer-cluster.yaml
-```
+Use the [HA on Kubernetes — End-to-End Runbook](./HA_KUBERNETES_RUNBOOK.md)
+and its manifests in `deploy/k8s/` (`ghcr.io/hivellm/vectorizer:3.8.0`). A
+bare StatefulSet is not enough: Raft needs a headless Service with
+`publishNotReadyAddresses: true`, per-pod node ids, shared auth secrets and
+the data directory on the PVC.
 
 ## Load Balancer Configuration
 

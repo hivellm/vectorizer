@@ -2,10 +2,14 @@
 replicaCount: 1
 
 image:
+  # Public GHCR package: no pull secret needed. Use tag "3.8.0-fastembed"
+  # for dense/multilingual embedding models.
   repository: ghcr.io/hivellm/vectorizer
   pullPolicy: IfNotPresent
-  tag: "latest"
+  # Pin an exact version; an empty tag falls back to the chart appVersion.
+  tag: "3.8.0"
 
+# Only needed for a private fork of the image.
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -17,8 +21,10 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+# The image runs as the non-root user 65532; fsGroup makes the PVC
+# writable by it.
+podSecurityContext:
+  fsGroup: 65532
 
 securityContext: {}
   # capabilities:
@@ -126,9 +132,12 @@ replication:
   log_size: 1000000
   reconnect_interval_secs: 5
 
+# /health and /ready are anonymous. /health answers 200 as soon as the
+# HTTP server is up; /ready answers 503 until the startup collection load
+# completes and 200 after.
 livenessProbe:
   httpGet:
-    path: /api/status
+    path: /health
     port: http
   initialDelaySeconds: 30
   periodSeconds: 10
@@ -137,9 +146,9 @@ livenessProbe:
 
 readinessProbe:
   httpGet:
-    path: /api/status
+    path: /ready
     port: http
-  initialDelaySeconds: 10
+  initialDelaySeconds: 5
   periodSeconds: 5
   timeoutSeconds: 3
   failureThreshold: 3
