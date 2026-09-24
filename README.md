@@ -67,9 +67,21 @@ High-performance vector database and search engine in Rust for semantic search, 
 - **Web Dashboard** — React + TypeScript; JWT login, graph CRUD (edges, neighbors, paths), collection management, API sandbox, setup wizard with glassmorphism design. Embedded in the binary (~26MB, no external assets needed).
 - **Desktop GUI** — Electron + vis-network for visual database management.
 
-## 🎉 Latest Release: v3.7.1
+## 🎉 Latest Release: v3.7.2
 
-Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown. v3.7.1 and v3.7.0 shipped together on 2026-08-30.
+Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown.
+
+**Fixed — HA replication no longer stops after a pod regains Raft leadership**
+- A node that lost and won back leadership without restarting logged `MasterNode failed: Address in use (os error 98)`: the previous term's master was dropped but never shut down, so followers stayed attached to an orphaned listener and writes on the leader never reached them. `MasterNode`/`ReplicaNode` now expose `shutdown()`, and `HaManager` calls it on every role change — including a leader change while already a follower, which used to leak a reconnect loop per change.
+
+**Security — `cargo audit` and `pnpm audit` pass again**
+- `rustls` `0.23.45` (RUSTSEC-2026-0285, TLS 1.3 handshake messages accepted across encryption-level boundaries); in the GUI, `fast-uri` `4.2.1` (four high advisories) and `@xmldom/xmldom` `0.9.12` (0.9.10 deprecated upstream for critical issues).
+
+---
+
+### v3.7.1 / v3.7.0 highlights (previous release)
+
+Both shipped 2026-08-30.
 
 **Security — the published container image goes from 30 CVEs to zero**
 - All 30 were in base-OS packages (openssl, glibc, tar), never in project code — `cargo audit` was already clean. The default runtime is now `FROM scratch`: 0 packages, 0 vulnerabilities. Required dropping `umicp-core`'s `http2` feature, which had been pulling reqwest/native-tls/OpenSSL into the build so the binary genuinely linked `libssl.so.3`; it now links statically.
@@ -89,34 +101,11 @@ Highlights — see [CHANGELOG.md](./CHANGELOG.md) for the full breakdown. v3.7.1
 **Fixed (v3.7.0) — every dependency vulnerability: nine to zero**
 - `cargo audit` now exits 0. The ones that mattered were denial-of-service on parsed input (`lopdf`, `quick-xml`) on the file-upload path, plus an HTTP/2 DoS in `h2`.
 
----
-
-### Unreleased
-
-- **Fixed** — HA replication could silently stop after a node regained Raft leadership in Kubernetes: the previous term's `MasterNode`/`ReplicaNode` was dropped but never shut down, so followers stayed attached to an orphaned listener and leader writes never reached them. `MasterNode`/`ReplicaNode` now expose `shutdown()`, called by `HaManager` on every role change.
-
-### v3.6.x highlights (previous release)
-
-**Fixed (3.6.1) — a collection listing taken during startup says it is partial ([#391](https://github.com/hivellm/vectorizer/issues/391))**
-- `GET /collections` could answer from a store still loading collections in the background, with `total_collections` agreeing with the partial count — read during a 3.5→3.6 upgrade as data loss. The response now carries `loading`, `loaded_collections`, `expected_collections`, `load_state`; a new **`GET /ready`** gates traffic (200 once loaded, 503 with `Retry-After` until then).
-
-**Fixed (3.6.1) — the arm64 `-fastembed` image starts**
-- The runtime stage hardcoded an amd64 `libstdc++.so.6` path, so `hivehub/vectorizer:3.5.0-fastembed` on `linux/arm64` exited 127. Fixed in the `3.6.0` images published 2026-08-05 (the source-tagged `v3.6.0` does not carry the fix).
-
-**Fixed (3.6.1) — search responses satisfy the published TypeScript SDK validators**
-- The TS SDK's response validators rejected successful searches from `search_vectors_by_text`, `hybrid_search_vectors`, and `search_by_file` over `total`/`data` field-name mismatches. Fixed additively; `total_results`/`vector` remain for existing callers.
-
-**Changed (3.6.1) — BREAKING (Python SDK): `search_vectors`, `get_vector`, `embed_text` return their annotated types**
-- All three previously handed back raw transport response dicts instead of the declared `List[SearchResult]` / `Vector` / `List[float]`. Migration table in `sdks/python/CHANGELOG.md`.
-
-**Added/Fixed (3.6.0) — collection TTL is readable, and now actually expires vectors**
-- `GET /collections/{name}/ttl` rounds out `set_ttl`, which previously wrote a TTL that nothing ever read back. Inserts now stamp `__expires_at`, and the rule survives a restart via `.vecdb` persistence.
-
-Server-side at **v3.7.1**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.7.1.
+Server-side at **v3.7.2**. The Rust SDK tracks server versioning; TypeScript, Python, Go, and C# SDKs are also on v3.7.2.
 
 ---
 
-For prior releases (v3.5.0 and earlier) see [CHANGELOG.md](./CHANGELOG.md).
+For prior releases (v3.6.1 and earlier) see [CHANGELOG.md](./CHANGELOG.md).
 
 ## 🚀 Quick Start
 
@@ -379,7 +368,7 @@ Cursor / Claude Desktop config:
 
 ## 📦 Client SDKs
 
-Server-side at **v3.7.1**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.7.1**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
+Server-side at **v3.7.2**. The Rust SDK tracks server versioning; the TypeScript, Python, Go, and C# SDKs are also on **v3.7.2**. The TypeScript SDK ships compiled CJS + ESM — usable from plain JavaScript, no separate JS package needed.
 
 | SDK | Install |
 |---|---|
