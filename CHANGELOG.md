@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- **`cargo audit` and `pnpm audit` pass again.** Both gates had been red on
+  `main` since advisories published after 3.7.1:
+  - `rustls` `0.23.43` → `0.23.45` (RUSTSEC-2026-0285, TLS 1.3 handshake
+    messages accepted across encryption-level boundaries), with
+    `rustls-webpki` `0.103.15` and `aws-lc-rs` `1.18.1` / `aws-lc-sys`
+    `0.45.0` alongside.
+  - `fast-uri` `4.1.2` → `4.2.1` (gui pnpm override): closes four high
+    advisories, including SSRF via repeated hostname percent-decoding and host
+    confusion via percent-encoded scheme normalization.
+  - `@xmldom/xmldom` `0.9.10` → `0.9.12` (gui pnpm override): 0.9.10 is
+    deprecated upstream for critical issues.
+
 ### Fixed
 
 - **HA replication silently stopped after a node regained Raft leadership.**
