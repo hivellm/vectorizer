@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.7.2] - 2026-09-23
+
 ### Security
 
 - **`cargo audit` and `pnpm audit` pass again.** Both gates had been red on
