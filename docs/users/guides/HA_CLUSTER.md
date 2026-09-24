@@ -103,7 +103,7 @@ That's it. One URL for everything.
 Follow the [HA on Kubernetes — End-to-End Runbook](../../deployment/HA_KUBERNETES_RUNBOOK.md).
 It is the single, validated install guide for 3.8.0: Secret, headless
 Service (`publishNotReadyAddresses: true`), ConfigMap template with
-`__NODE_ID__`, StatefulSet (`ghcr.io/hivellm/vectorizer:3.8.0`,
+`__NODE_ID__`, StatefulSet (`ghcr.io/hivellm/vectorizer:3.8.1`,
 `podManagementPolicy: Parallel`, `RUST_LOG=info`, `/ready` readiness),
 validation, failover test, rolling updates, the one-time all-pods restart
 when upgrading from ≤ 3.7.2, and troubleshooting. The matching manifests

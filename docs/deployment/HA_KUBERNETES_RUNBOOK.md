@@ -2,7 +2,7 @@
 
 This is the step-by-step playbook for deploying Vectorizer in High-Availability
 mode (Raft consensus + leader/follower replication) on a Kubernetes cluster
-with `ghcr.io/hivellm/vectorizer:3.8.0`. It starts with an empty namespace and
+with `ghcr.io/hivellm/vectorizer:3.8.1`. It starts with an empty namespace and
 ends with a 3-pod Raft cluster that survives leader kills and rolling updates.
 
 The neighbouring docs (`CLUSTER.md`, `KUBERNETES.md`, `users/configuration/CLUSTER.md`)
@@ -32,8 +32,8 @@ Images:
 
 | Tag | Base | Embeddings |
 |---|---|---|
-| `ghcr.io/hivellm/vectorizer:3.8.0` | `scratch`, no shell, non-root (UID 65532) | BM25 only (default) |
-| `ghcr.io/hivellm/vectorizer:3.8.0-fastembed` | Debian, ONNX Runtime, non-root (UID 65532) | BM25 + fastembed dense/multilingual models ([§11](#11-multilingual-embeddings-optional)) |
+| `ghcr.io/hivellm/vectorizer:3.8.1` | `scratch`, no shell, non-root (UID 65532) | BM25 only (default) |
+| `-fastembed` variant — not published for 3.8.x yet, build it ([§11](#11-multilingual-embeddings-optional)) | Debian, ONNX Runtime, non-root (UID 65532) | BM25 + fastembed dense/multilingual models ([§11](#11-multilingual-embeddings-optional)) |
 
 Always pin an exact tag — `:latest` floats and makes rollouts
 irreproducible. GHCR tags are unprefixed (`3.8.0`, not `v3.8.0`). Docker Hub
@@ -279,7 +279,7 @@ spec:
       containers:
         - name: vectorizer
           # Pin to an exact tag — `:latest` floats and breaks rollouts.
-          image: ghcr.io/hivellm/vectorizer:3.8.0
+          image: ghcr.io/hivellm/vectorizer:3.8.1
           imagePullPolicy: IfNotPresent
           ports:
             - { name: rpc,         containerPort: 15503 }
@@ -594,7 +594,7 @@ kubectl patch sts vectorizer -n "$NS" -p '{"spec":{"updateStrategy":{"type":"OnD
 # 2. Move to the 3.8.0 image and INFO logs. Also switch the readiness probe
 #    to /ready and drop imagePullSecrets (GHCR is public now) — with
 #    `kubectl edit sts/vectorizer` or by re-applying your manifest.
-kubectl set image sts/vectorizer -n "$NS" vectorizer=ghcr.io/hivellm/vectorizer:3.8.0
+kubectl set image sts/vectorizer -n "$NS" vectorizer=ghcr.io/hivellm/vectorizer:3.8.1
 kubectl set env sts/vectorizer -n "$NS" RUST_LOG=info
 
 # 3. Delete every pod at once; they come back together on 3.8.0 and the
@@ -645,11 +645,24 @@ reconcile against.
 
 The default image is BM25-only. For dense and multilingual models —
 including synonym and cross-language matches ("automóvel" finds "carro") —
-run the `-fastembed` image and register the model next to BM25:
+run the `-fastembed` image and register the model next to BM25.
+
+The `-fastembed` variant is not published for 3.8.x yet: its runtime is a
+Docker Hardened Images base, which needs a Docker Hub account to pull. Build it
+from a checkout of the release tag (after `docker login dhi.io`) and push it to
+a registry your cluster can reach:
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --build-arg RUNTIME_VARIANT=glibc --build-arg ENABLE_FASTEMBED=1 \
+  --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed \
+  --build-arg FASTEMBED_MODEL=intfloat/multilingual-e5-small \
+  -t <your-registry>/vectorizer:3.8.1-fastembed --push .
+```
 
 ```yaml
 # statefulset-ha.yaml
-image: ghcr.io/hivellm/vectorizer:3.8.0-fastembed
+image: <your-registry>/vectorizer:3.8.1-fastembed
 
 # configmap-ha.yaml, top level of config-template.yml
 embedding:

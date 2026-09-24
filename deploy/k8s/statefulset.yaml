@@ -21,9 +21,10 @@ spec:
         fsGroup: 65532
       containers:
         - name: vectorizer
-          # Pin an exact tag. Use `3.8.0-fastembed` for dense/multilingual
-          # embedding models (see docs/users/guides/EMBEDDINGS.md).
-          image: ghcr.io/hivellm/vectorizer:3.8.0
+          # Pin an exact tag. Dense/multilingual models need the -fastembed
+          # variant, not published for 3.8.x yet (see
+          # docs/deployment/HA_KUBERNETES_RUNBOOK.md §11 to build it).
+          image: ghcr.io/hivellm/vectorizer:3.8.1
           imagePullPolicy: IfNotPresent
           ports:
             # RPC (binary, recommended primary) listed first per
