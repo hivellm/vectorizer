@@ -202,10 +202,10 @@ pub async fn create_collection(
                 "missing or invalid name parameter",
             )
         })?;
-    let dimension = payload
+    let requested_dimension = payload
         .get("dimension")
         .and_then(|d| d.as_u64())
-        .unwrap_or(512) as usize;
+        .map(|d| d as usize);
     let metric = payload
         .get("metric")
         .and_then(|m| m.as_str())
@@ -243,6 +243,15 @@ pub async fn create_collection(
             .unwrap_or("bm25")
             .to_string(),
     };
+    // An omitted `dimension` means "whatever the provider produces", so a
+    // client need not know which model the server embeds with. 512 only
+    // applies when there is no provider width (raw vectors).
+    let dimension = requested_dimension.unwrap_or_else(|| {
+        state
+            .embedding_manager
+            .get_provider_dimension(&resolved_provider)
+            .unwrap_or(512)
+    });
     // Reject dimension mismatch against the provider's native dimension
     // before persisting the collection — silent quantization to a
     // different size is what caused the BM25-512 coercion downstream.

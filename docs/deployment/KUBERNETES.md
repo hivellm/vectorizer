@@ -17,8 +17,8 @@ Complete guide for deploying Vectorizer on Kubernetes.
 
 | Tag | Base | Embeddings |
 |---|---|---|
-| `ghcr.io/hivellm/vectorizer:3.8.1` | `scratch`, no shell, non-root (UID 65532) | BM25 only (default) |
-| `-fastembed` variant | Debian, ONNX Runtime, non-root (UID 65532) | BM25 + fastembed dense/multilingual models — not published for 3.8.x yet; build from source ([runbook §11](HA_KUBERNETES_RUNBOOK.md#11-multilingual-embeddings-optional)) |
+| `ghcr.io/hivellm/vectorizer:3.8.2` | `scratch`, no shell, non-root (UID 65532) | BM25 only (default) |
+| `ghcr.io/hivellm/vectorizer:3.8.2-fastembed` | `gcr.io/distroless/cc-debian13` (glibc), non-root (UID 65532) | BM25 + fastembed dense/multilingual models, `multilingual-e5-small` baked in — see [runbook §11](HA_KUBERNETES_RUNBOOK.md#11-multilingual-embeddings-optional) |
 
 The GHCR package is public — no `imagePullSecrets` needed. Pin an exact tag
 (never `latest`); tags are unprefixed (`3.8.0`, not `v3.8.0`). The default
@@ -94,7 +94,7 @@ data:
 ### StatefulSet
 
 See [deploy/k8s/statefulset.yaml](../../deploy/k8s/statefulset.yaml). It runs
-`ghcr.io/hivellm/vectorizer:3.8.1`, mounts the ConfigMap at
+`ghcr.io/hivellm/vectorizer:3.8.2`, mounts the ConfigMap at
 `/vectorizer/config.yml` (the server reads `config.yml` from its working
 directory), keeps data on the PVC via `VECTORIZER_DATA_DIR=/data`, reads the
 admin password and JWT secret from the `vectorizer-credentials` Secret, and
@@ -298,7 +298,7 @@ See the [HA runbook troubleshooting table](./HA_KUBERNETES_RUNBOOK.md#12-trouble
 ## Best Practices
 
 1. **Use StatefulSet**: For persistent storage and stable pod identity
-2. **Pin the image**: `ghcr.io/hivellm/vectorizer:3.8.1`, never `latest`
+2. **Pin the image**: `ghcr.io/hivellm/vectorizer:3.8.2`, never `latest`
 3. **Keep data on the PVC**: `VECTORIZER_DATA_DIR` must point inside the volume mount
 4. **Probe `/health` (liveness) and `/ready` (readiness)**
 5. **Set Resource Limits**: Prevent resource exhaustion

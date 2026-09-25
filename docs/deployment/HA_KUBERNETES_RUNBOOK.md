@@ -2,7 +2,7 @@
 
 This is the step-by-step playbook for deploying Vectorizer in High-Availability
 mode (Raft consensus + leader/follower replication) on a Kubernetes cluster
-with `ghcr.io/hivellm/vectorizer:3.8.1`. It starts with an empty namespace and
+with `ghcr.io/hivellm/vectorizer:3.8.2`. It starts with an empty namespace and
 ends with a 3-pod Raft cluster that survives leader kills and rolling updates.
 
 The neighbouring docs (`CLUSTER.md`, `KUBERNETES.md`, `users/configuration/CLUSTER.md`)
@@ -32,8 +32,8 @@ Images:
 
 | Tag | Base | Embeddings |
 |---|---|---|
-| `ghcr.io/hivellm/vectorizer:3.8.1` | `scratch`, no shell, non-root (UID 65532) | BM25 only (default) |
-| `-fastembed` variant — not published for 3.8.x yet, build it ([§11](#11-multilingual-embeddings-optional)) | Debian, ONNX Runtime, non-root (UID 65532) | BM25 + fastembed dense/multilingual models ([§11](#11-multilingual-embeddings-optional)) |
+| `ghcr.io/hivellm/vectorizer:3.8.2` | `scratch`, no shell, non-root (UID 65532) | BM25 only (default) |
+| `ghcr.io/hivellm/vectorizer:3.8.2-fastembed` | distroless Debian 13, ONNX Runtime, no shell, non-root (UID 65532) | BM25 + fastembed dense/multilingual models ([§11](#11-multilingual-embeddings-optional)) |
 
 Always pin an exact tag — `:latest` floats and makes rollouts
 irreproducible. GHCR tags are unprefixed (`3.8.0`, not `v3.8.0`). Docker Hub
@@ -279,7 +279,7 @@ spec:
       containers:
         - name: vectorizer
           # Pin to an exact tag — `:latest` floats and breaks rollouts.
-          image: ghcr.io/hivellm/vectorizer:3.8.1
+          image: ghcr.io/hivellm/vectorizer:3.8.2
           imagePullPolicy: IfNotPresent
           ports:
             - { name: rpc,         containerPort: 15503 }
@@ -594,7 +594,7 @@ kubectl patch sts vectorizer -n "$NS" -p '{"spec":{"updateStrategy":{"type":"OnD
 # 2. Move to the 3.8.0 image and INFO logs. Also switch the readiness probe
 #    to /ready and drop imagePullSecrets (GHCR is public now) — with
 #    `kubectl edit sts/vectorizer` or by re-applying your manifest.
-kubectl set image sts/vectorizer -n "$NS" vectorizer=ghcr.io/hivellm/vectorizer:3.8.1
+kubectl set image sts/vectorizer -n "$NS" vectorizer=ghcr.io/hivellm/vectorizer:3.8.2
 kubectl set env sts/vectorizer -n "$NS" RUST_LOG=info
 
 # 3. Delete every pod at once; they come back together on 3.8.0 and the
@@ -645,24 +645,11 @@ reconcile against.
 
 The default image is BM25-only. For dense and multilingual models —
 including synonym and cross-language matches ("automóvel" finds "carro") —
-run the `-fastembed` image and register the model next to BM25.
-
-The `-fastembed` variant is not published for 3.8.x yet: its runtime is a
-Docker Hardened Images base, which needs a Docker Hub account to pull. Build it
-from a checkout of the release tag (after `docker login dhi.io`) and push it to
-a registry your cluster can reach:
-
-```bash
-docker buildx build --platform linux/amd64,linux/arm64 \
-  --build-arg RUNTIME_VARIANT=glibc --build-arg ENABLE_FASTEMBED=1 \
-  --build-arg NO_DEFAULT_FEATURES=0 --build-arg FEATURES=fastembed \
-  --build-arg FASTEMBED_MODEL=intfloat/multilingual-e5-small \
-  -t <your-registry>/vectorizer:3.8.1-fastembed --push .
-```
+run the `-fastembed` image and register the model next to BM25:
 
 ```yaml
 # statefulset-ha.yaml
-image: <your-registry>/vectorizer:3.8.1-fastembed
+image: ghcr.io/hivellm/vectorizer:3.8.2-fastembed
 
 # configmap-ha.yaml, top level of config-template.yml
 embedding:
@@ -671,24 +658,53 @@ embedding:
     - "fastembed:multilingual-e5-small"
 ```
 
-Then create collections that use it (through the leader):
+- `ghcr.io/hivellm/vectorizer:<version>-fastembed` is public like the default
+  image. It runs on `gcr.io/distroless/cc-debian13` (glibc + ONNX Runtime, no
+  shell, UID 65532).
+- `multilingual-e5-small` is baked into the image at
+  `/vectorizer/models/fastembed`, and the image sets
+  `VECTORIZER_FASTEMBED_CACHE_DIR` there. That is outside `/data`, so the PVC
+  does not hide it: pods start without downloading anything and need no
+  outbound access to Hugging Face. Other fastembed models are downloaded into
+  the same directory on first use and are lost when the pod is recreated —
+  set `VECTORIZER_FASTEMBED_CACHE_DIR` to a path on the PVC if you rely on
+  one.
+- Every pod needs the model (followers embed search queries locally); the
+  shared ConfigMap takes care of that.
+
+Then create collections that use it (through the leader). `dimension` can be
+left out — the server uses the provider's width (384 for this model):
 
 ```bash
 curl -sS -X POST http://127.0.0.1:18002/collections \
   -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
-  -d '{"name":"docs_pt","dimension":384,"embedding_provider":"fastembed:multilingual-e5-small"}'
+  -d '{"name":"docs_pt","embedding_provider":"fastembed:multilingual-e5-small"}'
 ```
+
+To make it the model for every new collection, set
+`embedding.model: "fastembed:multilingual-e5-small"` instead (keep `bm25` in
+`additional_models` if existing BM25 collections must stay searchable).
+Clients that send `"dimension": 512` explicitly are then refused with
+`provider_dimension_mismatch`; they should omit `dimension` or send 384.
 
 - Text inserted into and searched in that collection is embedded with the
   E5 model; the `passage:` / `query:` prefixes are added automatically.
 - Existing BM25 collections keep working unchanged. A collection's model is
-  fixed at creation: to move one to E5, create a new collection and
-  re-insert its texts.
-- Every pod needs the model (followers embed search queries locally), which
-  the shared ConfigMap takes care of. The model is stored under
-  `<data_dir>/fastembed` on the PVC; the PVC mounted at `/data` hides
-  anything baked into the image there, so each pod downloads the model on
-  its first boot and needs outbound HTTPS access for it.
+  fixed at creation: to move one to E5, create a new collection, re-insert
+  its texts (`POST /insert_texts` with the original `id`, `text` and
+  `metadata`, `auto_chunk: false`), then delete the old one and rename the new
+  one into its place. Text-insert metadata values are stored as strings, so a
+  numeric payload field (e.g. a server-written `chunk_index`) comes back as a
+  string after the copy.
+- Scores are cosine similarities of a different model and sit in a narrow,
+  high band: on Portuguese customer-conversation chunks, relevant hits scored
+  about 0.88–0.95 and unrelated ones 0.85–0.96. A `min_score` tuned for BM25
+  (e.g. 0.5) filters nothing, and no threshold separates the two cleanly —
+  rely on the ranking and `limit`, and use a floor (around 0.85) only to cut
+  obvious noise. Measure on your own data before relying on one.
+- Dense retrieval favours meaning over literal overlap: a query of a few
+  exact words from a long chunk (~2,000 characters) finds that chunk less
+  reliably than a sentence-length query does. Shorter chunks help.
 
 Full details: [Embedding Providers Guide](../users/guides/EMBEDDINGS.md).
 
@@ -697,8 +713,9 @@ Full details: [Embedding Providers Guide](../users/guides/EMBEDDINGS.md).
 ## Data directory pitfall
 
 `vectorizer-core::paths::data_dir()` — the function the server uses to
-locate `vectorizer.vecdb`, snapshots, the auth files, the Raft state and the
-fastembed model cache — resolves in this order:
+locate `vectorizer.vecdb`, snapshots, the auth files, the Raft state and
+(unless `VECTORIZER_FASTEMBED_CACHE_DIR` is set, as the `-fastembed` image
+does) the fastembed model cache — resolves in this order:
 
 1. `$VECTORIZER_DATA_DIR` if set and non-empty.
 2. `dirs::data_dir().join("vectorizer")` — per-OS user data directory

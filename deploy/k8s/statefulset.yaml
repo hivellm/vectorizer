@@ -22,9 +22,9 @@ spec:
       containers:
         - name: vectorizer
           # Pin an exact tag. Dense/multilingual models need the -fastembed
-          # variant, not published for 3.8.x yet (see
-          # docs/deployment/HA_KUBERNETES_RUNBOOK.md §11 to build it).
-          image: ghcr.io/hivellm/vectorizer:3.8.1
+          # variant: ghcr.io/hivellm/vectorizer:3.8.2-fastembed (see
+          # docs/deployment/HA_KUBERNETES_RUNBOOK.md §11 to configure it).
+          image: ghcr.io/hivellm/vectorizer:3.8.2
           imagePullPolicy: IfNotPresent
           ports:
             # RPC (binary, recommended primary) listed first per

@@ -92,9 +92,10 @@ fn dockerfile_runtime_base_is_digest_pinned_with_date() {
     let dockerfile = fs::read_to_string(repo_root().join("Dockerfile")).expect("Dockerfile");
 
     // The freshness job greps this exact shape:
-    //   FROM dhi.io/debian-base:trixie@sha256:<64 hex> AS vectorizer
+    //   FROM gcr.io/distroless/cc-debian13:nonroot@sha256:<64 hex> AS vectorizer
     let pin = dockerfile.lines().find(|l| {
-        l.starts_with("FROM dhi.io/debian-base:trixie@sha256:") && l.contains(" AS vectorizer")
+        l.starts_with("FROM gcr.io/distroless/cc-debian13:nonroot@sha256:")
+            && l.contains(" AS vectorizer")
     });
     let pin = pin.expect(
         "runtime base must be digest-pinned (image-security spec); \

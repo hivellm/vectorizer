@@ -739,10 +739,10 @@ fn handle_collections_create(
         None => return Response::err(id, "collections.create expects [Str(name), Map(config)]"),
     };
     let config_val = args.get(1);
-    let dimension = config_val
+    let requested_dimension = config_val
         .and_then(|v| v.map_get("dimension"))
         .and_then(|v| v.as_int())
-        .unwrap_or(512) as usize;
+        .map(|d| d as usize);
     let metric_str = config_val
         .and_then(|v| v.map_get("metric"))
         .and_then(|v| v.as_str())
@@ -785,6 +785,13 @@ fn handle_collections_create(
             .unwrap_or("bm25")
             .to_string(),
     };
+    // Omitted `dimension` = the provider's native width, as in REST.
+    let dimension = requested_dimension.unwrap_or_else(|| {
+        state
+            .embedding_manager
+            .get_provider_dimension(&embedding_provider)
+            .unwrap_or(512)
+    });
     // Refuse a dimension that disagrees with the provider's native size. REST
     // has rejected this since phase33; accepting it here is what let an RPC
     // client create a collection whose text inserts could never index.

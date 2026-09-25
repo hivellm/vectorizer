@@ -76,6 +76,10 @@ curl -X POST http://localhost:15002/collections \
 # GET /collections/denseprobe → { dimension: 384, embedding_provider: "fastembed:multilingual-e5-small", ... }
 ```
 
+`dimension` is also optional (3.8.2+): when omitted, it defaults to the
+resolved provider's native width (e.g. 384 for `fastembed:multilingual-e5-small`)
+instead of always defaulting to 512.
+
 **Error — provider is not registered:**
 
 ```json
@@ -163,7 +167,9 @@ embedding:
   model: "bm25"
   # Extra providers registered next to the default (3.8+), so individual
   # collections can opt into them. Each model is loaded once at boot and
-  # downloaded to <data_dir>/fastembed on first use.
+  # downloaded to <data_dir>/fastembed on first use, or to
+  # $VECTORIZER_FASTEMBED_CACHE_DIR when that env var is set — the
+  # published `-fastembed` image sets it to bundle a model outside `/data`.
   additional_models:
     - "fastembed:multilingual-e5-small"
 ```

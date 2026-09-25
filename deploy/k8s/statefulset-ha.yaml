@@ -46,11 +46,11 @@ spec:
       containers:
         - name: vectorizer
           # Pin to an exact tag so rolling restarts are reproducible.
-          # GHCR tags are *unprefixed*: use `3.8.1`, NOT `v3.8.1`.
-          # Dense/multilingual models need the -fastembed variant, not
-          # published for 3.8.x yet (runbook §11: build from source).
+          # GHCR tags are *unprefixed*: use `3.8.2`, NOT `v3.8.2`.
+          # Dense/multilingual models need the -fastembed variant:
+          # ghcr.io/hivellm/vectorizer:3.8.2-fastembed (runbook §11).
           # See docs/deployment/HA_KUBERNETES_RUNBOOK.md.
-          image: ghcr.io/hivellm/vectorizer:3.8.1
+          image: ghcr.io/hivellm/vectorizer:3.8.2
           imagePullPolicy: IfNotPresent
           ports:
             # RPC (binary, recommended primary) listed first per

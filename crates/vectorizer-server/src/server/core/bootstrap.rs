@@ -75,7 +75,7 @@ fn build_default_provider(
     let model = resolve_embedding_model_name(config_path)?;
 
     if let Some(fastembed_id) = model.strip_prefix("fastembed:") {
-        let cache_dir = vectorizer_core::paths::data_dir().join("fastembed");
+        let cache_dir = vectorizer_core::paths::fastembed_cache_dir();
         let provider = vectorizer::embedding::providers::try_build_fastembed_provider(
             fastembed_id,
             cache_dir.clone(),
@@ -182,7 +182,7 @@ fn build_additional_providers(
                 model
             ));
         };
-        let cache_dir = vectorizer_core::paths::data_dir().join("fastembed");
+        let cache_dir = vectorizer_core::paths::fastembed_cache_dir();
         let provider =
             vectorizer::embedding::providers::try_build_fastembed_provider(fastembed_id, cache_dir)
                 .map_err(|e| anyhow::anyhow!("{}", e))?;

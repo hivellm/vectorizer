@@ -14,7 +14,7 @@ phase10 (`.rulebook/tasks/phase10_optimize-docker-build-time/`).
 | Same release, dense variant | `.\scripts\docker\build-push.ps1 -Tag 3.x.y -Fastembed` |
 | Local-only build (no push) | `.\scripts\docker\build.ps1 -Tag dev` |
 | Re-push an already-built tag | `.\scripts\docker\push.ps1 -Tag 3.x.y` |
-| Release publish from CI (GHCR, GitHub token only) | Actions → **Publish Docker images** → Run workflow, `tag: v3.x.y` (`include_fastembed: true` for the dense variant, needs DHI access) |
+| Release publish from CI (GHCR, GitHub token only) | Actions → **Publish Docker images** → Run workflow, `tag: v3.x.y` (`include_fastembed: true`, the default, also publishes the `-fastembed` variant — GITHUB_TOKEN only, no DHI access needed) |
 | Prove the image pipeline on a branch | Same workflow, run on the branch with `dry_run: true` (builds, pushes nothing) |
 | CI release publish (automatic, on tag) | **removed** — see § "CI release publish flow" |
 
@@ -30,15 +30,20 @@ SBOM + `mode=max` provenance, `latest` on the default variant) for a release
 tag and pushes to the GitHub Container Registry — `ghcr.io/hivellm/vectorizer`,
 public — with the workflow's own `GITHUB_TOKEN`. The default image needs no
 other credential: since 3.8.1 its `user-prep` build stage uses public
-`debian:trixie-slim` instead of the Docker Hardened Images base. The
-`-fastembed` variant still runs on the DHI base, so it is built only with
-`include_fastembed: true` and a Docker Hub account with DHI access in
-`DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` (a read-only token is enough); the
-workflow no longer pushes to Docker Hub. The layer cache is the GitHub Actions
-cache (`type=gha`, one scope per variant). Run it after the release workflow
-finishes; it refuses a tag that does not match the workspace crate version.
-`dry_run: true` builds from the branch it is dispatched on and pushes nothing
-— use it to prove a release branch before tagging.
+`debian:trixie-slim` instead of the Docker Hardened Images base. Since 3.8.2
+the `-fastembed` variant no longer needs one either: its runtime moved off
+the DHI base to public `gcr.io/distroless/cc-debian13:nonroot` (glibc, pinned
+by digest), so `include_fastembed: true` (the default) builds and publishes
+`ghcr.io/hivellm/vectorizer:<version>-fastembed` with nothing but
+`GITHUB_TOKEN`, baking `intfloat/multilingual-e5-small`
+(`fastembed:multilingual-e5-small`) into it via
+`--build-arg FASTEMBED_MODEL=intfloat/multilingual-e5-small`. `dhi.io` login
+and the `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` secrets are no longer used by
+this workflow, and it never pushes to Docker Hub. The layer cache is the
+GitHub Actions cache (`type=gha`, one scope per variant). Run it after the
+release workflow finishes; it refuses a tag that does not match the workspace
+crate version. `dry_run: true` builds from the branch it is dispatched on and
+pushes nothing — use it to prove a release branch before tagging.
 
 All three local scripts default to the `hivehub/vectorizer-cache:buildx`
 registry cache. Pass `-NoCache` to force a cold build.
@@ -109,9 +114,9 @@ This:
 4. Pushes the manifest list + per-arch images + cache layer to Docker
    Hub in one step.
 
-**Prerequisites:** `docker login` against `docker.io` and `dhi.io`
-(the latter is required for the `dhi.io/debian-base:trixie` runtime
-base image pull).
+**Prerequisites:** `docker login` against `docker.io` (for the Docker Hub
+push). No `dhi.io` login is needed — since 3.8.2 the `-fastembed` runtime
+base is the public `gcr.io/distroless/cc-debian13:nonroot`.
 
 ### Local-only build (no push)
 
@@ -264,33 +269,35 @@ ghcr.io but skips the Hub push and the Scout gate.
 
 ### Base digest bump
 
-The runtime base is pinned by digest in the `Dockerfile`:
+The glibc (`-fastembed`) runtime base is pinned by digest in the
+`Dockerfile`, on the `AS vectorizer-glibc` stage:
 
 ```dockerfile
-# Pinned YYYY-MM-DD — carries openssl <version> (...)
-FROM dhi.io/debian-base:trixie@sha256:<digest> AS vectorizer
+# Pinned YYYY-MM-DD — carries glibc <version>, libssl <version> (...)
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:<digest> AS vectorizer-glibc
 ```
 
-DHI rebuilds the base weekly with patched packages. The
-`docker-cve-gate.yml` workflow compares the pinned digest against the
-live tag every Monday; when the pin is ≥14 days old **and** upstream
-has moved, it opens a "Base digest stale" issue containing the new
-digest.
+The default (`scratch`) variant has no base image to pin — it carries zero
+OS packages. Google rebuilds `distroless/cc-debian13` periodically with
+patched packages; the `docker-cve-gate.yml` workflow compares the pinned
+digest against the live tag every Monday and opens a "Base digest stale"
+issue when the pin is stale and upstream has moved.
 
 To bump:
 
-1. `docker pull dhi.io/debian-base:trixie` and copy the digest from
-   `docker image inspect dhi.io/debian-base:trixie --format '{{index .RepoDigests 0}}'`.
+1. `docker buildx imagetools inspect gcr.io/distroless/cc-debian13:nonroot`
+   to get the current digest.
 2. Verify the fix you're after is actually in the new base:
-   `docker scout sbom dhi.io/debian-base:trixie --format list | grep -i <package>`.
-3. Update the `FROM ...@sha256:` line **and** the `# Pinned YYYY-MM-DD`
-   comment (the freshness check parses that date).
+   `docker scout sbom gcr.io/distroless/cc-debian13:nonroot --format list | grep -i <package>`.
+3. Update the `FROM ...@sha256:` line on the `AS vectorizer-glibc` stage
+   **and** the `# Pinned YYYY-MM-DD` comment (the freshness check parses
+   that date).
 4. Rebuild + rescan locally:
-   `docker scout cves local/vectorizer:<tag> --vex-location deploy/docker/vex.json --vex-author 'HiveLLM Vectorizer maintainers' --only-severity critical,high --exit-code`.
+   `docker scout cves local/vectorizer:<tag>-fastembed --vex-location deploy/docker/vex.json --vex-author 'HiveLLM Vectorizer maintainers' --only-severity critical,high --exit-code`.
    (`--vex-author` is required — the Scout CLI default only trusts
    VEX documents authored by `<.*@docker.com>` and silently ignores
    ours without it.)
-5. Commit the one-line diff; the release build inherits the pin.
+5. Commit the one-line diff; the next `-fastembed` build inherits the pin.
 
 ### VEX exceptions (`deploy/docker/vex.json`)
 

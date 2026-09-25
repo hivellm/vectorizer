@@ -6,10 +6,12 @@ This guide explains how to configure your Docker Hub repository with README and 
 > GitHub Container Registry — `ghcr.io/hivellm/vectorizer:<version>`, public,
 > no pull secret — by the manual *Publish Docker images* workflow, using only
 > the workflow's `GITHUB_TOKEN`. The workflow no longer pushes to Docker Hub
-> (`hivehub/vectorizer`); the `-fastembed` variant, whose runtime is a Docker
-> Hardened Images base, is built only with `include_fastembed: true` and valid
-> Docker Hub credentials for `dhi.io`; this
-> guide only matters if you maintain that mirror.
+> (`hivehub/vectorizer`). Since 3.8.2 the `-fastembed` variant (built with
+> `include_fastembed: true`, the default) publishes the same way: its runtime
+> moved off the Docker Hardened Images base to public
+> `gcr.io/distroless/cc-debian13:nonroot`, so neither variant needs a Docker
+> Hub account or `dhi.io` credentials anymore; this guide only matters if you
+> maintain the Docker Hub mirror.
 
 ## 📝 Adding README to Docker Hub
 

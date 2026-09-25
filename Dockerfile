@@ -132,7 +132,7 @@
 # `FROM` at the end of the file, and a global ARG must precede the first FROM.
 #
 #   static (default) — `scratch`. Zero OS packages, so zero OS-package CVEs.
-#   glibc            — DHI Debian base. Required by the `-fastembed` variant,
+#   glibc            — distroless cc (Debian 13). Required by the `-fastembed` variant,
 #                      whose ONNX Runtime links libstdc++ dynamically and so
 #                      cannot be a static binary.
 ARG RUNTIME_VARIANT=static
@@ -146,7 +146,7 @@ FROM --platform=${BUILDPLATFORM:-linux/amd64} tonistiigi/xx AS xx
 # - sysinfo@0.39.x (the default-features dep that backs
 #   GET /metrics/runtime) requires rustc 1.95.
 # - Edition 2024 (every workspace crate) requires rustc 1.85+.
-# - The runtime stage is `dhi.io/debian-base:trixie` (glibc 2.40 too)
+# - The glibc runtime stage is `gcr.io/distroless/cc-debian13` (Debian 13 too)
 #   — aligning the builder and runtime libc avoids
 #   `undefined symbol: __isoc23_strtol` / `__isoc23_strtoull` link
 #   errors when the prebuilt ORT static library (pulled by the
@@ -337,9 +337,12 @@ RUN mkdir -p /vectorizer/data /data && chown -R 65532:65532 /vectorizer /data
 # When the operator builds with `--build-arg ENABLE_FASTEMBED=1`, this
 # stage downloads one dense model at image-build time so the first
 # container boot does not need a network round-trip to Hugging Face.
-# The runtime stage copies the result into `/data/fastembed/`, the cache
-# dir the server hands fastembed
-# (`vectorizer_core::paths::data_dir().join("fastembed")`).
+# The runtime stage copies the result into `/vectorizer/models/fastembed/`
+# and points `VECTORIZER_FASTEMBED_CACHE_DIR` at it
+# (`vectorizer_core::paths::fastembed_cache_dir()`). It lives outside `/data`
+# on purpose: a volume mounted over `/data` (every Kubernetes deployment)
+# would hide a model baked there and force a download on each pod's first
+# boot.
 #
 # fastembed resolves models through `hf-hub`, whose cache lookup only
 # finds `models--<org>--<name>/refs/main` (holding a commit sha) plus
@@ -592,38 +595,28 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 ENTRYPOINT ["/vectorizer/vectorizer"]
 
 # ============================================================================
-# RUNTIME IMAGE - Docker Hardened Image (DHI) — Debian 13 base
+# RUNTIME IMAGE - glibc (distroless cc, Debian 13) — the `-fastembed` variant
 # ============================================================================
-# `dhi.io/debian-base:trixie` is Docker's hardened minimal Debian 13 runtime:
-#   - full glibc + libssl/libcrypto + ca-certificates (our Rust binary
-#     dynamically links `libssl.so.3` via indirect reqwest deps even with
-#     rustls on — the Docker `static` variant is too thin and crashes with
-#     `error while loading shared libraries: libssl.so.3`);
-#   - no package manager baked into the runtime image (`package-manager=""`),
-#     bash is included purely so docker exec / Kubernetes liveness probes
-#     can shell in when debugging;
-#   - runs as `nonroot` (UID 65532, same as Google's distroless so the
-#     existing `--chown=65532:65532` lines and compose `user: root` override
-#     stay untouched);
-#   - Docker-signed + Scout-approved by default (flips Scout "Approved Base
-#     Images" and "Up-to-Date Base Images" from Unknown → Compliant);
-#   - rebuilt weekly, Debian 13 (trixie) base carries fewer transitive CVEs
-#     than the Debian 12 bookworm base gcr.io/distroless is on;
-#   - CIS-compliant, end-of-life 2028-08-09.
-# Pull requires `docker login dhi.io` with Docker Hub credentials; CI does
-# the same before `docker buildx build --push`.
+# fastembed's ONNX Runtime links libstdc++ dynamically and references glibc
+# 2.38+ symbols, so that build cannot be static and cannot live in `scratch`.
+# `gcr.io/distroless/cc-debian13:nonroot` is the smallest public base that
+# carries what it needs:
+#   - glibc 2.41, libssl3, ca-certificates, tzdata, libgcc and libstdc++;
+#   - no shell and no package manager;
+#   - runs as `nonroot` (UID 65532), matching every `--chown=65532:65532`
+#     below and the static variant's user;
+#   - pulls anonymously, so CI publishes it with nothing but GITHUB_TOKEN.
+# It replaced `dhi.io/debian-base:trixie` in 3.8.2: that base needs a Docker
+# Hub login to pull, which kept the `-fastembed` variant unpublished.
 #
 # The base is pinned by digest so the image contents are a function of
 # the git commit, not the build date (spec: phase35 image-security).
 # Bump procedure: docs/development/docker-builds.md § "Base digest bump".
-# Pinned 2026-07-11 — carries openssl 3.5.6-1~deb13u2+dhi0 (fixes
-# CVE-2026-45447, CVE-2026-7383, CVE-2026-9076, CVE-2026-34180).
-# Kept for the `-fastembed` variant only. Its ONNX Runtime links libstdc++
-# dynamically, so that build cannot be static and cannot live in `scratch`.
-# It therefore still carries the base image's OS packages and their
-# advisories — a known, accepted difference between the two variants, not an
-# oversight. `latest` points at the static default.
-FROM dhi.io/debian-base:trixie@sha256:17dc256ec746f1168765cab1fc552418b60d09de8337d03ffa92cc529ed2ea7a AS vectorizer-glibc
+# Pinned 2026-09-25.
+# It still carries OS packages and their advisories — a known, accepted
+# difference from the static default, not an oversight. `latest` points at
+# the static default.
+FROM gcr.io/distroless/cc-debian13:nonroot@sha256:54df941ed0d06a1bd95ef5e0ce391fd8d9f94b64782dc9a60062727849ee3f97 AS vectorizer-glibc
 
 # Build metadata for supply chain attestation
 ARG BUILD_DATE
@@ -640,20 +633,17 @@ ARG GIT_COMMIT_ID
 # later copies don't implicitly recreate the parent as root.
 COPY --from=writable-dirs --chown=65532:65532 /vectorizer /vectorizer
 COPY --from=writable-dirs --chown=65532:65532 /data /data
-# phase33 §5.2 (#306): bring the optional FastEmbed model into
-# /data/fastembed so the resolver picks it up on first boot. When
-# ENABLE_FASTEMBED=0 (default) the source dir is just an empty
+# phase33 §5.2 (#306): bring the optional FastEmbed model into the image,
+# outside `/data` so a mounted volume cannot hide it (see the
+# fastembed-models stage). `VECTORIZER_FASTEMBED_CACHE_DIR` below points the
+# server at it. When ENABLE_FASTEMBED=0 the source dir is just an empty
 # `/models/fastembed` placeholder, so the COPY is a cheap no-op.
-COPY --from=fastembed-models --chown=65532:65532 /models/fastembed /data/fastembed
+COPY --from=fastembed-models --chown=65532:65532 /models/fastembed /vectorizer/models/fastembed
 # phase33 §5.2 (#306): libstdc++.so.6 is a hard runtime dep of the
 # ONNX Runtime that the `fastembed` Cargo feature dynamically links
-# against. The DHI base ships full glibc + libssl but not libstdc++,
-# so a fastembed-enabled binary boots with
-# `error while loading shared libraries: libstdc++.so.6` without
-# this copy. For the BM25-only default build the lib is unused but
-# costs ~2 MB on the image — cheaper than gating the COPY on an
-# ARG and risking the conditional drifting out of sync with the
-# Cargo features.
+# against. distroless `cc` ships a libstdc++ too; this copy pins the one
+# from the builder's own toolchain (same Debian 13 release) so the binary
+# runs against exactly the library it was linked with.
 #
 # Sourced from `/staging` (see the builder stage) so each architecture gets
 # its own library at its own multiarch path. The earlier form hardcoded
@@ -689,7 +679,8 @@ ENV TZ=Etc/UTC \
     VECTORIZER_HOST=0.0.0.0 \
     VECTORIZER_PORT=15002 \
     VECTORIZER_ADMIN_USERNAME=admin \
-    VECTORIZER_DATA_DIR=/data
+    VECTORIZER_DATA_DIR=/data \
+    VECTORIZER_FASTEMBED_CACHE_DIR=/vectorizer/models/fastembed
 
 # Ports: RPC (binary, recommended primary) listed first per
 # phase6_make-rpc-default-transport. REST (15002) stays exposed for the
@@ -708,7 +699,7 @@ LABEL org.opencontainers.image.version="${GIT_COMMIT_ID:-latest}"
 LABEL org.opencontainers.image.revision="${GIT_COMMIT_ID:-unknown}"
 LABEL org.opencontainers.image.created="${BUILD_DATE:-unknown}"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL org.opencontainers.image.base.name="dhi.io/debian-base:trixie"
+LABEL org.opencontainers.image.base.name="gcr.io/distroless/cc-debian13:nonroot"
 
 # Security labels
 LABEL security.scan.enabled="true"
@@ -730,7 +721,7 @@ ENTRYPOINT ["/vectorizer/vectorizer"]
 # RUNTIME SELECTOR
 # ============================================================================
 # `static` (default) -> scratch, zero OS packages.
-# `glibc`            -> DHI base, required by the fastembed/ONNX variant.
+# `glibc`            -> distroless cc base, required by the fastembed/ONNX variant.
 #
 # BuildKit only builds the stages the selected target depends on, so the
 # musl builder never runs for a glibc build and the xx builder never runs
