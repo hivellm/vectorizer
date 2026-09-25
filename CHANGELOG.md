@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.8.2] - 2026-09-25
+
+### Added
+
+- **`ghcr.io/hivellm/vectorizer:3.8.2-fastembed` is published**, with
+  `fastembed:multilingual-e5-small` baked in. Its glibc runtime moved from
+  the Docker Hardened Images base (`dhi.io`, needs a Docker Hub login) to
+  public `gcr.io/distroless/cc-debian13:nonroot`, pinned by digest: glibc,
+  libssl, libstdc++, no shell, UID 65532. The *Publish Docker images*
+  workflow builds it by default with nothing but `GITHUB_TOKEN`.
+- **`VECTORIZER_FASTEMBED_CACHE_DIR`** sets where fastembed looks up and
+  caches models (default `<data_dir>/fastembed`). The `-fastembed` image sets
+  it to `/vectorizer/models/fastembed`, outside `/data`: a volume mounted over
+  `/data` — every Kubernetes deployment — hid the model baked there, so each
+  pod downloaded it from Hugging Face on first boot.
+
+### Changed
+
+- **`POST /collections` (and RPC `collections.create`) without `dimension`
+  uses the provider's native width** instead of 512. A client that names only
+  the provider, or none, no longer has to know which model the server embeds
+  with; before, a server whose default was a 384-wide model rejected such
+  requests as a dimension mismatch. An explicit `dimension` is validated as
+  before.
+
 ## [3.8.1] - 2026-09-24
 
 Same server code as 3.8.0 — this release exists so the image can be published.

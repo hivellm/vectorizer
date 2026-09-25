@@ -3,12 +3,12 @@ replicaCount: 1
 
 image:
   # Public GHCR package: no pull secret needed. The -fastembed variant
-  # (dense/multilingual models) is not published for 3.8.x yet; build it
-  # from source (docs/deployment/HA_KUBERNETES_RUNBOOK.md §11).
+  # (dense/multilingual models) is published as the "<tag>-fastembed" image
+  # tag; see docs/deployment/HA_KUBERNETES_RUNBOOK.md §11.
   repository: ghcr.io/hivellm/vectorizer
   pullPolicy: IfNotPresent
   # Pin an exact version; an empty tag falls back to the chart appVersion.
-  tag: "3.8.1"
+  tag: "3.8.2"
 
 # Only needed for a private fork of the image.
 imagePullSecrets: []

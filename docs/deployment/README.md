@@ -22,9 +22,10 @@ Complete deployment guides for Vectorizer in various environments.
 
 ### Kubernetes
 
-Image: `ghcr.io/hivellm/vectorizer:3.8.1` (default, BM25), public — no pull
-secret needed. The `-fastembed` variant (dense/multilingual models) is not
-published for 3.8.x yet; see the HA runbook §11 to build it.
+Image: `ghcr.io/hivellm/vectorizer:3.8.2` (default, BM25), public — no pull
+secret needed. The `-fastembed` variant (dense/multilingual models) is
+published as `ghcr.io/hivellm/vectorizer:3.8.2-fastembed`; see the HA
+runbook §11 to configure it.
 
 ```bash
 # Single node (create the vectorizer-credentials Secret first — see KUBERNETES.md)

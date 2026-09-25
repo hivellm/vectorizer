@@ -282,3 +282,38 @@ async fn raw_vector_collections_still_refuse_text() {
     // Same width as the extra provider, yet it was never consulted.
     assert!(calls.lock().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn omitted_dimension_takes_the_providers_width() {
+    let (app, _store, _calls) = app_with_extra_provider().await;
+
+    // A client that names only the provider must not have to know its width:
+    // before 3.8.2 an omitted dimension meant 512 and was then rejected as a
+    // mismatch against any non-512 provider.
+    let (status, body) = app
+        .post_json(
+            "/collections",
+            json!({"name": "pt_auto", "embedding_provider": EXTRA}),
+        )
+        .await;
+    assert!(status.is_success(), "create: {status} {body}");
+    let (_, info) = app.get("/collections/pt_auto").await;
+    assert_eq!(info["dimension"], EXTRA_DIM, "{info}");
+
+    // No provider either: the server default (BM25) and its width.
+    let (status, body) = app
+        .post_json("/collections", json!({"name": "default_auto"}))
+        .await;
+    assert!(status.is_success(), "create: {status} {body}");
+    let (_, info) = app.get("/collections/default_auto").await;
+    assert_eq!(info["dimension"], 512, "{info}");
+
+    // An explicit width that disagrees is still refused.
+    let (status, body) = app
+        .post_json(
+            "/collections",
+            json!({"name": "pt_bad", "dimension": 512, "embedding_provider": EXTRA}),
+        )
+        .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+}

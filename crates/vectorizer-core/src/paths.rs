@@ -155,6 +155,25 @@ pub fn logs_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(".logs"))
 }
 
+/// Returns the directory fastembed caches (and looks up) ONNX models in.
+///
+/// Resolution order:
+/// 1. `$VECTORIZER_FASTEMBED_CACHE_DIR` if set and non-empty.
+/// 2. `data_dir().join("fastembed")`.
+///
+/// The override lets an image ship models outside the data dir: in
+/// Kubernetes the volume mounted over `/data` hides anything baked there,
+/// so every pod would otherwise download its models on first boot.
+#[must_use]
+pub fn fastembed_cache_dir() -> PathBuf {
+    if let Ok(override_path) = std::env::var("VECTORIZER_FASTEMBED_CACHE_DIR")
+        && !override_path.is_empty()
+    {
+        return PathBuf::from(override_path);
+    }
+    data_dir().join("fastembed")
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
@@ -196,6 +215,37 @@ mod tests {
             Some(v) => unsafe { std::env::set_var(key, v) },
             // SAFETY: see module-level comment.
             None => unsafe { std::env::remove_var(key) },
+        }
+    }
+
+    #[test]
+    fn fastembed_cache_dir_honours_env_override_else_follows_data_dir() {
+        let key = "VECTORIZER_FASTEMBED_CACHE_DIR";
+        let data_key = "VECTORIZER_DATA_DIR";
+        let prev = std::env::var(key).ok();
+        let prev_data = std::env::var(data_key).ok();
+        // SAFETY: see module-level comment.
+        unsafe { std::env::set_var(data_key, "/tmp/vectorizer-test-data") };
+
+        // SAFETY: see module-level comment.
+        unsafe { std::env::set_var(key, "/opt/models") };
+        assert_eq!(fastembed_cache_dir(), PathBuf::from("/opt/models"));
+
+        // SAFETY: see module-level comment.
+        unsafe { std::env::set_var(key, "") };
+        assert_eq!(
+            fastembed_cache_dir(),
+            PathBuf::from("/tmp/vectorizer-test-data/fastembed"),
+            "an empty override must fall back to the data dir"
+        );
+
+        for (k, v) in [(key, prev), (data_key, prev_data)] {
+            match v {
+                // SAFETY: see module-level comment.
+                Some(v) => unsafe { std::env::set_var(k, v) },
+                // SAFETY: see module-level comment.
+                None => unsafe { std::env::remove_var(k) },
+            }
         }
     }
 

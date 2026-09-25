@@ -50,8 +50,9 @@ impl FastEmbedProvider {
     ///
     /// `cache_dir` is the directory where fastembed should cache the
     /// downloaded ONNX weights + tokenizer files. Pass
-    /// `vectorizer_core::paths::data_dir().join("fastembed")` from the
-    /// server bootstrap so the cache lives next to `vectorizer.vecdb`.
+    /// `vectorizer_core::paths::fastembed_cache_dir()` from the
+    /// server bootstrap so the cache lives next to `vectorizer.vecdb` unless
+    /// `VECTORIZER_FASTEMBED_CACHE_DIR` points elsewhere.
     pub fn from_config(model_id: &str, cache_dir: PathBuf) -> Result<Self> {
         let model = parse_model_id(model_id)?;
         let dimension = model_dimension(&model);
