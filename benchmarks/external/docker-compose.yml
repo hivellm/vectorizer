@@ -93,7 +93,7 @@ services:
       retries: 60
 
   weaviate:
-    image: semitechnologies/weaviate:1.38.9
+    image: semitechnologies/weaviate:1.38.22
     <<: *bench-resources
     command:
       - --host
